@@ -9,9 +9,6 @@ pub use phrase::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnknownRole {
     Clause,
-    Subject,
-    Verb,
-    VerbDependent,
     NominalComplement,
     ActivationCost,
     KeywordArgument,
@@ -53,7 +50,10 @@ impl<'syntax> UnknownWalker<'syntax> {
                 self.paragraph(&activated.effect, context);
             }
             AbilityKind::Triggered(triggered) => {
-                self.simple_clause(&triggered.event, context);
+                self.trigger_event(&triggered.event, context);
+                if let Some(condition) = &triggered.intervening_condition {
+                    self.dependent_clause(condition, context);
+                }
                 self.paragraph(&triggered.effect, context);
             }
             AbilityKind::Loyalty(loyalty) => self.paragraph(&loyalty.effect, context),
@@ -64,7 +64,16 @@ impl<'syntax> UnknownWalker<'syntax> {
                     ModalFrame::Activated(cost) => {
                         self.cost(cost, Some(UnknownRole::ActivationCost));
                     }
-                    ModalFrame::Triggered { event, .. } => self.simple_clause(event, context),
+                    ModalFrame::Triggered {
+                        event,
+                        intervening_condition,
+                        ..
+                    } => {
+                        self.trigger_event(event, context);
+                        if let Some(condition) = intervening_condition {
+                            self.dependent_clause(condition, context);
+                        }
+                    }
                 }
                 self.paragraph(&modal.header, Some(UnknownRole::ModalHeader));
                 for mode in &modal.modes {
@@ -94,66 +103,234 @@ impl<'syntax> UnknownWalker<'syntax> {
 
     fn paragraph(&mut self, paragraph: &'syntax Paragraph, context: Option<UnknownRole>) {
         for sentence in &paragraph.sentences {
-            self.clause(&sentence.clause, context);
+            match &sentence.body {
+                SentenceBody::Independent(clause) => self.independent_clause(clause, context),
+                SentenceBody::Unknown(unknown) => {
+                    self.push(unknown, UnknownRole::Clause, context);
+                }
+            }
         }
     }
 
     fn clause(&mut self, clause: &'syntax Clause, context: Option<UnknownRole>) {
         match clause {
-            Clause::Simple(simple) => self.simple_clause(simple, context),
-            Clause::Elliptical(phrase) => {
-                self.phrase(phrase, UnknownRole::Clause, context);
+            Clause::Independent(clause) => self.independent_clause(clause, context),
+            Clause::Dependent(clause) => self.dependent_clause(clause, context),
+        }
+    }
+
+    fn trigger_event(&mut self, event: &'syntax TriggerEvent, context: Option<UnknownRole>) {
+        match event {
+            TriggerEvent::Clause(clause) => self.independent_clause(clause, context),
+            TriggerEvent::Temporal(noun_phrase) => self.noun_phrase(noun_phrase, context),
+        }
+    }
+
+    fn independent_clause(
+        &mut self,
+        clause: &'syntax IndependentClause,
+        context: Option<UnknownRole>,
+    ) {
+        match clause {
+            IndependentClause::Transitive(subject, predicate) => {
+                self.subject(subject, context);
+                self.transitive_predicate(predicate, context);
             }
-            Clause::Conditional(conditional) => {
-                self.clause(&conditional.condition, context);
-                self.clause(&conditional.consequence, context);
+            IndependentClause::Intransitive(subject, predicate) => {
+                self.subject(subject, context);
+                self.predicate_head(&predicate.head, context);
+                self.predicate_elements(&predicate.elements, context);
             }
-            Clause::Coordinated(coordinated) => {
-                self.clause(&coordinated.first, context);
+            IndependentClause::Copular(subject, predicate) => {
+                self.subject(subject, context);
+                self.copular_complement(&predicate.complement, context);
+                self.predicate_adjuncts(&predicate.adjuncts, context);
+            }
+            IndependentClause::Passive(subject, predicate) => {
+                self.subject(subject, context);
+                self.predicate_head(&predicate.head, context);
+                self.predicate_elements(&predicate.elements, context);
+            }
+            IndependentClause::Imperative(predicate) => self.predicate(predicate, context),
+            IndependentClause::Deontic(subject, _, predicate) => {
+                self.subject(subject, context);
+                self.predicate(predicate, context);
+            }
+            IndependentClause::Existential(existential) => {
+                self.noun_phrase(&existential.pivot, context);
+                self.predicate_adjuncts(&existential.adjuncts, context);
+            }
+            IndependentClause::Proform(subject, _) => self.subject(subject, context),
+            IndependentClause::Complex(complex) => {
+                self.independent_clause(&complex.matrix, context);
+                for attachment in &complex.attachments {
+                    self.dependent_clause(&attachment.clause, context);
+                }
+            }
+            IndependentClause::Coordinated(coordinated) => {
+                self.independent_clause(&coordinated.first, context);
                 for coordination in &coordinated.rest {
-                    self.clause(&coordination.clause, context);
+                    match &coordination.member {
+                        CoordinatedClauseMember::Independent(clause) => {
+                            self.independent_clause(clause, context);
+                        }
+                        CoordinatedClauseMember::SharedPredicate(predicate) => {
+                            self.predicate(predicate, context);
+                        }
+                    }
                 }
             }
-            Clause::Unknown(unknown) => self.push(unknown, UnknownRole::Clause, context),
         }
     }
 
-    fn simple_clause(&mut self, clause: &'syntax SimpleClause, context: Option<UnknownRole>) {
-        if let Some(subject) = &clause.subject {
-            match subject {
-                Subject::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase, context),
-                Subject::Unknown(unknown) => self.push(unknown, UnknownRole::Subject, context),
+    fn dependent_clause(&mut self, clause: &'syntax DependentClause, context: Option<UnknownRole>) {
+        match clause {
+            DependentClause::Subordinate(_, SubordinateBody::Finite(clause)) => {
+                self.independent_clause(clause, context);
+            }
+            DependentClause::Subordinate(
+                _,
+                SubordinateBody::Elliptical(EllipticalClause::Adjective(adjective)),
+            ) => self.adjective_phrase(adjective, UnknownRole::Clause, context),
+            DependentClause::Relative(relative) => self.relative_clause(relative, context),
+            DependentClause::Infinitive(infinitive) => {
+                self.predicate(&infinitive.predicate, context);
             }
         }
-        self.verb_phrase(&clause.predicate, context);
     }
 
-    fn verb_phrase(&mut self, phrase: &'syntax VerbPhrase, context: Option<UnknownRole>) {
-        if let crate::word::Verb::Unknown(unknown) = &phrase.verb.verb {
-            self.push(unknown, UnknownRole::Verb, context);
+    fn subject(&mut self, subject: &'syntax Subject, context: Option<UnknownRole>) {
+        self.noun_phrase(&subject.0, context);
+    }
+
+    fn predicate(&mut self, predicate: &'syntax Predicate, context: Option<UnknownRole>) {
+        match predicate {
+            Predicate::Transitive(predicate) => self.transitive_predicate(predicate, context),
+            Predicate::Intransitive(predicate) => {
+                self.predicate_head(&predicate.head, context);
+                self.predicate_elements(&predicate.elements, context);
+            }
+            Predicate::Copular(predicate) => {
+                self.copular_complement(&predicate.complement, context);
+                self.predicate_adjuncts(&predicate.adjuncts, context);
+            }
+            Predicate::Passive(predicate) => {
+                self.predicate_head(&predicate.head, context);
+                self.predicate_elements(&predicate.elements, context);
+            }
+            Predicate::Proform(_) => {}
         }
-        for dependent in &phrase.dependents {
-            match dependent {
-                VerbDependent::DirectObject(noun_phrase)
-                | VerbDependent::IndirectObject(noun_phrase) => {
-                    self.noun_phrase(noun_phrase, context);
+    }
+
+    fn transitive_predicate(
+        &mut self,
+        predicate: &'syntax TransitivePredicate,
+        context: Option<UnknownRole>,
+    ) {
+        self.predicate_head(&predicate.head, context);
+        self.predicate_object(&predicate.object, context);
+        self.predicate_elements(&predicate.elements, context);
+    }
+
+    fn predicate_head(&mut self, head: &'syntax PredicateHead, context: Option<UnknownRole>) {
+        let _ = (head, context);
+    }
+
+    fn predicate_object(&mut self, object: &'syntax PredicateObject, context: Option<UnknownRole>) {
+        match object {
+            PredicateObject::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase, context),
+            PredicateObject::EmbeddedAbility(ability) => self.ability(ability, context),
+            PredicateObject::QuotedAbility(quoted) => {
+                self.ability(&quoted.ability, Some(UnknownRole::EmbeddedRules));
+            }
+            PredicateObject::Ability(ability) => {
+                if let Some(argument) = &ability.argument {
+                    self.predicate_object(argument, context);
                 }
-                VerbDependent::PredicateComplement(phrase)
-                | VerbDependent::Scalar(phrase)
-                | VerbDependent::Statistic(phrase)
-                | VerbDependent::Adverbial(phrase) => {
-                    self.phrase(phrase, UnknownRole::VerbDependent, context);
-                }
-                VerbDependent::Prepositional(preposition) => {
-                    self.prepositional_phrase(preposition, UnknownRole::VerbDependent, context);
-                }
-                VerbDependent::Infinitive(infinitive) => {
-                    self.verb_phrase(&infinitive.predicate, context);
-                }
-                VerbDependent::Subordinate(clause) => self.clause(clause, context),
-                VerbDependent::Unknown(unknown) => {
-                    self.push(unknown, UnknownRole::VerbDependent, context);
-                }
+            }
+            PredicateObject::Quantity(_)
+            | PredicateObject::OracleSymbol(_)
+            | PredicateObject::PowerToughness(_) => {}
+        }
+    }
+
+    fn predicate_elements(
+        &mut self,
+        elements: &'syntax [PredicateElement],
+        context: Option<UnknownRole>,
+    ) {
+        for element in elements {
+            match element {
+                PredicateElement::Complement(complement) => match complement {
+                    PredicateComplement::IndirectObject(noun_phrase) => {
+                        self.noun_phrase(noun_phrase, context);
+                    }
+                    PredicateComplement::Adjective(adjective) => {
+                        self.adjective_phrase(adjective, UnknownRole::Clause, context);
+                    }
+                    PredicateComplement::Prepositional(preposition) => {
+                        self.prepositional_phrase(preposition, UnknownRole::Clause, context)
+                    }
+                    PredicateComplement::Infinitive(infinitive) => {
+                        self.predicate(&infinitive.predicate, context);
+                    }
+                },
+                PredicateElement::Adjunct(adjunct) => self.predicate_adjunct(adjunct, context),
+            }
+        }
+    }
+
+    fn predicate_adjuncts(
+        &mut self,
+        adjuncts: &'syntax [PredicateAdjunct],
+        context: Option<UnknownRole>,
+    ) {
+        for adjunct in adjuncts {
+            self.predicate_adjunct(adjunct, context);
+        }
+    }
+
+    fn predicate_adjunct(
+        &mut self,
+        adjunct: &'syntax PredicateAdjunct,
+        context: Option<UnknownRole>,
+    ) {
+        match adjunct {
+            PredicateAdjunct::Temporal(noun_phrase) => self.noun_phrase(noun_phrase, context),
+            PredicateAdjunct::Prepositional(preposition) => {
+                self.prepositional_phrase(preposition, UnknownRole::Clause, context);
+            }
+            PredicateAdjunct::Dependent(dependent) => {
+                self.dependent_clause(dependent, context);
+            }
+            PredicateAdjunct::Adverb(_) => {}
+        }
+    }
+
+    fn copular_complement(
+        &mut self,
+        complement: &'syntax CopularComplement,
+        context: Option<UnknownRole>,
+    ) {
+        match complement {
+            CopularComplement::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase, context),
+            CopularComplement::Adjective(adjective) => {
+                self.adjective_phrase(adjective, UnknownRole::Clause, context);
+            }
+            CopularComplement::Prepositional(preposition) => {
+                self.prepositional_phrase(preposition, UnknownRole::Clause, context)
+            }
+            CopularComplement::CatalogAtom(_) => {}
+        }
+    }
+
+    fn relative_clause(&mut self, relative: &'syntax RelativeClause, context: Option<UnknownRole>) {
+        match &relative.body {
+            RelativeBody::SubjectGap(predicate) => self.predicate(predicate, context),
+            RelativeBody::ObjectGap { subject, predicate } => {
+                self.subject(subject, context);
+                self.predicate_head(&predicate.head, context);
+                self.predicate_elements(&predicate.elements, context);
             }
         }
     }
@@ -183,7 +360,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                         NominalModifier::Unknown(unknown) => {
                             self.push(unknown, UnknownRole::NominalComplement, context);
                         }
-                        NominalModifier::Noun(_) => {}
+                        NominalModifier::Noun(_) | NominalModifier::PowerToughness(_) => {}
                     }
                 }
                 for complement in &nominal.complements {
@@ -196,7 +373,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                             );
                         }
                         NominalComplement::Relative(relative) => {
-                            self.clause(&relative.clause, context);
+                            self.relative_clause(relative, context);
                         }
                         NominalComplement::Unknown(unknown) => {
                             self.push(unknown, UnknownRole::NominalComplement, context);
@@ -226,7 +403,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                     self.prepositional_phrase(preposition, role, context);
                 }
                 AdjectiveComplement::Infinitive(infinitive) => {
-                    self.verb_phrase(&infinitive.predicate, context);
+                    self.predicate(&infinitive.predicate, context);
                 }
                 AdjectiveComplement::Unknown(unknown) => self.push(unknown, role, context),
             }
@@ -352,20 +529,16 @@ mod tests {
 
         let oracle_text = OracleText {
             abilities: vec![
-                paragraph(Clause::Unknown(unknown("clause"))),
-                paragraph(Clause::Simple(SimpleClause {
-                    subject: Some(Subject::Unknown(unknown("subject"))),
-                    predicate: predicate(vec![VerbDependent::Unknown(unknown("dependent"))]),
-                })),
-                paragraph(Clause::Simple(SimpleClause {
-                    subject: Some(Subject::NounPhrase(NounPhrase::Nominal(NominalPhrase {
+                paragraph_unknown("clause"),
+                paragraph(IndependentClause::Intransitive(
+                    Subject(NounPhrase::Nominal(NominalPhrase {
                         determiner: None,
                         modifiers: vec![],
                         head: NounInstance::Singular(Noun::Word(Vocab::Card)),
                         complements: vec![NominalComplement::Unknown(unknown("nominal"))],
-                    }))),
-                    predicate: predicate(vec![]),
-                })),
+                    })),
+                    intransitive(Vocab::Draw),
+                )),
                 Ability {
                     ability_word: None,
                     kind: AbilityKind::Activated(ActivatedAbility {
@@ -390,20 +563,21 @@ mod tests {
                     ability_word: None,
                     kind: AbilityKind::Modal(ModalAbility {
                         frame: ModalFrame::Unframed,
-                        header: paragraph_body(Clause::Unknown(unknown("header"))),
+                        header: paragraph_body(SentenceBody::Unknown(unknown("header"))),
                         header_suffix: ModalHeaderSuffix::None,
                         modes: vec![],
                     }),
                 },
-                paragraph(Clause::Simple(SimpleClause {
-                    subject: None,
-                    predicate: predicate(vec![VerbDependent::PredicateComplement(
-                        Phrase::QuotedAbility(Box::new(QuotedAbility {
-                            ability: Box::new(paragraph(Clause::Unknown(unknown("embedded")))),
+                paragraph(IndependentClause::Imperative(Predicate::Transitive(
+                    TransitivePredicate {
+                        head: predicate_head(Vocab::Draw),
+                        object: PredicateObject::QuotedAbility(Box::new(QuotedAbility {
+                            ability: Box::new(paragraph_unknown("embedded")),
                             closed: true,
                         })),
-                    )]),
-                })),
+                        elements: vec![],
+                    },
+                ))),
             ],
         };
 
@@ -413,14 +587,6 @@ mod tests {
                 UnknownPhraseRef {
                     role: UnknownRole::Clause,
                     text: "clause"
-                },
-                UnknownPhraseRef {
-                    role: UnknownRole::Subject,
-                    text: "subject"
-                },
-                UnknownPhraseRef {
-                    role: UnknownRole::VerbDependent,
-                    text: "dependent"
                 },
                 UnknownPhraseRef {
                     role: UnknownRole::NominalComplement,
@@ -447,12 +613,12 @@ mod tests {
     }
 
     #[test]
-    fn unknown_walker_includes_unknown_verbs() {
+    fn unknown_walker_reports_unsupported_predicates_at_sentence_scope() {
         let ast = crate::parse("You frobnitz a card.").into_ast();
 
         assert!(ast.unknown_phrases().contains(&UnknownPhraseRef {
-            role: UnknownRole::Verb,
-            text: "frobnitz",
+            role: UnknownRole::Clause,
+            text: "You frobnitz a card",
         }));
     }
 
@@ -460,29 +626,42 @@ mod tests {
         UnknownPhrase(text.to_owned())
     }
 
-    fn predicate(dependents: Vec<VerbDependent>) -> VerbPhrase {
-        VerbPhrase {
+    fn predicate_head(vocab: Vocab) -> PredicateHead {
+        PredicateHead {
             auxiliaries: vec![],
             preverb_modifiers: vec![],
             verb: VerbInstance {
-                verb: Verb::Word(Vocab::Draw),
+                verb: Verb::Word(vocab),
                 slot: VerbSlot::Imperative,
             },
-            dependents,
         }
     }
 
-    fn paragraph(clause: Clause) -> Ability {
+    fn intransitive(vocab: Vocab) -> IntransitivePredicate {
+        IntransitivePredicate {
+            head: predicate_head(vocab),
+            elements: vec![],
+        }
+    }
+
+    fn paragraph(clause: IndependentClause) -> Ability {
         Ability {
             ability_word: None,
-            kind: AbilityKind::Paragraph(paragraph_body(clause)),
+            kind: AbilityKind::Paragraph(paragraph_body(SentenceBody::Independent(clause))),
         }
     }
 
-    fn paragraph_body(clause: Clause) -> Paragraph {
+    fn paragraph_unknown(text: &str) -> Ability {
+        Ability {
+            ability_word: None,
+            kind: AbilityKind::Paragraph(paragraph_body(SentenceBody::Unknown(unknown(text)))),
+        }
+    }
+
+    fn paragraph_body(body: SentenceBody) -> Paragraph {
         Paragraph {
             sentences: vec![Sentence {
-                clause,
+                body,
                 ending: SentenceEnding::Period(1),
             }],
         }

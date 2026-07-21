@@ -1,7 +1,9 @@
 use deckmaste_english::Catalogs;
 use deckmaste_english::parse_with_catalogs;
 use deckmaste_english::syntax::AbilityKind;
-use deckmaste_english::syntax::Clause;
+use deckmaste_english::syntax::IndependentClause;
+use deckmaste_english::syntax::Predicate;
+use deckmaste_english::syntax::SentenceBody;
 
 #[test]
 fn public_parser_returns_a_source_independent_grammar_tree() {
@@ -12,7 +14,12 @@ fn public_parser_returns_a_source_independent_grammar_tree() {
     assert!(matches!(
         report.ast().abilities[0].kind,
         AbilityKind::Paragraph(ref paragraph)
-            if matches!(paragraph.sentences[0].clause, Clause::Simple(_))
+            if matches!(
+                paragraph.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Imperative(
+                    Predicate::Transitive(_)
+                ))
+            )
     ));
 
     let ast = report.into_ast();

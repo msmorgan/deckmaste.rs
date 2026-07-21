@@ -89,7 +89,7 @@ impl Quantity {
     pub const fn noun_cardinality(self) -> NounCardinality {
         match self {
             Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
-                NounCardinality::SingularCount
+                NounCardinality::SingularOrMass
             }
             Self::Exact(_) | Self::UpTo(_) | Self::ThatMany => NounCardinality::PluralCount,
             Self::ThatMuch => NounCardinality::Mass,
@@ -124,7 +124,16 @@ impl Determiner {
             Self::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
                 NounCardinality::PluralCount
             }
-            Self::Target(Some(quantity)) | Self::Quantity(quantity) => quantity.noun_cardinality(),
+            Self::Target(Some(Quantity::Exact(number) | Quantity::UpTo(number)))
+                if number.value == 1 =>
+            {
+                NounCardinality::SingularCount
+            }
+            Self::Target(Some(Quantity::Exact(_) | Quantity::UpTo(_) | Quantity::ThatMany)) => {
+                NounCardinality::PluralCount
+            }
+            Self::Target(Some(Quantity::ThatMuch)) => NounCardinality::Mass,
+            Self::Quantity(quantity) => quantity.noun_cardinality(),
             Self::All => NounCardinality::PluralOrMass,
             Self::The | Self::Possessive(_) => NounCardinality::Unconstrained,
         }
@@ -154,6 +163,7 @@ pub enum Possessor {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NounCardinality {
     SingularCount,
+    SingularOrMass,
     PluralCount,
     Mass,
     PluralOrMass,
@@ -198,6 +208,7 @@ pub struct NominalPhrase {
 pub enum NominalModifier {
     Adjective(AdjectivePhrase),
     Noun(NounInstance),
+    PowerToughness(PowerToughness),
     Unknown(UnknownPhrase),
 }
 

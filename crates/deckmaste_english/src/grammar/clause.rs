@@ -1,11 +1,29 @@
 use super::*;
+use crate::syntax::AbilityObject;
+use crate::syntax::AttachmentPosition;
 use crate::syntax::ClauseCoordination;
-use crate::syntax::ConditionalClause;
-use crate::syntax::ConditionalPosition;
-use crate::syntax::CoordinatedClause;
+use crate::syntax::ComplexClause;
+use crate::syntax::CoordinatedClauseMember;
+use crate::syntax::CoordinatedIndependentClause;
+use crate::syntax::DependentAttachment;
+use crate::syntax::DependentClause;
+use crate::syntax::EllipticalClause;
+use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveMarker;
+use crate::syntax::Modal;
+use crate::syntax::ObjectGapPredicate;
+use crate::syntax::PassivePredicate;
+use crate::syntax::Predicate;
+use crate::syntax::PredicateAdjunct;
+use crate::syntax::PredicateComplement;
+use crate::syntax::PredicateElement;
+use crate::syntax::PredicateHead;
+use crate::syntax::PredicateObject;
+use crate::syntax::RelativeBody;
+use crate::syntax::RelativeMarker;
+use crate::syntax::SentenceBody;
 use crate::syntax::SentenceEnding;
-use crate::syntax::VerbDependent;
+use crate::syntax::SubordinateBody;
 
 pub(super) fn add_rules(builder: &mut RuleBuilder) {
     use EnglishLexicalSlot as L;
@@ -89,6 +107,41 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
     );
     builder.add(RuleTag::ClauseSimple, N::Clause, [n(N::SimpleClause)]);
     builder.add(
+        RuleTag::ClauseExistential,
+        N::Clause,
+        [l(L::Existential), n(N::NounPhrase)],
+    );
+    builder.add(
+        RuleTag::ClauseCopularNoun,
+        N::Clause,
+        [n(N::NounPhrase), l(L::Copula), n(N::NounPhrase)],
+    );
+    builder.add(
+        RuleTag::ClauseCopularAdjective,
+        N::Clause,
+        [n(N::NounPhrase), l(L::Copula), n(N::AdjectivePhrase)],
+    );
+    builder.add(
+        RuleTag::ClauseCopularPrepositional,
+        N::Clause,
+        [n(N::NounPhrase), l(L::Copula), n(N::PrepositionalPhrase)],
+    );
+    builder.add(
+        RuleTag::ClauseContractedCopularNoun,
+        N::Clause,
+        [l(L::SubjectCopula), n(N::NounPhrase)],
+    );
+    builder.add(
+        RuleTag::ClauseContractedCopularAdjective,
+        N::Clause,
+        [l(L::SubjectCopula), n(N::AdjectivePhrase)],
+    );
+    builder.add(
+        RuleTag::ClauseContractedCopularPrepositional,
+        N::Clause,
+        [l(L::SubjectCopula), n(N::PrepositionalPhrase)],
+    );
+    builder.add(
         RuleTag::ClauseElliptical,
         N::Clause,
         [n(N::AdjectivePhrase)],
@@ -156,7 +209,6 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
 pub(super) fn reduce_clause(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
-    shape: u64,
 ) -> Option<Reduced> {
     match tag {
         RuleTag::Verb
@@ -171,12 +223,19 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
-        | RuleTag::InfinitiveTo => reduce_predicate(tag, children, shape),
+        | RuleTag::InfinitiveTo => reduce_predicate(tag, children),
         RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseSubjectless
         | RuleTag::ClauseSimple
         | RuleTag::ClauseElliptical
-        | RuleTag::RelativeObject => reduce_simple_clause(tag, children, shape),
+        | RuleTag::ClauseExistential
+        | RuleTag::ClauseCopularNoun
+        | RuleTag::ClauseCopularAdjective
+        | RuleTag::ClauseCopularPrepositional
+        | RuleTag::ClauseContractedCopularNoun
+        | RuleTag::ClauseContractedCopularAdjective
+        | RuleTag::ClauseContractedCopularPrepositional
+        | RuleTag::RelativeObject => reduce_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseConditionalBefore
@@ -186,7 +245,7 @@ pub(super) fn reduce_clause(
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
-        | RuleTag::SentenceNone => reduce_composed_clause(tag, children, shape),
+        | RuleTag::SentenceNone => reduce_composed_clause(tag, children),
         _ => None,
     }
 }
@@ -194,7 +253,6 @@ pub(super) fn reduce_clause(
 fn reduce_predicate(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
-    shape: u64,
 ) -> Option<Reduced> {
     match tag {
         RuleTag::Verb => Some(propagate(children.first()?)),
@@ -206,10 +264,11 @@ fn reduce_predicate(
             Some((
                 Features::VerbPhrase {
                     form,
-                    has_direct_object: false,
-                    trailing_recovery: false,
+                    object: PredicateObjectState::None,
                 },
-                MeaningKey::VerbPhrase { form, shape },
+                MeaningKey::VerbPhrase(VerbPhraseMeaning::Head {
+                    verb: children.first()?.node,
+                }),
             ))
         }
         RuleTag::VerbPhraseAuxiliary => {
@@ -218,8 +277,7 @@ fn reduce_predicate(
             };
             let Features::VerbPhrase {
                 form: child_form,
-                has_direct_object,
-                trailing_recovery,
+                object,
             } = children.get(1)?.features
             else {
                 return None;
@@ -228,10 +286,12 @@ fn reduce_predicate(
             Some((
                 Features::VerbPhrase {
                     form,
-                    has_direct_object: *has_direct_object,
-                    trailing_recovery: *trailing_recovery,
+                    object: *object,
                 },
-                MeaningKey::VerbPhrase { form, shape },
+                MeaningKey::VerbPhrase(VerbPhraseMeaning::Auxiliary {
+                    auxiliary: children.first()?.node,
+                    predicate: children.get(1)?.node,
+                }),
             ))
         }
         RuleTag::VerbPhraseDirectObject => {
@@ -241,7 +301,14 @@ fn reduce_predicate(
             if *pronoun_case == Some(PronounCase::Subject) {
                 return None;
             }
-            extend_predicate(children.first()?, shape, true)
+            extend_predicate(
+                children.first()?,
+                ObjectAttachment::Direct,
+                VerbPhraseMeaning::DirectObject {
+                    predicate: children.first()?.node,
+                    object: children.get(1)?.node,
+                },
+            )
         }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
@@ -250,7 +317,52 @@ fn reduce_predicate(
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
-        | RuleTag::VerbPhraseQuantity => extend_predicate(children.first()?, shape, false),
+        | RuleTag::VerbPhraseQuantity => {
+            let meaning = match tag {
+                RuleTag::VerbPhraseAdjective => VerbPhraseMeaning::Adjective {
+                    predicate: children.first()?.node,
+                    adjective: children.get(1)?.node,
+                },
+                RuleTag::VerbPhrasePrepositional => VerbPhraseMeaning::Prepositional {
+                    predicate: children.first()?.node,
+                    phrase: children.get(1)?.node,
+                },
+                RuleTag::VerbPhraseInfinitive => VerbPhraseMeaning::Infinitive {
+                    predicate: children.first()?.node,
+                    clause: children.get(1)?.node,
+                },
+                RuleTag::VerbPhraseAdverb => VerbPhraseMeaning::Adverb {
+                    predicate: children.first()?.node,
+                    adverb: children.get(1)?.node,
+                },
+                RuleTag::VerbPhraseAbility => VerbPhraseMeaning::Ability {
+                    predicate: children.first()?.node,
+                    ability: children.get(1)?.node,
+                },
+                RuleTag::VerbPhraseOracleSymbol => VerbPhraseMeaning::OracleSymbol {
+                    predicate: children.first()?.node,
+                    symbol: children.get(1)?.node,
+                },
+                RuleTag::VerbPhrasePowerToughness => VerbPhraseMeaning::PowerToughness {
+                    predicate: children.first()?.node,
+                    value: children.get(1)?.node,
+                },
+                RuleTag::VerbPhraseQuantity => VerbPhraseMeaning::Quantity {
+                    predicate: children.first()?.node,
+                    quantity: children.get(1)?.node,
+                },
+                _ => return None,
+            };
+            let attachment = match tag {
+                RuleTag::VerbPhraseAbility => ObjectAttachment::Ability,
+                RuleTag::VerbPhraseOracleSymbol | RuleTag::VerbPhrasePowerToughness => {
+                    ObjectAttachment::Direct
+                }
+                RuleTag::VerbPhraseQuantity => ObjectAttachment::DirectOrAbilityArgument,
+                _ => ObjectAttachment::None,
+            };
+            extend_predicate(children.first()?, attachment, meaning)
+        }
         RuleTag::InfinitiveTo => {
             let Features::VerbPhrase {
                 form: PredicateForm::Infinitive,
@@ -261,7 +373,10 @@ fn reduce_predicate(
             };
             Some((
                 Features::InfinitiveClause,
-                MeaningKey::InfinitiveClause { shape },
+                MeaningKey::InfinitiveClause(InfinitiveClauseMeaning::To {
+                    marker: children.first()?.node,
+                    predicate: children.get(1)?.node,
+                }),
             ))
         }
         _ => None,
@@ -270,34 +385,44 @@ fn reduce_predicate(
 
 fn extend_predicate(
     predicate: &Child<'_, EnglishGrammar<'_, '_>>,
-    shape: u64,
-    direct_object: bool,
+    attachment: ObjectAttachment,
+    meaning: VerbPhraseMeaning,
 ) -> Option<Reduced> {
-    let Features::VerbPhrase {
-        form,
-        has_direct_object,
-        ..
-    } = predicate.features
-    else {
+    let Features::VerbPhrase { form, object, .. } = predicate.features else {
         return None;
     };
-    if direct_object && *has_direct_object {
-        return None;
-    }
+    let object = match (attachment, *object) {
+        (ObjectAttachment::None, object) => object,
+        (ObjectAttachment::Direct, PredicateObjectState::None) => PredicateObjectState::Direct,
+        (ObjectAttachment::Ability, PredicateObjectState::None) => PredicateObjectState::Ability,
+        (ObjectAttachment::DirectOrAbilityArgument, PredicateObjectState::None) => {
+            PredicateObjectState::Direct
+        }
+        (ObjectAttachment::DirectOrAbilityArgument, PredicateObjectState::Ability) => {
+            PredicateObjectState::AbilityWithArgument
+        }
+        _ => return None,
+    };
     Some((
         Features::VerbPhrase {
             form: *form,
-            has_direct_object: *has_direct_object || direct_object,
-            trailing_recovery: false,
+            object,
         },
-        MeaningKey::VerbPhrase { form: *form, shape },
+        MeaningKey::VerbPhrase(meaning),
     ))
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ObjectAttachment {
+    None,
+    Direct,
+    Ability,
+    DirectOrAbilityArgument,
 }
 
 fn reduce_simple_clause(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
-    shape: u64,
 ) -> Option<Reduced> {
     match tag {
         RuleTag::SimpleClauseSubject => {
@@ -313,7 +438,7 @@ fn reduce_simple_clause(
             }
             let Features::VerbPhrase {
                 form: PredicateForm::Finite(predicate_agreement),
-                has_direct_object,
+                object,
                 ..
             } = children.get(1)?.features
             else {
@@ -326,17 +451,15 @@ fn reduce_simple_clause(
                 Some(*subject_agreement),
                 true,
                 true,
-                *has_direct_object,
-                shape,
+                object.has_direct_object(),
+                SimpleClauseMeaning::Subject {
+                    subject: children.first()?.node,
+                    predicate: children.get(1)?.node,
+                },
             ))
         }
         RuleTag::SimpleClauseSubjectless => {
-            let Features::VerbPhrase {
-                form,
-                has_direct_object,
-                ..
-            } = children.first()?.features
-            else {
+            let Features::VerbPhrase { form, object, .. } = children.first()?.features else {
                 return None;
             };
             match form {
@@ -344,15 +467,19 @@ fn reduce_simple_clause(
                     None,
                     false,
                     true,
-                    *has_direct_object,
-                    shape,
+                    object.has_direct_object(),
+                    SimpleClauseMeaning::Subjectless {
+                        predicate: children.first()?.node,
+                    },
                 )),
                 PredicateForm::Finite(agreement) => Some(simple_clause_reduction(
                     *agreement,
                     false,
                     false,
-                    *has_direct_object,
-                    shape,
+                    object.has_direct_object(),
+                    SimpleClauseMeaning::Subjectless {
+                        predicate: children.first()?.node,
+                    },
                 )),
                 PredicateForm::Infinitive
                 | PredicateForm::PresentParticiple
@@ -373,7 +500,9 @@ fn reduce_simple_clause(
                     agreement: *agreement,
                     standalone: *standalone,
                 },
-                MeaningKey::Clause { shape },
+                MeaningKey::Clause(ClauseMeaning::Simple {
+                    clause: children.first()?.node,
+                }),
             ))
         }
         RuleTag::ClauseElliptical => Some((
@@ -381,8 +510,47 @@ fn reduce_simple_clause(
                 agreement: None,
                 standalone: false,
             },
-            MeaningKey::Clause { shape },
+            MeaningKey::Clause(ClauseMeaning::Elliptical {
+                phrase: children.first()?.node,
+            }),
         )),
+        RuleTag::ClauseExistential => {
+            let MeaningKey::Existential(form) = children.first()?.meaning else {
+                return None;
+            };
+            let Features::NounPhrase {
+                agreement: Some(agreement),
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            let expected_number = match form {
+                ExistentialForm::Is | ExistentialForm::ContractedIs | ExistentialForm::Was => {
+                    Number::Singular
+                }
+                ExistentialForm::Are | ExistentialForm::Were => Number::Plural,
+            };
+            if agreement.number != expected_number {
+                return None;
+            }
+            Some((
+                Features::Clause {
+                    agreement: None,
+                    standalone: true,
+                },
+                MeaningKey::Clause(ClauseMeaning::Existential {
+                    form: children.first()?.node,
+                    pivot: children.get(1)?.node,
+                }),
+            ))
+        }
+        tag @ (RuleTag::ClauseCopularNoun
+        | RuleTag::ClauseCopularAdjective
+        | RuleTag::ClauseCopularPrepositional
+        | RuleTag::ClauseContractedCopularNoun
+        | RuleTag::ClauseContractedCopularAdjective
+        | RuleTag::ClauseContractedCopularPrepositional) => reduce_copular_clause(tag, children),
         RuleTag::RelativeObject => {
             let Features::SimpleClause {
                 has_subject: true,
@@ -395,14 +563,91 @@ fn reduce_simple_clause(
             };
             Some((
                 Features::RelativeClause(RelativeGap::Object),
-                MeaningKey::RelativeClause {
-                    gap: RelativeGap::Object,
-                    shape,
-                },
+                MeaningKey::RelativeClause(RelativeClauseMeaning::ObjectGap {
+                    clause: children.first()?.node,
+                }),
             ))
         }
         _ => None,
     }
+}
+
+fn reduce_copular_clause(
+    tag: RuleTag,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Option<Reduced> {
+    let contracted = matches!(
+        tag,
+        RuleTag::ClauseContractedCopularNoun
+            | RuleTag::ClauseContractedCopularAdjective
+            | RuleTag::ClauseContractedCopularPrepositional
+    );
+    let (subject, copula, complement, agreement) = if contracted {
+        let MeaningKey::SubjectCopula(subject_copula) = children.first()?.meaning else {
+            return None;
+        };
+        (
+            children.first()?.node,
+            None,
+            children.get(1)?.node,
+            copula_agreement(subject_copula.auxiliary)?,
+        )
+    } else {
+        let Features::NounPhrase {
+            agreement: Some(subject_agreement),
+            pronoun_case,
+        } = children.first()?.features
+        else {
+            return None;
+        };
+        if *pronoun_case == Some(PronounCase::Object) {
+            return None;
+        }
+        let MeaningKey::Auxiliary(auxiliary) = children.get(1)?.meaning else {
+            return None;
+        };
+        let copula_agreement = copula_agreement(*auxiliary)?;
+        if *subject_agreement != copula_agreement {
+            return None;
+        }
+        (
+            children.first()?.node,
+            Some(children.get(1)?.node),
+            children.get(2)?.node,
+            *subject_agreement,
+        )
+    };
+    let meaning = match tag {
+        RuleTag::ClauseCopularNoun | RuleTag::ClauseContractedCopularNoun => {
+            ClauseMeaning::CopularNoun {
+                subject,
+                copula,
+                complement,
+            }
+        }
+        RuleTag::ClauseCopularAdjective | RuleTag::ClauseContractedCopularAdjective => {
+            ClauseMeaning::CopularAdjective {
+                subject,
+                copula,
+                complement,
+            }
+        }
+        RuleTag::ClauseCopularPrepositional | RuleTag::ClauseContractedCopularPrepositional => {
+            ClauseMeaning::CopularPrepositional {
+                subject,
+                copula,
+                complement,
+            }
+        }
+        _ => return None,
+    };
+    Some((
+        Features::Clause {
+            agreement: Some(agreement),
+            standalone: true,
+        },
+        MeaningKey::Clause(meaning),
+    ))
 }
 
 fn simple_clause_reduction(
@@ -410,7 +655,7 @@ fn simple_clause_reduction(
     has_subject: bool,
     standalone: bool,
     has_direct_object: bool,
-    shape: u64,
+    meaning: SimpleClauseMeaning,
 ) -> Reduced {
     (
         Features::SimpleClause {
@@ -419,14 +664,13 @@ fn simple_clause_reduction(
             standalone,
             has_direct_object,
         },
-        MeaningKey::SimpleClause { shape },
+        MeaningKey::SimpleClause(meaning),
     )
 }
 
 fn reduce_composed_clause(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
-    shape: u64,
 ) -> Option<Reduced> {
     match tag {
         RuleTag::ClauseCoordination | RuleTag::ClauseCoordinationComma => {
@@ -455,12 +699,28 @@ fn reduce_composed_clause(
                     agreement: *first_agreement,
                     standalone: true,
                 },
-                MeaningKey::Clause { shape },
+                MeaningKey::Clause(ClauseMeaning::Coordinated {
+                    first: children.first()?.node,
+                    comma: (tag == RuleTag::ClauseCoordinationComma)
+                        .then(|| children.get(1).map(|child| child.node))
+                        .flatten(),
+                    conjunction: children
+                        .get(if tag == RuleTag::ClauseCoordination { 1 } else { 2 })?
+                        .node,
+                    next: children.last()?.node,
+                }),
             ))
         }
-        RuleTag::ClauseConditionalBefore => {
-            conditional_reduction(children.get(1)?, children.get(3)?, shape)
-        }
+        RuleTag::ClauseConditionalBefore => conditional_reduction(
+            children.get(1)?,
+            children.get(3)?,
+            ClauseMeaning::ConditionalBefore {
+                subordinator: children.first()?.node,
+                condition: children.get(1)?.node,
+                comma: children.get(2)?.node,
+                consequence: children.get(3)?.node,
+            },
+        ),
         RuleTag::ClauseConditionalAfterElliptical => {
             let consequence = children.first()?;
             let Features::Clause {
@@ -475,11 +735,23 @@ fn reduce_composed_clause(
                     agreement: *agreement,
                     standalone: true,
                 },
-                MeaningKey::Clause { shape },
+                MeaningKey::Clause(ClauseMeaning::ConditionalAfterElliptical {
+                    consequence: children.first()?.node,
+                    subordinator: children.get(1)?.node,
+                    condition: children.get(2)?.node,
+                }),
             ))
         }
         RuleTag::ClauseConditionalAfter | RuleTag::ClauseConditionalAfterIf => {
-            conditional_reduction(children.get(2)?, children.first()?, shape)
+            conditional_reduction(
+                children.get(2)?,
+                children.first()?,
+                ClauseMeaning::ConditionalAfter {
+                    consequence: children.first()?.node,
+                    subordinator: children.get(1)?.node,
+                    condition: children.get(2)?.node,
+                },
+            )
         }
         RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
@@ -491,7 +763,25 @@ fn reduce_composed_clause(
             else {
                 return None;
             };
-            Some((Features::Sentence, MeaningKey::Sentence { shape }))
+            let meaning = match tag {
+                RuleTag::SentencePeriod => SentenceMeaning::Period {
+                    clause: children.first()?.node,
+                    punctuation: children.get(1)?.node,
+                },
+                RuleTag::SentenceExclamation => SentenceMeaning::Exclamation {
+                    clause: children.first()?.node,
+                    punctuation: children.get(1)?.node,
+                },
+                RuleTag::SentenceQuestion => SentenceMeaning::Question {
+                    clause: children.first()?.node,
+                    punctuation: children.get(1)?.node,
+                },
+                RuleTag::SentenceNone => SentenceMeaning::Unpunctuated {
+                    clause: children.first()?.node,
+                },
+                _ => return None,
+            };
+            Some((Features::Sentence, MeaningKey::Sentence(meaning)))
         }
         _ => None,
     }
@@ -500,7 +790,7 @@ fn reduce_composed_clause(
 fn conditional_reduction(
     condition: &Child<'_, EnglishGrammar<'_, '_>>,
     consequence: &Child<'_, EnglishGrammar<'_, '_>>,
-    shape: u64,
+    meaning: ClauseMeaning,
 ) -> Option<Reduced> {
     let Features::Clause {
         standalone: true, ..
@@ -520,7 +810,7 @@ fn conditional_reduction(
             agreement: *agreement,
             standalone: true,
         },
-        MeaningKey::Clause { shape },
+        MeaningKey::Clause(meaning),
     ))
 }
 
@@ -613,6 +903,13 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::SimpleClauseSubjectless
         | RuleTag::ClauseSimple
         | RuleTag::ClauseElliptical
+        | RuleTag::ClauseExistential
+        | RuleTag::ClauseCopularNoun
+        | RuleTag::ClauseCopularAdjective
+        | RuleTag::ClauseCopularPrepositional
+        | RuleTag::ClauseContractedCopularNoun
+        | RuleTag::ClauseContractedCopularAdjective
+        | RuleTag::ClauseContractedCopularPrepositional
         | RuleTag::RelativeObject => lower_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
@@ -749,7 +1046,7 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                 return None;
             };
             Some(Lowered::SimpleClause(SimpleClause {
-                subject: Some(Subject::NounPhrase(subject)),
+                subject: Some(Subject(subject)),
                 predicate,
             }))
         }
@@ -766,27 +1063,125 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
             let Lowered::SimpleClause(simple) = take(children, 0)? else {
                 return None;
             };
-            Some(Lowered::Clause(Clause::Simple(simple)))
+            let independent = finish_simple_clause(simple)?;
+            Some(Lowered::Clause(Clause::Independent(independent)))
         }
         RuleTag::ClauseElliptical => {
             let Lowered::AdjectivePhrase(adjective) = take(children, 0)? else {
                 return None;
             };
-            Some(Lowered::Clause(Clause::Elliptical(
-                Phrase::AdjectivePhrase(Box::new(adjective)),
+            Some(Lowered::EllipticalClause(EllipticalClause::Adjective(
+                adjective,
             )))
         }
+        RuleTag::ClauseExistential => {
+            let Lowered::Existential(form) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::NounPhrase(pivot) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::Clause(Clause::Independent(
+                IndependentClause::Existential(crate::syntax::ExistentialClause {
+                    form,
+                    pivot,
+                    adjuncts: vec![],
+                }),
+            )))
+        }
+        tag @ (RuleTag::ClauseCopularNoun
+        | RuleTag::ClauseCopularAdjective
+        | RuleTag::ClauseCopularPrepositional
+        | RuleTag::ClauseContractedCopularNoun
+        | RuleTag::ClauseContractedCopularAdjective
+        | RuleTag::ClauseContractedCopularPrepositional) => lower_copular_clause(tag, children),
         RuleTag::RelativeObject => {
             let Lowered::SimpleClause(simple) = take(children, 0)? else {
                 return None;
             };
+            let subject = simple.subject?;
+            let FinishedPredicate { modal, predicate } = finish_predicate(simple.predicate)?;
+            if modal.is_some() {
+                return None;
+            }
+            let Predicate::Intransitive(predicate) = predicate else {
+                return None;
+            };
             Some(Lowered::RelativeClause(RelativeClause {
+                marker: RelativeMarker::Zero,
                 gap: RelativeGap::Object,
-                clause: Box::new(Clause::Simple(simple)),
+                body: RelativeBody::ObjectGap {
+                    subject,
+                    predicate: ObjectGapPredicate {
+                        head: predicate.head,
+                        elements: predicate.elements,
+                    },
+                },
             }))
         }
         _ => None,
     }
+}
+
+fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
+    let contracted = matches!(
+        tag,
+        RuleTag::ClauseContractedCopularNoun
+            | RuleTag::ClauseContractedCopularAdjective
+            | RuleTag::ClauseContractedCopularPrepositional
+    );
+    let (subject, copula, complement_index) = if contracted {
+        let Lowered::SubjectCopula(subject_copula) = take(children, 0)? else {
+            return None;
+        };
+        (subject_copula.subject, subject_copula.copula, 1)
+    } else {
+        let Lowered::NounPhrase(subject) = take(children, 0)? else {
+            return None;
+        };
+        let Lowered::Auxiliary(auxiliary) = take(children, 1)? else {
+            return None;
+        };
+        (
+            Subject(subject),
+            crate::syntax::Copula {
+                auxiliary,
+                contracted_with_subject: false,
+            },
+            2,
+        )
+    };
+    let complement = match tag {
+        RuleTag::ClauseCopularNoun | RuleTag::ClauseContractedCopularNoun => {
+            let Lowered::NounPhrase(complement) = take(children, complement_index)? else {
+                return None;
+            };
+            crate::syntax::CopularComplement::NounPhrase(complement)
+        }
+        RuleTag::ClauseCopularAdjective | RuleTag::ClauseContractedCopularAdjective => {
+            let Lowered::AdjectivePhrase(complement) = take(children, complement_index)? else {
+                return None;
+            };
+            crate::syntax::CopularComplement::Adjective(complement)
+        }
+        RuleTag::ClauseCopularPrepositional | RuleTag::ClauseContractedCopularPrepositional => {
+            let Lowered::PrepositionalPhrase(complement) = take(children, complement_index)? else {
+                return None;
+            };
+            crate::syntax::CopularComplement::Prepositional(complement)
+        }
+        _ => return None,
+    };
+    Some(Lowered::Clause(Clause::Independent(
+        IndependentClause::Copular(
+            subject,
+            crate::syntax::CopularPredicate {
+                copula,
+                complement,
+                adjuncts: Vec::new(),
+            },
+        ),
+    )))
 }
 
 fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
@@ -804,12 +1199,13 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
             let Lowered::Clause(consequence) = take(children, 3)? else {
                 return None;
             };
-            Some(conditional(
+            conditional(
                 subordinator,
-                ConditionalPosition::BeforeConsequence,
+                AttachmentPosition::BeforeMatrix,
+                true,
                 condition,
                 consequence,
-            ))
+            )
         }
         RuleTag::ClauseConditionalAfterElliptical => {
             let Lowered::Clause(consequence) = take(children, 0)? else {
@@ -818,15 +1214,16 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
             let Lowered::Subordinator(subordinator) = take(children, 1)? else {
                 return None;
             };
-            let Lowered::AdjectivePhrase(adjective) = take(children, 2)? else {
+            let Lowered::AdjectivePhrase(condition) = take(children, 2)? else {
                 return None;
             };
-            Some(conditional(
+            conditional_body(
                 subordinator,
-                ConditionalPosition::AfterConsequence,
-                Clause::Elliptical(Phrase::AdjectivePhrase(Box::new(adjective))),
+                AttachmentPosition::AfterMatrix,
+                false,
+                SubordinateBody::Elliptical(EllipticalClause::Adjective(condition)),
                 consequence,
-            ))
+            )
         }
         RuleTag::ClauseConditionalAfter | RuleTag::ClauseConditionalAfterIf => {
             let Lowered::Clause(consequence) = take(children, 0)? else {
@@ -838,22 +1235,23 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
             let Lowered::Clause(condition) = take(children, 2)? else {
                 return None;
             };
-            Some(conditional(
+            conditional(
                 subordinator,
-                ConditionalPosition::AfterConsequence,
+                AttachmentPosition::AfterMatrix,
+                false,
                 condition,
                 consequence,
-            ))
+            )
         }
         RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => {
-            let Lowered::Clause(clause) = take(children, 0)? else {
+            let Lowered::Clause(Clause::Independent(clause)) = take(children, 0)? else {
                 return None;
             };
             Some(Lowered::Sentence(Sentence {
-                clause,
+                body: SentenceBody::Independent(clause),
                 ending: sentence_ending(tag)?,
             }))
         }
@@ -862,7 +1260,7 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
 }
 
 fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    let Lowered::Clause(first) = take(children, 0)? else {
+    let Lowered::Clause(Clause::Independent(first)) = take(children, 0)? else {
         return None;
     };
     let (conjunction_index, clause_index, comma) = match tag {
@@ -876,36 +1274,280 @@ fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered>
     let Lowered::SimpleClause(next) = take(children, clause_index)? else {
         return None;
     };
+    let member = if next.subject.is_some() {
+        CoordinatedClauseMember::Independent(Box::new(finish_simple_clause(next)?))
+    } else {
+        let FinishedPredicate { modal, predicate } = finish_predicate(next.predicate)?;
+        if modal.is_some() {
+            return None;
+        }
+        CoordinatedClauseMember::SharedPredicate(predicate)
+    };
     let coordination = ClauseCoordination {
         conjunction,
         comma,
-        clause: Clause::Simple(next),
+        member,
     };
     let coordinated = match first {
-        Clause::Coordinated(mut coordinated) => {
+        IndependentClause::Coordinated(mut coordinated) => {
             coordinated.rest.push(coordination);
             coordinated
         }
-        first => CoordinatedClause {
+        first => CoordinatedIndependentClause {
             first: Box::new(first),
             rest: vec![coordination],
         },
     };
-    Some(Lowered::Clause(Clause::Coordinated(coordinated)))
+    Some(Lowered::Clause(Clause::Independent(
+        IndependentClause::Coordinated(coordinated),
+    )))
 }
 
 fn conditional(
     subordinator: crate::syntax::Subordinator,
-    position: ConditionalPosition,
+    position: AttachmentPosition,
+    comma: bool,
     condition: Clause,
     consequence: Clause,
-) -> Lowered {
-    Lowered::Clause(Clause::Conditional(ConditionalClause {
+) -> Option<Lowered> {
+    let Clause::Independent(condition) = condition else {
+        return None;
+    };
+    conditional_body(
         subordinator,
         position,
-        condition: Box::new(condition),
-        consequence: Box::new(consequence),
-    }))
+        comma,
+        SubordinateBody::Finite(Box::new(condition)),
+        consequence,
+    )
+}
+
+fn conditional_body(
+    subordinator: crate::syntax::Subordinator,
+    position: AttachmentPosition,
+    comma: bool,
+    body: SubordinateBody,
+    consequence: Clause,
+) -> Option<Lowered> {
+    let Clause::Independent(matrix) = consequence else {
+        return None;
+    };
+    Some(Lowered::Clause(Clause::Independent(
+        IndependentClause::Complex(ComplexClause {
+            matrix: Box::new(matrix),
+            attachments: vec![DependentAttachment {
+                position,
+                comma,
+                clause: DependentClause::Subordinate(subordinator, body),
+            }],
+        }),
+    )))
+}
+
+struct FinishedPredicate {
+    modal: Option<Modal>,
+    predicate: Predicate,
+}
+
+pub(super) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentClause> {
+    let imperative = simple.subject.is_none() && simple.predicate.verb.slot == VerbSlot::Imperative;
+    let subject = simple.subject;
+    let FinishedPredicate { modal, predicate } = finish_predicate(simple.predicate)?;
+    match (subject, modal, imperative) {
+        (None, None, true) => Some(IndependentClause::Imperative(predicate)),
+        (Some(subject), Some(modal), false) => {
+            Some(IndependentClause::Deontic(subject, modal, predicate))
+        }
+        (Some(subject), None, false) => independent_with_subject(subject, predicate),
+        _ => None,
+    }
+}
+
+fn independent_with_subject(subject: Subject, predicate: Predicate) -> Option<IndependentClause> {
+    Some(match predicate {
+        Predicate::Transitive(predicate) => IndependentClause::Transitive(subject, predicate),
+        Predicate::Intransitive(predicate) => IndependentClause::Intransitive(subject, predicate),
+        Predicate::Copular(predicate) => IndependentClause::Copular(subject, predicate),
+        Predicate::Passive(predicate) => IndependentClause::Passive(subject, predicate),
+        Predicate::Proform(predicate) => IndependentClause::Proform(subject, predicate),
+    })
+}
+
+fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
+    let modal = phrase
+        .auxiliaries
+        .first()
+        .copied()
+        .filter(|auxiliary| is_modal(auxiliary.auxiliary))
+        .map(|auxiliary| {
+            phrase.auxiliaries.remove(0);
+            Modal { auxiliary }
+        });
+    let passive = phrase.verb.slot == VerbSlot::PastParticiple
+        && phrase
+            .auxiliaries
+            .first()
+            .is_some_and(|auxiliary| auxiliary.auxiliary == Auxiliary::Be);
+    let mut object = None;
+    let mut elements = Vec::new();
+    for dependent in phrase.dependents {
+        match dependent {
+            VerbDependent::DirectObject(noun_phrase)
+                if is_temporal_adjunct(&phrase.verb, &noun_phrase) =>
+            {
+                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Temporal(
+                    noun_phrase,
+                )));
+            }
+            VerbDependent::DirectObject(noun_phrase) => {
+                attach_object(&mut object, PredicateObject::NounPhrase(noun_phrase))?;
+            }
+            VerbDependent::IndirectObject(noun_phrase) => {
+                elements.push(PredicateElement::Complement(
+                    PredicateComplement::IndirectObject(noun_phrase),
+                ));
+            }
+            VerbDependent::PredicateComplement(phrase) => match phrase {
+                Phrase::CatalogAtom(atom) => {
+                    attach_object(
+                        &mut object,
+                        PredicateObject::Ability(AbilityObject {
+                            ability: atom,
+                            argument: None,
+                        }),
+                    )?;
+                }
+                Phrase::EmbeddedAbility(ability) => {
+                    attach_object(&mut object, PredicateObject::EmbeddedAbility(ability))?;
+                }
+                Phrase::QuotedAbility(ability) => {
+                    attach_object(&mut object, PredicateObject::QuotedAbility(ability))?;
+                }
+                Phrase::AdjectivePhrase(adjective) => {
+                    elements.push(PredicateElement::Complement(
+                        PredicateComplement::Adjective(*adjective),
+                    ));
+                }
+                _ => return None,
+            },
+            VerbDependent::Scalar(phrase) => match phrase {
+                Phrase::Quantity(quantity) => {
+                    attach_object(&mut object, PredicateObject::Quantity(quantity))?;
+                }
+                Phrase::OracleSymbol(symbol) => {
+                    attach_object(&mut object, PredicateObject::OracleSymbol(symbol))?;
+                }
+                _ => return None,
+            },
+            VerbDependent::Statistic(Phrase::PowerToughness(value)) => {
+                attach_object(&mut object, PredicateObject::PowerToughness(value))?;
+            }
+            VerbDependent::Statistic(_) => return None,
+            VerbDependent::Prepositional(phrase) => {
+                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                    phrase,
+                )));
+            }
+            VerbDependent::Infinitive(clause) => {
+                elements.push(PredicateElement::Complement(
+                    PredicateComplement::Infinitive(finish_infinitive(clause)?),
+                ));
+            }
+            VerbDependent::Subordinate(clause) => {
+                let Clause::Dependent(clause) = *clause else {
+                    return None;
+                };
+                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Dependent(
+                    Box::new(clause),
+                )));
+            }
+            VerbDependent::Adverbial(Phrase::Adverb(adverb)) => {
+                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Adverb(adverb)));
+            }
+            VerbDependent::Adverbial(Phrase::AdjectivePhrase(adjective)) => {
+                elements.push(PredicateElement::Complement(
+                    PredicateComplement::Adjective(*adjective),
+                ));
+            }
+            VerbDependent::Adverbial(_) => return None,
+        }
+    }
+    let head = PredicateHead {
+        auxiliaries: phrase.auxiliaries,
+        preverb_modifiers: phrase.preverb_modifiers,
+        verb: phrase.verb,
+    };
+    let predicate = if passive {
+        if object.is_some() {
+            return None;
+        }
+        Predicate::Passive(PassivePredicate { head, elements })
+    } else if let Some(object) = object {
+        Predicate::Transitive(crate::syntax::TransitivePredicate {
+            head,
+            object,
+            elements,
+        })
+    } else {
+        Predicate::Intransitive(crate::syntax::IntransitivePredicate { head, elements })
+    };
+    Some(FinishedPredicate { modal, predicate })
+}
+
+fn finish_infinitive(clause: InfinitiveClause) -> Option<crate::syntax::InfinitiveClause> {
+    let FinishedPredicate { modal, predicate } = finish_predicate(*clause.predicate)?;
+    if modal.is_some() {
+        return None;
+    }
+    Some(crate::syntax::InfinitiveClause {
+        marker: clause.marker,
+        predicate: Box::new(predicate),
+    })
+}
+
+fn attach_object(slot: &mut Option<PredicateObject>, object: PredicateObject) -> Option<()> {
+    if let Some(PredicateObject::Ability(ability)) = slot
+        && ability.argument.is_none()
+    {
+        ability.argument = Some(Box::new(object));
+        return Some(());
+    }
+    if slot.replace(object).is_some() {
+        return None;
+    }
+    Some(())
+}
+
+const fn is_modal(auxiliary: Auxiliary) -> bool {
+    matches!(
+        auxiliary,
+        Auxiliary::Can
+            | Auxiliary::Could
+            | Auxiliary::May
+            | Auxiliary::Might
+            | Auxiliary::Must
+            | Auxiliary::Shall
+            | Auxiliary::Should
+            | Auxiliary::Will
+            | Auxiliary::Would
+    )
+}
+
+fn is_temporal_adjunct(verb: &VerbInstance, phrase: &NounPhrase) -> bool {
+    if !matches!(
+        verb.verb,
+        crate::word::Verb::Word(Vocab::Attack | Vocab::Block)
+    ) {
+        return false;
+    }
+    matches!(
+        phrase,
+        NounPhrase::Nominal(nominal)
+            if matches!(
+                nominal.head,
+                NounInstance::Singular(Noun::Word(Vocab::Combat | Vocab::Turn))
+            )
+    )
 }
 
 const fn sentence_ending(tag: RuleTag) -> Option<SentenceEnding> {
@@ -925,17 +1567,16 @@ mod tests {
     use crate::catalog::Catalogs;
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
-    use crate::syntax::Clause;
     use crate::syntax::Determiner;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalModifier;
     use crate::syntax::NounPhrase;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
-    use crate::syntax::Phrase;
+    use crate::syntax::PredicateObject;
     use crate::syntax::Sentence;
+    use crate::syntax::SentenceBody;
     use crate::syntax::Subject;
-    use crate::syntax::VerbDependent;
     use crate::word::Adjective;
     use crate::word::Auxiliary;
     use crate::word::AuxiliaryInflection;
@@ -976,28 +1617,25 @@ mod tests {
     #[test]
     fn finite_verbs_agree_with_their_subjects() {
         let plural_parse = parse("Spells cost {1} less to cast.");
-        let plural = simple(plural_parse.sentence().unwrap());
+        let (plural_subject, plural) = finite(plural_parse.sentence().unwrap());
         assert!(matches!(
-            plural.subject,
-            Some(Subject::NounPhrase(NounPhrase::Nominal(ref nominal)))
+            plural_subject,
+            Subject(NounPhrase::Nominal(nominal))
                 if matches!(nominal.head, NounInstance::Plural(Noun::Word(Vocab::Spell)))
         ));
         assert_eq!(
-            plural.predicate.verb.slot,
+            plural.verb.slot,
             VerbSlot::Present {
                 person: Person::Third,
                 number: Number::Plural,
             }
         );
-        assert!(matches!(
-            plural.predicate.verb.verb,
-            Verb::Word(Vocab::Cost)
-        ));
+        assert!(matches!(plural.verb.verb, Verb::Word(Vocab::Cost)));
 
         let singular_parse = parse("This creature costs {1} less to cast.");
-        let singular = simple(singular_parse.sentence().unwrap());
+        let (_, singular) = finite(singular_parse.sentence().unwrap());
         assert_eq!(
-            singular.predicate.verb.slot,
+            singular.verb.slot,
             VerbSlot::Present {
                 person: Person::Third,
                 number: Number::Singular,
@@ -1008,8 +1646,11 @@ mod tests {
     #[test]
     fn participle_position_distinguishes_modifier_from_passive_predicate() {
         let parsed = parse("Prevented damage is dealt to that creature's controller instead.");
-        let clause = simple(parsed.sentence().unwrap());
-        let Some(Subject::NounPhrase(NounPhrase::Nominal(subject))) = &clause.subject else {
+        let SentenceBody::Independent(IndependentClause::Passive(
+            Subject(NounPhrase::Nominal(subject)),
+            predicate,
+        )) = &parsed.sentence().unwrap().body
+        else {
             panic!("expected nominal subject");
         };
         assert!(matches!(
@@ -1021,7 +1662,7 @@ mod tests {
                 )
         ));
         assert!(matches!(
-            clause.predicate.auxiliaries.as_slice(),
+            predicate.head.auxiliaries.as_slice(),
             [auxiliary]
                 if auxiliary.auxiliary == Auxiliary::Be
                     && auxiliary.inflection == (AuxiliaryInflection::Present {
@@ -1029,26 +1670,101 @@ mod tests {
                         number: Number::Singular,
                     })
         ));
+        assert!(matches!(predicate.head.verb.verb, Verb::Word(Vocab::Deal)));
+        assert_eq!(predicate.head.verb.slot, VerbSlot::PastParticiple);
+    }
+
+    #[test]
+    fn subject_copula_contractions_are_structural() {
+        let catalogs = fixture_catalogs();
+        for (source, contracted) in [("you are the monarch", false), ("you're the monarch", true)] {
+            let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Clause)
+                .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+            let Some(Clause::Independent(IndependentClause::Copular(subject, predicate))) =
+                parsed.clause()
+            else {
+                panic!("expected a copular clause for {source:?}");
+            };
+            assert!(matches!(
+                subject,
+                Subject(NounPhrase::Pronoun {
+                    pronoun: Pronoun::You,
+                    case: PronounCase::Subject,
+                })
+            ));
+            assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
+            assert_eq!(
+                predicate.copula.auxiliary.inflection,
+                AuxiliaryInflection::Present {
+                    person: Person::Second,
+                    number: Number::Singular,
+                }
+            );
+            assert_eq!(predicate.copula.contracted_with_subject, contracted);
+            assert!(matches!(
+                predicate.complement,
+                crate::syntax::CopularComplement::NounPhrase(_)
+            ));
+        }
+    }
+
+    #[test]
+    fn passive_blocking_treats_this_turn_as_a_temporal_adjunct() {
+        let source = "Creatures you control can't be blocked this turn.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            _,
+            _,
+            Predicate::Passive(predicate),
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a deontic passive clause");
+        };
         assert!(matches!(
-            clause.predicate.verb.verb,
-            Verb::Word(Vocab::Deal)
+            predicate.elements.as_slice(),
+            [PredicateElement::Adjunct(PredicateAdjunct::Temporal(
+                NounPhrase::Nominal(turn),
+            ))] if matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
         ));
-        assert_eq!(clause.predicate.verb.slot, VerbSlot::PastParticiple);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn karmic_justice_trigger_event_is_transitive() {
+        let catalogs = fixture_catalogs();
+        for noun_phrase in [
+            "a spell or ability an opponent controls",
+            "a noncreature permanent you control",
+        ] {
+            parse_nonterminal(noun_phrase, &catalogs, Nonterminal::NounPhrase)
+                .unwrap_or_else(|error| panic!("failed to parse {noun_phrase:?}: {error:?}"));
+        }
+        let source =
+            "a spell or ability an opponent controls destroys a noncreature permanent you control";
+        let parsed = parse_nonterminal(source, &catalogs, Nonterminal::SimpleClause)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        assert!(matches!(
+            finish_simple_clause(parsed.simple_clause().unwrap().clone()),
+            Some(IndependentClause::Transitive(_, _))
+        ));
     }
 
     #[test]
     fn target_and_relative_clauses_keep_their_nominal_roles() {
         let target_parse = parse("Target creature gets +1/+1 until end of turn.");
-        let target = simple(target_parse.sentence().unwrap());
-        let Some(Subject::NounPhrase(NounPhrase::Nominal(target))) = &target.subject else {
+        let (Subject(NounPhrase::Nominal(target)), _) = finite(target_parse.sentence().unwrap())
+        else {
             panic!("expected target nominal subject");
         };
         assert_eq!(target.determiner, Some(Determiner::Target(None)));
 
         let fight_parse =
             parse("Target creature you control fights target creature you don't control.");
-        let fight = simple(fight_parse.sentence().unwrap());
-        let Some(Subject::NounPhrase(NounPhrase::Nominal(subject))) = &fight.subject else {
+        let SentenceBody::Independent(IndependentClause::Transitive(
+            Subject(NounPhrase::Nominal(subject)),
+            fight,
+        )) = &fight_parse.sentence().unwrap().body
+        else {
             panic!("expected controlled target subject");
         };
         assert!(matches!(
@@ -1056,12 +1772,10 @@ mod tests {
             [NominalComplement::Relative(relative)]
                 if relative.gap == crate::syntax::RelativeGap::Object
         ));
-        let [VerbDependent::DirectObject(NounPhrase::Nominal(object))] =
-            fight.predicate.dependents.as_slice()
-        else {
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &fight.object else {
             panic!(
                 "expected one direct-object nominal, got {:#?}",
-                fight.predicate.dependents
+                fight.object
             );
         };
         assert!(matches!(
@@ -1074,16 +1788,15 @@ mod tests {
     #[test]
     fn goblin_chieftain_stat_change_remains_one_magic_atom() {
         let sentence = parse("Other Goblin creatures you control get +1/+1 and have haste.");
-        let Clause::Coordinated(coordination) = &sentence.sentence().unwrap().clause else {
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &sentence.sentence().unwrap().body
+        else {
             panic!("expected coordinated predicates");
         };
-        let Clause::Simple(first) = coordination.first.as_ref() else {
+        let IndependentClause::Transitive(_, first) = coordination.first.as_ref() else {
             panic!("expected simple first predicate");
         };
-        assert!(first.predicate.dependents.iter().any(|dependent| matches!(
-            dependent,
-            VerbDependent::Statistic(Phrase::PowerToughness(_))
-        )));
+        assert!(matches!(first.object, PredicateObject::PowerToughness(_)));
     }
 
     fn parse(source: &str) -> ParsedNonterminal {
@@ -1099,11 +1812,16 @@ mod tests {
             .with_catalog(CatalogKind::CardType, ["Creature"])
     }
 
-    fn simple(sentence: &Sentence) -> &crate::syntax::SimpleClause {
-        let Clause::Simple(simple) = &sentence.clause else {
-            panic!("expected a simple clause, got {:?}", sentence.clause);
+    fn finite(sentence: &Sentence) -> (&Subject, &crate::syntax::PredicateHead) {
+        let SentenceBody::Independent(clause) = &sentence.body else {
+            panic!("expected an independent clause, got {:?}", sentence.body);
         };
-        simple
+        match clause {
+            IndependentClause::Transitive(subject, predicate) => (subject, &predicate.head),
+            IndependentClause::Intransitive(subject, predicate) => (subject, &predicate.head),
+            IndependentClause::Passive(subject, predicate) => (subject, &predicate.head),
+            other => panic!("expected a finite lexical predicate, got {other:?}"),
+        }
     }
 
     fn render_sentence(sentence: &Sentence) -> String {

@@ -245,9 +245,6 @@ fn unknown_occurrences(ast: &OracleText, card: &str) -> Vec<Occurrence> {
 const fn role_name(role: UnknownRole) -> &'static str {
     match role {
         UnknownRole::Clause => "clause",
-        UnknownRole::Subject => "subject",
-        UnknownRole::Verb => "verb",
-        UnknownRole::VerbDependent => "verb dependent",
         UnknownRole::NominalComplement => "nominal",
         UnknownRole::ActivationCost => "activation cost",
         UnknownRole::KeywordArgument => "keyword argument",

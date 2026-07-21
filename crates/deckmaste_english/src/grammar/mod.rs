@@ -5,13 +5,23 @@
 
 pub(crate) mod ability;
 mod clause;
+mod meaning;
 mod nominal;
 mod recovery;
 
 use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
-use std::hash::Hasher;
+
+use meaning::AdjectivePhraseMeaning;
+use meaning::ClauseMeaning;
+use meaning::InfinitiveClauseMeaning;
+use meaning::NominalMeaning;
+use meaning::NounPhraseMeaning;
+use meaning::PossessiveNounPhraseMeaning;
+use meaning::PrepositionalPhraseMeaning;
+use meaning::RelativeClauseMeaning;
+use meaning::SentenceMeaning;
+use meaning::SimpleClauseMeaning;
+use meaning::VerbPhraseMeaning;
 
 use crate::Numeral;
 use crate::Span;
@@ -40,10 +50,12 @@ use crate::surface::TokenKind;
 use crate::surface::lex;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
+use crate::syntax::Copula;
 use crate::syntax::Demonstrative;
 use crate::syntax::Determiner;
+use crate::syntax::ExistentialForm;
 use crate::syntax::IndefiniteArticle;
-use crate::syntax::InfinitiveClause;
+use crate::syntax::InfinitiveMarker;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
@@ -54,15 +66,14 @@ use crate::syntax::Possessor;
 use crate::syntax::PowerToughness;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
+use crate::syntax::PreverbModifier;
 use crate::syntax::Quantity;
 use crate::syntax::RelativeClause;
 use crate::syntax::RelativeGap;
 use crate::syntax::Sentence;
-use crate::syntax::SimpleClause;
 use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
 use crate::syntax::UnknownPhrase;
-use crate::syntax::VerbPhrase;
 use crate::word::Adjective;
 use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
@@ -82,6 +93,45 @@ use crate::word::VerbSlot;
 use crate::word::Vocab;
 use crate::word::Vocabulary;
 use crate::word::WordMatch;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VerbPhrase {
+    auxiliaries: Vec<AuxiliaryInstance>,
+    preverb_modifiers: Vec<PreverbModifier>,
+    verb: VerbInstance,
+    dependents: Vec<VerbDependent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum VerbDependent {
+    DirectObject(NounPhrase),
+    IndirectObject(NounPhrase),
+    PredicateComplement(Phrase),
+    Scalar(Phrase),
+    Statistic(Phrase),
+    Prepositional(PrepositionalPhrase),
+    Infinitive(InfinitiveClause),
+    Subordinate(Box<Clause>),
+    Adverbial(Phrase),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct InfinitiveClause {
+    marker: InfinitiveMarker,
+    predicate: Box<VerbPhrase>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SimpleClause {
+    subject: Option<Subject>,
+    predicate: VerbPhrase,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ContractedSubjectCopula {
+    subject: Subject,
+    copula: Copula,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Nonterminal {
@@ -141,6 +191,9 @@ pub(crate) enum EnglishLexicalSlot {
     If,
     AsLongAs,
     Conjunction,
+    Existential,
+    Copula,
+    SubjectCopula,
     Unknown(RecoverySlot),
 }
 
@@ -153,18 +206,14 @@ pub(crate) enum RecoveryMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum RecoveryProfile {
     Exact,
-    // Local phrase recovery plus verbs with an overt inflectional suffix.
     Phrases,
-    // Bare forms are highly syncretic, so admit them only when the narrower
-    // recovery chart cannot supply a trustworthy winner.
-    WithBareVerbs,
 }
 
 impl RecoveryProfile {
     const fn mode(self) -> RecoveryMode {
         match self {
             Self::Exact => RecoveryMode::Exact,
-            Self::Phrases | Self::WithBareVerbs => RecoveryMode::UnknownPhrases,
+            Self::Phrases => RecoveryMode::UnknownPhrases,
         }
     }
 }
@@ -172,9 +221,7 @@ impl RecoveryProfile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum RecoverySlot {
     Noun(NounForm),
-    Verb(VerbSlot),
     NominalModifier,
-    VerbDependent,
     PrepositionObject,
 }
 
@@ -207,6 +254,7 @@ pub(crate) enum NounForm {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Cardinality {
     SingularCount,
+    SingularOrMass,
     PluralCount,
     Mass,
     PluralOrMass,
@@ -226,6 +274,20 @@ pub(crate) enum PredicateForm {
     Finite(Option<Agreement>),
     PresentParticiple,
     PastParticiple,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PredicateObjectState {
+    None,
+    Direct,
+    Ability,
+    AbilityWithArgument,
+}
+
+impl PredicateObjectState {
+    const fn has_direct_object(self) -> bool {
+        !matches!(self, Self::None)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -259,8 +321,7 @@ pub(crate) enum Features {
     Verb(VerbSlot),
     VerbPhrase {
         form: PredicateForm,
-        has_direct_object: bool,
-        trailing_recovery: bool,
+        object: PredicateObjectState,
     },
     InfinitiveClause,
     SimpleClause {
@@ -308,7 +369,7 @@ impl QuantityKey {
     const fn cardinality(self) -> Cardinality {
         match self {
             Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
-                Cardinality::SingularCount
+                Cardinality::SingularOrMass
             }
             Self::Exact(_) | Self::UpTo(_) | Self::ThatMany => Cardinality::PluralCount,
             Self::ThatMuch => Cardinality::Mass,
@@ -335,7 +396,7 @@ pub(crate) enum DeterminerKey {
     Target(Option<QuantityKey>),
     Quantity(QuantityKey),
     Possessive(Pronoun),
-    PossessiveNounPhrase { shape: u64 },
+    PossessiveNounPhrase { possessor: crate::forest::NodeId },
     All,
 }
 
@@ -352,7 +413,16 @@ impl DeterminerKey {
             Self::Demonstrative(DemonstrativeKey::These | DemonstrativeKey::Those) => {
                 Cardinality::PluralCount
             }
-            Self::Target(Some(quantity)) | Self::Quantity(quantity) => quantity.cardinality(),
+            Self::Target(Some(QuantityKey::Exact(number) | QuantityKey::UpTo(number)))
+                if number.value == 1 =>
+            {
+                Cardinality::SingularCount
+            }
+            Self::Target(Some(
+                QuantityKey::Exact(_) | QuantityKey::UpTo(_) | QuantityKey::ThatMany,
+            )) => Cardinality::PluralCount,
+            Self::Target(Some(QuantityKey::ThatMuch)) => Cardinality::Mass,
+            Self::Quantity(quantity) => quantity.cardinality(),
             Self::All => Cardinality::PluralOrMass,
             Self::The | Self::Possessive(_) | Self::PossessiveNounPhrase { .. } => {
                 Cardinality::Unconstrained
@@ -423,10 +493,7 @@ pub(crate) enum MeaningKey {
     Determiner(DeterminerKey),
     Noun(NounInstance),
     Adjective(Adjective),
-    AdjectivePhrase {
-        head: Adjective,
-        shape: u64,
-    },
+    AdjectivePhrase(AdjectivePhraseMeaning),
     Adverb(Vocab),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
@@ -437,45 +504,21 @@ pub(crate) enum MeaningKey {
     Punctuation(Punctuation),
     Conjunction(crate::syntax::PredicateConjunction),
     Subordinator(crate::syntax::Subordinator),
+    Existential(ExistentialForm),
+    SubjectCopula(SubjectCopulaKey),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
     Unknown(UnknownKey),
-    Nominal {
-        head: NominalHeadKey,
-        shape: u64,
-    },
-    NounPhrase {
-        agreement: Option<Agreement>,
-        shape: u64,
-    },
-    PossessiveNounPhrase {
-        head: NounInstance,
-        shape: u64,
-    },
-    PrepositionalPhrase {
-        preposition: Preposition,
-        shape: u64,
-    },
-    RelativeClause {
-        gap: RelativeGap,
-        shape: u64,
-    },
-    VerbPhrase {
-        form: PredicateForm,
-        shape: u64,
-    },
-    InfinitiveClause {
-        shape: u64,
-    },
-    SimpleClause {
-        shape: u64,
-    },
-    Clause {
-        shape: u64,
-    },
-    Sentence {
-        shape: u64,
-    },
+    Nominal(NominalMeaning),
+    NounPhrase(NounPhraseMeaning),
+    PossessiveNounPhrase(PossessiveNounPhraseMeaning),
+    PrepositionalPhrase(PrepositionalPhraseMeaning),
+    RelativeClause(RelativeClauseMeaning),
+    VerbPhrase(VerbPhraseMeaning),
+    InfinitiveClause(InfinitiveClauseMeaning),
+    SimpleClause(SimpleClauseMeaning),
+    Clause(ClauseMeaning),
+    Sentence(SentenceMeaning),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -484,10 +527,10 @@ pub(crate) struct UnknownKey {
     span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum NominalHeadKey {
-    Known(NounInstance),
-    Unknown(UnknownKey),
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct SubjectCopulaKey {
+    pronoun: Pronoun,
+    auxiliary: AuxiliaryInstance,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -509,6 +552,7 @@ enum RuleTag {
     NominalNoun,
     NominalAdjective,
     NominalNounModifier,
+    NominalPowerToughnessModifier,
     NominalDeterminer,
     NominalPrepositional,
     NominalRelative,
@@ -543,15 +587,20 @@ enum RuleTag {
     ClauseConditionalAfterElliptical,
     ClauseConditionalAfter,
     ClauseConditionalAfterIf,
+    ClauseExistential,
+    ClauseCopularNoun,
+    ClauseCopularAdjective,
+    ClauseCopularPrepositional,
+    ClauseContractedCopularNoun,
+    ClauseContractedCopularAdjective,
+    ClauseContractedCopularPrepositional,
     RelativeObject,
     SentencePeriod,
     SentenceExclamation,
     SentenceQuestion,
     SentenceNone,
     NounUnknown,
-    VerbUnknown,
     NominalUnknownModifier,
-    VerbPhraseUnknownDependent,
     PrepositionalPhraseUnknownObject,
 }
 
@@ -585,7 +634,6 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         builder.add_clause_rules();
         if recovery_profile != RecoveryProfile::Exact {
             recovery::add_rules(&mut builder);
-            recovery::add_unknown_verb_rules(&mut builder);
         }
         Self {
             source,
@@ -776,6 +824,19 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Auxiliary => {
                 self.word_matches(tokens, start, LexicalSlot::Auxiliary)
             }
+            EnglishLexicalSlot::Copula => self
+                .word_matches(tokens, start, LexicalSlot::Auxiliary)
+                .into_iter()
+                .filter(|candidate| {
+                    matches!(
+                        &candidate.meaning,
+                        MeaningKey::Auxiliary(auxiliary)
+                            if auxiliary.auxiliary == Auxiliary::Be
+                                && copula_agreement(*auxiliary).is_some()
+                    )
+                })
+                .collect(),
+            EnglishLexicalSlot::SubjectCopula => self.scan_subject_copula(tokens, start),
             EnglishLexicalSlot::AbilityItem => {
                 self.catalog_matches(tokens, start, CatalogSlot::AbilityItem)
             }
@@ -831,6 +892,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Preposition => self.scan_preposition(tokens, start),
+            EnglishLexicalSlot::Existential => self.scan_existential(tokens, start),
             slot @ (EnglishLexicalSlot::PossessiveNoun
             | EnglishLexicalSlot::OracleSymbol
             | EnglishLexicalSlot::PowerToughness
@@ -844,27 +906,17 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 let already_known = match slot {
                     RecoverySlot::Noun(_)
                     | RecoverySlot::NominalModifier
-                    | RecoverySlot::VerbDependent
                     | RecoverySlot::PrepositionObject => self.has_known_word(tokens, start),
-                    RecoverySlot::Verb(verb) => {
-                        !self
-                            .word_matches(tokens, start, LexicalSlot::Verb(verb))
-                            .is_empty()
-                            || !self
-                                .catalog_matches(tokens, start, CatalogSlot::Verb(verb))
-                                .is_empty()
-                    }
                 };
                 if already_known {
                     Vec::new()
                 } else {
-                    recovery::scan_unknown(
-                        self.source,
-                        tokens,
-                        start,
-                        slot,
-                        self.recovery_profile == RecoveryProfile::WithBareVerbs,
-                    )
+                    let mut matches = recovery::scan_unknown(self.source, tokens, start, slot);
+                    matches.retain(|candidate| {
+                        !((start + 1)..candidate.end)
+                            .any(|index| self.has_known_word(tokens, index))
+                    });
+                    matches
                 }
             }
             EnglishLexicalSlot::Unknown(_) => Vec::new(),
@@ -996,6 +1048,77 @@ impl EnglishGrammar<'_, '_> {
             })
             .into_iter()
             .collect()
+    }
+
+    fn scan_existential(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        [
+            ((&["there", "is"] as &[&str]), ExistentialForm::Is),
+            ((&["there's"] as &[&str]), ExistentialForm::ContractedIs),
+            ((&["there", "are"] as &[&str]), ExistentialForm::Are),
+            ((&["there", "was"] as &[&str]), ExistentialForm::Was),
+            ((&["there", "were"] as &[&str]), ExistentialForm::Were),
+        ]
+        .into_iter()
+        .filter_map(|(words, form)| {
+            self.words_match(tokens, start, words)
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::Existential(form),
+                    local_cost: ParseCost::default(),
+                })
+        })
+        .collect()
+    }
+
+    fn scan_subject_copula(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        [
+            ("you're", Pronoun::You, Person::Second, Number::Singular),
+            (
+                "he's",
+                Pronoun::It(crate::word::Gender::Masculine),
+                Person::Third,
+                Number::Singular,
+            ),
+            (
+                "she's",
+                Pronoun::It(crate::word::Gender::Feminine),
+                Person::Third,
+                Number::Singular,
+            ),
+            (
+                "it's",
+                Pronoun::It(crate::word::Gender::Neuter),
+                Person::Third,
+                Number::Singular,
+            ),
+            ("they're", Pronoun::They, Person::Third, Number::Plural),
+        ]
+        .into_iter()
+        .filter_map(|(surface, pronoun, person, number)| {
+            self.one_token_match(tokens, start, surface).map(|end| {
+                let auxiliary = AuxiliaryInstance {
+                    auxiliary: Auxiliary::Be,
+                    inflection: AuxiliaryInflection::Present { person, number },
+                    contracted_negation: false,
+                };
+                LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::SubjectCopula(SubjectCopulaKey { pronoun, auxiliary }),
+                    local_cost: ParseCost::default(),
+                }
+            })
+        })
+        .collect()
     }
 
     fn scan_possessive_noun(
@@ -1291,6 +1414,15 @@ impl RuleBuilder {
                 ..ParseCost::default()
             },
         );
+        self.add_with_cost(
+            RuleTag::NominalPowerToughnessModifier,
+            N::Nominal,
+            [l(L::PowerToughness), n(N::Nominal)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
         self.add(
             RuleTag::NominalDeterminer,
             N::Nominal,
@@ -1455,6 +1587,19 @@ fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features
     }
 }
 
+const fn copula_agreement(auxiliary: AuxiliaryInstance) -> Option<Agreement> {
+    if !matches!(auxiliary.auxiliary, Auxiliary::Be) {
+        return None;
+    }
+    match auxiliary.inflection {
+        AuxiliaryInflection::Present { person, number }
+        | AuxiliaryInflection::Past { person, number } => Some(Agreement { person, number }),
+        AuxiliaryInflection::Base
+        | AuxiliaryInflection::PresentParticiple
+        | AuxiliaryInflection::PastParticiple => None,
+    }
+}
+
 fn noun_form(noun: &NounInstance) -> NounForm {
     match noun {
         NounInstance::Singular(_) => NounForm::Singular,
@@ -1534,7 +1679,6 @@ fn reduce(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduction<Features, MeaningKey>> {
-    let shape = semantic_shape(tag, children);
     let (features, meaning) = match tag {
         RuleTag::QuantityExact
         | RuleTag::QuantityUpTo
@@ -1546,16 +1690,17 @@ fn reduce(
         | RuleTag::DeterminerQuantity => reduce_quantity_or_determiner(tag, children)?,
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
-        | RuleTag::DeterminerPossessiveNoun => reduce_possessive_noun_phrase(tag, children, shape)?,
+        | RuleTag::DeterminerPossessiveNoun => reduce_possessive_noun_phrase(tag, children)?,
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
         | RuleTag::Noun
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
+        | RuleTag::NominalPowerToughnessModifier
         | RuleTag::NominalDeterminer
         | RuleTag::NominalPrepositional
-        | RuleTag::NominalRelative => reduce_nominal(tag, children, shape)?,
+        | RuleTag::NominalRelative => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -1563,7 +1708,7 @@ fn reduce(
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
         | RuleTag::NounPhraseCoordination
-        | RuleTag::PrepositionalPhrase => reduce_phrase(tag, children, shape)?,
+        | RuleTag::PrepositionalPhrase => reduce_phrase(tag, children)?,
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
@@ -1587,18 +1732,21 @@ fn reduce(
         | RuleTag::ClauseConditionalAfterElliptical
         | RuleTag::ClauseConditionalAfter
         | RuleTag::ClauseConditionalAfterIf
+        | RuleTag::ClauseExistential
+        | RuleTag::ClauseCopularNoun
+        | RuleTag::ClauseCopularAdjective
+        | RuleTag::ClauseCopularPrepositional
+        | RuleTag::ClauseContractedCopularNoun
+        | RuleTag::ClauseContractedCopularAdjective
+        | RuleTag::ClauseContractedCopularPrepositional
         | RuleTag::RelativeObject
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
-        | RuleTag::SentenceNone => clause::reduce_clause(tag, children, shape)?,
+        | RuleTag::SentenceNone => clause::reduce_clause(tag, children)?,
         RuleTag::NounUnknown
-        | RuleTag::VerbUnknown
         | RuleTag::NominalUnknownModifier
-        | RuleTag::VerbPhraseUnknownDependent
-        | RuleTag::PrepositionalPhraseUnknownObject => {
-            recovery::reduce_recovery(tag, children, shape)?
-        }
+        | RuleTag::PrepositionalPhraseUnknownObject => recovery::reduce_recovery(tag, children)?,
     };
     Some(Reduction {
         features,
@@ -1610,7 +1758,6 @@ fn reduce(
 fn reduce_possessive_noun_phrase(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
-    shape: u64,
 ) -> Option<Reduced> {
     match tag {
         RuleTag::PossessiveNounBase => {
@@ -1621,19 +1768,18 @@ fn reduce_possessive_noun_phrase(
             else {
                 return None;
             };
-            let MeaningKey::Noun(head) = children.first()?.meaning else {
+            if !matches!(children.first()?.meaning, MeaningKey::Noun(_)) {
                 return None;
-            };
+            }
             Some((
                 Features::PossessiveNounPhrase {
                     form: *form,
                     initial_sound: *initial_sound,
                     determined: false,
                 },
-                MeaningKey::PossessiveNounPhrase {
-                    head: head.clone(),
-                    shape,
-                },
+                MeaningKey::PossessiveNounPhrase(PossessiveNounPhraseMeaning::Head {
+                    noun: children.first()?.node,
+                }),
             ))
         }
         RuleTag::PossessiveNounDetermined => {
@@ -1654,24 +1800,29 @@ fn reduce_possessive_noun_phrase(
             {
                 return None;
             }
-            let MeaningKey::PossessiveNounPhrase { head, .. } = children.get(1)?.meaning else {
+            if !matches!(
+                children.get(1)?.meaning,
+                MeaningKey::PossessiveNounPhrase(_)
+            ) {
                 return None;
-            };
+            }
             Some((
                 Features::PossessiveNounPhrase {
                     form: *form,
                     initial_sound: *initial_sound,
                     determined: true,
                 },
-                MeaningKey::PossessiveNounPhrase {
-                    head: head.clone(),
-                    shape,
-                },
+                MeaningKey::PossessiveNounPhrase(PossessiveNounPhraseMeaning::Determined {
+                    determiner: children.first()?.node,
+                    possessor: children.get(1)?.node,
+                }),
             ))
         }
         RuleTag::DeterminerPossessiveNoun => Some((
             Features::Determiner(Cardinality::Unconstrained),
-            MeaningKey::Determiner(DeterminerKey::PossessiveNounPhrase { shape }),
+            MeaningKey::Determiner(DeterminerKey::PossessiveNounPhrase {
+                possessor: children.first()?.node,
+            }),
         )),
         _ => None,
     }
@@ -1739,23 +1890,18 @@ fn determiner_reduction(determiner: DeterminerKey) -> Reduced {
     )
 }
 
-fn reduce_nominal(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-    shape: u64,
-) -> Option<Reduced> {
+fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
         RuleTag::Adjective | RuleTag::Noun => Some(propagate(children.first()?)),
         RuleTag::AdjectivePhrase => {
-            let MeaningKey::Adjective(head) = children.first()?.meaning else {
+            if !matches!(children.first()?.meaning, MeaningKey::Adjective(_)) {
                 return None;
-            };
+            }
             Some((
                 children.first()?.features.clone(),
-                MeaningKey::AdjectivePhrase {
-                    head: head.clone(),
-                    shape,
-                },
+                MeaningKey::AdjectivePhrase(AdjectivePhraseMeaning::Head {
+                    adjective: children.first()?.node,
+                }),
             ))
         }
         RuleTag::NominalNoun => {
@@ -1767,13 +1913,16 @@ fn reduce_nominal(
             else {
                 return None;
             };
-            let head = match child.meaning {
-                MeaningKey::Noun(head) => NominalHeadKey::Known(head.clone()),
-                MeaningKey::Unknown(key) if matches!(key.slot, RecoverySlot::Noun(_)) => {
-                    NominalHeadKey::Unknown(*key)
-                }
-                _ => return None,
-            };
+            if !matches!(
+                child.meaning,
+                MeaningKey::Noun(_)
+                    | MeaningKey::Unknown(UnknownKey {
+                        slot: RecoverySlot::Noun(_),
+                        ..
+                    })
+            ) {
+                return None;
+            }
             Some((
                 Features::Nominal {
                     form: *form,
@@ -1781,21 +1930,46 @@ fn reduce_nominal(
                     determined: false,
                     leading_recovery: false,
                 },
-                MeaningKey::Nominal { head, shape },
+                MeaningKey::Nominal(NominalMeaning::Head { noun: child.node }),
             ))
         }
         RuleTag::NominalAdjective => {
             let Features::Adjective { initial_sound } = children.first()?.features else {
                 return None;
             };
-            nominal_with_prefix(children.get(1)?, *initial_sound, false, shape)
+            nominal_with_prefix(
+                children.get(1)?,
+                *initial_sound,
+                false,
+                NominalMeaning::Adjective {
+                    adjective: children.first()?.node,
+                    nominal: children.get(1)?.node,
+                },
+            )
         }
         RuleTag::NominalNounModifier => {
             let Features::Noun { initial_sound, .. } = children.first()?.features else {
                 return None;
             };
-            nominal_with_prefix(children.get(1)?, *initial_sound, false, shape)
+            nominal_with_prefix(
+                children.get(1)?,
+                *initial_sound,
+                false,
+                NominalMeaning::NounModifier {
+                    noun: children.first()?.node,
+                    nominal: children.get(1)?.node,
+                },
+            )
         }
+        RuleTag::NominalPowerToughnessModifier => nominal_with_prefix(
+            children.get(1)?,
+            InitialSound::Consonant,
+            false,
+            NominalMeaning::PowerToughnessModifier {
+                modifier: children.first()?.node,
+                nominal: children.get(1)?.node,
+            },
+        ),
         RuleTag::NominalDeterminer => {
             let MeaningKey::Determiner(determiner) = children.first()?.meaning else {
                 return None;
@@ -1815,9 +1989,9 @@ fn reduce_nominal(
             {
                 return None;
             }
-            let MeaningKey::Nominal { head, .. } = children.get(1)?.meaning else {
+            if !matches!(children.get(1)?.meaning, MeaningKey::Nominal(_)) {
                 return None;
-            };
+            }
             Some((
                 Features::Nominal {
                     form: *form,
@@ -1825,10 +1999,10 @@ fn reduce_nominal(
                     determined: true,
                     leading_recovery: false,
                 },
-                MeaningKey::Nominal {
-                    head: head.clone(),
-                    shape,
-                },
+                MeaningKey::Nominal(NominalMeaning::Determined {
+                    determiner: children.first()?.node,
+                    nominal: children.get(1)?.node,
+                }),
             ))
         }
         RuleTag::NominalPrepositional | RuleTag::NominalRelative => {
@@ -1841,8 +2015,19 @@ fn reduce_nominal(
             else {
                 return None;
             };
-            let MeaningKey::Nominal { head, .. } = children.first()?.meaning else {
+            if !matches!(children.first()?.meaning, MeaningKey::Nominal(_)) {
                 return None;
+            }
+            let meaning = match tag {
+                RuleTag::NominalPrepositional => NominalMeaning::Prepositional {
+                    nominal: children.first()?.node,
+                    phrase: children.get(1)?.node,
+                },
+                RuleTag::NominalRelative => NominalMeaning::Relative {
+                    nominal: children.first()?.node,
+                    clause: children.get(1)?.node,
+                },
+                _ => return None,
             };
             Some((
                 Features::Nominal {
@@ -1851,21 +2036,14 @@ fn reduce_nominal(
                     determined: *determined,
                     leading_recovery: *leading_recovery,
                 },
-                MeaningKey::Nominal {
-                    head: head.clone(),
-                    shape,
-                },
+                MeaningKey::Nominal(meaning),
             ))
         }
         _ => None,
     }
 }
 
-fn reduce_phrase(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-    shape: u64,
-) -> Option<Reduced> {
+fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
         RuleTag::NounPhraseNominal => {
             let Features::Nominal { form, .. } = children.first()?.features else {
@@ -1883,12 +2061,25 @@ fn reduce_phrase(
                     agreement,
                     pronoun_case: None,
                 },
-                MeaningKey::NounPhrase { agreement, shape },
+                MeaningKey::NounPhrase(NounPhraseMeaning::Nominal {
+                    nominal: children.first()?.node,
+                }),
             ))
         }
-        RuleTag::NounPhraseSubjectPronoun
-        | RuleTag::NounPhraseObjectPronoun
-        | RuleTag::NounPhraseReciprocal => noun_phrase_from_pronoun(children.first()?, shape),
+        RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
+            noun_phrase_from_pronoun(
+                children.first()?,
+                NounPhraseMeaning::Pronoun {
+                    pronoun: children.first()?.node,
+                },
+            )
+        }
+        RuleTag::NounPhraseReciprocal => noun_phrase_from_pronoun(
+            children.first()?,
+            NounPhraseMeaning::Reciprocal {
+                pronoun: children.first()?.node,
+            },
+        ),
         RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
             let Features::NounPhrase {
                 agreement,
@@ -1902,10 +2093,9 @@ fn reduce_phrase(
                     agreement: *agreement,
                     pronoun_case: *pronoun_case,
                 },
-                MeaningKey::NounPhrase {
-                    agreement: *agreement,
-                    shape,
-                },
+                MeaningKey::NounPhrase(NounPhraseMeaning::ThisCard {
+                    reference: children.first()?.node,
+                }),
             ))
         }
         RuleTag::NounPhraseCoordination => {
@@ -1915,28 +2105,41 @@ fn reduce_phrase(
             if *conjunction == crate::syntax::PredicateConjunction::Then {
                 return None;
             }
-            let agreement = Some(Agreement {
-                person: Person::Third,
-                number: Number::Plural,
-            });
+            let agreement = match conjunction {
+                crate::syntax::PredicateConjunction::And => Some(Agreement {
+                    person: Person::Third,
+                    number: Number::Plural,
+                }),
+                crate::syntax::PredicateConjunction::Or => {
+                    let Features::NounPhrase { agreement, .. } = children.get(2)?.features else {
+                        return None;
+                    };
+                    *agreement
+                }
+                crate::syntax::PredicateConjunction::Then => return None,
+            };
             Some((
                 Features::NounPhrase {
                     agreement,
                     pronoun_case: None,
                 },
-                MeaningKey::NounPhrase { agreement, shape },
+                MeaningKey::NounPhrase(NounPhraseMeaning::Coordinated {
+                    first: children.first()?.node,
+                    conjunction: children.get(1)?.node,
+                    next: children.get(2)?.node,
+                }),
             ))
         }
         RuleTag::PrepositionalPhrase => {
-            let MeaningKey::Preposition(preposition) = children.first()?.meaning else {
+            if !matches!(children.first()?.meaning, MeaningKey::Preposition(_)) {
                 return None;
-            };
+            }
             Some((
                 Features::PrepositionalPhrase,
-                MeaningKey::PrepositionalPhrase {
-                    preposition: *preposition,
-                    shape,
-                },
+                MeaningKey::PrepositionalPhrase(PrepositionalPhraseMeaning::NounObject {
+                    preposition: children.first()?.node,
+                    object: children.get(1)?.node,
+                }),
             ))
         }
         _ => None,
@@ -1951,7 +2154,7 @@ fn nominal_with_prefix(
     nominal: &Child<'_, EnglishGrammar<'_, '_>>,
     initial_sound: InitialSound,
     leading_recovery: bool,
-    shape: u64,
+    meaning: NominalMeaning,
 ) -> Option<Reduced> {
     let Features::Nominal {
         form, determined, ..
@@ -1959,9 +2162,12 @@ fn nominal_with_prefix(
     else {
         return None;
     };
-    let MeaningKey::Nominal { head, .. } = nominal.meaning else {
+    if !matches!(nominal.meaning, MeaningKey::Nominal(_)) {
         return None;
-    };
+    }
+    if *determined {
+        return None;
+    }
     Some((
         Features::Nominal {
             form: *form,
@@ -1969,16 +2175,13 @@ fn nominal_with_prefix(
             determined: *determined,
             leading_recovery,
         },
-        MeaningKey::Nominal {
-            head: head.clone(),
-            shape,
-        },
+        MeaningKey::Nominal(meaning),
     ))
 }
 
 fn noun_phrase_from_pronoun(
     child: &Child<'_, EnglishGrammar<'_, '_>>,
-    shape: u64,
+    meaning: NounPhraseMeaning,
 ) -> Option<Reduced> {
     let Features::NounPhrase {
         agreement,
@@ -1992,16 +2195,14 @@ fn noun_phrase_from_pronoun(
             agreement: *agreement,
             pronoun_case: *pronoun_case,
         },
-        MeaningKey::NounPhrase {
-            agreement: *agreement,
-            shape,
-        },
+        MeaningKey::NounPhrase(meaning),
     ))
 }
 
 fn cardinality_accepts(cardinality: Cardinality, form: NounForm) -> bool {
     match cardinality {
         Cardinality::SingularCount => form == NounForm::Singular,
+        Cardinality::SingularOrMass => matches!(form, NounForm::Singular | NounForm::Mass),
         Cardinality::PluralCount => form == NounForm::Plural,
         Cardinality::Mass => form == NounForm::Mass,
         Cardinality::PluralOrMass => matches!(form, NounForm::Plural | NounForm::Mass),
@@ -2023,15 +2224,6 @@ fn slot_agrees(slot: VerbSlot, agreement: Agreement) -> bool {
         VerbSlot::Present { person, number } | VerbSlot::Past { person, number }
             if person == agreement.person && number == agreement.number
     )
-}
-
-fn semantic_shape(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    tag.hash(&mut hasher);
-    for child in children {
-        child.meaning.hash(&mut hasher);
-    }
-    hasher.finish()
 }
 
 type EnglishChart = ChartResult<Nonterminal, EnglishLexicalSlot, Features, MeaningKey>;
@@ -2061,7 +2253,7 @@ impl ParsedNonterminal {
         }
     }
 
-    pub(crate) fn simple_clause(&self) -> Option<&SimpleClause> {
+    fn simple_clause(&self) -> Option<&SimpleClause> {
         match &self.syntax {
             Lowered::SimpleClause(clause) => Some(clause),
             _ => None,
@@ -2126,46 +2318,15 @@ pub(crate) fn parse_nonterminal(
         RecoveryProfile::Exact,
     ) {
         Ok(parsed) => Ok(parsed),
-        Err(ParseNonterminalError::NoCompleteParse(_)) => match parse_nonterminal_with_profile(
+        Err(ParseNonterminalError::NoCompleteParse(_)) => parse_nonterminal_with_profile(
             source,
             catalogs,
             nonterminal,
             &surface.tokens,
             RecoveryProfile::Phrases,
-        ) {
-            Ok(parsed) if recovery_may_hide_bare_verb(&parsed) => {
-                match parse_nonterminal_with_profile(
-                    source,
-                    catalogs,
-                    nonterminal,
-                    &surface.tokens,
-                    RecoveryProfile::WithBareVerbs,
-                ) {
-                    Ok(candidate) if candidate.cost() < parsed.cost() => Ok(candidate),
-                    Ok(_) | Err(ParseNonterminalError::NoCompleteParse(_)) => Ok(parsed),
-                    Err(error) => Err(error),
-                }
-            }
-            Ok(parsed) => Ok(parsed),
-            Err(ParseNonterminalError::NoCompleteParse(_)) => parse_nonterminal_with_profile(
-                source,
-                catalogs,
-                nonterminal,
-                &surface.tokens,
-                RecoveryProfile::WithBareVerbs,
-            ),
-            Err(error) => Err(error),
-        },
+        ),
         Err(error) => Err(error),
     }
-}
-
-const fn recovery_may_hide_bare_verb(parsed: &ParsedNonterminal) -> bool {
-    let cost = parsed.cost();
-    // A forced chain of recoveries can be an artifact of withholding a bare
-    // predicate. Re-run the superset grammar and retain it only when it
-    // improves the lexical cost tuple.
-    cost.recoveries > 1
 }
 
 fn parse_nonterminal_with_profile(
@@ -2213,6 +2374,7 @@ enum Lowered {
     Catalog(crate::catalog::CatalogAtom),
     Adverb(Vocab),
     Auxiliary(AuxiliaryInstance),
+    SubjectCopula(ContractedSubjectCopula),
     OracleSymbol(OracleSymbol),
     PowerToughness(PowerToughness),
     Pronoun(PronounInstance),
@@ -2223,11 +2385,13 @@ enum Lowered {
     VerbPhrase(VerbPhrase),
     InfinitiveClause(InfinitiveClause),
     SimpleClause(SimpleClause),
+    EllipticalClause(crate::syntax::EllipticalClause),
     Clause(Clause),
     RelativeClause(RelativeClause),
     Sentence(Sentence),
     Conjunction(crate::syntax::PredicateConjunction),
     Subordinator(crate::syntax::Subordinator),
+    Existential(ExistentialForm),
     Unknown(UnknownPhrase),
     Ignored,
 }
@@ -2261,19 +2425,28 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.syntax()?),
         MeaningKey::Noun(noun) => Lowered::Noun(noun.clone()),
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
-        MeaningKey::AdjectivePhrase { head, .. } => Lowered::AdjectivePhrase(AdjectivePhrase {
-            head: head.clone(),
-            complements: Vec::new(),
-        }),
         MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
         MeaningKey::Auxiliary(auxiliary) => Lowered::Auxiliary(*auxiliary),
+        MeaningKey::SubjectCopula(subject_copula) => {
+            Lowered::SubjectCopula(ContractedSubjectCopula {
+                subject: Subject(NounPhrase::Pronoun {
+                    pronoun: subject_copula.pronoun,
+                    case: PronounCase::Subject,
+                }),
+                copula: Copula {
+                    auxiliary: subject_copula.auxiliary,
+                    contracted_with_subject: true,
+                },
+            })
+        }
         MeaningKey::Verb(verb) => Lowered::Verb(verb.clone()),
         MeaningKey::Catalog(atom) => Lowered::Catalog(atom.clone()),
         MeaningKey::OracleSymbol(symbol) => Lowered::OracleSymbol(symbol.clone()),
         MeaningKey::PowerToughness(power_toughness) => Lowered::PowerToughness(*power_toughness),
         MeaningKey::Conjunction(conjunction) => Lowered::Conjunction(*conjunction),
         MeaningKey::Subordinator(subordinator) => Lowered::Subordinator(*subordinator),
+        MeaningKey::Existential(form) => Lowered::Existential(*form),
         MeaningKey::ThisCard(form) => Lowered::ThisCard(*form),
         MeaningKey::Preposition(preposition) => Lowered::Preposition(*preposition),
         MeaningKey::Unknown(key) => {
@@ -2287,25 +2460,22 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
                         NounForm::Mass => NounInstance::Mass(noun),
                     })
                 }
-                RecoverySlot::Verb(slot) => Lowered::Verb(VerbInstance {
-                    verb: crate::word::Verb::Unknown(unknown),
-                    slot,
-                }),
-                RecoverySlot::NominalModifier
-                | RecoverySlot::VerbDependent
-                | RecoverySlot::PrepositionObject => Lowered::Unknown(unknown),
+                RecoverySlot::NominalModifier | RecoverySlot::PrepositionObject => {
+                    Lowered::Unknown(unknown)
+                }
             }
         }
-        MeaningKey::Nominal { .. }
-        | MeaningKey::NounPhrase { .. }
-        | MeaningKey::PossessiveNounPhrase { .. }
-        | MeaningKey::PrepositionalPhrase { .. }
-        | MeaningKey::RelativeClause { .. }
-        | MeaningKey::VerbPhrase { .. }
-        | MeaningKey::InfinitiveClause { .. }
-        | MeaningKey::SimpleClause { .. }
-        | MeaningKey::Clause { .. }
-        | MeaningKey::Sentence { .. } => return None,
+        MeaningKey::AdjectivePhrase(_)
+        | MeaningKey::Nominal(_)
+        | MeaningKey::NounPhrase(_)
+        | MeaningKey::PossessiveNounPhrase(_)
+        | MeaningKey::PrepositionalPhrase(_)
+        | MeaningKey::RelativeClause(_)
+        | MeaningKey::VerbPhrase(_)
+        | MeaningKey::InfinitiveClause(_)
+        | MeaningKey::SimpleClause(_)
+        | MeaningKey::Clause(_)
+        | MeaningKey::Sentence(_) => return None,
     })
 }
 
@@ -2328,6 +2498,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
+        | RuleTag::NominalPowerToughnessModifier
         | RuleTag::NominalDeterminer
         | RuleTag::NominalPrepositional
         | RuleTag::NominalRelative => lower_nominal(tag, children),
@@ -2362,15 +2533,20 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseConditionalAfterElliptical
         | RuleTag::ClauseConditionalAfter
         | RuleTag::ClauseConditionalAfterIf
+        | RuleTag::ClauseExistential
+        | RuleTag::ClauseCopularNoun
+        | RuleTag::ClauseCopularAdjective
+        | RuleTag::ClauseCopularPrepositional
+        | RuleTag::ClauseContractedCopularNoun
+        | RuleTag::ClauseContractedCopularAdjective
+        | RuleTag::ClauseContractedCopularPrepositional
         | RuleTag::RelativeObject
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => clause::lower_clause(tag, children),
         RuleTag::NounUnknown
-        | RuleTag::VerbUnknown
         | RuleTag::NominalUnknownModifier
-        | RuleTag::VerbPhraseUnknownDependent
         | RuleTag::PrepositionalPhraseUnknownObject => recovery::lower_recovery(tag, children),
     }
 }
@@ -2487,6 +2663,18 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             nominal.modifiers.insert(0, NominalModifier::Noun(noun));
+            Some(Lowered::Nominal(nominal))
+        }
+        RuleTag::NominalPowerToughnessModifier => {
+            let Lowered::PowerToughness(modifier) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
+                return None;
+            };
+            nominal
+                .modifiers
+                .insert(0, NominalModifier::PowerToughness(modifier));
             Some(Lowered::Nominal(nominal))
         }
         RuleTag::NominalDeterminer => {

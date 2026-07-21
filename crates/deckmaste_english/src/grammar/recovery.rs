@@ -1,5 +1,4 @@
 use super::*;
-use crate::syntax::VerbDependent;
 
 const MAX_UNKNOWN_PHRASE_WORDS: u32 = 3;
 
@@ -22,11 +21,6 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::Unknown(RecoverySlot::NominalModifier)), n(N::Nominal)],
     );
     builder.add(
-        RuleTag::VerbPhraseUnknownDependent,
-        N::VerbPhrase,
-        [n(N::VerbPhrase), l(L::Unknown(RecoverySlot::VerbDependent))],
-    );
-    builder.add(
         RuleTag::PrepositionalPhraseUnknownObject,
         N::PrepositionalPhrase,
         [
@@ -36,42 +30,17 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
     );
 }
 
-pub(super) fn add_unknown_verb_rules(builder: &mut RuleBuilder) {
-    use EnglishLexicalSlot as L;
-    use Expected::Lexical as l;
-    use Nonterminal as N;
-
-    for slot in crate::word::VERB_SLOTS {
-        builder.add(
-            RuleTag::VerbUnknown,
-            N::Verb,
-            [l(L::Unknown(RecoverySlot::Verb(slot)))],
-        );
-    }
-}
-
 pub(super) fn scan_unknown(
     source: &str,
     tokens: &[Token],
     start: usize,
     slot: RecoverySlot,
-    allow_bare_verb: bool,
 ) -> Vec<LexicalMatch<Features, MeaningKey>> {
     let Some(first) = tokens.get(start) else {
         return Vec::new();
     };
-    if matches!(slot, RecoverySlot::Noun(_) | RecoverySlot::Verb(_))
-        && first.kind != TokenKind::Word
-    {
+    if matches!(slot, RecoverySlot::Noun(_)) && first.kind != TokenKind::Word {
         return Vec::new();
-    }
-    if let RecoverySlot::Verb(verb_slot) = slot {
-        let Some(surface) = first.span.text(source) else {
-            return Vec::new();
-        };
-        if !unknown_verb_surface_accepts(surface, verb_slot, allow_bare_verb) {
-            return Vec::new();
-        }
     }
     let mut matches = Vec::new();
     let mut nesting = Nesting::default();
@@ -99,10 +68,9 @@ pub(super) fn scan_unknown(
                 form,
                 initial_sound,
             },
-            RecoverySlot::Verb(verb) => Features::Verb(verb),
-            RecoverySlot::NominalModifier
-            | RecoverySlot::VerbDependent
-            | RecoverySlot::PrepositionObject => Features::UnknownPhrase { initial_sound },
+            RecoverySlot::NominalModifier | RecoverySlot::PrepositionObject => {
+                Features::UnknownPhrase { initial_sound }
+            }
         };
         matches.push(LexicalMatch {
             end,
@@ -116,23 +84,20 @@ pub(super) fn scan_unknown(
         });
     }
     match slot {
-        RecoverySlot::Noun(_) | RecoverySlot::Verb(_) => {
+        RecoverySlot::Noun(_) => {
             matches.truncate(1);
             matches
         }
-        RecoverySlot::NominalModifier
-        | RecoverySlot::VerbDependent
-        | RecoverySlot::PrepositionObject => matches,
+        RecoverySlot::NominalModifier | RecoverySlot::PrepositionObject => matches,
     }
 }
 
 pub(super) fn reduce_recovery(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
-    shape: u64,
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::NounUnknown | RuleTag::VerbUnknown => Some(propagate(children.first()?)),
+        RuleTag::NounUnknown => Some(propagate(children.first()?)),
         RuleTag::NominalUnknownModifier => {
             let Features::UnknownPhrase { initial_sound } = children.first()?.features else {
                 return None;
@@ -146,39 +111,26 @@ pub(super) fn reduce_recovery(
             if *leading_recovery {
                 return None;
             }
-            nominal_with_prefix(children.get(1)?, *initial_sound, true, shape)
+            nominal_with_prefix(
+                children.get(1)?,
+                *initial_sound,
+                true,
+                NominalMeaning::UnknownModifier {
+                    modifier: children.first()?.node,
+                    nominal: children.get(1)?.node,
+                },
+            )
         }
-        RuleTag::VerbPhraseUnknownDependent => {
-            let Features::VerbPhrase {
-                form,
-                has_direct_object,
-                trailing_recovery,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if *trailing_recovery {
+        RuleTag::PrepositionalPhraseUnknownObject => {
+            if !matches!(children.first()?.meaning, MeaningKey::Preposition(_)) {
                 return None;
             }
             Some((
-                Features::VerbPhrase {
-                    form: *form,
-                    has_direct_object: *has_direct_object,
-                    trailing_recovery: true,
-                },
-                MeaningKey::VerbPhrase { form: *form, shape },
-            ))
-        }
-        RuleTag::PrepositionalPhraseUnknownObject => {
-            let MeaningKey::Preposition(preposition) = children.first()?.meaning else {
-                return None;
-            };
-            Some((
                 Features::PrepositionalPhrase,
-                MeaningKey::PrepositionalPhrase {
-                    preposition: *preposition,
-                    shape,
-                },
+                MeaningKey::PrepositionalPhrase(PrepositionalPhraseMeaning::UnknownObject {
+                    preposition: children.first()?.node,
+                    object: children.get(1)?.node,
+                }),
             ))
         }
         _ => None,
@@ -187,7 +139,7 @@ pub(super) fn reduce_recovery(
 
 pub(super) fn lower_recovery(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::NounUnknown | RuleTag::VerbUnknown => take(children, 0),
+        RuleTag::NounUnknown => take(children, 0),
         RuleTag::NominalUnknownModifier => {
             let Lowered::Unknown(unknown) = take(children, 0)? else {
                 return None;
@@ -199,16 +151,6 @@ pub(super) fn lower_recovery(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 .modifiers
                 .insert(0, NominalModifier::Unknown(unknown));
             Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::VerbPhraseUnknownDependent => {
-            let Lowered::VerbPhrase(mut verb) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Unknown(unknown) = take(children, 1)? else {
-                return None;
-            };
-            verb.dependents.push(VerbDependent::Unknown(unknown));
-            Some(Lowered::VerbPhrase(verb))
         }
         RuleTag::PrepositionalPhraseUnknownObject => {
             let Lowered::Preposition(preposition) = take(children, 0)? else {
@@ -250,33 +192,6 @@ const fn is_word_like(kind: TokenKind) -> bool {
     )
 }
 
-fn unknown_verb_surface_accepts(surface: &str, slot: VerbSlot, allow_ambiguous_bare: bool) -> bool {
-    let surface = surface.to_ascii_lowercase();
-    match slot {
-        VerbSlot::PresentParticiple => surface.ends_with("ing"),
-        VerbSlot::PastParticiple | VerbSlot::Past { .. } => surface.ends_with("ed"),
-        VerbSlot::Present {
-            person: Person::Third,
-            number: Number::Singular,
-        } => surface.ends_with('s') && !surface.ends_with("ss"),
-        VerbSlot::Infinitive
-        | VerbSlot::Imperative
-        | VerbSlot::Present {
-            person: Person::Second,
-            ..
-        }
-        | VerbSlot::Present {
-            person: Person::Third,
-            number: Number::Plural,
-        } => {
-            allow_ambiguous_bare
-                && !surface.ends_with("ing")
-                && !surface.ends_with("ed")
-                && !surface.ends_with('s')
-        }
-    }
-}
-
 #[derive(Default)]
 struct Nesting {
     brackets: usize,
@@ -311,14 +226,16 @@ mod tests {
     use super::scan_unknown;
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
-    use crate::syntax::Clause;
     use crate::syntax::Determiner;
     use crate::syntax::IndefiniteArticle;
+    use crate::syntax::IndependentClause;
     use crate::syntax::NominalModifier;
     use crate::syntax::NounPhrase;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
-    use crate::syntax::VerbDependent;
+    use crate::syntax::Predicate;
+    use crate::syntax::PredicateObject;
+    use crate::syntax::SentenceBody;
     use crate::word::Noun;
     use crate::word::NounInstance;
     use crate::word::Vocab;
@@ -351,12 +268,8 @@ mod tests {
             }
         );
 
-        let Clause::Simple(clause) = &parsed.sentence().unwrap().clause else {
-            panic!("expected a simple clause");
-        };
-        let [VerbDependent::DirectObject(NounPhrase::Nominal(object))] =
-            clause.predicate.dependents.as_slice()
-        else {
+        let predicate = transitive(parsed.sentence().unwrap());
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
             panic!("expected one nominal direct object");
         };
         assert_eq!(
@@ -367,88 +280,35 @@ mod tests {
             &object.head,
             NounInstance::Singular(Noun::Unknown(unknown)) if unknown.0 == "blorple"
         ));
-        assert!(!parsed.chart.forest.nodes().any(|node| matches!(
-            node.key.meaning,
-            MeaningKey::Unknown(UnknownKey {
-                slot: RecoverySlot::Verb(_),
-                ..
-            })
-        )));
     }
 
     #[test]
-    fn unknown_past_verbs_require_regular_past_morphology() {
-        let slot = RecoverySlot::Verb(VerbSlot::Past {
-            person: Person::Third,
-            number: Number::Singular,
-        });
-        for (source, expected) in [("frobnitzed", 1), ("card", 0), ("target", 0)] {
-            let surface = lex(source);
-            assert_eq!(
-                scan_unknown(source, &surface.tokens, 0, slot, false).len(),
-                expected,
-                "{source}",
-            );
-        }
-    }
-
-    #[test]
-    fn generic_phrase_recovery_does_not_start_on_known_vocabulary() {
-        let source = "each nonland permanent";
-        let surface = lex(source);
-        let catalogs = Catalogs::default();
-        let grammar = EnglishGrammar::with_recovery_profile(
-            source,
-            &catalogs,
-            Nonterminal::VerbPhrase,
-            RecoveryProfile::Phrases,
-        );
-        let matches = crate::chart::Grammar::scan(
-            &grammar,
-            EnglishLexicalSlot::Unknown(RecoverySlot::VerbDependent),
-            &surface.tokens,
-            0,
-        );
-
-        assert!(matches.is_empty());
-    }
-
-    #[test]
-    fn inflected_unknown_verb_competes_with_phrase_recovery() {
+    fn inflected_unknown_verb_recovers_at_the_sentence_boundary() {
         let catalogs =
             Catalogs::default().with_catalog(crate::catalog::CatalogKind::CardType, ["Creature"]);
-        let parsed = parse_nonterminal(
-            "Target creature frobnitzes a card.",
-            &catalogs,
-            Nonterminal::Sentence,
-        )
-        .expect("an unknown finite verb should be recoverable");
-
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::UnknownPhrases);
-        assert_eq!(parsed.cost().unknown_words, 1);
-        assert_eq!(parsed.cost().recoveries, 1);
-        let Clause::Simple(clause) = &parsed.sentence().unwrap().clause else {
-            panic!("expected a simple clause");
+        let report = crate::parse_with_catalogs("Target creature frobnitzes a card.", &catalogs);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph fallback");
         };
-        assert!(matches!(
-            clause.subject,
-            Some(crate::syntax::Subject::NounPhrase(NounPhrase::Nominal(_)))
-        ));
-        assert!(matches!(
-            &clause.predicate.verb.verb,
-            crate::word::Verb::Unknown(unknown) if unknown.0 == "frobnitzes"
-        ));
+        assert!(
+            matches!(
+                &paragraph.sentences[0].body,
+                SentenceBody::Unknown(unknown) if unknown.0 == "Target creature frobnitzes a card"
+            ),
+            "{:#?}",
+            paragraph.sentences[0].body
+        );
     }
 
     #[test]
-    fn morphologically_ambiguous_bare_unknown_verb_remains_recoverable() {
-        let parsed = parse("You frobnitz a card.");
-        let Clause::Simple(clause) = &parsed.sentence().unwrap().clause else {
-            panic!("expected a simple clause");
+    fn morphologically_ambiguous_bare_unknown_verb_recovers_at_the_sentence_boundary() {
+        let report = crate::parse("You frobnitz a card.");
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph fallback");
         };
         assert!(matches!(
-            &clause.predicate.verb.verb,
-            crate::word::Verb::Unknown(unknown) if unknown.0 == "frobnitz"
+            &paragraph.sentences[0].body,
+            SentenceBody::Unknown(unknown) if unknown.0 == "You frobnitz a card"
         ));
     }
 
@@ -463,12 +323,8 @@ mod tests {
                 ..ParseCost::default()
             }
         );
-        let Clause::Simple(clause) = &parsed.sentence().unwrap().clause else {
-            panic!("expected a simple clause");
-        };
-        let [VerbDependent::DirectObject(NounPhrase::Nominal(object))] =
-            clause.predicate.dependents.as_slice()
-        else {
+        let predicate = transitive(parsed.sentence().unwrap());
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
             panic!("expected one nominal direct object");
         };
         assert!(matches!(
@@ -487,10 +343,9 @@ mod tests {
         let surface = lex(source);
         for slot in [
             RecoverySlot::NominalModifier,
-            RecoverySlot::VerbDependent,
             RecoverySlot::PrepositionObject,
         ] {
-            let matches = scan_unknown(source, &surface.tokens, 0, slot, false);
+            let matches = scan_unknown(source, &surface.tokens, 0, slot);
             assert_eq!(
                 matches
                     .into_iter()
@@ -513,13 +368,15 @@ mod tests {
         )
         .unwrap();
         assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
-        let Clause::Simple(clause) = &parsed.sentence().unwrap().clause else {
-            panic!("expected a simple clause");
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
         };
-        assert!(clause.predicate.dependents.iter().any(|dependent| matches!(
-            dependent,
-            VerbDependent::Statistic(crate::syntax::Phrase::PowerToughness(_))
-        )));
+        assert!(matches!(
+            predicate.object,
+            PredicateObject::PowerToughness(_)
+        ));
     }
 
     fn parse(source: &str) -> ParsedNonterminal {
@@ -540,5 +397,15 @@ mod tests {
         .into_iter()
         .map(|unknown| unknown.text.to_owned())
         .collect()
+    }
+
+    fn transitive(sentence: &crate::syntax::Sentence) -> &crate::syntax::TransitivePredicate {
+        match &sentence.body {
+            SentenceBody::Independent(IndependentClause::Transitive(_, predicate))
+            | SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+                predicate,
+            ))) => predicate,
+            other => panic!("expected a transitive clause, got {other:#?}"),
+        }
     }
 }

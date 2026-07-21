@@ -1,6 +1,8 @@
-use super::clause::Clause;
-use super::clause::SimpleClause;
+use super::clause::DependentClause;
+use super::clause::IndependentClause;
+use super::phrase::NounPhrase;
 use super::phrase::Phrase;
+use super::phrase::UnknownPhrase;
 use crate::catalog::CatalogAtom;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -38,8 +40,15 @@ pub struct Cost {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TriggeredAbility {
     pub introducer: TriggerWord,
-    pub event: SimpleClause,
+    pub event: TriggerEvent,
+    pub intervening_condition: Option<DependentClause>,
     pub effect: Paragraph,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TriggerEvent {
+    Clause(IndependentClause),
+    Temporal(NounPhrase),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,7 +101,8 @@ pub enum ModalFrame {
     Activated(Cost),
     Triggered {
         introducer: TriggerWord,
-        event: SimpleClause,
+        event: TriggerEvent,
+        intervening_condition: Option<DependentClause>,
     },
     Loyalty(LoyaltyCost),
 }
@@ -148,8 +158,14 @@ pub struct Paragraph {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sentence {
-    pub clause: Clause,
+    pub body: SentenceBody,
     pub ending: SentenceEnding,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SentenceBody {
+    Independent(IndependentClause),
+    Unknown(UnknownPhrase),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

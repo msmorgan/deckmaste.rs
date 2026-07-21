@@ -1,5 +1,7 @@
 use super::Nonterminal;
 use super::ParsedNonterminal;
+use super::VerbDependent;
+use super::clause::finish_simple_clause;
 use super::parse_nonterminal;
 use crate::Span;
 use crate::catalog::CatalogSlot;
@@ -127,10 +129,12 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 effect: self.parse_paragraph(effect),
             });
         }
-        if let Some((introducer, event, effect)) = self.trigger_frame(tokens) {
+        if let Some((introducer, event, intervening_condition, effect)) = self.trigger_frame(tokens)
+        {
             return AbilityKind::Triggered(TriggeredAbility {
                 introducer,
                 event,
+                intervening_condition,
                 effect: self.parse_paragraph(effect),
             });
         }
@@ -168,8 +172,17 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
 
         let (frame, header) = if let Some((cost, effect)) = self.loyalty_frame(header) {
             (ModalFrame::Loyalty(cost), effect)
-        } else if let Some((introducer, event, effect)) = self.trigger_frame(header) {
-            (ModalFrame::Triggered { introducer, event }, effect)
+        } else if let Some((introducer, event, intervening_condition, effect)) =
+            self.trigger_frame(header)
+        {
+            (
+                ModalFrame::Triggered {
+                    introducer,
+                    event,
+                    intervening_condition,
+                },
+                effect,
+            )
         } else if let Some(colon) = find_top_level_punctuation(header, Punctuation::Colon) {
             (
                 ModalFrame::Activated(self.parse_cost(&header[..colon])),
@@ -259,7 +272,12 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     fn trigger_frame<'tokens>(
         &mut self,
         tokens: &'tokens [Token],
-    ) -> Option<(TriggerWord, SimpleClause, &'tokens [Token])> {
+    ) -> Option<(
+        TriggerWord,
+        TriggerEvent,
+        Option<DependentClause>,
+        &'tokens [Token],
+    )> {
         let introducer = match self.token_text(tokens.first()?) {
             text if text.eq_ignore_ascii_case("when") => TriggerWord::When,
             text if text.eq_ignore_ascii_case("whenever") => TriggerWord::Whenever,
@@ -268,12 +286,33 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         };
         let comma = find_top_level_punctuation(tokens, Punctuation::Comma)?;
         let event_tokens = tokens.get(1..comma)?;
-        let event = self.parse_exact(event_tokens, Nonterminal::SimpleClause)?;
-        Some((
-            introducer,
-            event.simple_clause()?.clone(),
-            &tokens[comma + 1..],
-        ))
+        let event = if introducer == TriggerWord::At {
+            let event = self.parse_exact(event_tokens, Nonterminal::NounPhrase)?;
+            TriggerEvent::Temporal(event.noun_phrase()?.clone())
+        } else {
+            let event = self.parse_exact(event_tokens, Nonterminal::SimpleClause)?;
+            TriggerEvent::Clause(finish_simple_clause(event.simple_clause()?.clone())?)
+        };
+        let mut effect = tokens.get(comma + 1..)?;
+        let intervening_condition = if effect
+            .first()
+            .is_some_and(|token| self.token_text(token).eq_ignore_ascii_case("if"))
+        {
+            let condition_comma = find_top_level_punctuation(effect, Punctuation::Comma)?;
+            let condition =
+                self.parse_exact(effect.get(1..condition_comma)?, Nonterminal::Clause)?;
+            let Clause::Independent(condition) = condition.clause()?.clone() else {
+                return None;
+            };
+            effect = effect.get(condition_comma + 1..)?;
+            Some(DependentClause::Subordinate(
+                Subordinator::If,
+                SubordinateBody::Finite(Box::new(condition)),
+            ))
+        } else {
+            None
+        };
+        Some((introducer, event, intervening_condition, effect))
     }
 
     fn parse_cost(&mut self, tokens: &[Token]) -> Cost {
@@ -340,7 +379,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             span: tokens_span(tokens),
         });
         Sentence {
-            clause: Clause::Unknown(UnknownPhrase(self.tokens_text(body).to_owned())),
+            body: SentenceBody::Unknown(UnknownPhrase(self.tokens_text(body).to_owned())),
             ending,
         }
     }
@@ -368,8 +407,8 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         if preposition.is_some() {
             prefix = &prefix[..prefix.len() - 1];
         }
-        let parsed = self.parse_exact(prefix, Nonterminal::Clause)?;
-        let mut clause = parsed.clause()?.clone();
+        let parsed = self.parse_exact(prefix, Nonterminal::SimpleClause)?;
+        let mut clause = parsed.simple_clause()?.clone();
         let dependent = if let Some(preposition) = preposition {
             VerbDependent::Prepositional(PrepositionalPhrase {
                 preposition,
@@ -384,8 +423,11 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 closed: true,
             })))
         };
-        last_predicate_mut(&mut clause)?.dependents.push(dependent);
-        Some(Sentence { clause, ending })
+        clause.predicate.dependents.push(dependent);
+        Some(Sentence {
+            body: SentenceBody::Independent(finish_simple_clause(clause)?),
+            ending,
+        })
     }
 
     fn parse_keyword_list(&mut self, tokens: &[Token]) -> Option<KeywordAbilityList> {
@@ -719,22 +761,6 @@ fn color_word(surface: &str) -> Option<ColorWord> {
     .find(|color| color.spelling().eq_ignore_ascii_case(surface))
 }
 
-fn last_predicate_mut(clause: &mut Clause) -> Option<&mut VerbPhrase> {
-    match clause {
-        Clause::Simple(simple) => Some(&mut simple.predicate),
-        Clause::Conditional(conditional) => last_predicate_mut(&mut conditional.consequence),
-        Clause::Coordinated(coordinated) => coordinated
-            .rest
-            .last_mut()
-            .map(|coordination| &mut coordination.clause)
-            .map_or_else(
-                || last_predicate_mut(&mut coordinated.first),
-                last_predicate_mut,
-            ),
-        Clause::Elliptical(_) | Clause::Unknown(_) => None,
-    }
-}
-
 #[derive(Default)]
 struct Nesting {
     brackets: usize,
@@ -782,14 +808,24 @@ mod tests {
         };
         assert_eq!(ability.cost.components.len(), 3);
         assert_eq!(ability.effect.sentences.len(), 2);
-        assert!(matches!(
-            ability.effect.sentences[1].clause,
-            Clause::Conditional(ConditionalClause {
-                subordinator: Subordinator::If,
-                position: ConditionalPosition::BeforeConsequence,
-                ..
-            })
-        ));
+        assert!(
+            matches!(
+                ability.effect.sentences[1].body,
+                SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                    ref attachments,
+                    ..
+                })) if matches!(
+                    attachments.as_slice(),
+                    [DependentAttachment {
+                        position: AttachmentPosition::BeforeMatrix,
+                        clause: DependentClause::Subordinate(Subordinator::If, _),
+                        ..
+                    }]
+                )
+            ),
+            "{:#?}",
+            ability.effect.sentences[1].body
+        );
     }
 
     #[test]
@@ -814,18 +850,18 @@ mod tests {
     }
 
     #[test]
-    fn lowercased_trigger_effect_can_still_open_with_a_condition() {
+    fn condition_in_intervening_position_is_lifted_out_of_the_effect() {
         let report = parse("Whenever ~ attacks, if you control another creature, draw a card.");
         let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
             panic!("expected triggered ability");
         };
         assert!(matches!(
-            triggered.effect.sentences[0].clause,
-            Clause::Conditional(ConditionalClause {
-                subordinator: Subordinator::If,
-                position: ConditionalPosition::BeforeConsequence,
-                ..
-            })
+            triggered.intervening_condition,
+            Some(DependentClause::Subordinate(Subordinator::If, _))
+        ));
+        assert!(matches!(
+            triggered.effect.sentences[0].body,
+            SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(_)))
         ));
         assert_eq!(
             render(&report),
@@ -886,13 +922,23 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        assert!(matches!(
-            paragraph.sentences[0].clause,
-            Clause::Conditional(ConditionalClause {
-                position: ConditionalPosition::AfterConsequence,
-                ..
-            })
-        ));
+        assert!(
+            matches!(
+                paragraph.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                    ref attachments,
+                    ..
+                })) if matches!(
+                    attachments.as_slice(),
+                    [DependentAttachment {
+                        position: AttachmentPosition::AfterMatrix,
+                        ..
+                    }]
+                )
+            ),
+            "{:#?}",
+            paragraph.sentences[0].body
+        );
     }
 
     #[test]
@@ -911,10 +957,12 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let Clause::Simple(clause) = &paragraph.sentences[0].clause else {
-            panic!("expected simple clause");
-        };
-        let Some(Subject::NounPhrase(NounPhrase::Nominal(subject))) = &clause.subject else {
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            Subject(NounPhrase::Nominal(subject)),
+            _,
+            _,
+        )) = &paragraph.sentences[0].body
+        else {
             panic!("expected nominal subject");
         };
         assert_eq!(subject.determiner, Some(Determiner::Target(None)));
@@ -927,8 +975,8 @@ mod tests {
             panic!("expected paragraph");
         };
         assert!(matches!(
-            paragraph.sentences[0].clause,
-            Clause::Coordinated(_)
+            paragraph.sentences[0].body,
+            SentenceBody::Independent(IndependentClause::Coordinated(_))
         ));
     }
 
@@ -938,7 +986,14 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        assert!(matches!(paragraph.sentences[0].clause, Clause::Simple(_)));
+        assert!(
+            matches!(
+                paragraph.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(_)))
+            ),
+            "{:#?}",
+            paragraph.sentences[0].body
+        );
     }
 
     #[test]
@@ -949,8 +1004,13 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let Clause::Coordinated(coordination) = &paragraph.sentences[0].clause else {
-            panic!("expected coordinated clause");
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!(
+                "expected coordinated clause, got {:#?}",
+                paragraph.sentences[0].body
+            );
         };
         assert_eq!(coordination.rest.len(), 3);
         assert!(coordination.rest.iter().all(|coordination| {
@@ -964,15 +1024,17 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let Clause::Coordinated(coordination) = &paragraph.sentences[0].clause else {
-            panic!("expected coordinated clause");
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!(
+                "expected coordinated clause, got {:#?}",
+                paragraph.sentences[0].body
+            );
         };
         assert!(matches!(
-            coordination.rest[0].clause,
-            Clause::Simple(SimpleClause {
-                subject: Some(_),
-                ..
-            })
+            coordination.rest[0].member,
+            CoordinatedClauseMember::Independent(_)
         ));
     }
 
@@ -983,14 +1045,16 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let Clause::Simple(clause) = &paragraph.sentences[0].clause else {
-            panic!("expected simple clause");
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!("expected transitive clause");
         };
-        assert!(clause.predicate.dependents.iter().any(|dependent| matches!(
-            dependent,
-            VerbDependent::PredicateComplement(Phrase::QuotedAbility(quoted))
+        assert!(matches!(
+            &predicate.object,
+            PredicateObject::QuotedAbility(quoted)
                 if matches!(quoted.ability.kind, AbilityKind::Triggered(_))
-        )));
+        ));
     }
 
     #[test]
@@ -1053,11 +1117,9 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &action.ast.abilities[0].kind else {
             panic!("expected action paragraph");
         };
-        let Clause::Simple(clause) = &paragraph.sentences[0].clause else {
-            panic!("expected simple action clause");
-        };
+        let clause = sentence_independent(&paragraph.sentences[0]);
         assert!(matches!(
-            clause.predicate.verb.verb,
+            predicate_head(clause).verb.verb,
             crate::word::Verb::KeywordAction(_)
         ));
 
@@ -1077,13 +1139,14 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let Clause::Coordinated(coordination) = &paragraph.sentences[0].clause else {
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &paragraph.sentences[0].body
+        else {
             panic!("expected coordination");
         };
-        let Clause::Simple(first) = coordination.first.as_ref() else {
-            panic!("expected first simple clause");
-        };
-        let Some(Subject::NounPhrase(NounPhrase::Nominal(subject))) = &first.subject else {
+        let IndependentClause::Transitive(Subject(NounPhrase::Nominal(subject)), _) =
+            coordination.first.as_ref()
+        else {
             panic!("expected nominal subject");
         };
         assert!(matches!(
@@ -1139,12 +1202,129 @@ mod tests {
         }
     }
 
+    #[test]
+    fn strict_clause_shapes_cover_the_decision_corpus_fixtures() {
+        let catalogs = fixture_catalogs()
+            .with_catalog(CatalogKind::KeywordAbility, ["Vigilance"])
+            .with_catalog(CatalogKind::SpellType, ["Lesson"]);
+        crate::grammar::parse_nonterminal(
+            "there's a Lesson card in your graveyard",
+            &catalogs,
+            crate::grammar::Nonterminal::Clause,
+        )
+        .expect("the Aang existential condition should parse independently");
+
+        let aang_source = "Aang has vigilance as long as there's a Lesson card in your graveyard.\nWhenever another creature you control dies, put a +1/+1 counter on Aang.";
+        let aang_input =
+            crate::normalize_self_references(aang_source, "Aang, A Lot to Learn", true);
+        let aang = parse_with_catalogs(&aang_input, &catalogs);
+        let AbilityKind::Paragraph(aang_static) = &aang.ast.abilities[0].kind else {
+            panic!("expected Aang's first ability to be a paragraph");
+        };
+        assert!(
+            matches!(
+                &aang_static.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                    attachments,
+                    ..
+                })) if matches!(
+                    attachments.as_slice(),
+                    [DependentAttachment {
+                        position: AttachmentPosition::AfterMatrix,
+                        clause: DependentClause::Subordinate(
+                            Subordinator::AsLongAs,
+                            SubordinateBody::Finite(condition),
+                        ),
+                        ..
+                    }] if matches!(condition.as_ref(), IndependentClause::Existential(_))
+                )
+            ),
+            "{:#?}",
+            aang_static.sentences[0].body
+        );
+        assert_eq!(
+            aang.ast.render("Aang, A Lot to Learn", true).unwrap(),
+            aang_source,
+        );
+
+        let keeper_source = "When this creature enters, you become the monarch.\nAt the beginning of your upkeep, if you're the monarch, creatures you control can't be blocked this turn.";
+        let keeper = parse_with_catalogs(keeper_source, &catalogs);
+        let AbilityKind::Triggered(keeper_upkeep) = &keeper.ast.abilities[1].kind else {
+            panic!("expected Keeper of Keys' second ability to be triggered");
+        };
+        assert!(matches!(keeper_upkeep.event, TriggerEvent::Temporal(_)));
+        assert!(matches!(
+            keeper_upkeep.intervening_condition,
+            Some(DependentClause::Subordinate(
+                Subordinator::If,
+                SubordinateBody::Finite(ref condition),
+            )) if matches!(condition.as_ref(), IndependentClause::Copular(_, _))
+        ));
+        assert!(
+            matches!(
+                keeper_upkeep.effect.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Deontic(_, _, Predicate::Passive(_),))
+            ),
+            "{:#?}",
+            keeper_upkeep.effect.sentences[0].body
+        );
+        assert_eq!(
+            keeper.ast.render("Keeper of Keys", false).unwrap(),
+            keeper_source
+        );
+
+        let justice_source = "Whenever a spell or ability an opponent controls destroys a noncreature permanent you control, you may destroy target permanent that opponent controls.";
+        let justice = parse_with_catalogs(justice_source, &catalogs);
+        let AbilityKind::Triggered(justice_trigger) = &justice.ast.abilities[0].kind else {
+            panic!("expected Karmic Justice to be triggered");
+        };
+        assert!(matches!(
+            justice_trigger.event,
+            TriggerEvent::Clause(IndependentClause::Transitive(_, _))
+        ));
+        assert!(
+            matches!(
+                justice_trigger.effect.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Deontic(
+                    _,
+                    _,
+                    Predicate::Transitive(_),
+                ))
+            ),
+            "{:#?}",
+            justice_trigger.effect.sentences[0].body
+        );
+        assert_eq!(
+            justice.ast.render("Karmic Justice", false).unwrap(),
+            justice_source
+        );
+    }
+
     fn parse(source: &str) -> ParseReport {
         parse_with_catalogs(source, &fixture_catalogs())
     }
 
     fn render(report: &ParseReport) -> String {
         report.ast.render("~", false).expect("AST should render")
+    }
+
+    fn sentence_independent(sentence: &Sentence) -> &IndependentClause {
+        let SentenceBody::Independent(clause) = &sentence.body else {
+            panic!("expected independent sentence, got {:?}", sentence.body);
+        };
+        clause
+    }
+
+    fn predicate_head(clause: &IndependentClause) -> &PredicateHead {
+        match clause {
+            IndependentClause::Transitive(_, predicate) => &predicate.head,
+            IndependentClause::Intransitive(_, predicate) => &predicate.head,
+            IndependentClause::Passive(_, predicate) => &predicate.head,
+            IndependentClause::Imperative(Predicate::Transitive(predicate)) => &predicate.head,
+            IndependentClause::Imperative(Predicate::Intransitive(predicate)) => &predicate.head,
+            IndependentClause::Imperative(Predicate::Passive(predicate)) => &predicate.head,
+            other => panic!("expected lexical predicate, got {other:?}"),
+        }
     }
 
     fn fixture_catalogs() -> Catalogs {

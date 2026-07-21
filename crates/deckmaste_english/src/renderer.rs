@@ -5,12 +5,20 @@ use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
+use crate::syntax::AttachmentPosition;
 use crate::syntax::Clause;
-use crate::syntax::ConditionalPosition;
+use crate::syntax::CoordinatedClauseMember;
+use crate::syntax::CopularComplement;
+use crate::syntax::CopularPredicate;
 use crate::syntax::Cost;
 use crate::syntax::Demonstrative;
+use crate::syntax::DependentClause;
 use crate::syntax::Determiner;
+use crate::syntax::EllipticalClause;
+use crate::syntax::ExistentialClause;
+use crate::syntax::ExistentialForm;
 use crate::syntax::IndefiniteArticle;
+use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveClause;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::KeywordAbilityList;
@@ -33,23 +41,32 @@ use crate::syntax::OracleText;
 use crate::syntax::Paragraph;
 use crate::syntax::Phrase;
 use crate::syntax::Possessor;
+use crate::syntax::Predicate;
+use crate::syntax::PredicateAdjunct;
+use crate::syntax::PredicateComplement;
 use crate::syntax::PredicateConjunction;
+use crate::syntax::PredicateElement;
+use crate::syntax::PredicateHead;
+use crate::syntax::PredicateObject;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
 use crate::syntax::Quantity;
+use crate::syntax::RelativeBody;
+use crate::syntax::RelativeClause;
+use crate::syntax::RelativeMarker;
 use crate::syntax::ScalarSign;
 use crate::syntax::ScalarValue;
 use crate::syntax::Sentence;
+use crate::syntax::SentenceBody;
 use crate::syntax::SentenceEnding;
 use crate::syntax::SignedScalar;
-use crate::syntax::SimpleClause;
 use crate::syntax::Subject;
+use crate::syntax::SubordinateBody;
 use crate::syntax::Subordinator;
 use crate::syntax::ThisCardForm;
+use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
-use crate::syntax::VerbDependent;
-use crate::syntax::VerbPhrase;
 use crate::word::Adjective;
 use crate::word::InitialSound;
 use crate::word::Noun;
@@ -172,9 +189,12 @@ impl<'identity> Renderer<'identity> {
                 self.paragraph(&activated.effect, true)?
             )),
             AbilityKind::Triggered(triggered) => Ok(format!(
-                "{} {}, {}",
-                render_trigger_word(triggered.introducer),
-                self.simple_clause(&triggered.event)?,
+                "{}, {}",
+                self.trigger_frame(
+                    triggered.introducer,
+                    &triggered.event,
+                    triggered.intervening_condition.as_ref(),
+                )?,
                 self.paragraph(&triggered.effect, false)?
             )),
             AbilityKind::Loyalty(loyalty) => Ok(format!(
@@ -206,11 +226,13 @@ impl<'identity> Renderer<'identity> {
                 format!("{}{separator}{header}", self.paragraph(body, true)?)
             }
             ModalFrame::Activated(cost) => format!("{}: {header}", self.cost(cost)?),
-            ModalFrame::Triggered { introducer, event } => format!(
-                "{} {}, {}",
-                render_trigger_word(*introducer),
-                self.simple_clause(event)?,
-                header
+            ModalFrame::Triggered {
+                introducer,
+                event,
+                intervening_condition,
+            } => format!(
+                "{}, {header}",
+                self.trigger_frame(*introducer, event, intervening_condition.as_ref())?
             ),
             ModalFrame::Loyalty(cost) => {
                 format!("[{}]: {header}", render_loyalty_cost(*cost))
@@ -229,6 +251,24 @@ impl<'identity> Renderer<'identity> {
         } else {
             Ok(format!("{framed}\n{}", modes.join("\n")))
         }
+    }
+
+    fn trigger_frame(
+        &self,
+        introducer: TriggerWord,
+        event: &TriggerEvent,
+        intervening_condition: Option<&DependentClause>,
+    ) -> Result<String, RenderError> {
+        let event = match event {
+            TriggerEvent::Clause(clause) => self.independent_clause(clause)?,
+            TriggerEvent::Temporal(phrase) => self.noun_phrase(phrase)?,
+        };
+        let mut rendered = format!("{} {event}", render_trigger_word(introducer));
+        if let Some(condition) = intervening_condition {
+            rendered.push_str(", ");
+            rendered.push_str(&self.dependent_clause(condition)?);
+        }
+        Ok(rendered)
     }
 
     fn keyword_ability_list(&self, list: &KeywordAbilityList) -> Result<String, RenderError> {
@@ -278,8 +318,11 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn sentence(&self, sentence: &Sentence, capitalize: bool) -> Result<String, RenderError> {
-        let clause = self.clause(&sentence.clause)?;
-        let mut rendered = if capitalize { capitalize_first(clause) } else { clause };
+        let body = match &sentence.body {
+            SentenceBody::Independent(clause) => self.independent_clause(clause)?,
+            SentenceBody::Unknown(unknown) => unknown.0.clone(),
+        };
+        let mut rendered = if capitalize { capitalize_first(body) } else { body };
         let (terminal, count) = match sentence.ending {
             SentenceEnding::None => ('\0', 0),
             SentenceEnding::Period(count) => ('.', count),
@@ -292,23 +335,68 @@ impl<'identity> Renderer<'identity> {
 
     fn clause(&self, clause: &Clause) -> Result<String, RenderError> {
         match clause {
-            Clause::Simple(simple) => self.simple_clause(simple),
-            Clause::Elliptical(phrase) => self.phrase(phrase),
-            Clause::Conditional(conditional) => {
-                let condition = self.clause(&conditional.condition)?;
-                let consequence = self.clause(&conditional.consequence)?;
-                let subordinator = render_subordinator(conditional.subordinator);
-                Ok(match conditional.position {
-                    ConditionalPosition::BeforeConsequence => {
-                        format!("{subordinator} {condition}, {consequence}")
-                    }
-                    ConditionalPosition::AfterConsequence => {
-                        format!("{consequence} {subordinator} {condition}")
-                    }
-                })
+            Clause::Independent(clause) => self.independent_clause(clause),
+            Clause::Dependent(clause) => self.dependent_clause(clause),
+        }
+    }
+
+    fn independent_clause(&self, clause: &IndependentClause) -> Result<String, RenderError> {
+        match clause {
+            IndependentClause::Transitive(subject, predicate) => Ok(join_words(vec![
+                self.subject(subject)?,
+                self.transitive_predicate(predicate)?,
+            ])),
+            IndependentClause::Intransitive(subject, predicate) => Ok(join_words(vec![
+                self.subject(subject)?,
+                self.intransitive_predicate(predicate)?,
+            ])),
+            IndependentClause::Copular(subject, predicate) => {
+                self.copular_clause(subject, predicate)
             }
-            Clause::Coordinated(coordinated) => {
-                let mut rendered = self.clause(&coordinated.first)?;
+            IndependentClause::Passive(subject, predicate) => Ok(join_words(vec![
+                self.subject(subject)?,
+                self.passive_predicate(predicate)?,
+            ])),
+            IndependentClause::Imperative(predicate) => self.predicate(predicate),
+            IndependentClause::Deontic(subject, modal, predicate) => Ok(join_words(vec![
+                self.subject(subject)?,
+                self.render_auxiliary(modal.auxiliary)?,
+                self.predicate(predicate)?,
+            ])),
+            IndependentClause::Existential(existential) => self.existential_clause(existential),
+            IndependentClause::Proform(subject, predicate) => Ok(join_words(vec![
+                self.subject(subject)?,
+                self.render_auxiliary(predicate.auxiliary)?,
+            ])),
+            IndependentClause::Complex(complex) => {
+                let mut rendered = String::new();
+                for attachment in complex
+                    .attachments
+                    .iter()
+                    .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
+                {
+                    rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+                    if attachment.comma {
+                        rendered.push(',');
+                    }
+                    rendered.push(' ');
+                }
+                rendered.push_str(&self.independent_clause(&complex.matrix)?);
+                for attachment in complex
+                    .attachments
+                    .iter()
+                    .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
+                {
+                    if attachment.comma {
+                        rendered.push(',');
+                    }
+                    rendered.push(' ');
+                    rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+                }
+                Ok(rendered)
+            }
+            IndependentClause::Coordinated(coordinated) => {
+                let mut rendered = self.independent_clause(&coordinated.first)?;
                 for coordination in &coordinated.rest {
                     if coordination.comma {
                         rendered.push(',');
@@ -316,43 +404,80 @@ impl<'identity> Renderer<'identity> {
                     rendered.push(' ');
                     rendered.push_str(render_predicate_conjunction(coordination.conjunction));
                     rendered.push(' ');
-                    rendered.push_str(&self.clause(&coordination.clause)?);
+                    match &coordination.member {
+                        CoordinatedClauseMember::Independent(clause) => {
+                            rendered.push_str(&self.independent_clause(clause)?);
+                        }
+                        CoordinatedClauseMember::SharedPredicate(predicate) => {
+                            rendered.push_str(&self.predicate(predicate)?);
+                        }
+                    }
                 }
                 Ok(rendered)
             }
-            Clause::Unknown(unknown) => Ok(unknown.0.clone()),
         }
-    }
-
-    fn simple_clause(&self, clause: &SimpleClause) -> Result<String, RenderError> {
-        let mut parts = Vec::with_capacity(2);
-        if let Some(subject) = &clause.subject {
-            parts.push(self.subject(subject)?);
-        }
-        parts.push(self.verb_phrase(&clause.predicate)?);
-        Ok(join_words(parts))
     }
 
     fn subject(&self, subject: &Subject) -> Result<String, RenderError> {
-        match subject {
-            Subject::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase),
-            Subject::Unknown(unknown) => Ok(unknown.0.clone()),
+        self.noun_phrase(&subject.0)
+    }
+
+    fn predicate(&self, predicate: &Predicate) -> Result<String, RenderError> {
+        match predicate {
+            Predicate::Transitive(predicate) => self.transitive_predicate(predicate),
+            Predicate::Intransitive(predicate) => self.intransitive_predicate(predicate),
+            Predicate::Copular(predicate) => {
+                let mut parts = vec![
+                    self.render_auxiliary(predicate.copula.auxiliary)?,
+                    self.copular_complement(&predicate.complement)?,
+                ];
+                for adjunct in &predicate.adjuncts {
+                    parts.push(self.predicate_adjunct(adjunct)?);
+                }
+                Ok(join_words(parts))
+            }
+            Predicate::Passive(predicate) => self.passive_predicate(predicate),
+            Predicate::Proform(predicate) => self.render_auxiliary(predicate.auxiliary),
         }
     }
 
-    fn verb_phrase(&self, phrase: &VerbPhrase) -> Result<String, RenderError> {
-        let mut parts = Vec::with_capacity(
-            phrase.auxiliaries.len() + phrase.preverb_modifiers.len() + phrase.dependents.len() + 1,
-        );
-        for &auxiliary in &phrase.auxiliaries {
-            parts.push(
-                self.vocabulary
-                    .render_auxiliary(auxiliary)
-                    .map(str::to_owned)
-                    .ok_or(RenderError::MissingLexicalForm("auxiliary"))?,
-            );
+    fn transitive_predicate(
+        &self,
+        predicate: &crate::syntax::TransitivePredicate,
+    ) -> Result<String, RenderError> {
+        let mut parts = vec![
+            self.predicate_head(&predicate.head)?,
+            self.predicate_object(&predicate.object)?,
+        ];
+        self.extend_predicate_elements(&mut parts, &predicate.elements)?;
+        Ok(join_words(parts))
+    }
+
+    fn intransitive_predicate(
+        &self,
+        predicate: &crate::syntax::IntransitivePredicate,
+    ) -> Result<String, RenderError> {
+        let mut parts = vec![self.predicate_head(&predicate.head)?];
+        self.extend_predicate_elements(&mut parts, &predicate.elements)?;
+        Ok(join_words(parts))
+    }
+
+    fn passive_predicate(
+        &self,
+        predicate: &crate::syntax::PassivePredicate,
+    ) -> Result<String, RenderError> {
+        let mut parts = vec![self.predicate_head(&predicate.head)?];
+        self.extend_predicate_elements(&mut parts, &predicate.elements)?;
+        Ok(join_words(parts))
+    }
+
+    fn predicate_head(&self, head: &PredicateHead) -> Result<String, RenderError> {
+        let mut parts =
+            Vec::with_capacity(head.auxiliaries.len() + head.preverb_modifiers.len() + 1);
+        for &auxiliary in &head.auxiliaries {
+            parts.push(self.render_auxiliary(auxiliary)?);
         }
-        parts.extend(phrase.preverb_modifiers.iter().map(|modifier| {
+        parts.extend(head.preverb_modifiers.iter().map(|modifier| {
             match modifier {
                 PreverbModifier::Not => "not",
                 PreverbModifier::Also => "also",
@@ -361,37 +486,177 @@ impl<'identity> Renderer<'identity> {
         }));
         parts.push(
             self.vocabulary
-                .render_verb_instance(&phrase.verb)
+                .render_verb_instance(&head.verb)
                 .ok_or(RenderError::MissingLexicalForm("verb"))?,
         );
-        for dependent in &phrase.dependents {
-            parts.push(self.verb_dependent(dependent)?);
+        Ok(join_words(parts))
+    }
+
+    fn render_auxiliary(
+        &self,
+        auxiliary: crate::word::AuxiliaryInstance,
+    ) -> Result<String, RenderError> {
+        self.vocabulary
+            .render_auxiliary(auxiliary)
+            .map(str::to_owned)
+            .ok_or(RenderError::MissingLexicalForm("auxiliary"))
+    }
+
+    fn extend_predicate_elements(
+        &self,
+        parts: &mut Vec<String>,
+        elements: &[PredicateElement],
+    ) -> Result<(), RenderError> {
+        for element in elements {
+            parts.push(match element {
+                PredicateElement::Complement(complement) => {
+                    self.predicate_complement(complement)?
+                }
+                PredicateElement::Adjunct(adjunct) => self.predicate_adjunct(adjunct)?,
+            });
+        }
+        Ok(())
+    }
+
+    fn predicate_object(&self, object: &PredicateObject) -> Result<String, RenderError> {
+        match object {
+            PredicateObject::NounPhrase(phrase) => self.noun_phrase(phrase),
+            PredicateObject::Ability(ability) => {
+                let mut rendered = render_catalog_atom(&ability.ability);
+                if let Some(argument) = &ability.argument {
+                    rendered.push(' ');
+                    rendered.push_str(&self.predicate_object(argument)?);
+                }
+                Ok(rendered)
+            }
+            PredicateObject::Quantity(quantity) => Ok(render_quantity(*quantity)),
+            PredicateObject::OracleSymbol(symbol) => Ok(symbol.as_str().to_owned()),
+            PredicateObject::PowerToughness(value) => Ok(format!(
+                "{}/{}",
+                render_signed_scalar(value.power),
+                render_signed_scalar(value.toughness),
+            )),
+            PredicateObject::EmbeddedAbility(ability) => self.ability(ability, true),
+            PredicateObject::QuotedAbility(quoted) => {
+                let mut rendered = format!("\"{}", self.ability(&quoted.ability, true)?);
+                if quoted.closed {
+                    rendered.push('"');
+                }
+                Ok(rendered)
+            }
+        }
+    }
+
+    fn predicate_complement(
+        &self,
+        complement: &PredicateComplement,
+    ) -> Result<String, RenderError> {
+        match complement {
+            PredicateComplement::IndirectObject(phrase) => self.noun_phrase(phrase),
+            PredicateComplement::Adjective(phrase) => self.adjective_phrase(phrase),
+            PredicateComplement::Prepositional(phrase) => self.prepositional_phrase(phrase),
+            PredicateComplement::Infinitive(clause) => self.infinitive_clause(clause),
+        }
+    }
+
+    fn predicate_adjunct(&self, adjunct: &PredicateAdjunct) -> Result<String, RenderError> {
+        match adjunct {
+            PredicateAdjunct::Adverb(adverb) => Ok(adverb.spelling().to_owned()),
+            PredicateAdjunct::Temporal(phrase) => self.noun_phrase(phrase),
+            PredicateAdjunct::Prepositional(phrase) => self.prepositional_phrase(phrase),
+            PredicateAdjunct::Dependent(clause) => self.dependent_clause(clause),
+        }
+    }
+
+    fn copular_clause(
+        &self,
+        subject: &Subject,
+        predicate: &CopularPredicate,
+    ) -> Result<String, RenderError> {
+        let subject = self.subject(subject)?;
+        let complement = self.copular_complement(&predicate.complement)?;
+        let mut parts = Vec::with_capacity(predicate.adjuncts.len() + 2);
+        if predicate.copula.contracted_with_subject {
+            let auxiliary = self.render_auxiliary(predicate.copula.auxiliary)?;
+            parts.push(format!("{subject}{}", contraction_suffix(&auxiliary)?));
+        } else {
+            parts.push(subject);
+            parts.push(self.render_auxiliary(predicate.copula.auxiliary)?);
+        }
+        parts.push(complement);
+        for adjunct in &predicate.adjuncts {
+            parts.push(self.predicate_adjunct(adjunct)?);
         }
         Ok(join_words(parts))
     }
 
-    fn verb_dependent(&self, dependent: &VerbDependent) -> Result<String, RenderError> {
-        match dependent {
-            VerbDependent::DirectObject(noun) | VerbDependent::IndirectObject(noun) => {
-                self.noun_phrase(noun)
+    fn copular_complement(&self, complement: &CopularComplement) -> Result<String, RenderError> {
+        match complement {
+            CopularComplement::NounPhrase(phrase) => self.noun_phrase(phrase),
+            CopularComplement::Adjective(phrase) => self.adjective_phrase(phrase),
+            CopularComplement::Prepositional(phrase) => self.prepositional_phrase(phrase),
+            CopularComplement::CatalogAtom(atom) => Ok(render_catalog_atom(atom)),
+        }
+    }
+
+    fn existential_clause(&self, clause: &ExistentialClause) -> Result<String, RenderError> {
+        let opening = match clause.form {
+            ExistentialForm::Is => "there is",
+            ExistentialForm::ContractedIs => "there's",
+            ExistentialForm::Are => "there are",
+            ExistentialForm::Was => "there was",
+            ExistentialForm::Were => "there were",
+        };
+        let mut parts = vec![opening.to_owned(), self.noun_phrase(&clause.pivot)?];
+        for adjunct in &clause.adjuncts {
+            parts.push(self.predicate_adjunct(adjunct)?);
+        }
+        Ok(join_words(parts))
+    }
+
+    fn dependent_clause(&self, clause: &DependentClause) -> Result<String, RenderError> {
+        match clause {
+            DependentClause::Subordinate(subordinator, body) => {
+                let body = match body {
+                    SubordinateBody::Finite(clause) => self.independent_clause(clause)?,
+                    SubordinateBody::Elliptical(EllipticalClause::Adjective(phrase)) => {
+                        self.adjective_phrase(phrase)?
+                    }
+                };
+                Ok(format!("{} {body}", render_subordinator(*subordinator)))
             }
-            VerbDependent::PredicateComplement(phrase)
-            | VerbDependent::Scalar(phrase)
-            | VerbDependent::Statistic(phrase)
-            | VerbDependent::Adverbial(phrase) => self.phrase(phrase),
-            VerbDependent::Prepositional(preposition) => self.prepositional_phrase(preposition),
-            VerbDependent::Infinitive(infinitive) => self.infinitive_clause(infinitive),
-            VerbDependent::Subordinate(clause) => self.clause(clause),
-            VerbDependent::Unknown(unknown) => Ok(unknown.0.clone()),
+            DependentClause::Relative(relative) => self.relative_clause(relative),
+            DependentClause::Infinitive(infinitive) => self.infinitive_clause(infinitive),
         }
     }
 
     fn infinitive_clause(&self, clause: &InfinitiveClause) -> Result<String, RenderError> {
-        let predicate = self.verb_phrase(&clause.predicate)?;
+        let predicate = self.predicate(&clause.predicate)?;
         Ok(match clause.marker {
             InfinitiveMarker::Bare => predicate,
             InfinitiveMarker::To => format!("to {predicate}"),
         })
+    }
+
+    fn relative_clause(&self, clause: &RelativeClause) -> Result<String, RenderError> {
+        let marker = match clause.marker {
+            RelativeMarker::That => "that",
+            RelativeMarker::Which => "which",
+            RelativeMarker::Who => "who",
+            RelativeMarker::Zero => "",
+        };
+        let body = match &clause.body {
+            RelativeBody::SubjectGap(predicate) => self.predicate(predicate)?,
+            RelativeBody::ObjectGap { subject, predicate } => {
+                let mut parts = vec![
+                    self.subject(subject)?,
+                    self.predicate_head(&predicate.head)?,
+                ];
+                self.extend_predicate_elements(&mut parts, &predicate.elements)?;
+                join_words(parts)
+            }
+        };
+        Ok(join_words(vec![marker.to_owned(), body]))
     }
 
     fn noun_phrase(&self, phrase: &NounPhrase) -> Result<String, RenderError> {
@@ -442,6 +707,11 @@ impl<'identity> Renderer<'identity> {
             parts.push(match modifier {
                 NominalModifier::Adjective(adjective) => self.adjective_phrase(adjective)?,
                 NominalModifier::Noun(noun) => self.render_noun(noun)?,
+                NominalModifier::PowerToughness(value) => format!(
+                    "{}/{}",
+                    render_signed_scalar(value.power),
+                    render_signed_scalar(value.toughness),
+                ),
                 NominalModifier::Unknown(unknown) => unknown.0.clone(),
             });
         }
@@ -451,7 +721,7 @@ impl<'identity> Renderer<'identity> {
                 NominalComplement::Prepositional(preposition) => {
                     self.prepositional_phrase(preposition)?
                 }
-                NominalComplement::Relative(relative) => self.clause(&relative.clause)?,
+                NominalComplement::Relative(relative) => self.relative_clause(relative)?,
                 NominalComplement::Unknown(unknown) => unknown.0.clone(),
             });
         }
@@ -465,6 +735,7 @@ impl<'identity> Renderer<'identity> {
                     self.adjective_initial_sound(&adjective.head)
                 }
                 NominalModifier::Noun(noun) => self.noun_initial_sound(noun),
+                NominalModifier::PowerToughness(_) => Ok(InitialSound::Consonant),
                 NominalModifier::Unknown(unknown) => Ok(spelling_initial_sound(&unknown.0)),
             };
         }
@@ -553,12 +824,7 @@ impl<'identity> Renderer<'identity> {
             Phrase::PrepositionalPhrase(preposition) => self.prepositional_phrase(preposition),
             Phrase::Quantity(quantity) => Ok(render_quantity(*quantity)),
             Phrase::Adverb(adverb) => Ok(adverb.spelling().to_owned()),
-            Phrase::CatalogAtom(atom) => Ok(match atom.kind {
-                CatalogKind::KeywordAbility
-                | CatalogKind::KeywordAction
-                | CatalogKind::AbilityWord => atom.canonical().to_lowercase(),
-                _ => atom.render_adjective(),
-            }),
+            Phrase::CatalogAtom(atom) => Ok(render_catalog_atom(atom)),
             Phrase::ColorWord(color) => Ok(color.spelling().to_owned()),
             Phrase::ThisCard(form) => self.this_card(*form),
             Phrase::OracleSymbol(symbol) => Ok(symbol.as_str().to_owned()),
@@ -630,6 +896,24 @@ fn render_quantity(quantity: Quantity) -> String {
         Quantity::UpTo(number) => format!("up to {}", number.numeral.format(number.value)),
         Quantity::ThatMany => "that many".to_owned(),
         Quantity::ThatMuch => "that much".to_owned(),
+    }
+}
+
+fn render_catalog_atom(atom: &crate::catalog::CatalogAtom) -> String {
+    match atom.kind {
+        CatalogKind::KeywordAbility | CatalogKind::KeywordAction | CatalogKind::AbilityWord => {
+            atom.canonical().to_lowercase()
+        }
+        _ => atom.render_adjective(),
+    }
+}
+
+fn contraction_suffix(auxiliary: &str) -> Result<&'static str, RenderError> {
+    match auxiliary {
+        "am" => Ok("'m"),
+        "are" => Ok("'re"),
+        "is" => Ok("'s"),
+        _ => Err(RenderError::MissingLexicalForm("copular contraction")),
     }
 }
 
@@ -749,6 +1033,23 @@ mod tests {
         number: Number::Plural,
     };
 
+    #[derive(Debug)]
+    struct VerbPhrase {
+        auxiliaries: Vec<AuxiliaryInstance>,
+        preverb_modifiers: Vec<PreverbModifier>,
+        verb: VerbInstance,
+        dependents: Vec<VerbDependent>,
+    }
+
+    #[derive(Debug)]
+    enum VerbDependent {
+        DirectObject(NounPhrase),
+        PredicateComplement(Phrase),
+        Scalar(Phrase),
+        Adverbial(Phrase),
+        Infinitive(InfinitiveMarker, Box<VerbPhrase>),
+    }
+
     #[test]
     fn keyword_abilities_render_from_canonical_catalog_identity() {
         let catalogs = fixture_catalogs();
@@ -795,7 +1096,7 @@ mod tests {
         assert_eq!(source_free(&draw, "Test Card", false), "Draw a card.");
 
         let spells_cost = paragraph_ability(simple(
-            Some(Subject::NounPhrase(nominal(
+            Some(Subject(nominal(
                 None,
                 vec![],
                 NounInstance::Plural(Noun::Word(Vocab::Spell)),
@@ -810,10 +1111,10 @@ mod tests {
                         head: Adjective::Word(Vocab::Less),
                         complements: vec![],
                     }))),
-                    VerbDependent::Infinitive(InfinitiveClause {
-                        marker: InfinitiveMarker::To,
-                        predicate: Box::new(verb_phrase(Vocab::Cast, VerbSlot::Infinitive, vec![])),
-                    }),
+                    VerbDependent::Infinitive(
+                        InfinitiveMarker::To,
+                        Box::new(verb_phrase(Vocab::Cast, VerbSlot::Infinitive, vec![])),
+                    ),
                 ],
             ),
         ));
@@ -823,7 +1124,7 @@ mod tests {
         );
 
         let hour = paragraph_ability(simple_with_auxiliaries(
-            Some(Subject::NounPhrase(nominal(
+            Some(Subject(nominal(
                 Some(Determiner::Indefinite(IndefiniteArticle::An)),
                 vec![],
                 NounInstance::Singular(Noun::Word(Vocab::Hour)),
@@ -851,7 +1152,7 @@ mod tests {
             vec![],
         );
         let cannot_cast = paragraph_ability(simple_with_auxiliaries(
-            Some(Subject::NounPhrase(opponents)),
+            Some(Subject(opponents)),
             vec![AuxiliaryInstance {
                 auxiliary: Auxiliary::Can,
                 inflection: AuxiliaryInflection::Base,
@@ -886,8 +1187,8 @@ mod tests {
         let NounPhrase::Nominal(creatures) = controlled_creature(&catalogs, false, true) else {
             panic!("controlled creature fixture must be nominal");
         };
-        let first = Clause::Simple(SimpleClause {
-            subject: Some(Subject::NounPhrase(nominal(
+        let first = simple(
+            Some(Subject(nominal(
                 None,
                 vec![
                     NominalModifier::Adjective(AdjectivePhrase {
@@ -899,7 +1200,7 @@ mod tests {
                 creatures.head,
                 creatures.complements,
             ))),
-            predicate: verb_phrase(
+            verb_phrase(
                 Vocab::Get,
                 THIRD_PLURAL_PRESENT,
                 vec![VerbDependent::PredicateComplement(Phrase::PowerToughness(
@@ -915,25 +1216,27 @@ mod tests {
                     },
                 ))],
             ),
-        });
-        let second = Clause::Simple(SimpleClause {
-            subject: None,
-            predicate: verb_phrase(
-                Vocab::Have,
-                THIRD_PLURAL_PRESENT,
-                vec![VerbDependent::PredicateComplement(Phrase::CatalogAtom(
-                    keyword_atom(&catalogs, "haste"),
-                ))],
-            ),
-        });
-        let ast = paragraph_ability(Clause::Coordinated(CoordinatedClause {
-            first: Box::new(first),
-            rest: vec![ClauseCoordination {
-                conjunction: PredicateConjunction::And,
-                comma: false,
-                clause: second,
-            }],
-        }));
+        );
+        let second = strict_predicate(verb_phrase(
+            Vocab::Have,
+            THIRD_PLURAL_PRESENT,
+            vec![VerbDependent::PredicateComplement(Phrase::CatalogAtom(
+                keyword_atom(&catalogs, "haste"),
+            ))],
+        ));
+        let Clause::Independent(first) = first else {
+            panic!("first coordinated fixture must be independent");
+        };
+        let ast = paragraph_ability(Clause::Independent(IndependentClause::Coordinated(
+            CoordinatedIndependentClause {
+                first: Box::new(first),
+                rest: vec![ClauseCoordination {
+                    conjunction: PredicateConjunction::And,
+                    comma: false,
+                    member: CoordinatedClauseMember::SharedPredicate(second),
+                }],
+            },
+        )));
 
         assert_eq!(
             source_free(&ast, "Test Card", false),
@@ -945,9 +1248,7 @@ mod tests {
     fn target_and_negated_relative_clause_ambiguity_is_resolved_in_the_ast() {
         let catalogs = fixture_catalogs();
         let ast = paragraph_ability(simple(
-            Some(Subject::NounPhrase(controlled_creature(
-                &catalogs, false, false,
-            ))),
+            Some(Subject(controlled_creature(&catalogs, false, false))),
             verb_phrase(
                 Vocab::Fight,
                 THIRD_SINGULAR_PRESENT,
@@ -967,7 +1268,7 @@ mod tests {
     fn self_references_expand_without_source_text() {
         let draw_effect = Paragraph {
             sentences: vec![Sentence {
-                clause: simple(
+                body: sentence_body(simple(
                     None,
                     verb_phrase(
                         Vocab::Draw,
@@ -979,7 +1280,7 @@ mod tests {
                             vec![],
                         ))],
                     ),
-                ),
+                )),
                 ending: SentenceEnding::Period(1),
             }],
         };
@@ -988,12 +1289,11 @@ mod tests {
                 ability_word: None,
                 kind: AbilityKind::Triggered(TriggeredAbility {
                     introducer: TriggerWord::Whenever,
-                    event: SimpleClause {
-                        subject: Some(Subject::NounPhrase(NounPhrase::ThisCard(
-                            ThisCardForm::AbbreviatedName,
-                        ))),
-                        predicate: verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
-                    },
+                    event: TriggerEvent::Clause(independent(simple(
+                        Some(Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))),
+                        verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
+                    ))),
+                    intervening_condition: None,
                     effect: draw_effect,
                 }),
             }],
@@ -1027,7 +1327,7 @@ mod tests {
             })],
         );
         let full_name = paragraph_ability(simple(
-            Some(Subject::NounPhrase(nominal(
+            Some(Subject(nominal(
                 Some(Determiner::Possessive(Possessor::NounPhrase(Box::new(
                     NounPhrase::ThisCard(ThisCardForm::FullName),
                 )))),
@@ -1065,23 +1365,22 @@ mod tests {
                 kind: AbilityKind::Modal(ModalAbility {
                     frame: ModalFrame::Triggered {
                         introducer: TriggerWord::Whenever,
-                        event: SimpleClause {
-                            subject: Some(Subject::NounPhrase(NounPhrase::ThisCard(
-                                ThisCardForm::AbbreviatedName,
-                            ))),
-                            predicate: verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
-                        },
+                        event: TriggerEvent::Clause(independent(simple(
+                            Some(Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))),
+                            verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
+                        ))),
+                        intervening_condition: None,
                     },
                     header: Paragraph {
                         sentences: vec![Sentence {
-                            clause: simple(
+                            body: sentence_body(simple(
                                 None,
                                 verb_phrase(
                                     Vocab::Choose,
                                     VerbSlot::Imperative,
                                     vec![VerbDependent::Scalar(Phrase::NumberLiteral(cardinal(1)))],
                                 ),
-                            ),
+                            )),
                             ending: SentenceEnding::None,
                         }],
                     },
@@ -1165,7 +1464,26 @@ mod tests {
     }
 
     fn simple(subject: Option<Subject>, predicate: VerbPhrase) -> Clause {
-        Clause::Simple(SimpleClause { subject, predicate })
+        let predicate = strict_predicate(predicate);
+        let independent = match (subject, predicate) {
+            (None, predicate) => IndependentClause::Imperative(predicate),
+            (Some(subject), Predicate::Transitive(predicate)) => {
+                IndependentClause::Transitive(subject, predicate)
+            }
+            (Some(subject), Predicate::Intransitive(predicate)) => {
+                IndependentClause::Intransitive(subject, predicate)
+            }
+            (Some(subject), Predicate::Copular(predicate)) => {
+                IndependentClause::Copular(subject, predicate)
+            }
+            (Some(subject), Predicate::Passive(predicate)) => {
+                IndependentClause::Passive(subject, predicate)
+            }
+            (Some(subject), Predicate::Proform(predicate)) => {
+                IndependentClause::Proform(subject, predicate)
+            }
+        };
+        Clause::Independent(independent)
     }
 
     fn simple_with_auxiliaries(
@@ -1177,13 +1495,27 @@ mod tests {
         simple(subject, predicate)
     }
 
+    fn independent(clause: Clause) -> IndependentClause {
+        let Clause::Independent(clause) = clause else {
+            panic!("fixture clause must be independent");
+        };
+        clause
+    }
+
+    fn sentence_body(clause: Clause) -> SentenceBody {
+        SentenceBody::Independent(independent(clause))
+    }
+
     fn paragraph_ability(clause: Clause) -> OracleText {
         OracleText {
             abilities: vec![Ability {
                 ability_word: None,
                 kind: AbilityKind::Paragraph(Paragraph {
                     sentences: vec![Sentence {
-                        clause,
+                        body: match clause {
+                            Clause::Independent(clause) => SentenceBody::Independent(clause),
+                            Clause::Dependent(_) => panic!("sentence fixture must be independent"),
+                        },
                         ending: SentenceEnding::Period(1),
                     }],
                 }),
@@ -1207,19 +1539,27 @@ mod tests {
             verb_phrase(Vocab::Control, SECOND_SINGULAR_PRESENT, vec![])
         };
         let surface = if plural { "creatures" } else { "creature" };
+        let Predicate::Intransitive(relative_predicate) = strict_predicate(relative_predicate)
+        else {
+            panic!("relative object-gap fixture must be intransitive before filling its gap");
+        };
         nominal(
             (!plural).then_some(Determiner::Target(None)),
             vec![],
             catalog_noun(catalogs, surface, plural),
             vec![NominalComplement::Relative(RelativeClause {
+                marker: RelativeMarker::Zero,
                 gap: RelativeGap::Object,
-                clause: Box::new(simple(
-                    Some(Subject::NounPhrase(NounPhrase::Pronoun {
+                body: RelativeBody::ObjectGap {
+                    subject: Subject(NounPhrase::Pronoun {
                         pronoun: Pronoun::You,
                         case: PronounCase::Subject,
-                    })),
-                    relative_predicate,
-                )),
+                    }),
+                    predicate: ObjectGapPredicate {
+                        head: relative_predicate.head,
+                        elements: relative_predicate.elements,
+                    },
+                },
             })],
         )
     }
@@ -1228,6 +1568,95 @@ mod tests {
         NumberLiteral {
             value,
             numeral: Numeral::Cardinal,
+        }
+    }
+
+    fn strict_predicate(phrase: VerbPhrase) -> Predicate {
+        if phrase.verb.verb == Verb::Word(Vocab::Be) {
+            let mut dependents = phrase.dependents.into_iter();
+            let complement = match dependents.next().expect("copular complement") {
+                VerbDependent::PredicateComplement(Phrase::AdjectivePhrase(phrase))
+                | VerbDependent::Adverbial(Phrase::AdjectivePhrase(phrase)) => {
+                    CopularComplement::Adjective(*phrase)
+                }
+                other => panic!("unsupported copular fixture: {other:?}"),
+            };
+            assert!(dependents.next().is_none());
+            return Predicate::Copular(CopularPredicate {
+                copula: Copula {
+                    auxiliary: AuxiliaryInstance {
+                        auxiliary: Auxiliary::Be,
+                        inflection: auxiliary_inflection(phrase.verb.slot),
+                        contracted_negation: false,
+                    },
+                    contracted_with_subject: false,
+                },
+                complement,
+                adjuncts: vec![],
+            });
+        }
+
+        let head = PredicateHead {
+            auxiliaries: phrase.auxiliaries,
+            preverb_modifiers: phrase.preverb_modifiers,
+            verb: phrase.verb,
+        };
+        let mut object = None;
+        let mut elements = Vec::new();
+        for dependent in phrase.dependents {
+            match dependent {
+                VerbDependent::DirectObject(phrase) => {
+                    object = Some(PredicateObject::NounPhrase(phrase));
+                }
+                VerbDependent::PredicateComplement(Phrase::PowerToughness(value)) => {
+                    object = Some(PredicateObject::PowerToughness(value));
+                }
+                VerbDependent::PredicateComplement(Phrase::CatalogAtom(atom)) => {
+                    object = Some(PredicateObject::Ability(AbilityObject {
+                        ability: atom,
+                        argument: None,
+                    }));
+                }
+                VerbDependent::PredicateComplement(Phrase::AdjectivePhrase(phrase))
+                | VerbDependent::Adverbial(Phrase::AdjectivePhrase(phrase)) => {
+                    elements.push(PredicateElement::Complement(
+                        PredicateComplement::Adjective(*phrase),
+                    ));
+                }
+                VerbDependent::Scalar(Phrase::OracleSymbol(symbol)) => {
+                    object = Some(PredicateObject::OracleSymbol(symbol));
+                }
+                VerbDependent::Scalar(Phrase::NumberLiteral(number)) => {
+                    object = Some(PredicateObject::Quantity(Quantity::Exact(number)));
+                }
+                VerbDependent::Infinitive(marker, predicate) => {
+                    elements.push(PredicateElement::Complement(
+                        PredicateComplement::Infinitive(InfinitiveClause {
+                            marker,
+                            predicate: Box::new(strict_predicate(*predicate)),
+                        }),
+                    ));
+                }
+                other => panic!("unsupported predicate fixture: {other:?}"),
+            }
+        }
+        match object {
+            Some(object) => Predicate::Transitive(TransitivePredicate {
+                head,
+                object,
+                elements,
+            }),
+            None => Predicate::Intransitive(IntransitivePredicate { head, elements }),
+        }
+    }
+
+    fn auxiliary_inflection(slot: VerbSlot) -> AuxiliaryInflection {
+        match slot {
+            VerbSlot::Infinitive | VerbSlot::Imperative => AuxiliaryInflection::Base,
+            VerbSlot::Present { person, number } => AuxiliaryInflection::Present { person, number },
+            VerbSlot::Past { person, number } => AuxiliaryInflection::Past { person, number },
+            VerbSlot::PresentParticiple => AuxiliaryInflection::PresentParticiple,
+            VerbSlot::PastParticiple => AuxiliaryInflection::PastParticiple,
         }
     }
 }

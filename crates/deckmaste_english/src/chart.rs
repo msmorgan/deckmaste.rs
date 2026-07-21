@@ -79,10 +79,6 @@ pub(crate) struct Child<'a, G>
 where
     G: Grammar + ?Sized,
 {
-    #[allow(
-        dead_code,
-        reason = "typed English meaning reducers consume child identity during migration"
-    )]
     pub(crate) node: NodeId,
     #[cfg(test)]
     pub(crate) symbol: &'a ForestSymbol<G::Nonterminal, G::LexicalSlot>,

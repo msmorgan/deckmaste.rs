@@ -1,37 +1,71 @@
+use super::ability::Ability;
+use super::ability::QuotedAbility;
+use super::phrase::AdjectivePhrase;
 use super::phrase::NounPhrase;
-use super::phrase::Phrase;
+use super::phrase::OracleSymbol;
+use super::phrase::PowerToughness;
 use super::phrase::PrepositionalPhrase;
-use super::phrase::UnknownPhrase;
+use super::phrase::Quantity;
+use crate::catalog::CatalogAtom;
 use crate::word::AuxiliaryInstance;
 use crate::word::VerbInstance;
+use crate::word::Vocab;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Clause {
-    Simple(SimpleClause),
-    Elliptical(Phrase),
-    Conditional(ConditionalClause),
-    Coordinated(CoordinatedClause),
-    Unknown(UnknownPhrase),
+    Independent(IndependentClause),
+    Dependent(DependentClause),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SimpleClause {
-    pub subject: Option<Subject>,
-    pub predicate: VerbPhrase,
+pub enum IndependentClause {
+    Transitive(Subject, TransitivePredicate),
+    Intransitive(Subject, IntransitivePredicate),
+    Copular(Subject, CopularPredicate),
+    Passive(Subject, PassivePredicate),
+    Imperative(Predicate),
+    Deontic(Subject, Modal, Predicate),
+    Existential(ExistentialClause),
+    Proform(Subject, ProPredicate),
+    Complex(ComplexClause),
+    Coordinated(CoordinatedIndependentClause),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Subject {
-    NounPhrase(NounPhrase),
-    Unknown(UnknownPhrase),
+pub enum DependentClause {
+    Subordinate(Subordinator, SubordinateBody),
+    Relative(RelativeClause),
+    Infinitive(InfinitiveClause),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VerbPhrase {
+pub enum SubordinateBody {
+    Finite(Box<IndependentClause>),
+    Elliptical(EllipticalClause),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EllipticalClause {
+    Adjective(AdjectivePhrase),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Subject(pub NounPhrase);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Predicate {
+    Transitive(TransitivePredicate),
+    Intransitive(IntransitivePredicate),
+    Copular(CopularPredicate),
+    Passive(PassivePredicate),
+    Proform(ProPredicate),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PredicateHead {
     pub auxiliaries: Vec<AuxiliaryInstance>,
     pub preverb_modifiers: Vec<PreverbModifier>,
     pub verb: VerbInstance,
-    pub dependents: Vec<VerbDependent>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,23 +75,104 @@ pub enum PreverbModifier {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum VerbDependent {
-    DirectObject(NounPhrase),
+pub struct TransitivePredicate {
+    pub head: PredicateHead,
+    pub object: PredicateObject,
+    pub elements: Vec<PredicateElement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntransitivePredicate {
+    pub head: PredicateHead,
+    pub elements: Vec<PredicateElement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PassivePredicate {
+    pub head: PredicateHead,
+    pub elements: Vec<PredicateElement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CopularPredicate {
+    pub copula: Copula,
+    pub complement: CopularComplement,
+    pub adjuncts: Vec<PredicateAdjunct>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Copula {
+    pub auxiliary: AuxiliaryInstance,
+    pub contracted_with_subject: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CopularComplement {
+    NounPhrase(NounPhrase),
+    Adjective(AdjectivePhrase),
+    Prepositional(PrepositionalPhrase),
+    CatalogAtom(CatalogAtom),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Modal {
+    pub auxiliary: AuxiliaryInstance,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProPredicate {
+    pub auxiliary: AuxiliaryInstance,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObjectGapPredicate {
+    pub head: PredicateHead,
+    pub elements: Vec<PredicateElement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PredicateObject {
+    NounPhrase(NounPhrase),
+    Ability(AbilityObject),
+    Quantity(Quantity),
+    OracleSymbol(OracleSymbol),
+    PowerToughness(PowerToughness),
+    EmbeddedAbility(Box<Ability>),
+    QuotedAbility(Box<QuotedAbility>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AbilityObject {
+    pub ability: CatalogAtom,
+    pub argument: Option<Box<PredicateObject>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PredicateComplement {
     IndirectObject(NounPhrase),
-    PredicateComplement(Phrase),
-    Scalar(Phrase),
-    Statistic(Phrase),
+    Adjective(AdjectivePhrase),
     Prepositional(PrepositionalPhrase),
     Infinitive(InfinitiveClause),
-    Subordinate(Box<Clause>),
-    Adverbial(Phrase),
-    Unknown(UnknownPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PredicateElement {
+    Complement(PredicateComplement),
+    Adjunct(PredicateAdjunct),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PredicateAdjunct {
+    Adverb(Vocab),
+    Temporal(NounPhrase),
+    Prepositional(PrepositionalPhrase),
+    Dependent(Box<DependentClause>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InfinitiveClause {
     pub marker: InfinitiveMarker,
-    pub predicate: Box<VerbPhrase>,
+    pub predicate: Box<Predicate>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,8 +183,17 @@ pub enum InfinitiveMarker {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelativeClause {
+    pub marker: RelativeMarker,
     pub gap: RelativeGap,
-    pub clause: Box<Clause>,
+    pub body: RelativeBody,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RelativeMarker {
+    That,
+    Which,
+    Who,
+    Zero,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -79,17 +203,50 @@ pub enum RelativeGap {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConditionalClause {
-    pub subordinator: Subordinator,
-    pub position: ConditionalPosition,
-    pub condition: Box<Clause>,
-    pub consequence: Box<Clause>,
+pub enum RelativeBody {
+    SubjectGap(Predicate),
+    ObjectGap {
+        subject: Subject,
+        predicate: ObjectGapPredicate,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ComplexClause {
+    pub matrix: Box<IndependentClause>,
+    pub attachments: Vec<DependentAttachment>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependentAttachment {
+    pub position: AttachmentPosition,
+    pub comma: bool,
+    pub clause: DependentClause,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConditionalPosition {
-    BeforeConsequence,
-    AfterConsequence,
+pub enum AttachmentPosition {
+    BeforeMatrix,
+    AfterMatrix,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoordinatedIndependentClause {
+    pub first: Box<IndependentClause>,
+    pub rest: Vec<ClauseCoordination>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClauseCoordination {
+    pub conjunction: PredicateConjunction,
+    pub comma: bool,
+    pub member: CoordinatedClauseMember,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CoordinatedClauseMember {
+    Independent(Box<IndependentClause>),
+    SharedPredicate(Predicate),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -102,22 +259,25 @@ pub enum Subordinator {
     Because,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CoordinatedClause {
-    pub first: Box<Clause>,
-    pub rest: Vec<ClauseCoordination>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ClauseCoordination {
-    pub conjunction: PredicateConjunction,
-    pub comma: bool,
-    pub clause: Clause,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PredicateConjunction {
     And,
     Or,
     Then,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExistentialClause {
+    pub form: ExistentialForm,
+    pub pivot: NounPhrase,
+    pub adjuncts: Vec<PredicateAdjunct>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ExistentialForm {
+    Is,
+    ContractedIs,
+    Are,
+    Was,
+    Were,
 }

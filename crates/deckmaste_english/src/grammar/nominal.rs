@@ -8,19 +8,21 @@ mod tests {
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::AdjectivePhrase;
-    use crate::syntax::Clause;
     use crate::syntax::Determiner;
+    use crate::syntax::IndependentClause;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalModifier;
     use crate::syntax::NounPhrase;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
     use crate::syntax::Possessor;
+    use crate::syntax::Predicate;
+    use crate::syntax::PredicateHead;
+    use crate::syntax::PredicateObject;
     use crate::syntax::Sentence;
+    use crate::syntax::SentenceBody;
     use crate::syntax::SentenceEnding;
-    use crate::syntax::SimpleClause;
-    use crate::syntax::VerbDependent;
-    use crate::syntax::VerbPhrase;
+    use crate::syntax::TransitivePredicate;
     use crate::word::Adjective;
     use crate::word::Noun;
     use crate::word::NounInstance;
@@ -201,18 +203,20 @@ mod tests {
                 ability_word: None,
                 kind: AbilityKind::Paragraph(Paragraph {
                     sentences: vec![Sentence {
-                        clause: Clause::Simple(SimpleClause {
-                            subject: None,
-                            predicate: VerbPhrase {
-                                auxiliaries: vec![],
-                                preverb_modifiers: vec![],
-                                verb: VerbInstance {
-                                    verb: Verb::Word(Vocab::Draw),
-                                    slot: VerbSlot::Imperative,
+                        body: SentenceBody::Independent(IndependentClause::Imperative(
+                            Predicate::Transitive(TransitivePredicate {
+                                head: PredicateHead {
+                                    auxiliaries: vec![],
+                                    preverb_modifiers: vec![],
+                                    verb: VerbInstance {
+                                        verb: Verb::Word(Vocab::Draw),
+                                        slot: VerbSlot::Imperative,
+                                    },
                                 },
-                                dependents: vec![VerbDependent::DirectObject(noun_phrase.clone())],
-                            },
-                        }),
+                                object: PredicateObject::NounPhrase(noun_phrase.clone()),
+                                elements: vec![],
+                            }),
+                        )),
                         ending: SentenceEnding::Period(1),
                     }],
                 }),

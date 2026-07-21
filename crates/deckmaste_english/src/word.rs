@@ -94,7 +94,6 @@ pub struct NounDefinition {
 pub enum Verb {
     Word(Vocab),
     KeywordAction(KeywordAction),
-    Unknown(UnknownPhrase),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -970,7 +969,6 @@ impl Vocabulary {
         match verb {
             Verb::Word(vocab) => self.render_verb(*vocab, slot),
             Verb::KeywordAction(action) => action.render(slot),
-            Verb::Unknown(unknown) => Some(unknown.0.clone()),
         }
     }
 }
