@@ -14,7 +14,6 @@ pub(crate) enum NominalMeaning {
     Determined { determiner: NodeId, nominal: NodeId },
     Prepositional { nominal: NodeId, phrase: NodeId },
     Relative { nominal: NodeId, clause: NodeId },
-    UnknownModifier { modifier: NodeId, nominal: NodeId },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -52,7 +51,6 @@ pub(crate) enum PossessiveNounPhraseMeaning {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum PrepositionalPhraseMeaning {
     NounObject { preposition: NodeId, object: NodeId },
-    UnknownObject { preposition: NodeId, object: NodeId },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -115,7 +113,7 @@ pub(crate) enum SimpleClauseMeaning {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum RelativeClauseMeaning {
-    ObjectGap { clause: NodeId },
+    ObjectGap { subject: NodeId, predicate: NodeId },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

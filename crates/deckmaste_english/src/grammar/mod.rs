@@ -147,6 +147,7 @@ pub(crate) enum Nonterminal {
     RelativeClause,
     Verb,
     VerbPhrase,
+    ObjectGapVerbPhrase,
     InfinitiveClause,
     SimpleClause,
     Clause,
@@ -209,6 +210,8 @@ enum RecoveryProfile {
     Phrases,
 }
 
+const RECOVERY_STATE_LIMIT: usize = 50_000;
+
 impl RecoveryProfile {
     const fn mode(self) -> RecoveryMode {
         match self {
@@ -221,8 +224,6 @@ impl RecoveryProfile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum RecoverySlot {
     Noun(NounForm),
-    NominalModifier,
-    PrepositionObject,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -284,6 +285,12 @@ pub(crate) enum PredicateObjectState {
     AbilityWithArgument,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PredicateAttachmentPhase {
+    Object,
+    Tail,
+}
+
 impl PredicateObjectState {
     const fn has_direct_object(self) -> bool {
         !matches!(self, Self::None)
@@ -322,6 +329,7 @@ pub(crate) enum Features {
     VerbPhrase {
         form: PredicateForm,
         object: PredicateObjectState,
+        phase: PredicateAttachmentPhase,
     },
     InfinitiveClause,
     SimpleClause {
@@ -337,9 +345,6 @@ pub(crate) enum Features {
     Sentence,
     PrepositionalPhrase,
     RelativeClause(RelativeGap),
-    UnknownPhrase {
-        initial_sound: InitialSound,
-    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -600,8 +605,6 @@ enum RuleTag {
     SentenceQuestion,
     SentenceNone,
     NounUnknown,
-    NominalUnknownModifier,
-    PrepositionalPhraseUnknownObject,
 }
 
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
@@ -903,11 +906,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Unknown(slot)
                 if self.recovery_profile != RecoveryProfile::Exact =>
             {
-                let already_known = match slot {
-                    RecoverySlot::Noun(_)
-                    | RecoverySlot::NominalModifier
-                    | RecoverySlot::PrepositionObject => self.has_known_word(tokens, start),
-                };
+                let already_known = self.has_known_word(tokens, start);
                 if already_known {
                     Vec::new()
                 } else {
@@ -929,6 +928,21 @@ impl Grammar for EnglishGrammar<'_, '_> {
         children: &[Child<'_, Self>],
     ) -> Option<Reduction<Self::Features, Self::Meaning>> {
         reduce(self.tags.get(rule.index()).copied()?, children)
+    }
+
+    fn accepts_prefix(
+        &self,
+        rule: RuleId,
+        completed_children: usize,
+        latest_child: &Child<'_, Self>,
+    ) -> bool {
+        self.tags.get(rule.index()).copied().is_some_and(|tag| {
+            clause::accepts_predicate_prefix(tag, completed_children, latest_child.features)
+        })
+    }
+
+    fn state_limit(&self) -> Option<usize> {
+        (self.recovery_profile == RecoveryProfile::Phrases).then_some(RECOVERY_STATE_LIMIT)
     }
 }
 
@@ -1744,9 +1758,7 @@ fn reduce(
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => clause::reduce_clause(tag, children)?,
-        RuleTag::NounUnknown
-        | RuleTag::NominalUnknownModifier
-        | RuleTag::PrepositionalPhraseUnknownObject => recovery::reduce_recovery(tag, children)?,
+        RuleTag::NounUnknown => recovery::reduce_recovery(tag, children)?,
     };
     Some(Reduction {
         features,
@@ -2336,14 +2348,9 @@ fn parse_nonterminal_with_profile(
     tokens: &[Token],
     recovery_profile: RecoveryProfile,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
-    let started = std::time::Instant::now();
     let grammar =
         EnglishGrammar::with_recovery_profile(source, catalogs, nonterminal, recovery_profile);
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
-    let chart_elapsed = started.elapsed();
-    if chart_elapsed.as_millis() >= 50 {
-        eprintln!("slow chart {recovery_profile:?} {chart_elapsed:?} {nonterminal:?}: {source:?}");
-    }
     let (root, best) = chart
         .forest
         .best_root(chart.roots.iter().copied())
@@ -2460,9 +2467,6 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
                         NounForm::Mass => NounInstance::Mass(noun),
                     })
                 }
-                RecoverySlot::NominalModifier | RecoverySlot::PrepositionObject => {
-                    Lowered::Unknown(unknown)
-                }
             }
         }
         MeaningKey::AdjectivePhrase(_)
@@ -2545,9 +2549,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => clause::lower_clause(tag, children),
-        RuleTag::NounUnknown
-        | RuleTag::NominalUnknownModifier
-        | RuleTag::PrepositionalPhraseUnknownObject => recovery::lower_recovery(tag, children),
+        RuleTag::NounUnknown => recovery::lower_recovery(tag, children),
     }
 }
 

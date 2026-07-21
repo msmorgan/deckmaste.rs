@@ -72,6 +72,19 @@ pub(crate) trait Grammar {
         rule: RuleId,
         children: &[Child<'_, Self>],
     ) -> Option<Reduction<Self::Features, Self::Meaning>>;
+
+    fn accepts_prefix(
+        &self,
+        _rule: RuleId,
+        _completed_children: usize,
+        _latest_child: &Child<'_, Self>,
+    ) -> bool {
+        true
+    }
+
+    fn state_limit(&self) -> Option<usize> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -105,6 +118,7 @@ pub(crate) enum GrammarError {
     MissingRuleIndex(RuleId),
     MismatchedRuleIndex(RuleId),
     ZeroLengthCycle,
+    StateLimitExceeded { limit: usize },
     InvalidLexicalMatch { start: usize, end: usize },
 }
 
@@ -245,8 +259,15 @@ where
 
     fn run(mut self) -> Result<GrammarChartResult<G>, GrammarError> {
         self.seed();
+        let mut processed = 0_usize;
         while let Some((position, item)) = self.agenda.pop_front() {
+            if let Some(limit) = self.grammar.state_limit()
+                && processed >= limit
+            {
+                return Err(GrammarError::StateLimitExceeded { limit });
+            }
             self.process_item(position, item)?;
+            processed += 1;
         }
 
         let roots = self
@@ -345,14 +366,11 @@ where
             .entry((item.origin, lhs))
             .or_default()
             .push(interned.node);
-        let Some(waiters) = self.waiting.get(&(item.origin, lhs)) else {
+        let Some(waiters) = self.waiting.get(&(item.origin, lhs)).cloned() else {
             return;
         };
-        for &waiter in waiters {
-            let mut waiter = waiter;
-            waiter.dot += 1;
-            waiter.partial = self.partials.push(waiter.partial, interned.node);
-            enqueue(&mut self.chart, &mut self.agenda, position, waiter);
+        for waiter in waiters {
+            self.advance_with_child(position, waiter, interned.node);
         }
     }
 
@@ -375,13 +393,10 @@ where
             );
         }
 
-        if let Some(existing) = self.completed.get(&(position, nonterminal)) {
-            for &child in existing {
+        if let Some(existing) = self.completed.get(&(position, nonterminal)).cloned() {
+            for child in existing {
                 let end = self.forest.node(child).key.end;
-                let mut advanced = item;
-                advanced.dot += 1;
-                advanced.partial = self.partials.push(advanced.partial, child);
-                enqueue(&mut self.chart, &mut self.agenda, end, advanced);
+                self.advance_with_child(end, item, child);
             }
         }
     }
@@ -393,12 +408,34 @@ where
         slot: G::LexicalSlot,
     ) -> Result<(), GrammarError> {
         for edge in self.lexical_edges(slot, position)? {
-            let mut advanced = item;
-            advanced.dot += 1;
-            advanced.partial = self.partials.push(advanced.partial, edge.node);
-            enqueue(&mut self.chart, &mut self.agenda, edge.end, advanced);
+            self.advance_with_child(edge.end, item, edge.node);
         }
         Ok(())
+    }
+
+    fn advance_with_child(&mut self, position: usize, item: ItemKey, child: NodeId) {
+        let accepted = {
+            let node = self.forest.node(child);
+            self.grammar.accepts_prefix(
+                item.rule,
+                item.dot + 1,
+                &Child {
+                    node: child,
+                    #[cfg(test)]
+                    symbol: &node.key.symbol,
+                    features: &node.key.features,
+                    meaning: &node.key.meaning,
+                },
+            )
+        };
+        if !accepted {
+            return;
+        }
+
+        let mut advanced = item;
+        advanced.dot += 1;
+        advanced.partial = self.partials.push(advanced.partial, child);
+        enqueue(&mut self.chart, &mut self.agenda, position, advanced);
     }
 
     fn lexical_edges(
@@ -567,6 +604,8 @@ mod tests {
         rules_by_lhs: HashMap<N, Vec<RuleId>>,
         scans: RefCell<HashMap<(L, usize), usize>>,
         reduced_children: RefCell<Vec<NodeId>>,
+        reject_list_extension_prefix: bool,
+        state_limit: Option<usize>,
     }
 
     impl TestGrammar {
@@ -605,7 +644,19 @@ mod tests {
                 rules_by_lhs,
                 scans: RefCell::new(HashMap::new()),
                 reduced_children: RefCell::new(Vec::new()),
+                reject_list_extension_prefix: false,
+                state_limit: None,
             }
+        }
+
+        fn rejecting_list_extension_prefix(mut self) -> Self {
+            self.reject_list_extension_prefix = true;
+            self
+        }
+
+        fn with_state_limit(mut self, limit: usize) -> Self {
+            self.state_limit = Some(limit);
+            self
         }
     }
 
@@ -690,6 +741,19 @@ mod tests {
                 local_cost: ParseCost::default(),
             })
         }
+
+        fn accepts_prefix(
+            &self,
+            rule: RuleId,
+            completed_children: usize,
+            _latest_child: &Child<'_, Self>,
+        ) -> bool {
+            !(self.reject_list_extension_prefix && rule.index() == 3 && completed_children == 1)
+        }
+
+        fn state_limit(&self) -> Option<usize> {
+            self.state_limit
+        }
     }
 
     #[test]
@@ -735,6 +799,24 @@ mod tests {
         let root = result.forest.node(result.roots[0]);
         assert_eq!((root.key.start, root.key.end), (0, tokens.len()));
         assert_eq!(root.key.meaning, Meaning::List);
+    }
+
+    #[test]
+    fn grammar_can_prune_an_impossible_partial_rule() {
+        let grammar = TestGrammar::new().rejecting_list_extension_prefix();
+
+        let result = parse_chart(&grammar, &["a", "a"]).expect("the grammar is valid");
+
+        assert!(result.roots.is_empty());
+    }
+
+    #[test]
+    fn grammar_can_bound_chart_state_expansion() {
+        let grammar = TestGrammar::new().with_state_limit(1);
+
+        let error = parse_chart(&grammar, &["a", "and", "a"]).unwrap_err();
+
+        assert_eq!(error, super::GrammarError::StateLimitExceeded { limit: 1 });
     }
 
     #[test]

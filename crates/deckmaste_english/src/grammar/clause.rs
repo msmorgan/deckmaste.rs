@@ -91,6 +91,41 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
     );
 
     builder.add(
+        RuleTag::VerbPhraseBase,
+        N::ObjectGapVerbPhrase,
+        [n(N::Verb)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseAuxiliary,
+        N::ObjectGapVerbPhrase,
+        [l(L::Auxiliary), n(N::ObjectGapVerbPhrase)],
+    );
+    builder.add_with_cost(
+        RuleTag::VerbPhraseAdjective,
+        N::ObjectGapVerbPhrase,
+        [n(N::ObjectGapVerbPhrase), n(N::AdjectivePhrase)],
+        ParseCost {
+            precedence: 1,
+            ..ParseCost::default()
+        },
+    );
+    builder.add(
+        RuleTag::VerbPhrasePrepositional,
+        N::ObjectGapVerbPhrase,
+        [n(N::ObjectGapVerbPhrase), n(N::PrepositionalPhrase)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseInfinitive,
+        N::ObjectGapVerbPhrase,
+        [n(N::ObjectGapVerbPhrase), n(N::InfinitiveClause)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseAdverb,
+        N::ObjectGapVerbPhrase,
+        [n(N::ObjectGapVerbPhrase), l(L::Adverb)],
+    );
+
+    builder.add(
         RuleTag::InfinitiveTo,
         N::InfinitiveClause,
         [l(L::To), n(N::VerbPhrase)],
@@ -189,7 +224,7 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
     builder.add(
         RuleTag::RelativeObject,
         N::RelativeClause,
-        [n(N::SimpleClause)],
+        [n(N::NounPhrase), n(N::ObjectGapVerbPhrase)],
     );
 
     for (tag, punctuation) in [
@@ -250,6 +285,41 @@ pub(super) fn reduce_clause(
     }
 }
 
+pub(super) fn accepts_predicate_prefix(
+    tag: RuleTag,
+    completed_children: usize,
+    features: &Features,
+) -> bool {
+    if completed_children != 1 {
+        return true;
+    }
+    let object_rule = matches!(
+        tag,
+        RuleTag::VerbPhraseDirectObject
+            | RuleTag::VerbPhraseAbility
+            | RuleTag::VerbPhraseOracleSymbol
+            | RuleTag::VerbPhrasePowerToughness
+    );
+    let quantity_rule = tag == RuleTag::VerbPhraseQuantity;
+    if !object_rule && !quantity_rule {
+        return true;
+    }
+    let Features::VerbPhrase { object, phase, .. } = features else {
+        return false;
+    };
+    if *phase != PredicateAttachmentPhase::Object {
+        return false;
+    }
+    if quantity_rule {
+        matches!(
+            object,
+            PredicateObjectState::None | PredicateObjectState::Ability
+        )
+    } else {
+        *object == PredicateObjectState::None
+    }
+}
+
 fn reduce_predicate(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
@@ -265,6 +335,7 @@ fn reduce_predicate(
                 Features::VerbPhrase {
                     form,
                     object: PredicateObjectState::None,
+                    phase: PredicateAttachmentPhase::Object,
                 },
                 MeaningKey::VerbPhrase(VerbPhraseMeaning::Head {
                     verb: children.first()?.node,
@@ -278,6 +349,7 @@ fn reduce_predicate(
             let Features::VerbPhrase {
                 form: child_form,
                 object,
+                phase,
             } = children.get(1)?.features
             else {
                 return None;
@@ -287,6 +359,7 @@ fn reduce_predicate(
                 Features::VerbPhrase {
                     form,
                     object: *object,
+                    phase: *phase,
                 },
                 MeaningKey::VerbPhrase(VerbPhraseMeaning::Auxiliary {
                     auxiliary: children.first()?.node,
@@ -388,8 +461,18 @@ fn extend_predicate(
     attachment: ObjectAttachment,
     meaning: VerbPhraseMeaning,
 ) -> Option<Reduced> {
-    let Features::VerbPhrase { form, object, .. } = predicate.features else {
+    let Features::VerbPhrase {
+        form,
+        object,
+        phase,
+    } = predicate.features
+    else {
         return None;
+    };
+    let next_phase = match (attachment, *phase) {
+        (ObjectAttachment::None, _) => PredicateAttachmentPhase::Tail,
+        (_, PredicateAttachmentPhase::Object) => PredicateAttachmentPhase::Object,
+        (_, PredicateAttachmentPhase::Tail) => return None,
     };
     let object = match (attachment, *object) {
         (ObjectAttachment::None, object) => object,
@@ -407,6 +490,7 @@ fn extend_predicate(
         Features::VerbPhrase {
             form: *form,
             object,
+            phase: next_phase,
         },
         MeaningKey::VerbPhrase(meaning),
     ))
@@ -552,19 +636,32 @@ fn reduce_simple_clause(
         | RuleTag::ClauseContractedCopularAdjective
         | RuleTag::ClauseContractedCopularPrepositional) => reduce_copular_clause(tag, children),
         RuleTag::RelativeObject => {
-            let Features::SimpleClause {
-                has_subject: true,
-                standalone: true,
-                has_direct_object: false,
-                ..
+            let Features::NounPhrase {
+                agreement: Some(subject_agreement),
+                pronoun_case,
             } = children.first()?.features
             else {
                 return None;
             };
+            if *pronoun_case == Some(PronounCase::Object) {
+                return None;
+            }
+            let Features::VerbPhrase {
+                form: PredicateForm::Finite(predicate_agreement),
+                object: PredicateObjectState::None,
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            if predicate_agreement.is_some_and(|agreement| agreement != *subject_agreement) {
+                return None;
+            }
             Some((
                 Features::RelativeClause(RelativeGap::Object),
                 MeaningKey::RelativeClause(RelativeClauseMeaning::ObjectGap {
-                    clause: children.first()?.node,
+                    subject: children.first()?.node,
+                    predicate: children.get(1)?.node,
                 }),
             ))
         }
@@ -1096,11 +1193,13 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
         | RuleTag::ClauseContractedCopularAdjective
         | RuleTag::ClauseContractedCopularPrepositional) => lower_copular_clause(tag, children),
         RuleTag::RelativeObject => {
-            let Lowered::SimpleClause(simple) = take(children, 0)? else {
+            let Lowered::NounPhrase(subject) = take(children, 0)? else {
                 return None;
             };
-            let subject = simple.subject?;
-            let FinishedPredicate { modal, predicate } = finish_predicate(simple.predicate)?;
+            let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
+                return None;
+            };
+            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
             if modal.is_some() {
                 return None;
             }
@@ -1111,7 +1210,7 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                 marker: RelativeMarker::Zero,
                 gap: RelativeGap::Object,
                 body: RelativeBody::ObjectGap {
-                    subject,
+                    subject: Subject(subject),
                     predicate: ObjectGapPredicate {
                         head: predicate.head,
                         elements: predicate.elements,
@@ -1727,6 +1826,62 @@ mod tests {
             ))] if matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn direct_objects_cannot_follow_predicate_tail_elements() {
+        let result = parse_nonterminal(
+            "You draw during your turn a card.",
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn predicate_prefix_pruning_rejects_late_or_duplicate_objects() {
+        let open = Features::VerbPhrase {
+            form: PredicateForm::Imperative,
+            object: PredicateObjectState::None,
+            phase: PredicateAttachmentPhase::Object,
+        };
+        let occupied = Features::VerbPhrase {
+            form: PredicateForm::Imperative,
+            object: PredicateObjectState::Direct,
+            phase: PredicateAttachmentPhase::Object,
+        };
+        let ability = Features::VerbPhrase {
+            form: PredicateForm::Imperative,
+            object: PredicateObjectState::Ability,
+            phase: PredicateAttachmentPhase::Object,
+        };
+        let tail = Features::VerbPhrase {
+            form: PredicateForm::Imperative,
+            object: PredicateObjectState::None,
+            phase: PredicateAttachmentPhase::Tail,
+        };
+
+        assert!(accepts_predicate_prefix(
+            RuleTag::VerbPhraseDirectObject,
+            1,
+            &open,
+        ));
+        assert!(!accepts_predicate_prefix(
+            RuleTag::VerbPhraseDirectObject,
+            1,
+            &occupied,
+        ));
+        assert!(accepts_predicate_prefix(
+            RuleTag::VerbPhraseQuantity,
+            1,
+            &ability,
+        ));
+        assert!(!accepts_predicate_prefix(
+            RuleTag::VerbPhraseDirectObject,
+            1,
+            &tail,
+        ));
     }
 
     #[test]
