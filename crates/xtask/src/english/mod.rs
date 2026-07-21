@@ -7,6 +7,7 @@ use clap::Subcommand;
 use self::inspect::InspectArgs;
 use self::unknown_phrases::UnknownPhrasesArgs;
 
+mod data;
 mod inspect;
 mod unknown_phrases;
 
@@ -26,7 +27,7 @@ enum EnglishCommand {
 
 pub fn run(args: EnglishArgs) -> anyhow::Result<()> {
     match args.command {
-        EnglishCommand::Inspect(args) => inspect::run(args),
+        EnglishCommand::Inspect(args) => inspect::run(&args),
         EnglishCommand::Unknown(args) => unknown_phrases::run(&args),
     }
 }

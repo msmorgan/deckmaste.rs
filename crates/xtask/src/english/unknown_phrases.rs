@@ -1,18 +1,10 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::path::Path;
-use std::path::PathBuf;
 
-use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
 use deckmaste_english::Ability;
 use deckmaste_english::AbilityKind;
-use deckmaste_english::CatalogKind;
-use deckmaste_english::Catalogs;
 use deckmaste_english::Clause;
 use deckmaste_english::ModalFrame;
 use deckmaste_english::OracleText;
@@ -20,19 +12,14 @@ use deckmaste_english::Paragraph;
 use deckmaste_english::Phrase;
 use deckmaste_english::Predicate;
 use deckmaste_english::SimpleClause;
-use deckmaste_english::normalize_self_references;
 use deckmaste_english::parse_with_catalogs;
-use serde::Deserialize;
+
+use super::data::OracleDataArgs;
 
 #[derive(Debug, Args)]
 pub(super) struct UnknownPhrasesArgs {
-    /// Override the derived card-data snapshot.
-    #[arg(long, value_name = "PATH")]
-    data: Option<PathBuf>,
-
-    /// Override the directory containing Scryfall's English catalogs.
-    #[arg(long, value_name = "DIR")]
-    catalogs: Option<PathBuf>,
+    #[command(flatten)]
+    data: OracleDataArgs,
 
     /// Number of result rows to print.
     #[arg(short, long, default_value_t = 50)]
@@ -68,21 +55,6 @@ pub(super) struct UnknownPhrasesArgs {
     max_count: Option<usize>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Row {
-    name: String,
-    face: Option<String>,
-    #[serde(default)]
-    supertypes: Vec<String>,
-    text: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Catalog {
-    data: Vec<String>,
-}
-
 #[derive(Debug, PartialEq, Eq)]
 struct Occurrence {
     card: String,
@@ -114,28 +86,12 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
         bail!("--max-count must be greater than or equal to --min-count");
     }
     let unique = uses_unique_mode(args);
-    let data_path = args.data.clone().unwrap_or_else(default_data_path);
-    let catalogs_path = args.catalogs.clone().unwrap_or_else(default_catalogs_path);
-    let catalogs = load_catalogs(&catalogs_path)?;
-    let file = File::open(&data_path)
-        .with_context(|| format!("could not open card data {}", data_path.display()))?;
-    let mut rows = Vec::new();
-    for (index, line) in BufReader::new(file).lines().enumerate() {
-        let line = line.with_context(|| format!("could not read data row {}", index + 1))?;
-        rows.push(
-            serde_json::from_str::<Row>(&line)
-                .with_context(|| format!("invalid JSON on data row {}", index + 1))?,
-        );
-    }
+    let data = args.data.load()?;
 
     let mut occurrences = Vec::new();
-    for row in &rows {
-        let card = row.face.as_deref().unwrap_or(&row.name);
-        let is_legendary = row.supertypes.iter().any(|kind| kind == "Legendary");
-        let source =
-            normalize_self_references(row.text.as_deref().unwrap_or_default(), card, is_legendary);
-        let ast = parse_with_catalogs(&source, &catalogs);
-        collect_oracle_text(&mut occurrences, card, &source, &ast);
+    for card in &data.faces {
+        let ast = parse_with_catalogs(&card.oracle_text, &data.catalogs);
+        UnknownPhraseCollector::new(&mut occurrences, card.printed_name()).oracle_text(&ast);
     }
     let maximum = occurrences
         .iter()
@@ -162,7 +118,7 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
     let unit = if maximum == 1 { "word" } else { "words" };
     println!(
         "audited {} card faces; found {} UnknownPhrase occurrences; maximum {maximum} {unit}; {over_three} over 3 words",
-        rows.len(),
+        data.faces.len(),
         occurrences.len()
     );
     println!(
@@ -258,209 +214,116 @@ fn print_result_header(kind: &str, args: &UnknownPhrasesArgs, order: &str) {
     println!("UnknownPhrase {kind} {word_range}{count_range} ({order}):");
 }
 
-fn default_data_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/derived/cards.jsonl")
+struct UnknownPhraseCollector<'a> {
+    occurrences: &'a mut Vec<Occurrence>,
+    card: &'a str,
 }
 
-fn default_catalogs_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/catalogs")
-}
-
-fn load_catalogs(path: &Path) -> Result<Catalogs> {
-    Ok(Catalogs::new(
-        load_catalog(path, "keyword-abilities")?,
-        load_catalog(path, "keyword-actions")?,
-        load_catalog(path, "ability-words")?,
-    )
-    .with_catalog(
-        CatalogKind::ArtifactType,
-        load_catalog(path, "artifact-types")?,
-    )
-    .with_catalog(CatalogKind::BattleType, load_catalog(path, "battle-types")?)
-    .with_catalog(
-        CatalogKind::CreatureType,
-        load_catalog(path, "creature-types")?,
-    )
-    .with_catalog(
-        CatalogKind::EnchantmentType,
-        load_catalog(path, "enchantment-types")?,
-    )
-    .with_catalog(CatalogKind::LandType, load_catalog(path, "land-types")?)
-    .with_catalog(
-        CatalogKind::PlaneswalkerType,
-        load_catalog(path, "planeswalker-types")?,
-    )
-    .with_catalog(CatalogKind::SpellType, load_catalog(path, "spell-types")?)
-    .with_catalog(CatalogKind::Supertype, load_catalog(path, "supertypes")?)
-    .with_catalog(CatalogKind::CardType, load_catalog(path, "card-types")?))
-}
-
-fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {
-    let path = path.join(format!("{name}.json"));
-    let file = File::open(&path)
-        .with_context(|| format!("could not open Scryfall catalog {}", path.display()))?;
-    let catalog: Catalog = serde_json::from_reader(BufReader::new(file))
-        .with_context(|| format!("invalid Scryfall catalog {}", path.display()))?;
-    Ok(catalog.data)
-}
-
-fn collect_oracle_text(
-    occurrences: &mut Vec<Occurrence>,
-    card: &str,
-    source: &str,
-    ast: &OracleText,
-) {
-    for ability in &ast.abilities {
-        collect_ability(occurrences, card, source, ability, ast);
+impl<'a> UnknownPhraseCollector<'a> {
+    fn new(occurrences: &'a mut Vec<Occurrence>, card: &'a str) -> Self {
+        Self { occurrences, card }
     }
-}
 
-fn collect_ability(
-    occurrences: &mut Vec<Occurrence>,
-    card: &str,
-    source: &str,
-    ability: &Ability,
-    ast: &OracleText,
-) {
-    if let Some(word) = &ability.ability_word {
-        collect_phrase(occurrences, card, source, "ability word", word, ast);
+    fn oracle_text(&mut self, ast: &OracleText) {
+        for ability in &ast.abilities {
+            self.ability(ability);
+        }
     }
-    match &ability.kind {
-        AbilityKind::Activated(ability) => {
-            for component in &ability.cost.components {
-                collect_phrase(occurrences, card, source, "activation cost", component, ast);
+
+    fn ability(&mut self, ability: &Ability) {
+        if let Some(word) = &ability.ability_word {
+            self.phrase("ability word", word);
+        }
+        match &ability.kind {
+            AbilityKind::Activated(ability) => {
+                for component in &ability.cost.components {
+                    self.phrase("activation cost", component);
+                }
+                self.paragraph(&ability.effect);
             }
-            collect_paragraph(occurrences, card, source, &ability.effect, ast);
-        }
-        AbilityKind::Triggered(ability) => {
-            collect_simple_clause(occurrences, card, source, &ability.event, ast);
-            collect_paragraph(occurrences, card, source, &ability.effect, ast);
-        }
-        AbilityKind::Loyalty(ability) => {
-            collect_paragraph(occurrences, card, source, &ability.effect, ast);
-        }
-        AbilityKind::Modal(ability) => {
-            match &ability.frame {
-                ModalFrame::Unframed | ModalFrame::Loyalty(_) => {}
-                ModalFrame::Activated(cost) => {
-                    for component in &cost.components {
-                        collect_phrase(
-                            occurrences,
-                            card,
-                            source,
-                            "activation cost",
-                            component,
-                            ast,
-                        );
+            AbilityKind::Triggered(ability) => {
+                self.simple_clause(&ability.event);
+                self.paragraph(&ability.effect);
+            }
+            AbilityKind::Loyalty(ability) => self.paragraph(&ability.effect),
+            AbilityKind::Modal(ability) => {
+                match &ability.frame {
+                    ModalFrame::Unframed | ModalFrame::Loyalty(_) => {}
+                    ModalFrame::Activated(cost) => {
+                        for component in &cost.components {
+                            self.phrase("activation cost", component);
+                        }
+                    }
+                    ModalFrame::Triggered { event, .. } => self.simple_clause(event),
+                }
+                self.paragraph(&ability.header);
+                for mode in &ability.modes {
+                    self.paragraph(&mode.body);
+                }
+            }
+            AbilityKind::Keyword(list) => {
+                for keyword in &list.abilities {
+                    self.phrase("keyword name", &keyword.printed_name);
+                    if let Some(argument) = &keyword.argument {
+                        self.phrase("keyword argument", argument);
                     }
                 }
-                ModalFrame::Triggered { event, .. } => {
-                    collect_simple_clause(occurrences, card, source, event, ast);
-                }
             }
-            collect_paragraph(occurrences, card, source, &ability.header, ast);
-            for mode in &ability.modes {
-                collect_paragraph(occurrences, card, source, &mode.body, ast);
-            }
+            AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph),
         }
-        AbilityKind::Keyword(list) => {
-            for keyword in &list.abilities {
-                collect_phrase(
-                    occurrences,
-                    card,
-                    source,
-                    "keyword name",
-                    &keyword.printed_name,
-                    ast,
-                );
-                if let Some(argument) = &keyword.argument {
-                    collect_phrase(occurrences, card, source, "keyword argument", argument, ast);
+    }
+
+    fn paragraph(&mut self, paragraph: &Paragraph) {
+        for sentence in &paragraph.sentences {
+            match &sentence.clause {
+                Clause::Simple(clause) => self.simple_clause(clause),
+                Clause::Conditional(clause) => {
+                    self.simple_clause(&clause.condition);
+                    self.simple_clause(&clause.consequence);
                 }
             }
         }
-        AbilityKind::Paragraph(paragraph) => {
-            collect_paragraph(occurrences, card, source, paragraph, ast);
-        }
     }
-}
 
-fn collect_paragraph(
-    occurrences: &mut Vec<Occurrence>,
-    card: &str,
-    source: &str,
-    paragraph: &Paragraph,
-    ast: &OracleText,
-) {
-    for sentence in &paragraph.sentences {
-        match &sentence.clause {
-            Clause::Simple(clause) => {
-                collect_simple_clause(occurrences, card, source, clause, ast);
+    fn simple_clause(&mut self, clause: &SimpleClause) {
+        let Some(predicate) = &clause.predicate else {
+            if let Some(unparsed) = &clause.unparsed {
+                self.phrase("unparsed clause", unparsed);
             }
-            Clause::Conditional(clause) => {
-                collect_simple_clause(occurrences, card, source, &clause.condition, ast);
-                collect_simple_clause(occurrences, card, source, &clause.consequence, ast);
-            }
+            return;
+        };
+        if let Some(subject) = &clause.subject {
+            self.phrase("subject", subject);
+        }
+        self.predicate(predicate);
+        for coordinated in &clause.coordinated_predicates {
+            self.predicate(&coordinated.predicate);
+        }
+        for coordinated in &clause.coordinated_clauses {
+            self.simple_clause(&coordinated.clause);
         }
     }
-}
 
-fn collect_simple_clause(
-    occurrences: &mut Vec<Occurrence>,
-    card: &str,
-    source: &str,
-    clause: &SimpleClause,
-    ast: &OracleText,
-) {
-    let Some(predicate) = &clause.predicate else {
-        if let Some(unparsed) = &clause.unparsed {
-            collect_phrase(occurrences, card, source, "unparsed clause", unparsed, ast);
+    fn predicate(&mut self, predicate: &Predicate) {
+        self.phrase("verb", &predicate.verb);
+        if let Some(complement) = &predicate.complement {
+            self.phrase("complement", complement);
         }
-        return;
-    };
-    if let Some(subject) = &clause.subject {
-        collect_phrase(occurrences, card, source, "subject", subject, ast);
     }
-    collect_predicate(occurrences, card, source, predicate, ast);
-    for coordinated in &clause.coordinated_predicates {
-        collect_predicate(occurrences, card, source, &coordinated.predicate, ast);
-    }
-    for coordinated in &clause.coordinated_clauses {
-        collect_simple_clause(occurrences, card, source, &coordinated.clause, ast);
-    }
-}
 
-fn collect_predicate(
-    occurrences: &mut Vec<Occurrence>,
-    card: &str,
-    source: &str,
-    predicate: &Predicate,
-    ast: &OracleText,
-) {
-    collect_phrase(occurrences, card, source, "verb", &predicate.verb, ast);
-    if let Some(complement) = &predicate.complement {
-        collect_phrase(occurrences, card, source, "complement", complement, ast);
-    }
-}
-
-fn collect_phrase(
-    occurrences: &mut Vec<Occurrence>,
-    card: &str,
-    source: &str,
-    role: &'static str,
-    phrase: &Phrase,
-    ast: &OracleText,
-) {
-    match phrase {
-        Phrase::UnknownPhrase(text) => occurrences.push(Occurrence {
-            card: card.to_owned(),
-            role,
-            text: text.to_owned(),
-            words: phrase_word_count(text),
-        }),
-        Phrase::CatalogTerm { .. } => {}
-        Phrase::EmbeddedRulesPhrase { embedded_rules, .. } => {
-            for rules in embedded_rules {
-                collect_ability(occurrences, card, source, &rules.ability, ast);
+    fn phrase(&mut self, role: &'static str, phrase: &Phrase) {
+        match phrase {
+            Phrase::UnknownPhrase(text) => self.occurrences.push(Occurrence {
+                card: self.card.to_owned(),
+                role,
+                text: text.to_owned(),
+                words: phrase_word_count(text),
+            }),
+            Phrase::CatalogTerm { .. } => {}
+            Phrase::EmbeddedRulesPhrase { embedded_rules, .. } => {
+                for rules in embedded_rules {
+                    self.ability(&rules.ability);
+                }
             }
         }
     }
@@ -550,6 +413,8 @@ fn sort_unique_occurrences(
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english::Catalogs;
+
     use super::*;
 
     #[test]
@@ -558,7 +423,7 @@ mod tests {
         let ast = parse_with_catalogs(source, &Catalogs::default());
         let mut occurrences = Vec::new();
 
-        collect_oracle_text(&mut occurrences, "Test Card", source, &ast);
+        UnknownPhraseCollector::new(&mut occurrences, "Test Card").oracle_text(&ast);
 
         let longest = occurrences
             .iter()
@@ -595,8 +460,7 @@ mod tests {
     fn count_arguments_imply_unique_mode() {
         fn args() -> UnknownPhrasesArgs {
             UnknownPhrasesArgs {
-                data: None,
-                catalogs: None,
+                data: OracleDataArgs::default(),
                 limit: 50,
                 min_words: 0,
                 max_words: None,
@@ -684,7 +548,7 @@ mod tests {
         let ast = parse_with_catalogs(source, &Catalogs::default());
         let mut occurrences = Vec::new();
 
-        collect_oracle_text(&mut occurrences, "Test Card", source, &ast);
+        UnknownPhraseCollector::new(&mut occurrences, "Test Card").oracle_text(&ast);
 
         assert!(
             occurrences
@@ -709,7 +573,7 @@ mod tests {
         let ast = parse_with_catalogs(source, &catalogs);
         let mut occurrences = Vec::new();
 
-        collect_oracle_text(&mut occurrences, "Test Card", source, &ast);
+        UnknownPhraseCollector::new(&mut occurrences, "Test Card").oracle_text(&ast);
 
         assert!(
             occurrences

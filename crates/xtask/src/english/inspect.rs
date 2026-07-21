@@ -1,33 +1,22 @@
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
 use std::io::Write;
 use std::io::{self};
-use std::path::Path;
-use std::path::PathBuf;
 
-use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
-use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
-use deckmaste_english::normalize_self_references;
 use deckmaste_english::parse_with_catalogs;
-use serde::Deserialize;
+
+use super::data::CardFace;
+use super::data::OracleDataArgs;
 
 #[derive(Debug, Args)]
 pub(super) struct InspectArgs {
     /// Exact card or face name (matched case-insensitively).
     card: String,
 
-    /// Override the derived card-data snapshot.
-    #[arg(long, value_name = "PATH")]
-    data: Option<PathBuf>,
-
-    /// Override the directory containing Scryfall's English catalogs.
-    #[arg(long, value_name = "DIR")]
-    catalogs: Option<PathBuf>,
+    #[command(flatten)]
+    data: OracleDataArgs,
 
     #[command(flatten)]
     output_config: OutputConfig,
@@ -35,161 +24,61 @@ pub(super) struct InspectArgs {
 
 #[derive(Debug, Args)]
 struct OutputConfig {
+    /// Include the underlying byte spans instead of resolving them to text.
     #[arg(short, long)]
     verbose: bool,
 
+    /// Print only the parsed abilities and any diagnostics.
     #[arg(short, long)]
     abilities_only: bool,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Row {
-    name: String,
-    face: Option<String>,
-    #[serde(default)]
-    supertypes: Vec<String>,
-    text: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Catalog {
-    data: Vec<String>,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-struct CardText {
-    card_name: String,
-    face_name: Option<String>,
-    oracle_text: String,
-}
-
-pub(super) fn run(args: InspectArgs) -> Result<()> {
-    let data_path = args.data.unwrap_or_else(default_data_path);
-    let catalogs_path = args.catalogs.unwrap_or_else(default_catalogs_path);
-    let catalogs = load_catalogs(&catalogs_path)?;
-    let file = File::open(&data_path).with_context(|| {
-        format!(
-            "could not open {}; generate the repository's derived card data first",
-            data_path.display()
-        )
-    })?;
-    let cards = find_cards(BufReader::new(file), &args.card, &data_path)?;
+pub(super) fn run(args: &InspectArgs) -> Result<()> {
+    let data = args.data.load()?;
+    let cards = find_cards(&data.faces, &args.card);
 
     if cards.is_empty() {
         bail!(
             "no exact card or face named {:?} in {}",
             args.card,
-            data_path.display()
+            data.data_path.display()
         );
     }
 
-    write_cards(io::stdout().lock(), &cards, &catalogs, &args.output_config)
+    write_cards(
+        io::stdout().lock(),
+        &cards,
+        &data.catalogs,
+        &args.output_config,
+    )
 }
 
-fn default_data_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/derived/cards.jsonl")
-}
-
-fn default_catalogs_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/catalogs")
-}
-
-fn load_catalogs(path: &Path) -> Result<Catalogs> {
-    Ok(Catalogs::new(
-        load_catalog(path, "keyword-abilities")?,
-        load_catalog(path, "keyword-actions")?,
-        load_catalog(path, "ability-words")?,
-    )
-    .with_catalog(
-        CatalogKind::ArtifactType,
-        load_catalog(path, "artifact-types")?,
-    )
-    .with_catalog(CatalogKind::BattleType, load_catalog(path, "battle-types")?)
-    .with_catalog(
-        CatalogKind::CreatureType,
-        load_catalog(path, "creature-types")?,
-    )
-    .with_catalog(
-        CatalogKind::EnchantmentType,
-        load_catalog(path, "enchantment-types")?,
-    )
-    .with_catalog(CatalogKind::LandType, load_catalog(path, "land-types")?)
-    .with_catalog(
-        CatalogKind::PlaneswalkerType,
-        load_catalog(path, "planeswalker-types")?,
-    )
-    .with_catalog(CatalogKind::SpellType, load_catalog(path, "spell-types")?)
-    .with_catalog(CatalogKind::Supertype, load_catalog(path, "supertypes")?)
-    .with_catalog(CatalogKind::CardType, load_catalog(path, "card-types")?))
-}
-
-fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {
-    let path = path.join(format!("{name}.json"));
-    let file = File::open(&path).with_context(|| {
-        format!(
-            "could not open Scryfall catalog {}; fetch the repository data first",
-            path.display()
-        )
-    })?;
-    let catalog: Catalog = serde_json::from_reader(BufReader::new(file))
-        .with_context(|| format!("invalid Scryfall catalog {}", path.display()))?;
-    Ok(catalog.data)
-}
-
-fn find_cards(reader: impl BufRead, query: &str, data_path: &Path) -> Result<Vec<CardText>> {
+fn find_cards(faces: &[CardFace], query: &str) -> Vec<CardFace> {
     let mut standalone = Vec::new();
     let mut whole_card = Vec::new();
     let mut face = Vec::new();
 
-    for (index, line) in reader.lines().enumerate() {
-        let line_number = index + 1;
-        let line = line.with_context(|| {
-            format!(
-                "could not read line {line_number} of {}",
-                data_path.display()
-            )
-        })?;
-        let row: Row = serde_json::from_str(&line).with_context(|| {
-            format!(
-                "invalid JSON on line {line_number} of {}",
-                data_path.display()
-            )
-        })?;
-
-        let face_name = row.face.as_deref().unwrap_or(&row.name);
-        let is_legendary = row.supertypes.iter().any(|kind| kind == "Legendary");
-        let oracle_text = normalize_self_references(
-            row.text.as_deref().unwrap_or_default(),
-            face_name,
-            is_legendary,
-        );
-        let card = CardText {
-            card_name: row.name.clone(),
-            face_name: row.face.clone(),
-            oracle_text,
-        };
-
-        match row.face {
-            None if row.name.eq_ignore_ascii_case(query) => standalone.push(card),
-            Some(_) if row.name.eq_ignore_ascii_case(query) => whole_card.push(card),
-            Some(face_name) if face_name.eq_ignore_ascii_case(query) => face.push(card),
+    for card in faces {
+        match &card.face_name {
+            None if card.card_name.eq_ignore_ascii_case(query) => standalone.push(card.clone()),
+            Some(_) if card.card_name.eq_ignore_ascii_case(query) => whole_card.push(card.clone()),
+            Some(face_name) if face_name.eq_ignore_ascii_case(query) => face.push(card.clone()),
             _ => {}
         }
     }
 
-    Ok(if !standalone.is_empty() {
+    if !standalone.is_empty() {
         standalone
     } else if !whole_card.is_empty() {
         whole_card
     } else {
         face
-    })
+    }
 }
 
 fn write_cards(
     mut writer: impl Write,
-    cards: &[CardText],
+    cards: &[CardFace],
     catalogs: &Catalogs,
     output_config: &OutputConfig,
 ) -> Result<()> {
@@ -222,18 +111,15 @@ fn write_cards(
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
+    use std::path::Path;
 
     use super::*;
+    use crate::english::data::read_card_faces;
 
     const DATA_PATH: &str = "test-cards.jsonl";
 
-    impl OutputConfig {
-        fn new(verbose: bool, abilities_only: bool) -> Self {
-            OutputConfig {
-                verbose,
-                abilities_only,
-            }
-        }
+    fn cards(data: &str) -> Vec<CardFace> {
+        read_card_faces(Cursor::new(data), Path::new(DATA_PATH)).unwrap()
     }
 
     #[test]
@@ -245,11 +131,11 @@ mod tests {
             "\n",
         );
 
-        let cards = find_cards(Cursor::new(data), "borrow", Path::new(DATA_PATH)).unwrap();
+        let cards = find_cards(&cards(data), "borrow");
 
         assert_eq!(
             cards,
-            [CardText {
+            [CardFace {
                 card_name: "Borrow".to_owned(),
                 face_name: None,
                 oracle_text: "Draw a card.".to_owned(),
@@ -266,7 +152,7 @@ mod tests {
             "\n",
         );
 
-        let cards = find_cards(Cursor::new(data), "FIRE // ICE", Path::new(DATA_PATH)).unwrap();
+        let cards = find_cards(&cards(data), "FIRE // ICE");
 
         assert_eq!(cards.len(), 2);
         assert_eq!(cards[0].face_name.as_deref(), Some("Fire"));
@@ -282,7 +168,7 @@ mod tests {
             "\n",
         );
 
-        let cards = find_cards(Cursor::new(data), "ice", Path::new(DATA_PATH)).unwrap();
+        let cards = find_cards(&cards(data), "ice");
 
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].face_name.as_deref(), Some("Ice"));
@@ -295,12 +181,7 @@ mod tests {
             "\n",
         );
 
-        let cards = find_cards(
-            Cursor::new(data),
-            "Aang, A Lot to Learn",
-            Path::new(DATA_PATH),
-        )
-        .unwrap();
+        let cards = find_cards(&cards(data), "Aang, A Lot to Learn");
 
         assert_eq!(cards[0].oracle_text, "~ attacks. ~~'s power is 3.");
     }
@@ -312,19 +193,14 @@ mod tests {
             "\n",
         );
 
-        let cards = find_cards(
-            Cursor::new(data),
-            "Aang, Swift Savior",
-            Path::new(DATA_PATH),
-        )
-        .unwrap();
+        let cards = find_cards(&cards(data), "Aang, Swift Savior");
 
         assert_eq!(cards[0].oracle_text, "~ transforms. ~~ has flying.");
     }
 
     #[test]
     fn normal_output_resolves_spans_while_verbose_output_keeps_them() {
-        let cards = [CardText {
+        let cards = [CardFace {
             card_name: "Test Card".to_owned(),
             face_name: None,
             oracle_text: "Draw a card.".to_owned(),
@@ -332,21 +208,17 @@ mod tests {
         let mut normal = Vec::new();
         let mut verbose = Vec::new();
         let catalogs = Catalogs::default();
+        let normal_config = OutputConfig {
+            verbose: false,
+            abilities_only: false,
+        };
+        let verbose_config = OutputConfig {
+            verbose: true,
+            abilities_only: false,
+        };
 
-        write_cards(
-            &mut normal,
-            &cards,
-            &catalogs,
-            &OutputConfig::new(false, false),
-        )
-        .unwrap();
-        write_cards(
-            &mut verbose,
-            &cards,
-            &catalogs,
-            &OutputConfig::new(true, false),
-        )
-        .unwrap();
+        write_cards(&mut normal, &cards, &catalogs, &normal_config).unwrap();
+        write_cards(&mut verbose, &cards, &catalogs, &verbose_config).unwrap();
         let normal = String::from_utf8(normal).unwrap();
         let verbose = String::from_utf8(verbose).unwrap();
 
@@ -358,38 +230,47 @@ mod tests {
     }
 
     #[test]
-    fn local_card_snapshot_ability_lists_round_trip_when_available() {
-        let data_path = default_data_path();
-        let catalogs_path = default_catalogs_path();
-        if !data_path.is_file() || !catalogs_path.is_dir() {
-            return;
-        }
-        let catalogs = load_catalogs(&catalogs_path).unwrap();
-        let file = File::open(&data_path).unwrap();
+    fn abilities_only_omits_the_full_ast_wrapper() {
+        let cards = [CardFace {
+            card_name: "Test Card".to_owned(),
+            face_name: None,
+            oracle_text: "Draw a card.".to_owned(),
+        }];
+        let output = OutputConfig {
+            verbose: false,
+            abilities_only: true,
+        };
+        let mut rendered = Vec::new();
 
-        for (index, line) in BufReader::new(file).lines().enumerate() {
-            let row: Row = serde_json::from_str(&line.unwrap()).unwrap();
-            let face_name = row.face.as_deref().unwrap_or(&row.name);
-            let is_legendary = row.supertypes.iter().any(|kind| kind == "Legendary");
-            let source = normalize_self_references(
-                row.text.as_deref().unwrap_or_default(),
-                face_name,
-                is_legendary,
-            );
-            let ast = parse_with_catalogs(&source, &catalogs);
+        write_cards(&mut rendered, &cards, &Catalogs::default(), &output).unwrap();
+
+        let rendered = String::from_utf8(rendered).unwrap();
+        assert!(rendered.contains("Abilities:"));
+        assert!(!rendered.contains("AST:"));
+        assert!(!rendered.contains("OracleText {"));
+    }
+
+    #[test]
+    fn local_card_snapshot_ability_lists_round_trip_when_available() {
+        let Ok(data) = OracleDataArgs::default().load() else {
+            return;
+        };
+
+        for (index, card) in data.faces.iter().enumerate() {
+            let ast = parse_with_catalogs(&card.oracle_text, &data.catalogs);
             let rebuilt = ast
                 .abilities
                 .iter()
-                .map(|ability| ability.span.text(&source).unwrap())
+                .map(|ability| ability.span.text(&card.oracle_text).unwrap())
                 .collect::<Vec<_>>()
                 .join("\n");
 
             assert_eq!(
                 rebuilt,
-                source,
+                card.oracle_text,
                 "ability-list round trip failed on data row {} ({})",
                 index + 1,
-                row.face.as_deref().unwrap_or(&row.name)
+                card.printed_name()
             );
         }
     }
