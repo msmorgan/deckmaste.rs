@@ -18,6 +18,7 @@ use crate::LoyaltyCost;
 use crate::LoyaltyCostSign;
 use crate::LoyaltyCostValue;
 use crate::ModalFrame;
+use crate::ModalHeaderSuffix;
 use crate::ModalPreambleSeparator;
 use crate::NumberSpelling;
 use crate::OracleText;
@@ -72,6 +73,11 @@ impl OracleText {
     ///
     /// Card identity is used only to expand normalized `~` and `~~`
     /// self-references. Container spans are intentionally inaccessible here.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the AST contains an unsupported numeric spelling
+    /// or structurally inconsistent embedded rules text.
     pub fn render(&self, name: &str, is_legendary: bool) -> Result<String, RenderError> {
         Renderer::new(name, is_legendary).oracle_text(self)
     }
@@ -137,6 +143,9 @@ impl<'identity> Renderer<'identity> {
                     ModalFrame::Loyalty(cost) => format!("{}: ", loyalty_cost(*cost)),
                 };
                 modal_text.push_str(&self.paragraph(&modal.header)?);
+                if modal.header_suffix == ModalHeaderSuffix::SpacedEmDash {
+                    modal_text.push_str(" —");
+                }
                 for mode in &modal.modes {
                     modal_text.push_str("\n• ");
                     modal_text.push_str(&self.paragraph(&mode.body)?);

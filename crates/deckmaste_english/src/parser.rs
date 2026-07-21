@@ -6,6 +6,7 @@ use crate::AuxiliaryInflection;
 use crate::AuxiliaryKind;
 use crate::AuxiliaryNegation;
 use crate::Capitalization;
+use crate::CatalogKind;
 use crate::Catalogs;
 use crate::Clause;
 use crate::CommaSeparatedClause;
@@ -30,6 +31,7 @@ use crate::LoyaltyCostSign;
 use crate::LoyaltyCostValue;
 use crate::ModalAbility;
 use crate::ModalFrame;
+use crate::ModalHeaderSuffix;
 use crate::ModalPreambleSeparator;
 use crate::Mode;
 use crate::ModifiedNounPhrase;
@@ -103,25 +105,24 @@ impl Parser<'_, '_> {
         let mut line = 0;
         while line < lines.len() {
             let span = lines[line];
-            if let Some(header_span) = modal_header_span(self.source, span)
+            if let Some(header) = modal_header(self.source, span)
                 && lines
                     .get(line + 1)
                     .is_some_and(|next| mode_body(self.source, *next).is_some())
             {
                 let (ability_word, body) = split_ability_word(self.source, span, self.catalogs);
-                let frame = self.modal_frame(body, header_span);
-                let header = self.paragraph(header_span);
+                let frame = self.modal_frame(body, header.framed_span);
+                let header_paragraph = self.paragraph(header.content_span);
                 let mut modes = Vec::new();
                 let mut end = span.end;
                 line += 1;
                 while let Some(mode_span) = lines.get(line).copied() {
-                    let Some((bullet, body_span)) = mode_body(self.source, mode_span) else {
+                    let Some(body_span) = mode_body(self.source, mode_span) else {
                         break;
                     };
                     end = mode_span.end;
                     modes.push(Mode {
                         span: mode_span,
-                        bullet,
                         body: self.paragraph(body_span),
                     });
                     line += 1;
@@ -133,7 +134,8 @@ impl Parser<'_, '_> {
                     reminder_text: reminder_text(self.source, ability_span),
                     kind: AbilityKind::Modal(ModalAbility {
                         frame,
-                        header,
+                        header: header_paragraph,
+                        header_suffix: header.suffix,
                         modes,
                     }),
                 });
@@ -503,7 +505,7 @@ impl Parser<'_, '_> {
             verb: structured_verb_text(self.text(predicate_match.verb).to_owned(), self.catalogs),
             verb_kind: predicate_match.verb_kind,
             complement: (!complement.is_empty())
-                .then(|| self.phrase(complement, self.quoted_rules(complement))),
+                .then(|| self.complement_phrase(complement, self.quoted_rules(complement))),
             negated,
         }
     }
@@ -590,6 +592,26 @@ impl Parser<'_, '_> {
 
     fn phrase(&self, span: Span, embedded_rules: Vec<EmbeddedRules>) -> Phrase {
         structured_phrase(self.source, span, embedded_rules, self.catalogs)
+    }
+
+    fn complement_phrase(&self, span: Span, embedded_rules: Vec<EmbeddedRules>) -> Phrase {
+        match self.phrase(span, embedded_rules) {
+            Phrase::UnknownPhrase(text) => {
+                if let Some(canonical) = self
+                    .catalogs
+                    .and_then(|catalogs| catalogs.keyword_action_form(&text))
+                {
+                    Phrase::CatalogTerm {
+                        text,
+                        canonical: canonical.to_owned(),
+                        kind: CatalogKind::KeywordAction,
+                    }
+                } else {
+                    Phrase::UnknownPhrase(text)
+                }
+            }
+            phrase => phrase,
+        }
     }
 
     fn text(&self, span: Span) -> &str {
@@ -1000,23 +1022,51 @@ fn loyalty_parts(source: &str, span: Span) -> Option<(LoyaltyCost, Span)> {
     ))
 }
 
-fn modal_header_span(source: &str, line: Span) -> Option<Span> {
+struct ParsedModalHeader {
+    framed_span: Span,
+    content_span: Span,
+    suffix: ModalHeaderSuffix,
+}
+
+fn modal_header(source: &str, line: Span) -> Option<ParsedModalHeader> {
+    let line = trim_span(source, line);
+    let line_text = line.text(source)?;
+    if line_text.contains(" chooses ") && line_text.ends_with(" —") {
+        return Some(ParsedModalHeader {
+            framed_span: line,
+            content_span: trim_span(source, Span::new(line.start, line.end - " —".len())),
+            suffix: ModalHeaderSuffix::SpacedEmDash,
+        });
+    }
     ["Choose ", "choose "].into_iter().find_map(|opening| {
         let start = find_top_level(source, line, opening)?;
-        let header = trim_span(source, Span::new(start, line.end));
-        let text = header.text(source)?;
-        (text.ends_with('—') || text.contains("choose the same mode more than once."))
-            .then_some(header)
+        let framed_span = trim_span(source, Span::new(start, line.end));
+        let text = framed_span.text(source)?;
+        if text.ends_with(" —") {
+            Some(ParsedModalHeader {
+                framed_span,
+                content_span: trim_span(
+                    source,
+                    Span::new(framed_span.start, framed_span.end - " —".len()),
+                ),
+                suffix: ModalHeaderSuffix::SpacedEmDash,
+            })
+        } else {
+            Some(ParsedModalHeader {
+                framed_span,
+                content_span: framed_span,
+                suffix: ModalHeaderSuffix::None,
+            })
+        }
     })
 }
 
-fn mode_body(source: &str, span: Span) -> Option<(Span, Span)> {
+fn mode_body(source: &str, span: Span) -> Option<Span> {
     let text = span.text(source)?;
     let rest = text.strip_prefix('•')?;
-    let bullet = Span::new(span.start, span.start + '•'.len_utf8());
     let body_start = span.end - rest.len();
     let body = trim_span(source, Span::new(body_start, span.end));
-    (!body.is_empty()).then_some((bullet, body))
+    (!body.is_empty()).then_some(body)
 }
 
 fn sentence_spans(source: &str, span: Span) -> Vec<(Span, Span, Option<SentenceTerminal>)> {
@@ -1071,10 +1121,14 @@ fn sentence_spans(source: &str, span: Span) -> Vec<(Span, Span, Option<SentenceT
         {
             let terminal_end = index + ch.len_utf8();
             let repetitions = if ch == '.' {
-                1 + source[terminal_end..span.end]
-                    .chars()
-                    .take_while(|next| *next == '.')
-                    .count() as u8
+                u8::try_from(
+                    source[terminal_end..span.end]
+                        .chars()
+                        .take_while(|next| *next == '.')
+                        .count()
+                        .saturating_add(1),
+                )
+                .unwrap_or(u8::MAX)
             } else {
                 1
             };
@@ -1305,6 +1359,10 @@ fn pronoun_lemma(text: &str) -> Option<&'static str> {
         "he" | "him" => Some("he"),
         "it" => Some("it"),
         "she" | "her" => Some("she"),
+        "this" => Some("this"),
+        "that" => Some("that"),
+        "these" => Some("these"),
+        "those" => Some("those"),
         "they" | "them" => Some("they"),
         "we" | "us" => Some("we"),
         "you" => Some("you"),
@@ -1313,6 +1371,13 @@ fn pronoun_lemma(text: &str) -> Option<&'static str> {
 }
 
 fn structured_verb_text(text: String, catalogs: Option<&Catalogs>) -> Phrase {
+    if let Some(canonical) = catalogs.and_then(|catalogs| catalogs.keyword_action_form(&text)) {
+        return Phrase::CatalogTerm {
+            text,
+            canonical: canonical.to_owned(),
+            kind: CatalogKind::KeywordAction,
+        };
+    }
     match structured_text(text, catalogs) {
         Phrase::UnknownPhrase(text) => {
             if let Some(verb) = ordinary_verb(&text) {
@@ -1323,6 +1388,25 @@ fn structured_verb_text(text: String, catalogs: Option<&Catalogs>) -> Phrase {
                 }
             } else {
                 Phrase::UnknownPhrase(text)
+            }
+        }
+        Phrase::Lexeme {
+            text,
+            lemma,
+            part_of_speech,
+        } => {
+            if let Some(verb) = ordinary_verb(&text) {
+                Phrase::Lexeme {
+                    text,
+                    lemma: verb.lemma.to_owned(),
+                    part_of_speech: PartOfSpeech::Verb,
+                }
+            } else {
+                Phrase::Lexeme {
+                    text,
+                    lemma,
+                    part_of_speech,
+                }
             }
         }
         phrase => phrase,
@@ -1458,36 +1542,107 @@ fn lexical_entry(text: &str) -> Option<(&'static str, PartOfSpeech)> {
         "artifact" | "artifacts" => ("artifact", PartOfSpeech::Noun),
         "battlefield" => ("battlefield", PartOfSpeech::Noun),
         "card" | "cards" => ("card", PartOfSpeech::Noun),
+        "color" | "colors" => ("color", PartOfSpeech::Noun),
+        "commander" | "commanders" => ("commander", PartOfSpeech::Noun),
         "combat" => ("combat", PartOfSpeech::Noun),
         "controller" | "controllers" => ("controller", PartOfSpeech::Noun),
+        "counter" | "counters" => ("counter", PartOfSpeech::Noun),
+        "copy" | "copies" => ("copy", PartOfSpeech::Noun),
         "creature" | "creatures" => ("creature", PartOfSpeech::Noun),
+        "damage" => ("damage", PartOfSpeech::Noun),
+        "day" => ("day", PartOfSpeech::Noun),
+        "deck" | "decks" => ("deck", PartOfSpeech::Noun),
         "enchantment" | "enchantments" => ("enchantment", PartOfSpeech::Noun),
+        "effect" | "effects" => ("effect", PartOfSpeech::Noun),
+        "evidence" => ("evidence", PartOfSpeech::Noun),
+        "game" | "games" => ("game", PartOfSpeech::Noun),
+        "graveyard" | "graveyards" => ("graveyard", PartOfSpeech::Noun),
         "hand" | "hands" => ("hand", PartOfSpeech::Noun),
+        "initiative" => ("initiative", PartOfSpeech::Noun),
         "land" | "lands" => ("land", PartOfSpeech::Noun),
         "life" => ("life", PartOfSpeech::Noun),
+        "library" | "libraries" => ("library", PartOfSpeech::Noun),
+        "mana" => ("mana", PartOfSpeech::Noun),
+        "mode" | "modes" => ("mode", PartOfSpeech::Noun),
+        "monarch" => ("monarch", PartOfSpeech::Noun),
+        "night" => ("night", PartOfSpeech::Noun),
+        "number" | "numbers" => ("number", PartOfSpeech::Noun),
         "opponent" | "opponents" => ("opponent", PartOfSpeech::Noun),
+        "owner" | "owners" => ("owner", PartOfSpeech::Noun),
+        "pile" | "piles" => ("pile", PartOfSpeech::Noun),
         "permanent" | "permanents" => ("permanent", PartOfSpeech::Noun),
         "planeswalker" | "planeswalkers" => ("planeswalker", PartOfSpeech::Noun),
         "player" | "players" => ("player", PartOfSpeech::Noun),
+        "power" => ("power", PartOfSpeech::Noun),
+        "process" | "processes" => ("process", PartOfSpeech::Noun),
+        "rest" => ("rest", PartOfSpeech::Noun),
+        "result" | "results" => ("result", PartOfSpeech::Noun),
+        "source" | "sources" => ("source", PartOfSpeech::Noun),
         "spell" | "spells" => ("spell", PartOfSpeech::Noun),
+        "time" | "times" => ("time", PartOfSpeech::Noun),
+        "token" | "tokens" => ("token", PartOfSpeech::Noun),
+        "toughness" => ("toughness", PartOfSpeech::Noun),
         "turn" | "turns" => ("turn", PartOfSpeech::Noun),
+        "type" | "types" => ("type", PartOfSpeech::Noun),
+        "way" | "ways" => ("way", PartOfSpeech::Noun),
+        "chaos" => ("chaos", PartOfSpeech::Noun),
+        "coin" | "coins" => ("coin", PartOfSpeech::Noun),
+        "foe" | "foes" => ("foe", PartOfSpeech::Noun),
+        "friend" | "friends" => ("friend", PartOfSpeech::Noun),
+        "team" | "teams" => ("team", PartOfSpeech::Noun),
         "able" => ("able", PartOfSpeech::Adjective),
-        "attacking" => ("attack", PartOfSpeech::Adjective),
-        "blocked" => ("block", PartOfSpeech::Adjective),
+        "attacking" | "attacked" => ("attack", PartOfSpeech::Adjective),
+        "bargained" => ("bargain", PartOfSpeech::Adjective),
+        "black" => ("black", PartOfSpeech::Adjective),
+        "blocked" | "blocking" => ("block", PartOfSpeech::Adjective),
+        "blue" => ("blue", PartOfSpeech::Adjective),
         "chosen" => ("choose", PartOfSpeech::Adjective),
-        "countered" => ("counter", PartOfSpeech::Adjective),
+        "collected" => ("collect", PartOfSpeech::Adjective),
+        "colorless" => ("colorless", PartOfSpeech::Adjective),
+        "copied" => ("copy", PartOfSpeech::Adjective),
         "dealt" => ("deal", PartOfSpeech::Adjective),
         "defending" => ("defend", PartOfSpeech::Adjective),
         "enchanted" => ("enchant", PartOfSpeech::Adjective),
         "equipped" => ("equip", PartOfSpeech::Adjective),
+        "even" => ("even", PartOfSpeech::Adjective),
+        "foretold" => ("foretell", PartOfSpeech::Adjective),
+        "greater" => ("great", PartOfSpeech::Adjective),
+        "green" => ("green", PartOfSpeech::Adjective),
         "kicked" => ("kick", PartOfSpeech::Adjective),
-        "regenerated" => ("regenerate", PartOfSpeech::Adjective),
+        "monstrous" => ("monstrous", PartOfSpeech::Adjective),
+        "modified" => ("modify", PartOfSpeech::Adjective),
+        "monocolored" => ("monocolored", PartOfSpeech::Adjective),
+        "nonbasic" => ("nonbasic", PartOfSpeech::Adjective),
+        "noncreature" => ("noncreature", PartOfSpeech::Adjective),
+        "odd" => ("odd", PartOfSpeech::Adjective),
+        "poisoned" => ("poison", PartOfSpeech::Adjective),
+        "prevented" => ("prevent", PartOfSpeech::Adjective),
+        "promised" => ("promise", PartOfSpeech::Adjective),
+        "red" => ("red", PartOfSpeech::Adjective),
+        "renowned" => ("renowned", PartOfSpeech::Adjective),
+        "same" => ("same", PartOfSpeech::Adjective),
+        "saddled" => ("saddle", PartOfSpeech::Adjective),
+        "suspended" => ("suspend", PartOfSpeech::Adjective),
         "tapped" => ("tap", PartOfSpeech::Adjective),
         "untapped" => ("untap", PartOfSpeech::Adjective),
+        "white" => ("white", PartOfSpeech::Adjective),
         "alone" => ("alone", PartOfSpeech::Adverb),
+        "again" => ("again", PartOfSpeech::Adverb),
+        "instead" => ("instead", PartOfSpeech::Adverb),
         "only" => ("only", PartOfSpeech::Adverb),
+        "so" => ("so", PartOfSpeech::Adverb),
+        "then" => ("then", PartOfSpeech::Adverb),
+        "twice" => ("twice", PartOfSpeech::Adverb),
+        "and" => ("and", PartOfSpeech::Conjunction),
+        "or" => ("or", PartOfSpeech::Conjunction),
+        "the" => ("the", PartOfSpeech::Determiner),
+        "at" => ("at", PartOfSpeech::Preposition),
+        "for" => ("for", PartOfSpeech::Preposition),
         "there" => ("there", PartOfSpeech::Pronoun),
         _ => {
+            if let Some(verb) = ordinary_verb(text) {
+                return Some((verb.lemma, PartOfSpeech::Verb));
+            }
             let (kind, _, _) = auxiliary_parts(text)?;
             let lemma = match kind {
                 AuxiliaryKind::Can => "can",
@@ -1727,9 +1882,9 @@ fn predicate_word(
         let word = token.span.text(source).unwrap_or_default();
         is_finite_verb(word) || is_auxiliary(word)
     });
-    if let Some(action) =
-        catalogs.and_then(|catalogs| catalogs.keyword_action_prefix(clause.text(source)?))
-    {
+    if let Some(action) = catalogs.and_then(|catalogs| {
+        catalogs.keyword_action_prefix(clause.text(source).unwrap_or_default())
+    }) {
         return Some(PredicateMatch {
             verb: Span::new(clause.start, clause.start + action.len()),
             auxiliary: None,
@@ -1763,10 +1918,28 @@ fn predicate_word(
                 .find(|next| !matches!(next.span.text(source), Some("not" | "also")))
                 .copied()
                 .unwrap_or(token);
+            if let Some(length) = catalogs.and_then(|catalogs| {
+                keyword_action_verb_length(catalogs, &source[verb.span.start..clause.end], true)
+            }) {
+                return Some(PredicateMatch {
+                    verb: Span::new(verb.span.start, verb.span.start + length),
+                    auxiliary: (verb.span != token.span).then_some(auxiliary),
+                    verb_kind: VerbKind::KeywordAction,
+                });
+            }
             return Some(PredicateMatch {
                 verb: verb.span,
                 auxiliary: (verb.span != token.span).then_some(auxiliary),
                 verb_kind: VerbKind::Ordinary,
+            });
+        }
+        if let Some(length) = catalogs.and_then(|catalogs| {
+            keyword_action_verb_length(catalogs, &source[token.span.start..clause.end], false)
+        }) {
+            return Some(PredicateMatch {
+                verb: Span::new(token.span.start, token.span.start + length),
+                auxiliary: None,
+                verb_kind: VerbKind::KeywordAction,
             });
         }
         if is_finite_verb(text) {
@@ -1782,6 +1955,21 @@ fn predicate_word(
         auxiliary: None,
         verb_kind: VerbKind::Ordinary,
     })
+}
+
+fn keyword_action_verb_length(
+    catalogs: &Catalogs,
+    text: &str,
+    include_base_form: bool,
+) -> Option<usize> {
+    include_base_form
+        .then(|| catalogs.keyword_action_prefix(text).map(str::len))
+        .flatten()
+        .or_else(|| {
+            catalogs
+                .inflected_keyword_action_prefix(text)
+                .map(|(length, _)| length)
+        })
 }
 
 fn is_auxiliary(word: &str) -> bool {
@@ -1857,84 +2045,92 @@ fn ordinary_verb(word: &str) -> Option<OrdinaryVerb> {
     Some(match word.as_str() {
         "add" => verb("add", true, false),
         "adds" => verb("add", false, true),
+        "apply" => verb("apply", true, false),
+        "applies" => verb("apply", false, true),
         "are" | "is" | "was" | "were" | "it's" => verb("be", false, true),
         "ask" => verb("ask", true, false),
-        "attach" => verb("attach", true, false),
         "attack" => verb("attack", false, false),
         "attacks" => verb("attack", false, true),
         "be" => verb("be", false, false),
         "become" => verb("become", false, false),
         "becomes" => verb("become", false, true),
+        "begin" => verb("begin", true, false),
+        "begins" => verb("begin", false, true),
         "block" => verb("block", false, false),
         "blocks" => verb("block", false, true),
-        "cast" => verb("cast", false, false),
-        "casts" => verb("cast", false, true),
         "choose" => verb("choose", true, false),
         "chooses" => verb("choose", false, true),
+        "cause" => verb("cause", true, false),
+        "causes" => verb("cause", false, true),
+        "change" => verb("change", true, false),
+        "changes" => verb("change", false, true),
         "control" => verb("control", false, false),
         "controls" => verb("control", false, true),
-        "cost" => verb("cost", false, true),
-        "costs" => verb("cost", false, true),
-        "counter" => verb("counter", true, false),
+        "cost" | "costs" => verb("cost", false, true),
+        "copy" => verb("copy", true, false),
+        "copies" => verb("copy", false, true),
         "count" => verb("count", false, false),
         "counts" => verb("count", false, true),
-        "create" => verb("create", true, false),
-        "creates" => verb("create", false, true),
         "deal" => verb("deal", true, false),
         "deals" => verb("deal", false, true),
-        "destroy" => verb("destroy", true, false),
-        "destroys" => verb("destroy", false, true),
         "die" => verb("die", false, false),
         "dies" => verb("die", false, true),
         "do" => verb("do", false, false),
-        "discard" => verb("discard", true, false),
-        "discards" => verb("discard", false, true),
         "draw" => verb("draw", true, false),
         "draws" => verb("draw", false, true),
+        "draft" => verb("draft", true, false),
+        "drafts" => verb("draft", false, true),
         "enter" => verb("enter", false, false),
         "enters" => verb("enter", false, true),
-        "exchange" => verb("exchange", true, false),
-        "exile" => verb("exile", true, false),
-        "exiles" => verb("exile", false, true),
+        "flip" => verb("flip", true, false),
+        "flips" => verb("flip", false, true),
         "gain" => verb("gain", true, false),
         "gains" => verb("gain", false, true),
         "get" | "gets" => verb("get", false, true),
         "has" | "have" => verb("have", false, true),
-        "investigate" => verb("investigate", true, false),
         "leave" => verb("leave", false, false),
         "leaves" => verb("leave", false, true),
         "look" => verb("look", true, false),
         "lose" => verb("lose", true, false),
         "loses" => verb("lose", false, true),
-        "mill" => verb("mill", true, false),
+        "move" => verb("move", true, false),
+        "moves" => verb("move", false, true),
         "own" => verb("own", false, false),
         "owns" => verb("own", false, true),
         "pay" => verb("pay", true, false),
         "pays" => verb("pay", false, true),
-        "play" => verb("play", false, true),
-        "plays" => verb("play", false, true),
+        "phase" => verb("phase", true, false),
+        "phases" => verb("phase", false, true),
         "prevent" => verb("prevent", true, false),
         "prevents" => verb("prevent", false, true),
+        "produce" => verb("produce", true, false),
+        "produces" => verb("produce", false, true),
         "put" => verb("put", true, false),
         "puts" => verb("put", false, true),
+        "reduce" => verb("reduce", true, false),
+        "reduces" => verb("reduce", false, true),
+        "remove" => verb("remove", true, false),
         "removes" => verb("remove", false, true),
+        "repeat" => verb("repeat", true, false),
+        "repeats" => verb("repeat", false, true),
+        "reselect" => verb("reselect", true, false),
+        "reselects" => verb("reselect", false, true),
         "return" => verb("return", true, false),
         "returns" => verb("return", false, true),
-        "reveal" => verb("reveal", true, false),
-        "reveals" => verb("reveal", false, true),
-        "sacrifice" => verb("sacrifice", true, false),
-        "sacrifices" => verb("sacrifice", false, true),
-        "scry" => verb("scry", true, false),
+        "roll" => verb("roll", true, false),
+        "rolls" => verb("roll", false, true),
         "search" => verb("search", true, false),
         "searches" => verb("search", false, true),
-        "shuffle" => verb("shuffle", true, false),
-        "surveil" => verb("surveil", true, false),
-        "tap" => verb("tap", true, false),
-        "taps" => verb("tap", false, true),
+        "skip" => verb("skip", true, false),
+        "skips" => verb("skip", false, true),
+        "spend" => verb("spend", true, false),
+        "spends" => verb("spend", false, true),
+        "top" => verb("top", true, false),
+        "tops" => verb("top", false, true),
         "target" => verb("target", false, false),
         "targets" => verb("target", false, true),
-        "untap" => verb("untap", true, false),
-        "untaps" => verb("untap", false, true),
+        "win" => verb("win", false, false),
+        "wins" => verb("win", false, true),
         "yell" => verb("yell", true, false),
         _ => return None,
     })
@@ -2117,7 +2313,7 @@ mod tests {
     }
 
     #[test]
-    fn modal_lines_form_one_ability_without_losing_bullets() {
+    fn modal_punctuation_belongs_to_the_modal_production() {
         let source = "Choose one —\n• Draw two cards.\n• Destroy target artifact or enchantment.";
         let ast = parse(source);
         assert_eq!(ast.abilities.len(), 1);
@@ -2125,8 +2321,9 @@ mod tests {
             panic!("expected modal ability")
         };
         assert_eq!(modal.frame, ModalFrame::Unframed);
+        assert_eq!(modal.header_suffix, ModalHeaderSuffix::SpacedEmDash);
+        assert_eq!(text(source, modal.header.span), "Choose one");
         assert_eq!(modal.modes.len(), 2);
-        assert_eq!(text(source, modal.modes[0].bullet), "•");
         assert_eq!(text(source, modal.modes[0].body.span), "Draw two cards.");
         assert_eq!(
             text(source, modal.modes[1].body.span),
@@ -2165,7 +2362,8 @@ mod tests {
         };
         assert_eq!(*introducer, TriggerWord::Whenever);
         assert_eq!(text(triggered_source, event.span), "~ attacks");
-        assert_eq!(text(triggered_source, modal.header.span), "choose one —");
+        assert_eq!(text(triggered_source, modal.header.span), "choose one");
+        assert_eq!(modal.header_suffix, ModalHeaderSuffix::SpacedEmDash);
     }
 
     #[test]
@@ -2311,9 +2509,69 @@ mod tests {
     }
 
     #[test]
+    fn inflected_keyword_actions_use_grammatical_context() {
+        let source = "Target player mills three cards.";
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Counter", "Mill"],
+            std::iter::empty::<&str>(),
+        );
+        let ast = parse_with_catalogs(source, &catalogs);
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+
+        assert!(matches!(
+            clause.predicate.as_ref().map(|predicate| &predicate.verb),
+            Some(Phrase::CatalogTerm {
+                canonical,
+                kind: CatalogKind::KeywordAction,
+                ..
+            }) if canonical == "Mill"
+        ));
+        assert!(matches!(
+            structured_text("counters".to_owned(), Some(&catalogs)),
+            Phrase::Lexeme {
+                part_of_speech: PartOfSpeech::Noun,
+                ..
+            }
+        ));
+
+        let passive = parse_with_catalogs(
+            "Target creature can't be regenerated.",
+            &Catalogs::new(
+                std::iter::empty::<&str>(),
+                ["Regenerate"],
+                std::iter::empty::<&str>(),
+            ),
+        );
+        let AbilityKind::Paragraph(paragraph) = &passive.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+        assert!(matches!(
+            clause
+                .predicate
+                .as_ref()
+                .and_then(|predicate| predicate.complement.as_ref()),
+            Some(Phrase::CatalogTerm {
+                canonical,
+                kind: CatalogKind::KeywordAction,
+                ..
+            }) if canonical == "Regenerate"
+        ));
+    }
+
+    #[test]
     fn conjunction_inside_a_complement_is_not_a_coordinated_predicate() {
         let source = "Destroy target artifact and enchantment.";
-        let ast = parse(source);
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Destroy"],
+            std::iter::empty::<&str>(),
+        );
+        let ast = parse_with_catalogs(source, &catalogs);
         let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
             panic!()
         };
@@ -2329,7 +2587,12 @@ mod tests {
     #[test]
     fn then_chains_form_sequential_predicates() {
         let source = "Each player discards a card, then loses 1 life, then removes a counter, then gets a poison counter.";
-        let ast = parse(source);
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Discard"],
+            std::iter::empty::<&str>(),
+        );
+        let ast = parse_with_catalogs(source, &catalogs);
         let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
             panic!()
         };

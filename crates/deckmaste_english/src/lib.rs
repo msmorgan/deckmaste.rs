@@ -78,6 +78,7 @@ pub use ast::LoyaltyCostSign;
 pub use ast::LoyaltyCostValue;
 pub use ast::ModalAbility;
 pub use ast::ModalFrame;
+pub use ast::ModalHeaderSuffix;
 pub use ast::ModalPreambleSeparator;
 pub use ast::Mode;
 pub use ast::ModifiedNounPhrase;

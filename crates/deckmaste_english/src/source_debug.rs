@@ -321,6 +321,7 @@ impl ResolvedDebug for ModalAbility {
             .debug_struct("ModalAbility")
             .field("frame", &Resolved::new(source, &self.frame))
             .field("header", &Resolved::new(source, &self.header))
+            .field("header_suffix", &self.header_suffix)
             .field("modes", &Resolved::new(source, self.modes.as_slice()))
             .finish()
     }
@@ -358,7 +359,6 @@ impl ResolvedDebug for Mode {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Mode")
-            .field("bullet", &Resolved::new(source, &self.bullet))
             .field("body", &Resolved::new(source, &self.body))
             .finish()
     }

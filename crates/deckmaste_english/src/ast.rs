@@ -173,7 +173,18 @@ pub enum LoyaltyCostValue {
 pub struct ModalAbility {
     pub frame: ModalFrame,
     pub header: Paragraph,
+    pub header_suffix: ModalHeaderSuffix,
     pub modes: Vec<Mode>,
+}
+
+/// Concrete syntax between a modal header and its following mode list.
+///
+/// This belongs to the modal production rather than becoming a phrase of its
+/// own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ModalHeaderSuffix {
+    None,
+    SpacedEmDash,
 }
 
 /// Syntax surrounding a modal header. Keeping this outside the mode bodies
@@ -205,7 +216,6 @@ pub enum ModalPreambleSeparator {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mode {
     pub span: Span,
-    pub bullet: Span,
     pub body: Paragraph,
 }
 
@@ -526,7 +536,10 @@ pub struct ModifiedNounPhrase {
 pub enum PartOfSpeech {
     Adjective,
     Adverb,
+    Conjunction,
+    Determiner,
     Noun,
+    Preposition,
     Pronoun,
     Verb,
 }

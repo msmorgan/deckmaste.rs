@@ -17,6 +17,10 @@ use deckmaste_english::parse_with_catalogs;
 use super::data::OracleDataArgs;
 
 #[derive(Debug, Args)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "these are independent clap flags, not coupled application state"
+)]
 pub(super) struct UnknownPhrasesArgs {
     #[command(flatten)]
     data: OracleDataArgs,
@@ -46,6 +50,10 @@ pub(super) struct UnknownPhrasesArgs {
     #[arg(long)]
     sort_count: bool,
 
+    /// Show an exemplar card for each grouped phrase. Implies --unique.
+    #[arg(long)]
+    exemplar: bool,
+
     /// Only show phrases with at least this many occurrences. Implies --unique.
     #[arg(long)]
     min_count: Option<usize>,
@@ -69,6 +77,7 @@ struct UniqueOccurrence {
     text: String,
     words: usize,
     count: usize,
+    exemplar: String,
 }
 
 pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
@@ -158,14 +167,26 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
             .enumerate()
         {
             let count = format!("{} occurrences", occurrence.count);
-            println!(
-                "{:>4}. {:>3} words  {:<18} {:<40} {:?}",
-                index + 1,
-                occurrence.words,
-                occurrence.role,
-                count,
-                occurrence.text
-            );
+            if args.exemplar {
+                println!(
+                    "{:>4}. {:>3} words  {:<18} {:<20} {:<40} {:?}",
+                    index + 1,
+                    occurrence.words,
+                    occurrence.role,
+                    count,
+                    occurrence.exemplar,
+                    occurrence.text
+                );
+            } else {
+                println!(
+                    "{:>4}. {:>3} words  {:<18} {:<40} {:?}",
+                    index + 1,
+                    occurrence.words,
+                    occurrence.role,
+                    count,
+                    occurrence.text
+                );
+            }
         }
     } else {
         sort_occurrences(&mut occurrences, args.alphabetical);
@@ -364,23 +385,32 @@ fn matches_count_bounds(count: usize, min_count: usize, max_count: Option<usize>
 }
 
 fn uses_unique_mode(args: &UnknownPhrasesArgs) -> bool {
-    args.unique || args.sort_count || args.min_count.is_some() || args.max_count.is_some()
+    args.unique
+        || args.sort_count
+        || args.exemplar
+        || args.min_count.is_some()
+        || args.max_count.is_some()
 }
 
 fn unique_occurrences(occurrences: &[Occurrence]) -> Vec<UniqueOccurrence> {
     let mut counts = HashMap::new();
     for occurrence in occurrences {
-        *counts
+        let (count, exemplar) = counts
             .entry((occurrence.role, occurrence.text.as_str()))
-            .or_insert(0) += 1;
+            .or_insert((0, occurrence.card.as_str()));
+        *count += 1;
+        if occurrence.card.as_str() < *exemplar {
+            *exemplar = occurrence.card.as_str();
+        }
     }
     counts
         .into_iter()
-        .map(|((role, text), count)| UniqueOccurrence {
+        .map(|((role, text), (count, exemplar))| UniqueOccurrence {
             role,
             text: text.to_owned(),
             words: phrase_word_count(text),
             count,
+            exemplar: exemplar.to_owned(),
         })
         .collect()
 }
@@ -442,7 +472,12 @@ mod tests {
     #[test]
     fn unknown_phrase_occurrences_include_their_syntactic_role() {
         let source = "Destroy target artifact or enchantment.";
-        let ast = parse_with_catalogs(source, &Catalogs::default());
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Destroy"],
+            std::iter::empty::<&str>(),
+        );
+        let ast = parse_with_catalogs(source, &catalogs);
         let mut occurrences = Vec::new();
 
         UnknownPhraseCollector::new(&mut occurrences, "Test Card").oracle_text(&ast);
@@ -489,6 +524,7 @@ mod tests {
                 alphabetical: false,
                 unique: false,
                 sort_count: false,
+                exemplar: false,
                 min_count: None,
                 max_count: None,
             }
@@ -505,10 +541,15 @@ mod tests {
             sort_count: true,
             ..args()
         };
+        let exemplar = UnknownPhrasesArgs {
+            exemplar: true,
+            ..args()
+        };
 
         assert!(uses_unique_mode(&min));
         assert!(uses_unique_mode(&max));
         assert!(uses_unique_mode(&sorted));
+        assert!(uses_unique_mode(&exemplar));
     }
 
     #[test]
@@ -531,6 +572,7 @@ mod tests {
         assert_eq!(grouped.len(), 2);
         assert_eq!(grouped[0].role, "subject");
         assert_eq!(grouped[0].count, 2);
+        assert_eq!(grouped[0].exemplar, "Card A");
         assert_eq!(grouped[1].role, "complement");
         assert_eq!(grouped[1].count, 1);
     }
