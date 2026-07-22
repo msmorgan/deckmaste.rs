@@ -3043,7 +3043,7 @@ fn flagbearer_constrains_opposing_target_choice() {
     assert!(
         state
             .submit_decision(Decision::Targets(vec![vec![bear]]))
-            .is_err_and(|err| err.to_string().contains("illegal target selection")),
+            .is_err_and(|err| matches!(err, DecisionError::Illegal { .. })),
         "ignoring the able Flagbearer is an illegal choice"
     );
     state
