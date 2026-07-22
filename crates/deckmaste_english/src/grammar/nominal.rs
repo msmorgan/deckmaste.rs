@@ -54,6 +54,9 @@ mod tests {
             "a d20",
             "that many cards",
             "that much damage",
+            "fewer than three counters",
+            "more than one artifact",
+            "more than one of the same mana symbol in its mana cost",
             "any target",
             "no cards",
             "each other",
@@ -329,6 +332,36 @@ mod tests {
                 case: PronounCase::Object,
             })
         );
+
+        for (source, more) in [
+            ("more than one artifact", true),
+            ("fewer than three counters", false),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact, "{source}");
+            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                panic!("expected a bounded quantity nominal for {source:?}");
+            };
+            assert!(
+                matches!(
+                    &nominal.determiner,
+                    Some(Determiner::Quantity(crate::syntax::Quantity::MoreThan(_))) if more
+                ) || matches!(
+                    &nominal.determiner,
+                    Some(Determiner::Quantity(crate::syntax::Quantity::FewerThan(_))) if !more
+                ),
+                "{source}: {nominal:#?}"
+            );
+        }
+
+        let partitive = parse("more than one of the same mana symbol in its mana cost");
+        assert!(matches!(
+            partitive.noun_phrase(),
+            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+                quantity: crate::syntax::Quantity::MoreThan(one),
+                ..
+            })) if one.value == 1
+        ));
     }
 
     #[test]

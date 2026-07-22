@@ -185,6 +185,7 @@ pub(crate) enum EnglishLexicalSlot {
     QuantityBoth,
     QuantityThatMany,
     QuantityThatMuch,
+    QuantityBound(BoundedQuantityKind),
     Than,
     OrEqualTo,
     Up,
@@ -211,6 +212,12 @@ pub(crate) enum EnglishLexicalSlot {
 pub(crate) enum RecoveryMode {
     Exact,
     UnknownPhrases,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum BoundedQuantityKind {
+    MoreThan,
+    FewerThan,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -413,6 +420,8 @@ pub(crate) enum QuantityKey {
     AtLeast(NumberKey),
     Or(NumberKey, NumberKey),
     UpTo(NumberKey),
+    MoreThan(NumberKey),
+    FewerThan(NumberKey),
     X,
     Both,
     ThatMany,
@@ -422,15 +431,24 @@ pub(crate) enum QuantityKey {
 impl QuantityKey {
     const fn cardinality(self) -> Cardinality {
         match self {
-            Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
+            Self::Exact(number)
+            | Self::UpTo(number)
+            | Self::MoreThan(number)
+            | Self::FewerThan(number)
+                if number.value == 1 =>
+            {
                 Cardinality::SingularOrMass
             }
             Self::Or(first, second) if first.value == 1 && second.value == 1 => {
                 Cardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::Or(_, _) | Self::UpTo(_) | Self::X | Self::Both => {
-                Cardinality::PluralOrMass
-            }
+            Self::Exact(_)
+            | Self::Or(_, _)
+            | Self::UpTo(_)
+            | Self::MoreThan(_)
+            | Self::FewerThan(_)
+            | Self::X
+            | Self::Both => Cardinality::PluralOrMass,
             Self::AtLeast(_) | Self::ThatMany => Cardinality::PluralCount,
             Self::ThatMuch => Cardinality::Mass,
         }
@@ -442,6 +460,8 @@ impl QuantityKey {
             Self::AtLeast(number) => Quantity::AtLeast(number.literal()),
             Self::Or(first, second) => Quantity::Or(first.literal(), second.literal()),
             Self::UpTo(number) => Quantity::UpTo(number.literal()),
+            Self::MoreThan(number) => Quantity::MoreThan(number.literal()),
+            Self::FewerThan(number) => Quantity::FewerThan(number.literal()),
             Self::X => Quantity::X,
             Self::Both => Quantity::Both,
             Self::ThatMany => Quantity::ThatMany,
@@ -478,16 +498,19 @@ impl DeterminerKey {
             Self::Demonstrative(DemonstrativeKey::These | DemonstrativeKey::Those) => {
                 Cardinality::PluralCount
             }
-            Self::Target(Some(QuantityKey::Exact(number) | QuantityKey::UpTo(number)))
-                if number.value == 1 =>
-            {
-                Cardinality::SingularCount
-            }
+            Self::Target(Some(
+                QuantityKey::Exact(number)
+                | QuantityKey::UpTo(number)
+                | QuantityKey::MoreThan(number)
+                | QuantityKey::FewerThan(number),
+            )) if number.value == 1 => Cardinality::SingularCount,
             Self::Target(Some(
                 QuantityKey::Exact(_)
                 | QuantityKey::AtLeast(_)
                 | QuantityKey::Or(_, _)
                 | QuantityKey::UpTo(_)
+                | QuantityKey::MoreThan(_)
+                | QuantityKey::FewerThan(_)
                 | QuantityKey::X
                 | QuantityKey::Both
                 | QuantityKey::ThatMany,
@@ -609,6 +632,8 @@ enum RuleTag {
     QuantityUpTo,
     QuantityThatMany,
     QuantityThatMuch,
+    QuantityMoreThan,
+    QuantityFewerThan,
     DeterminerClosed,
     DeterminerTarget,
     DeterminerQuantifiedTarget,
@@ -1000,6 +1025,9 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| quantity_match(end, QuantityKey::ThatMuch))
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::QuantityBound(kind) => {
+                self.scan_bounded_quantity(tokens, start, kind)
+            }
             EnglishLexicalSlot::Than => self
                 .one_token_match(tokens, start, "than")
                 .map(|end| literal_match(end, LiteralKey::Than))
@@ -1579,6 +1607,44 @@ impl EnglishGrammar<'_, '_> {
         .collect()
     }
 
+    fn scan_bounded_quantity(
+        &self,
+        tokens: &[Token],
+        start: usize,
+        kind: BoundedQuantityKind,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let opening = match kind {
+            BoundedQuantityKind::MoreThan => "more",
+            BoundedQuantityKind::FewerThan => "fewer",
+        };
+        let Some(number_start) = self.words_match(tokens, start, &[opening, "than"]) else {
+            return Vec::new();
+        };
+        let Some(surface) = self.token_text(tokens, number_start) else {
+            return Vec::new();
+        };
+        let end = number_start + 1;
+        [
+            NumberNotation::Cardinal,
+            NumberNotation::Ordinal,
+            NumberNotation::Arabic(false),
+            NumberNotation::Arabic(true),
+            NumberNotation::Roman,
+        ]
+        .into_iter()
+        .filter_map(|notation| {
+            notation.numeral().parse(surface).ok().map(|value| {
+                let number = NumberKey { value, notation };
+                let quantity = match kind {
+                    BoundedQuantityKind::MoreThan => QuantityKey::MoreThan(number),
+                    BoundedQuantityKind::FewerThan => QuantityKey::FewerThan(number),
+                };
+                quantity_match(end, quantity)
+            })
+        })
+        .collect()
+    }
+
     fn scan_or_quantity(
         &self,
         tokens: &[Token],
@@ -1759,6 +1825,16 @@ impl RuleBuilder {
             RuleTag::QuantityThatMuch,
             N::Quantity,
             [l(L::QuantityThatMuch)],
+        );
+        self.add(
+            RuleTag::QuantityMoreThan,
+            N::Quantity,
+            [l(L::QuantityBound(BoundedQuantityKind::MoreThan))],
+        );
+        self.add(
+            RuleTag::QuantityFewerThan,
+            N::Quantity,
+            [l(L::QuantityBound(BoundedQuantityKind::FewerThan))],
         );
 
         self.add(RuleTag::DeterminerClosed, N::Determiner, [l(L::Determiner)]);
@@ -2195,6 +2271,8 @@ fn reduce(
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
         | RuleTag::QuantityThatMuch
+        | RuleTag::QuantityMoreThan
+        | RuleTag::QuantityFewerThan
         | RuleTag::DeterminerClosed
         | RuleTag::DeterminerTarget
         | RuleTag::DeterminerQuantifiedTarget
@@ -2353,7 +2431,9 @@ fn reduce_quantity_or_determiner(
         RuleTag::QuantityAtLeast
         | RuleTag::QuantityOr
         | RuleTag::QuantityX
-        | RuleTag::QuantityBoth => {
+        | RuleTag::QuantityBoth
+        | RuleTag::QuantityMoreThan
+        | RuleTag::QuantityFewerThan => {
             let Features::Quantity(cardinality) = children.first()?.features else {
                 return None;
             };
@@ -3082,6 +3162,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
         | RuleTag::QuantityThatMuch
+        | RuleTag::QuantityMoreThan
+        | RuleTag::QuantityFewerThan
         | RuleTag::DeterminerClosed
         | RuleTag::DeterminerTarget
         | RuleTag::DeterminerQuantifiedTarget
@@ -3210,7 +3292,9 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
         RuleTag::QuantityAtLeast
         | RuleTag::QuantityOr
         | RuleTag::QuantityX
-        | RuleTag::QuantityBoth => {
+        | RuleTag::QuantityBoth
+        | RuleTag::QuantityMoreThan
+        | RuleTag::QuantityFewerThan => {
             let Lowered::Quantity(quantity) = take(children, 0)? else {
                 return None;
             };

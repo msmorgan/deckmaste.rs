@@ -1086,6 +1086,12 @@ fn render_quantity(quantity: Quantity) -> String {
             second.numeral.format(second.value)
         ),
         Quantity::UpTo(number) => format!("up to {}", number.numeral.format(number.value)),
+        Quantity::MoreThan(number) => {
+            format!("more than {}", number.numeral.format(number.value))
+        }
+        Quantity::FewerThan(number) => {
+            format!("fewer than {}", number.numeral.format(number.value))
+        }
         Quantity::X => "X".to_owned(),
         Quantity::Both => "both".to_owned(),
         Quantity::ThatMany => "that many".to_owned(),

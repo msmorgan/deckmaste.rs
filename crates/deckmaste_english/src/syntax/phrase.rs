@@ -83,6 +83,8 @@ pub enum Quantity {
     AtLeast(NumberLiteral),
     Or(NumberLiteral, NumberLiteral),
     UpTo(NumberLiteral),
+    MoreThan(NumberLiteral),
+    FewerThan(NumberLiteral),
     X,
     Both,
     ThatMany,
@@ -93,15 +95,24 @@ impl Quantity {
     #[must_use]
     pub const fn noun_cardinality(self) -> NounCardinality {
         match self {
-            Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
+            Self::Exact(number)
+            | Self::UpTo(number)
+            | Self::MoreThan(number)
+            | Self::FewerThan(number)
+                if number.value == 1 =>
+            {
                 NounCardinality::SingularOrMass
             }
             Self::Or(first, second) if first.value == 1 && second.value == 1 => {
                 NounCardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::Or(_, _) | Self::UpTo(_) | Self::X | Self::Both => {
-                NounCardinality::PluralOrMass
-            }
+            Self::Exact(_)
+            | Self::Or(_, _)
+            | Self::UpTo(_)
+            | Self::MoreThan(_)
+            | Self::FewerThan(_)
+            | Self::X
+            | Self::Both => NounCardinality::PluralOrMass,
             Self::AtLeast(_) | Self::ThatMany => NounCardinality::PluralCount,
             Self::ThatMuch => NounCardinality::Mass,
         }
@@ -137,13 +148,19 @@ impl Determiner {
             Self::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
                 NounCardinality::PluralCount
             }
-            Self::Target(Some(Quantity::Exact(number) | Quantity::UpTo(number)))
-                if number.value == 1 =>
-            {
-                NounCardinality::SingularCount
-            }
             Self::Target(Some(
-                Quantity::Exact(_) | Quantity::AtLeast(_) | Quantity::UpTo(_) | Quantity::ThatMany,
+                Quantity::Exact(number)
+                | Quantity::UpTo(number)
+                | Quantity::MoreThan(number)
+                | Quantity::FewerThan(number),
+            )) if number.value == 1 => NounCardinality::SingularCount,
+            Self::Target(Some(
+                Quantity::Exact(_)
+                | Quantity::AtLeast(_)
+                | Quantity::UpTo(_)
+                | Quantity::MoreThan(_)
+                | Quantity::FewerThan(_)
+                | Quantity::ThatMany,
             )) => NounCardinality::PluralCount,
             Self::Target(Some(Quantity::Or(_, _) | Quantity::X | Quantity::Both)) => {
                 NounCardinality::PluralCount
