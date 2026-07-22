@@ -178,7 +178,7 @@ pub(crate) enum Nonterminal {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum EnglishLexicalSlot {
-    Number(NumberNotation),
+    Number(Numeral),
     Noun(NounUsage),
     PossessiveNoun,
     Verb(VerbSlot),
@@ -258,25 +258,6 @@ impl RecoveryProfile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum RecoverySlot {
     Noun(NounForm),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum NumberNotation {
-    Cardinal,
-    Ordinal,
-    Arabic(bool),
-    Roman,
-}
-
-impl NumberNotation {
-    const fn numeral(self) -> Numeral {
-        match self {
-            Self::Cardinal => Numeral::Cardinal,
-            Self::Ordinal => Numeral::Ordinal,
-            Self::Arabic(commas) => Numeral::Arabic(commas),
-            Self::Roman => Numeral::Roman,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -451,14 +432,14 @@ pub(crate) enum Features {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct NumberKey {
     value: i32,
-    notation: NumberNotation,
+    notation: Numeral,
 }
 
 impl NumberKey {
     const fn literal(self) -> crate::syntax::NumberLiteral {
         crate::syntax::NumberLiteral {
             value: self.value,
-            numeral: self.notation.numeral(),
+            numeral: self.notation,
         }
     }
 }
@@ -1030,7 +1011,6 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     return Vec::new();
                 };
                 notation
-                    .numeral()
                     .parse(surface)
                     .ok()
                     .map(|value| LexicalMatch {
@@ -1038,9 +1018,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         features: Features::Number { is_one: value == 1 },
                         meaning: MeaningKey::Number(NumberKey { value, notation }),
                         local_cost: ParseCost {
-                            precedence: u32::from(
-                                notation == NumberNotation::Roman && surface == "X",
-                            ),
+                            precedence: u32::from(notation == Numeral::Roman && surface == "X"),
                             ..ParseCost::default()
                         },
                     })
@@ -1764,15 +1742,15 @@ impl EnglishGrammar<'_, '_> {
                 (surface, end, false)
             };
         [
-            NumberNotation::Cardinal,
-            NumberNotation::Ordinal,
-            NumberNotation::Arabic(false),
-            NumberNotation::Arabic(true),
-            NumberNotation::Roman,
+            Numeral::Cardinal,
+            Numeral::Ordinal,
+            Numeral::Arabic(false),
+            Numeral::Arabic(true),
+            Numeral::Roman,
         ]
         .into_iter()
         .filter_map(|notation| {
-            notation.numeral().parse(surface).ok().map(|value| {
+            notation.parse(surface).ok().map(|value| {
                 let number = NumberKey { value, notation };
                 quantity_match(
                     end,
@@ -1805,15 +1783,15 @@ impl EnglishGrammar<'_, '_> {
         };
         let end = number_start + 1;
         [
-            NumberNotation::Cardinal,
-            NumberNotation::Ordinal,
-            NumberNotation::Arabic(false),
-            NumberNotation::Arabic(true),
-            NumberNotation::Roman,
+            Numeral::Cardinal,
+            Numeral::Ordinal,
+            Numeral::Arabic(false),
+            Numeral::Arabic(true),
+            Numeral::Roman,
         ]
         .into_iter()
         .filter_map(|notation| {
-            notation.numeral().parse(surface).ok().map(|value| {
+            notation.parse(surface).ok().map(|value| {
                 let number = NumberKey { value, notation };
                 let quantity = match kind {
                     BoundedQuantityKind::MoreThan => QuantityKey::MoreThan(number),
@@ -1863,15 +1841,15 @@ impl EnglishGrammar<'_, '_> {
             return Vec::new();
         };
         [
-            NumberNotation::Cardinal,
-            NumberNotation::Ordinal,
-            NumberNotation::Arabic(false),
-            NumberNotation::Arabic(true),
-            NumberNotation::Roman,
+            Numeral::Cardinal,
+            Numeral::Ordinal,
+            Numeral::Arabic(false),
+            Numeral::Arabic(true),
+            Numeral::Roman,
         ]
         .into_iter()
         .filter_map(|notation| {
-            notation.numeral().parse(surface).ok().map(|value| {
+            notation.parse(surface).ok().map(|value| {
                 frequency_match(
                     end,
                     FrequencyKey {
@@ -1900,19 +1878,19 @@ impl EnglishGrammar<'_, '_> {
         };
         let end = second_start + 1;
         let notations = [
-            NumberNotation::Cardinal,
-            NumberNotation::Ordinal,
-            NumberNotation::Arabic(false),
-            NumberNotation::Arabic(true),
-            NumberNotation::Roman,
+            Numeral::Cardinal,
+            Numeral::Ordinal,
+            Numeral::Arabic(false),
+            Numeral::Arabic(true),
+            Numeral::Roman,
         ];
         let mut matches = Vec::new();
         for first_notation in notations {
-            let Ok(first_value) = first_notation.numeral().parse(first_surface) else {
+            let Ok(first_value) = first_notation.parse(first_surface) else {
                 continue;
             };
             for second_notation in notations {
-                let Ok(second_value) = second_notation.numeral().parse(second_surface) else {
+                let Ok(second_value) = second_notation.parse(second_surface) else {
                     continue;
                 };
                 matches.push(quantity_match(
@@ -2030,11 +2008,11 @@ impl RuleBuilder {
         use Nonterminal as N;
 
         for notation in [
-            NumberNotation::Cardinal,
-            NumberNotation::Ordinal,
-            NumberNotation::Arabic(false),
-            NumberNotation::Arabic(true),
-            NumberNotation::Roman,
+            Numeral::Cardinal,
+            Numeral::Ordinal,
+            Numeral::Arabic(false),
+            Numeral::Arabic(true),
+            Numeral::Roman,
         ] {
             self.add(
                 RuleTag::QuantityExact,
