@@ -68,6 +68,7 @@ use crate::syntax::Sentence;
 use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
 use crate::syntax::UnknownPhrase;
+use crate::syntax::VerbParticle;
 use crate::word::Adjective;
 use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
@@ -110,6 +111,7 @@ enum VerbDependent {
     Subordinate(Box<Clause>),
     Adverbial(Phrase),
     Frequency(FrequencyPhrase),
+    Particle(VerbParticle),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -181,6 +183,7 @@ pub(crate) enum EnglishLexicalSlot {
     Verb(VerbSlot),
     Adjective,
     Adverb,
+    VerbParticle(VerbParticle),
     Frequency,
     Pronoun(PronounCase),
     Auxiliary,
@@ -660,6 +663,7 @@ pub(crate) enum MeaningKey {
     Noun(NounInstance),
     Adjective(Adjective),
     Adverb(Vocab),
+    VerbParticle(VerbParticle),
     Frequency(FrequencyKey),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
@@ -747,6 +751,7 @@ enum RuleTag {
     VerbPhrasePrepositional,
     VerbPhraseInfinitive,
     VerbPhraseAdverb,
+    VerbPhraseParticle,
     VerbPhraseFrequency,
     VerbPhraseAbility,
     VerbPhraseOracleSymbol,
@@ -1037,6 +1042,23 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 matches
             }
             EnglishLexicalSlot::Adverb => self.word_matches(tokens, start, LexicalSlot::Adverb),
+            EnglishLexicalSlot::VerbParticle(particle) => self
+                .one_token_match(
+                    tokens,
+                    start,
+                    match particle {
+                        VerbParticle::In => "in",
+                        VerbParticle::Out => "out",
+                    },
+                )
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::VerbParticle(particle),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::Frequency => self.scan_frequency(tokens, start),
             EnglishLexicalSlot::Pronoun(case) => {
                 self.word_matches(tokens, start, LexicalSlot::Pronoun(case))
@@ -2525,6 +2547,7 @@ fn reduce(
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
@@ -3341,6 +3364,7 @@ enum Lowered {
     NounPhrase(NounPhrase),
     Catalog(crate::catalog::CatalogAtom),
     Adverb(Vocab),
+    VerbParticle(VerbParticle),
     Frequency(FrequencyPhrase),
     Auxiliary(AuxiliaryInstance),
     SubjectAuxiliary(ContractedSubjectAuxiliary),
@@ -3427,6 +3451,7 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Noun(noun) => Lowered::Noun(noun.clone()),
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
         MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
+        MeaningKey::VerbParticle(particle) => Lowered::VerbParticle(*particle),
         MeaningKey::Frequency(frequency) => Lowered::Frequency(frequency.syntax()),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
         MeaningKey::Auxiliary(auxiliary) => Lowered::Auxiliary(*auxiliary),
@@ -3529,6 +3554,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol

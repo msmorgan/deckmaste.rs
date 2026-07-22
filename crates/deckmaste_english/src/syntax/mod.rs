@@ -292,6 +292,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                     }
                 },
                 PredicateElement::Adjunct(adjunct) => self.predicate_adjunct(adjunct, context),
+                PredicateElement::Particle(_) => {}
             }
         }
     }

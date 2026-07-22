@@ -74,6 +74,7 @@ use crate::syntax::Subordinator;
 use crate::syntax::ThisCardForm;
 use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
+use crate::syntax::VerbParticle;
 use crate::word::Adjective;
 use crate::word::InitialSound;
 use crate::word::Noun;
@@ -622,6 +623,10 @@ impl<'identity> Renderer<'identity> {
                     self.predicate_complement(complement)?
                 }
                 PredicateElement::Adjunct(adjunct) => self.predicate_adjunct(adjunct)?,
+                PredicateElement::Particle(particle) => match particle {
+                    VerbParticle::In => "in".to_owned(),
+                    VerbParticle::Out => "out".to_owned(),
+                },
             });
         }
         Ok(())

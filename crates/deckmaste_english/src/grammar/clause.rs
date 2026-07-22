@@ -77,6 +77,13 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::Adverb)],
     );
+    for particle in [VerbParticle::In, VerbParticle::Out] {
+        builder.add(
+            RuleTag::VerbPhraseParticle,
+            N::VerbPhrase,
+            [n(N::VerbPhrase), l(L::VerbParticle(particle))],
+        );
+    }
     builder.add(
         RuleTag::VerbPhraseFrequency,
         N::VerbPhrase,
@@ -137,6 +144,13 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::ObjectGapVerbPhrase,
         [n(N::ObjectGapVerbPhrase), l(L::Adverb)],
     );
+    for particle in [VerbParticle::In, VerbParticle::Out] {
+        builder.add(
+            RuleTag::VerbPhraseParticle,
+            N::ObjectGapVerbPhrase,
+            [n(N::ObjectGapVerbPhrase), l(L::VerbParticle(particle))],
+        );
+    }
     builder.add(
         RuleTag::VerbPhraseFrequency,
         N::ObjectGapVerbPhrase,
@@ -322,6 +336,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
@@ -510,6 +525,7 @@ fn reduce_predicate(
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
@@ -1158,6 +1174,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
@@ -1262,6 +1279,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
@@ -1321,6 +1339,12 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 return None;
             };
             VerbDependent::Adverbial(Phrase::Adverb(adverb))
+        }
+        RuleTag::VerbPhraseParticle => {
+            let Lowered::VerbParticle(particle) = take(children, 1)? else {
+                return None;
+            };
+            VerbDependent::Particle(particle)
         }
         RuleTag::VerbPhraseFrequency => {
             let Lowered::Frequency(frequency) = take(children, 1)? else {
@@ -1953,6 +1977,9 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 ));
             }
             VerbDependent::Adverbial(_) => return None,
+            VerbDependent::Particle(particle) => {
+                elements.push(PredicateElement::Particle(particle));
+            }
             VerbDependent::Frequency(frequency) => {
                 elements.push(PredicateElement::Adjunct(PredicateAdjunct::Frequency(
                     frequency,
@@ -2773,6 +2800,26 @@ mod tests {
                     ..
                 })
             )]
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn directional_particle_completes_an_intransitive_predicate() {
+        let source = "This creature phases out.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Intransitive(_, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected an intransitive phase clause: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [PredicateElement::Particle(VerbParticle::Out)]
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }

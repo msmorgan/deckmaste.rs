@@ -164,6 +164,13 @@ pub enum PredicateComplement {
 pub enum PredicateElement {
     Complement(PredicateComplement),
     Adjunct(PredicateAdjunct),
+    Particle(VerbParticle),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VerbParticle {
+    In,
+    Out,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
