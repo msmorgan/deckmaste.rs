@@ -524,6 +524,11 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 object: Box::new(Phrase::ColorWord(color)),
             }));
         }
+        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::PrepositionalPhrase)
+            && let Some(preposition) = parsed.prepositional_phrase()
+        {
+            return Phrase::PrepositionalPhrase(Box::new(preposition.clone()));
+        }
         if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Quantity)
             && let Some(quantity) = parsed.quantity()
         {
@@ -758,13 +763,12 @@ fn keyword_argument_is_plausible(
     }) {
         return true;
     }
-    ability.canonical().eq_ignore_ascii_case("protection")
-        && argument.first().is_some_and(|token| {
-            token
-                .span
-                .text(source)
-                .is_some_and(|text| text.eq_ignore_ascii_case("from"))
-        })
+    let Some(first) = argument.first().and_then(|token| token.span.text(source)) else {
+        return false;
+    };
+    (ability.canonical().eq_ignore_ascii_case("protection") && first.eq_ignore_ascii_case("from"))
+        || (ability.canonical().eq_ignore_ascii_case("affinity")
+            && first.eq_ignore_ascii_case("for"))
 }
 
 fn color_word(surface: &str) -> Option<ColorWord> {
@@ -1214,6 +1218,29 @@ mod tests {
             [NominalModifier::Adjective(_), NominalModifier::Noun(crate::word::NounInstance::Singular(crate::word::Noun::Catalog(goblin)))]
                 if goblin.kind == CatalogKind::CreatureType
         ));
+    }
+
+    #[test]
+    fn affinity_accepts_a_for_prepositional_argument() {
+        let catalogs = fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Affinity"]);
+        let report = parse_with_catalogs("Affinity for artifacts", &catalogs);
+        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+            panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
+        };
+        assert!(matches!(
+            list.abilities.as_slice(),
+            [KeywordAbility {
+                ability,
+                argument: Some(argument),
+                ..
+            }] if ability.canonical() == "Affinity"
+                && matches!(argument, Phrase::PrepositionalPhrase(preposition)
+                    if preposition.preposition == Preposition::For)
+        ));
+        assert_eq!(
+            report.ast.render("Test Card", false).unwrap(),
+            "Affinity for artifacts"
+        );
     }
 
     #[test]

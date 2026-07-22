@@ -3446,6 +3446,13 @@ impl ParsedNonterminal {
         }
     }
 
+    pub(crate) fn prepositional_phrase(&self) -> Option<&PrepositionalPhrase> {
+        match &self.syntax {
+            Lowered::PrepositionalPhrase(preposition) => Some(preposition),
+            _ => None,
+        }
+    }
+
     pub(crate) fn root_rule(&self) -> Option<usize> {
         let node = self.chart.forest.node(self.root);
         let alternative = self.best.alternative(self.root)?;
