@@ -2895,6 +2895,19 @@ mod tests {
     }
 
     #[test]
+    fn count_sense_of_power_accepts_an_adjective_and_plural_inflection() {
+        let source = "You control three creatures with different powers.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+        let source = "You gain the difference.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
     fn passive_blocking_treats_this_turn_as_a_temporal_adjunct() {
         let source = "Creatures you control can't be blocked this turn.";
         let parsed = parse(source);

@@ -801,7 +801,7 @@ vocabulary! {
         .noun(NounDeclension::Regular, Countability::Count)
         .verb(VerbForm::Regular);
     Populate("populate").verb(VerbForm::Regular);
-    Power("power").noun(NounDeclension::Regular, Countability::Mass);
+    Power("power").noun(NounDeclension::Regular, Countability::CountOrMass);
     Prevent("prevent").verb(VerbForm::Regular);
     Process("process").noun(NounDeclension::Regular, Countability::Count);
     Produce("produce").verb(VerbForm::Regular);
