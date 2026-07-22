@@ -680,6 +680,7 @@ impl<'identity> Renderer<'identity> {
             PredicateAdjunct::Adverb(adverb) => Ok(adverb.spelling().to_owned()),
             PredicateAdjunct::Frequency(frequency) => Ok(render_frequency(*frequency)),
             PredicateAdjunct::Temporal(phrase) => self.noun_phrase(phrase),
+            PredicateAdjunct::Manner(phrase) => self.noun_phrase(phrase),
             PredicateAdjunct::Prepositional(phrase) => self.prepositional_phrase(phrase),
             PredicateAdjunct::Dependent(clause) => self.dependent_clause(clause),
         }

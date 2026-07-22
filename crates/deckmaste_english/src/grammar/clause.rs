@@ -512,7 +512,7 @@ fn reduce_predicate(
         RuleTag::VerbPhraseDirectObject => {
             let Features::NounPhrase {
                 pronoun_case,
-                temporal,
+                adjunct,
                 ..
             } = children.get(1)?.features
             else {
@@ -524,7 +524,7 @@ fn reduce_predicate(
             let Features::VerbPhrase { object, phase, .. } = children.first()?.features else {
                 return None;
             };
-            let attachment = if *temporal
+            let attachment = if adjunct.is_some()
                 && (*phase == PredicateAttachmentPhase::Tail || object.has_direct_object())
             {
                 ObjectAttachment::None
@@ -1337,10 +1337,13 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
             let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
                 return None;
             };
-            if !predicate.dependents.is_empty() && is_temporal_noun_phrase(&noun_phrase) {
-                VerbDependent::Temporal(noun_phrase)
-            } else {
-                VerbDependent::DirectObject(noun_phrase)
+            match (!predicate.dependents.is_empty())
+                .then(|| nominal_adjunct_kind(&noun_phrase))
+                .flatten()
+            {
+                Some(NominalAdjunctKind::Temporal) => VerbDependent::Temporal(noun_phrase),
+                Some(NominalAdjunctKind::Manner) => VerbDependent::Manner(noun_phrase),
+                None => VerbDependent::DirectObject(noun_phrase),
             }
         }
         RuleTag::VerbPhraseAdjective => {
@@ -1987,15 +1990,16 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
     let mut elements = Vec::new();
     for dependent in phrase.dependents {
         match dependent {
-            VerbDependent::DirectObject(noun_phrase)
-                if is_temporal_adjunct(&phrase.verb, &noun_phrase) =>
-            {
-                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Temporal(
-                    noun_phrase,
-                )));
-            }
             VerbDependent::DirectObject(noun_phrase) => {
-                attach_object(&mut object, PredicateObject::NounPhrase(noun_phrase))?;
+                match nominal_adjunct_for_verb(&phrase.verb, &noun_phrase) {
+                    Some(NominalAdjunctKind::Temporal) => elements.push(PredicateElement::Adjunct(
+                        PredicateAdjunct::Temporal(noun_phrase),
+                    )),
+                    Some(NominalAdjunctKind::Manner) => elements.push(PredicateElement::Adjunct(
+                        PredicateAdjunct::Manner(noun_phrase),
+                    )),
+                    None => attach_object(&mut object, PredicateObject::NounPhrase(noun_phrase))?,
+                }
             }
             VerbDependent::IndirectObject(noun_phrase) => {
                 elements.push(PredicateElement::Complement(
@@ -2047,6 +2051,9 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 elements.push(PredicateElement::Adjunct(PredicateAdjunct::Temporal(
                     phrase,
                 )));
+            }
+            VerbDependent::Manner(phrase) => {
+                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Manner(phrase)));
             }
             VerbDependent::Infinitive(clause) => {
                 elements.push(PredicateElement::Complement(
@@ -2167,17 +2174,25 @@ const fn is_modal(auxiliary: Auxiliary) -> bool {
     )
 }
 
-fn is_temporal_adjunct(verb: &VerbInstance, phrase: &NounPhrase) -> bool {
-    if !matches!(
-        verb.verb,
-        crate::word::Verb::Word(Vocab::Attack | Vocab::Block)
-    ) {
-        return false;
+fn nominal_adjunct_for_verb(
+    verb: &VerbInstance,
+    phrase: &NounPhrase,
+) -> Option<NominalAdjunctKind> {
+    match nominal_adjunct_kind(phrase)? {
+        NominalAdjunctKind::Temporal
+            if matches!(
+                verb.verb,
+                crate::word::Verb::Word(Vocab::Attack | Vocab::Block)
+            ) =>
+        {
+            Some(NominalAdjunctKind::Temporal)
+        }
+        NominalAdjunctKind::Manner => Some(NominalAdjunctKind::Manner),
+        NominalAdjunctKind::Temporal => None,
     }
-    is_temporal_noun_phrase(phrase)
 }
 
-fn is_temporal_noun_phrase(phrase: &NounPhrase) -> bool {
+fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<NominalAdjunctKind> {
     matches!(
         phrase,
         NounPhrase::Nominal(nominal)
@@ -2187,6 +2202,15 @@ fn is_temporal_noun_phrase(phrase: &NounPhrase) -> bool {
                     | NounInstance::Plural(Noun::Word(Vocab::Combat | Vocab::Turn))
             )
     )
+    .then_some(NominalAdjunctKind::Temporal)
+    .or_else(|| {
+        matches!(
+            phrase,
+            NounPhrase::Nominal(nominal)
+                if matches!(nominal.head, NounInstance::Singular(Noun::Word(Vocab::Way)))
+        )
+        .then_some(NominalAdjunctKind::Manner)
+    })
 }
 
 const fn sentence_ending(tag: RuleTag) -> Option<SentenceEnding> {
@@ -2607,6 +2631,46 @@ mod tests {
                     ..
                 }
             )]
+        ));
+        assert!(matches!(
+            complex.matrix.as_ref(),
+            IndependentClause::Imperative(_)
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn this_way_is_a_manner_adjunct_inside_a_condition() {
+        let source = "If you search your library this way, shuffle.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause: {:#?}", parsed.sentence());
+        };
+        let [
+            ClauseAttachment {
+                position: AttachmentPosition::BeforeMatrix,
+                kind:
+                    ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                        Subordinator::If,
+                        SubordinateBody::Finite(condition),
+                    )),
+                ..
+            },
+        ] = complex.attachments.as_slice()
+        else {
+            panic!("expected a fronted if-clause: {complex:#?}");
+        };
+        let IndependentClause::Transitive(_, condition) = condition.as_ref() else {
+            panic!("expected a transitive search condition: {condition:#?}");
+        };
+        assert!(matches!(
+            condition.elements.as_slice(),
+            [PredicateElement::Adjunct(PredicateAdjunct::Manner(
+                NounPhrase::Nominal(way),
+            ))] if matches!(way.head, NounInstance::Singular(Noun::Word(Vocab::Way)))
         ));
         assert!(matches!(
             complex.matrix.as_ref(),

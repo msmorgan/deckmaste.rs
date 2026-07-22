@@ -109,6 +109,7 @@ enum VerbDependent {
     Statistic(Phrase),
     Prepositional(PrepositionalPhrase),
     Temporal(NounPhrase),
+    Manner(NounPhrase),
     Infinitive(InfinitiveClause),
     Subordinate(Box<Clause>),
     Adverbial(Phrase),
@@ -361,7 +362,7 @@ pub(crate) enum Features {
     Noun {
         form: NounForm,
         initial_sound: InitialSound,
-        temporal: bool,
+        adjunct: Option<NominalAdjunctKind>,
     },
     Nominal {
         form: NounForm,
@@ -370,12 +371,12 @@ pub(crate) enum Features {
         leading_recovery: bool,
         attachment: NominalAttachmentPhase,
         comparison: AdjectiveComparisonState,
-        temporal: bool,
+        adjunct: Option<NominalAdjunctKind>,
     },
     NounPhrase {
         agreement: Option<Agreement>,
         pronoun_case: Option<PronounCase>,
-        temporal: bool,
+        adjunct: Option<NominalAdjunctKind>,
     },
     PossessiveThisCard {
         agreement: Agreement,
@@ -435,6 +436,12 @@ pub(crate) enum Features {
         agreement: Agreement,
         auxiliary: AuxiliaryInstance,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum NominalAdjunctKind {
+    Temporal,
+    Manner,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -2311,12 +2318,12 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
         WordMatch::Noun(noun) => {
             let form = noun_form(&noun);
             let initial_sound = noun_initial_sound(&noun)?;
-            let temporal = noun_is_temporal(&noun);
+            let adjunct = noun_adjunct_kind(&noun);
             (
                 Features::Noun {
                     form,
                     initial_sound,
-                    temporal,
+                    adjunct,
                 },
                 MeaningKey::Noun(noun),
             )
@@ -2411,7 +2418,7 @@ fn this_card_match(end: usize, form: ThisCardForm) -> LexicalMatch<Features, Mea
                 number: Number::Singular,
             }),
             pronoun_case: None,
-            temporal: false,
+            adjunct: None,
         },
         meaning: MeaningKey::ThisCard(form),
         local_cost: ParseCost::default(),
@@ -2437,7 +2444,7 @@ fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features
     Features::NounPhrase {
         agreement,
         pronoun_case: case,
-        temporal: false,
+        adjunct: None,
     }
 }
 
@@ -2462,13 +2469,17 @@ fn noun_form(noun: &NounInstance) -> NounForm {
     }
 }
 
-fn noun_is_temporal(noun: &NounInstance) -> bool {
+fn noun_adjunct_kind(noun: &NounInstance) -> Option<NominalAdjunctKind> {
     let noun = match noun {
         NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
             noun
         }
     };
-    matches!(noun, Noun::Word(Vocab::Combat | Vocab::Turn))
+    match noun {
+        Noun::Word(Vocab::Combat | Vocab::Turn) => Some(NominalAdjunctKind::Temporal),
+        Noun::Word(Vocab::Way) => Some(NominalAdjunctKind::Manner),
+        _ => None,
+    }
 }
 
 fn noun_initial_sound(noun: &NounInstance) -> Option<InitialSound> {
@@ -2869,7 +2880,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             let Features::Noun {
                 form,
                 initial_sound,
-                temporal,
+                adjunct,
             } = child.features
             else {
                 return None;
@@ -2881,7 +2892,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery: false,
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         RuleTag::NominalAdjective => {
@@ -2932,7 +2943,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined,
                 attachment,
                 comparison,
-                temporal,
+                adjunct,
                 ..
             } = children.get(1)?.features
             else {
@@ -2951,7 +2962,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery: false,
                 attachment: *attachment,
                 comparison: *comparison,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         RuleTag::NominalPrepositional => {
@@ -2962,7 +2973,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery,
                 attachment,
                 comparison,
-                temporal,
+                adjunct,
             } = children.first()?.features
             else {
                 return None;
@@ -2986,7 +2997,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery: *leading_recovery,
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         RuleTag::NominalInfinitive => {
@@ -2997,7 +3008,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery,
                 attachment,
                 comparison,
-                temporal,
+                adjunct,
             } = children.first()?.features
             else {
                 return None;
@@ -3018,7 +3029,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery: *leading_recovery,
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         RuleTag::NominalQuantityComplement | RuleTag::NominalRelative => {
@@ -3029,7 +3040,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery,
                 attachment,
                 comparison,
-                temporal,
+                adjunct,
             } = children.first()?.features
             else {
                 return None;
@@ -3060,7 +3071,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery: *leading_recovery,
                 attachment: *attachment,
                 comparison: *comparison,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         RuleTag::NominalPostpositiveAdjective => {
@@ -3078,7 +3089,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery,
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
-                temporal,
+                adjunct,
             } = children.first()?.features
             else {
                 return None;
@@ -3090,7 +3101,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery: *leading_recovery,
                 attachment: NominalAttachmentPhase::PostpositiveAdjective,
                 comparison: AdjectiveComparisonState::NotComparative,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         RuleTag::NominalComparison => {
@@ -3101,7 +3112,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery,
                 attachment: NominalAttachmentPhase::Open | NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::Pending,
-                temporal,
+                adjunct,
             } = children.first()?.features
             else {
                 return None;
@@ -3113,7 +3124,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_recovery: *leading_recovery,
                 attachment: NominalAttachmentPhase::Comparison,
                 comparison: AdjectiveComparisonState::Complete,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         _ => None,
@@ -3123,7 +3134,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
 fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
         RuleTag::NounPhraseNominal => {
-            let Features::Nominal { form, temporal, .. } = children.first()?.features else {
+            let Features::Nominal { form, adjunct, .. } = children.first()?.features else {
                 return None;
             };
             let agreement = Some(Agreement {
@@ -3136,7 +3147,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             Some(Features::NounPhrase {
                 agreement,
                 pronoun_case: None,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
@@ -3156,14 +3167,14 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                     number: *standalone_number,
                 }),
                 pronoun_case: None,
-                temporal: false,
+                adjunct: None,
             })
         }
         RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
             let Features::NounPhrase {
                 agreement,
                 pronoun_case,
-                temporal,
+                adjunct,
             } = children.first()?.features
             else {
                 return None;
@@ -3171,7 +3182,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             Some(Features::NounPhrase {
                 agreement: *agreement,
                 pronoun_case: *pronoun_case,
-                temporal: *temporal,
+                adjunct: *adjunct,
             })
         }
         RuleTag::NounPhrasePossessiveThisCard => {
@@ -3181,7 +3192,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             Some(Features::NounPhrase {
                 agreement: Some(*agreement),
                 pronoun_case: None,
-                temporal: false,
+                adjunct: None,
             })
         }
         RuleTag::NounPhrasePartitive => {
@@ -3197,13 +3208,13 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                     number: *standalone_number,
                 }),
                 pronoun_case: None,
-                temporal: false,
+                adjunct: None,
             })
         }
         RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
             let Features::NounPhrase {
                 agreement: first_agreement,
-                temporal: first_temporal,
+                adjunct: first_adjunct,
                 ..
             } = children.first()?.features
             else {
@@ -3227,7 +3238,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             };
             let Features::NounPhrase {
                 agreement: next_agreement,
-                temporal: next_temporal,
+                adjunct: next_adjunct,
                 ..
             } = children.get(2)?.features
             else {
@@ -3244,7 +3255,9 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             Some(Features::NounPhrase {
                 agreement,
                 pronoun_case: None,
-                temporal: *first_temporal && *next_temporal,
+                adjunct: (*first_adjunct == *next_adjunct)
+                    .then_some(*first_adjunct)
+                    .flatten(),
             })
         }
         RuleTag::PrepositionalPhrase => {
@@ -3280,7 +3293,7 @@ fn nominal_with_prefix(
         determined,
         attachment,
         comparison,
-        temporal,
+        adjunct,
         ..
     } = nominal.features
     else {
@@ -3305,7 +3318,7 @@ fn nominal_with_prefix(
         leading_recovery,
         attachment: *attachment,
         comparison,
-        temporal: *temporal,
+        adjunct: *adjunct,
     })
 }
 
@@ -3313,7 +3326,7 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
     let Features::NounPhrase {
         agreement,
         pronoun_case,
-        temporal,
+        adjunct,
     } = child.features
     else {
         return None;
@@ -3321,7 +3334,7 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
     Some(Features::NounPhrase {
         agreement: *agreement,
         pronoun_case: *pronoun_case,
-        temporal: *temporal,
+        adjunct: *adjunct,
     })
 }
 

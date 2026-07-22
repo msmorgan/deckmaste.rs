@@ -321,6 +321,7 @@ impl<'syntax> UnknownWalker<'syntax> {
     ) {
         match adjunct {
             PredicateAdjunct::Temporal(noun_phrase) => self.noun_phrase(noun_phrase, context),
+            PredicateAdjunct::Manner(noun_phrase) => self.noun_phrase(noun_phrase, context),
             PredicateAdjunct::Prepositional(preposition) => {
                 self.prepositional_phrase(preposition, UnknownRole::Clause, context);
             }

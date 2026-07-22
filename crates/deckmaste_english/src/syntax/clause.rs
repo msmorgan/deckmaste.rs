@@ -179,6 +179,7 @@ pub enum PredicateAdjunct {
     Adverb(Vocab),
     Frequency(FrequencyPhrase),
     Temporal(NounPhrase),
+    Manner(NounPhrase),
     Prepositional(PrepositionalPhrase),
     Dependent(Box<DependentClause>),
 }
