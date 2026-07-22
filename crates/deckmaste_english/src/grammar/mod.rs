@@ -194,6 +194,7 @@ pub(crate) enum EnglishLexicalSlot {
     QuantityBound(BoundedQuantityKind),
     Than,
     OrEqualTo,
+    RelativeWho,
     Up,
     To,
     Of,
@@ -319,6 +320,14 @@ pub(crate) enum NominalAttachmentPhase {
     Open,
     Prepositional,
     PostpositiveAdjective,
+    Comparison,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum AdjectiveComparisonState {
+    NotComparative,
+    Pending,
+    Complete,
 }
 
 impl PredicateObjectState {
@@ -340,6 +349,7 @@ pub(crate) enum Features {
     },
     Adjective {
         initial_sound: InitialSound,
+        comparison: AdjectiveComparisonState,
     },
     Noun {
         form: NounForm,
@@ -352,6 +362,7 @@ pub(crate) enum Features {
         determined: bool,
         leading_recovery: bool,
         attachment: NominalAttachmentPhase,
+        comparison: AdjectiveComparisonState,
         temporal: bool,
     },
     NounPhrase {
@@ -370,12 +381,16 @@ pub(crate) enum Features {
     Verb {
         slot: VerbSlot,
         accepts_direct_object: bool,
+        requires_direct_object: bool,
+        proform: bool,
     },
     VerbPhrase {
         form: PredicateForm,
         object: PredicateObjectState,
         phase: PredicateAttachmentPhase,
         accepts_direct_object: bool,
+        requires_direct_object: bool,
+        proform: bool,
     },
     InfinitiveClause,
     SimpleClause {
@@ -391,7 +406,10 @@ pub(crate) enum Features {
     },
     Sentence,
     PrepositionalPhrase,
-    RelativeClause(RelativeGap),
+    RelativeClause {
+        gap: RelativeGap,
+        antecedent_agreement: Option<Agreement>,
+    },
     Auxiliary(AuxiliaryInstance),
     Conjunction(crate::syntax::PredicateConjunction),
     Existential {
@@ -424,6 +442,7 @@ impl NumberKey {
 pub(crate) enum QuantityKey {
     Exact(NumberKey),
     AtLeast(NumberKey),
+    OrMore(NumberKey),
     Or(NumberKey, NumberKey),
     UpTo(NumberKey),
     MoreThan(NumberKey),
@@ -481,7 +500,7 @@ impl QuantityKey {
             | Self::FewerThan(_)
             | Self::X
             | Self::Both => Cardinality::PluralOrMass,
-            Self::AtLeast(_) | Self::ThatMany => Cardinality::PluralCount,
+            Self::AtLeast(_) | Self::OrMore(_) | Self::ThatMany => Cardinality::PluralCount,
             Self::ThatMuch => Cardinality::Mass,
         }
     }
@@ -490,6 +509,7 @@ impl QuantityKey {
         match self {
             Self::Exact(number) => Quantity::Exact(number.literal()),
             Self::AtLeast(number) => Quantity::AtLeast(number.literal()),
+            Self::OrMore(number) => Quantity::OrMore(number.literal()),
             Self::Or(first, second) => Quantity::Or(first.literal(), second.literal()),
             Self::UpTo(number) => Quantity::UpTo(number.literal()),
             Self::MoreThan(number) => Quantity::MoreThan(number.literal()),
@@ -539,6 +559,7 @@ impl DeterminerKey {
             Self::Target(Some(
                 QuantityKey::Exact(_)
                 | QuantityKey::AtLeast(_)
+                | QuantityKey::OrMore(_)
                 | QuantityKey::Or(_, _)
                 | QuantityKey::UpTo(_)
                 | QuantityKey::MoreThan(_)
@@ -615,6 +636,7 @@ pub(crate) enum LiteralKey {
     Target,
     Than,
     OrEqualTo,
+    Who,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -692,6 +714,7 @@ enum RuleTag {
     NominalQuantityComplement,
     NominalRelative,
     NominalPostpositiveAdjective,
+    NominalComparison,
     NounPhraseNominal,
     NounPhraseSubjectPronoun,
     NounPhraseObjectPronoun,
@@ -739,6 +762,7 @@ enum RuleTag {
     RelativeObject,
     RelativeObjectContractedSubject,
     RelativeSubjectContractedAuxiliary,
+    RelativeSubject,
     RelativeContractedCopularNoun,
     RelativeContractedCopularAdjective,
     RelativeContractedCopularPrepositional,
@@ -1074,6 +1098,11 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| literal_match(end, LiteralKey::OrEqualTo))
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::RelativeWho => self
+                .one_token_match(tokens, start, "who")
+                .map(|end| literal_match(end, LiteralKey::Who))
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::Up => self
                 .one_token_match(tokens, start, "up")
                 .map(|end| literal_match(end, LiteralKey::Up))
@@ -1273,6 +1302,7 @@ impl EnglishGrammar<'_, '_> {
             || !self.scan_preposition(tokens, start).is_empty()
             || !self.scan_conjunction(tokens, start).is_empty()
             || self.subordinator_at(tokens, start).is_some()
+            || self.one_token_match(tokens, start, "who").is_some()
             || !self
                 .catalog_matches(tokens, start, CatalogSlot::Noun(NounUsage::Either))
                 .is_empty()
@@ -1621,12 +1651,21 @@ impl EnglishGrammar<'_, '_> {
         tokens: &[Token],
         start: usize,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        let Some(surface) = self.token_text(tokens, start) else {
-            return Vec::new();
-        };
-        let Some(end) = self.words_match(tokens, start + 1, &["or", "more"]) else {
-            return Vec::new();
-        };
+        let (surface, end, at_least_surface) =
+            if let Some(number_start) = self.words_match(tokens, start, &["at", "least"]) {
+                let Some(surface) = self.token_text(tokens, number_start) else {
+                    return Vec::new();
+                };
+                (surface, number_start + 1, true)
+            } else {
+                let Some(surface) = self.token_text(tokens, start) else {
+                    return Vec::new();
+                };
+                let Some(end) = self.words_match(tokens, start + 1, &["or", "more"]) else {
+                    return Vec::new();
+                };
+                (surface, end, false)
+            };
         [
             NumberNotation::Cardinal,
             NumberNotation::Ordinal,
@@ -1637,7 +1676,15 @@ impl EnglishGrammar<'_, '_> {
         .into_iter()
         .filter_map(|notation| {
             notation.numeral().parse(surface).ok().map(|value| {
-                quantity_match(end, QuantityKey::AtLeast(NumberKey { value, notation }))
+                let number = NumberKey { value, notation };
+                quantity_match(
+                    end,
+                    if at_least_surface {
+                        QuantityKey::AtLeast(number)
+                    } else {
+                        QuantityKey::OrMore(number)
+                    },
+                )
             })
         })
         .collect()
@@ -1972,6 +2019,11 @@ impl RuleBuilder {
             [n(N::AdjectivePhrase)],
         );
         self.add(
+            RuleTag::ComparisonStandard,
+            N::ComparisonStandard,
+            [n(N::Clause)],
+        );
+        self.add(
             RuleTag::ComparisonThan,
             N::ComparisonComplement,
             [l(L::Than), n(N::ComparisonStandard)],
@@ -2064,6 +2116,11 @@ impl RuleBuilder {
             N::Nominal,
             [n(N::Nominal), n(N::AdjectivePhrase)],
         );
+        self.add(
+            RuleTag::NominalComparison,
+            N::Nominal,
+            [n(N::Nominal), n(N::ComparisonComplement)],
+        );
 
         self.add(RuleTag::NounPhraseNominal, N::NounPhrase, [n(N::Nominal)]);
         self.add(
@@ -2152,10 +2209,14 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
         }
         WordMatch::Verb(verb) => {
             let accepts_direct_object = !matches!(verb.verb, crate::word::Verb::Word(Vocab::Be));
+            let requires_direct_object = matches!(verb.verb, crate::word::Verb::Word(Vocab::Have));
+            let proform = matches!(verb.verb, crate::word::Verb::Word(Vocab::Do));
             (
                 Features::Verb {
                     slot: verb.slot,
                     accepts_direct_object,
+                    requires_direct_object,
+                    proform,
                 },
                 MeaningKey::Verb(verb),
             )
@@ -2163,6 +2224,7 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
         WordMatch::Adjective(adjective) => (
             Features::Adjective {
                 initial_sound: adjective_initial_sound(&adjective)?,
+                comparison: adjective_comparison_state(&adjective),
             },
             MeaningKey::Adjective(adjective),
         ),
@@ -2320,6 +2382,20 @@ fn adjective_initial_sound(adjective: &Adjective) -> Option<InitialSound> {
     }
 }
 
+fn adjective_comparison_state(adjective: &Adjective) -> AdjectiveComparisonState {
+    match adjective {
+        Adjective::Word(word)
+            if matches!(
+                word.spelling(),
+                "fewer" | "greater" | "less" | "more" | "other"
+            ) =>
+        {
+            AdjectiveComparisonState::Pending
+        }
+        _ => AdjectiveComparisonState::NotComparative,
+    }
+}
+
 fn surface_initial_sound(surface: &str) -> InitialSound {
     if surface
         .chars()
@@ -2402,7 +2478,8 @@ fn reduce(
         | RuleTag::NominalPrepositional
         | RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative
-        | RuleTag::NominalPostpositiveAdjective => reduce_nominal(tag, children)?,
+        | RuleTag::NominalPostpositiveAdjective
+        | RuleTag::NominalComparison => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -2450,6 +2527,7 @@ fn reduce(
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
+        | RuleTag::RelativeSubject
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
@@ -2627,10 +2705,17 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             Some(children.first()?.features.clone())
         }
         RuleTag::AdjectivePhraseComparison => {
-            let Features::Adjective { .. } = children.first()?.features else {
+            let Features::Adjective {
+                initial_sound,
+                comparison: AdjectiveComparisonState::Pending,
+            } = children.first()?.features
+            else {
                 return None;
             };
-            Some(children.first()?.features.clone())
+            Some(Features::Adjective {
+                initial_sound: *initial_sound,
+                comparison: AdjectiveComparisonState::Complete,
+            })
         }
         RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
@@ -2651,27 +2736,43 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined: false,
                 leading_recovery: false,
                 attachment: NominalAttachmentPhase::Open,
+                comparison: AdjectiveComparisonState::NotComparative,
                 temporal: *temporal,
             })
         }
         RuleTag::NominalAdjective => {
-            let Features::Adjective { initial_sound } = children.first()?.features else {
+            let Features::Adjective {
+                initial_sound,
+                comparison,
+            } = children.first()?.features
+            else {
                 return None;
             };
-            nominal_with_prefix(children.get(1)?, *initial_sound, false)
+            nominal_with_prefix(children.get(1)?, *initial_sound, false, *comparison)
         }
         RuleTag::NominalNounModifier => {
             let Features::Noun { initial_sound, .. } = children.first()?.features else {
                 return None;
             };
-            nominal_with_prefix(children.get(1)?, *initial_sound, false)
+            nominal_with_prefix(
+                children.get(1)?,
+                *initial_sound,
+                false,
+                AdjectiveComparisonState::NotComparative,
+            )
         }
-        RuleTag::NominalQuantityModifier => {
-            nominal_with_prefix(children.get(1)?, InitialSound::Consonant, false)
-        }
-        RuleTag::NominalPowerToughnessModifier => {
-            nominal_with_prefix(children.get(1)?, InitialSound::Consonant, false)
-        }
+        RuleTag::NominalQuantityModifier => nominal_with_prefix(
+            children.get(1)?,
+            InitialSound::Consonant,
+            false,
+            AdjectiveComparisonState::NotComparative,
+        ),
+        RuleTag::NominalPowerToughnessModifier => nominal_with_prefix(
+            children.get(1)?,
+            InitialSound::Consonant,
+            false,
+            AdjectiveComparisonState::NotComparative,
+        ),
         RuleTag::NominalDeterminer => {
             let Features::Determiner {
                 cardinality,
@@ -2685,6 +2786,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound,
                 determined,
                 attachment,
+                comparison,
                 temporal,
                 ..
             } = children.get(1)?.features
@@ -2703,6 +2805,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined: true,
                 leading_recovery: false,
                 attachment: *attachment,
+                comparison: *comparison,
                 temporal: *temporal,
             })
         }
@@ -2713,12 +2816,16 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined,
                 leading_recovery,
                 attachment,
+                comparison,
                 temporal,
             } = children.first()?.features
             else {
                 return None;
             };
-            if *attachment == NominalAttachmentPhase::PostpositiveAdjective {
+            if matches!(
+                attachment,
+                NominalAttachmentPhase::PostpositiveAdjective | NominalAttachmentPhase::Comparison
+            ) {
                 return None;
             }
             Some(Features::Nominal {
@@ -2727,6 +2834,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined: *determined,
                 leading_recovery: *leading_recovery,
                 attachment: NominalAttachmentPhase::Prepositional,
+                comparison: *comparison,
                 temporal: *temporal,
             })
         }
@@ -2737,12 +2845,29 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined,
                 leading_recovery,
                 attachment,
+                comparison,
                 temporal,
             } = children.first()?.features
             else {
                 return None;
             };
-            if *attachment == NominalAttachmentPhase::PostpositiveAdjective {
+            if matches!(
+                attachment,
+                NominalAttachmentPhase::PostpositiveAdjective | NominalAttachmentPhase::Comparison
+            ) {
+                return None;
+            }
+            if tag == RuleTag::NominalRelative
+                && let Features::RelativeClause {
+                    gap: RelativeGap::Subject,
+                    antecedent_agreement: Some(agreement),
+                } = children.get(1)?.features
+                && agreement.number
+                    != match form {
+                        NounForm::Plural => Number::Plural,
+                        NounForm::Singular | NounForm::Mass => Number::Singular,
+                    }
+            {
                 return None;
             }
             Some(Features::Nominal {
@@ -2751,6 +2876,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined: *determined,
                 leading_recovery: *leading_recovery,
                 attachment: *attachment,
+                comparison: *comparison,
                 temporal: *temporal,
             })
         }
@@ -2761,6 +2887,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined,
                 leading_recovery,
                 attachment: NominalAttachmentPhase::Open,
+                comparison: AdjectiveComparisonState::NotComparative,
                 temporal,
             } = children.first()?.features
             else {
@@ -2772,6 +2899,30 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined: *determined,
                 leading_recovery: *leading_recovery,
                 attachment: NominalAttachmentPhase::PostpositiveAdjective,
+                comparison: AdjectiveComparisonState::NotComparative,
+                temporal: *temporal,
+            })
+        }
+        RuleTag::NominalComparison => {
+            let Features::Nominal {
+                form,
+                initial_sound,
+                determined,
+                leading_recovery,
+                attachment: NominalAttachmentPhase::Open | NominalAttachmentPhase::Prepositional,
+                comparison: AdjectiveComparisonState::Pending,
+                temporal,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: *determined,
+                leading_recovery: *leading_recovery,
+                attachment: NominalAttachmentPhase::Comparison,
+                comparison: AdjectiveComparisonState::Complete,
                 temporal: *temporal,
             })
         }
@@ -2904,11 +3055,13 @@ fn nominal_with_prefix(
     nominal: &Child<'_, EnglishGrammar<'_, '_>>,
     initial_sound: InitialSound,
     leading_recovery: bool,
+    prefix_comparison: AdjectiveComparisonState,
 ) -> Option<Reduced> {
     let Features::Nominal {
         form,
         determined,
         attachment,
+        comparison,
         temporal,
         ..
     } = nominal.features
@@ -2918,12 +3071,22 @@ fn nominal_with_prefix(
     if *determined {
         return None;
     }
+    let comparison = match (prefix_comparison, *comparison) {
+        (AdjectiveComparisonState::Pending, AdjectiveComparisonState::NotComparative) => {
+            AdjectiveComparisonState::Pending
+        }
+        (AdjectiveComparisonState::Pending, _) => return None,
+        (AdjectiveComparisonState::NotComparative | AdjectiveComparisonState::Complete, state) => {
+            state
+        }
+    };
     Some(Features::Nominal {
         form: *form,
         initial_sound,
         determined: *determined,
         leading_recovery,
         attachment: *attachment,
+        comparison,
         temporal: *temporal,
     })
 }
@@ -3297,7 +3460,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalPrepositional
         | RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative
-        | RuleTag::NominalPostpositiveAdjective => lower_nominal(tag, children),
+        | RuleTag::NominalPostpositiveAdjective
+        | RuleTag::NominalComparison => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -3345,6 +3509,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
+        | RuleTag::RelativeSubject
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
@@ -3470,6 +3635,7 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         }
         RuleTag::ComparisonStandard => {
             let standard = match take(children, 0)? {
+                Lowered::Clause(clause) => Phrase::Clause(Box::new(clause)),
                 Lowered::NounPhrase(noun_phrase) => Phrase::NounPhrase(Box::new(noun_phrase)),
                 Lowered::AdjectivePhrase(adjective) => Phrase::AdjectivePhrase(Box::new(adjective)),
                 _ => return None,
@@ -3604,6 +3770,34 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             nominal
                 .complements
                 .push(NominalComplement::Adjective(adjective));
+            Some(Lowered::Nominal(nominal))
+        }
+        RuleTag::NominalComparison => {
+            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::ComparisonComplement(comparison) = take(children, 1)? else {
+                return None;
+            };
+            let adjective = nominal.modifiers.iter_mut().rev().find_map(|modifier| {
+                let NominalModifier::Adjective(adjective) = modifier else {
+                    return None;
+                };
+                (adjective_comparison_state(&adjective.head) == AdjectiveComparisonState::Pending
+                    && !adjective.complements.iter().any(|complement| {
+                        matches!(
+                            complement,
+                            crate::syntax::AdjectiveComplement::Comparison(_)
+                                | crate::syntax::AdjectiveComplement::PostnominalComparison(_)
+                        )
+                    }))
+                .then_some(adjective)
+            })?;
+            adjective
+                .complements
+                .push(crate::syntax::AdjectiveComplement::PostnominalComparison(
+                    comparison,
+                ));
             Some(Lowered::Nominal(nominal))
         }
         _ => None,

@@ -81,6 +81,7 @@ pub struct PowerToughness {
 pub enum Quantity {
     Exact(NumberLiteral),
     AtLeast(NumberLiteral),
+    OrMore(NumberLiteral),
     Or(NumberLiteral, NumberLiteral),
     UpTo(NumberLiteral),
     MoreThan(NumberLiteral),
@@ -113,7 +114,7 @@ impl Quantity {
             | Self::FewerThan(_)
             | Self::X
             | Self::Both => NounCardinality::PluralOrMass,
-            Self::AtLeast(_) | Self::ThatMany => NounCardinality::PluralCount,
+            Self::AtLeast(_) | Self::OrMore(_) | Self::ThatMany => NounCardinality::PluralCount,
             Self::ThatMuch => NounCardinality::Mass,
         }
     }
@@ -157,6 +158,7 @@ impl Determiner {
             Self::Target(Some(
                 Quantity::Exact(_)
                 | Quantity::AtLeast(_)
+                | Quantity::OrMore(_)
                 | Quantity::UpTo(_)
                 | Quantity::MoreThan(_)
                 | Quantity::FewerThan(_)
@@ -279,6 +281,7 @@ pub struct ComparisonComplement {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdjectiveComplement {
     Comparison(ComparisonComplement),
+    PostnominalComparison(ComparisonComplement),
     Prepositional(PrepositionalPhrase),
     Infinitive(InfinitiveClause),
     Unknown(UnknownPhrase),

@@ -227,7 +227,7 @@ mod tests {
         };
         assert!(matches!(
             at_least.determiner,
-            Some(Determiner::Quantity(crate::syntax::Quantity::AtLeast(number)))
+            Some(Determiner::Quantity(crate::syntax::Quantity::OrMore(number)))
                 if number.value == 1
         ));
         assert!(matches!(at_least.head, NounInstance::Plural(_)));

@@ -847,12 +847,17 @@ impl<'identity> Renderer<'identity> {
         }
 
         let mut parts = Vec::with_capacity(phrase.modifiers.len() + phrase.complements.len() + 2);
+        let mut trailing_modifier_complements = Vec::new();
         if let Some(determiner) = &phrase.determiner {
             parts.push(self.determiner(determiner)?);
         }
         for modifier in &phrase.modifiers {
             parts.push(match modifier {
-                NominalModifier::Adjective(adjective) => self.adjective_phrase(adjective)?,
+                NominalModifier::Adjective(adjective) => {
+                    let (head, trailing) = self.nominal_modifier_adjective(adjective)?;
+                    trailing_modifier_complements.extend(trailing);
+                    head
+                }
                 NominalModifier::Noun(noun) => self.render_noun(noun)?,
                 NominalModifier::Quantity(quantity) => render_quantity(*quantity),
                 NominalModifier::PowerToughness(value) => format!(
@@ -875,6 +880,7 @@ impl<'identity> Renderer<'identity> {
                 NominalComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),
             });
         }
+        parts.extend(trailing_modifier_complements);
         Ok(join_words(parts))
     }
 
@@ -947,30 +953,55 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn adjective_phrase(&self, phrase: &AdjectivePhrase) -> Result<String, RenderError> {
-        let mut parts = vec![
-            self.vocabulary
-                .render_adjective(&phrase.head)
-                .ok_or(RenderError::MissingLexicalForm("adjective"))?,
-        ];
+        let mut parts = vec![self.adjective_head(&phrase.head)?];
         for complement in &phrase.complements {
-            parts.push(match complement {
-                AdjectiveComplement::Comparison(comparison) => {
-                    let marker = match comparison.marker {
-                        ComparisonMarker::Than => "than",
-                        ComparisonMarker::ThanOrEqualTo => "than or equal to",
-                    };
-                    format!("{marker} {}", self.phrase(&comparison.standard)?)
-                }
-                AdjectiveComplement::Prepositional(preposition) => {
-                    self.prepositional_phrase(preposition)?
-                }
-                AdjectiveComplement::Infinitive(infinitive) => {
-                    self.infinitive_clause(infinitive)?
-                }
-                AdjectiveComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),
-            });
+            parts.push(self.adjective_complement(complement)?);
         }
         Ok(join_words(parts))
+    }
+
+    fn nominal_modifier_adjective(
+        &self,
+        phrase: &AdjectivePhrase,
+    ) -> Result<(String, Vec<String>), RenderError> {
+        let mut immediate = vec![self.adjective_head(&phrase.head)?];
+        let mut trailing = Vec::new();
+        for complement in &phrase.complements {
+            let rendered = self.adjective_complement(complement)?;
+            if matches!(complement, AdjectiveComplement::PostnominalComparison(_)) {
+                trailing.push(rendered);
+            } else {
+                immediate.push(rendered);
+            }
+        }
+        Ok((join_words(immediate), trailing))
+    }
+
+    fn adjective_head(&self, adjective: &Adjective) -> Result<String, RenderError> {
+        self.vocabulary
+            .render_adjective(adjective)
+            .ok_or(RenderError::MissingLexicalForm("adjective"))
+    }
+
+    fn adjective_complement(
+        &self,
+        complement: &AdjectiveComplement,
+    ) -> Result<String, RenderError> {
+        Ok(match complement {
+            AdjectiveComplement::Comparison(comparison)
+            | AdjectiveComplement::PostnominalComparison(comparison) => {
+                let marker = match comparison.marker {
+                    ComparisonMarker::Than => "than",
+                    ComparisonMarker::ThanOrEqualTo => "than or equal to",
+                };
+                format!("{marker} {}", self.phrase(&comparison.standard)?)
+            }
+            AdjectiveComplement::Prepositional(preposition) => {
+                self.prepositional_phrase(preposition)?
+            }
+            AdjectiveComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
+            AdjectiveComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),
+        })
     }
 
     fn prepositional_phrase(&self, phrase: &PrepositionalPhrase) -> Result<String, RenderError> {
@@ -1082,6 +1113,9 @@ fn render_quantity(quantity: Quantity) -> String {
     match quantity {
         Quantity::Exact(number) => number.numeral.format(number.value),
         Quantity::AtLeast(number) => {
+            format!("at least {}", number.numeral.format(number.value))
+        }
+        Quantity::OrMore(number) => {
             format!("{} or more", number.numeral.format(number.value))
         }
         Quantity::Or(first, second) => format!(

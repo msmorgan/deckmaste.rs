@@ -420,7 +420,8 @@ impl<'syntax> UnknownWalker<'syntax> {
     ) {
         for complement in &phrase.complements {
             match complement {
-                AdjectiveComplement::Comparison(comparison) => {
+                AdjectiveComplement::Comparison(comparison)
+                | AdjectiveComplement::PostnominalComparison(comparison) => {
                     self.phrase(&comparison.standard, role, context);
                 }
                 AdjectiveComplement::Prepositional(preposition) => {
