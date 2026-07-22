@@ -143,11 +143,13 @@ mod tests {
         assert_eq!(written, "P1P1Counter", "writes bare, no quotes");
         let read: CounterRef = crate::ron::options().from_str("P1P1Counter").unwrap();
         assert_eq!(read, value);
+        let err = crate::ron::options()
+            .from_str::<CounterRef>("\"P1P1Counter\"")
+            .unwrap_err();
+        let err = err.to_string();
         assert!(
-            crate::ron::options()
-                .from_str::<CounterRef>("\"P1P1Counter\"")
-                .is_err(),
-            "a quoted string is not a counter ref"
+            err.contains("Expected"),
+            "a quoted identifier is not a valid CounterRef: {err}"
         );
     }
 

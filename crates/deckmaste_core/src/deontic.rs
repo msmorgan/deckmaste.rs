@@ -549,11 +549,11 @@ mod tests {
     /// silent fallthrough (the macro layer's type-safety seam).
     #[test]
     fn unknown_names_error() {
-        assert!(
-            crate::ron::options()
-                .from_str::<Deontic>("Bogus(1)")
-                .is_err()
-        );
+        let err = crate::ron::options()
+            .from_str::<Deontic>("Bogus(1)")
+            .unwrap_err();
+        let err = err.to_string();
+        assert!(err.contains("Bogus"));
     }
 
     /// The block-restriction shapes the static-ability parser emits read with

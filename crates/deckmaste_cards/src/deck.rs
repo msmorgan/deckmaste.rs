@@ -116,17 +116,29 @@ mod tests {
     #[test]
     fn rejects_line_without_whitespace() {
         // No whitespace at all: the count/name split itself fails.
-        assert!(Deck::parse("GoblinBrigand\n").is_err());
+        let error = Deck::parse("GoblinBrigand\n").unwrap_err();
+        assert!(
+            error.to_string().contains("expected `<count> <card name>`"),
+            "unexpected error: {error}"
+        );
     }
 
     #[test]
     fn rejects_zero_count() {
-        assert!(Deck::parse("0 Goblin Brigand\n").is_err());
+        let error = Deck::parse("0 Goblin Brigand\n").unwrap_err();
+        assert!(
+            error.to_string().contains("count must be greater than 0"),
+            "unexpected error: {error}"
+        );
     }
 
     #[test]
     fn rejects_non_numeric_count() {
-        assert!(Deck::parse("x Goblin Brigand\n").is_err());
+        let error = Deck::parse("x Goblin Brigand\n").unwrap_err();
+        assert!(
+            error.to_string().contains("invalid count"),
+            "unexpected error: {error}"
+        );
     }
 
     #[test]
@@ -143,6 +155,9 @@ mod tests {
         let canon = Plugin::load_with_sibling_prelude(plugins_dir("../../plugins/canon")).unwrap();
         let builtin = Plugin::load(plugins_dir("../../plugins/builtin")).unwrap();
         let deck = Deck::parse("1 Nonexistent Card\n").unwrap();
-        assert!(deck.resolve(&[&canon, &builtin]).is_err());
+        let error = deck.resolve(&[&canon, &builtin]).unwrap_err();
+        let msg = error.to_string();
+        assert!(msg.contains("unknown card"), "unexpected error: {msg}");
+        assert!(msg.contains("Nonexistent Card"), "unexpected error: {msg}");
     }
 }

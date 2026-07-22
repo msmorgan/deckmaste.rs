@@ -644,7 +644,8 @@ mod tests {
         let cfg: serde_json::Value =
             serde_json::from_str(r#"{ "coverage": { "out_of_scope": { "404": "nope" } } }"#)
                 .unwrap();
-        assert!(parse_out_of_scope(&cfg, &extant).is_err());
+        let err = parse_out_of_scope(&cfg, &extant).unwrap_err();
+        assert!(err.to_string().contains("matches no extant rule"));
     }
 
     #[test]
@@ -652,7 +653,8 @@ mod tests {
         let extant = extant_set(&["100.1"]);
         let cfg: serde_json::Value =
             serde_json::from_str(r#"{ "coverage": { "out_of_scope": { "100": "" } } }"#).unwrap();
-        assert!(parse_out_of_scope(&cfg, &extant).is_err());
+        let err = parse_out_of_scope(&cfg, &extant).unwrap_err();
+        assert!(err.to_string().contains("non-empty reason"));
     }
 
     fn tempdir_with(files: &[(&str, &str)]) -> TempDir {

@@ -1235,18 +1235,22 @@ mod tests {
     fn library_and_stack_are_not_flattened_destinations() {
         use crate::Zone;
         // Bare `Library` is rejected — the anchored form is the only spelling.
+        let err = crate::ron::options()
+            .from_str::<Action>("Move(This, Library)")
+            .unwrap_err();
+        let err = err.to_string();
         assert!(
-            crate::ron::options()
-                .from_str::<Action>("Move(This, Library)")
-                .is_err(),
-            "bare `Library` must not be a valid Move destination"
+            err.contains("Expected opening `(`"),
+            "unexpected parse error for bare Library: {err}"
         );
         // The stack is never a Move destination.
+        let err = crate::ron::options()
+            .from_str::<Action>("Move(This, Stack)")
+            .unwrap_err();
+        let err = err.to_string();
         assert!(
-            crate::ron::options()
-                .from_str::<Action>("Move(This, Stack)")
-                .is_err(),
-            "the stack is never a Move destination"
+            err.contains("neither") || err.contains("Expected opening `(`"),
+            "unexpected parse error for bare Stack: {err}"
         );
         // Neither name lifts into `Destination`'s dispatch set.
         assert!(!Destination::ALL_VARIANTS.contains(&"Stack"));

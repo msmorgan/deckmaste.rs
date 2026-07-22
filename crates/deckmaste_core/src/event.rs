@@ -661,13 +661,15 @@ mod tests {
                 })),
             },
         );
+        let err = crate::ron::options()
+            .from_str::<EventFilter>(
+                "ZoneChange(what: Type(name:\"Creature\",permanent:true), cause: (verb: Destroy))",
+            )
+            .unwrap_err();
+        let err = err.to_string();
         assert!(
-            crate::ron::options()
-                .from_str::<EventFilter>(
-                    "ZoneChange(what: Type(name:\"Creature\",permanent:true), cause: (verb: Destroy))"
-                )
-                .is_err(),
-            "a bare cause tuple must not parse — the variant name is mandatory"
+            err.contains("Cause") || err.contains("variant") || err.contains("Expected identifier"),
+            "a bare cause tuple must not parse — got: {err}"
         );
     }
 

@@ -388,8 +388,12 @@ mod target_set_tests {
     #[test]
     fn within_slot_duplicate_rejected() {
         let specs = [t_range(Some(1), Some(3))];
-        assert!(validate_target_set(&specs, &[vec![id(1), id(1)]]).is_err());
-        assert!(validate_target_set(&specs, &[vec![id(1), id(2)]]).is_ok());
+        let err = validate_target_set(&specs, &[vec![id(1), id(1)]]).unwrap_err();
+        assert!(
+            err.contains("object chosen twice"),
+            "unexpected error: {err}"
+        );
+        assert_eq!(validate_target_set(&specs, &[vec![id(1), id(2)]]), Ok(()));
     }
 
     /// The same id across two UNRELATED specs stays legal (the artifact-land
@@ -397,7 +401,10 @@ mod target_set_tests {
     #[test]
     fn same_id_across_separate_specs_accepted() {
         let specs = [t_one(), t_one()];
-        assert!(validate_target_set(&specs, &[vec![id(1)], vec![id(1)]]).is_ok());
+        assert_eq!(
+            validate_target_set(&specs, &[vec![id(1)], vec![id(1)]]),
+            Ok(())
+        );
     }
 
     /// [CR#601.2c]: counts outside the `Between(1, 3)` bounds are rejected (0
@@ -405,12 +412,11 @@ mod target_set_tests {
     #[test]
     fn count_bounds_enforced() {
         let specs = [t_range(Some(1), Some(3))];
-        assert!(validate_target_set(&specs, &[vec![]]).is_err(), "0 < min 1");
-        assert!(
-            validate_target_set(&specs, &[vec![id(1), id(2), id(3), id(4)]]).is_err(),
-            "4 > max 3"
-        );
-        assert!(validate_target_set(&specs, &[vec![id(1), id(2)]]).is_ok());
+        let err = validate_target_set(&specs, &[vec![]]).unwrap_err();
+        assert_eq!(err, "slot 0: chose 0 target(s), minimum is 1");
+        let err = validate_target_set(&specs, &[vec![id(1), id(2), id(3), id(4)]]).unwrap_err();
+        assert_eq!(err, "slot 0: chose 4 target(s), maximum is 3");
+        assert_eq!(validate_target_set(&specs, &[vec![id(1), id(2)]]), Ok(()));
     }
 
     /// [CR#115.7e]: a `Distinct` slot overlapping its sibling is rejected; a
@@ -418,8 +424,15 @@ mod target_set_tests {
     #[test]
     fn distinct_overlap_rejected_disjoint_accepted() {
         let specs = [t_one(), distinct(vec![0], t_one())];
-        assert!(validate_target_set(&specs, &[vec![id(1)], vec![id(1)]]).is_err());
-        assert!(validate_target_set(&specs, &[vec![id(1)], vec![id(2)]]).is_ok());
+        let err = validate_target_set(&specs, &[vec![id(1)], vec![id(1)]]).unwrap_err();
+        assert!(
+            err.contains("a Distinct slot overlaps a sibling slot"),
+            "unexpected error: {err}"
+        );
+        assert_eq!(
+            validate_target_set(&specs, &[vec![id(1)], vec![id(2)]]),
+            Ok(())
+        );
     }
 
     /// Malformed authoring — a sibling index out of range or naming the slot
@@ -428,9 +441,17 @@ mod target_set_tests {
     #[test]
     fn malformed_sibling_index_rejected_not_panicking() {
         let out_of_range = [t_one(), distinct(vec![5], t_one())];
-        assert!(validate_target_set(&out_of_range, &[vec![id(1)], vec![id(2)]]).is_err());
+        let err = validate_target_set(&out_of_range, &[vec![id(1)], vec![id(2)]]).unwrap_err();
+        assert!(
+            err.contains("a Distinct slot overlaps a sibling slot"),
+            "unexpected error: {err}"
+        );
         let self_ref = [t_one(), distinct(vec![1], t_one())];
-        assert!(validate_target_set(&self_ref, &[vec![id(1)], vec![id(2)]]).is_err());
+        let err = validate_target_set(&self_ref, &[vec![id(1)], vec![id(2)]]).unwrap_err();
+        assert!(
+            err.contains("a Distinct slot overlaps a sibling slot"),
+            "unexpected error: {err}"
+        );
     }
 
     /// The castability gate: a single quantity-one slot needs ≥1 candidate; a

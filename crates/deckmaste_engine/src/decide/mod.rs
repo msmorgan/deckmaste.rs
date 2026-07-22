@@ -1206,7 +1206,10 @@ mod tests {
         let result = state.submit_decision(Decision::Act(Action::PlayLand {
             object: ObjectId::from_raw(9999),
         }));
-        assert!(result.is_err(), "an illegal action is rejected");
+        let DecisionError::Illegal { reason } = result.as_ref().unwrap_err() else {
+            panic!("expected illegal action rejection, got {result:?}");
+        };
+        assert!(!reason.is_empty());
         assert_eq!(
             state.pending, before,
             "the decision stays pending after rejection"

@@ -400,7 +400,10 @@ mod tests {
         assert_eq!(tref.name(), Type::Creature.name());
 
         // An undeclared name has no macro — parse fails (validation for free).
-        assert!(macros.read_str::<Predicate>("Type(Bogus)").is_err());
+        let error = macros.read_str::<Predicate>("Type(Bogus)").unwrap_err();
+        let msg = error.to_string();
+        assert!(msg.contains("Bogus"), "unexpected error: {msg}");
+        assert!(msg.contains("TypeDef"), "unexpected error: {msg}");
 
         // IN-FRAME: a `Type(Param(0))` body forwarding a bare type name through a
         // parameterized macro's expansion frame must expand identically.
@@ -689,11 +692,11 @@ mod tests {
 
     #[test]
     fn unknown_names_error() {
-        assert!(
-            crate::ron::options()
-                .from_str::<Predicate>("Bogus(1)")
-                .is_err()
-        );
+        let err = crate::ron::options()
+            .from_str::<Predicate>("Bogus(1)")
+            .unwrap_err();
+        let err = err.to_string();
+        assert!(err.contains("Bogus"));
     }
 
     /// `Normalize` flattens nested `And`/`Or` (associativity) and

@@ -367,11 +367,13 @@ mod tests {
         assert_eq!(spec, TokenSpec::Named(TokenName::from("Treasure")));
         let written = crate::ron::options().to_string(&spec).unwrap();
         assert_eq!(written, "Named(Treasure)", "writes bare, no quotes");
+        let err = crate::ron::options()
+            .from_str::<TokenSpec>("Named(\"Treasure\")")
+            .unwrap_err();
+        let err = err.to_string();
         assert!(
-            crate::ron::options()
-                .from_str::<TokenSpec>("Named(\"Treasure\")")
-                .is_err(),
-            "a quoted predefined-token name is not a bare ident"
+            err.contains("Expected"),
+            "a quoted token name is not a valid TokenSpec: {err}"
         );
     }
 

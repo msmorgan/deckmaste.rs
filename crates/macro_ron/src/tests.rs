@@ -304,19 +304,23 @@ fn declared_names_are_nullary_macros() {
 
 #[test]
 fn unknown_names_are_an_error() {
-    assert!(
-        macros()
-            .read_str::<Subtype>(r#"IslandType("Tropical")"#)
-            .is_err()
-    );
+    let err = macros()
+        .read_str::<Subtype>(r#"IslandType("Tropical")"#)
+        .unwrap_err();
+    assert!(err.to_string().contains("IslandType"));
 }
 
 #[test]
 fn wrong_arity_is_an_error() {
     for call in ["LandType", r#"LandType("Forest", "Island")"#] {
+        let err = macros().read_str::<Subtype>(call).unwrap_err();
         assert!(
-            macros().read_str::<Subtype>(call).is_err(),
-            "{call} should not expand",
+            {
+                let err = err.to_string();
+                err.contains("Expected opening `(`")
+                    || err.contains("Expected a `ron::value::RawValue`")
+            },
+            "{call} should fail with a parser-structure error, got: {err}"
         );
     }
 }
@@ -844,9 +848,10 @@ fn named_parameters_invoke_struct_shaped() {
         r#"Vanilla(name: "Bear")"#,
         r#"Vanilla(name: "Bear", cost: 2, power: 2)"#,
     ] {
+        let err = macros.read_str::<CardFace>(call).unwrap_err();
         assert!(
-            macros.read_str::<CardFace>(call).is_err(),
-            "{call} should not expand",
+            err.to_string().contains("cost") || err.to_string().contains("power"),
+            "{call} should fail with a param-shape parse error, got: {err}"
         );
     }
 }
@@ -1155,10 +1160,19 @@ fn any_accepts_every_shape() {
         })
         .unwrap();
     // A bare variant, a compound value, and a nested macro-free value all pass.
-    for call in ["Echo(Any)", "Echo(Type(Land))", "Echo(OneOf([Any]))"] {
-        assert!(
-            macros.read_str::<Filter>(call).is_ok(),
-            "{call} should expand"
+    for (call, expected) in [
+        ("Echo(Any)", Filter::Any),
+        ("Echo(Type(Land))", Filter::Type(Type::Land)),
+        ("Echo(OneOf([Any]))", Filter::OneOf(vec![Filter::Any])),
+    ] {
+        let parsed: Filter = macros.read_str(call).unwrap();
+        let Filter::Expanded(expanded) = parsed else {
+            panic!("expected Echo expansion for {call}, got {parsed:?}");
+        };
+        assert_eq!(expanded.name, "Echo", "macro name should survive expansion");
+        assert_eq!(
+            *expanded.value, expected,
+            "{call} should expand to {expected:?}"
         );
     }
 }
@@ -1187,7 +1201,11 @@ fn injected_param_types_validate() {
         })
         .unwrap();
     // A number is accepted.
-    assert!(macros.read_str::<Effect>("Repeat(2)").is_ok());
+    let effect = macros.read_str::<Effect>("Repeat(2)").unwrap();
+    let Effect::Expanded(expanded) = effect else {
+        panic!("expected a remembered effect, got {effect:?}");
+    };
+    assert_eq!(*expanded.value, Effect::DrawCards(Quantity::Literal(2)));
     // A non-number is rejected at the call site, naming macro and type.
     let error = macros.read_str::<Effect>("Repeat(Creature)").unwrap_err();
     let msg = error.to_string();
@@ -1827,7 +1845,9 @@ mod derived {
         assert_eq!(text, "Them");
 
         // "Ref" is name-erased — the tag itself is not part of the grammar.
-        assert!(super::options().from_str::<Pick>("Ref(Them)").is_err());
+        let error = super::options().from_str::<Pick>("Ref(Them)").unwrap_err();
+        let msg = error.to_string();
+        assert!(msg.contains("Ref"), "unexpected error: {msg}");
     }
 
     /// A tuple embed fills defaulted fields on read, writes bare only when
@@ -2005,7 +2025,11 @@ mod derived {
         assert_eq!(read, Nook::Cellar(7));
 
         // An excluded, unreclaimed name is rejected (mirrors bare `Stack`).
-        assert!(super::options().from_str::<Nook>("Vault").is_err());
+        let error = super::options().from_str::<Nook>("Vault").unwrap_err();
+        assert!(
+            error.to_string().contains("Vault"),
+            "unexpected error: {error}"
+        );
 
         // ALL_VARIANTS: OWN (["Cellar"]) ++ Spot's set minus the excluded
         // names — so "Vault" is absent and "Cellar" appears once (the OWN one).
@@ -2036,7 +2060,11 @@ mod derived {
 
         // "Us" is not in Step's native list and Step doesn't embed, so the
         // macro layer tries Step macros, finds none, and errors.
-        assert!(set.read_str::<Step>("Us").is_err());
+        let error = set.read_str::<Step>("Us").unwrap_err();
+        assert!(
+            error.to_string().contains("Us"),
+            "unexpected error: {error}"
+        );
     }
 
     /// `expand_all` strips `Expanded` nodes through both `flatten` and `embed`
@@ -2563,10 +2591,13 @@ fn add_typed_registers_a_deserialize_validator() {
     assert!(set.contains("Num"));
     let validate = set.get("Num").expect("Num is registered");
     let macros = empty();
-    assert!(validate("7", &macros).is_ok(), "a numeral parses as u32");
+    assert_eq!(validate("7", &macros), Ok(()));
+    let as_value: u32 = macros.read_str("7").unwrap();
+    assert_eq!(as_value, 7);
+    let err = validate("nope", &macros).unwrap_err();
     assert!(
-        validate("nope", &macros).is_err(),
-        "a non-numeral is rejected"
+        err.to_string().contains("Expected integer"),
+        "non-numeral parse failed for expected reason: {err}"
     );
 }
 

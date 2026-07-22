@@ -1000,9 +1000,10 @@ mod tests {
 
         // Precondition: the flier's point-wise Cant(Block) is live — a ground
         // blocker can't legally block it, but it may block the ground attacker.
+        let err = state.validate_blocks(&[(blocker, flyer)]).unwrap_err();
         assert!(
-            state.validate_blocks(&[(blocker, flyer)]).is_err(),
-            "flying's Cant(Block) is active on the flier"
+            err.to_string().contains("forbids"),
+            "unexpected error: {err}"
         );
         // Surfacing keeps the ground blocker: the ground attacker permits it.
         let legal = crate::legal::legal_blockers(&state, PlayerId(1));

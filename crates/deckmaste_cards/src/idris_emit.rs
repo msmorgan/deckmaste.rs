@@ -4074,8 +4074,10 @@ mod tests {
     /// emits.
     #[test]
     fn novel_type_name_gaps_not_panics() {
-        assert!(emit_type_name("Contraption").is_err(), "unknown type gaps");
-        assert!(emit_type_name("Creature").is_ok());
+        let err = emit_type_name("Contraption").unwrap_err();
+        let text = err.to_string();
+        assert!(text.contains("type `Contraption` has no Idris Type_ counterpart"));
+        assert_eq!(emit_type_name("Creature").unwrap(), "Creature");
     }
 
     // ---- core-copy-grammar Task 8: copy grammar ([CR#707]) → Idris parity ----

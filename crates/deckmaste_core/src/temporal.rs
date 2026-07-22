@@ -133,11 +133,12 @@ mod tests {
             read::<Lookback>("SinceYour(Beginning(Upkeep))"),
             Lookback::SinceYour(PhaseStep::Beginning(crate::BeginningStep::Upkeep)),
         );
+        let err = crate::ron::options()
+            .from_str::<Timing>("ThisTurn")
+            .unwrap_err();
         assert!(
-            crate::ron::options()
-                .from_str::<Timing>("ThisTurn")
-                .is_err(),
-            "the lookback reading of 'this turn' must not parse as a Timing"
+            err.to_string().contains("ThisTurn"),
+            "expected a timing mismatch for `ThisTurn`, got: {err}"
         );
     }
 

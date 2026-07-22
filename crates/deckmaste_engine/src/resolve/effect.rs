@@ -4292,11 +4292,15 @@ mod tests {
         };
         assert_eq!((player, options, min, max, repeats), (p0, 3, 1, 1, false));
         assert!(
-            state.submit_decision(Decision::Modes(vec![0, 1])).is_err(),
+            state
+                .submit_decision(Decision::Modes(vec![0, 1]))
+                .is_err_and(|err| err.to_string().contains("illegal mode selection")),
             "too many modes"
         );
         assert!(
-            state.submit_decision(Decision::Modes(vec![5])).is_err(),
+            state
+                .submit_decision(Decision::Modes(vec![5]))
+                .is_err_and(|err| err.to_string().contains("illegal mode selection")),
             "mode index out of range"
         );
         state.submit_decision(Decision::Modes(vec![1])).unwrap();

@@ -7,9 +7,19 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use deckmaste_cards::plugin::Plugin;
+use deckmaste_core::Card;
 
 fn testing_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing")
+}
+
+fn assert_testing_card_name(plugin: &Plugin, name: &str) {
+    let card = plugin.card(name).unwrap();
+    let face_name = match card {
+        Card::Normal(card) => card.name,
+        Card::TwoFaced { front, .. } => front.name,
+    };
+    assert_eq!(face_name.as_ref(), name);
 }
 
 #[test]
@@ -30,7 +40,7 @@ fn testing_mocks_are_valid() {
     );
 
     let testing = Plugin::load_with_sibling_prelude(testing_path()).unwrap();
-    assert!(testing.card("Trample Deathtouch Creature").is_ok());
-    assert!(testing.card("Trample granter").is_ok());
-    assert!(testing.card("Animate enchantments").is_ok());
+    assert_testing_card_name(&testing, "Trample Deathtouch Creature");
+    assert_testing_card_name(&testing, "Trample granter");
+    assert_testing_card_name(&testing, "Animate enchantments");
 }

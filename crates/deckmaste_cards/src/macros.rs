@@ -998,11 +998,10 @@ mod tests {
         assert_eq!(s.name().as_str(), "Zombie");
 
         // An undeclared subtype has no macro — parse fails.
-        assert!(
-            macros
-                .read_str::<Predicate>("Subtype(SomeBogusName)")
-                .is_err()
-        );
+        let err = macros
+            .read_str::<Predicate>("Subtype(SomeBogusName)")
+            .unwrap_err();
+        assert!(err.to_string().contains("SomeBogusName"));
     }
 
     /// `expand_all` over a real converted type: an `OneShotEffect` read through

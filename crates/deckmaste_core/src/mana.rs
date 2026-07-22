@@ -533,7 +533,8 @@ mod tests {
             "{W/U/B}",
             "{G/U/P/P}",
         ] {
-            assert!(symbol(invalid).is_err(), "{invalid:?} should not parse");
+            let err = symbol(invalid).unwrap_err();
+            assert_eq!(err, ParseManaError::new(invalid));
         }
     }
 
@@ -615,9 +616,10 @@ mod tests {
         for invalid in [
             " {W}", "{W} {U}", "{W}junk", "junk{W}", "{W}{", "{1}}", "{X}{HW}",
         ] {
+            let err = invalid.parse::<ManaCost>().unwrap_err();
             assert!(
-                invalid.parse::<ManaCost>().is_err(),
-                "{invalid:?} should not parse"
+                err.to_string().contains("unrecognized"),
+                "{invalid:?} => {err}"
             );
         }
     }

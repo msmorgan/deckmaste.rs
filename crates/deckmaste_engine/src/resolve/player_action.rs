@@ -793,7 +793,10 @@ mod tests {
         assert!(
             state
                 .submit_decision(Decision::ManaColor(ColorOrColorless::Colorless))
-                .is_err(),
+                .is_err_and(|err| {
+                    err.to_string()
+                        .contains("not one of the offered mana options")
+                }),
             "colorless is not a color"
         );
         let blue = ColorOrColorless::Color(Color::Blue);
@@ -841,7 +844,9 @@ mod tests {
         assert_eq!(player, PlayerId(0));
         assert_eq!(options.len(), 3, "the three runs");
         assert!(
-            state.submit_decision(Decision::ManaMode(3)).is_err(),
+            state
+                .submit_decision(Decision::ManaMode(3))
+                .is_err_and(|err| err.to_string().contains("not one of the offered mana runs")),
             "index past the offered runs is illegal"
         );
         // Pick the {W}{U} run (index 1): one white and one blue land together.
@@ -962,7 +967,9 @@ mod tests {
         assert_eq!((player, min, max), (PlayerId(0), 2, 2));
         let one = vec![state.zones.hands[0][0]];
         assert!(
-            state.submit_decision(Decision::Chosen(one)).is_err(),
+            state
+                .submit_decision(Decision::Chosen(one))
+                .is_err_and(|err| err.to_string().contains("illegal object selection")),
             "exactly `count` cards must be chosen"
         );
         let two = state.zones.hands[0][..2].to_vec();

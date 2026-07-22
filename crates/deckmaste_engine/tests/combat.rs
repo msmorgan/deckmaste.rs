@@ -372,14 +372,14 @@ fn declare_attackers_taps_records_and_fires_attacking() {
     assert!(
         state
             .submit_decision(Decision::Attackers(vec![(ObjectId::default(), opp_proxy)]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("legal set")),
         "an id outside the legal set is rejected"
     );
     // A duplicate is rejected.
     assert!(
         state
             .submit_decision(attack_player(&state, &[bear, bear]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("distinct")),
         "duplicate attackers are rejected"
     );
 
@@ -479,7 +479,7 @@ fn declare_attackers_with_no_legal_attacker_accepts_empty() {
     assert!(
         state
             .submit_decision(Decision::Attackers(vec![(ObjectId::default(), opp_proxy)]))
-            .is_err()
+            .is_err_and(|err| err.to_string().contains("legal"))
     );
     state.submit_decision(Decision::Attackers(vec![])).unwrap();
     assert!(state.combat.attackers().is_empty());
@@ -546,21 +546,21 @@ fn declare_blockers_records_blocks_and_fires_blocked() {
     assert!(
         state
             .submit_decision(Decision::Blocks(vec![(ObjectId::default(), attacker)]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("legal")),
         "a blocker outside the legal set is rejected"
     );
     // Blocking a non-attacker is rejected.
     assert!(
         state
             .submit_decision(Decision::Blocks(vec![(b1, ObjectId::default())]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("attacker")),
         "blocking a creature that isn't attacking is rejected"
     );
     // The same blocker blocking twice is rejected ([CR#509.1a]).
     assert!(
         state
             .submit_decision(Decision::Blocks(vec![(b1, attacker), (b1, attacker)]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("once")),
         "a blocker may block only one attacker ([CR#509.1a])"
     );
 
@@ -740,7 +740,7 @@ fn combat_damage_two_blockers_split_one_one() {
     assert!(
         state
             .submit_decision(Decision::Assignment(vec![(b1, 2), (b2, 1)]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("sum to the source's power")),
         "an assignment whose amounts don't sum to power is rejected"
     );
     // An out-of-recipient target is rejected.
@@ -750,7 +750,7 @@ fn combat_damage_two_blockers_split_one_one() {
                 (b1, 1),
                 (ObjectId::default(), 1)
             ]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("one of the source's recipients")),
         "an amount on a creature that isn't a recipient is rejected"
     );
 
@@ -1385,7 +1385,9 @@ fn trample_over_one_blocker_spills_excess_to_player() {
     assert!(
         state
             .submit_decision(Decision::Assignment(vec![(blocker, 1), (player_proxy, 3)]))
-            .is_err(),
+            .is_err_and(|err| err
+                .to_string()
+                .contains("trample: each blocker must be assigned lethal")),
         "can't assign to the player until each blocker has lethal ([CR#702.19b])"
     );
 
@@ -2064,7 +2066,9 @@ fn blocked_trampler_spills_excess_to_the_planeswalker_not_the_player() {
     assert!(
         state
             .submit_decision(Decision::Assignment(vec![(blocker, 1), (pw, 3)]))
-            .is_err(),
+            .is_err_and(|err| err
+                .to_string()
+                .contains("each blocker must be assigned lethal")),
         "each blocker must be assigned lethal before the planeswalker ([CR#702.19b])"
     );
 
@@ -2477,7 +2481,9 @@ fn validate_blocks_query_matches_submission_flyer() {
 
     // The query answers WITHOUT submitting (the pending decision stays intact).
     assert!(
-        state.validate_blocks(&[(bear, attacker)]).is_err(),
+        state
+            .validate_blocks(&[(bear, attacker)])
+            .is_err_and(|err| err.to_string().contains("attacker")),
         "a ground creature can't block the flier ([CR#702.9b])"
     );
     assert!(
@@ -2522,7 +2528,10 @@ fn validate_blocks_query_matches_submission_menace() {
     let (_, _legal) = drive_to_declare_blockers(&mut state, &[attacker]);
 
     assert!(
-        state.validate_blocks(&[(b1, attacker)]).is_err(),
+        {
+            let err = state.validate_blocks(&[(b1, attacker)]).unwrap_err();
+            err.to_string().contains("forbids")
+        },
         "a lone blocker is a forbidden menace arrangement ([CR#702.111b])"
     );
     assert!(
@@ -2565,13 +2574,13 @@ fn validate_attacks_query_matches_submission() {
     assert!(
         state
             .validate_attacks(&[(attacker, ObjectId::default())])
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("legal target")),
         "attacking a non-legal target is rejected ([CR#508.1b])"
     );
     assert!(
         state
             .validate_attacks(&[(ObjectId::default(), target)])
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("legal set")),
         "a non-legal attacker is rejected ([CR#508.1a])"
     );
     // Enforcement agrees.

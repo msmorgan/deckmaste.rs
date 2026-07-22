@@ -266,6 +266,9 @@ mod tests {
     /// An unknown name is an error, not a silent wildcard.
     #[test]
     fn unknown_sort_errors() {
-        assert!(crate::ron::options().from_str::<Sort>("Bogus").is_err());
+        let error = crate::ron::options().from_str::<Sort>("Bogus").unwrap_err();
+        let msg = error.to_string();
+        assert!(msg.contains("Bogus"), "unexpected error: {msg}");
+        assert!(msg.contains("Sort"), "unexpected error: {msg}");
     }
 }

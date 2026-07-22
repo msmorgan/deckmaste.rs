@@ -1406,14 +1406,14 @@ mod tests {
         assert!(
             state
                 .submit_decision(Decision::Chosen(candidates.clone()))
-                .is_err(),
+                .is_err_and(|err| err.to_string().contains("illegal object selection")),
             "count must be within [min, max]"
         );
         // Out of pool (a player proxy is not a creature).
         assert!(
             state
                 .submit_decision(Decision::Chosen(vec![state.player(PlayerId(0)).object]))
-                .is_err(),
+                .is_err_and(|err| err.to_string().contains("illegal object selection")),
             "every chosen object must be a candidate"
         );
 

@@ -2304,13 +2304,17 @@ fn occurrence_batch_and_apnap_ordering() {
                         );
 
                         // Submit invalid orders first (rejected; still pending).
+                        let err = state
+                            .submit_decision(Decision::Order(vec![0, 0]))
+                            .unwrap_err();
                         assert!(
-                            state.submit_decision(Decision::Order(vec![0, 0])).is_err(),
-                            "duplicate index is rejected"
+                            err.to_string().contains("permutation"),
+                            "duplicate index should be rejected with permutation error, got: {err}"
                         );
+                        let err = state.submit_decision(Decision::Order(vec![5])).unwrap_err();
                         assert!(
-                            state.submit_decision(Decision::Order(vec![5])).is_err(),
-                            "out-of-range index is rejected"
+                            err.to_string().contains("permutation"),
+                            "out-of-range index should be rejected with permutation error, got: {err}"
                         );
                         p0_ordered = true;
                     }
@@ -2613,13 +2617,17 @@ fn two_triggers_same_player_order_triggers_surfaces() {
                 order_triggers_count = triggers.len();
 
                 // Reject invalid orders.
+                let err = state
+                    .submit_decision(Decision::Order(vec![0, 0]))
+                    .unwrap_err();
                 assert!(
-                    state.submit_decision(Decision::Order(vec![0, 0])).is_err(),
-                    "duplicate index rejected"
+                    err.to_string().contains("permutation"),
+                    "duplicate index should be rejected with permutation error, got: {err}"
                 );
+                let err = state.submit_decision(Decision::Order(vec![2])).unwrap_err();
                 assert!(
-                    state.submit_decision(Decision::Order(vec![2])).is_err(),
-                    "out-of-range index rejected"
+                    err.to_string().contains("permutation"),
+                    "out-of-range index should be rejected with permutation error, got: {err}"
                 );
 
                 // Accept [1, 0]: the second trigger is placed first (resolves
@@ -2884,7 +2892,7 @@ fn hexproof_excludes_it_from_opposing_targets() {
     assert!(
         state
             .submit_decision(Decision::Targets(vec![vec![scout]]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("illegal target selection")),
         "targeting the hexproof creature is rejected"
     );
     state
@@ -3035,7 +3043,7 @@ fn flagbearer_constrains_opposing_target_choice() {
     assert!(
         state
             .submit_decision(Decision::Targets(vec![vec![bear]]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("illegal target selection")),
         "ignoring the able Flagbearer is an illegal choice"
     );
     state
@@ -4160,7 +4168,7 @@ fn choose_new_targets_change_must_be_legal() {
     assert!(
         state
             .submit_decision(Decision::Targets(vec![vec![bolt]]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("illegal target selection")),
         "an out-of-legal-set target is rejected ([CR#707.10c])"
     );
     // Submission re-validates against the surfaced legal set, so a rejected
@@ -4729,7 +4737,9 @@ fn fate_transfer_two_distinct_targets_cast_to_resolution() {
     assert!(
         state
             .submit_decision(Decision::Targets(vec![vec![c1], vec![c1]]))
-            .is_err(),
+            .is_err_and(|err| err
+                .to_string()
+                .contains("Distinct slot overlaps a sibling slot")),
         "an overlapping co-target pair is rejected ([CR#115.7e])"
     );
     // A distinct pair is accepted.
@@ -4842,14 +4852,14 @@ fn arc_lightning_announces_one_to_three_targets() {
     assert!(
         state
             .submit_decision(Decision::Targets(vec![vec![]]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("minimum")),
         "zero targets is below Between(1, 3)'s minimum ([CR#601.2c])"
     );
     // The same creature twice is not two targets ([CR#601.2c]).
     assert!(
         state
             .submit_decision(Decision::Targets(vec![vec![c1, c1]]))
-            .is_err(),
+            .is_err_and(|err| err.to_string().contains("object chosen twice")),
         "a within-slot duplicate is rejected ([CR#601.2c])"
     );
     // Two distinct targets in the one slot are accepted.

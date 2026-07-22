@@ -93,10 +93,10 @@ mod tests {
             crate::ron::options().to_string(&persistence).unwrap(),
             "Permanently"
         );
-        assert!(
-            crate::ron::options()
-                .from_str::<DesignationPersistence>("Permanent")
-                .is_err()
-        );
+        let err = crate::ron::options()
+            .from_str::<DesignationPersistence>("Permanent")
+            .unwrap_err();
+        let err = err.to_string();
+        assert!(err.contains("Permanent"));
     }
 }

@@ -4962,8 +4962,12 @@ mod tests {
         assert_eq!(triggers.len(), 2, "both of player 0's triggers offered");
 
         // A non-permutation is rejected.
-        assert!(state.submit_decision(Decision::Order(vec![0, 0])).is_err());
-        assert!(state.submit_decision(Decision::Order(vec![5])).is_err());
+        let err = state
+            .submit_decision(Decision::Order(vec![0, 0]))
+            .unwrap_err();
+        assert!(err.to_string().contains("permutation"));
+        let err = state.submit_decision(Decision::Order(vec![5])).unwrap_err();
+        assert!(err.to_string().contains("permutation"));
         // The valid permutation is accepted; placement resumes (re-scheduled).
         state.submit_decision(Decision::Order(vec![1, 0])).unwrap();
         assert!(state.pending.is_none());
