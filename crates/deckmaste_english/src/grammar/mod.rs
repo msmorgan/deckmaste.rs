@@ -178,6 +178,7 @@ pub(crate) enum EnglishLexicalSlot {
     QuantityAtLeast,
     QuantityOr,
     QuantityX,
+    QuantityBoth,
     QuantityThatMany,
     QuantityThatMuch,
     Up,
@@ -394,6 +395,7 @@ pub(crate) enum QuantityKey {
     Or(NumberKey, NumberKey),
     UpTo(NumberKey),
     X,
+    Both,
     ThatMany,
     ThatMuch,
 }
@@ -407,7 +409,9 @@ impl QuantityKey {
             Self::Or(first, second) if first.value == 1 && second.value == 1 => {
                 Cardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::Or(_, _) | Self::UpTo(_) | Self::X => Cardinality::PluralOrMass,
+            Self::Exact(_) | Self::Or(_, _) | Self::UpTo(_) | Self::X | Self::Both => {
+                Cardinality::PluralOrMass
+            }
             Self::AtLeast(_) | Self::ThatMany => Cardinality::PluralCount,
             Self::ThatMuch => Cardinality::Mass,
         }
@@ -420,6 +424,7 @@ impl QuantityKey {
             Self::Or(first, second) => Quantity::Or(first.literal(), second.literal()),
             Self::UpTo(number) => Quantity::UpTo(number.literal()),
             Self::X => Quantity::X,
+            Self::Both => Quantity::Both,
             Self::ThatMany => Quantity::ThatMany,
             Self::ThatMuch => Quantity::ThatMuch,
         }
@@ -465,6 +470,7 @@ impl DeterminerKey {
                 | QuantityKey::Or(_, _)
                 | QuantityKey::UpTo(_)
                 | QuantityKey::X
+                | QuantityKey::Both
                 | QuantityKey::ThatMany,
             )) => Cardinality::PluralCount,
             Self::Target(Some(QuantityKey::ThatMuch)) => Cardinality::Mass,
@@ -578,6 +584,7 @@ enum RuleTag {
     QuantityAtLeast,
     QuantityOr,
     QuantityX,
+    QuantityBoth,
     QuantityUpTo,
     QuantityThatMany,
     QuantityThatMuch,
@@ -604,6 +611,7 @@ enum RuleTag {
     NounPhraseSubjectPronoun,
     NounPhraseObjectPronoun,
     NounPhraseReciprocal,
+    NounPhraseQuantity,
     NounPhraseThisCard,
     NounPhraseFullThisCard,
     NounPhrasePartitive,
@@ -946,6 +954,11 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::QuantityX => self
                 .one_token_match(tokens, start, "X")
                 .map(|end| quantity_match(end, QuantityKey::X))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::QuantityBoth => self
+                .one_token_match(tokens, start, "both")
+                .map(|end| quantity_match(end, QuantityKey::Both))
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::QuantityThatMany => self
@@ -1658,6 +1671,7 @@ impl RuleBuilder {
         );
         self.add(RuleTag::QuantityOr, N::Quantity, [l(L::QuantityOr)]);
         self.add(RuleTag::QuantityX, N::Quantity, [l(L::QuantityX)]);
+        self.add(RuleTag::QuantityBoth, N::Quantity, [l(L::QuantityBoth)]);
         self.add(
             RuleTag::QuantityThatMany,
             N::Quantity,
@@ -1783,6 +1797,7 @@ impl RuleBuilder {
             N::NounPhrase,
             [l(L::Reciprocal)],
         );
+        self.add(RuleTag::NounPhraseQuantity, N::NounPhrase, [n(N::Quantity)]);
         self.add(RuleTag::NounPhraseThisCard, N::NounPhrase, [l(L::ThisCard)]);
         self.add(
             RuleTag::NounPhraseFullThisCard,
@@ -2058,6 +2073,7 @@ fn reduce(
         | RuleTag::QuantityAtLeast
         | RuleTag::QuantityOr
         | RuleTag::QuantityX
+        | RuleTag::QuantityBoth
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
         | RuleTag::QuantityThatMuch
@@ -2084,6 +2100,7 @@ fn reduce(
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
         | RuleTag::NounPhraseReciprocal
+        | RuleTag::NounPhraseQuantity
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
         | RuleTag::NounPhrasePartitive
@@ -2207,7 +2224,10 @@ fn reduce_quantity_or_determiner(
             };
             Some(Features::Quantity(number_cardinality(*is_one)))
         }
-        RuleTag::QuantityAtLeast | RuleTag::QuantityOr | RuleTag::QuantityX => {
+        RuleTag::QuantityAtLeast
+        | RuleTag::QuantityOr
+        | RuleTag::QuantityX
+        | RuleTag::QuantityBoth => {
             let Features::Quantity(cardinality) = children.first()?.features else {
                 return None;
             };
@@ -2401,6 +2421,19 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             noun_phrase_from_pronoun(children.first()?)
         }
         RuleTag::NounPhraseReciprocal => noun_phrase_from_pronoun(children.first()?),
+        RuleTag::NounPhraseQuantity => {
+            let Features::Quantity(cardinality) = children.first()?.features else {
+                return None;
+            };
+            Some(Features::NounPhrase {
+                agreement: Some(Agreement {
+                    person: Person::Third,
+                    number: quantity_number(*cardinality),
+                }),
+                pronoun_case: None,
+                temporal: false,
+            })
+        }
         RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
             let Features::NounPhrase {
                 agreement,
@@ -2420,13 +2453,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             let Features::Quantity(cardinality) = children.first()?.features else {
                 return None;
             };
-            let number = match cardinality {
-                Cardinality::SingularCount | Cardinality::SingularOrMass => Number::Singular,
-                Cardinality::PluralCount
-                | Cardinality::Mass
-                | Cardinality::PluralOrMass
-                | Cardinality::Unconstrained => Number::Plural,
-            };
+            let number = quantity_number(*cardinality);
             Some(Features::NounPhrase {
                 agreement: Some(Agreement {
                     person: Person::Third,
@@ -2522,6 +2549,16 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
         pronoun_case: *pronoun_case,
         temporal: *temporal,
     })
+}
+
+const fn quantity_number(cardinality: Cardinality) -> Number {
+    match cardinality {
+        Cardinality::SingularCount | Cardinality::SingularOrMass => Number::Singular,
+        Cardinality::PluralCount
+        | Cardinality::Mass
+        | Cardinality::PluralOrMass
+        | Cardinality::Unconstrained => Number::Plural,
+    }
 }
 
 fn cardinality_accepts(cardinality: Cardinality, form: NounForm) -> bool {
@@ -2833,6 +2870,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::QuantityAtLeast
         | RuleTag::QuantityOr
         | RuleTag::QuantityX
+        | RuleTag::QuantityBoth
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
         | RuleTag::QuantityThatMuch
@@ -2859,6 +2897,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
         | RuleTag::NounPhraseReciprocal
+        | RuleTag::NounPhraseQuantity
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
         | RuleTag::NounPhrasePartitive
@@ -2952,7 +2991,10 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
             };
             Some(Lowered::Quantity(Quantity::Exact(number.literal())))
         }
-        RuleTag::QuantityAtLeast | RuleTag::QuantityOr | RuleTag::QuantityX => {
+        RuleTag::QuantityAtLeast
+        | RuleTag::QuantityOr
+        | RuleTag::QuantityX
+        | RuleTag::QuantityBoth => {
             let Lowered::Quantity(quantity) = take(children, 0)? else {
                 return None;
             };
@@ -3121,6 +3163,12 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 pronoun: pronoun.pronoun,
                 case: pronoun.case,
             }))
+        }
+        RuleTag::NounPhraseQuantity => {
+            let Lowered::Quantity(quantity) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(NounPhrase::Quantity(quantity)))
         }
         RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
             let Lowered::ThisCard(form) = take(children, 0)? else {

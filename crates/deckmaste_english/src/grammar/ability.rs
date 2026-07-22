@@ -897,8 +897,9 @@ mod tests {
 
     #[test]
     fn modal_punctuation_belongs_to_the_modal_production() {
-        let report =
-            parse("Choose one —\n• Draw two cards.\n• Destroy target artifact or enchantment.");
+        let report = parse(
+            "Choose one or both —\n• Draw two cards.\n• Destroy target artifact or enchantment.",
+        );
         assert_eq!(report.ast.abilities.len(), 1);
         let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
             panic!("expected modal ability");
@@ -906,9 +907,32 @@ mod tests {
         assert_eq!(modal.frame, ModalFrame::Unframed);
         assert_eq!(modal.header_suffix, ModalHeaderSuffix::SpacedEmDash);
         assert_eq!(modal.modes.len(), 2);
+        assert!(matches!(
+            &modal.header.sentences[0].body,
+            SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+                TransitivePredicate {
+                    object: PredicateObject::NounPhrase(NounPhrase::Coordinated(
+                        CoordinatedNounPhrase {
+                            first,
+                            rest,
+                        }
+                    )),
+                    ..
+                }
+            ))) if matches!(
+                first.as_ref(),
+                NounPhrase::Quantity(Quantity::Exact(number)) if number.value == 1
+            ) && matches!(
+                rest.as_slice(),
+                [NounPhraseCoordination {
+                    phrase: NounPhrase::Quantity(Quantity::Both),
+                    ..
+                }]
+            )
+        ));
         assert_eq!(
             render(&report),
-            "Choose one —\n• Draw two cards.\n• Destroy target artifact or enchantment."
+            "Choose one or both —\n• Draw two cards.\n• Destroy target artifact or enchantment."
         );
     }
 

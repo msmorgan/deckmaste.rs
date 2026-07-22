@@ -802,6 +802,7 @@ impl<'identity> Renderer<'identity> {
                 Demonstrative::Those => "those",
             }
             .to_owned()),
+            NounPhrase::Quantity(quantity) => Ok(render_quantity(*quantity)),
             NounPhrase::ThisCard(form) => self.this_card(*form),
             NounPhrase::Partitive(partitive) => Ok(format!(
                 "{} of {}",
@@ -1073,6 +1074,7 @@ fn render_quantity(quantity: Quantity) -> String {
         ),
         Quantity::UpTo(number) => format!("up to {}", number.numeral.format(number.value)),
         Quantity::X => "X".to_owned(),
+        Quantity::Both => "both".to_owned(),
         Quantity::ThatMany => "that many".to_owned(),
         Quantity::ThatMuch => "that much".to_owned(),
     }

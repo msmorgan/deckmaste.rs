@@ -386,8 +386,10 @@ impl<'syntax> UnknownWalker<'syntax> {
                     }
                 }
             }
-            NounPhrase::Pronoun { .. } | NounPhrase::Demonstrative(_) | NounPhrase::ThisCard(_) => {
-            }
+            NounPhrase::Pronoun { .. }
+            | NounPhrase::Demonstrative(_)
+            | NounPhrase::Quantity(_)
+            | NounPhrase::ThisCard(_) => {}
             NounPhrase::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
             NounPhrase::Coordinated(coordinated) => {
                 self.noun_phrase(&coordinated.first, context);

@@ -84,6 +84,7 @@ pub enum Quantity {
     Or(NumberLiteral, NumberLiteral),
     UpTo(NumberLiteral),
     X,
+    Both,
     ThatMany,
     ThatMuch,
 }
@@ -98,7 +99,7 @@ impl Quantity {
             Self::Or(first, second) if first.value == 1 && second.value == 1 => {
                 NounCardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::Or(_, _) | Self::UpTo(_) | Self::X => {
+            Self::Exact(_) | Self::Or(_, _) | Self::UpTo(_) | Self::X | Self::Both => {
                 NounCardinality::PluralOrMass
             }
             Self::AtLeast(_) | Self::ThatMany => NounCardinality::PluralCount,
@@ -144,7 +145,9 @@ impl Determiner {
             Self::Target(Some(
                 Quantity::Exact(_) | Quantity::AtLeast(_) | Quantity::UpTo(_) | Quantity::ThatMany,
             )) => NounCardinality::PluralCount,
-            Self::Target(Some(Quantity::Or(_, _) | Quantity::X)) => NounCardinality::PluralCount,
+            Self::Target(Some(Quantity::Or(_, _) | Quantity::X | Quantity::Both)) => {
+                NounCardinality::PluralCount
+            }
             Self::Target(Some(Quantity::ThatMuch)) => NounCardinality::Mass,
             Self::Quantity(quantity) => quantity.noun_cardinality(),
             Self::All => NounCardinality::PluralOrMass,
@@ -190,6 +193,7 @@ pub enum NounPhrase {
     Nominal(NominalPhrase),
     Pronoun { pronoun: Pronoun, case: PronounCase },
     Demonstrative(Demonstrative),
+    Quantity(Quantity),
     ThisCard(ThisCardForm),
     Partitive(PartitiveNounPhrase),
     Coordinated(CoordinatedNounPhrase),
