@@ -846,6 +846,7 @@ impl<'identity> Renderer<'identity> {
                     rendered.push_str(match coordination.conjunction {
                         NounPhraseConjunction::And => "and",
                         NounPhraseConjunction::Or => "or",
+                        NounPhraseConjunction::Plus => "plus",
                     });
                     rendered.push(' ');
                     rendered.push_str(&self.noun_phrase(&coordination.phrase)?);

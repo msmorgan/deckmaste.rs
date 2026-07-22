@@ -241,6 +241,7 @@ pub struct NounPhraseCoordination {
 pub enum NounPhraseConjunction {
     And,
     Or,
+    Plus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

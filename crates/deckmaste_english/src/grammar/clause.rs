@@ -2851,6 +2851,32 @@ mod tests {
     }
 
     #[test]
+    fn plus_coordinates_additive_noun_phrases() {
+        let source = "You gain that much life plus 1.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected a transitive gain clause: {:#?}",
+                parsed.sentence()
+            );
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Coordinated(object)) = &predicate.object else {
+            panic!("expected an additive noun phrase: {:#?}", predicate.object);
+        };
+        assert!(matches!(
+            object.rest.as_slice(),
+            [crate::syntax::NounPhraseCoordination {
+                conjunction: crate::syntax::NounPhraseConjunction::Plus,
+                ..
+            }]
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
     fn passive_blocking_treats_this_turn_as_a_temporal_adjunct() {
         let source = "Creatures you control can't be blocked this turn.";
         let parsed = parse(source);

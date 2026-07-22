@@ -219,6 +219,7 @@ pub(crate) enum EnglishLexicalSlot {
     Subordinator,
     RatherThan,
     Conjunction,
+    Plus,
     Existential,
     Copula,
     SubjectAuxiliary,
@@ -658,6 +659,7 @@ pub(crate) enum LiteralKey {
     Than,
     OrEqualTo,
     Who,
+    Plus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -749,6 +751,7 @@ enum RuleTag {
     NounPhrasePossessiveThisCard,
     NounPhrasePartitive,
     NounPhraseCoordination,
+    NounPhraseAdditiveCoordination,
     PrepositionalPhrase,
     PrepositionalObject,
     Verb,
@@ -1231,7 +1234,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::Punctuation(_)
             | EnglishLexicalSlot::Subordinator
             | EnglishLexicalSlot::RatherThan
-            | EnglishLexicalSlot::Conjunction) => self.scan_clause_lexical(slot, tokens, start),
+            | EnglishLexicalSlot::Conjunction
+            | EnglishLexicalSlot::Plus) => self.scan_clause_lexical(slot, tokens, start),
             EnglishLexicalSlot::Unknown(slot)
                 if self.recovery_profile != RecoveryProfile::Exact =>
             {
@@ -1331,6 +1335,11 @@ impl EnglishGrammar<'_, '_> {
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Conjunction => self.scan_conjunction(tokens, start),
+            EnglishLexicalSlot::Plus => self
+                .one_token_match(tokens, start, "plus")
+                .map(|end| literal_match(end, LiteralKey::Plus))
+                .into_iter()
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -1362,6 +1371,7 @@ impl EnglishGrammar<'_, '_> {
             || !self.scan_preposition(tokens, start).is_empty()
             || !self.scan_conjunction(tokens, start).is_empty()
             || self.subordinator_at(tokens, start).is_some()
+            || self.one_token_match(tokens, start, "plus").is_some()
             || self.one_token_match(tokens, start, "who").is_some()
             || !self
                 .catalog_matches(tokens, start, CatalogSlot::Noun(NounUsage::Either))
@@ -2234,6 +2244,15 @@ impl RuleBuilder {
                 ..ParseCost::default()
             },
         );
+        self.add_with_cost(
+            RuleTag::NounPhraseAdditiveCoordination,
+            N::NounPhrase,
+            [n(N::NounPhrase), l(L::Plus), n(N::NounPhrase)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
 
         self.add(
             RuleTag::PrepositionalPhrase,
@@ -2568,6 +2587,7 @@ fn reduce(
         | RuleTag::NounPhrasePossessiveThisCard
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseCoordination
+        | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
         RuleTag::Verb
@@ -3110,20 +3130,31 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 temporal: false,
             })
         }
-        RuleTag::NounPhraseCoordination => {
+        RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
             let Features::NounPhrase {
+                agreement: first_agreement,
                 temporal: first_temporal,
                 ..
             } = children.first()?.features
             else {
                 return None;
             };
-            let Features::Conjunction(conjunction) = children.get(1)?.features else {
-                return None;
+            let conjunction = if tag == RuleTag::NounPhraseAdditiveCoordination {
+                crate::syntax::NounPhraseConjunction::Plus
+            } else {
+                let Features::Conjunction(conjunction) = children.get(1)?.features else {
+                    return None;
+                };
+                match conjunction {
+                    crate::syntax::PredicateConjunction::And => {
+                        crate::syntax::NounPhraseConjunction::And
+                    }
+                    crate::syntax::PredicateConjunction::Or => {
+                        crate::syntax::NounPhraseConjunction::Or
+                    }
+                    crate::syntax::PredicateConjunction::Then => return None,
+                }
             };
-            if *conjunction == crate::syntax::PredicateConjunction::Then {
-                return None;
-            }
             let Features::NounPhrase {
                 agreement: next_agreement,
                 temporal: next_temporal,
@@ -3133,12 +3164,12 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 return None;
             };
             let agreement = match conjunction {
-                crate::syntax::PredicateConjunction::And => Some(Agreement {
+                crate::syntax::NounPhraseConjunction::And => Some(Agreement {
                     person: Person::Third,
                     number: Number::Plural,
                 }),
-                crate::syntax::PredicateConjunction::Or => *next_agreement,
-                crate::syntax::PredicateConjunction::Then => return None,
+                crate::syntax::NounPhraseConjunction::Or => *next_agreement,
+                crate::syntax::NounPhraseConjunction::Plus => *first_agreement,
             };
             Some(Features::NounPhrase {
                 agreement,
@@ -3594,6 +3625,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhrasePossessiveThisCard
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseCoordination
+        | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => lower_phrase(tag, children),
         RuleTag::Verb
@@ -3997,19 +4029,25 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 },
             )))
         }
-        RuleTag::NounPhraseCoordination => {
+        RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
             let Lowered::NounPhrase(first) = take(children, 0)? else {
                 return None;
             };
-            let Lowered::Conjunction(conjunction) = take(children, 1)? else {
-                return None;
-            };
-            let conjunction = match conjunction {
-                crate::syntax::PredicateConjunction::And => {
-                    crate::syntax::NounPhraseConjunction::And
+            let conjunction = if tag == RuleTag::NounPhraseAdditiveCoordination {
+                crate::syntax::NounPhraseConjunction::Plus
+            } else {
+                let Lowered::Conjunction(conjunction) = take(children, 1)? else {
+                    return None;
+                };
+                match conjunction {
+                    crate::syntax::PredicateConjunction::And => {
+                        crate::syntax::NounPhraseConjunction::And
+                    }
+                    crate::syntax::PredicateConjunction::Or => {
+                        crate::syntax::NounPhraseConjunction::Or
+                    }
+                    crate::syntax::PredicateConjunction::Then => return None,
                 }
-                crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
-                crate::syntax::PredicateConjunction::Then => return None,
             };
             let Lowered::NounPhrase(next) = take(children, 2)? else {
                 return None;
