@@ -192,6 +192,7 @@ pub(crate) enum EnglishLexicalSlot {
     PowerToughness,
     Punctuation(Punctuation),
     Subordinator,
+    RatherThan,
     Conjunction,
     Existential,
     Copula,
@@ -641,6 +642,7 @@ enum RuleTag {
     ClauseSubordinateBefore,
     ClauseSubordinateAfterElliptical,
     ClauseSubordinateAfter,
+    ClauseSubordinateAfterInfinitive,
     ClauseExistential,
     ClauseCopularNoun,
     ClauseCopularAdjective,
@@ -1015,6 +1017,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::PowerToughness
             | EnglishLexicalSlot::Punctuation(_)
             | EnglishLexicalSlot::Subordinator
+            | EnglishLexicalSlot::RatherThan
             | EnglishLexicalSlot::Conjunction) => self.scan_clause_lexical(slot, tokens, start),
             EnglishLexicalSlot::Unknown(slot)
                 if self.recovery_profile != RecoveryProfile::Exact =>
@@ -1104,6 +1107,16 @@ impl EnglishGrammar<'_, '_> {
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Subordinator => self.scan_subordinators(tokens, start),
+            EnglishLexicalSlot::RatherThan => self
+                .words_match(tokens, start, &["rather", "than"])
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::Subordinator(crate::syntax::Subordinator::RatherThan),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::Conjunction => self.scan_conjunction(tokens, start),
             _ => Vec::new(),
         }
@@ -2130,6 +2143,7 @@ fn reduce(
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
+        | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::ClauseExistential
         | RuleTag::ClauseCopularNoun
         | RuleTag::ClauseCopularAdjective
@@ -2927,6 +2941,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
+        | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::ClauseExistential
         | RuleTag::ClauseCopularNoun
         | RuleTag::ClauseCopularAdjective

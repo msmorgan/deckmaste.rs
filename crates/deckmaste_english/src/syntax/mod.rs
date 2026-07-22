@@ -190,6 +190,9 @@ impl<'syntax> UnknownWalker<'syntax> {
             DependentClause::Subordinate(_, SubordinateBody::Finite(clause)) => {
                 self.independent_clause(clause, context);
             }
+            DependentClause::Subordinate(_, SubordinateBody::Infinitive(clause)) => {
+                self.predicate(&clause.predicate, context);
+            }
             DependentClause::Subordinate(
                 _,
                 SubordinateBody::Elliptical(EllipticalClause::Adjective(adjective)),

@@ -709,6 +709,7 @@ impl<'identity> Renderer<'identity> {
             DependentClause::Subordinate(subordinator, body) => {
                 let body = match body {
                     SubordinateBody::Finite(clause) => self.independent_clause(clause)?,
+                    SubordinateBody::Infinitive(clause) => self.infinitive_clause(clause)?,
                     SubordinateBody::Elliptical(EllipticalClause::Adjective(phrase)) => {
                         self.adjective_phrase(phrase)?
                     }
@@ -1123,6 +1124,7 @@ fn render_subordinator(subordinator: Subordinator) -> &'static str {
         Subordinator::AsLongAs => "as long as",
         Subordinator::Until => "until",
         Subordinator::Because => "because",
+        Subordinator::RatherThan => "rather than",
     }
 }
 

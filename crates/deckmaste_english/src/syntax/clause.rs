@@ -41,6 +41,7 @@ pub enum DependentClause {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SubordinateBody {
     Finite(Box<IndependentClause>),
+    Infinitive(InfinitiveClause),
     Elliptical(EllipticalClause),
 }
 
@@ -260,6 +261,7 @@ pub enum Subordinator {
     AsLongAs,
     Until,
     Because,
+    RatherThan,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

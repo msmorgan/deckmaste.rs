@@ -222,6 +222,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [n(N::Clause), l(L::Subordinator), n(N::Clause)],
     );
     builder.add(
+        RuleTag::ClauseSubordinateAfterInfinitive,
+        N::Clause,
+        [n(N::Clause), l(L::RatherThan), n(N::VerbPhrase)],
+    );
+    builder.add(
         RuleTag::RelativeObject,
         N::RelativeClause,
         [n(N::NounPhrase), n(N::ObjectGapVerbPhrase)],
@@ -307,6 +312,7 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
+        | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
@@ -874,6 +880,28 @@ fn reduce_composed_clause(
         RuleTag::ClauseSubordinateAfter => {
             conditional_reduction(children.get(2)?, children.first()?)
         }
+        RuleTag::ClauseSubordinateAfterInfinitive => {
+            let Features::Clause {
+                agreement,
+                standalone: true,
+                finite,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            let Features::VerbPhrase {
+                form: PredicateForm::Infinitive,
+                ..
+            } = children.get(2)?.features
+            else {
+                return None;
+            };
+            Some(Features::Clause {
+                agreement: *agreement,
+                standalone: true,
+                finite: *finite,
+            })
+        }
         RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
@@ -1025,6 +1053,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
+        | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
@@ -1471,6 +1500,32 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
+        RuleTag::ClauseSubordinateAfterInfinitive => {
+            let Lowered::Clause(consequence) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Subordinator(crate::syntax::Subordinator::RatherThan) = take(children, 1)?
+            else {
+                return None;
+            };
+            let Lowered::VerbPhrase(predicate) = take(children, 2)? else {
+                return None;
+            };
+            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
+            if modal.is_some() {
+                return None;
+            }
+            conditional_body(
+                crate::syntax::Subordinator::RatherThan,
+                AttachmentPosition::AfterMatrix,
+                false,
+                SubordinateBody::Infinitive(crate::syntax::InfinitiveClause {
+                    marker: InfinitiveMarker::Bare,
+                    predicate: Box::new(predicate),
+                }),
+                consequence,
+            )
+        }
         RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
@@ -1817,6 +1872,7 @@ mod tests {
     use crate::syntax::Sentence;
     use crate::syntax::SentenceBody;
     use crate::syntax::Subject;
+    use crate::syntax::Subordinator;
     use crate::word::Adjective;
     use crate::word::Auxiliary;
     use crate::word::AuxiliaryInflection;
@@ -1829,7 +1885,7 @@ mod tests {
     use crate::word::VerbSlot;
     use crate::word::Vocab;
 
-    const FIXTURES: [&str; 24] = [
+    const FIXTURES: [&str; 25] = [
         "Draw a card.",
         "Spells cost {1} less to cast.",
         "This creature costs {1} less to cast.",
@@ -1854,6 +1910,7 @@ mod tests {
         "You gain 1 life for each spell you've cast.",
         "It's put into exile.",
         "Counter target spell that's one or more colors.",
+        "You may discard a Plains card rather than pay this spell's mana cost.",
     ];
 
     #[test]
@@ -2257,6 +2314,30 @@ mod tests {
             ),
             "{nominal:#?}"
         );
+    }
+
+    #[test]
+    fn rather_than_introduces_a_bare_infinitive_clause() {
+        let parsed = parse("You may discard a Plains card rather than pay this spell's mana cost.");
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause");
+        };
+        assert!(matches!(
+            complex.attachments.as_slice(),
+            [DependentAttachment {
+                position: AttachmentPosition::AfterMatrix,
+                comma: false,
+                clause: DependentClause::Subordinate(
+                    Subordinator::RatherThan,
+                    SubordinateBody::Infinitive(crate::syntax::InfinitiveClause {
+                        marker: InfinitiveMarker::Bare,
+                        ..
+                    }),
+                ),
+            }]
+        ));
     }
 
     #[test]
