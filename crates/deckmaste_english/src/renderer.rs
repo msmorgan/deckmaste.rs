@@ -370,21 +370,33 @@ impl<'identity> Renderer<'identity> {
 
     fn independent_clause(&self, clause: &IndependentClause) -> Result<String, RenderError> {
         match clause {
-            IndependentClause::Transitive(subject, predicate) => Ok(join_words(vec![
-                self.subject(subject)?,
-                self.transitive_predicate(predicate)?,
-            ])),
-            IndependentClause::Intransitive(subject, predicate) => Ok(join_words(vec![
-                self.subject(subject)?,
-                self.intransitive_predicate(predicate)?,
-            ])),
+            IndependentClause::Transitive(subject, predicate) => {
+                let (subject, auxiliary_start) =
+                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                Ok(join_words(vec![
+                    subject,
+                    self.transitive_predicate_from(predicate, auxiliary_start)?,
+                ]))
+            }
+            IndependentClause::Intransitive(subject, predicate) => {
+                let (subject, auxiliary_start) =
+                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                Ok(join_words(vec![
+                    subject,
+                    self.intransitive_predicate_from(predicate, auxiliary_start)?,
+                ]))
+            }
             IndependentClause::Copular(subject, predicate) => {
                 self.copular_clause(subject, predicate)
             }
-            IndependentClause::Passive(subject, predicate) => Ok(join_words(vec![
-                self.subject(subject)?,
-                self.passive_predicate(predicate)?,
-            ])),
+            IndependentClause::Passive(subject, predicate) => {
+                let (subject, auxiliary_start) =
+                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                Ok(join_words(vec![
+                    subject,
+                    self.passive_predicate_from(predicate, auxiliary_start)?,
+                ]))
+            }
             IndependentClause::Imperative(predicate) => self.predicate(predicate),
             IndependentClause::Deontic(subject, modal, predicate) => Ok(join_words(vec![
                 self.subject(subject)?,
@@ -450,6 +462,34 @@ impl<'identity> Renderer<'identity> {
         self.noun_phrase(&subject.0)
     }
 
+    fn subject_with_predicate_head(
+        &self,
+        subject: &Subject,
+        head: &PredicateHead,
+    ) -> Result<(String, usize), RenderError> {
+        let mut subject = self.subject(subject)?;
+        let auxiliary_start = self.contract_with_first_auxiliary(&mut subject, head)?;
+        Ok((subject, auxiliary_start))
+    }
+
+    fn contract_with_first_auxiliary(
+        &self,
+        rendered_subject: &mut String,
+        head: &PredicateHead,
+    ) -> Result<usize, RenderError> {
+        if !head.first_auxiliary_contracted_with_subject {
+            return Ok(0);
+        }
+        let auxiliary = head
+            .auxiliaries
+            .first()
+            .copied()
+            .ok_or(RenderError::MissingLexicalForm("contracted auxiliary"))?;
+        let auxiliary = self.render_auxiliary(auxiliary)?;
+        rendered_subject.push_str(contraction_suffix(&auxiliary)?);
+        Ok(1)
+    }
+
     fn predicate(&self, predicate: &Predicate) -> Result<String, RenderError> {
         match predicate {
             Predicate::Transitive(predicate) => self.transitive_predicate(predicate),
@@ -473,8 +513,16 @@ impl<'identity> Renderer<'identity> {
         &self,
         predicate: &crate::syntax::TransitivePredicate,
     ) -> Result<String, RenderError> {
+        self.transitive_predicate_from(predicate, 0)
+    }
+
+    fn transitive_predicate_from(
+        &self,
+        predicate: &crate::syntax::TransitivePredicate,
+        auxiliary_start: usize,
+    ) -> Result<String, RenderError> {
         let mut parts = vec![
-            self.predicate_head(&predicate.head)?,
+            self.predicate_head_from(&predicate.head, auxiliary_start)?,
             self.predicate_object(&predicate.object)?,
         ];
         self.extend_predicate_elements(&mut parts, &predicate.elements)?;
@@ -485,7 +533,15 @@ impl<'identity> Renderer<'identity> {
         &self,
         predicate: &crate::syntax::IntransitivePredicate,
     ) -> Result<String, RenderError> {
-        let mut parts = vec![self.predicate_head(&predicate.head)?];
+        self.intransitive_predicate_from(predicate, 0)
+    }
+
+    fn intransitive_predicate_from(
+        &self,
+        predicate: &crate::syntax::IntransitivePredicate,
+        auxiliary_start: usize,
+    ) -> Result<String, RenderError> {
+        let mut parts = vec![self.predicate_head_from(&predicate.head, auxiliary_start)?];
         self.extend_predicate_elements(&mut parts, &predicate.elements)?;
         Ok(join_words(parts))
     }
@@ -494,15 +550,27 @@ impl<'identity> Renderer<'identity> {
         &self,
         predicate: &crate::syntax::PassivePredicate,
     ) -> Result<String, RenderError> {
-        let mut parts = vec![self.predicate_head(&predicate.head)?];
+        self.passive_predicate_from(predicate, 0)
+    }
+
+    fn passive_predicate_from(
+        &self,
+        predicate: &crate::syntax::PassivePredicate,
+        auxiliary_start: usize,
+    ) -> Result<String, RenderError> {
+        let mut parts = vec![self.predicate_head_from(&predicate.head, auxiliary_start)?];
         self.extend_predicate_elements(&mut parts, &predicate.elements)?;
         Ok(join_words(parts))
     }
 
-    fn predicate_head(&self, head: &PredicateHead) -> Result<String, RenderError> {
+    fn predicate_head_from(
+        &self,
+        head: &PredicateHead,
+        auxiliary_start: usize,
+    ) -> Result<String, RenderError> {
         let mut parts =
             Vec::with_capacity(head.auxiliaries.len() + head.preverb_modifiers.len() + 1);
-        for &auxiliary in &head.auxiliaries {
+        for &auxiliary in &head.auxiliaries[auxiliary_start..] {
             parts.push(self.render_auxiliary(auxiliary)?);
         }
         parts.extend(head.preverb_modifiers.iter().map(|modifier| {
@@ -661,24 +729,59 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn relative_clause(&self, clause: &RelativeClause) -> Result<String, RenderError> {
-        let marker = match clause.marker {
+        let mut marker = match clause.marker {
             RelativeMarker::That => "that",
             RelativeMarker::Which => "which",
             RelativeMarker::Who => "who",
             RelativeMarker::Zero => "",
-        };
+        }
+        .to_owned();
         let body = match &clause.body {
+            RelativeBody::SubjectGap(Predicate::Transitive(predicate))
+                if predicate.head.first_auxiliary_contracted_with_subject =>
+            {
+                let auxiliary_start =
+                    self.contract_with_first_auxiliary(&mut marker, &predicate.head)?;
+                self.transitive_predicate_from(predicate, auxiliary_start)?
+            }
+            RelativeBody::SubjectGap(Predicate::Intransitive(predicate))
+                if predicate.head.first_auxiliary_contracted_with_subject =>
+            {
+                let auxiliary_start =
+                    self.contract_with_first_auxiliary(&mut marker, &predicate.head)?;
+                self.intransitive_predicate_from(predicate, auxiliary_start)?
+            }
+            RelativeBody::SubjectGap(Predicate::Passive(predicate))
+                if predicate.head.first_auxiliary_contracted_with_subject =>
+            {
+                let auxiliary_start =
+                    self.contract_with_first_auxiliary(&mut marker, &predicate.head)?;
+                self.passive_predicate_from(predicate, auxiliary_start)?
+            }
+            RelativeBody::SubjectGap(Predicate::Copular(predicate))
+                if predicate.copula.contracted_with_subject =>
+            {
+                let auxiliary = self.render_auxiliary(predicate.copula.auxiliary)?;
+                marker.push_str(contraction_suffix(&auxiliary)?);
+                let mut parts = vec![self.copular_complement(&predicate.complement)?];
+                for adjunct in &predicate.adjuncts {
+                    parts.push(self.predicate_adjunct(adjunct)?);
+                }
+                join_words(parts)
+            }
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate)?,
             RelativeBody::ObjectGap { subject, predicate } => {
+                let (subject, auxiliary_start) =
+                    self.subject_with_predicate_head(subject, &predicate.head)?;
                 let mut parts = vec![
-                    self.subject(subject)?,
-                    self.predicate_head(&predicate.head)?,
+                    subject,
+                    self.predicate_head_from(&predicate.head, auxiliary_start)?,
                 ];
                 self.extend_predicate_elements(&mut parts, &predicate.elements)?;
                 join_words(parts)
             }
         };
-        Ok(join_words(vec![marker.to_owned(), body]))
+        Ok(join_words(vec![marker, body]))
     }
 
     fn noun_phrase(&self, phrase: &NounPhrase) -> Result<String, RenderError> {
@@ -692,6 +795,13 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(str::to_owned)
                 .ok_or(RenderError::MissingLexicalForm("pronoun")),
+            NounPhrase::Demonstrative(demonstrative) => Ok(match demonstrative {
+                Demonstrative::This => "this",
+                Demonstrative::That => "that",
+                Demonstrative::These => "these",
+                Demonstrative::Those => "those",
+            }
+            .to_owned()),
             NounPhrase::ThisCard(form) => self.this_card(*form),
             NounPhrase::Partitive(partitive) => Ok(format!(
                 "{} of {}",
@@ -981,8 +1091,9 @@ fn contraction_suffix(auxiliary: &str) -> Result<&'static str, RenderError> {
     match auxiliary {
         "am" => Ok("'m"),
         "are" => Ok("'re"),
-        "is" => Ok("'s"),
-        _ => Err(RenderError::MissingLexicalForm("copular contraction")),
+        "is" | "has" => Ok("'s"),
+        "have" => Ok("'ve"),
+        _ => Err(RenderError::MissingLexicalForm("subject contraction")),
     }
 }
 
@@ -1781,6 +1892,7 @@ mod tests {
 
         let head = PredicateHead {
             auxiliaries: phrase.auxiliaries,
+            first_auxiliary_contracted_with_subject: false,
             preverb_modifiers: phrase.preverb_modifiers,
             verb: phrase.verb,
         };

@@ -400,6 +400,7 @@ mod tests {
                             Predicate::Transitive(TransitivePredicate {
                                 head: PredicateHead {
                                     auxiliaries: vec![],
+                                    first_auxiliary_contracted_with_subject: false,
                                     preverb_modifiers: vec![],
                                     verb: VerbInstance {
                                         verb: Verb::Word(Vocab::Draw),

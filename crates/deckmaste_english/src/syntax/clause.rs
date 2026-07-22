@@ -64,6 +64,7 @@ pub enum Predicate {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PredicateHead {
     pub auxiliaries: Vec<AuxiliaryInstance>,
+    pub first_auxiliary_contracted_with_subject: bool,
     pub preverb_modifiers: Vec<PreverbModifier>,
     pub verb: VerbInstance,
 }

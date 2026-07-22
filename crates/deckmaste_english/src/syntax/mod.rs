@@ -386,7 +386,8 @@ impl<'syntax> UnknownWalker<'syntax> {
                     }
                 }
             }
-            NounPhrase::Pronoun { .. } | NounPhrase::ThisCard(_) => {}
+            NounPhrase::Pronoun { .. } | NounPhrase::Demonstrative(_) | NounPhrase::ThisCard(_) => {
+            }
             NounPhrase::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
             NounPhrase::Coordinated(coordinated) => {
                 self.noun_phrase(&coordinated.first, context);
@@ -652,6 +653,7 @@ mod tests {
     fn predicate_head(vocab: Vocab) -> PredicateHead {
         PredicateHead {
             auxiliaries: vec![],
+            first_auxiliary_contracted_with_subject: false,
             preverb_modifiers: vec![],
             verb: VerbInstance {
                 verb: Verb::Word(vocab),

@@ -39,7 +39,6 @@ use crate::surface::TokenKind;
 use crate::surface::lex;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
-use crate::syntax::Copula;
 use crate::syntax::Demonstrative;
 use crate::syntax::Determiner;
 use crate::syntax::ExistentialForm;
@@ -86,6 +85,7 @@ use crate::word::WordMatch;
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct VerbPhrase {
     auxiliaries: Vec<AuxiliaryInstance>,
+    first_auxiliary_contracted_with_subject: bool,
     preverb_modifiers: Vec<PreverbModifier>,
     verb: VerbInstance,
     dependents: Vec<VerbDependent>,
@@ -118,9 +118,15 @@ struct SimpleClause {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ContractedSubjectCopula {
+struct ContractedSubjectAuxiliary {
     subject: Subject,
-    copula: Copula,
+    auxiliary: AuxiliaryInstance,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ContractedSubjectKey {
+    Pronoun(Pronoun),
+    Demonstrative(Demonstrative),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -188,7 +194,7 @@ pub(crate) enum EnglishLexicalSlot {
     Conjunction,
     Existential,
     Copula,
-    SubjectCopula,
+    SubjectAuxiliary,
     Unknown(RecoverySlot),
 }
 
@@ -359,7 +365,11 @@ pub(crate) enum Features {
         number: Number,
     },
     Copula(Agreement),
-    SubjectCopula(Agreement),
+    SubjectAuxiliary {
+        subject: ContractedSubjectKey,
+        agreement: Agreement,
+        auxiliary: AuxiliaryInstance,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -544,7 +554,7 @@ pub(crate) enum MeaningKey {
     Conjunction(crate::syntax::PredicateConjunction),
     Subordinator(crate::syntax::Subordinator),
     Existential(ExistentialForm),
-    SubjectCopula(SubjectCopulaKey),
+    SubjectAuxiliary(SubjectAuxiliaryKey),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
     Unknown(UnknownKey),
@@ -557,8 +567,8 @@ pub(crate) struct UnknownKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct SubjectCopulaKey {
-    pronoun: Pronoun,
+pub(crate) struct SubjectAuxiliaryKey {
+    subject: ContractedSubjectKey,
     auxiliary: AuxiliaryInstance,
 }
 
@@ -614,6 +624,7 @@ enum RuleTag {
     VerbPhraseQuantity,
     InfinitiveTo,
     SimpleClauseSubject,
+    SimpleClauseContractedSubject,
     SimpleClauseSubjectless,
     ClauseSimple,
     ClauseElliptical,
@@ -630,6 +641,11 @@ enum RuleTag {
     ClauseContractedCopularAdjective,
     ClauseContractedCopularPrepositional,
     RelativeObject,
+    RelativeObjectContractedSubject,
+    RelativeSubjectContractedAuxiliary,
+    RelativeContractedCopularNoun,
+    RelativeContractedCopularAdjective,
+    RelativeContractedCopularPrepositional,
     SentencePeriod,
     SentenceExclamation,
     SentenceQuestion,
@@ -904,7 +920,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     Some(candidate)
                 })
                 .collect(),
-            EnglishLexicalSlot::SubjectCopula => self.scan_subject_copula(tokens, start),
+            EnglishLexicalSlot::SubjectAuxiliary => self.scan_subject_auxiliary(tokens, start),
             EnglishLexicalSlot::AbilityItem => {
                 self.catalog_matches(tokens, start, CatalogSlot::AbilityItem)
             }
@@ -1195,46 +1211,122 @@ impl EnglishGrammar<'_, '_> {
         .collect()
     }
 
-    fn scan_subject_copula(
+    fn scan_subject_auxiliary(
         &self,
         tokens: &[Token],
         start: usize,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
         [
-            ("you're", Pronoun::You, Person::Second, Number::Singular),
+            (
+                "you're",
+                ContractedSubjectKey::Pronoun(Pronoun::You),
+                Auxiliary::Be,
+                Person::Second,
+                Number::Singular,
+            ),
+            (
+                "you've",
+                ContractedSubjectKey::Pronoun(Pronoun::You),
+                Auxiliary::Have,
+                Person::Second,
+                Number::Singular,
+            ),
             (
                 "he's",
-                Pronoun::It(crate::word::Gender::Masculine),
+                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Masculine)),
+                Auxiliary::Be,
+                Person::Third,
+                Number::Singular,
+            ),
+            (
+                "he's",
+                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Masculine)),
+                Auxiliary::Have,
                 Person::Third,
                 Number::Singular,
             ),
             (
                 "she's",
-                Pronoun::It(crate::word::Gender::Feminine),
+                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Feminine)),
+                Auxiliary::Be,
+                Person::Third,
+                Number::Singular,
+            ),
+            (
+                "she's",
+                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Feminine)),
+                Auxiliary::Have,
                 Person::Third,
                 Number::Singular,
             ),
             (
                 "it's",
-                Pronoun::It(crate::word::Gender::Neuter),
+                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Neuter)),
+                Auxiliary::Be,
                 Person::Third,
                 Number::Singular,
             ),
-            ("they're", Pronoun::They, Person::Third, Number::Plural),
+            (
+                "it's",
+                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Neuter)),
+                Auxiliary::Have,
+                Person::Third,
+                Number::Singular,
+            ),
+            (
+                "that's",
+                ContractedSubjectKey::Demonstrative(Demonstrative::That),
+                Auxiliary::Be,
+                Person::Third,
+                Number::Singular,
+            ),
+            (
+                "that's",
+                ContractedSubjectKey::Demonstrative(Demonstrative::That),
+                Auxiliary::Have,
+                Person::Third,
+                Number::Singular,
+            ),
+            (
+                "they're",
+                ContractedSubjectKey::Pronoun(Pronoun::They),
+                Auxiliary::Be,
+                Person::Third,
+                Number::Plural,
+            ),
+            (
+                "they've",
+                ContractedSubjectKey::Pronoun(Pronoun::They),
+                Auxiliary::Have,
+                Person::Third,
+                Number::Plural,
+            ),
         ]
         .into_iter()
-        .filter_map(|(surface, pronoun, person, number)| {
+        .filter_map(|(surface, subject, auxiliary, person, number)| {
             self.one_token_match(tokens, start, surface).map(|end| {
                 let auxiliary = AuxiliaryInstance {
-                    auxiliary: Auxiliary::Be,
+                    auxiliary,
                     inflection: AuxiliaryInflection::Present { person, number },
                     contracted_negation: false,
                 };
                 LexicalMatch {
                     end,
-                    features: Features::SubjectCopula(Agreement { person, number }),
-                    meaning: MeaningKey::SubjectCopula(SubjectCopulaKey { pronoun, auxiliary }),
-                    local_cost: ParseCost::default(),
+                    features: Features::SubjectAuxiliary {
+                        subject,
+                        agreement: Agreement { person, number },
+                        auxiliary,
+                    },
+                    meaning: MeaningKey::SubjectAuxiliary(SubjectAuxiliaryKey {
+                        subject,
+                        auxiliary,
+                    }),
+                    local_cost: ParseCost {
+                        precedence: u32::from(
+                            auxiliary.auxiliary == Auxiliary::Have && surface.ends_with("'s"),
+                        ),
+                        ..ParseCost::default()
+                    },
                 }
             })
         })
@@ -2012,6 +2104,7 @@ fn reduce(
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
         | RuleTag::SimpleClauseSubject
+        | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
         | RuleTag::ClauseSimple
         | RuleTag::ClauseElliptical
@@ -2028,6 +2121,11 @@ fn reduce(
         | RuleTag::ClauseContractedCopularAdjective
         | RuleTag::ClauseContractedCopularPrepositional
         | RuleTag::RelativeObject
+        | RuleTag::RelativeObjectContractedSubject
+        | RuleTag::RelativeSubjectContractedAuxiliary
+        | RuleTag::RelativeContractedCopularNoun
+        | RuleTag::RelativeContractedCopularAdjective
+        | RuleTag::RelativeContractedCopularPrepositional
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
@@ -2604,7 +2702,7 @@ enum Lowered {
     Catalog(crate::catalog::CatalogAtom),
     Adverb(Vocab),
     Auxiliary(AuxiliaryInstance),
-    SubjectCopula(ContractedSubjectCopula),
+    SubjectAuxiliary(ContractedSubjectAuxiliary),
     OracleSymbol(OracleSymbol),
     PowerToughness(PowerToughness),
     Pronoun(PronounInstance),
@@ -2689,16 +2787,19 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
         MeaningKey::Auxiliary(auxiliary) => Lowered::Auxiliary(*auxiliary),
-        MeaningKey::SubjectCopula(subject_copula) => {
-            Lowered::SubjectCopula(ContractedSubjectCopula {
-                subject: Subject(NounPhrase::Pronoun {
-                    pronoun: subject_copula.pronoun,
+        MeaningKey::SubjectAuxiliary(subject_auxiliary) => {
+            let subject = match subject_auxiliary.subject {
+                ContractedSubjectKey::Pronoun(pronoun) => NounPhrase::Pronoun {
+                    pronoun,
                     case: PronounCase::Subject,
-                }),
-                copula: Copula {
-                    auxiliary: subject_copula.auxiliary,
-                    contracted_with_subject: true,
                 },
+                ContractedSubjectKey::Demonstrative(demonstrative) => {
+                    NounPhrase::Demonstrative(demonstrative)
+                }
+            };
+            Lowered::SubjectAuxiliary(ContractedSubjectAuxiliary {
+                subject: Subject(subject),
+                auxiliary: subject_auxiliary.auxiliary,
             })
         }
         MeaningKey::Verb(verb) => Lowered::Verb(verb.clone()),
@@ -2778,6 +2879,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
         | RuleTag::SimpleClauseSubject
+        | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
         | RuleTag::ClauseSimple
         | RuleTag::ClauseElliptical
@@ -2794,6 +2896,11 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseContractedCopularAdjective
         | RuleTag::ClauseContractedCopularPrepositional
         | RuleTag::RelativeObject
+        | RuleTag::RelativeObjectContractedSubject
+        | RuleTag::RelativeSubjectContractedAuxiliary
+        | RuleTag::RelativeContractedCopularNoun
+        | RuleTag::RelativeContractedCopularAdjective
+        | RuleTag::RelativeContractedCopularPrepositional
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion

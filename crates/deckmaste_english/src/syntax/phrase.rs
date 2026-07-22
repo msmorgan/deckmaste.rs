@@ -161,7 +161,7 @@ pub enum IndefiniteArticle {
     An,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Demonstrative {
     This,
     That,
@@ -189,6 +189,7 @@ pub enum NounCardinality {
 pub enum NounPhrase {
     Nominal(NominalPhrase),
     Pronoun { pronoun: Pronoun, case: PronounCase },
+    Demonstrative(Demonstrative),
     ThisCard(ThisCardForm),
     Partitive(PartitiveNounPhrase),
     Coordinated(CoordinatedNounPhrase),
