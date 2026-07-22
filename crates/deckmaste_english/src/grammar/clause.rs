@@ -307,7 +307,9 @@ pub(super) fn accepts_predicate_prefix(
     else {
         return false;
     };
-    if tag == RuleTag::VerbPhraseDirectObject && *phase == PredicateAttachmentPhase::Tail {
+    if tag == RuleTag::VerbPhraseDirectObject
+        && (*phase == PredicateAttachmentPhase::Tail || object.has_direct_object())
+    {
         return true;
     }
     if *phase != PredicateAttachmentPhase::Object {
@@ -1561,7 +1563,7 @@ mod tests {
     use crate::word::VerbSlot;
     use crate::word::Vocab;
 
-    const FIXTURES: [&str; 20] = [
+    const FIXTURES: [&str; 21] = [
         "Draw a card.",
         "Spells cost {1} less to cast.",
         "This creature costs {1} less to cast.",
@@ -1582,6 +1584,7 @@ mod tests {
         "Activate only once each turn.",
         "This ability triggers only once each turn.",
         "This creature can't attack during extra turns.",
+        "You may play that card this turn.",
     ];
 
     #[test]
@@ -1716,6 +1719,27 @@ mod tests {
                 [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
                     if preposition.preposition == crate::syntax::Preposition::During
             )
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn temporal_noun_phrases_can_follow_direct_objects() {
+        let source = "You may play that card this turn.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            _,
+            _,
+            Predicate::Transitive(predicate),
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a deontic transitive clause");
+        };
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [PredicateElement::Adjunct(PredicateAdjunct::Temporal(
+                NounPhrase::Nominal(turn),
+            ))] if matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
@@ -1908,7 +1932,7 @@ mod tests {
     }
 
     #[test]
-    fn predicate_prefix_pruning_keeps_only_open_temporal_tail_candidates() {
+    fn predicate_prefix_pruning_keeps_possible_temporal_candidates() {
         let open = Features::VerbPhrase {
             form: PredicateForm::Imperative,
             object: PredicateObjectState::None,
@@ -1945,7 +1969,7 @@ mod tests {
             1,
             &open,
         ));
-        assert!(!accepts_predicate_prefix(
+        assert!(accepts_predicate_prefix(
             RuleTag::VerbPhraseDirectObject,
             1,
             &occupied,
