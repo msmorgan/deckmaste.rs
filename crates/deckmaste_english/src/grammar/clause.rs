@@ -149,6 +149,16 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::To), n(N::VerbPhrase)],
     );
     builder.add(
+        RuleTag::GerundClauseBase,
+        N::GerundClause,
+        [n(N::VerbPhrase)],
+    );
+    builder.add(
+        RuleTag::GerundClauseSubordinateAfter,
+        N::GerundClause,
+        [n(N::GerundClause), l(L::RatherThan), n(N::GerundClause)],
+    );
+    builder.add(
         RuleTag::SimpleClauseSubject,
         N::SimpleClause,
         [n(N::NounPhrase), n(N::VerbPhrase)],
@@ -313,6 +323,29 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo => reduce_predicate(tag, children),
+        RuleTag::GerundClauseBase => {
+            let Features::VerbPhrase {
+                form: PredicateForm::PresentParticiple,
+                object,
+                requires_direct_object,
+                ..
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if *requires_direct_object && !object.has_direct_object() {
+                return None;
+            }
+            Some(Features::GerundClause)
+        }
+        RuleTag::GerundClauseSubordinateAfter => {
+            if !matches!(children.first()?.features, Features::GerundClause)
+                || !matches!(children.get(2)?.features, Features::GerundClause)
+            {
+                return None;
+            }
+            Some(Features::GerundClause)
+        }
         RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
@@ -1124,6 +1157,40 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo => lower_predicate(tag, children),
+        RuleTag::GerundClauseBase => {
+            let Lowered::VerbPhrase(predicate) = take(children, 0)? else {
+                return None;
+            };
+            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
+            if modal.is_some() {
+                return None;
+            }
+            Some(Lowered::GerundClause(crate::syntax::GerundClause {
+                predicate: Box::new(predicate),
+                attachments: Vec::new(),
+            }))
+        }
+        RuleTag::GerundClauseSubordinateAfter => {
+            let Lowered::GerundClause(mut matrix) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Subordinator(crate::syntax::Subordinator::RatherThan) = take(children, 1)?
+            else {
+                return None;
+            };
+            let Lowered::GerundClause(alternative) = take(children, 2)? else {
+                return None;
+            };
+            matrix.attachments.push(DependentAttachment {
+                position: AttachmentPosition::AfterMatrix,
+                comma: false,
+                clause: DependentClause::Subordinate(
+                    crate::syntax::Subordinator::RatherThan,
+                    SubordinateBody::Gerund(alternative),
+                ),
+            });
+            Some(Lowered::GerundClause(matrix))
+        }
         RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
@@ -2622,6 +2689,54 @@ mod tests {
                 ),
             }]
         ));
+    }
+
+    #[test]
+    fn rather_than_can_contrast_gerund_clauses() {
+        let source = "You may cast that card by paying life equal to the spell's mana value rather than paying its mana cost.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            _,
+            _,
+            Predicate::Transitive(cast),
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a deontic cast clause: {:#?}", parsed.sentence());
+        };
+        let Some(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(by))) =
+            cast.elements.iter().find(|element| {
+                matches!(
+                    element,
+                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))
+                        if preposition.preposition == crate::syntax::Preposition::By
+                )
+            })
+        else {
+            panic!("expected a by-gerund adjunct: {cast:#?}");
+        };
+        let crate::syntax::Phrase::Clause(clause) = by.object.as_ref() else {
+            panic!("by should take a clause: {by:#?}");
+        };
+        let Clause::Dependent(DependentClause::Gerund(gerund)) = clause.as_ref() else {
+            panic!("by should take a gerund clause: {clause:#?}");
+        };
+        assert!(matches!(
+            gerund.predicate.as_ref(),
+            Predicate::Transitive(_)
+        ));
+        assert!(matches!(
+            gerund.attachments.as_slice(),
+            [DependentAttachment {
+                position: AttachmentPosition::AfterMatrix,
+                comma: false,
+                clause: DependentClause::Subordinate(
+                    Subordinator::RatherThan,
+                    SubordinateBody::Gerund(alternative),
+                ),
+            }] if matches!(alternative.predicate.as_ref(), Predicate::Transitive(_))
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
     #[test]

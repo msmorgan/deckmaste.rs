@@ -37,12 +37,14 @@ pub enum DependentClause {
     Subordinate(Subordinator, SubordinateBody),
     Relative(RelativeClause),
     Infinitive(InfinitiveClause),
+    Gerund(GerundClause),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SubordinateBody {
     Finite(Box<IndependentClause>),
     Infinitive(InfinitiveClause),
+    Gerund(GerundClause),
     Elliptical(EllipticalClause),
 }
 
@@ -196,6 +198,12 @@ pub enum FrequencyCount {
 pub struct InfinitiveClause {
     pub marker: InfinitiveMarker,
     pub predicate: Box<Predicate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GerundClause {
+    pub predicate: Box<Predicate>,
+    pub attachments: Vec<DependentAttachment>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

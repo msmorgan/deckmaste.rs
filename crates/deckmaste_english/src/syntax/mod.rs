@@ -193,6 +193,9 @@ impl<'syntax> UnknownWalker<'syntax> {
             DependentClause::Subordinate(_, SubordinateBody::Infinitive(clause)) => {
                 self.predicate(&clause.predicate, context);
             }
+            DependentClause::Subordinate(_, SubordinateBody::Gerund(clause)) => {
+                self.gerund_clause(clause, context);
+            }
             DependentClause::Subordinate(
                 _,
                 SubordinateBody::Elliptical(EllipticalClause::Adjective(adjective)),
@@ -201,6 +204,14 @@ impl<'syntax> UnknownWalker<'syntax> {
             DependentClause::Infinitive(infinitive) => {
                 self.predicate(&infinitive.predicate, context);
             }
+            DependentClause::Gerund(gerund) => self.gerund_clause(gerund, context),
+        }
+    }
+
+    fn gerund_clause(&mut self, clause: &'syntax GerundClause, context: Option<UnknownRole>) {
+        self.predicate(&clause.predicate, context);
+        for attachment in &clause.attachments {
+            self.dependent_clause(&attachment.clause, context);
         }
     }
 

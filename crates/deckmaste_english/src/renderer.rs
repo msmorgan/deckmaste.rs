@@ -13,6 +13,7 @@ use crate::syntax::CopularComplement;
 use crate::syntax::CopularPredicate;
 use crate::syntax::Cost;
 use crate::syntax::Demonstrative;
+use crate::syntax::DependentAttachment;
 use crate::syntax::DependentClause;
 use crate::syntax::Determiner;
 use crate::syntax::EllipticalClause;
@@ -21,6 +22,7 @@ use crate::syntax::ExistentialForm;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyCount;
 use crate::syntax::FrequencyPhrase;
+use crate::syntax::GerundClause;
 use crate::syntax::IndefiniteArticle;
 use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveClause;
@@ -412,33 +414,10 @@ impl<'identity> Renderer<'identity> {
                 self.subject(subject)?,
                 self.render_auxiliary(predicate.auxiliary)?,
             ])),
-            IndependentClause::Complex(complex) => {
-                let mut rendered = String::new();
-                for attachment in complex
-                    .attachments
-                    .iter()
-                    .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
-                {
-                    rendered.push_str(&self.dependent_clause(&attachment.clause)?);
-                    if attachment.comma {
-                        rendered.push(',');
-                    }
-                    rendered.push(' ');
-                }
-                rendered.push_str(&self.independent_clause(&complex.matrix)?);
-                for attachment in complex
-                    .attachments
-                    .iter()
-                    .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
-                {
-                    if attachment.comma {
-                        rendered.push(',');
-                    }
-                    rendered.push(' ');
-                    rendered.push_str(&self.dependent_clause(&attachment.clause)?);
-                }
-                Ok(rendered)
-            }
+            IndependentClause::Complex(complex) => self.clause_with_attachments(
+                self.independent_clause(&complex.matrix)?,
+                &complex.attachments,
+            ),
             IndependentClause::Coordinated(coordinated) => {
                 let mut rendered = self.independent_clause(&coordinated.first)?;
                 for coordination in &coordinated.rest {
@@ -464,6 +443,36 @@ impl<'identity> Renderer<'identity> {
 
     fn subject(&self, subject: &Subject) -> Result<String, RenderError> {
         self.noun_phrase(&subject.0)
+    }
+
+    fn clause_with_attachments(
+        &self,
+        matrix: String,
+        attachments: &[DependentAttachment],
+    ) -> Result<String, RenderError> {
+        let mut rendered = String::new();
+        for attachment in attachments
+            .iter()
+            .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
+        {
+            rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+            if attachment.comma {
+                rendered.push(',');
+            }
+            rendered.push(' ');
+        }
+        rendered.push_str(&matrix);
+        for attachment in attachments
+            .iter()
+            .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
+        {
+            if attachment.comma {
+                rendered.push(',');
+            }
+            rendered.push(' ');
+            rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+        }
+        Ok(rendered)
     }
 
     fn subject_with_predicate_head(
@@ -715,6 +724,7 @@ impl<'identity> Renderer<'identity> {
                 let body = match body {
                     SubordinateBody::Finite(clause) => self.independent_clause(clause)?,
                     SubordinateBody::Infinitive(clause) => self.infinitive_clause(clause)?,
+                    SubordinateBody::Gerund(clause) => self.gerund_clause(clause)?,
                     SubordinateBody::Elliptical(EllipticalClause::Adjective(phrase)) => {
                         self.adjective_phrase(phrase)?
                     }
@@ -723,7 +733,12 @@ impl<'identity> Renderer<'identity> {
             }
             DependentClause::Relative(relative) => self.relative_clause(relative),
             DependentClause::Infinitive(infinitive) => self.infinitive_clause(infinitive),
+            DependentClause::Gerund(gerund) => self.gerund_clause(gerund),
         }
+    }
+
+    fn gerund_clause(&self, clause: &GerundClause) -> Result<String, RenderError> {
+        self.clause_with_attachments(self.predicate(&clause.predicate)?, &clause.attachments)
     }
 
     fn infinitive_clause(&self, clause: &InfinitiveClause) -> Result<String, RenderError> {

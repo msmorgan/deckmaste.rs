@@ -47,6 +47,7 @@ use crate::syntax::ExistentialForm;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyCount;
 use crate::syntax::FrequencyPhrase;
+use crate::syntax::GerundClause;
 use crate::syntax::IndefiniteArticle;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::NominalComplement;
@@ -155,6 +156,7 @@ pub(crate) enum Nonterminal {
     VerbPhrase,
     ObjectGapVerbPhrase,
     InfinitiveClause,
+    GerundClause,
     SimpleClause,
     Clause,
     Sentence,
@@ -393,6 +395,7 @@ pub(crate) enum Features {
         proform: bool,
     },
     InfinitiveClause,
+    GerundClause,
     SimpleClause {
         agreement: Option<Agreement>,
         has_subject: bool,
@@ -405,7 +408,13 @@ pub(crate) enum Features {
         finite: bool,
     },
     Sentence,
-    PrepositionalPhrase,
+    Preposition(Preposition),
+    PrepositionalObject {
+        gerund: bool,
+    },
+    PrepositionalPhrase {
+        nominal_attachment: bool,
+    },
     RelativeClause {
         gap: RelativeGap,
         antecedent_agreement: Option<Agreement>,
@@ -741,6 +750,8 @@ enum RuleTag {
     VerbPhrasePowerToughness,
     VerbPhraseQuantity,
     InfinitiveTo,
+    GerundClauseBase,
+    GerundClauseSubordinateAfter,
     SimpleClauseSubject,
     SimpleClauseContractedSubject,
     SimpleClauseSubjectless,
@@ -1117,7 +1128,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .one_token_match(tokens, start, "of")
                 .map(|end| LexicalMatch {
                     end,
-                    features: Features::None,
+                    features: Features::Preposition(Preposition::Of),
                     meaning: MeaningKey::Preposition(Preposition::Of),
                     local_cost: ParseCost::default(),
                 })
@@ -1885,7 +1896,7 @@ impl EnglishGrammar<'_, '_> {
         };
         vec![LexicalMatch {
             end: start + 1,
-            features: Features::None,
+            features: Features::Preposition(preposition),
             meaning: MeaningKey::Preposition(preposition),
             local_cost: ParseCost::default(),
         }]
@@ -2179,6 +2190,11 @@ impl RuleBuilder {
             RuleTag::PrepositionalObject,
             N::PrepositionalObject,
             [n(N::PrepositionalPhrase)],
+        );
+        self.add(
+            RuleTag::PrepositionalObject,
+            N::PrepositionalObject,
+            [n(N::GerundClause)],
         );
         self.add(
             RuleTag::PrepositionalObject,
@@ -2506,6 +2522,8 @@ fn reduce(
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
+        | RuleTag::GerundClauseBase
+        | RuleTag::GerundClauseSubordinateAfter
         | RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
@@ -2822,6 +2840,12 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             else {
                 return None;
             };
+            let Features::PrepositionalPhrase {
+                nominal_attachment: true,
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
             if matches!(
                 attachment,
                 NominalAttachmentPhase::PostpositiveAdjective | NominalAttachmentPhase::Comparison
@@ -3041,8 +3065,20 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 temporal: *first_temporal && *next_temporal,
             })
         }
-        RuleTag::PrepositionalPhrase => Some(Features::PrepositionalPhrase),
-        RuleTag::PrepositionalObject => Some(Features::None),
+        RuleTag::PrepositionalPhrase => {
+            let Features::Preposition(preposition) = children.first()?.features else {
+                return None;
+            };
+            let Features::PrepositionalObject { gerund } = children.get(1)?.features else {
+                return None;
+            };
+            Some(Features::PrepositionalPhrase {
+                nominal_attachment: !(*preposition == Preposition::By && *gerund),
+            })
+        }
+        RuleTag::PrepositionalObject => Some(Features::PrepositionalObject {
+            gerund: matches!(children.first()?.features, Features::GerundClause),
+        }),
         _ => None,
     }
 }
@@ -3308,6 +3344,7 @@ enum Lowered {
     Verb(VerbInstance),
     VerbPhrase(VerbPhrase),
     InfinitiveClause(InfinitiveClause),
+    GerundClause(GerundClause),
     SimpleClause(SimpleClause),
     EllipticalClause(crate::syntax::EllipticalClause),
     Clause(Clause),
@@ -3488,6 +3525,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
+        | RuleTag::GerundClauseBase
+        | RuleTag::GerundClauseSubordinateAfter
         | RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
@@ -3899,6 +3938,9 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 Lowered::PrepositionalPhrase(object) => {
                     Phrase::PrepositionalPhrase(Box::new(object))
                 }
+                Lowered::GerundClause(object) => Phrase::Clause(Box::new(Clause::Dependent(
+                    crate::syntax::DependentClause::Gerund(object),
+                ))),
                 Lowered::Adverb(object) => Phrase::Adverb(object),
                 _ => return None,
             };
