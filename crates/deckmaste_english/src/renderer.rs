@@ -18,6 +18,9 @@ use crate::syntax::Determiner;
 use crate::syntax::EllipticalClause;
 use crate::syntax::ExistentialClause;
 use crate::syntax::ExistentialForm;
+use crate::syntax::FrequencyBound;
+use crate::syntax::FrequencyCount;
+use crate::syntax::FrequencyPhrase;
 use crate::syntax::IndefiniteArticle;
 use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveClause;
@@ -653,6 +656,7 @@ impl<'identity> Renderer<'identity> {
     fn predicate_adjunct(&self, adjunct: &PredicateAdjunct) -> Result<String, RenderError> {
         match adjunct {
             PredicateAdjunct::Adverb(adverb) => Ok(adverb.spelling().to_owned()),
+            PredicateAdjunct::Frequency(frequency) => Ok(render_frequency(*frequency)),
             PredicateAdjunct::Temporal(phrase) => self.noun_phrase(phrase),
             PredicateAdjunct::Prepositional(phrase) => self.prepositional_phrase(phrase),
             PredicateAdjunct::Dependent(clause) => self.dependent_clause(clause),
@@ -1097,6 +1101,21 @@ fn render_quantity(quantity: Quantity) -> String {
         Quantity::ThatMany => "that many".to_owned(),
         Quantity::ThatMuch => "that much".to_owned(),
     }
+}
+
+fn render_frequency(frequency: FrequencyPhrase) -> String {
+    let bound = match frequency.bound {
+        FrequencyBound::MoreThan => "more than",
+        FrequencyBound::NoMoreThan => "no more than",
+    };
+    let count = match frequency.count {
+        FrequencyCount::Once => "once".to_owned(),
+        FrequencyCount::Twice => "twice".to_owned(),
+        FrequencyCount::Times(number) => {
+            format!("{} times", number.numeral.format(number.value))
+        }
+    };
+    format!("{bound} {count}")
 }
 
 fn render_catalog_atom(atom: &crate::catalog::CatalogAtom) -> String {

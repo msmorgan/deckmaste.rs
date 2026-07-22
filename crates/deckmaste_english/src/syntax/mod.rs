@@ -308,7 +308,7 @@ impl<'syntax> UnknownWalker<'syntax> {
             PredicateAdjunct::Dependent(dependent) => {
                 self.dependent_clause(dependent, context);
             }
-            PredicateAdjunct::Adverb(_) => {}
+            PredicateAdjunct::Adverb(_) | PredicateAdjunct::Frequency(_) => {}
         }
     }
 

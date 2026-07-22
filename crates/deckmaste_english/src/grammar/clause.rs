@@ -31,6 +31,12 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
     use Expected::Nonterminal as n;
     use Nonterminal as N;
 
+    builder.add(
+        RuleTag::FrequencyPhrase,
+        N::FrequencyPhrase,
+        [l(L::Frequency)],
+    );
+
     for slot in crate::word::VERB_SLOTS {
         builder.add(RuleTag::Verb, N::Verb, [l(L::Verb(slot))]);
     }
@@ -68,6 +74,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         RuleTag::VerbPhraseAdverb,
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::Adverb)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseFrequency,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), n(N::FrequencyPhrase)],
     );
     builder.add(
         RuleTag::VerbPhraseAbility,
@@ -123,6 +134,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         RuleTag::VerbPhraseAdverb,
         N::ObjectGapVerbPhrase,
         [n(N::ObjectGapVerbPhrase), l(L::Adverb)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseFrequency,
+        N::ObjectGapVerbPhrase,
+        [n(N::ObjectGapVerbPhrase), n(N::FrequencyPhrase)],
     );
 
     builder.add(
@@ -284,6 +300,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
@@ -438,6 +455,7 @@ fn reduce_predicate(
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
@@ -1025,6 +1043,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
@@ -1092,6 +1111,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
@@ -1147,6 +1167,12 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 return None;
             };
             VerbDependent::Adverbial(Phrase::Adverb(adverb))
+        }
+        RuleTag::VerbPhraseFrequency => {
+            let Lowered::Frequency(frequency) = take(children, 1)? else {
+                return None;
+            };
+            VerbDependent::Frequency(frequency)
         }
         RuleTag::VerbPhraseAbility => {
             let Lowered::Catalog(atom) = take(children, 1)? else {
@@ -1758,6 +1784,11 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 ));
             }
             VerbDependent::Adverbial(_) => return None,
+            VerbDependent::Frequency(frequency) => {
+                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Frequency(
+                    frequency,
+                )));
+            }
         }
     }
     let head = PredicateHead {
@@ -1863,6 +1894,8 @@ mod tests {
     use crate::syntax::AbilityKind;
     use crate::syntax::Demonstrative;
     use crate::syntax::Determiner;
+    use crate::syntax::FrequencyBound;
+    use crate::syntax::FrequencyCount;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalModifier;
     use crate::syntax::NounPhrase;
@@ -2027,6 +2060,53 @@ mod tests {
                 ] if once.spelling() == "once"
                     && matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
             ));
+            assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        }
+    }
+
+    #[test]
+    fn bounded_frequency_phrases_are_predicate_adjuncts() {
+        for (source, expected_bound, expected_count) in [
+            (
+                "You may choose the same mode more than once.",
+                FrequencyBound::MoreThan,
+                FrequencyCount::Once,
+            ),
+            (
+                "Activate no more than twice each turn.",
+                FrequencyBound::NoMoreThan,
+                FrequencyCount::Twice,
+            ),
+            (
+                "Activate no more than three times each turn.",
+                FrequencyBound::NoMoreThan,
+                FrequencyCount::Times(crate::syntax::NumberLiteral {
+                    value: 3,
+                    numeral: crate::Numeral::Cardinal,
+                }),
+            ),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact, "{source}");
+            let elements = match &parsed.sentence().unwrap().body {
+                SentenceBody::Independent(IndependentClause::Deontic(
+                    _,
+                    _,
+                    Predicate::Transitive(predicate),
+                )) => &predicate.elements,
+                SentenceBody::Independent(IndependentClause::Imperative(
+                    Predicate::Intransitive(predicate),
+                )) => &predicate.elements,
+                clause => panic!("expected a bounded-frequency predicate: {clause:#?}"),
+            };
+            assert!(
+                elements.iter().any(|element| matches!(
+                    element,
+                    PredicateElement::Adjunct(PredicateAdjunct::Frequency(frequency))
+                        if frequency.bound == expected_bound && frequency.count == expected_count
+                )),
+                "{source}: {elements:#?}"
+            );
             assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
         }
     }

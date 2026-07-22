@@ -44,6 +44,9 @@ use crate::syntax::ComparisonMarker;
 use crate::syntax::Demonstrative;
 use crate::syntax::Determiner;
 use crate::syntax::ExistentialForm;
+use crate::syntax::FrequencyBound;
+use crate::syntax::FrequencyCount;
+use crate::syntax::FrequencyPhrase;
 use crate::syntax::IndefiniteArticle;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::NominalComplement;
@@ -105,6 +108,7 @@ enum VerbDependent {
     Infinitive(InfinitiveClause),
     Subordinate(Box<Clause>),
     Adverbial(Phrase),
+    Frequency(FrequencyPhrase),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,6 +146,7 @@ pub(crate) enum Nonterminal {
     Noun,
     Nominal,
     NounPhrase,
+    FrequencyPhrase,
     PossessiveNounPhrase,
     PrepositionalPhrase,
     PrepositionalObject,
@@ -173,6 +178,7 @@ pub(crate) enum EnglishLexicalSlot {
     Verb(VerbSlot),
     Adjective,
     Adverb,
+    Frequency,
     Pronoun(PronounCase),
     Auxiliary,
     AbilityItem,
@@ -428,6 +434,32 @@ pub(crate) enum QuantityKey {
     ThatMuch,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct FrequencyKey {
+    bound: FrequencyBound,
+    count: FrequencyCountKey,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum FrequencyCountKey {
+    Once,
+    Twice,
+    Times(NumberKey),
+}
+
+impl FrequencyKey {
+    const fn syntax(self) -> FrequencyPhrase {
+        FrequencyPhrase {
+            bound: self.bound,
+            count: match self.count {
+                FrequencyCountKey::Once => FrequencyCount::Once,
+                FrequencyCountKey::Twice => FrequencyCount::Twice,
+                FrequencyCountKey::Times(number) => FrequencyCount::Times(number.literal()),
+            },
+        }
+    }
+}
+
 impl QuantityKey {
     const fn cardinality(self) -> Cardinality {
         match self {
@@ -594,6 +626,7 @@ pub(crate) enum MeaningKey {
     Noun(NounInstance),
     Adjective(Adjective),
     Adverb(Vocab),
+    Frequency(FrequencyKey),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
     Verb(VerbInstance),
@@ -679,6 +712,7 @@ enum RuleTag {
     VerbPhrasePrepositional,
     VerbPhraseInfinitive,
     VerbPhraseAdverb,
+    VerbPhraseFrequency,
     VerbPhraseAbility,
     VerbPhraseOracleSymbol,
     VerbPhrasePowerToughness,
@@ -713,6 +747,7 @@ enum RuleTag {
     SentenceQuestion,
     SentenceNone,
     NounUnknown,
+    FrequencyPhrase,
 }
 
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
@@ -963,6 +998,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 matches
             }
             EnglishLexicalSlot::Adverb => self.word_matches(tokens, start, LexicalSlot::Adverb),
+            EnglishLexicalSlot::Frequency => self.scan_frequency(tokens, start),
             EnglishLexicalSlot::Pronoun(case) => {
                 self.word_matches(tokens, start, LexicalSlot::Pronoun(case))
             }
@@ -1645,6 +1681,65 @@ impl EnglishGrammar<'_, '_> {
         .collect()
     }
 
+    fn scan_frequency(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let (bound, count_start) =
+            if let Some(end) = self.words_match(tokens, start, &["no", "more", "than"]) {
+                (FrequencyBound::NoMoreThan, end)
+            } else if let Some(end) = self.words_match(tokens, start, &["more", "than"]) {
+                (FrequencyBound::MoreThan, end)
+            } else {
+                return Vec::new();
+            };
+        if let Some(end) = self.one_token_match(tokens, count_start, "once") {
+            return vec![frequency_match(
+                end,
+                FrequencyKey {
+                    bound,
+                    count: FrequencyCountKey::Once,
+                },
+            )];
+        }
+        if let Some(end) = self.one_token_match(tokens, count_start, "twice") {
+            return vec![frequency_match(
+                end,
+                FrequencyKey {
+                    bound,
+                    count: FrequencyCountKey::Twice,
+                },
+            )];
+        }
+        let Some(surface) = self.token_text(tokens, count_start) else {
+            return Vec::new();
+        };
+        let Some(end) = self.one_token_match(tokens, count_start + 1, "times") else {
+            return Vec::new();
+        };
+        [
+            NumberNotation::Cardinal,
+            NumberNotation::Ordinal,
+            NumberNotation::Arabic(false),
+            NumberNotation::Arabic(true),
+            NumberNotation::Roman,
+        ]
+        .into_iter()
+        .filter_map(|notation| {
+            notation.numeral().parse(surface).ok().map(|value| {
+                frequency_match(
+                    end,
+                    FrequencyKey {
+                        bound,
+                        count: FrequencyCountKey::Times(NumberKey { value, notation }),
+                    },
+                )
+            })
+        })
+        .collect()
+    }
+
     fn scan_or_quantity(
         &self,
         tokens: &[Token],
@@ -2098,6 +2193,15 @@ fn quantity_match(end: usize, quantity: QuantityKey) -> LexicalMatch<Features, M
     }
 }
 
+fn frequency_match(end: usize, frequency: FrequencyKey) -> LexicalMatch<Features, MeaningKey> {
+    LexicalMatch {
+        end,
+        features: Features::None,
+        meaning: MeaningKey::Frequency(frequency),
+        local_cost: ParseCost::default(),
+    }
+}
+
 fn literal_match(end: usize, literal: LiteralKey) -> LexicalMatch<Features, MeaningKey> {
     LexicalMatch {
         end,
@@ -2278,6 +2382,7 @@ fn reduce(
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity
         | RuleTag::DeterminerPossessiveThisCard => reduce_quantity_or_determiner(tag, children)?,
+        RuleTag::FrequencyPhrase => Features::None,
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun => reduce_possessive_noun_phrase(tag, children)?,
@@ -2318,6 +2423,7 @@ fn reduce(
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
@@ -3026,6 +3132,7 @@ enum Lowered {
     NounPhrase(NounPhrase),
     Catalog(crate::catalog::CatalogAtom),
     Adverb(Vocab),
+    Frequency(FrequencyPhrase),
     Auxiliary(AuxiliaryInstance),
     SubjectAuxiliary(ContractedSubjectAuxiliary),
     OracleSymbol(OracleSymbol),
@@ -3110,6 +3217,7 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Noun(noun) => Lowered::Noun(noun.clone()),
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
         MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
+        MeaningKey::Frequency(frequency) => Lowered::Frequency(frequency.syntax()),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
         MeaningKey::Auxiliary(auxiliary) => Lowered::Auxiliary(*auxiliary),
         MeaningKey::SubjectAuxiliary(subject_auxiliary) => {
@@ -3169,6 +3277,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity
         | RuleTag::DeterminerPossessiveThisCard => lower_quantity_or_determiner(tag, children),
+        RuleTag::FrequencyPhrase => take(children, 0),
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun => lower_possessive_noun_phrase(tag, children),
@@ -3209,6 +3318,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness

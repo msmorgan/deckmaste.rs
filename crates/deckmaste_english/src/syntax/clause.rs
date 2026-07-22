@@ -2,6 +2,7 @@ use super::ability::Ability;
 use super::ability::QuotedAbility;
 use super::phrase::AdjectivePhrase;
 use super::phrase::NounPhrase;
+use super::phrase::NumberLiteral;
 use super::phrase::OracleSymbol;
 use super::phrase::PowerToughness;
 use super::phrase::PrepositionalPhrase;
@@ -166,9 +167,29 @@ pub enum PredicateElement {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PredicateAdjunct {
     Adverb(Vocab),
+    Frequency(FrequencyPhrase),
     Temporal(NounPhrase),
     Prepositional(PrepositionalPhrase),
     Dependent(Box<DependentClause>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FrequencyPhrase {
+    pub bound: FrequencyBound,
+    pub count: FrequencyCount,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FrequencyBound {
+    MoreThan,
+    NoMoreThan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrequencyCount {
+    Once,
+    Twice,
+    Times(NumberLiteral),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
