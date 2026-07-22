@@ -1002,6 +1002,7 @@ fn render_predicate_conjunction(conjunction: PredicateConjunction) -> &'static s
 fn render_preposition(preposition: Preposition) -> &'static str {
     match preposition {
         Preposition::Among => "among",
+        Preposition::As => "as",
         Preposition::At => "at",
         Preposition::Before => "before",
         Preposition::By => "by",

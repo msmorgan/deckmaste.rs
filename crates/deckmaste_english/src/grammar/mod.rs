@@ -1346,6 +1346,8 @@ impl EnglishGrammar<'_, '_> {
         };
         let preposition = if surface.eq_ignore_ascii_case("among") {
             Preposition::Among
+        } else if surface.eq_ignore_ascii_case("as") {
+            Preposition::As
         } else if surface.eq_ignore_ascii_case("at") {
             Preposition::At
         } else if surface.eq_ignore_ascii_case("before") {

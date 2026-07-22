@@ -247,6 +247,7 @@ pub struct PrepositionalPhrase {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Preposition {
     Among,
+    As,
     At,
     Before,
     By,

@@ -1516,7 +1516,7 @@ mod tests {
     use crate::word::VerbSlot;
     use crate::word::Vocab;
 
-    const FIXTURES: [&str; 16] = [
+    const FIXTURES: [&str; 17] = [
         "Draw a card.",
         "Spells cost {1} less to cast.",
         "This creature costs {1} less to cast.",
@@ -1533,6 +1533,7 @@ mod tests {
         "Target creature you control fights target creature you don't control.",
         "You gain 2 life.",
         "This creature deals 3 damage to any target.",
+        "Activate only as a sorcery.",
     ];
 
     #[test]
@@ -1599,6 +1600,26 @@ mod tests {
                     )
             ));
         }
+    }
+
+    #[test]
+    fn as_fills_the_preposition_slot_after_an_adverb() {
+        let source = "Activate only as a sorcery.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected an imperative intransitive clause");
+        };
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [
+                PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
+                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition)),
+            ] if preposition.preposition == crate::syntax::Preposition::As
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
     #[test]
@@ -1917,7 +1938,7 @@ mod tests {
             .with_catalog(CatalogKind::KeywordAbility, ["Flying", "Haste"])
             .with_catalog(CatalogKind::CreatureType, ["Goblin"])
             .with_catalog(CatalogKind::LandType, ["Plains"])
-            .with_catalog(CatalogKind::CardType, ["Creature", "Land"])
+            .with_catalog(CatalogKind::CardType, ["Creature", "Land", "Sorcery"])
     }
 
     fn finite(sentence: &Sentence) -> (&Subject, &crate::syntax::PredicateHead) {
