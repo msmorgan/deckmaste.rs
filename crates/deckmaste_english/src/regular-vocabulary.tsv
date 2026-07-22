@@ -21,6 +21,7 @@ alluring	adjective
 alone	adverb
 alpine	adjective
 already	adverb
+amount	noun_count
 animal	noun_count
 animate	verb
 animus	noun_count
@@ -730,6 +731,7 @@ paragon	noun_count
 paralyzation	noun_count
 part	noun_count
 particle	noun_count
+party	noun_count
 pass	noun_count
 pass	verb
 patrol	noun_count
@@ -946,6 +948,7 @@ shuffle	noun_count
 sickle	noun_count
 sickness	noun_count
 single	adjective
+size	noun_count
 sketch	noun_count
 sketch	verb
 skewer	noun_count

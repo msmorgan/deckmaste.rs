@@ -61,6 +61,9 @@ mod tests {
             "cards from anywhere",
             "combat during your turn",
             "combat before your turn",
+            "maximum hand size",
+            "the amount of mana",
+            "your party",
         ] {
             let parsed = parse(source);
             assert_eq!(
@@ -68,6 +71,24 @@ mod tests {
                 source,
                 "{source}"
             );
+        }
+    }
+
+    #[test]
+    fn regular_table_nouns_fill_nominal_head_slots() {
+        for (source, expected) in [
+            ("maximum hand size", "size"),
+            ("the amount of mana", "amount"),
+            ("your party", "party"),
+        ] {
+            let parsed = parse(source);
+            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                panic!("expected a nominal phrase for {source:?}");
+            };
+            assert!(matches!(
+                &nominal.head,
+                NounInstance::Singular(Noun::Word(word)) if word.spelling() == expected
+            ));
         }
     }
 
