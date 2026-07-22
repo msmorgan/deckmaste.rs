@@ -53,28 +53,31 @@ slotmap = { version = "1.1.1", features = ["serde"] }
 # ~5x slower than release). Profile overrides only take effect from the
 # workspace root manifest, which is why they live here.
 [profile.dev.package.deckmaste_migrations]
-opt-level = 3
+opt-level = 2
+
+[profile.dev.package.deckmaste_english]
+opt-level = 2
 
 [profile.dev.package.serde_json]
-opt-level = 3
+opt-level = 2
 
 [profile.dev.package.ron]
-opt-level = 3
+opt-level = 2
 
 [profile.dev.package.macro_ron]
-opt-level = 3
+opt-level = 2
 
 [profile.dev.package.regex]
-opt-level = 3
+opt-level = 2
 
 [profile.dev.package.regex-automata]
-opt-level = 3
+opt-level = 2
 
 [profile.dev.package.regex-syntax]
-opt-level = 3
+opt-level = 2
 
 [profile.dev.package.aho-corasick]
-opt-level = 3
+opt-level = 2
 
 [profile.dev.package.memchr]
-opt-level = 3
+opt-level = 2
