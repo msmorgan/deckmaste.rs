@@ -2493,7 +2493,7 @@ fn noun_adjunct_kind(noun: &NounInstance) -> Option<NominalAdjunctKind> {
         }
     };
     match noun {
-        Noun::Word(Vocab::Combat | Vocab::Turn) => Some(NominalAdjunctKind::Temporal),
+        Noun::Word(Vocab::Combat | Vocab::Time | Vocab::Turn) => Some(NominalAdjunctKind::Temporal),
         Noun::Word(Vocab::Way) => Some(NominalAdjunctKind::Manner),
         _ => None,
     }

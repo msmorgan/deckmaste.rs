@@ -64,10 +64,14 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
             ..ParseCost::default()
         },
     );
-    builder.add(
+    builder.add_with_cost(
         RuleTag::VerbPhrasePrepositional,
         N::VerbPhrase,
         [n(N::VerbPhrase), n(N::PrepositionalPhrase)],
+        ParseCost {
+            precedence: 1,
+            ..ParseCost::default()
+        },
     );
     builder.add(
         RuleTag::VerbPhraseInfinitive,
@@ -136,10 +140,14 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
             ..ParseCost::default()
         },
     );
-    builder.add(
+    builder.add_with_cost(
         RuleTag::VerbPhrasePrepositional,
         N::ObjectGapVerbPhrase,
         [n(N::ObjectGapVerbPhrase), n(N::PrepositionalPhrase)],
+        ParseCost {
+            precedence: 1,
+            ..ParseCost::default()
+        },
     );
     builder.add(
         RuleTag::VerbPhraseInfinitive,
@@ -454,7 +462,10 @@ pub(super) fn accepts_predicate_prefix(
         return false;
     };
     if tag == RuleTag::VerbPhraseDirectObject
-        && (*phase == PredicateAttachmentPhase::Tail || object.has_direct_object())
+        && (matches!(
+            phase,
+            PredicateAttachmentPhase::Tail | PredicateAttachmentPhase::PrepositionalTail
+        ) || object.has_direct_object())
     {
         return true;
     }
@@ -538,7 +549,10 @@ fn reduce_predicate(
                 return None;
             };
             let attachment = if adjunct.is_some()
-                && (*phase == PredicateAttachmentPhase::Tail || object.has_direct_object())
+                && (matches!(
+                    phase,
+                    PredicateAttachmentPhase::Tail | PredicateAttachmentPhase::PrepositionalTail
+                ) || object.has_direct_object())
             {
                 ObjectAttachment::None
             } else {
@@ -2248,8 +2262,8 @@ fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<NominalAdjunctKind> {
         NounPhrase::Nominal(nominal)
             if matches!(
                 nominal.head,
-                NounInstance::Singular(Noun::Word(Vocab::Combat | Vocab::Turn))
-                    | NounInstance::Plural(Noun::Word(Vocab::Combat | Vocab::Turn))
+                NounInstance::Singular(Noun::Word(Vocab::Combat | Vocab::Time | Vocab::Turn))
+                    | NounInstance::Plural(Noun::Word(Vocab::Combat | Vocab::Time | Vocab::Turn))
             )
     )
     .then_some(NominalAdjunctKind::Temporal)
@@ -2414,13 +2428,16 @@ mod tests {
         else {
             panic!("expected an imperative intransitive clause");
         };
-        assert!(matches!(
-            predicate.elements.as_slice(),
-            [
-                PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
-                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition)),
-            ] if preposition.preposition == crate::syntax::Preposition::As
-        ));
+        assert!(
+            matches!(
+                predicate.elements.as_slice(),
+                [
+                    PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
+                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition)),
+                ] if preposition.preposition == crate::syntax::Preposition::As
+            ),
+            "{predicate:#?}"
+        );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
@@ -2571,18 +2588,22 @@ mod tests {
     fn plural_temporal_heads_do_not_become_late_objects() {
         let source = "This creature can't attack during extra turns.";
         let parsed = parse(source);
-        assert!(matches!(
-            &parsed.sentence().expect("sentence root").body,
-            SentenceBody::Independent(IndependentClause::Deontic(
-                _,
-                _,
-                Predicate::Intransitive(predicate),
-            )) if matches!(
-                predicate.elements.as_slice(),
-                [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
-                    if preposition.preposition == crate::syntax::Preposition::During
-            )
-        ));
+        assert!(
+            matches!(
+                &parsed.sentence().expect("sentence root").body,
+                SentenceBody::Independent(IndependentClause::Deontic(
+                    _,
+                    _,
+                    Predicate::Intransitive(predicate),
+                )) if matches!(
+                    predicate.elements.as_slice(),
+                    [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
+                        if preposition.preposition == crate::syntax::Preposition::During
+                )
+            ),
+            "{:#?}",
+            parsed.sentence()
+        );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
@@ -2604,6 +2625,35 @@ mod tests {
                 NounPhrase::Nominal(turn),
             ))] if matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
         ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn any_time_is_temporal_after_a_prepositional_predicate_tail() {
+        let source = "You may look at the top card of your library any time.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            _,
+            _,
+            Predicate::Intransitive(predicate),
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected a deontic intransitive clause: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert!(
+            matches!(
+                predicate.elements.as_slice(),
+                [
+                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(_)),
+                    PredicateElement::Adjunct(PredicateAdjunct::Temporal(NounPhrase::Nominal(time))),
+                ] if matches!(time.head, NounInstance::Singular(Noun::Word(Vocab::Time)))
+            ),
+            "{predicate:#?}"
+        );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
@@ -3322,7 +3372,7 @@ mod tests {
             1,
             &tail,
         ));
-        assert!(!accepts_predicate_prefix(
+        assert!(accepts_predicate_prefix(
             RuleTag::VerbPhraseDirectObject,
             1,
             &prepositional_tail,
