@@ -297,6 +297,12 @@ pub(crate) enum Cardinality {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct QuantityFeatures {
+    cardinality: Cardinality,
+    standalone_number: Number,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Agreement {
     person: Person,
     number: Number,
@@ -353,7 +359,7 @@ pub(crate) enum Features {
     Number {
         is_one: bool,
     },
-    Quantity(Cardinality),
+    Quantity(QuantityFeatures),
     Determiner {
         cardinality: Cardinality,
         article: Option<IndefiniteArticleKey>,
@@ -537,6 +543,27 @@ impl QuantityKey {
             Self::Both => Quantity::Both,
             Self::ThatMany => Quantity::ThatMany,
             Self::ThatMuch => Quantity::ThatMuch,
+        }
+    }
+
+    const fn features(self) -> QuantityFeatures {
+        QuantityFeatures {
+            cardinality: self.cardinality(),
+            standalone_number: match self {
+                Self::Exact(number)
+                | Self::UpTo(number)
+                | Self::MoreThan(number)
+                | Self::FewerThan(number)
+                    if number.value == 1 =>
+                {
+                    Number::Singular
+                }
+                Self::Or(first, second) if first.value == 1 && second.value == 1 => {
+                    Number::Singular
+                }
+                Self::X | Self::ThatMuch => Number::Singular,
+                _ => Number::Plural,
+            },
         }
     }
 }
@@ -2344,7 +2371,7 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
 fn quantity_match(end: usize, quantity: QuantityKey) -> LexicalMatch<Features, MeaningKey> {
     LexicalMatch {
         end,
-        features: Features::Quantity(quantity.cardinality()),
+        features: Features::Quantity(quantity.features()),
         meaning: MeaningKey::Quantity(quantity),
         local_cost: ParseCost::default(),
     }
@@ -2712,7 +2739,7 @@ fn reduce_quantity_or_determiner(
             let Features::Number { is_one } = children.first()?.features else {
                 return None;
             };
-            Some(Features::Quantity(number_cardinality(*is_one)))
+            Some(Features::Quantity(number_quantity_features(*is_one)))
         }
         RuleTag::QuantityAtLeast
         | RuleTag::QuantityOr
@@ -2720,22 +2747,22 @@ fn reduce_quantity_or_determiner(
         | RuleTag::QuantityBoth
         | RuleTag::QuantityMoreThan
         | RuleTag::QuantityFewerThan => {
-            let Features::Quantity(cardinality) = children.first()?.features else {
+            let Features::Quantity(features) = children.first()?.features else {
                 return None;
             };
-            Some(Features::Quantity(*cardinality))
+            Some(Features::Quantity(*features))
         }
         RuleTag::QuantityUpTo => {
             let Features::Number { is_one } = children.get(2)?.features else {
                 return None;
             };
-            Some(Features::Quantity(number_cardinality(*is_one)))
+            Some(Features::Quantity(number_quantity_features(*is_one)))
         }
         RuleTag::QuantityThatMany | RuleTag::QuantityThatMuch => {
-            let Features::Quantity(cardinality) = children.first()?.features else {
+            let Features::Quantity(features) = children.first()?.features else {
                 return None;
             };
-            Some(Features::Quantity(*cardinality))
+            Some(Features::Quantity(*features))
         }
         RuleTag::DeterminerClosed => {
             let Features::Determiner {
@@ -2755,7 +2782,9 @@ fn reduce_quantity_or_determiner(
             article: None,
         }),
         RuleTag::DeterminerQuantifiedTarget => {
-            let Features::Quantity(cardinality) = children.first()?.features else {
+            let Features::Quantity(QuantityFeatures { cardinality, .. }) =
+                children.first()?.features
+            else {
                 return None;
             };
             Some(Features::Determiner {
@@ -2764,7 +2793,9 @@ fn reduce_quantity_or_determiner(
             })
         }
         RuleTag::DeterminerQuantity => {
-            let Features::Quantity(cardinality) = children.first()?.features else {
+            let Features::Quantity(QuantityFeatures { cardinality, .. }) =
+                children.first()?.features
+            else {
                 return None;
             };
             Some(Features::Determiner {
@@ -2787,6 +2818,13 @@ fn reduce_quantity_or_determiner(
 
 const fn number_cardinality(is_one: bool) -> Cardinality {
     if is_one { Cardinality::SingularOrMass } else { Cardinality::PluralOrMass }
+}
+
+const fn number_quantity_features(is_one: bool) -> QuantityFeatures {
+    QuantityFeatures {
+        cardinality: number_cardinality(is_one),
+        standalone_number: if is_one { Number::Singular } else { Number::Plural },
+    }
 }
 
 const fn target_cardinality(cardinality: Cardinality) -> Cardinality {
@@ -3079,13 +3117,16 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
         }
         RuleTag::NounPhraseReciprocal => noun_phrase_from_pronoun(children.first()?),
         RuleTag::NounPhraseQuantity => {
-            let Features::Quantity(cardinality) = children.first()?.features else {
+            let Features::Quantity(QuantityFeatures {
+                standalone_number, ..
+            }) = children.first()?.features
+            else {
                 return None;
             };
             Some(Features::NounPhrase {
                 agreement: Some(Agreement {
                     person: Person::Third,
-                    number: quantity_number(*cardinality),
+                    number: *standalone_number,
                 }),
                 pronoun_case: None,
                 temporal: false,
@@ -3117,14 +3158,16 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             })
         }
         RuleTag::NounPhrasePartitive => {
-            let Features::Quantity(cardinality) = children.first()?.features else {
+            let Features::Quantity(QuantityFeatures {
+                standalone_number, ..
+            }) = children.first()?.features
+            else {
                 return None;
             };
-            let number = quantity_number(*cardinality);
             Some(Features::NounPhrase {
                 agreement: Some(Agreement {
                     person: Person::Third,
-                    number,
+                    number: *standalone_number,
                 }),
                 pronoun_case: None,
                 temporal: false,
@@ -3253,16 +3296,6 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
         pronoun_case: *pronoun_case,
         temporal: *temporal,
     })
-}
-
-const fn quantity_number(cardinality: Cardinality) -> Number {
-    match cardinality {
-        Cardinality::SingularCount | Cardinality::SingularOrMass => Number::Singular,
-        Cardinality::PluralCount
-        | Cardinality::Mass
-        | Cardinality::PluralOrMass
-        | Cardinality::Unconstrained => Number::Plural,
-    }
 }
 
 fn cardinality_accepts(cardinality: Cardinality, form: NounForm) -> bool {

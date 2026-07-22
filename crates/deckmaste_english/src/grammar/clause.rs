@@ -2877,6 +2877,24 @@ mod tests {
     }
 
     #[test]
+    fn variable_quantity_has_singular_standalone_agreement() {
+        let source = "X is 5 or more.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Copular(
+            Subject(NounPhrase::Quantity(Quantity::X)),
+            _,
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected a copular variable clause: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
     fn passive_blocking_treats_this_turn_as_a_temporal_adjunct() {
         let source = "Creatures you control can't be blocked this turn.";
         let parsed = parse(source);
