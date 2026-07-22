@@ -1105,8 +1105,36 @@ mod tests {
         };
         assert_eq!(coordination.rest.len(), 3);
         assert!(coordination.rest.iter().all(|coordination| {
-            coordination.conjunction == PredicateConjunction::Then && coordination.comma
+            coordination.conjunction == Some(PredicateConjunction::Then) && coordination.comma
         }));
+    }
+
+    #[test]
+    fn asyndetic_predicate_chains_preserve_the_missing_conjunction() {
+        let report = parse(
+            "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+        );
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph");
+        };
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!(
+                "expected coordinated clause, got {:#?}",
+                paragraph.sentences[0].body
+            );
+        };
+        assert_eq!(coordination.rest.len(), 2);
+        assert_eq!(coordination.rest[0].conjunction, None);
+        assert_eq!(
+            coordination.rest[1].conjunction,
+            Some(PredicateConjunction::Then)
+        );
+        assert_eq!(
+            render(&report),
+            "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+        );
     }
 
     #[test]

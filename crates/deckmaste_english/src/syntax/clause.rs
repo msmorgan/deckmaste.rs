@@ -307,7 +307,7 @@ pub struct CoordinatedIndependentClause {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClauseCoordination {
-    pub conjunction: PredicateConjunction,
+    pub conjunction: Option<PredicateConjunction>,
     pub comma: bool,
     pub member: CoordinatedClauseMember,
 }

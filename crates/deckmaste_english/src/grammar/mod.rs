@@ -808,6 +808,7 @@ enum RuleTag {
     ClauseElliptical,
     ClauseCoordination,
     ClauseCoordinationComma,
+    ClauseCoordinationAsyndetic,
     ClauseAdverbBefore,
     ClausePrepositionalBefore,
     ClauseSubordinateBefore,
@@ -927,8 +928,10 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         let Some(surface) = token.span.text(self.source) else {
             return Vec::new();
         };
-        if matches!(slot, LexicalSlot::Noun(_) | LexicalSlot::Adjective)
-            && !self.is_sentence_initial(tokens, start)
+        if matches!(
+            slot,
+            LexicalSlot::Noun(_) | LexicalSlot::Adjective | LexicalSlot::Verb(_)
+        ) && !self.is_sentence_initial(tokens, start)
             && surface
                 .as_bytes()
                 .first()
@@ -2679,6 +2682,7 @@ fn reduce(
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseAdverbBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
@@ -3772,6 +3776,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseAdverbBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore

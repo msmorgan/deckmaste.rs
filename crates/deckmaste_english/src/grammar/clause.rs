@@ -276,6 +276,15 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         ],
     );
     builder.add(
+        RuleTag::ClauseCoordinationAsyndetic,
+        N::Clause,
+        [
+            n(N::Clause),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::SimpleClause),
+        ],
+    );
+    builder.add(
         RuleTag::ClauseSubordinateBefore,
         N::Clause,
         [
@@ -431,6 +440,7 @@ pub(super) fn reduce_clause(
         | RuleTag::RelativeContractedCopularPrepositional => reduce_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseAdverbBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
@@ -1038,7 +1048,9 @@ fn reduce_composed_clause(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::ClauseCoordination | RuleTag::ClauseCoordinationComma => {
+        RuleTag::ClauseCoordination
+        | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseCoordinationAsyndetic => {
             let Features::Clause {
                 agreement: first_agreement,
                 standalone: true,
@@ -1057,6 +1069,15 @@ fn reduce_composed_clause(
             else {
                 return None;
             };
+            if tag == RuleTag::ClauseCoordinationAsyndetic
+                && (first_agreement.is_some()
+                    || *finite
+                    || *has_subject
+                    || next_agreement.is_some()
+                    || !*standalone)
+            {
+                return None;
+            }
             if !coordination_agrees(*first_agreement, *next_agreement, *has_subject, *standalone) {
                 return None;
             }
@@ -1321,6 +1342,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::RelativeContractedCopularPrepositional => lower_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseAdverbBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
@@ -1801,9 +1823,9 @@ fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowere
 
 fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::ClauseCoordination | RuleTag::ClauseCoordinationComma => {
-            lower_coordination(tag, children)
-        }
+        RuleTag::ClauseCoordination
+        | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseCoordinationAsyndetic => lower_coordination(tag, children),
         RuleTag::ClauseSubordinateBefore => {
             let Lowered::Subordinator(subordinator) = take(children, 0)? else {
                 return None;
@@ -1945,12 +1967,19 @@ fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered>
         return None;
     };
     let (conjunction_index, clause_index, comma) = match tag {
-        RuleTag::ClauseCoordination => (1, 2, false),
-        RuleTag::ClauseCoordinationComma => (2, 3, true),
+        RuleTag::ClauseCoordination => (Some(1), 2, false),
+        RuleTag::ClauseCoordinationComma => (Some(2), 3, true),
+        RuleTag::ClauseCoordinationAsyndetic => (None, 2, true),
         _ => return None,
     };
-    let Lowered::Conjunction(conjunction) = take(children, conjunction_index)? else {
-        return None;
+    let conjunction = match conjunction_index {
+        Some(index) => {
+            let Lowered::Conjunction(conjunction) = take(children, index)? else {
+                return None;
+            };
+            Some(conjunction)
+        }
+        None => None,
     };
     let Lowered::SimpleClause(next) = take(children, clause_index)? else {
         return None;

@@ -433,8 +433,10 @@ impl<'identity> Renderer<'identity> {
                         rendered.push(',');
                     }
                     rendered.push(' ');
-                    rendered.push_str(render_predicate_conjunction(coordination.conjunction));
-                    rendered.push(' ');
+                    if let Some(conjunction) = coordination.conjunction {
+                        rendered.push_str(render_predicate_conjunction(conjunction));
+                        rendered.push(' ');
+                    }
                     match &coordination.member {
                         CoordinatedClauseMember::Independent(clause) => {
                             rendered.push_str(&self.independent_clause(clause)?);
@@ -1532,6 +1534,14 @@ mod tests {
     }
 
     #[test]
+    fn capitalized_proper_name_words_do_not_start_asyndetic_imperatives() {
+        let source = "Meld them into Ragnarok, Divine Deliverance.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
     fn ordinary_auxiliary_and_infinitive_sentences_render_structurally() {
         let draw = paragraph_ability(simple(
             None,
@@ -1684,7 +1694,7 @@ mod tests {
             CoordinatedIndependentClause {
                 first: Box::new(first),
                 rest: vec![ClauseCoordination {
-                    conjunction: PredicateConjunction::And,
+                    conjunction: Some(PredicateConjunction::And),
                     comma: false,
                     member: CoordinatedClauseMember::SharedPredicate(second),
                 }],
