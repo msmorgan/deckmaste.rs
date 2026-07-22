@@ -12,6 +12,7 @@ use deckmaste_english::Catalogs;
 use deckmaste_english::normalize_self_references;
 use deckmaste_english::normalize_typographic_quotes;
 use deckmaste_english::strip_reminder_text;
+use rayon::prelude::*;
 use serde::Deserialize;
 
 const CATALOG_FILES: [(CatalogKind, &str); 12] = [
@@ -79,6 +80,21 @@ impl CardFace {
     pub(super) fn printed_name(&self) -> &str {
         self.face_name.as_deref().unwrap_or(&self.card_name)
     }
+}
+
+pub(super) fn map_supported_faces<T: Send>(
+    faces: &[CardFace],
+    map: impl Fn(usize, &CardFace) -> T + Send + Sync,
+) -> Vec<T> {
+    let supported: Vec<_> = faces
+        .iter()
+        .enumerate()
+        .filter(|(_, card)| card.supported)
+        .collect();
+    supported
+        .par_iter()
+        .map(|&(index, card)| map(index, card))
+        .collect()
 }
 
 #[derive(Debug, Deserialize)]
@@ -172,4 +188,59 @@ fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {
     let catalog: Catalog = serde_json::from_reader(BufReader::new(file))
         .with_context(|| format!("invalid Scryfall catalog {}", path.display()))?;
     Ok(catalog.data)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+    use std::sync::mpsc::sync_channel;
+    use std::time::Duration;
+
+    use super::*;
+
+    fn face(name: &str, supported: bool) -> CardFace {
+        CardFace {
+            card_name: name.to_owned(),
+            face_name: None,
+            is_legendary: false,
+            supported,
+            source_text: String::new(),
+            oracle_text: String::new(),
+        }
+    }
+
+    #[test]
+    fn supported_face_map_overlaps_work_and_preserves_source_order() {
+        let faces = [
+            face("first", true),
+            face("skipped", false),
+            face("second", true),
+        ];
+        let (sender, receiver) = sync_channel(1);
+        let receiver = Mutex::new(receiver);
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(2)
+            .build()
+            .unwrap();
+
+        let results = pool.install(|| {
+            map_supported_faces(&faces, |index, card| match card.printed_name() {
+                "first" => format!(
+                    "{index}:{}",
+                    receiver
+                        .lock()
+                        .unwrap()
+                        .recv_timeout(Duration::from_secs(1))
+                        .unwrap()
+                ),
+                "second" => {
+                    sender.send("released").unwrap();
+                    format!("{index}:second")
+                }
+                name => panic!("unexpected mapped face {name}"),
+            })
+        });
+
+        assert_eq!(results, ["0:released", "2:second"]);
+    }
 }

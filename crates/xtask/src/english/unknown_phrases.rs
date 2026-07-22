@@ -8,6 +8,7 @@ use deckmaste_english::syntax::OracleText;
 use deckmaste_english::syntax::UnknownRole;
 
 use super::data::OracleDataArgs;
+use super::data::map_supported_faces;
 
 #[derive(Debug, Args)]
 #[expect(
@@ -90,13 +91,14 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
     let unique = uses_unique_mode(args);
     let data = args.data.load()?;
 
-    let mut occurrences = Vec::new();
-    let supported = data.faces.iter().filter(|card| card.supported);
-    let card_count = supported.clone().count();
-    for card in supported {
+    let card_count = data.faces.iter().filter(|card| card.supported).count();
+    let mut occurrences = map_supported_faces(&data.faces, |_, card| {
         let report = parse_with_catalogs(&card.oracle_text, &data.catalogs);
-        occurrences.extend(unknown_occurrences(report.ast(), card.printed_name()));
-    }
+        unknown_occurrences(report.ast(), card.printed_name())
+    })
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
     let maximum = occurrences
         .iter()
         .map(|occurrence| occurrence.words)

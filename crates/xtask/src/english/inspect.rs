@@ -143,14 +143,23 @@ fn write_diagnostics(
 mod tests {
     use std::io::Cursor;
     use std::path::Path;
+    use std::time::Duration;
 
     use deckmaste_english::normalize_typographic_quotes;
     use deckmaste_english::strip_reminder_text;
 
     use super::*;
+    use crate::english::data::map_supported_faces;
     use crate::english::data::read_card_faces;
 
     const DATA_PATH: &str = "test-cards.jsonl";
+
+    struct RoundTripOutcome {
+        index: usize,
+        printed_name: String,
+        elapsed: Duration,
+        failure: Option<String>,
+    }
 
     fn cards(data: &str) -> Vec<CardFace> {
         read_card_faces(Cursor::new(data), Path::new(DATA_PATH)).unwrap()
@@ -322,42 +331,60 @@ mod tests {
             return;
         };
 
-        let mut failures = Vec::new();
-        for (index, card) in data.faces.iter().enumerate() {
-            if !card.supported {
-                continue;
-            }
+        let outcomes = map_supported_faces(&data.faces, |index, card| {
             let started = Instant::now();
             let report = parse_with_catalogs(&card.oracle_text, &data.catalogs);
             let elapsed = started.elapsed();
-            if elapsed.as_millis() >= 100 {
-                eprintln!(
-                    "slow row {} ({}) {elapsed:?}",
-                    index + 1,
-                    card.printed_name()
-                );
-            }
-            if index % 1_000 == 0 {
-                eprintln!("reached row {} ({})", index + 1, card.printed_name());
-            }
-            match report
+            let printed_name = card.printed_name().to_owned();
+            let failure = match report
                 .into_ast()
                 .render(card.printed_name(), card.is_legendary)
             {
                 Ok(rebuilt)
                     if normalized_rules_text(&rebuilt)
-                        == normalized_rules_text(&card.source_text) => {}
-                Ok(rebuilt) => failures.push(format!(
+                        == normalized_rules_text(&card.source_text) =>
+                {
+                    None
+                }
+                Ok(rebuilt) => Some(format!(
                     "row {} ({}):\n  rendered: {rebuilt:?}\n  expected: {:?}",
                     index + 1,
                     card.printed_name(),
                     normalized_rules_text(&card.source_text)
                 )),
-                Err(error) => failures.push(format!(
+                Err(error) => Some(format!(
                     "row {} ({}): render error: {error}",
                     index + 1,
                     card.printed_name()
                 )),
+            };
+            RoundTripOutcome {
+                index,
+                printed_name,
+                elapsed,
+                failure,
+            }
+        });
+
+        let mut failures = Vec::new();
+        for outcome in outcomes {
+            if outcome.elapsed.as_millis() >= 100 {
+                eprintln!(
+                    "slow row {} ({}) {:?}",
+                    outcome.index + 1,
+                    outcome.printed_name,
+                    outcome.elapsed
+                );
+            }
+            if outcome.index % 1_000 == 0 {
+                eprintln!(
+                    "reached row {} ({})",
+                    outcome.index + 1,
+                    outcome.printed_name
+                );
+            }
+            if let Some(failure) = outcome.failure {
+                failures.push(failure);
             }
         }
 
