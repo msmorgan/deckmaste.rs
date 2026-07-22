@@ -654,6 +654,9 @@ impl<'identity> Renderer<'identity> {
             }
             PredicateObject::Quantity(quantity) => Ok(render_quantity(*quantity)),
             PredicateObject::OracleSymbol(symbol) => Ok(symbol.as_str().to_owned()),
+            PredicateObject::SymbolSequence(symbols) => {
+                Ok(symbols.iter().map(OracleSymbol::as_str).collect())
+            }
             PredicateObject::PowerToughness(value) => Ok(format!(
                 "{}/{}",
                 render_signed_scalar(value.power),

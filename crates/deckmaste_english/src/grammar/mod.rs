@@ -223,6 +223,7 @@ pub(crate) enum EnglishLexicalSlot {
     PossessiveThisCard,
     Preposition,
     OracleSymbol,
+    SymbolSequence,
     PowerToughness,
     Punctuation(Punctuation),
     Subordinator,
@@ -701,6 +702,7 @@ pub(crate) enum MeaningKey {
     Verb(VerbInstance),
     Catalog(crate::catalog::CatalogAtom),
     OracleSymbol(OracleSymbol),
+    SymbolSequence(Vec<OracleSymbol>),
     PowerToughness(PowerToughness),
     Punctuation(Punctuation),
     Conjunction(crate::syntax::PredicateConjunction),
@@ -790,6 +792,7 @@ enum RuleTag {
     VerbPhraseFrequency,
     VerbPhraseAbility,
     VerbPhraseOracleSymbol,
+    VerbPhraseSymbolSequence,
     VerbPhrasePowerToughness,
     VerbPhraseQuantity,
     InfinitiveTo,
@@ -1253,6 +1256,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Existential => self.scan_existential(tokens, start),
             slot @ (EnglishLexicalSlot::PossessiveNoun
             | EnglishLexicalSlot::OracleSymbol
+            | EnglishLexicalSlot::SymbolSequence
             | EnglishLexicalSlot::PowerToughness
             | EnglishLexicalSlot::Punctuation(_)
             | EnglishLexicalSlot::Subordinator
@@ -1318,6 +1322,18 @@ impl EnglishGrammar<'_, '_> {
                         end,
                         features: Features::None,
                         meaning: MeaningKey::OracleSymbol(symbol),
+                        local_cost: ParseCost::default(),
+                    })
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::SymbolSequence => self
+                .magic_match(tokens, start, TokenKind::SymbolSequence)
+                .and_then(|(surface, end)| {
+                    parse_symbol_sequence(surface).map(|symbols| LexicalMatch {
+                        end,
+                        features: Features::None,
+                        meaning: MeaningKey::SymbolSequence(symbols),
                         local_cost: ParseCost::default(),
                     })
                 })
@@ -2483,6 +2499,17 @@ fn noun_adjunct_kind(noun: &NounInstance) -> Option<NominalAdjunctKind> {
     }
 }
 
+fn parse_symbol_sequence(source: &str) -> Option<Vec<OracleSymbol>> {
+    let mut rest = source;
+    let mut symbols = Vec::new();
+    while let Some(close) = rest.find('}') {
+        let end = close + 1;
+        symbols.push(OracleSymbol::new(rest.get(..end)?)?);
+        rest = rest.get(end..)?;
+    }
+    (rest.is_empty() && !symbols.is_empty()).then_some(symbols)
+}
+
 fn noun_initial_sound(noun: &NounInstance) -> Option<InitialSound> {
     let noun_identity = match noun {
         NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
@@ -2635,6 +2662,7 @@ fn reduce(
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
@@ -3523,6 +3551,7 @@ enum Lowered {
     Auxiliary(AuxiliaryInstance),
     SubjectAuxiliary(ContractedSubjectAuxiliary),
     OracleSymbol(OracleSymbol),
+    SymbolSequence(Vec<OracleSymbol>),
     PowerToughness(PowerToughness),
     Pronoun(PronounInstance),
     ThisCard(ThisCardForm),
@@ -3628,6 +3657,7 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Verb(verb) => Lowered::Verb(verb.clone()),
         MeaningKey::Catalog(atom) => Lowered::Catalog(atom.clone()),
         MeaningKey::OracleSymbol(symbol) => Lowered::OracleSymbol(symbol.clone()),
+        MeaningKey::SymbolSequence(symbols) => Lowered::SymbolSequence(symbols.clone()),
         MeaningKey::PowerToughness(power_toughness) => Lowered::PowerToughness(*power_toughness),
         MeaningKey::Conjunction(conjunction) => Lowered::Conjunction(*conjunction),
         MeaningKey::Subordinator(subordinator) => Lowered::Subordinator(*subordinator),
@@ -3717,6 +3747,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo

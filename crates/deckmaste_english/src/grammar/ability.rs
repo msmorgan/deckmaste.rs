@@ -3,6 +3,7 @@ use super::ParsedNonterminal;
 use super::VerbDependent;
 use super::clause::finish_simple_clause;
 use super::parse_nonterminal;
+use super::parse_symbol_sequence;
 use crate::Span;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
@@ -738,17 +739,6 @@ fn is_sentence_terminal(kind: TokenKind) -> bool {
             Punctuation::Period | Punctuation::Exclamation | Punctuation::Question
         )
     )
-}
-
-fn parse_symbol_sequence(source: &str) -> Option<Vec<OracleSymbol>> {
-    let mut rest = source;
-    let mut symbols = Vec::new();
-    while let Some(close) = rest.find('}') {
-        let end = close + 1;
-        symbols.push(OracleSymbol::new(rest.get(..end)?)?);
-        rest = rest.get(end..)?;
-    }
-    (rest.is_empty() && !symbols.is_empty()).then_some(symbols)
 }
 
 fn keyword_argument_is_plausible(

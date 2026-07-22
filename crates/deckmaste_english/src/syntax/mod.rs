@@ -273,6 +273,7 @@ impl<'syntax> UnknownWalker<'syntax> {
             }
             PredicateObject::Quantity(_)
             | PredicateObject::OracleSymbol(_)
+            | PredicateObject::SymbolSequence(_)
             | PredicateObject::PowerToughness(_) => {}
         }
     }

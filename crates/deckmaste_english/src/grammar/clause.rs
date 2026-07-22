@@ -102,6 +102,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [n(N::VerbPhrase), l(L::OracleSymbol)],
     );
     builder.add(
+        RuleTag::VerbPhraseSymbolSequence,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), l(L::SymbolSequence)],
+    );
+    builder.add(
         RuleTag::VerbPhrasePowerToughness,
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::PowerToughness)],
@@ -356,6 +361,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
@@ -431,6 +437,7 @@ pub(super) fn accepts_predicate_prefix(
         RuleTag::VerbPhraseDirectObject
             | RuleTag::VerbPhraseAbility
             | RuleTag::VerbPhraseOracleSymbol
+            | RuleTag::VerbPhraseSymbolSequence
             | RuleTag::VerbPhrasePowerToughness
     );
     let quantity_rule = tag == RuleTag::VerbPhraseQuantity;
@@ -547,14 +554,15 @@ fn reduce_predicate(
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity => {
             let attachment = match tag {
                 RuleTag::VerbPhraseAbility => ObjectAttachment::Ability,
                 RuleTag::VerbPhrasePrepositional => ObjectAttachment::Prepositional,
-                RuleTag::VerbPhraseOracleSymbol | RuleTag::VerbPhrasePowerToughness => {
-                    ObjectAttachment::Direct
-                }
+                RuleTag::VerbPhraseOracleSymbol
+                | RuleTag::VerbPhraseSymbolSequence
+                | RuleTag::VerbPhrasePowerToughness => ObjectAttachment::Direct,
                 RuleTag::VerbPhraseQuantity => ObjectAttachment::DirectOrAbilityArgument,
                 _ => ObjectAttachment::None,
             };
@@ -1215,6 +1223,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
@@ -1322,6 +1331,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity => lower_predicate_dependent(tag, children),
         RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
@@ -1405,6 +1415,12 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 return None;
             };
             VerbDependent::Scalar(Phrase::OracleSymbol(symbol))
+        }
+        RuleTag::VerbPhraseSymbolSequence => {
+            let Lowered::SymbolSequence(symbols) = take(children, 1)? else {
+                return None;
+            };
+            VerbDependent::Scalar(Phrase::SymbolSequence(symbols))
         }
         RuleTag::VerbPhrasePowerToughness => {
             let Lowered::PowerToughness(power_toughness) = take(children, 1)? else {
@@ -2066,6 +2082,9 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 }
                 Phrase::OracleSymbol(symbol) => {
                     attach_object(&mut object, PredicateObject::OracleSymbol(symbol))?;
+                }
+                Phrase::SymbolSequence(symbols) => {
+                    attach_object(&mut object, PredicateObject::SymbolSequence(symbols))?;
                 }
                 _ => return None,
             },
@@ -3378,6 +3397,26 @@ mod tests {
             panic!("expected simple first predicate");
         };
         assert!(matches!(first.object, PredicateObject::PowerToughness(_)));
+    }
+
+    #[test]
+    fn contiguous_oracle_symbols_are_one_scalar_object() {
+        let source = "Add {C}{C}.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative: {:#?}", parsed.sentence());
+        };
+        assert!(matches!(
+            &predicate.object,
+            PredicateObject::SymbolSequence(symbols)
+                if symbols.iter().map(crate::syntax::OracleSymbol::as_str).collect::<String>()
+                    == "{C}{C}"
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
     fn parse(source: &str) -> ParsedNonterminal {

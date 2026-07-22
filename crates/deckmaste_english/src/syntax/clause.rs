@@ -142,6 +142,7 @@ pub enum PredicateObject {
     Ability(AbilityObject),
     Quantity(Quantity),
     OracleSymbol(OracleSymbol),
+    SymbolSequence(Vec<OracleSymbol>),
     PowerToughness(PowerToughness),
     EmbeddedAbility(Box<Ability>),
     QuotedAbility(Box<QuotedAbility>),
