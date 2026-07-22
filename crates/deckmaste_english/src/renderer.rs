@@ -1122,6 +1122,7 @@ fn render_subordinator(subordinator: Subordinator) -> &'static str {
         Subordinator::While => "while",
         Subordinator::Unless => "unless",
         Subordinator::AsLongAs => "as long as",
+        Subordinator::ForAsLongAs => "for as long as",
         Subordinator::Until => "until",
         Subordinator::Because => "because",
         Subordinator::RatherThan => "rather than",

@@ -1885,7 +1885,7 @@ mod tests {
     use crate::word::VerbSlot;
     use crate::word::Vocab;
 
-    const FIXTURES: [&str; 25] = [
+    const FIXTURES: [&str; 26] = [
         "Draw a card.",
         "Spells cost {1} less to cast.",
         "This creature costs {1} less to cast.",
@@ -1911,6 +1911,7 @@ mod tests {
         "It's put into exile.",
         "Counter target spell that's one or more colors.",
         "You may discard a Plains card rather than pay this spell's mana cost.",
+        "Gain control of target creature for as long as you control this artifact.",
     ];
 
     #[test]
@@ -2101,6 +2102,29 @@ mod tests {
                 )
             ));
         }
+    }
+
+    #[test]
+    fn for_as_long_as_is_one_finite_subordinator() {
+        let parsed =
+            parse("Gain control of target creature for as long as you control this artifact.");
+        assert!(matches!(
+            &parsed.sentence().expect("sentence root").body,
+            SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                attachments,
+                ..
+            })) if matches!(
+                attachments.as_slice(),
+                [DependentAttachment {
+                    position: AttachmentPosition::AfterMatrix,
+                    clause: DependentClause::Subordinate(
+                        crate::syntax::Subordinator::ForAsLongAs,
+                        SubordinateBody::Finite(_),
+                    ),
+                    ..
+                }]
+            )
+        ));
     }
 
     #[test]

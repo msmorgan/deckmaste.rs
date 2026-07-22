@@ -1187,6 +1187,11 @@ impl EnglishGrammar<'_, '_> {
         start: usize,
     ) -> Option<(usize, crate::syntax::Subordinator)> {
         let surface = self.token_text(tokens, start)?;
+        if surface.eq_ignore_ascii_case("for")
+            && let Some(end) = self.words_match(tokens, start, &["for", "as", "long", "as"])
+        {
+            return Some((end, crate::syntax::Subordinator::ForAsLongAs));
+        }
         if surface.eq_ignore_ascii_case("as") {
             if let Some(end) = self.words_match(tokens, start, &["as", "long", "as"]) {
                 return Some((end, crate::syntax::Subordinator::AsLongAs));

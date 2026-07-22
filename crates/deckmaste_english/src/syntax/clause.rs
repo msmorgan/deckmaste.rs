@@ -259,6 +259,7 @@ pub enum Subordinator {
     While,
     Unless,
     AsLongAs,
+    ForAsLongAs,
     Until,
     Because,
     RatherThan,
