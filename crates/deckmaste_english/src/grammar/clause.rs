@@ -2825,6 +2825,32 @@ mod tests {
     }
 
     #[test]
+    fn face_down_is_a_secondary_adjective_predicate() {
+        let source = "Turn this creature face down.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected an imperative turn clause: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [PredicateElement::Complement(PredicateComplement::Adjective(
+                AdjectivePhrase {
+                    head: Adjective::CardOrientation(crate::word::CardOrientation::FaceDown),
+                    complements,
+                }
+            ))] if complements.is_empty()
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
     fn passive_blocking_treats_this_turn_as_a_temporal_adjunct() {
         let source = "Creatures you control can't be blocked this turn.";
         let parsed = parse(source);

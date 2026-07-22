@@ -213,10 +213,27 @@ pub enum ColorWord {
     Green,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CardOrientation {
+    FaceUp,
+    FaceDown,
+}
+
+impl CardOrientation {
+    #[must_use]
+    pub const fn spelling(self) -> &'static str {
+        match self {
+            Self::FaceUp => "face up",
+            Self::FaceDown => "face down",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Adjective {
     Word(Vocab),
     Color(ColorWord),
+    CardOrientation(CardOrientation),
     Participle(Tense, Verb),
     Catalog(CatalogAtom),
 }
@@ -1029,6 +1046,7 @@ impl Vocabulary {
                 .adjective
                 .then(|| vocab.spelling().to_owned()),
             Adjective::Color(color) => Some(color.spelling().to_owned()),
+            Adjective::CardOrientation(orientation) => Some(orientation.spelling().to_owned()),
             Adjective::Participle(Tense::Present, verb) => {
                 self.render_verb_identity(verb, VerbSlot::PresentParticiple)
             }

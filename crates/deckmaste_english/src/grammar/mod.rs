@@ -73,6 +73,7 @@ use crate::word::Adjective;
 use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
+use crate::word::CardOrientation;
 use crate::word::InitialSound;
 use crate::word::LexicalSlot;
 use crate::word::Noun;
@@ -201,7 +202,9 @@ pub(crate) enum EnglishLexicalSlot {
     Than,
     OrEqualTo,
     RelativeWho,
+    Face,
     Up,
+    Down,
     Not,
     To,
     Of,
@@ -357,6 +360,7 @@ pub(crate) enum Features {
     Adjective {
         initial_sound: InitialSound,
         comparison: AdjectiveComparisonState,
+        card_orientation: bool,
     },
     Noun {
         form: NounForm,
@@ -645,7 +649,9 @@ pub(crate) enum DemonstrativeKey {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum LiteralKey {
+    Face,
     Up,
+    Down,
     Not,
     To,
     Target,
@@ -715,6 +721,8 @@ enum RuleTag {
     DeterminerPossessiveNoun,
     Adjective,
     AdjectivePhrase,
+    AdjectivePhraseFaceUp,
+    AdjectivePhraseFaceDown,
     AdjectivePhraseComparison,
     ComparisonStandard,
     ComparisonThan,
@@ -1140,9 +1148,19 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| literal_match(end, LiteralKey::Who))
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::Face => self
+                .one_token_match(tokens, start, "face")
+                .map(|end| literal_match(end, LiteralKey::Face))
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::Up => self
                 .one_token_match(tokens, start, "up")
                 .map(|end| literal_match(end, LiteralKey::Up))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::Down => self
+                .one_token_match(tokens, start, "down")
+                .map(|end| literal_match(end, LiteralKey::Down))
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Not => self
@@ -2051,6 +2069,16 @@ impl RuleBuilder {
             [n(N::Adjective)],
         );
         self.add(
+            RuleTag::AdjectivePhraseFaceUp,
+            N::AdjectivePhrase,
+            [l(L::Face), l(L::Up)],
+        );
+        self.add(
+            RuleTag::AdjectivePhraseFaceDown,
+            N::AdjectivePhrase,
+            [l(L::Face), l(L::Down)],
+        );
+        self.add(
             RuleTag::ComparisonStandard,
             N::ComparisonStandard,
             [n(N::NounPhrase)],
@@ -2272,6 +2300,7 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
             Features::Adjective {
                 initial_sound: adjective_initial_sound(&adjective)?,
                 comparison: adjective_comparison_state(&adjective),
+                card_orientation: false,
             },
             MeaningKey::Adjective(adjective),
         ),
@@ -2511,6 +2540,8 @@ fn reduce(
         | RuleTag::DeterminerPossessiveNoun => reduce_possessive_noun_phrase(tag, children)?,
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
+        | RuleTag::AdjectivePhraseFaceUp
+        | RuleTag::AdjectivePhraseFaceDown
         | RuleTag::AdjectivePhraseComparison
         | RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
@@ -2749,6 +2780,13 @@ const fn target_cardinality(cardinality: Cardinality) -> Cardinality {
 fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
         RuleTag::Adjective | RuleTag::Noun => Some(propagate(children.first()?)),
+        RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
+            Some(Features::Adjective {
+                initial_sound: InitialSound::Consonant,
+                comparison: AdjectiveComparisonState::NotComparative,
+                card_orientation: true,
+            })
+        }
         RuleTag::AdjectivePhrase => {
             let Features::Adjective { .. } = children.first()?.features else {
                 return None;
@@ -2759,6 +2797,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             let Features::Adjective {
                 initial_sound,
                 comparison: AdjectiveComparisonState::Pending,
+                card_orientation,
             } = children.first()?.features
             else {
                 return None;
@@ -2766,6 +2805,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             Some(Features::Adjective {
                 initial_sound: *initial_sound,
                 comparison: AdjectiveComparisonState::Complete,
+                card_orientation: *card_orientation,
             })
         }
         RuleTag::ComparisonStandard
@@ -2795,6 +2835,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             let Features::Adjective {
                 initial_sound,
                 comparison,
+                card_orientation: false,
             } = children.first()?.features
             else {
                 return None;
@@ -2938,6 +2979,13 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             })
         }
         RuleTag::NominalPostpositiveAdjective => {
+            let Features::Adjective {
+                card_orientation: false,
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
             let Features::Nominal {
                 form,
                 initial_sound,
@@ -3518,6 +3566,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::DeterminerPossessiveNoun => lower_possessive_noun_phrase(tag, children),
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
+        | RuleTag::AdjectivePhraseFaceUp
+        | RuleTag::AdjectivePhraseFaceDown
         | RuleTag::AdjectivePhraseComparison
         | RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
@@ -3688,6 +3738,17 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
 fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::Adjective | RuleTag::Noun => take(children, 0),
+        RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
+            let orientation = match tag {
+                RuleTag::AdjectivePhraseFaceUp => CardOrientation::FaceUp,
+                RuleTag::AdjectivePhraseFaceDown => CardOrientation::FaceDown,
+                _ => return None,
+            };
+            Some(Lowered::AdjectivePhrase(AdjectivePhrase {
+                head: Adjective::CardOrientation(orientation),
+                complements: Vec::new(),
+            }))
+        }
         RuleTag::AdjectivePhrase => {
             let Lowered::Adjective(head) = take(children, 0)? else {
                 return None;
