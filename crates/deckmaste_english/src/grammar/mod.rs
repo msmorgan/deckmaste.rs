@@ -167,6 +167,7 @@ pub(crate) enum EnglishLexicalSlot {
     AbilityWord,
     Determiner,
     DeterminerTarget,
+    QuantityAtLeast,
     QuantityThatMany,
     QuantityThatMuch,
     Up,
@@ -370,6 +371,7 @@ impl NumberKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum QuantityKey {
     Exact(NumberKey),
+    AtLeast(NumberKey),
     UpTo(NumberKey),
     ThatMany,
     ThatMuch,
@@ -381,7 +383,9 @@ impl QuantityKey {
             Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
                 Cardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::UpTo(_) | Self::ThatMany => Cardinality::PluralCount,
+            Self::Exact(_) | Self::AtLeast(_) | Self::UpTo(_) | Self::ThatMany => {
+                Cardinality::PluralCount
+            }
             Self::ThatMuch => Cardinality::Mass,
         }
     }
@@ -389,6 +393,7 @@ impl QuantityKey {
     const fn syntax(self) -> Quantity {
         match self {
             Self::Exact(number) => Quantity::Exact(number.literal()),
+            Self::AtLeast(number) => Quantity::AtLeast(number.literal()),
             Self::UpTo(number) => Quantity::UpTo(number.literal()),
             Self::ThatMany => Quantity::ThatMany,
             Self::ThatMuch => Quantity::ThatMuch,
@@ -407,6 +412,8 @@ pub(crate) enum DeterminerKey {
     Quantity(QuantityKey),
     Possessive(Pronoun),
     All,
+    Any,
+    No,
 }
 
 impl DeterminerKey {
@@ -428,12 +435,15 @@ impl DeterminerKey {
                 Cardinality::SingularCount
             }
             Self::Target(Some(
-                QuantityKey::Exact(_) | QuantityKey::UpTo(_) | QuantityKey::ThatMany,
+                QuantityKey::Exact(_)
+                | QuantityKey::AtLeast(_)
+                | QuantityKey::UpTo(_)
+                | QuantityKey::ThatMany,
             )) => Cardinality::PluralCount,
             Self::Target(Some(QuantityKey::ThatMuch)) => Cardinality::Mass,
             Self::Quantity(quantity) => quantity.cardinality(),
             Self::All => Cardinality::PluralOrMass,
-            Self::The | Self::Possessive(_) => Cardinality::Unconstrained,
+            Self::The | Self::Possessive(_) | Self::Any | Self::No => Cardinality::Unconstrained,
         }
     }
 
@@ -464,6 +474,8 @@ impl DeterminerKey {
             Self::Quantity(quantity) => Determiner::Quantity(quantity.syntax()),
             Self::Possessive(pronoun) => Determiner::Possessive(Possessor::Pronoun(*pronoun)),
             Self::All => Determiner::All,
+            Self::Any => Determiner::Any,
+            Self::No => Determiner::No,
         })
     }
 
@@ -538,6 +550,7 @@ pub(crate) struct SubjectCopulaKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum RuleTag {
     QuantityExact,
+    QuantityAtLeast,
     QuantityUpTo,
     QuantityThatMany,
     QuantityThatMuch,
@@ -870,6 +883,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::QuantityAtLeast => self.scan_at_least_quantity(tokens, start),
             EnglishLexicalSlot::QuantityThatMany => self
                 .words_match(tokens, start, &["that", "many"])
                 .map(|end| quantity_match(end, QuantityKey::ThatMany))
@@ -1255,6 +1269,10 @@ impl EnglishGrammar<'_, '_> {
             DeterminerKey::Demonstrative(DemonstrativeKey::Those)
         } else if surface.eq_ignore_ascii_case("all") {
             DeterminerKey::All
+        } else if surface.eq_ignore_ascii_case("any") {
+            DeterminerKey::Any
+        } else if surface.eq_ignore_ascii_case("no") {
+            DeterminerKey::No
         } else if surface.eq_ignore_ascii_case("your") {
             DeterminerKey::Possessive(Pronoun::You)
         } else if surface.eq_ignore_ascii_case("his") {
@@ -1277,6 +1295,33 @@ impl EnglishGrammar<'_, '_> {
             meaning: MeaningKey::Determiner(key),
             local_cost: ParseCost::default(),
         }]
+    }
+
+    fn scan_at_least_quantity(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let Some(surface) = self.token_text(tokens, start) else {
+            return Vec::new();
+        };
+        let Some(end) = self.words_match(tokens, start + 1, &["or", "more"]) else {
+            return Vec::new();
+        };
+        [
+            NumberNotation::Cardinal,
+            NumberNotation::Ordinal,
+            NumberNotation::Arabic(false),
+            NumberNotation::Arabic(true),
+            NumberNotation::Roman,
+        ]
+        .into_iter()
+        .filter_map(|notation| {
+            notation.numeral().parse(surface).ok().map(|value| {
+                quantity_match(end, QuantityKey::AtLeast(NumberKey { value, notation }))
+            })
+        })
+        .collect()
     }
 
     fn scan_preposition(
@@ -1385,6 +1430,11 @@ impl RuleBuilder {
                 [l(L::Up), l(L::To), l(L::Number(notation))],
             );
         }
+        self.add(
+            RuleTag::QuantityAtLeast,
+            N::Quantity,
+            [l(L::QuantityAtLeast)],
+        );
         self.add(
             RuleTag::QuantityThatMany,
             N::Quantity,
@@ -1730,6 +1780,7 @@ fn reduce(
 ) -> Option<Reduction<Features>> {
     let features = match tag {
         RuleTag::QuantityExact
+        | RuleTag::QuantityAtLeast
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
         | RuleTag::QuantityThatMuch
@@ -1868,6 +1919,12 @@ fn reduce_quantity_or_determiner(
                 return None;
             };
             Some(Features::Quantity(number_cardinality(*is_one)))
+        }
+        RuleTag::QuantityAtLeast => {
+            let Features::Quantity(cardinality) = children.first()?.features else {
+                return None;
+            };
+            Some(Features::Quantity(*cardinality))
         }
         RuleTag::QuantityUpTo => {
             let Features::Number { is_one } = children.get(2)?.features else {
@@ -2429,6 +2486,7 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
 fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::QuantityExact
+        | RuleTag::QuantityAtLeast
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
         | RuleTag::QuantityThatMuch
@@ -2538,6 +2596,12 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
                 return None;
             };
             Some(Lowered::Quantity(Quantity::Exact(number.literal())))
+        }
+        RuleTag::QuantityAtLeast => {
+            let Lowered::Quantity(quantity) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::Quantity(quantity))
         }
         RuleTag::QuantityUpTo => {
             let Lowered::Number(number) = take(children, 2)? else {

@@ -135,6 +135,8 @@ impl Determiner {
             Self::Target(Some(quantity)) => Ok(format!("{} target", render_quantity(*quantity))),
             Self::Quantity(quantity) => Ok(render_quantity(*quantity)),
             Self::All => Ok("all".to_owned()),
+            Self::Any => Ok("any".to_owned()),
+            Self::No => Ok("no".to_owned()),
         }
     }
 }
@@ -935,6 +937,9 @@ fn render_loyalty_cost(cost: LoyaltyCost) -> String {
 fn render_quantity(quantity: Quantity) -> String {
     match quantity {
         Quantity::Exact(number) => number.numeral.format(number.value),
+        Quantity::AtLeast(number) => {
+            format!("{} or more", number.numeral.format(number.value))
+        }
         Quantity::UpTo(number) => format!("up to {}", number.numeral.format(number.value)),
         Quantity::ThatMany => "that many".to_owned(),
         Quantity::ThatMuch => "that much".to_owned(),

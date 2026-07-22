@@ -510,6 +510,18 @@ mod tests {
             Determiner::Possessive(Possessor::Pronoun(Pronoun::You)).noun_cardinality(),
             NounCardinality::Unconstrained
         );
+        assert_eq!(
+            Determiner::Quantity(Quantity::AtLeast(one)).noun_cardinality(),
+            NounCardinality::PluralCount
+        );
+        assert_eq!(
+            Determiner::Any.noun_cardinality(),
+            NounCardinality::Unconstrained
+        );
+        assert_eq!(
+            Determiner::No.noun_cardinality(),
+            NounCardinality::Unconstrained
+        );
     }
 
     #[test]

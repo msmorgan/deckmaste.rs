@@ -79,6 +79,7 @@ pub struct PowerToughness {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Quantity {
     Exact(NumberLiteral),
+    AtLeast(NumberLiteral),
     UpTo(NumberLiteral),
     ThatMany,
     ThatMuch,
@@ -91,7 +92,9 @@ impl Quantity {
             Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
                 NounCardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::UpTo(_) | Self::ThatMany => NounCardinality::PluralCount,
+            Self::Exact(_) | Self::AtLeast(_) | Self::UpTo(_) | Self::ThatMany => {
+                NounCardinality::PluralCount
+            }
             Self::ThatMuch => NounCardinality::Mass,
         }
     }
@@ -108,6 +111,8 @@ pub enum Determiner {
     Quantity(Quantity),
     Possessive(Possessor),
     All,
+    Any,
+    No,
 }
 
 impl Determiner {
@@ -129,13 +134,15 @@ impl Determiner {
             {
                 NounCardinality::SingularCount
             }
-            Self::Target(Some(Quantity::Exact(_) | Quantity::UpTo(_) | Quantity::ThatMany)) => {
-                NounCardinality::PluralCount
-            }
+            Self::Target(Some(
+                Quantity::Exact(_) | Quantity::AtLeast(_) | Quantity::UpTo(_) | Quantity::ThatMany,
+            )) => NounCardinality::PluralCount,
             Self::Target(Some(Quantity::ThatMuch)) => NounCardinality::Mass,
             Self::Quantity(quantity) => quantity.noun_cardinality(),
             Self::All => NounCardinality::PluralOrMass,
-            Self::The | Self::Possessive(_) => NounCardinality::Unconstrained,
+            Self::The | Self::Possessive(_) | Self::Any | Self::No => {
+                NounCardinality::Unconstrained
+            }
         }
     }
 }

@@ -43,10 +43,14 @@ mod tests {
             "target creature",
             "up to one target creature",
             "up to three target creatures",
+            "one or more creatures",
             "that many cards",
             "that much damage",
+            "any target",
+            "no cards",
             "each other",
             "each other creature",
+            "a random order",
             "black creature",
             "legendary Goblin creature",
             "artifact creature card",
@@ -74,6 +78,34 @@ mod tests {
                 if number.value == 3
         ));
         assert!(matches!(target.head, NounInstance::Plural(_)));
+
+        let at_least = parse("one or more creatures");
+        let Some(NounPhrase::Nominal(at_least)) = at_least.noun_phrase() else {
+            panic!("expected an at-least quantified nominal");
+        };
+        assert!(matches!(
+            at_least.determiner,
+            Some(Determiner::Quantity(crate::syntax::Quantity::AtLeast(number)))
+                if number.value == 1
+        ));
+        assert!(matches!(at_least.head, NounInstance::Plural(_)));
+
+        let any = parse("any target");
+        let Some(NounPhrase::Nominal(any)) = any.noun_phrase() else {
+            panic!("expected an any-determined nominal");
+        };
+        assert_eq!(any.determiner, Some(Determiner::Any));
+        assert!(matches!(
+            any.head,
+            NounInstance::Singular(Noun::Word(Vocab::Target))
+        ));
+
+        let no = parse("no cards");
+        let Some(NounPhrase::Nominal(no)) = no.noun_phrase() else {
+            panic!("expected a no-determined nominal");
+        };
+        assert_eq!(no.determiner, Some(Determiner::No));
+        assert!(matches!(no.head, NounInstance::Plural(_)));
 
         let much = parse("that much damage");
         let Some(NounPhrase::Nominal(much)) = much.noun_phrase() else {
