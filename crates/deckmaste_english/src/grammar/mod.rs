@@ -115,6 +115,7 @@ enum VerbDependent {
     Adverbial(Phrase),
     Frequency(FrequencyPhrase),
     Particle(VerbParticle),
+    CoordinatedObject(crate::syntax::CoordinatedPredicateObject),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -793,6 +794,7 @@ enum RuleTag {
     VerbPhraseAbility,
     VerbPhraseOracleSymbol,
     VerbPhraseSymbolSequence,
+    VerbPhraseOracleSymbolCoordination,
     VerbPhrasePowerToughness,
     VerbPhraseQuantity,
     InfinitiveTo,
@@ -2663,6 +2665,7 @@ fn reduce(
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
+        | RuleTag::VerbPhraseOracleSymbolCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
@@ -3748,6 +3751,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
+        | RuleTag::VerbPhraseOracleSymbolCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo

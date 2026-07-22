@@ -664,6 +664,19 @@ impl<'identity> Renderer<'identity> {
             )),
             PredicateObject::EmbeddedAbility(ability) => self.ability(ability, true),
             PredicateObject::QuotedAbility(quoted) => self.quoted_ability(quoted),
+            PredicateObject::Coordinated(coordinated) => {
+                let mut rendered = self.predicate_object(&coordinated.first)?;
+                for coordination in &coordinated.rest {
+                    if coordination.comma {
+                        rendered.push(',');
+                    }
+                    rendered.push(' ');
+                    rendered.push_str(render_predicate_conjunction(coordination.conjunction));
+                    rendered.push(' ');
+                    rendered.push_str(&self.predicate_object(&coordination.object)?);
+                }
+                Ok(rendered)
+            }
         }
     }
 

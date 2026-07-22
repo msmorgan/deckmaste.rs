@@ -146,6 +146,20 @@ pub enum PredicateObject {
     PowerToughness(PowerToughness),
     EmbeddedAbility(Box<Ability>),
     QuotedAbility(Box<QuotedAbility>),
+    Coordinated(CoordinatedPredicateObject),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoordinatedPredicateObject {
+    pub first: Box<PredicateObject>,
+    pub rest: Vec<PredicateObjectCoordination>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PredicateObjectCoordination {
+    pub conjunction: PredicateConjunction,
+    pub comma: bool,
+    pub object: PredicateObject,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

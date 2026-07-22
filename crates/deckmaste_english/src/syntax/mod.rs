@@ -275,6 +275,12 @@ impl<'syntax> UnknownWalker<'syntax> {
             | PredicateObject::OracleSymbol(_)
             | PredicateObject::SymbolSequence(_)
             | PredicateObject::PowerToughness(_) => {}
+            PredicateObject::Coordinated(coordinated) => {
+                self.predicate_object(&coordinated.first, context);
+                for coordination in &coordinated.rest {
+                    self.predicate_object(&coordination.object, context);
+                }
+            }
         }
     }
 

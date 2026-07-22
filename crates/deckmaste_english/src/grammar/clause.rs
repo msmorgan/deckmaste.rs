@@ -7,6 +7,7 @@ use crate::syntax::ClauseCoordination;
 use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedClauseMember;
 use crate::syntax::CoordinatedIndependentClause;
+use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::DependentAttachment;
 use crate::syntax::DependentClause;
 use crate::syntax::EllipticalClause;
@@ -21,6 +22,7 @@ use crate::syntax::PredicateComplement;
 use crate::syntax::PredicateElement;
 use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
+use crate::syntax::PredicateObjectCoordination;
 use crate::syntax::ProPredicate;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeMarker;
@@ -109,6 +111,16 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         RuleTag::VerbPhraseSymbolSequence,
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::SymbolSequence)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseOracleSymbolCoordination,
+        N::VerbPhrase,
+        [
+            n(N::VerbPhrase),
+            l(L::OracleSymbol),
+            l(L::Conjunction),
+            l(L::OracleSymbol),
+        ],
     );
     builder.add(
         RuleTag::VerbPhrasePowerToughness,
@@ -370,6 +382,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
+        | RuleTag::VerbPhraseOracleSymbolCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
@@ -446,6 +459,7 @@ pub(super) fn accepts_predicate_prefix(
             | RuleTag::VerbPhraseAbility
             | RuleTag::VerbPhraseOracleSymbol
             | RuleTag::VerbPhraseSymbolSequence
+            | RuleTag::VerbPhraseOracleSymbolCoordination
             | RuleTag::VerbPhrasePowerToughness
     );
     let quantity_rule = tag == RuleTag::VerbPhraseQuantity;
@@ -559,6 +573,15 @@ fn reduce_predicate(
                 ObjectAttachment::Direct
             };
             extend_predicate(children.first()?, attachment)
+        }
+        RuleTag::VerbPhraseOracleSymbolCoordination => {
+            let Features::Conjunction(
+                crate::syntax::PredicateConjunction::And | crate::syntax::PredicateConjunction::Or,
+            ) = children.get(2)?.features
+            else {
+                return None;
+            };
+            extend_predicate(children.first()?, ObjectAttachment::Direct)
         }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
@@ -1238,6 +1261,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
+        | RuleTag::VerbPhraseOracleSymbolCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
@@ -1346,6 +1370,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
+        | RuleTag::VerbPhraseOracleSymbolCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity => lower_predicate_dependent(tag, children),
         RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
@@ -1435,6 +1460,25 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 return None;
             };
             VerbDependent::Scalar(Phrase::SymbolSequence(symbols))
+        }
+        RuleTag::VerbPhraseOracleSymbolCoordination => {
+            let Lowered::OracleSymbol(first) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                return None;
+            };
+            let Lowered::OracleSymbol(next) = take(children, 3)? else {
+                return None;
+            };
+            VerbDependent::CoordinatedObject(CoordinatedPredicateObject {
+                first: Box::new(PredicateObject::OracleSymbol(first)),
+                rest: vec![PredicateObjectCoordination {
+                    conjunction,
+                    comma: false,
+                    object: PredicateObject::OracleSymbol(next),
+                }],
+            })
         }
         RuleTag::VerbPhrasePowerToughness => {
             let Lowered::PowerToughness(power_toughness) = take(children, 1)? else {
@@ -2148,6 +2192,9 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 elements.push(PredicateElement::Adjunct(PredicateAdjunct::Frequency(
                     frequency,
                 )));
+            }
+            VerbDependent::CoordinatedObject(coordinated) => {
+                attach_object(&mut object, PredicateObject::Coordinated(coordinated))?;
             }
         }
     }
@@ -3465,6 +3512,30 @@ mod tests {
             PredicateObject::SymbolSequence(symbols)
                 if symbols.iter().map(crate::syntax::OracleSymbol::as_str).collect::<String>()
                     == "{C}{C}"
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn oracle_symbol_alternatives_are_a_coordinated_object() {
+        let source = "Add {R} or {G}.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative: {:#?}", parsed.sentence());
+        };
+        assert!(matches!(
+            &predicate.object,
+            PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest })
+                if matches!(first.as_ref(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{R}")
+                    && matches!(rest.as_slice(), [PredicateObjectCoordination {
+                        conjunction: crate::syntax::PredicateConjunction::Or,
+                        comma: false,
+                        object: PredicateObject::OracleSymbol(symbol),
+                    }] if symbol.as_str() == "{G}")
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
