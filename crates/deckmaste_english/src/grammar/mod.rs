@@ -384,9 +384,8 @@ impl QuantityKey {
             Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
                 Cardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::AtLeast(_) | Self::UpTo(_) | Self::ThatMany => {
-                Cardinality::PluralCount
-            }
+            Self::Exact(_) | Self::UpTo(_) => Cardinality::PluralOrMass,
+            Self::AtLeast(_) | Self::ThatMany => Cardinality::PluralCount,
             Self::ThatMuch => Cardinality::Mass,
         }
     }
@@ -2012,12 +2011,13 @@ fn reduce_quantity_or_determiner(
 }
 
 const fn number_cardinality(is_one: bool) -> Cardinality {
-    if is_one { Cardinality::SingularOrMass } else { Cardinality::PluralCount }
+    if is_one { Cardinality::SingularOrMass } else { Cardinality::PluralOrMass }
 }
 
 const fn target_cardinality(cardinality: Cardinality) -> Cardinality {
     match cardinality {
         Cardinality::SingularOrMass => Cardinality::SingularCount,
+        Cardinality::PluralOrMass => Cardinality::PluralCount,
         other => other,
     }
 }

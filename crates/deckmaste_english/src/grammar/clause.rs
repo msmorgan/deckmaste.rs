@@ -1516,7 +1516,7 @@ mod tests {
     use crate::word::VerbSlot;
     use crate::word::Vocab;
 
-    const FIXTURES: [&str; 14] = [
+    const FIXTURES: [&str; 16] = [
         "Draw a card.",
         "Spells cost {1} less to cast.",
         "This creature costs {1} less to cast.",
@@ -1531,6 +1531,8 @@ mod tests {
         "As this creature enters, choose a creature type.",
         "This creature attacks while saddled.",
         "Target creature you control fights target creature you don't control.",
+        "You gain 2 life.",
+        "This creature deals 3 damage to any target.",
     ];
 
     #[test]
@@ -1571,6 +1573,32 @@ mod tests {
                 number: Number::Singular,
             }
         );
+    }
+
+    #[test]
+    fn exact_quantities_can_measure_mass_nouns() {
+        for (source, expected) in [
+            ("You gain 2 life.", Vocab::Life),
+            ("This creature deals 3 damage to any target.", Vocab::Damage),
+        ] {
+            let parsed = parse(source);
+            let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+                &parsed.sentence().expect("sentence root").body
+            else {
+                panic!("expected a transitive clause for {source:?}");
+            };
+            assert!(matches!(
+                &predicate.object,
+                PredicateObject::NounPhrase(NounPhrase::Nominal(nominal))
+                    if matches!(
+                        nominal.determiner,
+                        Some(Determiner::Quantity(crate::syntax::Quantity::Exact(_)))
+                    ) && matches!(
+                        nominal.head,
+                        NounInstance::Mass(Noun::Word(ref word)) if *word == expected
+                    )
+            ));
+        }
     }
 
     #[test]

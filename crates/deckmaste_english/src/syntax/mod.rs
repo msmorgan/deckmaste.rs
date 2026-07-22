@@ -515,6 +515,10 @@ mod tests {
             NounCardinality::PluralCount
         );
         assert_eq!(
+            Determiner::Quantity(Quantity::Exact(three)).noun_cardinality(),
+            NounCardinality::PluralOrMass
+        );
+        assert_eq!(
             Determiner::Any.noun_cardinality(),
             NounCardinality::Unconstrained
         );

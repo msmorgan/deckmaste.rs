@@ -92,9 +92,8 @@ impl Quantity {
             Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
                 NounCardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::AtLeast(_) | Self::UpTo(_) | Self::ThatMany => {
-                NounCardinality::PluralCount
-            }
+            Self::Exact(_) | Self::UpTo(_) => NounCardinality::PluralOrMass,
+            Self::AtLeast(_) | Self::ThatMany => NounCardinality::PluralCount,
             Self::ThatMuch => NounCardinality::Mass,
         }
     }
