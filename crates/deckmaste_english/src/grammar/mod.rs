@@ -41,6 +41,7 @@ use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
 use crate::syntax::ComparisonComplement;
 use crate::syntax::ComparisonMarker;
+use crate::syntax::CopularComplement;
 use crate::syntax::Demonstrative;
 use crate::syntax::Determiner;
 use crate::syntax::ExistentialForm;
@@ -134,6 +135,12 @@ struct ContractedSubjectAuxiliary {
     auxiliary: AuxiliaryInstance,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CopularRemainder {
+    precomplement_adverbs: Vec<Vocab>,
+    complement: CopularComplement,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ContractedSubjectKey {
     Pronoun(Pronoun),
@@ -161,6 +168,7 @@ pub(crate) enum Nonterminal {
     ObjectGapVerbPhrase,
     InfinitiveClause,
     GerundClause,
+    CopularRemainder,
     SimpleClause,
     Clause,
     Sentence,
@@ -792,12 +800,12 @@ enum RuleTag {
     ClauseSubordinateAfter,
     ClauseSubordinateAfterInfinitive,
     ClauseExistential,
-    ClauseCopularNoun,
-    ClauseCopularAdjective,
-    ClauseCopularPrepositional,
-    ClauseContractedCopularNoun,
-    ClauseContractedCopularAdjective,
-    ClauseContractedCopularPrepositional,
+    CopularRemainderNoun,
+    CopularRemainderAdjective,
+    CopularRemainderPrepositional,
+    CopularRemainderAdverb,
+    ClauseCopular,
+    ClauseContractedCopular,
     RelativeObject,
     RelativeObjectContractedSubject,
     RelativeSubjectContractedAuxiliary,
@@ -2625,12 +2633,12 @@ fn reduce(
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::ClauseExistential
-        | RuleTag::ClauseCopularNoun
-        | RuleTag::ClauseCopularAdjective
-        | RuleTag::ClauseCopularPrepositional
-        | RuleTag::ClauseContractedCopularNoun
-        | RuleTag::ClauseContractedCopularAdjective
-        | RuleTag::ClauseContractedCopularPrepositional
+        | RuleTag::CopularRemainderNoun
+        | RuleTag::CopularRemainderAdjective
+        | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderAdverb
+        | RuleTag::ClauseCopular
+        | RuleTag::ClauseContractedCopular
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
@@ -3469,6 +3477,7 @@ enum Lowered {
     VerbPhrase(VerbPhrase),
     InfinitiveClause(InfinitiveClause),
     GerundClause(GerundClause),
+    CopularRemainder(CopularRemainder),
     SimpleClause(SimpleClause),
     EllipticalClause(crate::syntax::EllipticalClause),
     Clause(Clause),
@@ -3669,12 +3678,12 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::ClauseExistential
-        | RuleTag::ClauseCopularNoun
-        | RuleTag::ClauseCopularAdjective
-        | RuleTag::ClauseCopularPrepositional
-        | RuleTag::ClauseContractedCopularNoun
-        | RuleTag::ClauseContractedCopularAdjective
-        | RuleTag::ClauseContractedCopularPrepositional
+        | RuleTag::CopularRemainderNoun
+        | RuleTag::CopularRemainderAdjective
+        | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderAdverb
+        | RuleTag::ClauseCopular
+        | RuleTag::ClauseContractedCopular
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary

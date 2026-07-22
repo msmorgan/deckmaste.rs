@@ -101,6 +101,7 @@ pub struct PassivePredicate {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CopularPredicate {
     pub copula: Copula,
+    pub precomplement_adverbs: Vec<Vocab>,
     pub complement: CopularComplement,
     pub adjuncts: Vec<PredicateAdjunct>,
 }

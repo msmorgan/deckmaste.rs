@@ -692,6 +692,12 @@ impl<'identity> Renderer<'identity> {
             parts.push(subject);
             parts.push(self.render_auxiliary(predicate.copula.auxiliary)?);
         }
+        parts.extend(
+            predicate
+                .precomplement_adverbs
+                .iter()
+                .map(|adverb| adverb.spelling().to_owned()),
+        );
         parts.push(complement);
         for adjunct in &predicate.adjuncts {
             parts.push(self.predicate_adjunct(adjunct)?);
@@ -1983,6 +1989,7 @@ mod tests {
                     },
                     contracted_with_subject: false,
                 },
+                precomplement_adverbs: vec![],
                 complement,
                 adjuncts: vec![],
             });

@@ -199,34 +199,34 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::Existential), n(N::NounPhrase)],
     );
     builder.add(
-        RuleTag::ClauseCopularNoun,
-        N::Clause,
-        [n(N::NounPhrase), l(L::Copula), n(N::NounPhrase)],
+        RuleTag::CopularRemainderNoun,
+        N::CopularRemainder,
+        [n(N::NounPhrase)],
     );
     builder.add(
-        RuleTag::ClauseCopularAdjective,
-        N::Clause,
-        [n(N::NounPhrase), l(L::Copula), n(N::AdjectivePhrase)],
+        RuleTag::CopularRemainderAdjective,
+        N::CopularRemainder,
+        [n(N::AdjectivePhrase)],
     );
     builder.add(
-        RuleTag::ClauseCopularPrepositional,
-        N::Clause,
-        [n(N::NounPhrase), l(L::Copula), n(N::PrepositionalPhrase)],
+        RuleTag::CopularRemainderPrepositional,
+        N::CopularRemainder,
+        [n(N::PrepositionalPhrase)],
     );
     builder.add(
-        RuleTag::ClauseContractedCopularNoun,
-        N::Clause,
-        [l(L::SubjectAuxiliary), n(N::NounPhrase)],
+        RuleTag::CopularRemainderAdverb,
+        N::CopularRemainder,
+        [l(L::Adverb), n(N::CopularRemainder)],
     );
     builder.add(
-        RuleTag::ClauseContractedCopularAdjective,
+        RuleTag::ClauseCopular,
         N::Clause,
-        [l(L::SubjectAuxiliary), n(N::AdjectivePhrase)],
+        [n(N::NounPhrase), l(L::Copula), n(N::CopularRemainder)],
     );
     builder.add(
-        RuleTag::ClauseContractedCopularPrepositional,
+        RuleTag::ClauseContractedCopular,
         N::Clause,
-        [l(L::SubjectAuxiliary), n(N::PrepositionalPhrase)],
+        [l(L::SubjectAuxiliary), n(N::CopularRemainder)],
     );
     builder.add(
         RuleTag::ClauseElliptical,
@@ -373,12 +373,12 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseSimple
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseExistential
-        | RuleTag::ClauseCopularNoun
-        | RuleTag::ClauseCopularAdjective
-        | RuleTag::ClauseCopularPrepositional
-        | RuleTag::ClauseContractedCopularNoun
-        | RuleTag::ClauseContractedCopularAdjective
-        | RuleTag::ClauseContractedCopularPrepositional
+        | RuleTag::CopularRemainderNoun
+        | RuleTag::CopularRemainderAdjective
+        | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderAdverb
+        | RuleTag::ClauseCopular
+        | RuleTag::ClauseContractedCopular
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
@@ -774,12 +774,13 @@ fn reduce_simple_clause(
                 finite: true,
             })
         }
-        tag @ (RuleTag::ClauseCopularNoun
-        | RuleTag::ClauseCopularAdjective
-        | RuleTag::ClauseCopularPrepositional
-        | RuleTag::ClauseContractedCopularNoun
-        | RuleTag::ClauseContractedCopularAdjective
-        | RuleTag::ClauseContractedCopularPrepositional) => reduce_copular_clause(tag, children),
+        RuleTag::CopularRemainderNoun
+        | RuleTag::CopularRemainderAdjective
+        | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderAdverb => Some(Features::None),
+        tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
+            reduce_copular_clause(tag, children)
+        }
         RuleTag::RelativeObject => {
             let Features::NounPhrase {
                 agreement: Some(subject_agreement),
@@ -914,12 +915,7 @@ fn reduce_copular_clause(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
-    let contracted = matches!(
-        tag,
-        RuleTag::ClauseContractedCopularNoun
-            | RuleTag::ClauseContractedCopularAdjective
-            | RuleTag::ClauseContractedCopularPrepositional
-    );
+    let contracted = tag == RuleTag::ClauseContractedCopular;
     let agreement = if contracted {
         let Features::SubjectAuxiliary {
             agreement,
@@ -1222,12 +1218,12 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseSimple
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseExistential
-        | RuleTag::ClauseCopularNoun
-        | RuleTag::ClauseCopularAdjective
-        | RuleTag::ClauseCopularPrepositional
-        | RuleTag::ClauseContractedCopularNoun
-        | RuleTag::ClauseContractedCopularAdjective
-        | RuleTag::ClauseContractedCopularPrepositional
+        | RuleTag::CopularRemainderNoun
+        | RuleTag::CopularRemainderAdjective
+        | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderAdverb
+        | RuleTag::ClauseCopular
+        | RuleTag::ClauseContractedCopular
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
@@ -1449,12 +1445,13 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                 }),
             )))
         }
-        tag @ (RuleTag::ClauseCopularNoun
-        | RuleTag::ClauseCopularAdjective
-        | RuleTag::ClauseCopularPrepositional
-        | RuleTag::ClauseContractedCopularNoun
-        | RuleTag::ClauseContractedCopularAdjective
-        | RuleTag::ClauseContractedCopularPrepositional) => lower_copular_clause(tag, children),
+        tag @ (RuleTag::CopularRemainderNoun
+        | RuleTag::CopularRemainderAdjective
+        | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderAdverb) => lower_copular_remainder(tag, children),
+        tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
+            lower_copular_clause(tag, children)
+        }
         RuleTag::RelativeObject => {
             let Lowered::NounPhrase(subject) = take(children, 0)? else {
                 return None;
@@ -1578,6 +1575,7 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                             auxiliary: subject_auxiliary.auxiliary,
                             contracted_with_subject: true,
                         },
+                        precomplement_adverbs: vec![],
                         complement,
                         adjuncts: vec![],
                     },
@@ -1588,14 +1586,53 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
     }
 }
 
+fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
+    let remainder = match tag {
+        RuleTag::CopularRemainderNoun => {
+            let Lowered::NounPhrase(complement) = take(children, 0)? else {
+                return None;
+            };
+            CopularRemainder {
+                precomplement_adverbs: Vec::new(),
+                complement: CopularComplement::NounPhrase(complement),
+            }
+        }
+        RuleTag::CopularRemainderAdjective => {
+            let Lowered::AdjectivePhrase(complement) = take(children, 0)? else {
+                return None;
+            };
+            CopularRemainder {
+                precomplement_adverbs: Vec::new(),
+                complement: CopularComplement::Adjective(complement),
+            }
+        }
+        RuleTag::CopularRemainderPrepositional => {
+            let Lowered::PrepositionalPhrase(complement) = take(children, 0)? else {
+                return None;
+            };
+            CopularRemainder {
+                precomplement_adverbs: Vec::new(),
+                complement: CopularComplement::Prepositional(complement),
+            }
+        }
+        RuleTag::CopularRemainderAdverb => {
+            let Lowered::Adverb(adverb) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::CopularRemainder(mut remainder) = take(children, 1)? else {
+                return None;
+            };
+            remainder.precomplement_adverbs.insert(0, adverb);
+            remainder
+        }
+        _ => return None,
+    };
+    Some(Lowered::CopularRemainder(remainder))
+}
+
 fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    let contracted = matches!(
-        tag,
-        RuleTag::ClauseContractedCopularNoun
-            | RuleTag::ClauseContractedCopularAdjective
-            | RuleTag::ClauseContractedCopularPrepositional
-    );
-    let (subject, copula, complement_index) = if contracted {
+    let contracted = tag == RuleTag::ClauseContractedCopular;
+    let (subject, copula, remainder_index) = if contracted {
         let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
             return None;
         };
@@ -1626,33 +1663,16 @@ fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowere
             2,
         )
     };
-    let complement = match tag {
-        RuleTag::ClauseCopularNoun | RuleTag::ClauseContractedCopularNoun => {
-            let Lowered::NounPhrase(complement) = take(children, complement_index)? else {
-                return None;
-            };
-            crate::syntax::CopularComplement::NounPhrase(complement)
-        }
-        RuleTag::ClauseCopularAdjective | RuleTag::ClauseContractedCopularAdjective => {
-            let Lowered::AdjectivePhrase(complement) = take(children, complement_index)? else {
-                return None;
-            };
-            crate::syntax::CopularComplement::Adjective(complement)
-        }
-        RuleTag::ClauseCopularPrepositional | RuleTag::ClauseContractedCopularPrepositional => {
-            let Lowered::PrepositionalPhrase(complement) = take(children, complement_index)? else {
-                return None;
-            };
-            crate::syntax::CopularComplement::Prepositional(complement)
-        }
-        _ => return None,
+    let Lowered::CopularRemainder(remainder) = take(children, remainder_index)? else {
+        return None;
     };
     Some(Lowered::Clause(Clause::Independent(
         IndependentClause::Copular(
             subject,
             crate::syntax::CopularPredicate {
                 copula,
-                complement,
+                precomplement_adverbs: remainder.precomplement_adverbs,
+                complement: remainder.complement,
                 adjuncts: Vec::new(),
             },
         ),
@@ -2613,6 +2633,34 @@ mod tests {
                 predicate.complement,
                 crate::syntax::CopularComplement::NounPhrase(_)
             ));
+        }
+    }
+
+    #[test]
+    fn copular_adverbs_precede_the_complement() {
+        for (source, contracted) in [("It is still a land.", false), ("It's still a land.", true)] {
+            let parsed = parse(source);
+            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+            let SentenceBody::Independent(IndependentClause::Copular(subject, predicate)) =
+                &parsed.sentence().expect("sentence root").body
+            else {
+                panic!("expected a copular clause: {:#?}", parsed.sentence());
+            };
+            assert!(matches!(
+                subject,
+                Subject(NounPhrase::Pronoun {
+                    pronoun: Pronoun::It(crate::word::Gender::Neuter),
+                    case: PronounCase::Subject,
+                })
+            ));
+            assert_eq!(predicate.copula.contracted_with_subject, contracted);
+            assert_eq!(predicate.precomplement_adverbs.len(), 1);
+            assert_eq!(predicate.precomplement_adverbs[0].spelling(), "still");
+            assert!(matches!(
+                predicate.complement,
+                crate::syntax::CopularComplement::NounPhrase(_)
+            ));
+            assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
         }
     }
 
