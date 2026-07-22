@@ -326,7 +326,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             .filter(|component| !component.is_empty())
             .map(|component| self.parse_cost_component(component))
             .collect();
-        Cost { components }
+        Cost::Components(components)
     }
 
     fn parse_cost_component(&mut self, tokens: &[Token]) -> Phrase {
@@ -505,6 +505,10 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     }
 
     fn parse_keyword_argument(&mut self, tokens: &[Token]) -> Phrase {
+        let text = self.tokens_text(tokens);
+        if text.starts_with('{') && text.len() > 2 && text.ends_with('}') {
+            return Phrase::Cost(Cost::SymbolList(text.to_owned()));
+        }
         if tokens.len() == 2
             && self.token_text(&tokens[0]).eq_ignore_ascii_case("from")
             && let Some(color) = color_word(self.token_text(&tokens[1]))
@@ -825,7 +829,10 @@ mod tests {
         let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
             panic!("expected activated ability");
         };
-        assert_eq!(ability.cost.components.len(), 3);
+        assert!(matches!(
+            ability.cost,
+            Cost::Components(ref components) if components.len() == 3
+        ));
         assert_eq!(ability.effect.sentences.len(), 2);
         assert!(
             matches!(
@@ -1086,6 +1093,19 @@ mod tests {
             keywords.abilities[0].argument,
             Some(Phrase::EmbeddedAbility(_))
         ));
+    }
+
+    #[test]
+    fn contiguous_symbol_keyword_argument_is_a_cost() {
+        let report = parse("Morph {2}{W}");
+        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+            panic!("expected keyword ability");
+        };
+        assert!(matches!(
+            &keywords.abilities[0].argument,
+            Some(Phrase::Cost(Cost::SymbolList(symbols))) if symbols == "{2}{W}"
+        ));
+        assert_eq!(render(&report), "Morph {2}{W}");
     }
 
     #[test]
@@ -1359,6 +1379,7 @@ mod tests {
                     "Power-up",
                     "Haste",
                     "Crew",
+                    "Morph",
                 ],
             )
             .with_catalog(

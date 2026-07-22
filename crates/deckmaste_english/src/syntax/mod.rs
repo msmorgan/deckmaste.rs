@@ -96,8 +96,10 @@ impl<'syntax> UnknownWalker<'syntax> {
     }
 
     fn cost(&mut self, cost: &'syntax Cost, context: Option<UnknownRole>) {
-        for component in &cost.components {
-            self.phrase(component, UnknownRole::ActivationCost, context);
+        if let Cost::Components(components) = cost {
+            for component in components {
+                self.phrase(component, UnknownRole::ActivationCost, context);
+            }
         }
     }
 
@@ -433,6 +435,7 @@ impl<'syntax> UnknownWalker<'syntax> {
             Phrase::QuotedAbility(quoted) => {
                 self.ability(&quoted.ability, Some(UnknownRole::EmbeddedRules));
             }
+            Phrase::Cost(cost) => self.cost(cost, context),
             Phrase::UnknownPhrase(unknown) => self.push(unknown, role, context),
             Phrase::Quantity(_)
             | Phrase::Adverb(_)
@@ -558,9 +561,7 @@ mod tests {
                 Ability {
                     ability_word: None,
                     kind: AbilityKind::Activated(ActivatedAbility {
-                        cost: Cost {
-                            components: vec![Phrase::UnknownPhrase(unknown("cost"))],
-                        },
+                        cost: Cost::Components(vec![Phrase::UnknownPhrase(unknown("cost"))]),
                         effect: Paragraph::default(),
                         effect_initial_uppercase: true,
                     }),

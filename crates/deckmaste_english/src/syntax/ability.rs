@@ -33,9 +33,16 @@ pub struct ActivatedAbility {
     pub effect_initial_uppercase: bool,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Cost {
-    pub components: Vec<Phrase>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Cost {
+    Components(Vec<Phrase>),
+    SymbolList(String),
+}
+
+impl Default for Cost {
+    fn default() -> Self {
+        Self::Components(Vec::new())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use super::ability::Ability;
+use super::ability::Cost;
 use super::ability::QuotedAbility;
 use super::clause::Clause;
 use super::clause::InfinitiveClause;
@@ -276,6 +277,7 @@ pub enum Phrase {
     Adverb(Vocab),
     CatalogAtom(CatalogAtom),
     ColorWord(ColorWord),
+    Cost(Cost),
     ThisCard(ThisCardForm),
     OracleSymbol(OracleSymbol),
     SymbolSequence(Vec<OracleSymbol>),

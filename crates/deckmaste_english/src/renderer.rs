@@ -293,9 +293,13 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn cost(&self, cost: &Cost) -> Result<String, RenderError> {
+        let components = match cost {
+            Cost::Components(components) => components,
+            Cost::SymbolList(symbols) => return Ok(symbols.clone()),
+        };
         let mut rendered = String::new();
         let mut saw_lexical_component = false;
-        for (index, component) in cost.components.iter().enumerate() {
+        for (index, component) in components.iter().enumerate() {
             if index > 0 {
                 rendered.push_str(", ");
             }
@@ -848,6 +852,7 @@ impl<'identity> Renderer<'identity> {
             Phrase::Adverb(adverb) => Ok(adverb.spelling().to_owned()),
             Phrase::CatalogAtom(atom) => Ok(render_catalog_atom(atom)),
             Phrase::ColorWord(color) => Ok(color.spelling().to_owned()),
+            Phrase::Cost(cost) => self.cost(cost),
             Phrase::ThisCard(form) => self.this_card(*form),
             Phrase::OracleSymbol(symbol) => Ok(symbol.as_str().to_owned()),
             Phrase::SymbolSequence(symbols) => {
