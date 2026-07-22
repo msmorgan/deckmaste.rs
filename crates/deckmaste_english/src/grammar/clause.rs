@@ -307,6 +307,9 @@ pub(super) fn accepts_predicate_prefix(
     else {
         return false;
     };
+    if tag == RuleTag::VerbPhraseDirectObject && *phase == PredicateAttachmentPhase::Tail {
+        return true;
+    }
     if *phase != PredicateAttachmentPhase::Object {
         return false;
     }
@@ -364,13 +367,28 @@ fn reduce_predicate(
             })
         }
         RuleTag::VerbPhraseDirectObject => {
-            let Features::NounPhrase { pronoun_case, .. } = children.get(1)?.features else {
+            let Features::NounPhrase {
+                pronoun_case,
+                temporal,
+                ..
+            } = children.get(1)?.features
+            else {
                 return None;
             };
             if *pronoun_case == Some(PronounCase::Subject) {
                 return None;
             }
-            extend_predicate(children.first()?, ObjectAttachment::Direct)
+            let Features::VerbPhrase { object, phase, .. } = children.first()?.features else {
+                return None;
+            };
+            let attachment = if *temporal
+                && (*phase == PredicateAttachmentPhase::Tail || object.has_direct_object())
+            {
+                ObjectAttachment::None
+            } else {
+                ObjectAttachment::Direct
+            };
+            extend_predicate(children.first()?, attachment)
         }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
@@ -382,6 +400,7 @@ fn reduce_predicate(
         | RuleTag::VerbPhraseQuantity => {
             let attachment = match tag {
                 RuleTag::VerbPhraseAbility => ObjectAttachment::Ability,
+                RuleTag::VerbPhrasePrepositional => ObjectAttachment::Prepositional,
                 RuleTag::VerbPhraseOracleSymbol | RuleTag::VerbPhrasePowerToughness => {
                     ObjectAttachment::Direct
                 }
@@ -419,14 +438,22 @@ fn extend_predicate(
     };
     let next_phase = match (attachment, *phase) {
         (ObjectAttachment::None, _) => PredicateAttachmentPhase::Tail,
+        (ObjectAttachment::Prepositional, _) => PredicateAttachmentPhase::PrepositionalTail,
         (_, PredicateAttachmentPhase::Object) => PredicateAttachmentPhase::Object,
-        (_, PredicateAttachmentPhase::Tail) => return None,
+        (_, PredicateAttachmentPhase::Tail | PredicateAttachmentPhase::PrepositionalTail) => {
+            return None;
+        }
     };
-    if !*accepts_direct_object && !matches!(attachment, ObjectAttachment::None) {
+    if !*accepts_direct_object
+        && !matches!(
+            attachment,
+            ObjectAttachment::None | ObjectAttachment::Prepositional
+        )
+    {
         return None;
     }
     let object = match (attachment, *object) {
-        (ObjectAttachment::None, object) => object,
+        (ObjectAttachment::None | ObjectAttachment::Prepositional, object) => object,
         (ObjectAttachment::Direct, PredicateObjectState::None) => PredicateObjectState::Direct,
         (ObjectAttachment::Ability, PredicateObjectState::None) => PredicateObjectState::Ability,
         (ObjectAttachment::DirectOrAbilityArgument, PredicateObjectState::None) => {
@@ -448,6 +475,7 @@ fn extend_predicate(
 #[derive(Debug, Clone, Copy)]
 enum ObjectAttachment {
     None,
+    Prepositional,
     Direct,
     Ability,
     DirectOrAbilityArgument,
@@ -462,6 +490,7 @@ fn reduce_simple_clause(
             let Features::NounPhrase {
                 agreement: Some(subject_agreement),
                 pronoun_case,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -563,6 +592,7 @@ fn reduce_simple_clause(
             let Features::NounPhrase {
                 agreement: Some(subject_agreement),
                 pronoun_case,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -606,6 +636,7 @@ fn reduce_copular_clause(
         let Features::NounPhrase {
             agreement: Some(subject_agreement),
             pronoun_case,
+            ..
         } = children.first()?.features
         else {
             return None;
@@ -905,7 +936,11 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
             let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
                 return None;
             };
-            VerbDependent::DirectObject(noun_phrase)
+            if !predicate.dependents.is_empty() && is_temporal_noun_phrase(&noun_phrase) {
+                VerbDependent::Temporal(noun_phrase)
+            } else {
+                VerbDependent::DirectObject(noun_phrase)
+            }
         }
         RuleTag::VerbPhraseAdjective => {
             let Lowered::AdjectivePhrase(adjective) = take(children, 1)? else {
@@ -1375,6 +1410,11 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                     phrase,
                 )));
             }
+            VerbDependent::Temporal(phrase) => {
+                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Temporal(
+                    phrase,
+                )));
+            }
             VerbDependent::Infinitive(clause) => {
                 elements.push(PredicateElement::Complement(
                     PredicateComplement::Infinitive(finish_infinitive(clause)?),
@@ -1467,12 +1507,17 @@ fn is_temporal_adjunct(verb: &VerbInstance, phrase: &NounPhrase) -> bool {
     ) {
         return false;
     }
+    is_temporal_noun_phrase(phrase)
+}
+
+fn is_temporal_noun_phrase(phrase: &NounPhrase) -> bool {
     matches!(
         phrase,
         NounPhrase::Nominal(nominal)
             if matches!(
                 nominal.head,
                 NounInstance::Singular(Noun::Word(Vocab::Combat | Vocab::Turn))
+                    | NounInstance::Plural(Noun::Word(Vocab::Combat | Vocab::Turn))
             )
     )
 }
@@ -1516,7 +1561,7 @@ mod tests {
     use crate::word::VerbSlot;
     use crate::word::Vocab;
 
-    const FIXTURES: [&str; 17] = [
+    const FIXTURES: [&str; 20] = [
         "Draw a card.",
         "Spells cost {1} less to cast.",
         "This creature costs {1} less to cast.",
@@ -1534,6 +1579,9 @@ mod tests {
         "You gain 2 life.",
         "This creature deals 3 damage to any target.",
         "Activate only as a sorcery.",
+        "Activate only once each turn.",
+        "This ability triggers only once each turn.",
+        "This creature can't attack during extra turns.",
     ];
 
     #[test]
@@ -1618,6 +1666,56 @@ mod tests {
                 PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
                 PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition)),
             ] if preposition.preposition == crate::syntax::Preposition::As
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn temporal_noun_phrases_can_follow_predicate_tail_adverbs() {
+        for source in [
+            "Activate only once each turn.",
+            "This ability triggers only once each turn.",
+        ] {
+            let parsed = parse(source);
+            let predicate = match &parsed.sentence().expect("sentence root").body {
+                SentenceBody::Independent(IndependentClause::Imperative(
+                    Predicate::Intransitive(predicate),
+                ))
+                | SentenceBody::Independent(IndependentClause::Intransitive(_, predicate)) => {
+                    predicate
+                }
+                clause => panic!("expected an intransitive clause, got {clause:#?}"),
+            };
+            assert!(matches!(
+                predicate.elements.as_slice(),
+                [
+                    PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
+                    PredicateElement::Adjunct(PredicateAdjunct::Adverb(once)),
+                    PredicateElement::Adjunct(PredicateAdjunct::Temporal(
+                        NounPhrase::Nominal(turn),
+                    )),
+                ] if once.spelling() == "once"
+                    && matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
+            ));
+            assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        }
+    }
+
+    #[test]
+    fn plural_temporal_heads_do_not_become_late_objects() {
+        let source = "This creature can't attack during extra turns.";
+        let parsed = parse(source);
+        assert!(matches!(
+            &parsed.sentence().expect("sentence root").body,
+            SentenceBody::Independent(IndependentClause::Deontic(
+                _,
+                _,
+                Predicate::Intransitive(predicate),
+            )) if matches!(
+                predicate.elements.as_slice(),
+                [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
+                    if preposition.preposition == crate::syntax::Preposition::During
+            )
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
@@ -1810,7 +1908,7 @@ mod tests {
     }
 
     #[test]
-    fn predicate_prefix_pruning_rejects_late_or_duplicate_objects() {
+    fn predicate_prefix_pruning_keeps_only_open_temporal_tail_candidates() {
         let open = Features::VerbPhrase {
             form: PredicateForm::Imperative,
             object: PredicateObjectState::None,
@@ -1835,6 +1933,12 @@ mod tests {
             phase: PredicateAttachmentPhase::Tail,
             accepts_direct_object: true,
         };
+        let prepositional_tail = Features::VerbPhrase {
+            form: PredicateForm::Imperative,
+            object: PredicateObjectState::None,
+            phase: PredicateAttachmentPhase::PrepositionalTail,
+            accepts_direct_object: true,
+        };
 
         assert!(accepts_predicate_prefix(
             RuleTag::VerbPhraseDirectObject,
@@ -1851,10 +1955,15 @@ mod tests {
             1,
             &ability,
         ));
-        assert!(!accepts_predicate_prefix(
+        assert!(accepts_predicate_prefix(
             RuleTag::VerbPhraseDirectObject,
             1,
             &tail,
+        ));
+        assert!(!accepts_predicate_prefix(
+            RuleTag::VerbPhraseDirectObject,
+            1,
+            &prepositional_tail,
         ));
     }
 

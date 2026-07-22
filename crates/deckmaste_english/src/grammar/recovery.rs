@@ -36,6 +36,7 @@ pub(super) fn scan_unknown(
         features: Features::Noun {
             form,
             initial_sound,
+            temporal: false,
         },
         meaning: MeaningKey::Unknown(UnknownKey { slot, span }),
         local_cost: ParseCost {

@@ -99,6 +99,7 @@ enum VerbDependent {
     Scalar(Phrase),
     Statistic(Phrase),
     Prepositional(PrepositionalPhrase),
+    Temporal(NounPhrase),
     Infinitive(InfinitiveClause),
     Subordinate(Box<Clause>),
     Adverbial(Phrase),
@@ -279,6 +280,7 @@ pub(crate) enum PredicateObjectState {
 pub(crate) enum PredicateAttachmentPhase {
     Object,
     Tail,
+    PrepositionalTail,
 }
 
 impl PredicateObjectState {
@@ -304,16 +306,19 @@ pub(crate) enum Features {
     Noun {
         form: NounForm,
         initial_sound: InitialSound,
+        temporal: bool,
     },
     Nominal {
         form: NounForm,
         initial_sound: InitialSound,
         determined: bool,
         leading_recovery: bool,
+        temporal: bool,
     },
     NounPhrase {
         agreement: Option<Agreement>,
         pronoun_case: Option<PronounCase>,
+        temporal: bool,
     },
     PossessiveNounPhrase {
         form: NounForm,
@@ -1610,10 +1615,12 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
         WordMatch::Noun(noun) => {
             let form = noun_form(&noun);
             let initial_sound = noun_initial_sound(&noun)?;
+            let temporal = noun_is_temporal(&noun);
             (
                 Features::Noun {
                     form,
                     initial_sound,
+                    temporal,
                 },
                 MeaningKey::Noun(noun),
             )
@@ -1693,6 +1700,7 @@ fn this_card_match(end: usize, form: ThisCardForm) -> LexicalMatch<Features, Mea
                 number: Number::Singular,
             }),
             pronoun_case: None,
+            temporal: false,
         },
         meaning: MeaningKey::ThisCard(form),
         local_cost: ParseCost::default(),
@@ -1718,6 +1726,7 @@ fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features
     Features::NounPhrase {
         agreement,
         pronoun_case: case,
+        temporal: false,
     }
 }
 
@@ -1740,6 +1749,15 @@ fn noun_form(noun: &NounInstance) -> NounForm {
         NounInstance::Plural(_) => NounForm::Plural,
         NounInstance::Mass(_) => NounForm::Mass,
     }
+}
+
+fn noun_is_temporal(noun: &NounInstance) -> bool {
+    let noun = match noun {
+        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
+            noun
+        }
+    };
+    matches!(noun, Noun::Word(Vocab::Combat | Vocab::Turn))
 }
 
 fn noun_initial_sound(noun: &NounInstance) -> Option<InitialSound> {
@@ -1896,6 +1914,7 @@ fn reduce_possessive_noun_phrase(
             let Features::Noun {
                 form,
                 initial_sound,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -2038,6 +2057,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             let Features::Noun {
                 form,
                 initial_sound,
+                temporal,
             } = child.features
             else {
                 return None;
@@ -2047,6 +2067,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound: *initial_sound,
                 determined: false,
                 leading_recovery: false,
+                temporal: *temporal,
             })
         }
         RuleTag::NominalAdjective => {
@@ -2076,6 +2097,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                temporal,
                 ..
             } = children.get(1)?.features
             else {
@@ -2092,6 +2114,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound: *initial_sound,
                 determined: true,
                 leading_recovery: false,
+                temporal: *temporal,
             })
         }
         RuleTag::NominalPrepositional | RuleTag::NominalRelative => {
@@ -2100,6 +2123,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound,
                 determined,
                 leading_recovery,
+                temporal,
             } = children.first()?.features
             else {
                 return None;
@@ -2109,6 +2133,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound: *initial_sound,
                 determined: *determined,
                 leading_recovery: *leading_recovery,
+                temporal: *temporal,
             })
         }
         _ => None,
@@ -2118,7 +2143,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
 fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
         RuleTag::NounPhraseNominal => {
-            let Features::Nominal { form, .. } = children.first()?.features else {
+            let Features::Nominal { form, temporal, .. } = children.first()?.features else {
                 return None;
             };
             let agreement = Some(Agreement {
@@ -2131,6 +2156,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             Some(Features::NounPhrase {
                 agreement,
                 pronoun_case: None,
+                temporal: *temporal,
             })
         }
         RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
@@ -2141,6 +2167,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             let Features::NounPhrase {
                 agreement,
                 pronoun_case,
+                temporal,
             } = children.first()?.features
             else {
                 return None;
@@ -2148,31 +2175,43 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             Some(Features::NounPhrase {
                 agreement: *agreement,
                 pronoun_case: *pronoun_case,
+                temporal: *temporal,
             })
         }
         RuleTag::NounPhraseCoordination => {
+            let Features::NounPhrase {
+                temporal: first_temporal,
+                ..
+            } = children.first()?.features
+            else {
+                return None;
+            };
             let Features::Conjunction(conjunction) = children.get(1)?.features else {
                 return None;
             };
             if *conjunction == crate::syntax::PredicateConjunction::Then {
                 return None;
             }
+            let Features::NounPhrase {
+                agreement: next_agreement,
+                temporal: next_temporal,
+                ..
+            } = children.get(2)?.features
+            else {
+                return None;
+            };
             let agreement = match conjunction {
                 crate::syntax::PredicateConjunction::And => Some(Agreement {
                     person: Person::Third,
                     number: Number::Plural,
                 }),
-                crate::syntax::PredicateConjunction::Or => {
-                    let Features::NounPhrase { agreement, .. } = children.get(2)?.features else {
-                        return None;
-                    };
-                    *agreement
-                }
+                crate::syntax::PredicateConjunction::Or => *next_agreement,
                 crate::syntax::PredicateConjunction::Then => return None,
             };
             Some(Features::NounPhrase {
                 agreement,
                 pronoun_case: None,
+                temporal: *first_temporal && *next_temporal,
             })
         }
         RuleTag::PrepositionalPhrase => Some(Features::PrepositionalPhrase),
@@ -2191,7 +2230,10 @@ fn nominal_with_prefix(
     leading_recovery: bool,
 ) -> Option<Reduced> {
     let Features::Nominal {
-        form, determined, ..
+        form,
+        determined,
+        temporal,
+        ..
     } = nominal.features
     else {
         return None;
@@ -2204,6 +2246,7 @@ fn nominal_with_prefix(
         initial_sound,
         determined: *determined,
         leading_recovery,
+        temporal: *temporal,
     })
 }
 
@@ -2211,6 +2254,7 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
     let Features::NounPhrase {
         agreement,
         pronoun_case,
+        temporal,
     } = child.features
     else {
         return None;
@@ -2218,6 +2262,7 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
     Some(Features::NounPhrase {
         agreement: *agreement,
         pronoun_case: *pronoun_case,
+        temporal: *temporal,
     })
 }
 
