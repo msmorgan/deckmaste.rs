@@ -7,7 +7,9 @@ mod tests {
     use crate::forest::ForestSymbol;
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
+    use crate::syntax::AdjectiveComplement;
     use crate::syntax::AdjectivePhrase;
+    use crate::syntax::ComparisonMarker;
     use crate::syntax::Determiner;
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalComplement;
@@ -70,6 +72,9 @@ mod tests {
             "maximum hand size",
             "the amount of mana",
             "your party",
+            "power greater than its base power",
+            "mana value less than or equal to the number of lands you control",
+            "a color other than black",
         ] {
             let parsed = parse(source);
             assert_eq!(
@@ -96,6 +101,108 @@ mod tests {
                 NounInstance::Singular(Noun::Word(word)) if word.spelling() == expected
             ));
         }
+    }
+
+    #[test]
+    fn postpositive_comparative_adjectives_parse_without_noun_recovery() {
+        for (source, expected_head, expected_marker) in [
+            (
+                "power greater than its base power",
+                Vocab::Greater,
+                ComparisonMarker::Than,
+            ),
+            (
+                "mana value less than or equal to the number of lands you control",
+                Vocab::Less,
+                ComparisonMarker::ThanOrEqualTo,
+            ),
+            (
+                "a color other than black",
+                Vocab::Other,
+                ComparisonMarker::Than,
+            ),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact, "{source}");
+            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                panic!("expected a nominal phrase for {source:?}");
+            };
+            let [NominalComplement::Adjective(AdjectivePhrase { head, complements })] =
+                nominal.complements.as_slice()
+            else {
+                panic!("expected one postpositive adjective for {source:?}: {nominal:#?}");
+            };
+            assert_eq!(head, &Adjective::Word(expected_head), "{source}");
+            assert!(
+                matches!(
+                    complements.as_slice(),
+                    [AdjectiveComplement::Comparison(comparison)]
+                        if comparison.marker == expected_marker
+                ),
+                "{source}: {complements:#?}"
+            );
+        }
+    }
+
+    #[test]
+    fn self_reference_possessive_is_one_determiner() {
+        let parsed = parse("~'s power");
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a possessive nominal");
+        };
+        assert!(
+            matches!(
+                &nominal.determiner,
+                Some(Determiner::Possessive(Possessor::NounPhrase(possessor)))
+                    if matches!(possessor.as_ref(), NounPhrase::ThisCard(_))
+            ),
+            "{nominal:#?}"
+        );
+        assert_eq!(
+            render_fragment(parsed.noun_phrase().unwrap()),
+            "Test Card's power"
+        );
+    }
+
+    #[test]
+    fn self_reference_possessive_can_stand_as_an_elliptical_noun_phrase() {
+        let parsed = parse("~'s");
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert!(matches!(
+            parsed.noun_phrase(),
+            Some(NounPhrase::Possessive(Possessor::NounPhrase(possessor)))
+                if matches!(possessor.as_ref(), NounPhrase::ThisCard(_))
+        ));
+        assert_eq!(
+            render_fragment(parsed.noun_phrase().unwrap()),
+            "Test Card's"
+        );
+    }
+
+    #[test]
+    fn comparison_inside_preposition_stays_with_its_object() {
+        let parsed = parse("target creature card with mana value less than or equal to ~'s power");
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let Some(NounPhrase::Nominal(card)) = parsed.noun_phrase() else {
+            panic!("expected a card nominal");
+        };
+        let [NominalComplement::Prepositional(with)] = card.complements.as_slice() else {
+            panic!("comparison escaped its prepositional object: {card:#?}");
+        };
+        let crate::syntax::Phrase::NounPhrase(object) = with.object.as_ref() else {
+            panic!("with object should be a noun phrase");
+        };
+        let NounPhrase::Nominal(value) = object.as_ref() else {
+            panic!("with object should be nominal");
+        };
+        assert!(
+            matches!(
+                value.complements.as_slice(),
+                [NominalComplement::Adjective(_)]
+            ),
+            "{value:#?}"
+        );
     }
 
     #[test]
@@ -386,7 +493,7 @@ mod tests {
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
             .with_catalog(CatalogKind::CreatureType, ["Goblin"])
-            .with_catalog(CatalogKind::CardType, ["Artifact", "Creature"])
+            .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
             .with_catalog(CatalogKind::Supertype, ["Legendary"])
     }
 

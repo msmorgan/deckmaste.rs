@@ -39,6 +39,8 @@ use crate::surface::TokenKind;
 use crate::surface::lex;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
+use crate::syntax::ComparisonComplement;
+use crate::syntax::ComparisonMarker;
 use crate::syntax::Demonstrative;
 use crate::syntax::Determiner;
 use crate::syntax::ExistentialForm;
@@ -135,6 +137,8 @@ pub(crate) enum Nonterminal {
     Determiner,
     Adjective,
     AdjectivePhrase,
+    ComparisonStandard,
+    ComparisonComplement,
     Noun,
     Nominal,
     NounPhrase,
@@ -181,12 +185,15 @@ pub(crate) enum EnglishLexicalSlot {
     QuantityBoth,
     QuantityThatMany,
     QuantityThatMuch,
+    Than,
+    OrEqualTo,
     Up,
     To,
     Of,
     Reciprocal,
     ThisCard,
     FullThisCard,
+    PossessiveThisCard,
     Preposition,
     OracleSymbol,
     PowerToughness,
@@ -294,6 +301,13 @@ pub(crate) enum PredicateAttachmentPhase {
     PrepositionalTail,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum NominalAttachmentPhase {
+    Open,
+    Prepositional,
+    PostpositiveAdjective,
+}
+
 impl PredicateObjectState {
     const fn has_direct_object(self) -> bool {
         !matches!(self, Self::None)
@@ -324,12 +338,16 @@ pub(crate) enum Features {
         initial_sound: InitialSound,
         determined: bool,
         leading_recovery: bool,
+        attachment: NominalAttachmentPhase,
         temporal: bool,
     },
     NounPhrase {
         agreement: Option<Agreement>,
         pronoun_case: Option<PronounCase>,
         temporal: bool,
+    },
+    PossessiveThisCard {
+        agreement: Agreement,
     },
     PossessiveNounPhrase {
         form: NounForm,
@@ -540,6 +558,8 @@ pub(crate) enum LiteralKey {
     Up,
     To,
     Target,
+    Than,
+    OrEqualTo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -593,11 +613,16 @@ enum RuleTag {
     DeterminerTarget,
     DeterminerQuantifiedTarget,
     DeterminerQuantity,
+    DeterminerPossessiveThisCard,
     PossessiveNounBase,
     PossessiveNounDetermined,
     DeterminerPossessiveNoun,
     Adjective,
     AdjectivePhrase,
+    AdjectivePhraseComparison,
+    ComparisonStandard,
+    ComparisonThan,
+    ComparisonThanOrEqualTo,
     Noun,
     NominalNoun,
     NominalAdjective,
@@ -608,6 +633,7 @@ enum RuleTag {
     NominalPrepositional,
     NominalQuantityComplement,
     NominalRelative,
+    NominalPostpositiveAdjective,
     NounPhraseNominal,
     NounPhraseSubjectPronoun,
     NounPhraseObjectPronoun,
@@ -615,6 +641,7 @@ enum RuleTag {
     NounPhraseQuantity,
     NounPhraseThisCard,
     NounPhraseFullThisCard,
+    NounPhrasePossessiveThisCard,
     NounPhrasePartitive,
     NounPhraseCoordination,
     PrepositionalPhrase,
@@ -973,6 +1000,16 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| quantity_match(end, QuantityKey::ThatMuch))
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::Than => self
+                .one_token_match(tokens, start, "than")
+                .map(|end| literal_match(end, LiteralKey::Than))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::OrEqualTo => self
+                .words_match(tokens, start, &["or", "equal", "to"])
+                .map(|end| literal_match(end, LiteralKey::OrEqualTo))
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::Up => self
                 .one_token_match(tokens, start, "up")
                 .map(|end| literal_match(end, LiteralKey::Up))
@@ -1010,6 +1047,29 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|_| this_card_match(start + 1, ThisCardForm::FullName))
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::PossessiveThisCard => {
+                let form = match tokens.get(start).map(|token| token.kind) {
+                    Some(TokenKind::SelfReference) => Some(ThisCardForm::AbbreviatedName),
+                    Some(TokenKind::FullSelfReference) => Some(ThisCardForm::FullName),
+                    _ => None,
+                };
+                form.and_then(|form| {
+                    self.one_token_match(tokens, start + 1, "'s")
+                        .map(|end| LexicalMatch {
+                            end,
+                            features: Features::PossessiveThisCard {
+                                agreement: Agreement {
+                                    person: Person::Third,
+                                    number: Number::Singular,
+                                },
+                            },
+                            meaning: MeaningKey::ThisCard(form),
+                            local_cost: ParseCost::default(),
+                        })
+                })
+                .into_iter()
+                .collect()
+            }
             EnglishLexicalSlot::Preposition => self.scan_preposition(tokens, start),
             EnglishLexicalSlot::Existential => self.scan_existential(tokens, start),
             slot @ (EnglishLexicalSlot::PossessiveNoun
@@ -1714,6 +1774,11 @@ impl RuleBuilder {
         );
         self.add(RuleTag::DeterminerQuantity, N::Determiner, [n(N::Quantity)]);
         self.add(
+            RuleTag::DeterminerPossessiveThisCard,
+            N::Determiner,
+            [l(L::PossessiveThisCard)],
+        );
+        self.add(
             RuleTag::DeterminerPossessiveNoun,
             N::Determiner,
             [n(N::PossessiveNounPhrase)],
@@ -1724,6 +1789,31 @@ impl RuleBuilder {
             RuleTag::AdjectivePhrase,
             N::AdjectivePhrase,
             [n(N::Adjective)],
+        );
+        self.add(
+            RuleTag::ComparisonStandard,
+            N::ComparisonStandard,
+            [n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::ComparisonStandard,
+            N::ComparisonStandard,
+            [n(N::AdjectivePhrase)],
+        );
+        self.add(
+            RuleTag::ComparisonThan,
+            N::ComparisonComplement,
+            [l(L::Than), n(N::ComparisonStandard)],
+        );
+        self.add(
+            RuleTag::ComparisonThanOrEqualTo,
+            N::ComparisonComplement,
+            [l(L::Than), l(L::OrEqualTo), n(N::ComparisonStandard)],
+        );
+        self.add(
+            RuleTag::AdjectivePhraseComparison,
+            N::AdjectivePhrase,
+            [n(N::Adjective), n(N::ComparisonComplement)],
         );
         self.add(RuleTag::Noun, N::Noun, [l(L::Noun(NounUsage::Either))]);
         self.add(
@@ -1798,6 +1888,11 @@ impl RuleBuilder {
             N::Nominal,
             [n(N::Nominal), n(N::RelativeClause)],
         );
+        self.add(
+            RuleTag::NominalPostpositiveAdjective,
+            N::Nominal,
+            [n(N::Nominal), n(N::AdjectivePhrase)],
+        );
 
         self.add(RuleTag::NounPhraseNominal, N::NounPhrase, [n(N::Nominal)]);
         self.add(
@@ -1821,6 +1916,11 @@ impl RuleBuilder {
             RuleTag::NounPhraseFullThisCard,
             N::NounPhrase,
             [l(L::FullThisCard)],
+        );
+        self.add(
+            RuleTag::NounPhrasePossessiveThisCard,
+            N::NounPhrase,
+            [l(L::PossessiveThisCard)],
         );
         self.add(
             RuleTag::NounPhrasePartitive,
@@ -2098,12 +2198,17 @@ fn reduce(
         | RuleTag::DeterminerClosed
         | RuleTag::DeterminerTarget
         | RuleTag::DeterminerQuantifiedTarget
-        | RuleTag::DeterminerQuantity => reduce_quantity_or_determiner(tag, children)?,
+        | RuleTag::DeterminerQuantity
+        | RuleTag::DeterminerPossessiveThisCard => reduce_quantity_or_determiner(tag, children)?,
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun => reduce_possessive_noun_phrase(tag, children)?,
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
+        | RuleTag::AdjectivePhraseComparison
+        | RuleTag::ComparisonStandard
+        | RuleTag::ComparisonThan
+        | RuleTag::ComparisonThanOrEqualTo
         | RuleTag::Noun
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
@@ -2113,7 +2218,8 @@ fn reduce(
         | RuleTag::NominalDeterminer
         | RuleTag::NominalPrepositional
         | RuleTag::NominalQuantityComplement
-        | RuleTag::NominalRelative => reduce_nominal(tag, children)?,
+        | RuleTag::NominalRelative
+        | RuleTag::NominalPostpositiveAdjective => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -2121,6 +2227,7 @@ fn reduce(
         | RuleTag::NounPhraseQuantity
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
+        | RuleTag::NounPhrasePossessiveThisCard
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::PrepositionalPhrase
@@ -2299,6 +2406,15 @@ fn reduce_quantity_or_determiner(
                 article: None,
             })
         }
+        RuleTag::DeterminerPossessiveThisCard => {
+            let Features::PossessiveThisCard { .. } = children.first()?.features else {
+                return None;
+            };
+            Some(Features::Determiner {
+                cardinality: Cardinality::Unconstrained,
+                article: None,
+            })
+        }
         _ => None,
     }
 }
@@ -2324,6 +2440,15 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             };
             Some(children.first()?.features.clone())
         }
+        RuleTag::AdjectivePhraseComparison => {
+            let Features::Adjective { .. } = children.first()?.features else {
+                return None;
+            };
+            Some(children.first()?.features.clone())
+        }
+        RuleTag::ComparisonStandard
+        | RuleTag::ComparisonThan
+        | RuleTag::ComparisonThanOrEqualTo => Some(Features::None),
         RuleTag::NominalNoun => {
             let child = children.first()?;
             let Features::Noun {
@@ -2339,6 +2464,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound: *initial_sound,
                 determined: false,
                 leading_recovery: false,
+                attachment: NominalAttachmentPhase::Open,
                 temporal: *temporal,
             })
         }
@@ -2372,6 +2498,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                attachment,
                 temporal,
                 ..
             } = children.get(1)?.features
@@ -2389,17 +2516,65 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound: *initial_sound,
                 determined: true,
                 leading_recovery: false,
+                attachment: *attachment,
                 temporal: *temporal,
             })
         }
-        RuleTag::NominalPrepositional
-        | RuleTag::NominalQuantityComplement
-        | RuleTag::NominalRelative => {
+        RuleTag::NominalPrepositional => {
             let Features::Nominal {
                 form,
                 initial_sound,
                 determined,
                 leading_recovery,
+                attachment,
+                temporal,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if *attachment == NominalAttachmentPhase::PostpositiveAdjective {
+                return None;
+            }
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: *determined,
+                leading_recovery: *leading_recovery,
+                attachment: NominalAttachmentPhase::Prepositional,
+                temporal: *temporal,
+            })
+        }
+        RuleTag::NominalQuantityComplement | RuleTag::NominalRelative => {
+            let Features::Nominal {
+                form,
+                initial_sound,
+                determined,
+                leading_recovery,
+                attachment,
+                temporal,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if *attachment == NominalAttachmentPhase::PostpositiveAdjective {
+                return None;
+            }
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: *determined,
+                leading_recovery: *leading_recovery,
+                attachment: *attachment,
+                temporal: *temporal,
+            })
+        }
+        RuleTag::NominalPostpositiveAdjective => {
+            let Features::Nominal {
+                form,
+                initial_sound,
+                determined,
+                leading_recovery,
+                attachment: NominalAttachmentPhase::Open,
                 temporal,
             } = children.first()?.features
             else {
@@ -2410,6 +2585,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound: *initial_sound,
                 determined: *determined,
                 leading_recovery: *leading_recovery,
+                attachment: NominalAttachmentPhase::PostpositiveAdjective,
                 temporal: *temporal,
             })
         }
@@ -2466,6 +2642,16 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 agreement: *agreement,
                 pronoun_case: *pronoun_case,
                 temporal: *temporal,
+            })
+        }
+        RuleTag::NounPhrasePossessiveThisCard => {
+            let Features::PossessiveThisCard { agreement } = children.first()?.features else {
+                return None;
+            };
+            Some(Features::NounPhrase {
+                agreement: Some(*agreement),
+                pronoun_case: None,
+                temporal: false,
             })
         }
         RuleTag::NounPhrasePartitive => {
@@ -2536,6 +2722,7 @@ fn nominal_with_prefix(
     let Features::Nominal {
         form,
         determined,
+        attachment,
         temporal,
         ..
     } = nominal.features
@@ -2550,6 +2737,7 @@ fn nominal_with_prefix(
         initial_sound,
         determined: *determined,
         leading_recovery,
+        attachment: *attachment,
         temporal: *temporal,
     })
 }
@@ -2751,6 +2939,7 @@ enum Lowered {
     Determiner(Determiner),
     Adjective(Adjective),
     AdjectivePhrase(AdjectivePhrase),
+    ComparisonComplement(ComparisonComplement),
     Noun(NounInstance),
     Nominal(NominalPhrase),
     PossessiveNominal(NominalPhrase),
@@ -2896,12 +3085,17 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::DeterminerClosed
         | RuleTag::DeterminerTarget
         | RuleTag::DeterminerQuantifiedTarget
-        | RuleTag::DeterminerQuantity => lower_quantity_or_determiner(tag, children),
+        | RuleTag::DeterminerQuantity
+        | RuleTag::DeterminerPossessiveThisCard => lower_quantity_or_determiner(tag, children),
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun => lower_possessive_noun_phrase(tag, children),
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
+        | RuleTag::AdjectivePhraseComparison
+        | RuleTag::ComparisonStandard
+        | RuleTag::ComparisonThan
+        | RuleTag::ComparisonThanOrEqualTo
         | RuleTag::Noun
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
@@ -2911,7 +3105,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalDeterminer
         | RuleTag::NominalPrepositional
         | RuleTag::NominalQuantityComplement
-        | RuleTag::NominalRelative => lower_nominal(tag, children),
+        | RuleTag::NominalRelative
+        | RuleTag::NominalPostpositiveAdjective => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -2919,6 +3114,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseQuantity
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
+        | RuleTag::NounPhrasePossessiveThisCard
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::PrepositionalPhrase
@@ -3042,6 +3238,14 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
             };
             Some(Lowered::Determiner(Determiner::Quantity(quantity)))
         }
+        RuleTag::DeterminerPossessiveThisCard => {
+            let Lowered::ThisCard(form) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::Determiner(Determiner::Possessive(
+                Possessor::NounPhrase(Box::new(NounPhrase::ThisCard(form))),
+            )))
+        }
         _ => None,
     }
 }
@@ -3056,6 +3260,41 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             Some(Lowered::AdjectivePhrase(AdjectivePhrase {
                 head,
                 complements: Vec::new(),
+            }))
+        }
+        RuleTag::AdjectivePhraseComparison => {
+            let Lowered::Adjective(head) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::ComparisonComplement(comparison) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::AdjectivePhrase(AdjectivePhrase {
+                head,
+                complements: vec![crate::syntax::AdjectiveComplement::Comparison(comparison)],
+            }))
+        }
+        RuleTag::ComparisonStandard => {
+            let standard = match take(children, 0)? {
+                Lowered::NounPhrase(noun_phrase) => Phrase::NounPhrase(Box::new(noun_phrase)),
+                Lowered::AdjectivePhrase(adjective) => Phrase::AdjectivePhrase(Box::new(adjective)),
+                _ => return None,
+            };
+            Some(Lowered::Phrase(standard))
+        }
+        RuleTag::ComparisonThan | RuleTag::ComparisonThanOrEqualTo => {
+            let standard_index = if tag == RuleTag::ComparisonThan { 1 } else { 2 };
+            let Lowered::Phrase(standard) = take(children, standard_index)? else {
+                return None;
+            };
+            let marker = if tag == RuleTag::ComparisonThan {
+                ComparisonMarker::Than
+            } else {
+                ComparisonMarker::ThanOrEqualTo
+            };
+            Some(Lowered::ComparisonComplement(ComparisonComplement {
+                marker,
+                standard: Box::new(standard),
             }))
         }
         RuleTag::NominalNoun => {
@@ -3161,6 +3400,18 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 .push(NominalComplement::Relative(relative));
             Some(Lowered::Nominal(nominal))
         }
+        RuleTag::NominalPostpositiveAdjective => {
+            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::AdjectivePhrase(adjective) = take(children, 1)? else {
+                return None;
+            };
+            nominal
+                .complements
+                .push(NominalComplement::Adjective(adjective));
+            Some(Lowered::Nominal(nominal))
+        }
         _ => None,
     }
 }
@@ -3195,6 +3446,14 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             Some(Lowered::NounPhrase(NounPhrase::ThisCard(form)))
+        }
+        RuleTag::NounPhrasePossessiveThisCard => {
+            let Lowered::ThisCard(form) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(NounPhrase::Possessive(
+                Possessor::NounPhrase(Box::new(NounPhrase::ThisCard(form))),
+            )))
         }
         RuleTag::NounPhrasePartitive => {
             let Lowered::Quantity(quantity) = take(children, 0)? else {

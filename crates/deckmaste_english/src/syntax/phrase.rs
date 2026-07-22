@@ -192,6 +192,7 @@ pub enum NounCardinality {
 pub enum NounPhrase {
     Nominal(NominalPhrase),
     Pronoun { pronoun: Pronoun, case: PronounCase },
+    Possessive(Possessor),
     Demonstrative(Demonstrative),
     Quantity(Quantity),
     ThisCard(ThisCardForm),
@@ -246,8 +247,21 @@ pub struct AdjectivePhrase {
     pub complements: Vec<AdjectiveComplement>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComparisonMarker {
+    Than,
+    ThanOrEqualTo,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ComparisonComplement {
+    pub marker: ComparisonMarker,
+    pub standard: Box<Phrase>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdjectiveComplement {
+    Comparison(ComparisonComplement),
     Prepositional(PrepositionalPhrase),
     Infinitive(InfinitiveClause),
     Unknown(UnknownPhrase),
@@ -255,6 +269,7 @@ pub enum AdjectiveComplement {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NominalComplement {
+    Adjective(AdjectivePhrase),
     Prepositional(PrepositionalPhrase),
     Relative(RelativeClause),
     Quantity(Quantity),

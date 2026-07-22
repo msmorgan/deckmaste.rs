@@ -7,6 +7,7 @@ use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::AttachmentPosition;
 use crate::syntax::Clause;
+use crate::syntax::ComparisonMarker;
 use crate::syntax::CoordinatedClauseMember;
 use crate::syntax::CopularComplement;
 use crate::syntax::CopularPredicate;
@@ -796,6 +797,9 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(str::to_owned)
                 .ok_or(RenderError::MissingLexicalForm("pronoun")),
+            NounPhrase::Possessive(possessor) => {
+                self.determiner(&Determiner::Possessive(possessor.clone()))
+            }
             NounPhrase::Demonstrative(demonstrative) => Ok(match demonstrative {
                 Demonstrative::This => "this",
                 Demonstrative::That => "that",
@@ -858,6 +862,7 @@ impl<'identity> Renderer<'identity> {
         parts.push(self.render_noun(&phrase.head)?);
         for complement in &phrase.complements {
             parts.push(match complement {
+                NominalComplement::Adjective(adjective) => self.adjective_phrase(adjective)?,
                 NominalComplement::Prepositional(preposition) => {
                     self.prepositional_phrase(preposition)?
                 }
@@ -945,6 +950,13 @@ impl<'identity> Renderer<'identity> {
         ];
         for complement in &phrase.complements {
             parts.push(match complement {
+                AdjectiveComplement::Comparison(comparison) => {
+                    let marker = match comparison.marker {
+                        ComparisonMarker::Than => "than",
+                        ComparisonMarker::ThanOrEqualTo => "than or equal to",
+                    };
+                    format!("{marker} {}", self.phrase(&comparison.standard)?)
+                }
                 AdjectiveComplement::Prepositional(preposition) => {
                     self.prepositional_phrase(preposition)?
                 }

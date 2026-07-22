@@ -372,6 +372,11 @@ impl<'syntax> UnknownWalker<'syntax> {
                 }
                 for complement in &nominal.complements {
                     match complement {
+                        NominalComplement::Adjective(adjective) => self.adjective_phrase(
+                            adjective,
+                            UnknownRole::NominalComplement,
+                            context,
+                        ),
                         NominalComplement::Prepositional(preposition) => {
                             self.prepositional_phrase(
                                 preposition,
@@ -390,9 +395,13 @@ impl<'syntax> UnknownWalker<'syntax> {
                 }
             }
             NounPhrase::Pronoun { .. }
+            | NounPhrase::Possessive(Possessor::Pronoun(_))
             | NounPhrase::Demonstrative(_)
             | NounPhrase::Quantity(_)
             | NounPhrase::ThisCard(_) => {}
+            NounPhrase::Possessive(Possessor::NounPhrase(possessor)) => {
+                self.noun_phrase(possessor, context);
+            }
             NounPhrase::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
             NounPhrase::Coordinated(coordinated) => {
                 self.noun_phrase(&coordinated.first, context);
@@ -411,6 +420,9 @@ impl<'syntax> UnknownWalker<'syntax> {
     ) {
         for complement in &phrase.complements {
             match complement {
+                AdjectiveComplement::Comparison(comparison) => {
+                    self.phrase(&comparison.standard, role, context);
+                }
                 AdjectiveComplement::Prepositional(preposition) => {
                     self.prepositional_phrase(preposition, role, context);
                 }
