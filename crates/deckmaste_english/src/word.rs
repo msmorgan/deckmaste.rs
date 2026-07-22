@@ -172,7 +172,7 @@ pub(crate) struct PredicateFrame {
     selected_prepositions: &'static [Preposition],
     prepositional_adjuncts: bool,
     bare_nominal_adjuncts: &'static [BareNominalAdjunct],
-    particles: &'static [VerbParticle],
+    pub(crate) particles: &'static [VerbParticle],
     proform: bool,
 }
 

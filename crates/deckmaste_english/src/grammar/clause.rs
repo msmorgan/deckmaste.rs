@@ -556,7 +556,8 @@ pub(super) fn accepts_predicate_prefix(
                 PredicateObjectState::None | PredicateObjectState::Ability
             ) && frame.licenses_complement(PredicateComplementKind::Scalar)
         }
-        RuleTag::VerbPhrasePrepositional | RuleTag::VerbPhraseParticle => true,
+        RuleTag::VerbPhrasePrepositional => true,
+        RuleTag::VerbPhraseParticle => !frame.particles.is_empty(),
         _ => true,
     }
 }

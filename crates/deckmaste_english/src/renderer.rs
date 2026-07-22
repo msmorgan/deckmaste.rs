@@ -1399,9 +1399,11 @@ mod tests {
     #[derive(Debug)]
     enum VerbDependent {
         DirectObject(NounPhrase),
+        IndirectObject(NounPhrase),
         PredicateComplement(Phrase),
         Scalar(Phrase),
         Adverbial(Phrase),
+        Prepositional(PrepositionalPhrase),
         Infinitive(InfinitiveMarker, Box<VerbPhrase>),
     }
 
@@ -1710,6 +1712,69 @@ mod tests {
         assert_eq!(
             source_free(&ast, "Test Card", false),
             "Other Goblin creatures you control get +1/+1 and have haste."
+        );
+    }
+
+    #[test]
+    fn ditransitive_and_prepositional_sentences_render_structurally() {
+        let target_player = nominal(
+            Some(Determiner::Target(None)),
+            vec![],
+            NounInstance::Singular(Noun::Word(Vocab::Player)),
+            vec![],
+        );
+        let target_source = nominal(
+            Some(Determiner::Target(None)),
+            vec![],
+            NounInstance::Singular(Noun::Word(Vocab::Source)),
+            vec![],
+        );
+
+        // Test "Ask target player a number."
+        let ask = paragraph_ability(simple(
+            None,
+            verb_phrase(
+                Vocab::Ask,
+                VerbSlot::Imperative,
+                vec![
+                    VerbDependent::IndirectObject(target_player.clone()),
+                    VerbDependent::DirectObject(nominal(
+                        Some(Determiner::Indefinite(IndefiniteArticle::A)),
+                        vec![],
+                        NounInstance::Singular(Noun::Word(Vocab::Number)),
+                        vec![],
+                    )),
+                ],
+            ),
+        ));
+        assert_eq!(
+            source_free(&ask, "Test Card", false),
+            "Ask target player a number."
+        );
+
+        // Test "Prevent all damage from target source."
+        let prevent = paragraph_ability(simple(
+            None,
+            verb_phrase(
+                Vocab::Prevent,
+                VerbSlot::Imperative,
+                vec![
+                    VerbDependent::DirectObject(nominal(
+                        Some(Determiner::All),
+                        vec![],
+                        NounInstance::Mass(Noun::Word(Vocab::Damage)),
+                        vec![],
+                    )),
+                    VerbDependent::Prepositional(PrepositionalPhrase {
+                        preposition: Preposition::From,
+                        object: Box::new(Phrase::NounPhrase(Box::new(target_source))),
+                    }),
+                ],
+            ),
+        ));
+        assert_eq!(
+            source_free(&prevent, "Test Card", false),
+            "Prevent all damage from target source."
         );
     }
 
@@ -2120,6 +2185,21 @@ mod tests {
                             marker,
                             predicate: Box::new(strict_predicate(*predicate)),
                         }),
+                    ));
+                }
+                VerbDependent::IndirectObject(noun_phrase) => {
+                    elements.push(PredicateElement::Complement(
+                        PredicateComplement::IndirectObject(noun_phrase),
+                    ));
+                }
+                VerbDependent::Prepositional(preposition) => {
+                    elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                        preposition,
+                    )));
+                }
+                VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(preposition)) => {
+                    elements.push(PredicateElement::Complement(
+                        PredicateComplement::Prepositional(*preposition),
                     ));
                 }
                 other => panic!("unsupported predicate fixture: {other:?}"),
