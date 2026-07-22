@@ -345,7 +345,7 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
     builder.add(
         RuleTag::RelativeSubject,
         N::RelativeClause,
-        [l(L::RelativeWho), n(N::VerbPhrase)],
+        [l(L::RelativeMarker), n(N::VerbPhrase)],
     );
     builder.add(
         RuleTag::RelativeContractedCopularNoun,
@@ -507,6 +507,28 @@ pub(super) fn accepts_predicate_prefix(
         )
     } else {
         *accepts_direct_object && *object == PredicateObjectState::None
+    }
+}
+
+pub(super) fn reduction_cost(
+    tag: RuleTag,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> ParseCost {
+    let active_temporal_attachment = tag == RuleTag::VerbPhraseDirectObject
+        && matches!(
+            children.first().map(|child| child.features),
+            Some(Features::VerbPhrase { passive: false, .. })
+        )
+        && matches!(
+            children.get(1).map(|child| child.features),
+            Some(Features::NounPhrase {
+                adjunct: Some(NominalAdjunctKind::Temporal),
+                ..
+            })
+        );
+    ParseCost {
+        precedence: u32::from(active_temporal_attachment),
+        ..ParseCost::default()
     }
 }
 
@@ -1703,17 +1725,21 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
             }))
         }
         RuleTag::RelativeSubject => {
+            let Lowered::RelativeMarker(marker) = take(children, 0)? else {
+                return None;
+            };
             let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
                 return None;
             };
             let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
-            if modal.is_some() {
-                return None;
-            }
+            let body = match modal {
+                Some(modal) => RelativeBody::ModalSubjectGap { modal, predicate },
+                None => RelativeBody::SubjectGap(predicate),
+            };
             Some(Lowered::RelativeClause(RelativeClause {
-                marker: RelativeMarker::Who,
+                marker,
                 gap: RelativeGap::Subject,
-                body: RelativeBody::SubjectGap(predicate),
+                body,
             }))
         }
         RuleTag::RelativeContractedCopularNoun
@@ -3619,6 +3645,41 @@ mod tests {
                 elements,
                 ..
             })) if matches!(
+                elements.as_slice(),
+                [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+            )
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn modal_subject_relative_keeps_its_passive_temporal_adjunct() {
+        let source = "Prevent all combat damage that would be dealt this turn.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(matrix))) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &matrix.object else {
+            panic!("expected a nominal object");
+        };
+        assert!(matrix.elements.is_empty());
+        assert!(matches!(
+            object.complements.as_slice(),
+            [NominalComplement::Relative(RelativeClause {
+                marker: RelativeMarker::That,
+                gap: RelativeGap::Subject,
+                body: RelativeBody::ModalSubjectGap {
+                    modal: Modal {
+                        auxiliary: AuxiliaryInstance {
+                            auxiliary: Auxiliary::Would,
+                            ..
+                        },
+                    },
+                    predicate: Predicate::Passive(PassivePredicate { elements, .. }),
+                },
+            })] if matches!(
                 elements.as_slice(),
                 [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
             )

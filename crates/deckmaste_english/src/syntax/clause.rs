@@ -261,6 +261,10 @@ pub enum RelativeGap {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelativeBody {
     SubjectGap(Predicate),
+    ModalSubjectGap {
+        modal: Modal,
+        predicate: Predicate,
+    },
     ObjectGap {
         subject: Subject,
         predicate: ObjectGapPredicate,

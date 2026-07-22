@@ -65,6 +65,7 @@ use crate::syntax::PreverbModifier;
 use crate::syntax::Quantity;
 use crate::syntax::RelativeClause;
 use crate::syntax::RelativeGap;
+use crate::syntax::RelativeMarker;
 use crate::syntax::Sentence;
 use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
@@ -211,7 +212,7 @@ pub(crate) enum EnglishLexicalSlot {
     QuantityBound(BoundedQuantityKind),
     Than,
     OrEqualTo,
-    RelativeWho,
+    RelativeMarker,
     Face,
     Up,
     Down,
@@ -328,6 +329,7 @@ pub(crate) enum PredicateAttachmentPhase {
 pub(crate) enum NominalAttachmentPhase {
     Open,
     Prepositional,
+    Relative,
     PostpositiveAdjective,
     Comparison,
 }
@@ -684,7 +686,6 @@ pub(crate) enum LiteralKey {
     Target,
     Than,
     OrEqualTo,
-    Who,
     Plus,
 }
 
@@ -709,6 +710,7 @@ pub(crate) enum MeaningKey {
     Punctuation(Punctuation),
     Conjunction(crate::syntax::PredicateConjunction),
     Subordinator(crate::syntax::Subordinator),
+    RelativeMarker(RelativeMarker),
     Existential(ExistentialForm),
     SubjectAuxiliary(SubjectAuxiliaryKey),
     ThisCard(ThisCardForm),
@@ -1178,11 +1180,20 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| literal_match(end, LiteralKey::OrEqualTo))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::RelativeWho => self
-                .one_token_match(tokens, start, "who")
-                .map(|end| literal_match(end, LiteralKey::Who))
-                .into_iter()
-                .collect(),
+            EnglishLexicalSlot::RelativeMarker => {
+                [("who", RelativeMarker::Who), ("that", RelativeMarker::That)]
+                    .into_iter()
+                    .filter_map(|(surface, marker)| {
+                        self.one_token_match(tokens, start, surface)
+                            .map(|end| LexicalMatch {
+                                end,
+                                features: Features::None,
+                                meaning: MeaningKey::RelativeMarker(marker),
+                                local_cost: ParseCost::default(),
+                            })
+                    })
+                    .collect()
+            }
             EnglishLexicalSlot::Face => self
                 .one_token_match(tokens, start, "face")
                 .map(|end| literal_match(end, LiteralKey::Face))
@@ -2712,7 +2723,7 @@ fn reduce(
     };
     Some(Reduction {
         features,
-        local_cost: ParseCost::default(),
+        local_cost: clause::reduction_cost(tag, children),
     })
 }
 
@@ -3107,7 +3118,11 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound: *initial_sound,
                 determined: *determined,
                 leading_recovery: *leading_recovery,
-                attachment: *attachment,
+                attachment: if tag == RuleTag::NominalRelative {
+                    NominalAttachmentPhase::Relative
+                } else {
+                    *attachment
+                },
                 comparison: *comparison,
                 adjunct: *adjunct,
             })
@@ -3585,6 +3600,7 @@ enum Lowered {
     Sentence(Sentence),
     Conjunction(crate::syntax::PredicateConjunction),
     Subordinator(crate::syntax::Subordinator),
+    RelativeMarker(RelativeMarker),
     Existential(ExistentialForm),
     Unknown(UnknownPhrase),
     Ignored,
@@ -3676,6 +3692,7 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::PowerToughness(power_toughness) => Lowered::PowerToughness(*power_toughness),
         MeaningKey::Conjunction(conjunction) => Lowered::Conjunction(*conjunction),
         MeaningKey::Subordinator(subordinator) => Lowered::Subordinator(*subordinator),
+        MeaningKey::RelativeMarker(marker) => Lowered::RelativeMarker(*marker),
         MeaningKey::Existential(form) => Lowered::Existential(*form),
         MeaningKey::ThisCard(form) => Lowered::ThisCard(*form),
         MeaningKey::Preposition(preposition) => Lowered::Preposition(*preposition),

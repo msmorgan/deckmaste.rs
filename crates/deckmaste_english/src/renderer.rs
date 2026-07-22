@@ -861,6 +861,10 @@ impl<'identity> Renderer<'identity> {
                 join_words(parts)
             }
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate)?,
+            RelativeBody::ModalSubjectGap { modal, predicate } => join_words(vec![
+                self.render_auxiliary(modal.auxiliary)?,
+                self.predicate(predicate)?,
+            ]),
             RelativeBody::ObjectGap { subject, predicate } => {
                 let (subject, auxiliary_start) =
                     self.subject_with_predicate_head(subject, &predicate.head)?;

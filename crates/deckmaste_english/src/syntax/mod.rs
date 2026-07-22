@@ -362,6 +362,9 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn relative_clause(&mut self, relative: &'syntax RelativeClause, context: Option<UnknownRole>) {
         match &relative.body {
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate, context),
+            RelativeBody::ModalSubjectGap { predicate, .. } => {
+                self.predicate(predicate, context);
+            }
             RelativeBody::ObjectGap { subject, predicate } => {
                 self.subject(subject, context);
                 self.predicate_head(&predicate.head, context);
