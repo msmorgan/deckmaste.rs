@@ -842,9 +842,11 @@ mod tests {
                     ..
                 })) if matches!(
                     attachments.as_slice(),
-                    [DependentAttachment {
+                    [ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
-                        clause: DependentClause::Subordinate(Subordinator::If, _),
+                        kind: ClauseAttachmentKind::Dependent(
+                            DependentClause::Subordinate(Subordinator::If, _),
+                        ),
                         ..
                     }]
                 )
@@ -980,7 +982,7 @@ mod tests {
                     ..
                 })) if matches!(
                     attachments.as_slice(),
-                    [DependentAttachment {
+                    [ClauseAttachment {
                         position: AttachmentPosition::AfterMatrix,
                         ..
                     }]
@@ -1292,11 +1294,13 @@ mod tests {
                     ..
                 })) if matches!(
                     attachments.as_slice(),
-                    [DependentAttachment {
+                    [ClauseAttachment {
                         position: AttachmentPosition::AfterMatrix,
-                        clause: DependentClause::Subordinate(
-                            Subordinator::AsLongAs,
-                            SubordinateBody::Finite(condition),
+                        kind: ClauseAttachmentKind::Dependent(
+                            DependentClause::Subordinate(
+                                Subordinator::AsLongAs,
+                                SubordinateBody::Finite(condition),
+                            ),
                         ),
                         ..
                     }] if matches!(condition.as_ref(), IndependentClause::Existential(_))

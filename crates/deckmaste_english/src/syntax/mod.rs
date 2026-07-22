@@ -166,7 +166,14 @@ impl<'syntax> UnknownWalker<'syntax> {
             IndependentClause::Complex(complex) => {
                 self.independent_clause(&complex.matrix, context);
                 for attachment in &complex.attachments {
-                    self.dependent_clause(&attachment.clause, context);
+                    match &attachment.kind {
+                        ClauseAttachmentKind::Dependent(clause) => {
+                            self.dependent_clause(clause, context);
+                        }
+                        ClauseAttachmentKind::Adjunct(adjunct) => {
+                            self.predicate_adjunct(adjunct, context);
+                        }
+                    }
                 }
             }
             IndependentClause::Coordinated(coordinated) => {
@@ -395,6 +402,9 @@ impl<'syntax> UnknownWalker<'syntax> {
                                 UnknownRole::NominalComplement,
                                 context,
                             );
+                        }
+                        NominalComplement::Infinitive(infinitive) => {
+                            self.predicate(&infinitive.predicate, context);
                         }
                         NominalComplement::Relative(relative) => {
                             self.relative_clause(relative, context);

@@ -1,6 +1,8 @@
 use super::*;
 use crate::syntax::AbilityObject;
 use crate::syntax::AttachmentPosition;
+use crate::syntax::ClauseAttachment;
+use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ClauseCoordination;
 use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedClauseMember;
@@ -259,6 +261,15 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         ],
     );
     builder.add(
+        RuleTag::ClausePrepositionalBefore,
+        N::Clause,
+        [
+            n(N::PrepositionalPhrase),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::Clause),
+        ],
+    );
+    builder.add(
         RuleTag::ClauseSubordinateAfterElliptical,
         N::Clause,
         [n(N::Clause), l(L::Subordinator), n(N::AdjectivePhrase)],
@@ -388,6 +399,7 @@ pub(super) fn reduce_clause(
         | RuleTag::RelativeContractedCopularPrepositional => reduce_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
@@ -1006,6 +1018,24 @@ fn reduce_composed_clause(
         RuleTag::ClauseSubordinateBefore => {
             conditional_reduction(children.get(1)?, children.get(3)?)
         }
+        RuleTag::ClausePrepositionalBefore => {
+            let Features::PrepositionalPhrase { .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::Clause {
+                agreement,
+                standalone: true,
+                finite,
+            } = children.get(2)?.features
+            else {
+                return None;
+            };
+            Some(Features::Clause {
+                agreement: *agreement,
+                standalone: true,
+                finite: *finite,
+            })
+        }
         RuleTag::ClauseSubordinateAfterElliptical => {
             let consequence = children.first()?;
             let Features::Clause {
@@ -1233,6 +1263,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::RelativeContractedCopularPrepositional => lower_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
@@ -1702,6 +1733,26 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
+        RuleTag::ClausePrepositionalBefore => {
+            let Lowered::PrepositionalPhrase(preposition) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Clause(Clause::Independent(matrix)) = take(children, 2)? else {
+                return None;
+            };
+            Some(Lowered::Clause(Clause::Independent(
+                with_clause_attachment(
+                    matrix,
+                    ClauseAttachment {
+                        position: AttachmentPosition::BeforeMatrix,
+                        comma: true,
+                        kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(
+                            preposition,
+                        )),
+                    },
+                ),
+            )))
+        }
         RuleTag::ClauseSubordinateAfterElliptical => {
             let Lowered::Clause(consequence) = take(children, 0)? else {
                 return None;
@@ -1855,15 +1906,37 @@ fn conditional_body(
         return None;
     };
     Some(Lowered::Clause(Clause::Independent(
-        IndependentClause::Complex(ComplexClause {
-            matrix: Box::new(matrix),
-            attachments: vec![DependentAttachment {
+        with_clause_attachment(
+            matrix,
+            ClauseAttachment {
                 position,
                 comma,
-                clause: DependentClause::Subordinate(subordinator, body),
-            }],
-        }),
+                kind: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    subordinator,
+                    body,
+                )),
+            },
+        ),
     )))
+}
+
+fn with_clause_attachment(
+    matrix: IndependentClause,
+    attachment: ClauseAttachment,
+) -> IndependentClause {
+    match matrix {
+        IndependentClause::Complex(mut complex) => {
+            match attachment.position {
+                AttachmentPosition::BeforeMatrix => complex.attachments.insert(0, attachment),
+                AttachmentPosition::AfterMatrix => complex.attachments.push(attachment),
+            }
+            IndependentClause::Complex(complex)
+        }
+        matrix => IndependentClause::Complex(ComplexClause {
+            matrix: Box::new(matrix),
+            attachments: vec![attachment],
+        }),
+    }
 }
 
 struct FinishedPredicate {
@@ -2052,7 +2125,9 @@ const fn proform_inflection(slot: VerbSlot) -> AuxiliaryInflection {
     }
 }
 
-fn finish_infinitive(clause: InfinitiveClause) -> Option<crate::syntax::InfinitiveClause> {
+pub(super) fn finish_infinitive(
+    clause: InfinitiveClause,
+) -> Option<crate::syntax::InfinitiveClause> {
     let FinishedPredicate { modal, predicate } = finish_predicate(*clause.predicate)?;
     if modal.is_some() {
         return None;
@@ -2478,17 +2553,66 @@ mod tests {
                     ..
                 })) if matches!(
                     attachments.as_slice(),
-                    [DependentAttachment {
+                    [ClauseAttachment {
                         position: actual,
-                        clause: DependentClause::Subordinate(
-                            crate::syntax::Subordinator::As,
-                            SubordinateBody::Finite(_),
+                        kind: ClauseAttachmentKind::Dependent(
+                            DependentClause::Subordinate(
+                                crate::syntax::Subordinator::As,
+                                SubordinateBody::Finite(_),
+                            ),
                         ),
                         ..
                     }] if *actual == position
                 )
             ));
         }
+    }
+
+    #[test]
+    fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
+        let source = "As an additional cost to cast this spell, sacrifice a creature.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause: {:#?}", parsed.sentence());
+        };
+        let [
+            ClauseAttachment {
+                position: AttachmentPosition::BeforeMatrix,
+                comma: true,
+                kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition)),
+            },
+        ] = complex.attachments.as_slice()
+        else {
+            panic!("expected one fronted prepositional adjunct: {complex:#?}");
+        };
+        assert_eq!(preposition.preposition, crate::syntax::Preposition::As);
+        let crate::syntax::Phrase::NounPhrase(noun_phrase) = preposition.object.as_ref() else {
+            panic!("expected the adjunct to modify a cost noun phrase: {preposition:#?}");
+        };
+        let NounPhrase::Nominal(nominal) = noun_phrase.as_ref() else {
+            panic!("expected a nominal cost phrase: {noun_phrase:#?}");
+        };
+        assert!(matches!(
+            nominal.head,
+            NounInstance::Singular(Noun::Word(Vocab::Cost))
+        ));
+        assert!(matches!(
+            nominal.complements.as_slice(),
+            [NominalComplement::Infinitive(
+                crate::syntax::InfinitiveClause {
+                    marker: InfinitiveMarker::To,
+                    ..
+                }
+            )]
+        ));
+        assert!(matches!(
+            complex.matrix.as_ref(),
+            IndependentClause::Imperative(_)
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
     #[test]
@@ -2502,11 +2626,13 @@ mod tests {
                 ..
             })) if matches!(
                 attachments.as_slice(),
-                [DependentAttachment {
+                [ClauseAttachment {
                     position: AttachmentPosition::AfterMatrix,
-                    clause: DependentClause::Subordinate(
-                        crate::syntax::Subordinator::ForAsLongAs,
-                        SubordinateBody::Finite(_),
+                    kind: ClauseAttachmentKind::Dependent(
+                        DependentClause::Subordinate(
+                            crate::syntax::Subordinator::ForAsLongAs,
+                            SubordinateBody::Finite(_),
+                        ),
                     ),
                     ..
                 }]
@@ -2524,11 +2650,13 @@ mod tests {
                 ..
             })) if matches!(
                 attachments.as_slice(),
-                [DependentAttachment {
+                [ClauseAttachment {
                     position: AttachmentPosition::AfterMatrix,
-                    clause: DependentClause::Subordinate(
-                        crate::syntax::Subordinator::While,
-                        SubordinateBody::Elliptical(EllipticalClause::Adjective(_)),
+                    kind: ClauseAttachmentKind::Dependent(
+                        DependentClause::Subordinate(
+                            crate::syntax::Subordinator::While,
+                            SubordinateBody::Elliptical(EllipticalClause::Adjective(_)),
+                        ),
                     ),
                     ..
                 }]
@@ -2546,11 +2674,13 @@ mod tests {
                 ..
             })) if matches!(
                 attachments.as_slice(),
-                [DependentAttachment {
+                [ClauseAttachment {
                     position: AttachmentPosition::AfterMatrix,
-                    clause: DependentClause::Subordinate(
-                        crate::syntax::Subordinator::Unless,
-                        SubordinateBody::Finite(_),
+                    kind: ClauseAttachmentKind::Dependent(
+                        DependentClause::Subordinate(
+                            crate::syntax::Subordinator::Unless,
+                            SubordinateBody::Finite(_),
+                        ),
                     ),
                     ..
                 }]
@@ -2765,16 +2895,16 @@ mod tests {
         };
         assert!(matches!(
             complex.attachments.as_slice(),
-            [DependentAttachment {
+            [ClauseAttachment {
                 position: AttachmentPosition::AfterMatrix,
                 comma: false,
-                clause: DependentClause::Subordinate(
+                kind: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                     Subordinator::RatherThan,
                     SubordinateBody::Infinitive(crate::syntax::InfinitiveClause {
                         marker: InfinitiveMarker::Bare,
                         ..
                     }),
-                ),
+                ),),
             }]
         ));
     }

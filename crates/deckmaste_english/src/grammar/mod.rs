@@ -753,6 +753,7 @@ enum RuleTag {
     NominalPowerToughnessModifier,
     NominalDeterminer,
     NominalPrepositional,
+    NominalInfinitive,
     NominalQuantityComplement,
     NominalRelative,
     NominalPostpositiveAdjective,
@@ -795,6 +796,7 @@ enum RuleTag {
     ClauseElliptical,
     ClauseCoordination,
     ClauseCoordinationComma,
+    ClausePrepositionalBefore,
     ClauseSubordinateBefore,
     ClauseSubordinateAfterElliptical,
     ClauseSubordinateAfter,
@@ -2190,6 +2192,11 @@ impl RuleBuilder {
             N::Nominal,
             [n(N::Nominal), n(N::PrepositionalPhrase)],
         );
+        self.add(
+            RuleTag::NominalInfinitive,
+            N::Nominal,
+            [n(N::Nominal), n(N::InfinitiveClause)],
+        );
         self.add_with_cost(
             RuleTag::NominalQuantityComplement,
             N::Nominal,
@@ -2586,6 +2593,7 @@ fn reduce(
         | RuleTag::NominalPowerToughnessModifier
         | RuleTag::NominalDeterminer
         | RuleTag::NominalPrepositional
+        | RuleTag::NominalInfinitive
         | RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative
         | RuleTag::NominalPostpositiveAdjective
@@ -2628,6 +2636,7 @@ fn reduce(
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
@@ -2968,6 +2977,38 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 NominalAttachmentPhase::PostpositiveAdjective | NominalAttachmentPhase::Comparison
             ) {
+                return None;
+            }
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: *determined,
+                leading_recovery: *leading_recovery,
+                attachment: NominalAttachmentPhase::Prepositional,
+                comparison: *comparison,
+                temporal: *temporal,
+            })
+        }
+        RuleTag::NominalInfinitive => {
+            let Features::Nominal {
+                form,
+                initial_sound,
+                determined,
+                leading_recovery,
+                attachment,
+                comparison,
+                temporal,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if !matches!(children.get(1)?.features, Features::InfinitiveClause)
+                || matches!(
+                    attachment,
+                    NominalAttachmentPhase::PostpositiveAdjective
+                        | NominalAttachmentPhase::Comparison
+                )
+            {
                 return None;
             }
             Some(Features::Nominal {
@@ -3631,6 +3672,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalPowerToughnessModifier
         | RuleTag::NominalDeterminer
         | RuleTag::NominalPrepositional
+        | RuleTag::NominalInfinitive
         | RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative
         | RuleTag::NominalPostpositiveAdjective
@@ -3673,6 +3715,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
@@ -3923,6 +3966,20 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             nominal
                 .complements
                 .push(NominalComplement::Prepositional(preposition));
+            Some(Lowered::Nominal(nominal))
+        }
+        RuleTag::NominalInfinitive => {
+            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::InfinitiveClause(infinitive) = take(children, 1)? else {
+                return None;
+            };
+            nominal
+                .complements
+                .push(NominalComplement::Infinitive(clause::finish_infinitive(
+                    infinitive,
+                )?));
             Some(Lowered::Nominal(nominal))
         }
         RuleTag::NominalQuantityComplement => {

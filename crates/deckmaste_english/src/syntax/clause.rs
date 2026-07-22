@@ -254,7 +254,20 @@ pub enum RelativeBody {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComplexClause {
     pub matrix: Box<IndependentClause>,
-    pub attachments: Vec<DependentAttachment>,
+    pub attachments: Vec<ClauseAttachment>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClauseAttachment {
+    pub position: AttachmentPosition,
+    pub comma: bool,
+    pub kind: ClauseAttachmentKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClauseAttachmentKind {
+    Dependent(DependentClause),
+    Adjunct(PredicateAdjunct),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

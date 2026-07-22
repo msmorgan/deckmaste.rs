@@ -7,13 +7,14 @@ use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::AttachmentPosition;
 use crate::syntax::Clause;
+use crate::syntax::ClauseAttachment;
+use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ComparisonMarker;
 use crate::syntax::CoordinatedClauseMember;
 use crate::syntax::CopularComplement;
 use crate::syntax::CopularPredicate;
 use crate::syntax::Cost;
 use crate::syntax::Demonstrative;
-use crate::syntax::DependentAttachment;
 use crate::syntax::DependentClause;
 use crate::syntax::Determiner;
 use crate::syntax::EllipticalClause;
@@ -449,14 +450,14 @@ impl<'identity> Renderer<'identity> {
     fn clause_with_attachments(
         &self,
         matrix: String,
-        attachments: &[DependentAttachment],
+        attachments: &[ClauseAttachment],
     ) -> Result<String, RenderError> {
         let mut rendered = String::new();
         for attachment in attachments
             .iter()
             .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
         {
-            rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+            rendered.push_str(&self.clause_attachment(&attachment.kind)?);
             if attachment.comma {
                 rendered.push(',');
             }
@@ -471,9 +472,16 @@ impl<'identity> Renderer<'identity> {
                 rendered.push(',');
             }
             rendered.push(' ');
-            rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+            rendered.push_str(&self.clause_attachment(&attachment.kind)?);
         }
         Ok(rendered)
+    }
+
+    fn clause_attachment(&self, attachment: &ClauseAttachmentKind) -> Result<String, RenderError> {
+        match attachment {
+            ClauseAttachmentKind::Dependent(clause) => self.dependent_clause(clause),
+            ClauseAttachmentKind::Adjunct(adjunct) => self.predicate_adjunct(adjunct),
+        }
     }
 
     fn subject_with_predicate_head(
@@ -749,7 +757,32 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn gerund_clause(&self, clause: &GerundClause) -> Result<String, RenderError> {
-        self.clause_with_attachments(self.predicate(&clause.predicate)?, &clause.attachments)
+        let matrix = self.predicate(&clause.predicate)?;
+        let mut rendered = String::new();
+        for attachment in clause
+            .attachments
+            .iter()
+            .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
+        {
+            rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+            if attachment.comma {
+                rendered.push(',');
+            }
+            rendered.push(' ');
+        }
+        rendered.push_str(&matrix);
+        for attachment in clause
+            .attachments
+            .iter()
+            .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
+        {
+            if attachment.comma {
+                rendered.push(',');
+            }
+            rendered.push(' ');
+            rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+        }
+        Ok(rendered)
     }
 
     fn infinitive_clause(&self, clause: &InfinitiveClause) -> Result<String, RenderError> {
@@ -903,6 +936,7 @@ impl<'identity> Renderer<'identity> {
                 NominalComplement::Prepositional(preposition) => {
                     self.prepositional_phrase(preposition)?
                 }
+                NominalComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
                 NominalComplement::Relative(relative) => self.relative_clause(relative)?,
                 NominalComplement::Quantity(quantity) => render_quantity(*quantity),
                 NominalComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),

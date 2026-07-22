@@ -292,6 +292,7 @@ pub enum AdjectiveComplement {
 pub enum NominalComplement {
     Adjective(AdjectivePhrase),
     Prepositional(PrepositionalPhrase),
+    Infinitive(InfinitiveClause),
     Relative(RelativeClause),
     Quantity(Quantity),
     Unknown(UnknownPhrase),
