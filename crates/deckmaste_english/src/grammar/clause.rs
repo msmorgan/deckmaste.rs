@@ -149,6 +149,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::To), n(N::VerbPhrase)],
     );
     builder.add(
+        RuleTag::InfinitiveNotTo,
+        N::InfinitiveClause,
+        [l(L::Not), l(L::To), n(N::VerbPhrase)],
+    );
+    builder.add(
         RuleTag::GerundClauseBase,
         N::GerundClause,
         [n(N::VerbPhrase)],
@@ -322,7 +327,8 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
-        | RuleTag::InfinitiveTo => reduce_predicate(tag, children),
+        | RuleTag::InfinitiveTo
+        | RuleTag::InfinitiveNotTo => reduce_predicate(tag, children),
         RuleTag::GerundClauseBase => {
             let Features::VerbPhrase {
                 form: PredicateForm::PresentParticiple,
@@ -520,13 +526,14 @@ fn reduce_predicate(
             };
             extend_predicate(children.first()?, attachment)
         }
-        RuleTag::InfinitiveTo => {
+        RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
+            let predicate_index = if tag == RuleTag::InfinitiveNotTo { 2 } else { 1 };
             let Features::VerbPhrase {
                 form: PredicateForm::Infinitive,
                 object,
                 requires_direct_object,
                 ..
-            } = children.get(1)?.features
+            } = children.get(predicate_index)?.features
             else {
                 return None;
             };
@@ -1156,7 +1163,8 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
-        | RuleTag::InfinitiveTo => lower_predicate(tag, children),
+        | RuleTag::InfinitiveTo
+        | RuleTag::InfinitiveNotTo => lower_predicate(tag, children),
         RuleTag::GerundClauseBase => {
             let Lowered::VerbPhrase(predicate) = take(children, 0)? else {
                 return None;
@@ -1259,11 +1267,14 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity => lower_predicate_dependent(tag, children),
-        RuleTag::InfinitiveTo => {
-            let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
+        RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
+            let negated = tag == RuleTag::InfinitiveNotTo;
+            let predicate_index = if negated { 2 } else { 1 };
+            let Lowered::VerbPhrase(predicate) = take(children, predicate_index)? else {
                 return None;
             };
             Some(Lowered::InfinitiveClause(InfinitiveClause {
+                negated,
                 marker: InfinitiveMarker::To,
                 predicate: Box::new(predicate),
             }))
@@ -1703,6 +1714,7 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 AttachmentPosition::AfterMatrix,
                 false,
                 SubordinateBody::Infinitive(crate::syntax::InfinitiveClause {
+                    negated: false,
                     marker: InfinitiveMarker::Bare,
                     predicate: Box::new(predicate),
                 }),
@@ -1999,6 +2011,7 @@ fn finish_infinitive(clause: InfinitiveClause) -> Option<crate::syntax::Infiniti
         return None;
     }
     Some(crate::syntax::InfinitiveClause {
+        negated: clause.negated,
         marker: clause.marker,
         predicate: Box::new(predicate),
     })
@@ -2735,6 +2748,31 @@ mod tests {
                     SubordinateBody::Gerund(alternative),
                 ),
             }] if matches!(alternative.predicate.as_ref(), Predicate::Transitive(_))
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn not_to_negates_an_infinitive_clause() {
+        let source = "You may choose not to untap this creature.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            _,
+            _,
+            Predicate::Intransitive(choose),
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a deontic choose clause: {:#?}", parsed.sentence());
+        };
+        assert!(matches!(
+            choose.elements.as_slice(),
+            [PredicateElement::Complement(
+                PredicateComplement::Infinitive(crate::syntax::InfinitiveClause {
+                    negated: true,
+                    ..
+                })
+            )]
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }

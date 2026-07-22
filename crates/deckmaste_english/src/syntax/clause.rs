@@ -196,6 +196,7 @@ pub enum FrequencyCount {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InfinitiveClause {
+    pub negated: bool,
     pub marker: InfinitiveMarker,
     pub predicate: Box<Predicate>,
 }

@@ -114,6 +114,7 @@ enum VerbDependent {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct InfinitiveClause {
+    negated: bool,
     marker: InfinitiveMarker,
     predicate: Box<VerbPhrase>,
 }
@@ -198,6 +199,7 @@ pub(crate) enum EnglishLexicalSlot {
     OrEqualTo,
     RelativeWho,
     Up,
+    Not,
     To,
     Of,
     Reciprocal,
@@ -641,6 +643,7 @@ pub(crate) enum DemonstrativeKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum LiteralKey {
     Up,
+    Not,
     To,
     Target,
     Than,
@@ -750,6 +753,7 @@ enum RuleTag {
     VerbPhrasePowerToughness,
     VerbPhraseQuantity,
     InfinitiveTo,
+    InfinitiveNotTo,
     GerundClauseBase,
     GerundClauseSubordinateAfter,
     SimpleClauseSubject,
@@ -1117,6 +1121,11 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Up => self
                 .one_token_match(tokens, start, "up")
                 .map(|end| literal_match(end, LiteralKey::Up))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::Not => self
+                .one_token_match(tokens, start, "not")
+                .map(|end| literal_match(end, LiteralKey::Not))
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::To => self
@@ -2522,6 +2531,7 @@ fn reduce(
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
+        | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
         | RuleTag::GerundClauseSubordinateAfter
         | RuleTag::SimpleClauseSubject
@@ -3525,6 +3535,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
+        | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
         | RuleTag::GerundClauseSubordinateAfter
         | RuleTag::SimpleClauseSubject

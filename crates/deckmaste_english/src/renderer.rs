@@ -743,10 +743,11 @@ impl<'identity> Renderer<'identity> {
 
     fn infinitive_clause(&self, clause: &InfinitiveClause) -> Result<String, RenderError> {
         let predicate = self.predicate(&clause.predicate)?;
-        Ok(match clause.marker {
+        let infinitive = match clause.marker {
             InfinitiveMarker::Bare => predicate,
             InfinitiveMarker::To => format!("to {predicate}"),
-        })
+        };
+        Ok(if clause.negated { format!("not {infinitive}") } else { infinitive })
     }
 
     fn relative_clause(&self, clause: &RelativeClause) -> Result<String, RenderError> {
@@ -2018,6 +2019,7 @@ mod tests {
                 VerbDependent::Infinitive(marker, predicate) => {
                     elements.push(PredicateElement::Complement(
                         PredicateComplement::Infinitive(InfinitiveClause {
+                            negated: false,
                             marker,
                             predicate: Box::new(strict_predicate(*predicate)),
                         }),
