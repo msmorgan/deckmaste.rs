@@ -2,7 +2,7 @@ use super::clause::DependentClause;
 use super::clause::IndependentClause;
 use super::phrase::NounPhrase;
 use super::phrase::Phrase;
-use super::phrase::UnknownPhrase;
+use super::phrase::RecoveredText;
 use crate::catalog::CatalogAtom;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -181,7 +181,7 @@ pub struct Sentence {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SentenceBody {
     Independent(IndependentClause),
-    Unknown(UnknownPhrase),
+    Recovered(RecoveredText),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

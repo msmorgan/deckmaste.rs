@@ -375,7 +375,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         {
             return Phrase::NounPhrase(Box::new(noun_phrase.clone()));
         }
-        self.unknown_phrase(tokens)
+        self.recovered_phrase(tokens)
     }
 
     fn parse_paragraph(&mut self, tokens: &[Token]) -> Paragraph {
@@ -408,7 +408,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         });
         Sentence {
             initial_uppercase,
-            body: SentenceBody::Unknown(UnknownPhrase(self.tokens_text(body).to_owned())),
+            body: SentenceBody::Recovered(RecoveredText::new(self.tokens_text(body), tokens.len())),
             ending,
         }
     }
@@ -558,7 +558,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         {
             return Phrase::NounPhrase(Box::new(noun_phrase.clone()));
         }
-        self.unknown_phrase(tokens)
+        self.recovered_phrase(tokens)
     }
 
     fn parse_exact(
@@ -582,12 +582,12 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         Some(parsed)
     }
 
-    fn unknown_phrase(&mut self, tokens: &[Token]) -> Phrase {
+    fn recovered_phrase(&mut self, tokens: &[Token]) -> Phrase {
         self.diagnostics.push(AbilityDiagnostic {
             kind: AbilityDiagnosticKind::NoCompleteParse,
             span: tokens_span(tokens),
         });
-        Phrase::UnknownPhrase(UnknownPhrase(self.tokens_text(tokens).to_owned()))
+        Phrase::Recovered(RecoveredText::new(self.tokens_text(tokens), tokens.len()))
     }
 
     fn token_text(&self, token: &Token) -> &str {

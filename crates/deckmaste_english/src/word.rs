@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 use crate::catalog::CatalogAtom;
 use crate::catalog::KeywordAction;
 use crate::syntax::NumberLiteral;
-use crate::syntax::UnknownPhrase;
+use crate::syntax::OpaqueLexeme;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Person {
@@ -59,7 +59,7 @@ pub enum Noun {
     Catalog(CatalogAtom),
     Die(NumberLiteral),
     Gerund(Verb),
-    Unknown(UnknownPhrase),
+    Opaque(OpaqueLexeme),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1022,7 +1022,7 @@ impl Vocabulary {
                     NounSurface::Singular | NounSurface::Mass => present_participle,
                 })
             }
-            Noun::Unknown(unknown) => Some(unknown.0.clone()),
+            Noun::Opaque(opaque) => Some(opaque.spelling().to_owned()),
         }
     }
 

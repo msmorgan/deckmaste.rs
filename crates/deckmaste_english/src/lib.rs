@@ -3,8 +3,9 @@
 //! This crate parses Oracle text into English structure before deckmaste's
 //! executable rules grammar. Parts of speech are selected by grammar slots,
 //! not assigned by the lexer, and current card vocabularies can be supplied
-//! through [`Catalogs`]. Text the grammar cannot yet classify is retained as a
-//! role-specific [`syntax::UnknownPhrase`].
+//! through [`Catalogs`]. Unknown nouns remain explicit lexical opacity, while
+//! text the grammar cannot yet classify is retained as role-specific
+//! [`syntax::RecoveredText`].
 //!
 //! The returned [`syntax::OracleText`] owns every spelling needed to render
 //! itself. It does not retain the input string; byte [`Span`] values exist only

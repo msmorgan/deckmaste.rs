@@ -7,7 +7,7 @@ pub use clause::*;
 pub use phrase::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum UnknownRole {
+pub enum RecoveryRole {
     Clause,
     NominalComplement,
     ActivationCost,
@@ -17,40 +17,61 @@ pub enum UnknownRole {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct UnknownPhraseRef<'a> {
-    pub role: UnknownRole,
+pub struct RecoveryRef<'a> {
+    pub role: RecoveryRole,
     pub text: &'a str,
+    pub source_tokens: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LexicalOpacityKind {
+    Noun,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LexicalOpacityRef<'a> {
+    pub kind: LexicalOpacityKind,
+    pub text: &'a str,
+    pub source_tokens: usize,
 }
 
 impl OracleText {
     #[must_use]
-    pub fn unknown_phrases(&self) -> Vec<UnknownPhraseRef<'_>> {
-        let mut walker = UnknownWalker::default();
+    pub fn recoveries(&self) -> Vec<RecoveryRef<'_>> {
+        let mut walker = RecoveryWalker::default();
         walker.oracle_text(self);
         walker.phrases
+    }
+
+    #[must_use]
+    pub fn lexical_opacity(&self) -> Vec<LexicalOpacityRef<'_>> {
+        let mut walker = RecoveryWalker::default();
+        walker.oracle_text(self);
+        walker.lexical_opacity
     }
 }
 
 #[derive(Default)]
-struct UnknownWalker<'syntax> {
-    phrases: Vec<UnknownPhraseRef<'syntax>>,
+struct RecoveryWalker<'syntax> {
+    phrases: Vec<RecoveryRef<'syntax>>,
+    lexical_opacity: Vec<LexicalOpacityRef<'syntax>>,
 }
 
-impl<'syntax> UnknownWalker<'syntax> {
+impl<'syntax> RecoveryWalker<'syntax> {
     fn oracle_text(&mut self, oracle_text: &'syntax OracleText) {
         for ability in &oracle_text.abilities {
             self.ability(ability, None);
         }
     }
 
-    fn ability(&mut self, ability: &'syntax Ability, context: Option<UnknownRole>) {
+    fn ability(&mut self, ability: &'syntax Ability, context: Option<RecoveryRole>) {
         match &ability.kind {
             AbilityKind::Activated(activated) => {
-                self.cost(&activated.cost, Some(UnknownRole::ActivationCost));
+                self.cost(&activated.cost, Some(RecoveryRole::ActivationCost));
                 self.paragraph(&activated.effect, context);
             }
             AbilityKind::ClassLevel(level) => {
-                self.cost(&level.cost, Some(UnknownRole::ActivationCost));
+                self.cost(&level.cost, Some(RecoveryRole::ActivationCost));
             }
             AbilityKind::Triggered(triggered) => {
                 self.trigger_event(&triggered.event, context);
@@ -65,7 +86,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                     ModalFrame::Unframed | ModalFrame::Loyalty(_) => {}
                     ModalFrame::Preamble { body, .. } => self.paragraph(body, context),
                     ModalFrame::Activated(cost) => {
-                        self.cost(cost, Some(UnknownRole::ActivationCost));
+                        self.cost(cost, Some(RecoveryRole::ActivationCost));
                     }
                     ModalFrame::Triggered {
                         event,
@@ -78,7 +99,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                         }
                     }
                 }
-                self.paragraph(&modal.header, Some(UnknownRole::ModalHeader));
+                self.paragraph(&modal.header, Some(RecoveryRole::ModalHeader));
                 for mode in &modal.modes {
                     self.paragraph(&mode.body, context);
                 }
@@ -88,8 +109,8 @@ impl<'syntax> UnknownWalker<'syntax> {
                     if let Some(argument) = &keyword.argument {
                         self.phrase(
                             argument,
-                            UnknownRole::KeywordArgument,
-                            Some(UnknownRole::KeywordArgument),
+                            RecoveryRole::KeywordArgument,
+                            Some(RecoveryRole::KeywordArgument),
                         );
                     }
                 }
@@ -98,33 +119,33 @@ impl<'syntax> UnknownWalker<'syntax> {
         }
     }
 
-    fn cost(&mut self, cost: &'syntax Cost, context: Option<UnknownRole>) {
+    fn cost(&mut self, cost: &'syntax Cost, context: Option<RecoveryRole>) {
         if let Cost::Components(components) = cost {
             for component in components {
-                self.phrase(component, UnknownRole::ActivationCost, context);
+                self.phrase(component, RecoveryRole::ActivationCost, context);
             }
         }
     }
 
-    fn paragraph(&mut self, paragraph: &'syntax Paragraph, context: Option<UnknownRole>) {
+    fn paragraph(&mut self, paragraph: &'syntax Paragraph, context: Option<RecoveryRole>) {
         for sentence in &paragraph.sentences {
             match &sentence.body {
                 SentenceBody::Independent(clause) => self.independent_clause(clause, context),
-                SentenceBody::Unknown(unknown) => {
-                    self.push(unknown, UnknownRole::Clause, context);
+                SentenceBody::Recovered(unknown) => {
+                    self.push(unknown, RecoveryRole::Clause, context);
                 }
             }
         }
     }
 
-    fn clause(&mut self, clause: &'syntax Clause, context: Option<UnknownRole>) {
+    fn clause(&mut self, clause: &'syntax Clause, context: Option<RecoveryRole>) {
         match clause {
             Clause::Independent(clause) => self.independent_clause(clause, context),
             Clause::Dependent(clause) => self.dependent_clause(clause, context),
         }
     }
 
-    fn trigger_event(&mut self, event: &'syntax TriggerEvent, context: Option<UnknownRole>) {
+    fn trigger_event(&mut self, event: &'syntax TriggerEvent, context: Option<RecoveryRole>) {
         match event {
             TriggerEvent::Clause(clause) => self.independent_clause(clause, context),
             TriggerEvent::Temporal(noun_phrase) => self.noun_phrase(noun_phrase, context),
@@ -134,7 +155,7 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn independent_clause(
         &mut self,
         clause: &'syntax IndependentClause,
-        context: Option<UnknownRole>,
+        context: Option<RecoveryRole>,
     ) {
         match clause {
             IndependentClause::Transitive(subject, predicate) => {
@@ -143,7 +164,7 @@ impl<'syntax> UnknownWalker<'syntax> {
             }
             IndependentClause::Intransitive(subject, predicate) => {
                 self.subject(subject, context);
-                self.predicate_head(&predicate.head, context);
+                Self::predicate_head(&predicate.head, context);
                 self.predicate_elements(&predicate.elements, context);
             }
             IndependentClause::Copular(subject, predicate) => {
@@ -153,7 +174,7 @@ impl<'syntax> UnknownWalker<'syntax> {
             }
             IndependentClause::Passive(subject, predicate) => {
                 self.subject(subject, context);
-                self.predicate_head(&predicate.head, context);
+                Self::predicate_head(&predicate.head, context);
                 self.predicate_elements(&predicate.elements, context);
             }
             IndependentClause::Imperative(predicate) => self.predicate(predicate, context),
@@ -195,7 +216,11 @@ impl<'syntax> UnknownWalker<'syntax> {
         }
     }
 
-    fn dependent_clause(&mut self, clause: &'syntax DependentClause, context: Option<UnknownRole>) {
+    fn dependent_clause(
+        &mut self,
+        clause: &'syntax DependentClause,
+        context: Option<RecoveryRole>,
+    ) {
         match clause {
             DependentClause::Subordinate(_, SubordinateBody::Finite(clause)) => {
                 self.independent_clause(clause, context);
@@ -209,7 +234,7 @@ impl<'syntax> UnknownWalker<'syntax> {
             DependentClause::Subordinate(
                 _,
                 SubordinateBody::Elliptical(EllipticalClause::Adjective(adjective)),
-            ) => self.adjective_phrase(adjective, UnknownRole::Clause, context),
+            ) => self.adjective_phrase(adjective, RecoveryRole::Clause, context),
             DependentClause::Relative(relative) => self.relative_clause(relative, context),
             DependentClause::Infinitive(infinitive) => {
                 self.predicate(&infinitive.predicate, context);
@@ -218,22 +243,22 @@ impl<'syntax> UnknownWalker<'syntax> {
         }
     }
 
-    fn gerund_clause(&mut self, clause: &'syntax GerundClause, context: Option<UnknownRole>) {
+    fn gerund_clause(&mut self, clause: &'syntax GerundClause, context: Option<RecoveryRole>) {
         self.predicate(&clause.predicate, context);
         for attachment in &clause.attachments {
             self.dependent_clause(&attachment.clause, context);
         }
     }
 
-    fn subject(&mut self, subject: &'syntax Subject, context: Option<UnknownRole>) {
+    fn subject(&mut self, subject: &'syntax Subject, context: Option<RecoveryRole>) {
         self.noun_phrase(&subject.0, context);
     }
 
-    fn predicate(&mut self, predicate: &'syntax Predicate, context: Option<UnknownRole>) {
+    fn predicate(&mut self, predicate: &'syntax Predicate, context: Option<RecoveryRole>) {
         match predicate {
             Predicate::Transitive(predicate) => self.transitive_predicate(predicate, context),
             Predicate::Intransitive(predicate) => {
-                self.predicate_head(&predicate.head, context);
+                Self::predicate_head(&predicate.head, context);
                 self.predicate_elements(&predicate.elements, context);
             }
             Predicate::Copular(predicate) => {
@@ -241,7 +266,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                 self.predicate_adjuncts(&predicate.adjuncts, context);
             }
             Predicate::Passive(predicate) => {
-                self.predicate_head(&predicate.head, context);
+                Self::predicate_head(&predicate.head, context);
                 self.predicate_elements(&predicate.elements, context);
             }
             Predicate::Proform(_) => {}
@@ -251,23 +276,27 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn transitive_predicate(
         &mut self,
         predicate: &'syntax TransitivePredicate,
-        context: Option<UnknownRole>,
+        context: Option<RecoveryRole>,
     ) {
-        self.predicate_head(&predicate.head, context);
+        Self::predicate_head(&predicate.head, context);
         self.predicate_object(&predicate.object, context);
         self.predicate_elements(&predicate.elements, context);
     }
 
-    fn predicate_head(&mut self, head: &'syntax PredicateHead, context: Option<UnknownRole>) {
+    fn predicate_head(head: &'syntax PredicateHead, context: Option<RecoveryRole>) {
         let _ = (head, context);
     }
 
-    fn predicate_object(&mut self, object: &'syntax PredicateObject, context: Option<UnknownRole>) {
+    fn predicate_object(
+        &mut self,
+        object: &'syntax PredicateObject,
+        context: Option<RecoveryRole>,
+    ) {
         match object {
             PredicateObject::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase, context),
             PredicateObject::EmbeddedAbility(ability) => self.ability(ability, context),
             PredicateObject::QuotedAbility(quoted) => {
-                self.ability(&quoted.ability, Some(UnknownRole::EmbeddedRules));
+                self.ability(&quoted.ability, Some(RecoveryRole::EmbeddedRules));
             }
             PredicateObject::Ability(ability) => {
                 if let Some(argument) = &ability.argument {
@@ -290,7 +319,7 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn predicate_elements(
         &mut self,
         elements: &'syntax [PredicateElement],
-        context: Option<UnknownRole>,
+        context: Option<RecoveryRole>,
     ) {
         for element in elements {
             match element {
@@ -299,10 +328,10 @@ impl<'syntax> UnknownWalker<'syntax> {
                         self.noun_phrase(noun_phrase, context);
                     }
                     PredicateComplement::Adjective(adjective) => {
-                        self.adjective_phrase(adjective, UnknownRole::Clause, context);
+                        self.adjective_phrase(adjective, RecoveryRole::Clause, context);
                     }
                     PredicateComplement::Prepositional(preposition) => {
-                        self.prepositional_phrase(preposition, UnknownRole::Clause, context)
+                        self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
                     }
                     PredicateComplement::Infinitive(infinitive) => {
                         self.predicate(&infinitive.predicate, context);
@@ -317,7 +346,7 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn predicate_adjuncts(
         &mut self,
         adjuncts: &'syntax [PredicateAdjunct],
-        context: Option<UnknownRole>,
+        context: Option<RecoveryRole>,
     ) {
         for adjunct in adjuncts {
             self.predicate_adjunct(adjunct, context);
@@ -327,13 +356,14 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn predicate_adjunct(
         &mut self,
         adjunct: &'syntax PredicateAdjunct,
-        context: Option<UnknownRole>,
+        context: Option<RecoveryRole>,
     ) {
         match adjunct {
-            PredicateAdjunct::Temporal(noun_phrase) => self.noun_phrase(noun_phrase, context),
-            PredicateAdjunct::Manner(noun_phrase) => self.noun_phrase(noun_phrase, context),
+            PredicateAdjunct::Temporal(noun_phrase) | PredicateAdjunct::Manner(noun_phrase) => {
+                self.noun_phrase(noun_phrase, context);
+            }
             PredicateAdjunct::Prepositional(preposition) => {
-                self.prepositional_phrase(preposition, UnknownRole::Clause, context);
+                self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
             }
             PredicateAdjunct::Dependent(dependent) => {
                 self.dependent_clause(dependent, context);
@@ -345,21 +375,25 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn copular_complement(
         &mut self,
         complement: &'syntax CopularComplement,
-        context: Option<UnknownRole>,
+        context: Option<RecoveryRole>,
     ) {
         match complement {
             CopularComplement::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase, context),
             CopularComplement::Adjective(adjective) => {
-                self.adjective_phrase(adjective, UnknownRole::Clause, context);
+                self.adjective_phrase(adjective, RecoveryRole::Clause, context);
             }
             CopularComplement::Prepositional(preposition) => {
-                self.prepositional_phrase(preposition, UnknownRole::Clause, context)
+                self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
             }
             CopularComplement::CatalogAtom(_) => {}
         }
     }
 
-    fn relative_clause(&mut self, relative: &'syntax RelativeClause, context: Option<UnknownRole>) {
+    fn relative_clause(
+        &mut self,
+        relative: &'syntax RelativeClause,
+        context: Option<RecoveryRole>,
+    ) {
         match &relative.body {
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate, context),
             RelativeBody::ModalSubjectGap { predicate, .. } => {
@@ -367,13 +401,13 @@ impl<'syntax> UnknownWalker<'syntax> {
             }
             RelativeBody::ObjectGap { subject, predicate } => {
                 self.subject(subject, context);
-                self.predicate_head(&predicate.head, context);
+                Self::predicate_head(&predicate.head, context);
                 self.predicate_elements(&predicate.elements, context);
             }
         }
     }
 
-    fn noun_phrase(&mut self, phrase: &'syntax NounPhrase, context: Option<UnknownRole>) {
+    fn noun_phrase(&mut self, phrase: &'syntax NounPhrase, context: Option<RecoveryRole>) {
         match phrase {
             NounPhrase::Nominal(nominal) => {
                 if let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) =
@@ -381,23 +415,24 @@ impl<'syntax> UnknownWalker<'syntax> {
                 {
                     self.noun_phrase(possessor, context);
                 }
-                if let crate::word::NounInstance::Singular(crate::word::Noun::Unknown(unknown))
-                | crate::word::NounInstance::Plural(crate::word::Noun::Unknown(unknown))
-                | crate::word::NounInstance::Mass(crate::word::Noun::Unknown(unknown)) =
+                if let crate::word::NounInstance::Singular(crate::word::Noun::Opaque(opaque))
+                | crate::word::NounInstance::Plural(crate::word::Noun::Opaque(opaque))
+                | crate::word::NounInstance::Mass(crate::word::Noun::Opaque(opaque)) =
                     &nominal.head
                 {
-                    self.push(unknown, UnknownRole::NominalComplement, context);
+                    self.lexical_opacity.push(LexicalOpacityRef {
+                        kind: LexicalOpacityKind::Noun,
+                        text: opaque.spelling(),
+                        source_tokens: 1,
+                    });
                 }
                 for modifier in &nominal.modifiers {
                     match modifier {
                         NominalModifier::Adjective(adjective) => self.adjective_phrase(
                             adjective,
-                            UnknownRole::NominalComplement,
+                            RecoveryRole::NominalComplement,
                             context,
                         ),
-                        NominalModifier::Unknown(unknown) => {
-                            self.push(unknown, UnknownRole::NominalComplement, context);
-                        }
                         NominalModifier::Noun(_)
                         | NominalModifier::Quantity(_)
                         | NominalModifier::PowerToughness(_) => {}
@@ -407,13 +442,13 @@ impl<'syntax> UnknownWalker<'syntax> {
                     match complement {
                         NominalComplement::Adjective(adjective) => self.adjective_phrase(
                             adjective,
-                            UnknownRole::NominalComplement,
+                            RecoveryRole::NominalComplement,
                             context,
                         ),
                         NominalComplement::Prepositional(preposition) => {
                             self.prepositional_phrase(
                                 preposition,
-                                UnknownRole::NominalComplement,
+                                RecoveryRole::NominalComplement,
                                 context,
                             );
                         }
@@ -424,9 +459,6 @@ impl<'syntax> UnknownWalker<'syntax> {
                             self.relative_clause(relative, context);
                         }
                         NominalComplement::Quantity(_) => {}
-                        NominalComplement::Unknown(unknown) => {
-                            self.push(unknown, UnknownRole::NominalComplement, context);
-                        }
                     }
                 }
             }
@@ -451,8 +483,8 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn adjective_phrase(
         &mut self,
         phrase: &'syntax AdjectivePhrase,
-        role: UnknownRole,
-        context: Option<UnknownRole>,
+        role: RecoveryRole,
+        context: Option<RecoveryRole>,
     ) {
         for complement in &phrase.complements {
             match complement {
@@ -466,7 +498,6 @@ impl<'syntax> UnknownWalker<'syntax> {
                 AdjectiveComplement::Infinitive(infinitive) => {
                     self.predicate(&infinitive.predicate, context);
                 }
-                AdjectiveComplement::Unknown(unknown) => self.push(unknown, role, context),
             }
         }
     }
@@ -474,13 +505,18 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn prepositional_phrase(
         &mut self,
         phrase: &'syntax PrepositionalPhrase,
-        role: UnknownRole,
-        context: Option<UnknownRole>,
+        role: RecoveryRole,
+        context: Option<RecoveryRole>,
     ) {
         self.phrase(&phrase.object, role, context);
     }
 
-    fn phrase(&mut self, phrase: &'syntax Phrase, role: UnknownRole, context: Option<UnknownRole>) {
+    fn phrase(
+        &mut self,
+        phrase: &'syntax Phrase,
+        role: RecoveryRole,
+        context: Option<RecoveryRole>,
+    ) {
         match phrase {
             Phrase::Clause(clause) => self.clause(clause, context),
             Phrase::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase, context),
@@ -492,10 +528,10 @@ impl<'syntax> UnknownWalker<'syntax> {
             }
             Phrase::EmbeddedAbility(ability) => self.ability(ability, context),
             Phrase::QuotedAbility(quoted) => {
-                self.ability(&quoted.ability, Some(UnknownRole::EmbeddedRules));
+                self.ability(&quoted.ability, Some(RecoveryRole::EmbeddedRules));
             }
             Phrase::Cost(cost) => self.cost(cost, context),
-            Phrase::UnknownPhrase(unknown) => self.push(unknown, role, context),
+            Phrase::Recovered(unknown) => self.push(unknown, role, context),
             Phrase::Quantity(_)
             | Phrase::Adverb(_)
             | Phrase::CatalogAtom(_)
@@ -511,13 +547,14 @@ impl<'syntax> UnknownWalker<'syntax> {
 
     fn push(
         &mut self,
-        unknown: &'syntax UnknownPhrase,
-        role: UnknownRole,
-        context: Option<UnknownRole>,
+        recovery: &'syntax RecoveredText,
+        role: RecoveryRole,
+        context: Option<RecoveryRole>,
     ) {
-        self.phrases.push(UnknownPhraseRef {
+        self.phrases.push(RecoveryRef {
             role: context.unwrap_or(role),
-            text: &unknown.0,
+            text: recovery.spelling(),
+            source_tokens: recovery.source_tokens(),
         });
     }
 }
@@ -591,7 +628,7 @@ mod tests {
     }
 
     #[test]
-    fn unknown_walker_reports_the_grammatical_role_of_every_opaque_leaf() {
+    fn recovery_walker_reports_outer_roles_separately_from_lexical_opacity() {
         let catalogs = Catalogs::new(
             ["Flying"],
             std::iter::empty::<&str>(),
@@ -607,20 +644,20 @@ mod tests {
 
         let oracle_text = OracleText {
             abilities: vec![
-                paragraph_unknown("clause"),
+                paragraph_recovered("clause"),
                 paragraph(IndependentClause::Intransitive(
                     Subject(NounPhrase::Nominal(NominalPhrase {
                         determiner: None,
                         modifiers: vec![],
-                        head: NounInstance::Singular(Noun::Word(Vocab::Card)),
-                        complements: vec![NominalComplement::Unknown(unknown("nominal"))],
+                        head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                        complements: vec![],
                     })),
                     intransitive(Vocab::Draw),
                 )),
                 Ability {
                     ability_word: None,
                     kind: AbilityKind::Activated(ActivatedAbility {
-                        cost: Cost::Components(vec![Phrase::UnknownPhrase(unknown("cost"))]),
+                        cost: Cost::Components(vec![Phrase::Recovered(recovered("cost"))]),
                         effect: Paragraph::default(),
                         effect_initial_uppercase: true,
                     }),
@@ -632,7 +669,7 @@ mod tests {
                             preceding_separator: None,
                             ability: flying,
                             argument_separator: Some(KeywordArgumentSeparator::Space),
-                            argument: Some(Phrase::UnknownPhrase(unknown("argument"))),
+                            argument: Some(Phrase::Recovered(recovered("argument"))),
                         }],
                     }),
                 },
@@ -640,7 +677,7 @@ mod tests {
                     ability_word: None,
                     kind: AbilityKind::Modal(ModalAbility {
                         frame: ModalFrame::Unframed,
-                        header: paragraph_body(SentenceBody::Unknown(unknown("header"))),
+                        header: paragraph_body(SentenceBody::Recovered(recovered("header"))),
                         header_suffix: ModalHeaderSuffix::None,
                         modes: vec![],
                     }),
@@ -649,7 +686,7 @@ mod tests {
                     TransitivePredicate {
                         head: predicate_head(Vocab::Draw),
                         object: PredicateObject::QuotedAbility(Box::new(QuotedAbility {
-                            ability: Box::new(paragraph_unknown("embedded")),
+                            ability: Box::new(paragraph_recovered("embedded")),
                             initial_uppercase: false,
                             closed: true,
                         })),
@@ -660,48 +697,77 @@ mod tests {
         };
 
         assert_eq!(
-            oracle_text.unknown_phrases(),
+            oracle_text.recoveries(),
             vec![
-                UnknownPhraseRef {
-                    role: UnknownRole::Clause,
-                    text: "clause"
+                RecoveryRef {
+                    role: RecoveryRole::Clause,
+                    text: "clause",
+                    source_tokens: 1,
                 },
-                UnknownPhraseRef {
-                    role: UnknownRole::NominalComplement,
-                    text: "nominal"
+                RecoveryRef {
+                    role: RecoveryRole::ActivationCost,
+                    text: "cost",
+                    source_tokens: 1,
                 },
-                UnknownPhraseRef {
-                    role: UnknownRole::ActivationCost,
-                    text: "cost"
+                RecoveryRef {
+                    role: RecoveryRole::KeywordArgument,
+                    text: "argument",
+                    source_tokens: 1,
                 },
-                UnknownPhraseRef {
-                    role: UnknownRole::KeywordArgument,
-                    text: "argument"
+                RecoveryRef {
+                    role: RecoveryRole::ModalHeader,
+                    text: "header",
+                    source_tokens: 1,
                 },
-                UnknownPhraseRef {
-                    role: UnknownRole::ModalHeader,
-                    text: "header"
-                },
-                UnknownPhraseRef {
-                    role: UnknownRole::EmbeddedRules,
-                    text: "embedded"
+                RecoveryRef {
+                    role: RecoveryRole::EmbeddedRules,
+                    text: "embedded",
+                    source_tokens: 1,
                 },
             ]
+        );
+        assert_eq!(
+            oracle_text.lexical_opacity(),
+            vec![LexicalOpacityRef {
+                kind: LexicalOpacityKind::Noun,
+                text: "blorple",
+                source_tokens: 1,
+            }]
         );
     }
 
     #[test]
-    fn unknown_walker_reports_unsupported_predicates_at_sentence_scope() {
+    fn recovery_walker_reports_unsupported_predicates_at_sentence_scope() {
         let ast = crate::parse("You frobnitz a card.").into_ast();
 
-        assert!(ast.unknown_phrases().contains(&UnknownPhraseRef {
-            role: UnknownRole::Clause,
+        assert!(ast.recoveries().contains(&RecoveryRef {
+            role: RecoveryRole::Clause,
             text: "You frobnitz a card",
+            source_tokens: 5,
         }));
     }
 
-    fn unknown(text: &str) -> UnknownPhrase {
-        UnknownPhrase(text.to_owned())
+    #[test]
+    fn splitting_recovery_does_not_reduce_recovered_source_tokens() {
+        let one_span =
+            activated_with_cost(vec![Phrase::Recovered(RecoveredText::new("alpha beta", 2))]);
+        let split = activated_with_cost(vec![
+            Phrase::Recovered(recovered("alpha")),
+            Phrase::Recovered(recovered("beta")),
+        ]);
+
+        let recovered_tokens = |ast: &OracleText| {
+            ast.recoveries()
+                .iter()
+                .map(|recovery| recovery.source_tokens)
+                .sum::<usize>()
+        };
+        assert_eq!(recovered_tokens(&one_span), 2);
+        assert_eq!(recovered_tokens(&split), 2);
+    }
+
+    fn recovered(text: &str) -> RecoveredText {
+        RecoveredText::new(text, 1)
     }
 
     fn predicate_head(vocab: Vocab) -> PredicateHead {
@@ -730,10 +796,23 @@ mod tests {
         }
     }
 
-    fn paragraph_unknown(text: &str) -> Ability {
+    fn paragraph_recovered(text: &str) -> Ability {
         Ability {
             ability_word: None,
-            kind: AbilityKind::Paragraph(paragraph_body(SentenceBody::Unknown(unknown(text)))),
+            kind: AbilityKind::Paragraph(paragraph_body(SentenceBody::Recovered(recovered(text)))),
+        }
+    }
+
+    fn activated_with_cost(components: Vec<Phrase>) -> OracleText {
+        OracleText {
+            abilities: vec![Ability {
+                ability_word: None,
+                kind: AbilityKind::Activated(ActivatedAbility {
+                    cost: Cost::Components(components),
+                    effect: Paragraph::default(),
+                    effect_initial_uppercase: true,
+                }),
+            }],
         }
     }
 

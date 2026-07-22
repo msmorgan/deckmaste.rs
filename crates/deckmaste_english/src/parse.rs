@@ -42,6 +42,7 @@ pub struct ParseReport {
     pub(crate) ast: OracleText,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) provenance: ParseProvenance,
+    pub(crate) source_tokens: usize,
 }
 
 impl ParseReport {
@@ -58,6 +59,11 @@ impl ParseReport {
     #[must_use]
     pub const fn provenance(&self) -> &ParseProvenance {
         &self.provenance
+    }
+
+    #[must_use]
+    pub const fn source_tokens(&self) -> usize {
+        self.source_tokens
     }
 
     #[must_use]
@@ -120,6 +126,7 @@ pub fn parse(source: &str) -> ParseReport {
 #[must_use]
 pub fn parse_with_catalogs(source: &str, catalogs: &Catalogs) -> ParseReport {
     let surface = lex(source);
+    let source_tokens = surface.tokens.len();
     let parsed = parse_oracle_text(source, catalogs, &surface.tokens);
     let mut diagnostics = surface
         .diagnostics
@@ -154,6 +161,7 @@ pub fn parse_with_catalogs(source: &str, catalogs: &Catalogs) -> ParseReport {
                 })
                 .collect(),
         },
+        source_tokens,
     }
 }
 

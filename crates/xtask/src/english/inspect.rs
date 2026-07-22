@@ -327,9 +327,9 @@ mod tests {
     fn local_card_snapshot_structurally_round_trips_without_source_text() {
         use std::time::Instant;
 
-        let Ok(data) = OracleDataArgs::default().load() else {
-            return;
-        };
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for the structural round-trip gate");
 
         let outcomes = map_supported_faces(&data.faces, |index, card| {
             let started = Instant::now();

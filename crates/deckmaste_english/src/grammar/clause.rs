@@ -2632,7 +2632,7 @@ mod tests {
             ),
         ] {
             let parsed = parse(source);
-            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact, "{source}");
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             let elements = match &parsed.sentence().unwrap().body {
                 SentenceBody::Independent(IndependentClause::Deontic(
                     _,
@@ -2669,7 +2669,7 @@ mod tests {
             ),
         ] {
             let parsed = parse(source);
-            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact, "{source}");
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
                 choose,
             ))) = &parsed.sentence().expect("sentence root").body
@@ -2769,7 +2769,7 @@ mod tests {
     fn any_time_is_temporal_after_a_prepositional_predicate_tail() {
         let source = "You may look at the top card of your library any time.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Deontic(
             _,
             _,
@@ -2833,7 +2833,7 @@ mod tests {
     fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
         let source = "As an additional cost to cast this spell, sacrifice a creature.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Complex(complex)) =
             &parsed.sentence().expect("sentence root").body
         else {
@@ -2880,7 +2880,7 @@ mod tests {
     fn this_way_is_a_manner_adjunct_inside_a_condition() {
         let source = "If you search your library this way, shuffle.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Complex(complex)) =
             &parsed.sentence().expect("sentence root").body
         else {
@@ -2920,7 +2920,7 @@ mod tests {
     fn then_can_modify_a_following_independent_clause() {
         let source = "Then that player shuffles.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Complex(complex)) =
             &parsed.sentence().expect("sentence root").body
         else {
@@ -3099,7 +3099,7 @@ mod tests {
     fn copular_adverbs_precede_the_complement() {
         for (source, contracted) in [("It is still a land.", false), ("It's still a land.", true)] {
             let parsed = parse(source);
-            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
             let SentenceBody::Independent(IndependentClause::Copular(subject, predicate)) =
                 &parsed.sentence().expect("sentence root").body
             else {
@@ -3242,7 +3242,7 @@ mod tests {
     fn rather_than_can_contrast_gerund_clauses() {
         let source = "You may cast that card by paying life equal to the spell's mana value rather than paying its mana cost.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Deontic(
             _,
             _,
@@ -3290,7 +3290,7 @@ mod tests {
     fn not_to_negates_an_infinitive_clause() {
         let source = "You may choose not to untap this creature.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Deontic(
             _,
             _,
@@ -3315,7 +3315,7 @@ mod tests {
     fn directional_particle_completes_an_intransitive_predicate() {
         let source = "This creature phases out.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Intransitive(_, predicate)) =
             &parsed.sentence().expect("sentence root").body
         else {
@@ -3335,7 +3335,7 @@ mod tests {
     fn face_down_is_a_secondary_adjective_predicate() {
         let source = "Turn this creature face down.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
             predicate,
         ))) = &parsed.sentence().expect("sentence root").body
@@ -3361,7 +3361,7 @@ mod tests {
     fn plus_coordinates_additive_noun_phrases() {
         let source = "You gain that much life plus 1.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
             &parsed.sentence().expect("sentence root").body
         else {
@@ -3387,7 +3387,7 @@ mod tests {
     fn variable_quantity_has_singular_standalone_agreement() {
         let source = "X is 5 or more.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Copular(
             Subject(NounPhrase::Quantity(Quantity::X)),
             _,
@@ -3405,12 +3405,12 @@ mod tests {
     fn count_sense_of_power_accepts_an_adjective_and_plural_inflection() {
         let source = "You control three creatures with different powers.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 
         let source = "You gain the difference.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
@@ -3595,7 +3595,7 @@ mod tests {
     fn contiguous_oracle_symbols_are_one_scalar_object() {
         let source = "Add {C}{C}.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
             predicate,
         ))) = &parsed.sentence().expect("sentence root").body
@@ -3615,7 +3615,7 @@ mod tests {
     fn oracle_symbol_alternatives_are_a_coordinated_object() {
         let source = "Add {R} or {G}.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
             predicate,
         ))) = &parsed.sentence().expect("sentence root").body
@@ -3691,7 +3691,7 @@ mod tests {
     fn multiple_fronted_clause_attachments_keep_surface_order() {
         let source = "At the beginning of each upkeep, if no spells were cast last turn, transform this creature.";
         let parsed = parse(source);
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert!(matches!(
             &parsed.sentence().expect("sentence root").body,
             SentenceBody::Independent(IndependentClause::Complex(ComplexClause {

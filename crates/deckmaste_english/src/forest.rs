@@ -10,8 +10,8 @@ use crate::chart::RuleId;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct ParseCost {
-    pub(crate) unknown_words: u32,
-    pub(crate) recoveries: u32,
+    pub(crate) opaque_words: u32,
+    pub(crate) opaque_lexemes: u32,
     pub(crate) generic_rules: u32,
     pub(crate) precedence: u32,
 }
@@ -27,8 +27,8 @@ impl Add for ParseCost {
 
 impl AddAssign for ParseCost {
     fn add_assign(&mut self, rhs: Self) {
-        self.unknown_words = self.unknown_words.saturating_add(rhs.unknown_words);
-        self.recoveries = self.recoveries.saturating_add(rhs.recoveries);
+        self.opaque_words = self.opaque_words.saturating_add(rhs.opaque_words);
+        self.opaque_lexemes = self.opaque_lexemes.saturating_add(rhs.opaque_lexemes);
         self.generic_rules = self.generic_rules.saturating_add(rhs.generic_rules);
         self.precedence = self.precedence.saturating_add(rhs.precedence);
     }

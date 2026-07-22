@@ -5,7 +5,7 @@ use anyhow::bail;
 use clap::Args;
 use deckmaste_english::parse_with_catalogs;
 use deckmaste_english::syntax::OracleText;
-use deckmaste_english::syntax::UnknownRole;
+use deckmaste_english::syntax::RecoveryRole;
 
 use super::data::OracleDataArgs;
 use super::data::map_supported_faces;
@@ -123,12 +123,12 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
     }
     let unit = if maximum == 1 { "word" } else { "words" };
     println!(
-        "audited {} card faces; found {} UnknownPhrase occurrences; maximum {maximum} {unit}; {over_three} over 3 words",
+        "audited {} card faces; found {} unresolved spans; maximum {maximum} {unit}; {over_three} over 3 words",
         card_count,
         occurrences.len()
     );
     println!(
-        "UnknownPhrase lengths: 0–1={}  2={}  3={}  4–5={}  6–10={}  11–20={}  21+={}",
+        "unresolved-span lengths: 0–1={}  2={}  3={}  4–5={}  6–10={}  11–20={}  21+={}",
         phrase_lengths[0],
         phrase_lengths[1],
         phrase_lengths[2],
@@ -229,29 +229,37 @@ fn print_result_header(kind: &str, args: &UnknownPhrasesArgs, order: &str) {
         } else {
             String::new()
         };
-    println!("UnknownPhrase {kind} {word_range}{count_range} ({order}):");
+    println!("unresolved {kind} {word_range}{count_range} ({order}):");
 }
 
 fn unknown_occurrences(ast: &OracleText, card: &str) -> Vec<Occurrence> {
-    ast.unknown_phrases()
+    let mut occurrences = ast
+        .recoveries()
         .into_iter()
-        .map(|unknown| Occurrence {
+        .map(|recovery| Occurrence {
             card: card.to_owned(),
-            role: role_name(unknown.role),
-            text: unknown.text.to_owned(),
-            words: phrase_word_count(unknown.text),
+            role: role_name(recovery.role),
+            text: recovery.text.to_owned(),
+            words: phrase_word_count(recovery.text),
         })
-        .collect()
+        .collect::<Vec<_>>();
+    occurrences.extend(ast.lexical_opacity().into_iter().map(|opaque| Occurrence {
+        card: card.to_owned(),
+        role: "lexical noun",
+        text: opaque.text.to_owned(),
+        words: phrase_word_count(opaque.text),
+    }));
+    occurrences
 }
 
-const fn role_name(role: UnknownRole) -> &'static str {
+const fn role_name(role: RecoveryRole) -> &'static str {
     match role {
-        UnknownRole::Clause => "clause",
-        UnknownRole::NominalComplement => "nominal",
-        UnknownRole::ActivationCost => "activation cost",
-        UnknownRole::KeywordArgument => "keyword argument",
-        UnknownRole::ModalHeader => "modal header",
-        UnknownRole::EmbeddedRules => "embedded rules",
+        RecoveryRole::Clause => "clause",
+        RecoveryRole::NominalComplement => "nominal",
+        RecoveryRole::ActivationCost => "activation cost",
+        RecoveryRole::KeywordArgument => "keyword argument",
+        RecoveryRole::ModalHeader => "modal header",
+        RecoveryRole::EmbeddedRules => "embedded rules",
     }
 }
 

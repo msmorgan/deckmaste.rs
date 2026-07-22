@@ -7,18 +7,18 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
 
     for form in [NounForm::Singular, NounForm::Plural, NounForm::Mass] {
         builder.add(
-            RuleTag::NounUnknown,
+            RuleTag::NounOpaque,
             N::Noun,
-            [l(L::Unknown(RecoverySlot::Noun(form)))],
+            [l(L::Opaque(OpacitySlot::Noun(form)))],
         );
     }
 }
 
-pub(super) fn scan_unknown(
+pub(super) fn scan_opaque(
     source: &str,
     tokens: &[Token],
     start: usize,
-    slot: RecoverySlot,
+    slot: OpacitySlot,
 ) -> Vec<LexicalMatch<Features, MeaningKey>> {
     let Some(first) = tokens.get(start) else {
         return Vec::new();
@@ -26,7 +26,7 @@ pub(super) fn scan_unknown(
     if first.kind != TokenKind::Word {
         return Vec::new();
     }
-    let RecoverySlot::Noun(form) = slot;
+    let OpacitySlot::Noun(form) = slot;
     let span = first.span;
     let initial_sound = span
         .text(source)
@@ -38,28 +38,28 @@ pub(super) fn scan_unknown(
             initial_sound,
             adjunct: None,
         },
-        meaning: MeaningKey::Unknown(UnknownKey { slot, span }),
+        meaning: MeaningKey::Opaque(OpaqueKey { slot, span }),
         local_cost: ParseCost {
-            unknown_words: 1,
-            recoveries: 1,
+            opaque_words: 1,
+            opaque_lexemes: 1,
             ..ParseCost::default()
         },
     }]
 }
 
-pub(super) fn reduce_recovery(
+pub(super) fn reduce_opacity(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::NounUnknown => Some(propagate(children.first()?)),
+        RuleTag::NounOpaque => Some(propagate(children.first()?)),
         _ => None,
     }
 }
 
-pub(super) fn lower_recovery(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
+pub(super) fn lower_opacity(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::NounUnknown => take(children, 0),
+        RuleTag::NounOpaque => take(children, 0),
         _ => None,
     }
 }
@@ -83,27 +83,27 @@ mod tests {
     use crate::word::NounInstance;
 
     #[test]
-    fn exact_parse_wins_without_constructing_recovery_edges() {
+    fn exact_parse_wins_without_constructing_opacity_edges() {
         let parsed = parse("Draw a card.");
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert_eq!(parsed.cost(), ParseCost::default());
         assert!(!parsed.chart.forest.nodes().any(|node| {
             node.key
                 .lexical_value()
-                .is_some_and(|meaning| matches!(meaning, MeaningKey::Unknown(_)))
+                .is_some_and(|meaning| matches!(meaning, MeaningKey::Opaque(_)))
         }));
-        assert!(unknowns(parsed.sentence().unwrap()).is_empty());
+        assert!(opaque_nouns(parsed.sentence().unwrap()).is_empty());
     }
 
     #[test]
-    fn unknown_noun_is_recovered_inside_the_object_nominal() {
+    fn opaque_noun_stays_inside_the_object_nominal() {
         let parsed = parse("Draw a blorple.");
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::UnknownPhrases);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::OpaqueNouns);
         assert_eq!(
             parsed.cost(),
             ParseCost {
-                unknown_words: 1,
-                recoveries: 1,
+                opaque_words: 1,
+                opaque_lexemes: 1,
                 ..ParseCost::default()
             }
         );
@@ -118,12 +118,12 @@ mod tests {
         );
         assert!(matches!(
             &object.head,
-            NounInstance::Singular(Noun::Unknown(unknown)) if unknown.0 == "blorple"
+            NounInstance::Singular(Noun::Opaque(opaque)) if opaque.spelling() == "blorple"
         ));
     }
 
     #[test]
-    fn inflected_unknown_verb_recovers_at_the_sentence_boundary() {
+    fn inflected_unknown_verb_uses_structural_sentence_recovery() {
         let catalogs =
             Catalogs::default().with_catalog(crate::catalog::CatalogKind::CardType, ["Creature"]);
         let report = crate::parse_with_catalogs("Target creature frobnitzes a card.", &catalogs);
@@ -133,7 +133,8 @@ mod tests {
         assert!(
             matches!(
                 &paragraph.sentences[0].body,
-                SentenceBody::Unknown(unknown) if unknown.0 == "Target creature frobnitzes a card"
+                SentenceBody::Recovered(recovery)
+                    if recovery.spelling() == "Target creature frobnitzes a card"
             ),
             "{:#?}",
             paragraph.sentences[0].body
@@ -141,19 +142,19 @@ mod tests {
     }
 
     #[test]
-    fn morphologically_ambiguous_bare_unknown_verb_recovers_at_the_sentence_boundary() {
+    fn morphologically_ambiguous_unknown_verb_uses_sentence_recovery() {
         let report = crate::parse("You frobnitz a card.");
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph fallback");
         };
         assert!(matches!(
             &paragraph.sentences[0].body,
-            SentenceBody::Unknown(unknown) if unknown.0 == "You frobnitz a card"
+            SentenceBody::Recovered(recovery) if recovery.spelling() == "You frobnitz a card"
         ));
     }
 
     #[test]
-    fn unknown_nominal_words_recover_only_as_nouns() {
+    fn unknown_nominal_words_become_only_opaque_nouns() {
         let parsed = parse("Draw a shiny strange card.");
         let predicate = transitive(parsed.sentence().unwrap());
         let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
@@ -163,9 +164,9 @@ mod tests {
             matches!(
                 object.modifiers.as_slice(),
                 [
-                    NominalModifier::Noun(NounInstance::Singular(Noun::Unknown(shiny))),
-                    NominalModifier::Noun(NounInstance::Singular(Noun::Unknown(strange))),
-                ] if shiny.0 == "shiny" && strange.0 == "strange"
+                    NominalModifier::Noun(NounInstance::Singular(Noun::Opaque(shiny))),
+                    NominalModifier::Noun(NounInstance::Singular(Noun::Opaque(strange))),
+                ] if shiny.spelling() == "shiny" && strange.spelling() == "strange"
             ),
             "{:#?}",
             object.modifiers
@@ -173,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn magic_atom_stays_known_instead_of_becoming_a_generic_recovery() {
+    fn magic_atom_stays_known_instead_of_becoming_a_generic_opacity() {
         let catalogs =
             Catalogs::default().with_catalog(crate::catalog::CatalogKind::CardType, ["Creature"]);
         let parsed = parse_nonterminal(
@@ -182,7 +183,7 @@ mod tests {
             Nonterminal::Sentence,
         )
         .unwrap();
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
             &parsed.sentence().unwrap().body
         else {
@@ -199,7 +200,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
     }
 
-    fn unknowns(sentence: &crate::syntax::Sentence) -> Vec<String> {
+    fn opaque_nouns(sentence: &crate::syntax::Sentence) -> Vec<String> {
         OracleText {
             abilities: vec![Ability {
                 ability_word: None,
@@ -208,18 +209,18 @@ mod tests {
                 }),
             }],
         }
-        .unknown_phrases()
+        .lexical_opacity()
         .into_iter()
-        .map(|unknown| unknown.text.to_owned())
+        .map(|opaque| opaque.text.to_owned())
         .collect()
     }
 
     fn transitive(sentence: &crate::syntax::Sentence) -> &crate::syntax::TransitivePredicate {
         match &sentence.body {
-            SentenceBody::Independent(IndependentClause::Transitive(_, predicate))
-            | SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-                predicate,
-            ))) => predicate,
+            SentenceBody::Independent(
+                IndependentClause::Transitive(_, predicate)
+                | IndependentClause::Imperative(Predicate::Transitive(predicate)),
+            ) => predicate,
             other => panic!("expected a transitive clause, got {other:#?}"),
         }
     }

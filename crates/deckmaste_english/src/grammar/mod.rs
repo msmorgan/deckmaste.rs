@@ -6,7 +6,7 @@
 pub(crate) mod ability;
 mod clause;
 mod nominal;
-mod recovery;
+mod opacity;
 
 use std::collections::HashMap;
 
@@ -55,6 +55,7 @@ use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
 use crate::syntax::NounPhrase;
+use crate::syntax::OpaqueLexeme;
 use crate::syntax::OracleSymbol;
 use crate::syntax::Phrase;
 use crate::syntax::Possessor;
@@ -69,7 +70,6 @@ use crate::syntax::RelativeMarker;
 use crate::syntax::Sentence;
 use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
-use crate::syntax::UnknownPhrase;
 use crate::syntax::VerbParticle;
 use crate::word::Adjective;
 use crate::word::Auxiliary;
@@ -235,13 +235,13 @@ pub(crate) enum EnglishLexicalSlot {
     Existential,
     Copula,
     SubjectAuxiliary,
-    Unknown(RecoverySlot),
+    Opaque(OpacitySlot),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum RecoveryMode {
+pub(crate) enum OpacityMode {
     Exact,
-    UnknownPhrases,
+    OpaqueNouns,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -251,24 +251,24 @@ pub(crate) enum BoundedQuantityKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum RecoveryProfile {
+enum OpacityProfile {
     Exact,
-    Phrases,
+    Nouns,
 }
 
-const RECOVERY_STATE_LIMIT: usize = 50_000;
+const OPACITY_STATE_LIMIT: usize = 50_000;
 
-impl RecoveryProfile {
-    const fn mode(self) -> RecoveryMode {
+impl OpacityProfile {
+    const fn mode(self) -> OpacityMode {
         match self {
-            Self::Exact => RecoveryMode::Exact,
-            Self::Phrases => RecoveryMode::UnknownPhrases,
+            Self::Exact => OpacityMode::Exact,
+            Self::Nouns => OpacityMode::OpaqueNouns,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum RecoverySlot {
+pub(crate) enum OpacitySlot {
     Noun(NounForm),
 }
 
@@ -372,7 +372,7 @@ pub(crate) enum Features {
         form: NounForm,
         initial_sound: InitialSound,
         determined: bool,
-        leading_recovery: bool,
+        leading_opacity: bool,
         attachment: NominalAttachmentPhase,
         comparison: AdjectiveComparisonState,
         adjunct: Option<NominalAdjunctKind>,
@@ -715,12 +715,12 @@ pub(crate) enum MeaningKey {
     SubjectAuxiliary(SubjectAuxiliaryKey),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
-    Unknown(UnknownKey),
+    Opaque(OpaqueKey),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct UnknownKey {
-    slot: RecoverySlot,
+pub(crate) struct OpaqueKey {
+    slot: OpacitySlot,
     span: Span,
 }
 
@@ -836,7 +836,7 @@ enum RuleTag {
     SentenceExclamation,
     SentenceQuestion,
     SentenceNone,
-    NounUnknown,
+    NounOpaque,
     FrequencyPhrase,
 }
 
@@ -847,7 +847,7 @@ pub(crate) struct EnglishGrammar<'source, 'catalogs> {
     rules: Vec<Rule<Nonterminal, EnglishLexicalSlot>>,
     tags: Vec<RuleTag>,
     rules_by_lhs: HashMap<Nonterminal, Vec<RuleId>>,
-    recovery_profile: RecoveryProfile,
+    opacity_profile: OpacityProfile,
 }
 
 impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
@@ -856,20 +856,20 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         catalogs: &'catalogs Catalogs,
         start: Nonterminal,
     ) -> Self {
-        Self::with_recovery_profile(source, catalogs, start, RecoveryProfile::Exact)
+        Self::with_opacity_profile(source, catalogs, start, OpacityProfile::Exact)
     }
 
-    fn with_recovery_profile(
+    fn with_opacity_profile(
         source: &'source str,
         catalogs: &'catalogs Catalogs,
         start: Nonterminal,
-        recovery_profile: RecoveryProfile,
+        opacity_profile: OpacityProfile,
     ) -> Self {
         let mut builder = RuleBuilder::default();
         builder.add_nominal_rules();
         builder.add_clause_rules();
-        if recovery_profile != RecoveryProfile::Exact {
-            recovery::add_rules(&mut builder);
+        if opacity_profile != OpacityProfile::Exact {
+            opacity::add_rules(&mut builder);
         }
         Self {
             source,
@@ -878,7 +878,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             rules: builder.rules,
             tags: builder.tags,
             rules_by_lhs: builder.rules_by_lhs,
-            recovery_profile,
+            opacity_profile,
         }
     }
 
@@ -1280,14 +1280,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::RatherThan
             | EnglishLexicalSlot::Conjunction
             | EnglishLexicalSlot::Plus) => self.scan_clause_lexical(slot, tokens, start),
-            EnglishLexicalSlot::Unknown(slot)
-                if self.recovery_profile != RecoveryProfile::Exact =>
-            {
+            EnglishLexicalSlot::Opaque(slot) if self.opacity_profile != OpacityProfile::Exact => {
                 let already_known = self.has_known_word(tokens, start);
                 if already_known {
                     Vec::new()
                 } else {
-                    let mut matches = recovery::scan_unknown(self.source, tokens, start, slot);
+                    let mut matches = opacity::scan_opaque(self.source, tokens, start, slot);
                     matches.retain(|candidate| {
                         !((start + 1)..candidate.end)
                             .any(|index| self.has_known_word(tokens, index))
@@ -1295,7 +1293,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     matches
                 }
             }
-            EnglishLexicalSlot::Unknown(_) => Vec::new(),
+            EnglishLexicalSlot::Opaque(_) => Vec::new(),
         }
     }
 
@@ -1319,7 +1317,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
     }
 
     fn state_limit(&self) -> Option<usize> {
-        (self.recovery_profile == RecoveryProfile::Phrases).then_some(RECOVERY_STATE_LIMIT)
+        (self.opacity_profile == OpacityProfile::Nouns).then_some(OPACITY_STATE_LIMIT)
     }
 }
 
@@ -2540,7 +2538,7 @@ fn noun_initial_sound(noun: &NounInstance) -> Option<InitialSound> {
         Noun::Gerund(_) => Vocabulary::new()
             .render_noun(noun)
             .map(|surface| surface_initial_sound(&surface)),
-        Noun::Unknown(unknown) => Some(surface_initial_sound(&unknown.0)),
+        Noun::Opaque(opaque) => Some(surface_initial_sound(opaque.spelling())),
     }
 }
 
@@ -2719,7 +2717,7 @@ fn reduce(
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => clause::reduce_clause(tag, children)?,
-        RuleTag::NounUnknown => recovery::reduce_recovery(tag, children)?,
+        RuleTag::NounOpaque => opacity::reduce_opacity(tag, children)?,
     };
     Some(Reduction {
         features,
@@ -2938,7 +2936,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: false,
-                leading_recovery: false,
+                leading_opacity: false,
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
@@ -3008,7 +3006,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: true,
-                leading_recovery: false,
+                leading_opacity: false,
                 attachment: *attachment,
                 comparison: *comparison,
                 adjunct: *adjunct,
@@ -3019,7 +3017,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
-                leading_recovery,
+                leading_opacity,
                 attachment,
                 comparison,
                 adjunct,
@@ -3043,7 +3041,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
-                leading_recovery: *leading_recovery,
+                leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
                 adjunct: *adjunct,
@@ -3054,7 +3052,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
-                leading_recovery,
+                leading_opacity,
                 attachment,
                 comparison,
                 adjunct,
@@ -3075,7 +3073,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
-                leading_recovery: *leading_recovery,
+                leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
                 adjunct: *adjunct,
@@ -3086,7 +3084,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
-                leading_recovery,
+                leading_opacity,
                 attachment,
                 comparison,
                 adjunct,
@@ -3117,7 +3115,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
-                leading_recovery: *leading_recovery,
+                leading_opacity: *leading_opacity,
                 attachment: if tag == RuleTag::NominalRelative {
                     NominalAttachmentPhase::Relative
                 } else {
@@ -3139,7 +3137,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
-                leading_recovery,
+                leading_opacity,
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct,
@@ -3151,7 +3149,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
-                leading_recovery: *leading_recovery,
+                leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::PostpositiveAdjective,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
@@ -3162,7 +3160,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
-                leading_recovery,
+                leading_opacity,
                 attachment: NominalAttachmentPhase::Open | NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::Pending,
                 adjunct,
@@ -3174,7 +3172,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
-                leading_recovery: *leading_recovery,
+                leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::Comparison,
                 comparison: AdjectiveComparisonState::Complete,
                 adjunct: *adjunct,
@@ -3338,7 +3336,7 @@ fn propagate(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Reduced {
 fn nominal_with_prefix(
     nominal: &Child<'_, EnglishGrammar<'_, '_>>,
     initial_sound: InitialSound,
-    leading_recovery: bool,
+    leading_opacity: bool,
     prefix_comparison: AdjectiveComparisonState,
 ) -> Option<Reduced> {
     let Features::Nominal {
@@ -3368,7 +3366,7 @@ fn nominal_with_prefix(
         form: *form,
         initial_sound,
         determined: *determined,
-        leading_recovery,
+        leading_opacity,
         attachment: *attachment,
         comparison,
         adjunct: *adjunct,
@@ -3427,7 +3425,7 @@ pub(crate) struct ParsedNonterminal {
     root: NodeId,
     best: BestParse,
     syntax: Lowered,
-    recovery_mode: RecoveryMode,
+    opacity_mode: OpacityMode,
 }
 
 impl ParsedNonterminal {
@@ -3498,8 +3496,8 @@ impl ParsedNonterminal {
         self.chart.forest.stats()
     }
 
-    pub(crate) const fn recovery_mode(&self) -> RecoveryMode {
-        self.recovery_mode
+    pub(crate) const fn opacity_mode(&self) -> OpacityMode {
+        self.opacity_mode
     }
 }
 
@@ -3522,7 +3520,7 @@ pub(crate) fn parse_nonterminal(
         catalogs,
         nonterminal,
         &surface.tokens,
-        RecoveryProfile::Exact,
+        OpacityProfile::Exact,
     ) {
         Ok(parsed) => Ok(parsed),
         Err(ParseNonterminalError::NoCompleteParse(_)) => parse_nonterminal_with_profile(
@@ -3530,7 +3528,7 @@ pub(crate) fn parse_nonterminal(
             catalogs,
             nonterminal,
             &surface.tokens,
-            RecoveryProfile::Phrases,
+            OpacityProfile::Nouns,
         ),
         Err(error) => Err(error),
     }
@@ -3541,10 +3539,10 @@ fn parse_nonterminal_with_profile(
     catalogs: &Catalogs,
     nonterminal: Nonterminal,
     tokens: &[Token],
-    recovery_profile: RecoveryProfile,
+    opacity_profile: OpacityProfile,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let grammar =
-        EnglishGrammar::with_recovery_profile(source, catalogs, nonterminal, recovery_profile);
+        EnglishGrammar::with_opacity_profile(source, catalogs, nonterminal, opacity_profile);
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
     let (root, best) = chart
         .forest
@@ -3558,7 +3556,7 @@ fn parse_nonterminal_with_profile(
         root,
         best,
         syntax,
-        recovery_mode: recovery_profile.mode(),
+        opacity_mode: opacity_profile.mode(),
     })
 }
 
@@ -3602,7 +3600,6 @@ enum Lowered {
     Subordinator(crate::syntax::Subordinator),
     RelativeMarker(RelativeMarker),
     Existential(ExistentialForm),
-    Unknown(UnknownPhrase),
     Ignored,
 }
 
@@ -3696,11 +3693,11 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Existential(form) => Lowered::Existential(*form),
         MeaningKey::ThisCard(form) => Lowered::ThisCard(*form),
         MeaningKey::Preposition(preposition) => Lowered::Preposition(*preposition),
-        MeaningKey::Unknown(key) => {
-            let unknown = UnknownPhrase(key.span.text(grammar.source)?.to_owned());
+        MeaningKey::Opaque(key) => {
+            let opaque = OpaqueLexeme::new(key.span.text(grammar.source)?);
             match key.slot {
-                RecoverySlot::Noun(form) => {
-                    let noun = Noun::Unknown(unknown);
+                OpacitySlot::Noun(form) => {
+                    let noun = Noun::Opaque(opaque);
                     Lowered::Noun(match form {
                         NounForm::Singular => NounInstance::Singular(noun),
                         NounForm::Plural => NounInstance::Plural(noun),
@@ -3819,7 +3816,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => clause::lower_clause(tag, children),
-        RuleTag::NounUnknown => recovery::lower_recovery(tag, children),
+        RuleTag::NounOpaque => opacity::lower_opacity(tag, children),
     }
 }
 

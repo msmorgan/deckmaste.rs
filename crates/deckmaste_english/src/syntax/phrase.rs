@@ -16,7 +16,45 @@ use crate::word::PronounCase;
 use crate::word::Vocab;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct UnknownPhrase(pub String);
+pub struct RecoveredText {
+    spelling: String,
+    source_tokens: usize,
+}
+
+impl RecoveredText {
+    #[must_use]
+    pub fn new(spelling: impl Into<String>, source_tokens: usize) -> Self {
+        Self {
+            spelling: spelling.into(),
+            source_tokens,
+        }
+    }
+
+    #[must_use]
+    pub fn spelling(&self) -> &str {
+        &self.spelling
+    }
+
+    #[must_use]
+    pub const fn source_tokens(&self) -> usize {
+        self.source_tokens
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct OpaqueLexeme(String);
+
+impl OpaqueLexeme {
+    #[must_use]
+    pub fn new(spelling: impl Into<String>) -> Self {
+        Self(spelling.into())
+    }
+
+    #[must_use]
+    pub fn spelling(&self) -> &str {
+        &self.0
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ThisCardForm {
@@ -258,7 +296,6 @@ pub enum NominalModifier {
     Noun(NounInstance),
     Quantity(Quantity),
     PowerToughness(PowerToughness),
-    Unknown(UnknownPhrase),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -285,7 +322,6 @@ pub enum AdjectiveComplement {
     PostnominalComparison(ComparisonComplement),
     Prepositional(PrepositionalPhrase),
     Infinitive(InfinitiveClause),
-    Unknown(UnknownPhrase),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -295,7 +331,6 @@ pub enum NominalComplement {
     Infinitive(InfinitiveClause),
     Relative(RelativeClause),
     Quantity(Quantity),
-    Unknown(UnknownPhrase),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -345,5 +380,5 @@ pub enum Phrase {
     PowerToughness(PowerToughness),
     EmbeddedAbility(Box<Ability>),
     QuotedAbility(Box<QuotedAbility>),
-    UnknownPhrase(UnknownPhrase),
+    Recovered(RecoveredText),
 }

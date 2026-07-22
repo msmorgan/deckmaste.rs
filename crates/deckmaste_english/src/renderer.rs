@@ -362,7 +362,9 @@ impl<'identity> Renderer<'identity> {
         let capitalize = capitalize && sentence.initial_uppercase;
         let (body, capitalize) = match &sentence.body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
-            SentenceBody::Unknown(unknown) => (self.expand_self_references(&unknown.0), false),
+            SentenceBody::Recovered(recovery) => {
+                (self.expand_self_references(recovery.spelling()), false)
+            }
         };
         let mut rendered = if capitalize { capitalize_first(body) } else { body };
         let (terminal, count) = match sentence.ending {
@@ -955,7 +957,6 @@ impl<'identity> Renderer<'identity> {
                     render_signed_scalar(value.power),
                     render_signed_scalar(value.toughness),
                 ),
-                NominalModifier::Unknown(unknown) => self.expand_self_references(&unknown.0),
             });
         }
         parts.push(self.render_noun(&phrase.head)?);
@@ -968,7 +969,6 @@ impl<'identity> Renderer<'identity> {
                 NominalComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
                 NominalComplement::Relative(relative) => self.relative_clause(relative)?,
                 NominalComplement::Quantity(quantity) => render_quantity(*quantity),
-                NominalComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),
             });
         }
         parts.extend(trailing_modifier_complements);
@@ -986,9 +986,6 @@ impl<'identity> Renderer<'identity> {
                     Ok(spelling_initial_sound(&render_quantity(*quantity)))
                 }
                 NominalModifier::PowerToughness(_) => Ok(InitialSound::Consonant),
-                NominalModifier::Unknown(unknown) => Ok(spelling_initial_sound(
-                    &self.expand_self_references(&unknown.0),
-                )),
             };
         }
         self.noun_initial_sound(&phrase.head)
@@ -1012,8 +1009,8 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(|surface| spelling_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("gerund")),
-            Noun::Unknown(unknown) => Ok(spelling_initial_sound(
-                &self.expand_self_references(&unknown.0),
+            Noun::Opaque(opaque) => Ok(spelling_initial_sound(
+                &self.expand_self_references(opaque.spelling()),
             )),
         }
     }
@@ -1091,7 +1088,6 @@ impl<'identity> Renderer<'identity> {
                 self.prepositional_phrase(preposition)?
             }
             AdjectiveComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
-            AdjectiveComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),
         })
     }
 
@@ -1128,7 +1124,7 @@ impl<'identity> Renderer<'identity> {
             )),
             Phrase::EmbeddedAbility(ability) => self.ability(ability, true),
             Phrase::QuotedAbility(quoted) => self.quoted_ability(quoted),
-            Phrase::UnknownPhrase(unknown) => Ok(self.expand_self_references(&unknown.0)),
+            Phrase::Recovered(recovery) => Ok(self.expand_self_references(recovery.spelling())),
         }
     }
 

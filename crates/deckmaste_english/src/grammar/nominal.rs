@@ -127,7 +127,7 @@ mod tests {
             ),
         ] {
             let parsed = parse(source);
-            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact, "{source}");
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
                 panic!("expected a nominal phrase for {source:?}");
             };
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn self_reference_possessive_is_one_determiner() {
         let parsed = parse("~'s power");
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
             panic!("expected a possessive nominal");
         };
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn self_reference_possessive_can_stand_as_an_elliptical_noun_phrase() {
         let parsed = parse("~'s");
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert!(matches!(
             parsed.noun_phrase(),
             Some(NounPhrase::Possessive(Possessor::NounPhrase(possessor)))
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn comparison_inside_preposition_stays_with_its_object() {
         let parsed = parse("target creature card with mana value less than or equal to ~'s power");
-        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let Some(NounPhrase::Nominal(card)) = parsed.noun_phrase() else {
             panic!("expected a card nominal");
         };
@@ -339,7 +339,7 @@ mod tests {
             ("fewer than three counters", false),
         ] {
             let parsed = parse(source);
-            assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact, "{source}");
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
                 panic!("expected a bounded quantity nominal for {source:?}");
             };
