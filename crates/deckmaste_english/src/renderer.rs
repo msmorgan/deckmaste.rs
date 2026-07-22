@@ -195,6 +195,11 @@ impl<'identity> Renderer<'identity> {
                 self.cost(&activated.cost)?,
                 self.paragraph(&activated.effect, activated.effect_initial_uppercase,)?
             )),
+            AbilityKind::ClassLevel(level) => Ok(format!(
+                "{}: Level {}",
+                self.cost(&level.cost)?,
+                level.level.numeral.format(level.level.value),
+            )),
             AbilityKind::Triggered(triggered) => Ok(format!(
                 "{}, {}",
                 self.trigger_frame(

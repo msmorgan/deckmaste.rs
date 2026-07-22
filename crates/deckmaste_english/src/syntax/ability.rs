@@ -19,11 +19,18 @@ pub struct Ability {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AbilityKind {
     Activated(ActivatedAbility),
+    ClassLevel(ClassLevelAbility),
     Triggered(TriggeredAbility),
     Loyalty(LoyaltyAbility),
     Modal(ModalAbility),
     Keyword(KeywordAbilityList),
     Paragraph(Paragraph),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassLevelAbility {
+    pub cost: Cost,
+    pub level: super::phrase::NumberLiteral,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -49,6 +49,9 @@ impl<'syntax> UnknownWalker<'syntax> {
                 self.cost(&activated.cost, Some(UnknownRole::ActivationCost));
                 self.paragraph(&activated.effect, context);
             }
+            AbilityKind::ClassLevel(level) => {
+                self.cost(&level.cost, Some(UnknownRole::ActivationCost));
+            }
             AbilityKind::Triggered(triggered) => {
                 self.trigger_event(&triggered.event, context);
                 if let Some(condition) = &triggered.intervening_condition {

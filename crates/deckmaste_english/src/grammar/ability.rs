@@ -4,6 +4,7 @@ use super::VerbDependent;
 use super::clause::finish_simple_clause;
 use super::parse_nonterminal;
 use super::parse_symbol_sequence;
+use crate::Numeral;
 use crate::Span;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
@@ -146,6 +147,9 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         if let Some(colon) = find_top_level_punctuation(tokens, Punctuation::Colon) {
             let cost = self.parse_cost(&tokens[..colon]);
             let effect_tokens = &tokens[colon + 1..];
+            if let Some(level) = self.class_level(effect_tokens) {
+                return AbilityKind::ClassLevel(ClassLevelAbility { cost, level });
+            }
             if effect_tokens.is_empty() {
                 self.diagnostics.push(AbilityDiagnostic {
                     kind: AbilityDiagnosticKind::EmptyActivationEffect,
@@ -161,6 +165,21 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             });
         }
         AbilityKind::Paragraph(self.parse_paragraph(tokens))
+    }
+
+    fn class_level(&self, tokens: &[Token]) -> Option<NumberLiteral> {
+        let [level, number] = tokens else {
+            return None;
+        };
+        if !self.token_text(level).eq_ignore_ascii_case("level")
+            || number.kind != TokenKind::Integer
+        {
+            return None;
+        }
+        Some(NumberLiteral {
+            value: Numeral::Arabic(false).parse(self.token_text(number)).ok()?,
+            numeral: Numeral::Arabic(false),
+        })
     }
 
     fn parse_modal(&mut self, header: &[Token], modes: &[&[Token]]) -> Ability {
@@ -815,6 +834,7 @@ impl Nesting {
 
 #[cfg(test)]
 mod tests {
+    use crate::Numeral;
     use crate::catalog::CatalogKind;
     use crate::catalog::Catalogs;
     use crate::parse::DiagnosticKind;
@@ -853,6 +873,26 @@ mod tests {
             "{:#?}",
             ability.effect.sentences[1].body
         );
+    }
+
+    #[test]
+    fn class_level_ability_has_a_cost_and_numeric_level() {
+        let source = "{1}{R}: Level 2";
+        let report = parse(source);
+        let AbilityKind::ClassLevel(level) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a class level ability: {:#?}",
+                report.ast.abilities[0]
+            );
+        };
+        assert_eq!(level.level.value, 2);
+        assert_eq!(level.level.numeral, Numeral::Arabic(false));
+        assert!(matches!(
+            level.cost,
+            Cost::Components(ref components)
+                if matches!(components.as_slice(), [Phrase::SymbolSequence(symbols)] if symbols.len() == 2)
+        ));
+        assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
     }
 
     #[test]
