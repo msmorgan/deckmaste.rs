@@ -62,7 +62,7 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::VerbPhrase,
         [n(N::VerbPhrase), n(N::AdjectivePhrase)],
         ParseCost {
-            precedence: 1,
+            precedence: 2,
             ..ParseCost::default()
         },
     );
@@ -148,7 +148,7 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::ObjectGapVerbPhrase,
         [n(N::ObjectGapVerbPhrase), n(N::AdjectivePhrase)],
         ParseCost {
-            precedence: 1,
+            precedence: 2,
             ..ParseCost::default()
         },
     );
@@ -225,10 +225,14 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::Clause,
         [l(L::Existential), n(N::NounPhrase)],
     );
-    builder.add(
+    builder.add_with_cost(
         RuleTag::CopularRemainderNoun,
         N::CopularRemainder,
         [n(N::NounPhrase)],
+        ParseCost {
+            precedence: 1,
+            ..ParseCost::default()
+        },
     );
     builder.add(
         RuleTag::CopularRemainderAdjective,
@@ -525,6 +529,7 @@ fn reduce_predicate(
             let form = predicate_form(*slot);
             Some(Features::VerbPhrase {
                 form,
+                passive: false,
                 object: PredicateObjectState::None,
                 phase: PredicateAttachmentPhase::Object,
                 accepts_direct_object: *accepts_direct_object,
@@ -538,6 +543,7 @@ fn reduce_predicate(
             };
             let Features::VerbPhrase {
                 form: child_form,
+                passive: child_passive,
                 object,
                 phase,
                 accepts_direct_object,
@@ -548,8 +554,15 @@ fn reduce_predicate(
                 return None;
             };
             let form = auxiliary_form(*auxiliary, *child_form)?;
+            let passive = *child_passive
+                || (auxiliary.auxiliary == Auxiliary::Be
+                    && *child_form == PredicateForm::PastParticiple);
+            if passive && object.has_direct_object() {
+                return None;
+            }
             Some(Features::VerbPhrase {
                 form,
+                passive,
                 object: *object,
                 phase: *phase,
                 accepts_direct_object: *accepts_direct_object,
@@ -569,14 +582,25 @@ fn reduce_predicate(
             if *pronoun_case == Some(PronounCase::Subject) {
                 return None;
             }
-            let Features::VerbPhrase { object, phase, .. } = children.first()?.features else {
+            let Features::VerbPhrase {
+                form,
+                passive,
+                object,
+                phase,
+                ..
+            } = children.first()?.features
+            else {
                 return None;
             };
             let attachment = if adjunct.is_some()
-                && (matches!(
-                    phase,
-                    PredicateAttachmentPhase::Tail | PredicateAttachmentPhase::PrepositionalTail
-                ) || object.has_direct_object())
+                && (*form == PredicateForm::PastParticiple
+                    || *passive
+                    || matches!(
+                        phase,
+                        PredicateAttachmentPhase::Tail
+                            | PredicateAttachmentPhase::PrepositionalTail
+                    )
+                    || object.has_direct_object())
             {
                 ObjectAttachment::None
             } else {
@@ -641,6 +665,7 @@ fn extend_predicate(
 ) -> Option<Reduced> {
     let Features::VerbPhrase {
         form,
+        passive,
         object,
         phase,
         accepts_direct_object,
@@ -666,6 +691,14 @@ fn extend_predicate(
     {
         return None;
     }
+    if *passive
+        && !matches!(
+            attachment,
+            ObjectAttachment::None | ObjectAttachment::Prepositional
+        )
+    {
+        return None;
+    }
     let object = match (attachment, *object) {
         (ObjectAttachment::None | ObjectAttachment::Prepositional, object) => object,
         (ObjectAttachment::Direct, PredicateObjectState::None) => PredicateObjectState::Direct,
@@ -680,6 +713,7 @@ fn extend_predicate(
     };
     Some(Features::VerbPhrase {
         form: *form,
+        passive: *passive,
         object,
         phase: next_phase,
         accepts_direct_object: *accepts_direct_object,
@@ -1420,7 +1454,8 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
             let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
                 return None;
             };
-            match (!predicate.dependents.is_empty())
+            let temporal_without_object = predicate.verb.slot == VerbSlot::PastParticiple;
+            match (temporal_without_object || !predicate.dependents.is_empty())
                 .then(|| nominal_adjunct_kind(&noun_phrase))
                 .flatten()
             {
@@ -3389,6 +3424,7 @@ mod tests {
     fn predicate_prefix_pruning_keeps_possible_temporal_candidates() {
         let open = Features::VerbPhrase {
             form: PredicateForm::Imperative,
+            passive: false,
             object: PredicateObjectState::None,
             phase: PredicateAttachmentPhase::Object,
             accepts_direct_object: true,
@@ -3397,6 +3433,7 @@ mod tests {
         };
         let occupied = Features::VerbPhrase {
             form: PredicateForm::Imperative,
+            passive: false,
             object: PredicateObjectState::Direct,
             phase: PredicateAttachmentPhase::Object,
             accepts_direct_object: true,
@@ -3405,6 +3442,7 @@ mod tests {
         };
         let ability = Features::VerbPhrase {
             form: PredicateForm::Imperative,
+            passive: false,
             object: PredicateObjectState::Ability,
             phase: PredicateAttachmentPhase::Object,
             accepts_direct_object: true,
@@ -3413,6 +3451,7 @@ mod tests {
         };
         let tail = Features::VerbPhrase {
             form: PredicateForm::Imperative,
+            passive: false,
             object: PredicateObjectState::None,
             phase: PredicateAttachmentPhase::Tail,
             accepts_direct_object: true,
@@ -3421,6 +3460,7 @@ mod tests {
         };
         let prepositional_tail = Features::VerbPhrase {
             form: PredicateForm::Imperative,
+            passive: false,
             object: PredicateObjectState::None,
             phase: PredicateAttachmentPhase::PrepositionalTail,
             accepts_direct_object: true,
@@ -3565,6 +3605,53 @@ mod tests {
                         comma: false,
                         object: PredicateObject::OracleSymbol(symbol),
                     }] if symbol.as_str() == "{G}")
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn passive_temporal_adjunct_is_not_a_direct_object() {
+        let source = "No spells were cast last turn.";
+        let parsed = parse(source);
+        assert!(matches!(
+            &parsed.sentence().expect("sentence root").body,
+            SentenceBody::Independent(IndependentClause::Passive(_, PassivePredicate {
+                elements,
+                ..
+            })) if matches!(
+                elements.as_slice(),
+                [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+            )
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn multiple_fronted_clause_attachments_keep_surface_order() {
+        let source = "At the beginning of each upkeep, if no spells were cast last turn, transform this creature.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        assert!(matches!(
+            &parsed.sentence().expect("sentence root").body,
+            SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                attachments,
+                ..
+            })) if matches!(
+                attachments.as_slice(),
+                [
+                    ClauseAttachment {
+                        kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(_)),
+                        ..
+                    },
+                    ClauseAttachment {
+                        kind: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                            Subordinator::If,
+                            SubordinateBody::Finite(_),
+                        )),
+                        ..
+                    },
+                ]
+            )
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }

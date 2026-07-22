@@ -396,6 +396,7 @@ pub(crate) enum Features {
     },
     VerbPhrase {
         form: PredicateForm,
+        passive: bool,
         object: PredicateObjectState,
         phase: PredicateAttachmentPhase,
         accepts_direct_object: bool,
