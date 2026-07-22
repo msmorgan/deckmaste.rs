@@ -36,7 +36,7 @@ pub(super) struct OracleDataArgs {
     #[arg(long, value_name = "PATH")]
     data: Option<PathBuf>,
 
-    /// Override the directory containing Scryfall's English catalogs.
+    /// Override the directory containing generated English catalogs.
     #[arg(long, value_name = "DIR")]
     catalogs: Option<PathBuf>,
 }
@@ -132,11 +132,6 @@ impl From<RawCardFace> for CardFace {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct Catalog {
-    data: Vec<String>,
-}
-
 pub(super) fn read_card_faces(reader: impl BufRead, data_path: &Path) -> Result<Vec<CardFace>> {
     reader
         .lines()
@@ -166,7 +161,7 @@ fn default_data_path() -> PathBuf {
 }
 
 fn default_catalogs_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/catalogs")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs")
 }
 
 fn load_catalogs(path: &Path) -> Result<Catalogs> {
@@ -178,16 +173,17 @@ fn load_catalogs(path: &Path) -> Result<Catalogs> {
 }
 
 fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {
-    let path = path.join(format!("{name}.json"));
+    let path = path.join(format!("{name}.txt"));
     let file = File::open(&path).with_context(|| {
         format!(
-            "could not open Scryfall catalog {}; fetch the repository data first",
+            "could not open generated catalog {}; run `cargo xtask catalogs` first",
             path.display()
         )
     })?;
-    let catalog: Catalog = serde_json::from_reader(BufReader::new(file))
-        .with_context(|| format!("invalid Scryfall catalog {}", path.display()))?;
-    Ok(catalog.data)
+    BufReader::new(file)
+        .lines()
+        .collect::<std::io::Result<Vec<_>>>()
+        .with_context(|| format!("could not read generated catalog {}", path.display()))
 }
 
 #[cfg(test)]
@@ -195,6 +191,16 @@ mod tests {
     use std::sync::Mutex;
     use std::sync::mpsc::sync_channel;
     use std::time::Duration;
+
+    use deckmaste_english::syntax::AbilityKind;
+    use deckmaste_english::syntax::IndependentClause;
+    use deckmaste_english::syntax::NominalModifier;
+    use deckmaste_english::syntax::NounPhrase;
+    use deckmaste_english::syntax::Predicate;
+    use deckmaste_english::syntax::PredicateObject;
+    use deckmaste_english::syntax::SentenceBody;
+    use deckmaste_english::word::Noun;
+    use deckmaste_english::word::NounInstance;
 
     use super::*;
 
@@ -242,5 +248,47 @@ mod tests {
         });
 
         assert_eq!(results, ["0:released", "2:second"]);
+    }
+
+    #[test]
+    fn generated_catalogs_classify_current_artifact_types() {
+        let catalogs = load_catalogs(&default_catalogs_path()).unwrap();
+
+        for artifact_type in ["Lander", "Mutagen"] {
+            let source = format!("Create a {artifact_type} token.");
+            let report = deckmaste_english::parse_with_catalogs(&source, &catalogs);
+            let [ability] = report.ast().abilities.as_slice() else {
+                panic!("expected one ability: {:#?}", report.ast());
+            };
+            let AbilityKind::Paragraph(paragraph) = &ability.kind else {
+                panic!("expected a paragraph ability: {:#?}", ability.kind);
+            };
+            let [sentence] = paragraph.sentences.as_slice() else {
+                panic!("expected one sentence: {paragraph:#?}");
+            };
+            let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+                predicate,
+            ))) = &sentence.body
+            else {
+                panic!("expected an imperative create clause: {:#?}", sentence.body);
+            };
+            let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
+                panic!("expected a nominal object: {:#?}", predicate.object);
+            };
+            let [NominalModifier::Noun(NounInstance::Singular(Noun::Catalog(atom)))] =
+                object.modifiers.as_slice()
+            else {
+                panic!(
+                    "expected one catalog noun modifier: {:#?}",
+                    object.modifiers
+                );
+            };
+            assert_eq!(atom.kind, CatalogKind::ArtifactType);
+            assert_eq!(atom.canonical(), artifact_type);
+            assert_eq!(
+                report.into_ast().render("Test Card", false).unwrap(),
+                source
+            );
+        }
     }
 }
