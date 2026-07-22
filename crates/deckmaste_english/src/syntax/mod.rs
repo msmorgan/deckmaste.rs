@@ -727,6 +727,7 @@ mod tests {
     fn paragraph_body(body: SentenceBody) -> Paragraph {
         Paragraph {
             sentences: vec![Sentence {
+                initial_uppercase: true,
                 body,
                 ending: SentenceEnding::Period(1),
             }],

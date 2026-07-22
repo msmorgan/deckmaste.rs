@@ -166,6 +166,7 @@ pub struct Paragraph {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sentence {
+    pub initial_uppercase: bool,
     pub body: SentenceBody,
     pub ending: SentenceEnding,
 }

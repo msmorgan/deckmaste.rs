@@ -369,13 +369,16 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     }
 
     fn parse_sentence(&mut self, tokens: &[Token]) -> Sentence {
+        let initial_uppercase = self.tokens_start_uppercase(tokens);
         if let Some(sentence) = self.parse_quoted_sentence(tokens) {
             return sentence;
         }
         if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Sentence)
             && let Some(sentence) = parsed.sentence()
         {
-            return sentence.clone();
+            let mut sentence = sentence.clone();
+            sentence.initial_uppercase = initial_uppercase;
+            return sentence;
         }
 
         let (body, ending) = peel_sentence_ending(tokens);
@@ -384,6 +387,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             span: tokens_span(tokens),
         });
         Sentence {
+            initial_uppercase,
             body: SentenceBody::Unknown(UnknownPhrase(self.tokens_text(body).to_owned())),
             ending,
         }
@@ -434,6 +438,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         };
         clause.predicate.dependents.push(dependent);
         Some(Sentence {
+            initial_uppercase: self.tokens_start_uppercase(tokens),
             body: SentenceBody::Independent(finish_simple_clause(clause)?),
             ending,
         })

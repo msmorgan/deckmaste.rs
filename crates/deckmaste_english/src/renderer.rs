@@ -354,6 +354,7 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn sentence(&self, sentence: &Sentence, capitalize: bool) -> Result<String, RenderError> {
+        let capitalize = capitalize && sentence.initial_uppercase;
         let (body, capitalize) = match &sentence.body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
             SentenceBody::Unknown(unknown) => (self.expand_self_references(&unknown.0), false),
@@ -1479,6 +1480,14 @@ mod tests {
     }
 
     #[test]
+    fn later_sentences_preserve_explicit_lowercase_initials() {
+        let source = "Draw a card. then shuffle.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
     fn mid_sentence_proper_nouns_do_not_lose_their_case() {
         let source = "Exile artifacts named Eye of Vecna and Hand of Vecna: Draw a card.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
@@ -1691,6 +1700,7 @@ mod tests {
     fn self_references_expand_without_source_text() {
         let draw_effect = Paragraph {
             sentences: vec![Sentence {
+                initial_uppercase: true,
                 body: sentence_body(simple(
                     None,
                     verb_phrase(
@@ -1806,6 +1816,7 @@ mod tests {
                     },
                     header: Paragraph {
                         sentences: vec![Sentence {
+                            initial_uppercase: true,
                             body: sentence_body(simple(
                                 None,
                                 verb_phrase(
@@ -1945,6 +1956,7 @@ mod tests {
                 ability_word: None,
                 kind: AbilityKind::Paragraph(Paragraph {
                     sentences: vec![Sentence {
+                        initial_uppercase: true,
                         body: match clause {
                             Clause::Independent(clause) => SentenceBody::Independent(clause),
                             Clause::Dependent(_) => panic!("sentence fixture must be independent"),

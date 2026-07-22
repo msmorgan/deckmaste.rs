@@ -261,6 +261,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         ],
     );
     builder.add(
+        RuleTag::ClauseAdverbBefore,
+        N::Clause,
+        [l(L::Adverb), n(N::Clause)],
+    );
+    builder.add(
         RuleTag::ClausePrepositionalBefore,
         N::Clause,
         [
@@ -399,6 +404,7 @@ pub(super) fn reduce_clause(
         | RuleTag::RelativeContractedCopularPrepositional => reduce_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseAdverbBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
@@ -1018,23 +1024,12 @@ fn reduce_composed_clause(
         RuleTag::ClauseSubordinateBefore => {
             conditional_reduction(children.get(1)?, children.get(3)?)
         }
+        RuleTag::ClauseAdverbBefore => fronted_attachment_reduction(children.get(1)?),
         RuleTag::ClausePrepositionalBefore => {
             let Features::PrepositionalPhrase { .. } = children.first()?.features else {
                 return None;
             };
-            let Features::Clause {
-                agreement,
-                standalone: true,
-                finite,
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            Some(Features::Clause {
-                agreement: *agreement,
-                standalone: true,
-                finite: *finite,
-            })
+            fronted_attachment_reduction(children.get(2)?)
         }
         RuleTag::ClauseSubordinateAfterElliptical => {
             let consequence = children.first()?;
@@ -1091,6 +1086,22 @@ fn reduce_composed_clause(
         }
         _ => None,
     }
+}
+
+fn fronted_attachment_reduction(matrix: &Child<'_, EnglishGrammar<'_, '_>>) -> Option<Reduced> {
+    let Features::Clause {
+        agreement,
+        standalone: true,
+        finite,
+    } = matrix.features
+    else {
+        return None;
+    };
+    Some(Features::Clause {
+        agreement: *agreement,
+        standalone: true,
+        finite: *finite,
+    })
 }
 
 fn conditional_reduction(
@@ -1263,6 +1274,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::RelativeContractedCopularPrepositional => lower_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseAdverbBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
@@ -1736,6 +1748,24 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
+        RuleTag::ClauseAdverbBefore => {
+            let Lowered::Adverb(adverb) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Clause(Clause::Independent(matrix)) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::Clause(Clause::Independent(
+                with_clause_attachment(
+                    matrix,
+                    ClauseAttachment {
+                        position: AttachmentPosition::BeforeMatrix,
+                        comma: false,
+                        kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
+                    },
+                ),
+            )))
+        }
         RuleTag::ClausePrepositionalBefore => {
             let Lowered::PrepositionalPhrase(preposition) = take(children, 0)? else {
                 return None;
@@ -1827,6 +1857,7 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 return None;
             };
             Some(Lowered::Sentence(Sentence {
+                initial_uppercase: true,
                 body: SentenceBody::Independent(clause),
                 ending: sentence_ending(tag)?,
             }))
@@ -2675,6 +2706,34 @@ mod tests {
         assert!(matches!(
             complex.matrix.as_ref(),
             IndependentClause::Imperative(_)
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn then_can_modify_a_following_independent_clause() {
+        let source = "Then that player shuffles.";
+        let parsed = parse(source);
+        assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected a clause with a fronted adjunct: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert!(matches!(
+            complex.attachments.as_slice(),
+            [ClauseAttachment {
+                position: AttachmentPosition::BeforeMatrix,
+                comma: false,
+                kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
+            }]
+        ));
+        assert!(matches!(
+            complex.matrix.as_ref(),
+            IndependentClause::Intransitive(_, _)
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }

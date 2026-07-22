@@ -537,6 +537,7 @@ mod tests {
                 ability_word: None,
                 kind: AbilityKind::Paragraph(Paragraph {
                     sentences: vec![Sentence {
+                        initial_uppercase: true,
                         body: SentenceBody::Independent(IndependentClause::Imperative(
                             Predicate::Transitive(TransitivePredicate {
                                 head: PredicateHead {

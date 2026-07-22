@@ -803,6 +803,7 @@ enum RuleTag {
     ClauseElliptical,
     ClauseCoordination,
     ClauseCoordinationComma,
+    ClauseAdverbBefore,
     ClausePrepositionalBefore,
     ClauseSubordinateBefore,
     ClauseSubordinateAfterElliptical,
@@ -2647,6 +2648,7 @@ fn reduce(
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseAdverbBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
@@ -3728,6 +3730,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseAdverbBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
