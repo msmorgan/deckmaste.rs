@@ -44,6 +44,12 @@ mod tests {
             "up to one target creature",
             "up to three target creatures",
             "one or more creatures",
+            "one or two target creatures",
+            "one of them",
+            "the top three cards",
+            "X cards",
+            "mana value X",
+            "a d20",
             "that many cards",
             "that much damage",
             "any target",
@@ -115,6 +121,68 @@ mod tests {
                 if number.value == 1
         ));
         assert!(matches!(at_least.head, NounInstance::Plural(_)));
+
+        let either = parse("one or two target creatures");
+        let Some(NounPhrase::Nominal(either)) = either.noun_phrase() else {
+            panic!("expected an either-quantity nominal");
+        };
+        assert!(matches!(
+            either.determiner,
+            Some(Determiner::Target(Some(crate::syntax::Quantity::Or(one, two))))
+                if one.value == 1 && two.value == 2
+        ));
+        assert!(matches!(either.head, NounInstance::Plural(_)));
+
+        let definite_quantity = parse("the top three cards");
+        let Some(NounPhrase::Nominal(definite_quantity)) = definite_quantity.noun_phrase() else {
+            panic!("expected a definite quantity nominal");
+        };
+        assert!(matches!(
+            definite_quantity.modifiers.as_slice(),
+            [
+                NominalModifier::Adjective(_),
+                NominalModifier::Quantity(crate::syntax::Quantity::Exact(three)),
+            ] if three.value == 3
+        ));
+
+        let variable_quantity = parse("X cards");
+        let Some(NounPhrase::Nominal(variable_quantity)) = variable_quantity.noun_phrase() else {
+            panic!("expected a variable quantity nominal");
+        };
+        assert!(
+            matches!(
+                variable_quantity.determiner,
+                Some(Determiner::Quantity(crate::syntax::Quantity::X))
+            ),
+            "{variable_quantity:#?}"
+        );
+
+        let value = parse("mana value X");
+        let Some(NounPhrase::Nominal(value)) = value.noun_phrase() else {
+            panic!("expected a quantified value nominal");
+        };
+        assert!(matches!(
+            value.complements.as_slice(),
+            [NominalComplement::Quantity(crate::syntax::Quantity::X)]
+        ));
+
+        let die = parse("a d20");
+        let Some(NounPhrase::Nominal(die)) = die.noun_phrase() else {
+            panic!("expected a die nominal");
+        };
+        assert!(matches!(
+            die.head,
+            NounInstance::Singular(Noun::Die(number)) if number.value == 20
+        ));
+
+        let partitive = parse("one of them");
+        assert!(matches!(
+            partitive.noun_phrase(),
+            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+                quantity: crate::syntax::Quantity::Exact(one),
+                ..
+            })) if one.value == 1
+        ));
 
         let any = parse("any target");
         let Some(NounPhrase::Nominal(any)) = any.noun_phrase() else {

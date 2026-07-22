@@ -170,10 +170,13 @@ pub(crate) enum EnglishLexicalSlot {
     Determiner,
     DeterminerTarget,
     QuantityAtLeast,
+    QuantityOr,
+    QuantityX,
     QuantityThatMany,
     QuantityThatMuch,
     Up,
     To,
+    Of,
     Reciprocal,
     ThisCard,
     FullThisCard,
@@ -378,7 +381,9 @@ impl NumberKey {
 pub(crate) enum QuantityKey {
     Exact(NumberKey),
     AtLeast(NumberKey),
+    Or(NumberKey, NumberKey),
     UpTo(NumberKey),
+    X,
     ThatMany,
     ThatMuch,
 }
@@ -389,7 +394,10 @@ impl QuantityKey {
             Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
                 Cardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::UpTo(_) => Cardinality::PluralOrMass,
+            Self::Or(first, second) if first.value == 1 && second.value == 1 => {
+                Cardinality::SingularOrMass
+            }
+            Self::Exact(_) | Self::Or(_, _) | Self::UpTo(_) | Self::X => Cardinality::PluralOrMass,
             Self::AtLeast(_) | Self::ThatMany => Cardinality::PluralCount,
             Self::ThatMuch => Cardinality::Mass,
         }
@@ -399,7 +407,9 @@ impl QuantityKey {
         match self {
             Self::Exact(number) => Quantity::Exact(number.literal()),
             Self::AtLeast(number) => Quantity::AtLeast(number.literal()),
+            Self::Or(first, second) => Quantity::Or(first.literal(), second.literal()),
             Self::UpTo(number) => Quantity::UpTo(number.literal()),
+            Self::X => Quantity::X,
             Self::ThatMany => Quantity::ThatMany,
             Self::ThatMuch => Quantity::ThatMuch,
         }
@@ -442,7 +452,9 @@ impl DeterminerKey {
             Self::Target(Some(
                 QuantityKey::Exact(_)
                 | QuantityKey::AtLeast(_)
+                | QuantityKey::Or(_, _)
                 | QuantityKey::UpTo(_)
+                | QuantityKey::X
                 | QuantityKey::ThatMany,
             )) => Cardinality::PluralCount,
             Self::Target(Some(QuantityKey::ThatMuch)) => Cardinality::Mass,
@@ -554,6 +566,8 @@ pub(crate) struct SubjectCopulaKey {
 enum RuleTag {
     QuantityExact,
     QuantityAtLeast,
+    QuantityOr,
+    QuantityX,
     QuantityUpTo,
     QuantityThatMany,
     QuantityThatMuch,
@@ -570,9 +584,11 @@ enum RuleTag {
     NominalNoun,
     NominalAdjective,
     NominalNounModifier,
+    NominalQuantityModifier,
     NominalPowerToughnessModifier,
     NominalDeterminer,
     NominalPrepositional,
+    NominalQuantityComplement,
     NominalRelative,
     NounPhraseNominal,
     NounPhraseSubjectPronoun,
@@ -580,6 +596,7 @@ enum RuleTag {
     NounPhraseReciprocal,
     NounPhraseThisCard,
     NounPhraseFullThisCard,
+    NounPhrasePartitive,
     NounPhraseCoordination,
     PrepositionalPhrase,
     PrepositionalObject,
@@ -825,7 +842,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         end: start + 1,
                         features: Features::Number { is_one: value == 1 },
                         meaning: MeaningKey::Number(NumberKey { value, notation }),
-                        local_cost: ParseCost::default(),
+                        local_cost: ParseCost {
+                            precedence: u32::from(
+                                notation == NumberNotation::Roman && surface == "X",
+                            ),
+                            ..ParseCost::default()
+                        },
                     })
                     .into_iter()
                     .collect()
@@ -833,6 +855,23 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Noun(usage) => {
                 let mut matches = self.word_matches(tokens, start, LexicalSlot::Noun(usage));
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Noun(usage)));
+                if usage != NounUsage::Mass
+                    && let Some(surface) = self.token_text(tokens, start)
+                    && let Some(sides) = surface.strip_prefix('d')
+                    && let Ok(value) = Numeral::Arabic(false).parse(sides)
+                    && value > 0
+                    && let Some(candidate) = lexical_word_match(
+                        WordMatch::Noun(NounInstance::Singular(Noun::Die(
+                            crate::syntax::NumberLiteral {
+                                value,
+                                numeral: Numeral::Arabic(false),
+                            },
+                        ))),
+                        start + 1,
+                    )
+                {
+                    matches.push(candidate);
+                }
                 matches
             }
             EnglishLexicalSlot::Verb(verb_slot) => {
@@ -887,6 +926,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::QuantityAtLeast => self.scan_at_least_quantity(tokens, start),
+            EnglishLexicalSlot::QuantityOr => self.scan_or_quantity(tokens, start),
+            EnglishLexicalSlot::QuantityX => self
+                .one_token_match(tokens, start, "X")
+                .map(|end| quantity_match(end, QuantityKey::X))
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::QuantityThatMany => self
                 .words_match(tokens, start, &["that", "many"])
                 .map(|end| quantity_match(end, QuantityKey::ThatMany))
@@ -905,6 +950,16 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::To => self
                 .one_token_match(tokens, start, "to")
                 .map(|end| literal_match(end, LiteralKey::To))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::Of => self
+                .one_token_match(tokens, start, "of")
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::Preposition(Preposition::Of),
+                    local_cost: ParseCost::default(),
+                })
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Reciprocal => self
@@ -1341,6 +1396,55 @@ impl EnglishGrammar<'_, '_> {
         .collect()
     }
 
+    fn scan_or_quantity(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let Some(first_surface) = self.token_text(tokens, start) else {
+            return Vec::new();
+        };
+        let Some(second_start) = self.one_token_match(tokens, start + 1, "or") else {
+            return Vec::new();
+        };
+        let Some(second_surface) = self.token_text(tokens, second_start) else {
+            return Vec::new();
+        };
+        let end = second_start + 1;
+        let notations = [
+            NumberNotation::Cardinal,
+            NumberNotation::Ordinal,
+            NumberNotation::Arabic(false),
+            NumberNotation::Arabic(true),
+            NumberNotation::Roman,
+        ];
+        let mut matches = Vec::new();
+        for first_notation in notations {
+            let Ok(first_value) = first_notation.numeral().parse(first_surface) else {
+                continue;
+            };
+            for second_notation in notations {
+                let Ok(second_value) = second_notation.numeral().parse(second_surface) else {
+                    continue;
+                };
+                matches.push(quantity_match(
+                    end,
+                    QuantityKey::Or(
+                        NumberKey {
+                            value: first_value,
+                            notation: first_notation,
+                        },
+                        NumberKey {
+                            value: second_value,
+                            notation: second_notation,
+                        },
+                    ),
+                ));
+            }
+        }
+        matches
+    }
+
     fn scan_preposition(
         &self,
         tokens: &[Token],
@@ -1460,6 +1564,8 @@ impl RuleBuilder {
             N::Quantity,
             [l(L::QuantityAtLeast)],
         );
+        self.add(RuleTag::QuantityOr, N::Quantity, [l(L::QuantityOr)]);
+        self.add(RuleTag::QuantityX, N::Quantity, [l(L::QuantityX)]);
         self.add(
             RuleTag::QuantityThatMany,
             N::Quantity,
@@ -1527,6 +1633,15 @@ impl RuleBuilder {
             },
         );
         self.add_with_cost(
+            RuleTag::NominalQuantityModifier,
+            N::Nominal,
+            [n(N::Quantity), n(N::Nominal)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
+        self.add_with_cost(
             RuleTag::NominalPowerToughnessModifier,
             N::Nominal,
             [l(L::PowerToughness), n(N::Nominal)],
@@ -1544,6 +1659,15 @@ impl RuleBuilder {
             RuleTag::NominalPrepositional,
             N::Nominal,
             [n(N::Nominal), n(N::PrepositionalPhrase)],
+        );
+        self.add_with_cost(
+            RuleTag::NominalQuantityComplement,
+            N::Nominal,
+            [n(N::Nominal), n(N::Quantity)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
         );
         self.add(
             RuleTag::NominalRelative,
@@ -1572,6 +1696,11 @@ impl RuleBuilder {
             RuleTag::NounPhraseFullThisCard,
             N::NounPhrase,
             [l(L::FullThisCard)],
+        );
+        self.add(
+            RuleTag::NounPhrasePartitive,
+            N::NounPhrase,
+            [n(N::Quantity), l(L::Of), n(N::NounPhrase)],
         );
         self.add_with_cost(
             RuleTag::NounPhraseCoordination,
@@ -1769,6 +1898,7 @@ fn noun_initial_sound(noun: &NounInstance) -> Option<InitialSound> {
     match noun_identity {
         Noun::Word(vocab) => Some(Vocabulary::new().initial_sound(*vocab)),
         Noun::Catalog(atom) => Some(surface_initial_sound(atom.canonical())),
+        Noun::Die(_) => Some(InitialSound::Consonant),
         Noun::Gerund(_) => Vocabulary::new()
             .render_noun(noun)
             .map(|surface| surface_initial_sound(&surface)),
@@ -1834,6 +1964,8 @@ fn reduce(
     let features = match tag {
         RuleTag::QuantityExact
         | RuleTag::QuantityAtLeast
+        | RuleTag::QuantityOr
+        | RuleTag::QuantityX
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
         | RuleTag::QuantityThatMuch
@@ -1850,9 +1982,11 @@ fn reduce(
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
+        | RuleTag::NominalQuantityModifier
         | RuleTag::NominalPowerToughnessModifier
         | RuleTag::NominalDeterminer
         | RuleTag::NominalPrepositional
+        | RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
@@ -1860,6 +1994,7 @@ fn reduce(
         | RuleTag::NounPhraseReciprocal
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
+        | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
@@ -1974,7 +2109,7 @@ fn reduce_quantity_or_determiner(
             };
             Some(Features::Quantity(number_cardinality(*is_one)))
         }
-        RuleTag::QuantityAtLeast => {
+        RuleTag::QuantityAtLeast | RuleTag::QuantityOr | RuleTag::QuantityX => {
             let Features::Quantity(cardinality) = children.first()?.features else {
                 return None;
             };
@@ -2082,6 +2217,9 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             };
             nominal_with_prefix(children.get(1)?, *initial_sound, false)
         }
+        RuleTag::NominalQuantityModifier => {
+            nominal_with_prefix(children.get(1)?, InitialSound::Consonant, false)
+        }
         RuleTag::NominalPowerToughnessModifier => {
             nominal_with_prefix(children.get(1)?, InitialSound::Consonant, false)
         }
@@ -2117,7 +2255,9 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 temporal: *temporal,
             })
         }
-        RuleTag::NominalPrepositional | RuleTag::NominalRelative => {
+        RuleTag::NominalPrepositional
+        | RuleTag::NominalQuantityComplement
+        | RuleTag::NominalRelative => {
             let Features::Nominal {
                 form,
                 initial_sound,
@@ -2176,6 +2316,26 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 agreement: *agreement,
                 pronoun_case: *pronoun_case,
                 temporal: *temporal,
+            })
+        }
+        RuleTag::NounPhrasePartitive => {
+            let Features::Quantity(cardinality) = children.first()?.features else {
+                return None;
+            };
+            let number = match cardinality {
+                Cardinality::SingularCount | Cardinality::SingularOrMass => Number::Singular,
+                Cardinality::PluralCount
+                | Cardinality::Mass
+                | Cardinality::PluralOrMass
+                | Cardinality::Unconstrained => Number::Plural,
+            };
+            Some(Features::NounPhrase {
+                agreement: Some(Agreement {
+                    person: Person::Third,
+                    number,
+                }),
+                pronoun_case: None,
+                temporal: false,
             })
         }
         RuleTag::NounPhraseCoordination => {
@@ -2570,6 +2730,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::QuantityExact
         | RuleTag::QuantityAtLeast
+        | RuleTag::QuantityOr
+        | RuleTag::QuantityX
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
         | RuleTag::QuantityThatMuch
@@ -2586,9 +2748,11 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
+        | RuleTag::NominalQuantityModifier
         | RuleTag::NominalPowerToughnessModifier
         | RuleTag::NominalDeterminer
         | RuleTag::NominalPrepositional
+        | RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
@@ -2596,6 +2760,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseReciprocal
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
+        | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => lower_phrase(tag, children),
@@ -2680,7 +2845,7 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
             };
             Some(Lowered::Quantity(Quantity::Exact(number.literal())))
         }
-        RuleTag::QuantityAtLeast => {
+        RuleTag::QuantityAtLeast | RuleTag::QuantityOr | RuleTag::QuantityX => {
             let Lowered::Quantity(quantity) = take(children, 0)? else {
                 return None;
             };
@@ -2757,6 +2922,18 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             nominal.modifiers.insert(0, NominalModifier::Noun(noun));
             Some(Lowered::Nominal(nominal))
         }
+        RuleTag::NominalQuantityModifier => {
+            let Lowered::Quantity(quantity) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
+                return None;
+            };
+            nominal
+                .modifiers
+                .insert(0, NominalModifier::Quantity(quantity));
+            Some(Lowered::Nominal(nominal))
+        }
         RuleTag::NominalPowerToughnessModifier => {
             let Lowered::PowerToughness(modifier) = take(children, 0)? else {
                 return None;
@@ -2789,6 +2966,18 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             nominal
                 .complements
                 .push(NominalComplement::Prepositional(preposition));
+            Some(Lowered::Nominal(nominal))
+        }
+        RuleTag::NominalQuantityComplement => {
+            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Quantity(quantity) = take(children, 1)? else {
+                return None;
+            };
+            nominal
+                .complements
+                .push(NominalComplement::Quantity(quantity));
             Some(Lowered::Nominal(nominal))
         }
         RuleTag::NominalRelative => {
@@ -2831,6 +3020,23 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             Some(Lowered::NounPhrase(NounPhrase::ThisCard(form)))
+        }
+        RuleTag::NounPhrasePartitive => {
+            let Lowered::Quantity(quantity) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Preposition(Preposition::Of) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::NounPhrase(whole) = take(children, 2)? else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(NounPhrase::Partitive(
+                crate::syntax::PartitiveNounPhrase {
+                    quantity,
+                    whole: Box::new(whole),
+                },
+            )))
         }
         RuleTag::NounPhraseCoordination => {
             let Lowered::NounPhrase(first) = take(children, 0)? else {

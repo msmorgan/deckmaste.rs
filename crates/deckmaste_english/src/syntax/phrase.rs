@@ -45,7 +45,7 @@ impl OracleSymbol {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NumberLiteral {
     pub value: i32,
     pub numeral: Numeral,
@@ -81,7 +81,9 @@ pub struct PowerToughness {
 pub enum Quantity {
     Exact(NumberLiteral),
     AtLeast(NumberLiteral),
+    Or(NumberLiteral, NumberLiteral),
     UpTo(NumberLiteral),
+    X,
     ThatMany,
     ThatMuch,
 }
@@ -93,7 +95,12 @@ impl Quantity {
             Self::Exact(number) | Self::UpTo(number) if number.value == 1 => {
                 NounCardinality::SingularOrMass
             }
-            Self::Exact(_) | Self::UpTo(_) => NounCardinality::PluralOrMass,
+            Self::Or(first, second) if first.value == 1 && second.value == 1 => {
+                NounCardinality::SingularOrMass
+            }
+            Self::Exact(_) | Self::Or(_, _) | Self::UpTo(_) | Self::X => {
+                NounCardinality::PluralOrMass
+            }
             Self::AtLeast(_) | Self::ThatMany => NounCardinality::PluralCount,
             Self::ThatMuch => NounCardinality::Mass,
         }
@@ -137,6 +144,7 @@ impl Determiner {
             Self::Target(Some(
                 Quantity::Exact(_) | Quantity::AtLeast(_) | Quantity::UpTo(_) | Quantity::ThatMany,
             )) => NounCardinality::PluralCount,
+            Self::Target(Some(Quantity::Or(_, _) | Quantity::X)) => NounCardinality::PluralCount,
             Self::Target(Some(Quantity::ThatMuch)) => NounCardinality::Mass,
             Self::Quantity(quantity) => quantity.noun_cardinality(),
             Self::All => NounCardinality::PluralOrMass,
@@ -182,7 +190,14 @@ pub enum NounPhrase {
     Nominal(NominalPhrase),
     Pronoun { pronoun: Pronoun, case: PronounCase },
     ThisCard(ThisCardForm),
+    Partitive(PartitiveNounPhrase),
     Coordinated(CoordinatedNounPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartitiveNounPhrase {
+    pub quantity: Quantity,
+    pub whole: Box<NounPhrase>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -215,6 +230,7 @@ pub struct NominalPhrase {
 pub enum NominalModifier {
     Adjective(AdjectivePhrase),
     Noun(NounInstance),
+    Quantity(Quantity),
     PowerToughness(PowerToughness),
     Unknown(UnknownPhrase),
 }
@@ -236,6 +252,7 @@ pub enum AdjectiveComplement {
 pub enum NominalComplement {
     Prepositional(PrepositionalPhrase),
     Relative(RelativeClause),
+    Quantity(Quantity),
     Unknown(UnknownPhrase),
 }
 

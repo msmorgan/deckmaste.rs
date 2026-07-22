@@ -48,7 +48,7 @@ const ROMAN_PARTS: [(u32, &str); 13] = [
 ];
 
 /// The notation used to format an integer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Numeral {
     /// Lowercase English cardinal words.
     Cardinal,

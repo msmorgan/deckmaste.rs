@@ -362,7 +362,9 @@ impl<'syntax> UnknownWalker<'syntax> {
                         NominalModifier::Unknown(unknown) => {
                             self.push(unknown, UnknownRole::NominalComplement, context);
                         }
-                        NominalModifier::Noun(_) | NominalModifier::PowerToughness(_) => {}
+                        NominalModifier::Noun(_)
+                        | NominalModifier::Quantity(_)
+                        | NominalModifier::PowerToughness(_) => {}
                     }
                 }
                 for complement in &nominal.complements {
@@ -377,6 +379,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                         NominalComplement::Relative(relative) => {
                             self.relative_clause(relative, context);
                         }
+                        NominalComplement::Quantity(_) => {}
                         NominalComplement::Unknown(unknown) => {
                             self.push(unknown, UnknownRole::NominalComplement, context);
                         }
@@ -384,6 +387,7 @@ impl<'syntax> UnknownWalker<'syntax> {
                 }
             }
             NounPhrase::Pronoun { .. } | NounPhrase::ThisCard(_) => {}
+            NounPhrase::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
             NounPhrase::Coordinated(coordinated) => {
                 self.noun_phrase(&coordinated.first, context);
                 for coordination in &coordinated.rest {

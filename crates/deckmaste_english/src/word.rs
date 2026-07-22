@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 
 use crate::catalog::CatalogAtom;
 use crate::catalog::KeywordAction;
+use crate::syntax::NumberLiteral;
 use crate::syntax::UnknownPhrase;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -56,6 +57,7 @@ pub struct PronounInstance {
 pub enum Noun {
     Word(Vocab),
     Catalog(CatalogAtom),
+    Die(NumberLiteral),
     Gerund(Verb),
     Unknown(UnknownPhrase),
 }
@@ -990,6 +992,10 @@ impl Vocabulary {
                 NounSurface::Singular => Some(atom.render_noun(false)),
                 NounSurface::Plural => Some(atom.render_noun(true)),
                 NounSurface::Mass => None,
+            },
+            Noun::Die(number) => match form {
+                NounSurface::Singular => Some(format!("d{}", number.numeral.format(number.value))),
+                NounSurface::Plural | NounSurface::Mass => None,
             },
             Noun::Gerund(verb) => {
                 let present_participle =

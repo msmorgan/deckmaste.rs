@@ -693,6 +693,11 @@ impl<'identity> Renderer<'identity> {
                 .map(str::to_owned)
                 .ok_or(RenderError::MissingLexicalForm("pronoun")),
             NounPhrase::ThisCard(form) => self.this_card(*form),
+            NounPhrase::Partitive(partitive) => Ok(format!(
+                "{} of {}",
+                render_quantity(partitive.quantity),
+                self.noun_phrase(&partitive.whole)?
+            )),
             NounPhrase::Coordinated(coordinated) => {
                 let mut rendered = self.noun_phrase(&coordinated.first)?;
                 for coordination in &coordinated.rest {
@@ -729,6 +734,7 @@ impl<'identity> Renderer<'identity> {
             parts.push(match modifier {
                 NominalModifier::Adjective(adjective) => self.adjective_phrase(adjective)?,
                 NominalModifier::Noun(noun) => self.render_noun(noun)?,
+                NominalModifier::Quantity(quantity) => render_quantity(*quantity),
                 NominalModifier::PowerToughness(value) => format!(
                     "{}/{}",
                     render_signed_scalar(value.power),
@@ -744,6 +750,7 @@ impl<'identity> Renderer<'identity> {
                     self.prepositional_phrase(preposition)?
                 }
                 NominalComplement::Relative(relative) => self.relative_clause(relative)?,
+                NominalComplement::Quantity(quantity) => render_quantity(*quantity),
                 NominalComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),
             });
         }
@@ -757,6 +764,9 @@ impl<'identity> Renderer<'identity> {
                     self.adjective_initial_sound(&adjective.head)
                 }
                 NominalModifier::Noun(noun) => self.noun_initial_sound(noun),
+                NominalModifier::Quantity(quantity) => {
+                    Ok(spelling_initial_sound(&render_quantity(*quantity)))
+                }
                 NominalModifier::PowerToughness(_) => Ok(InitialSound::Consonant),
                 NominalModifier::Unknown(unknown) => Ok(spelling_initial_sound(
                     &self.expand_self_references(&unknown.0),
@@ -775,6 +785,7 @@ impl<'identity> Renderer<'identity> {
         match noun {
             Noun::Word(vocab) => Ok(self.vocabulary.initial_sound(*vocab)),
             Noun::Catalog(atom) => Ok(spelling_initial_sound(atom.canonical())),
+            Noun::Die(_) => Ok(InitialSound::Consonant),
             Noun::Gerund(verb) => self
                 .vocabulary
                 .render_verb_instance(&crate::word::VerbInstance {
@@ -945,7 +956,13 @@ fn render_quantity(quantity: Quantity) -> String {
         Quantity::AtLeast(number) => {
             format!("{} or more", number.numeral.format(number.value))
         }
+        Quantity::Or(first, second) => format!(
+            "{} or {}",
+            first.numeral.format(first.value),
+            second.numeral.format(second.value)
+        ),
         Quantity::UpTo(number) => format!("up to {}", number.numeral.format(number.value)),
+        Quantity::X => "X".to_owned(),
         Quantity::ThatMany => "that many".to_owned(),
         Quantity::ThatMuch => "that much".to_owned(),
     }
