@@ -133,6 +133,7 @@ pub(crate) enum Nonterminal {
     NounPhrase,
     PossessiveNounPhrase,
     PrepositionalPhrase,
+    PrepositionalObject,
     RelativeClause,
     Verb,
     VerbPhrase,
@@ -577,6 +578,7 @@ enum RuleTag {
     NounPhraseFullThisCard,
     NounPhraseCoordination,
     PrepositionalPhrase,
+    PrepositionalObject,
     Verb,
     VerbPhraseBase,
     VerbPhraseAuxiliary,
@@ -1343,10 +1345,16 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let preposition = if surface.eq_ignore_ascii_case("at") {
+        let preposition = if surface.eq_ignore_ascii_case("among") {
+            Preposition::Among
+        } else if surface.eq_ignore_ascii_case("at") {
             Preposition::At
+        } else if surface.eq_ignore_ascii_case("before") {
+            Preposition::Before
         } else if surface.eq_ignore_ascii_case("by") {
             Preposition::By
+        } else if surface.eq_ignore_ascii_case("during") {
+            Preposition::During
         } else if surface.eq_ignore_ascii_case("for") {
             Preposition::For
         } else if surface.eq_ignore_ascii_case("from") {
@@ -1572,7 +1580,22 @@ impl RuleBuilder {
         self.add(
             RuleTag::PrepositionalPhrase,
             N::PrepositionalPhrase,
-            [l(L::Preposition), n(N::NounPhrase)],
+            [l(L::Preposition), n(N::PrepositionalObject)],
+        );
+        self.add(
+            RuleTag::PrepositionalObject,
+            N::PrepositionalObject,
+            [n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::PrepositionalObject,
+            N::PrepositionalObject,
+            [n(N::PrepositionalPhrase)],
+        );
+        self.add(
+            RuleTag::PrepositionalObject,
+            N::PrepositionalObject,
+            [l(L::Adverb)],
         );
     }
 
@@ -1819,7 +1842,8 @@ fn reduce(
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
         | RuleTag::NounPhraseCoordination
-        | RuleTag::PrepositionalPhrase => reduce_phrase(tag, children)?,
+        | RuleTag::PrepositionalPhrase
+        | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
@@ -2150,6 +2174,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             })
         }
         RuleTag::PrepositionalPhrase => Some(Features::PrepositionalPhrase),
+        RuleTag::PrepositionalObject => Some(Features::None),
         _ => None,
     }
 }
@@ -2378,6 +2403,7 @@ enum Lowered {
     Pronoun(PronounInstance),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
+    Phrase(Phrase),
     PrepositionalPhrase(PrepositionalPhrase),
     Verb(VerbInstance),
     VerbPhrase(VerbPhrase),
@@ -2524,7 +2550,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
         | RuleTag::NounPhraseCoordination
-        | RuleTag::PrepositionalPhrase => lower_phrase(tag, children),
+        | RuleTag::PrepositionalPhrase
+        | RuleTag::PrepositionalObject => lower_phrase(tag, children),
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
@@ -2791,16 +2818,27 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             };
             Some(Lowered::NounPhrase(NounPhrase::Coordinated(coordinated)))
         }
+        RuleTag::PrepositionalObject => {
+            let phrase = match take(children, 0)? {
+                Lowered::NounPhrase(object) => Phrase::NounPhrase(Box::new(object)),
+                Lowered::PrepositionalPhrase(object) => {
+                    Phrase::PrepositionalPhrase(Box::new(object))
+                }
+                Lowered::Adverb(object) => Phrase::Adverb(object),
+                _ => return None,
+            };
+            Some(Lowered::Phrase(phrase))
+        }
         RuleTag::PrepositionalPhrase => {
             let Lowered::Preposition(preposition) = take(children, 0)? else {
                 return None;
             };
-            let Lowered::NounPhrase(object) = take(children, 1)? else {
+            let Lowered::Phrase(object) = take(children, 1)? else {
                 return None;
             };
             Some(Lowered::PrepositionalPhrase(PrepositionalPhrase {
                 preposition,
-                object: Box::new(crate::syntax::Phrase::NounPhrase(Box::new(object))),
+                object: Box::new(object),
             }))
         }
         _ => None,

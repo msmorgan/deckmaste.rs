@@ -56,6 +56,11 @@ mod tests {
             "artifact creature card",
             "creature you control",
             "cards in your graveyard",
+            "cards among all permanents",
+            "cards from among them",
+            "cards from anywhere",
+            "combat during your turn",
+            "combat before your turn",
         ] {
             let parsed = parse(source);
             assert_eq!(
@@ -196,6 +201,73 @@ mod tests {
             object.determiner,
             Some(Determiner::Possessive(Possessor::Pronoun(Pronoun::You)))
         );
+    }
+
+    #[test]
+    fn prepositions_can_take_nominal_nested_and_adverbial_objects() {
+        let among = parse("cards among all permanents");
+        let Some(NounPhrase::Nominal(among)) = among.noun_phrase() else {
+            panic!("expected an among nominal");
+        };
+        assert!(matches!(
+            among.complements.as_slice(),
+            [NominalComplement::Prepositional(preposition)]
+                if preposition.preposition == crate::syntax::Preposition::Among
+                    && matches!(
+                        preposition.object.as_ref(),
+                        crate::syntax::Phrase::NounPhrase(_)
+                    )
+        ));
+
+        let nested = parse("cards from among them");
+        let Some(NounPhrase::Nominal(nested)) = nested.noun_phrase() else {
+            panic!("expected a nested-preposition nominal");
+        };
+        assert!(matches!(
+            nested.complements.as_slice(),
+            [NominalComplement::Prepositional(outer)]
+                if outer.preposition == crate::syntax::Preposition::From
+                    && matches!(
+                        outer.object.as_ref(),
+                        crate::syntax::Phrase::PrepositionalPhrase(inner)
+                            if inner.preposition == crate::syntax::Preposition::Among
+                    )
+        ));
+
+        let anywhere = parse("cards from anywhere");
+        let Some(NounPhrase::Nominal(anywhere)) = anywhere.noun_phrase() else {
+            panic!("expected an adverb-object nominal");
+        };
+        assert!(matches!(
+            anywhere.complements.as_slice(),
+            [NominalComplement::Prepositional(preposition)]
+                if matches!(
+                    preposition.object.as_ref(),
+                    crate::syntax::Phrase::Adverb(adverb)
+                        if adverb.spelling() == "anywhere"
+                )
+        ));
+
+        for (source, expected) in [
+            (
+                "combat during your turn",
+                crate::syntax::Preposition::During,
+            ),
+            (
+                "combat before your turn",
+                crate::syntax::Preposition::Before,
+            ),
+        ] {
+            let parsed = parse(source);
+            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                panic!("expected a temporal nominal");
+            };
+            assert!(matches!(
+                nominal.complements.as_slice(),
+                [NominalComplement::Prepositional(preposition)]
+                    if preposition.preposition == expected
+            ));
+        }
     }
 
     #[test]
