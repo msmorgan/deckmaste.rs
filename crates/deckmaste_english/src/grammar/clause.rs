@@ -29,7 +29,6 @@ use crate::syntax::RelativeMarker;
 use crate::syntax::SentenceBody;
 use crate::syntax::SentenceEnding;
 use crate::syntax::SubordinateBody;
-use crate::word::Verb;
 
 pub(super) fn add_rules(builder: &mut RuleBuilder) {
     use EnglishLexicalSlot as L;
@@ -54,6 +53,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
     );
     builder.add(
         RuleTag::VerbPhraseDirectObject,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), n(N::NounPhrase)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseIndirectObject,
         N::VerbPhrase,
         [n(N::VerbPhrase), n(N::NounPhrase)],
     );
@@ -142,6 +146,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         RuleTag::VerbPhraseAuxiliary,
         N::ObjectGapVerbPhrase,
         [l(L::Auxiliary), n(N::ObjectGapVerbPhrase)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseIndirectObject,
+        N::ObjectGapVerbPhrase,
+        [n(N::ObjectGapVerbPhrase), n(N::NounPhrase)],
     );
     builder.add_with_cost(
         RuleTag::VerbPhraseAdjective,
@@ -386,6 +395,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
         | RuleTag::VerbPhraseDirectObject
+        | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
@@ -403,14 +413,23 @@ pub(super) fn reduce_clause(
         RuleTag::GerundClauseBase => {
             let Features::VerbPhrase {
                 form: PredicateForm::PresentParticiple,
+                passive,
                 object,
-                requires_direct_object,
+                indirect_object,
+                selected_preposition,
+                frame,
                 ..
             } = children.first()?.features
             else {
                 return None;
             };
-            if *requires_direct_object && !object.has_direct_object() {
+            if !predicate_arguments_complete(
+                *frame,
+                *passive,
+                *object,
+                *indirect_object,
+                *selected_preposition,
+            ) {
                 return None;
             }
             Some(Features::GerundClause)
@@ -467,46 +486,78 @@ pub(super) fn accepts_predicate_prefix(
     if completed_children != 1 {
         return true;
     }
-    let object_rule = matches!(
+    let predicate_rule = matches!(
         tag,
         RuleTag::VerbPhraseDirectObject
+            | RuleTag::VerbPhraseIndirectObject
+            | RuleTag::VerbPhraseAdjective
+            | RuleTag::VerbPhrasePrepositional
+            | RuleTag::VerbPhraseInfinitive
+            | RuleTag::VerbPhraseParticle
             | RuleTag::VerbPhraseAbility
             | RuleTag::VerbPhraseOracleSymbol
             | RuleTag::VerbPhraseSymbolSequence
             | RuleTag::VerbPhraseOracleSymbolCoordination
             | RuleTag::VerbPhrasePowerToughness
+            | RuleTag::VerbPhraseQuantity
     );
-    let quantity_rule = tag == RuleTag::VerbPhraseQuantity;
-    if !object_rule && !quantity_rule {
+    if !predicate_rule {
         return true;
     }
     let Features::VerbPhrase {
         object,
+        indirect_object,
         phase,
-        accepts_direct_object,
+        frame,
         ..
     } = features
     else {
         return false;
     };
-    if tag == RuleTag::VerbPhraseDirectObject
-        && (matches!(
-            phase,
-            PredicateAttachmentPhase::Tail | PredicateAttachmentPhase::PrepositionalTail
-        ) || object.has_direct_object())
-    {
-        return true;
-    }
-    if *phase != PredicateAttachmentPhase::Object {
-        return false;
-    }
-    if quantity_rule {
-        matches!(
-            object,
-            PredicateObjectState::None | PredicateObjectState::Ability
-        )
-    } else {
-        *accepts_direct_object && *object == PredicateObjectState::None
+    match tag {
+        RuleTag::VerbPhraseDirectObject => {
+            let nominal_adjunct = frame.licenses_bare_nominal_adjunct(BareNominalAdjunct::Temporal)
+                || frame.licenses_bare_nominal_adjunct(BareNominalAdjunct::Manner);
+            if *phase == PredicateAttachmentPhase::Object && *object == PredicateObjectState::None {
+                frame.direct_object().accepts() || nominal_adjunct
+            } else {
+                nominal_adjunct
+            }
+        }
+        RuleTag::VerbPhraseIndirectObject => {
+            *phase == PredicateAttachmentPhase::Object
+                && *object == PredicateObjectState::None
+                && !*indirect_object
+                && frame.indirect_object().accepts()
+        }
+        RuleTag::VerbPhraseAdjective => {
+            frame.licenses_complement(PredicateComplementKind::Adjective)
+        }
+        RuleTag::VerbPhraseInfinitive => {
+            frame.licenses_complement(PredicateComplementKind::Infinitive)
+        }
+        RuleTag::VerbPhraseAbility => {
+            *object == PredicateObjectState::None
+                && frame.licenses_complement(PredicateComplementKind::Ability)
+        }
+        RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhraseSymbolSequence
+        | RuleTag::VerbPhraseOracleSymbolCoordination => {
+            *object == PredicateObjectState::None
+                && frame.licenses_complement(PredicateComplementKind::Scalar)
+        }
+        RuleTag::VerbPhrasePowerToughness => {
+            *object == PredicateObjectState::None
+                && frame.licenses_complement(PredicateComplementKind::Statistic)
+        }
+        RuleTag::VerbPhraseQuantity => {
+            matches!(
+                object,
+                PredicateObjectState::None | PredicateObjectState::Ability
+            ) && frame.licenses_complement(PredicateComplementKind::Scalar)
+        }
+        RuleTag::VerbPhrasePrepositional | RuleTag::VerbPhraseParticle => true,
+        _ => true,
     }
 }
 
@@ -522,7 +573,7 @@ pub(super) fn reduction_cost(
         && matches!(
             children.get(1).map(|child| child.features),
             Some(Features::NounPhrase {
-                adjunct: Some(NominalAdjunctKind::Temporal),
+                adjunct: Some(BareNominalAdjunct::Temporal),
                 ..
             })
         );
@@ -539,13 +590,7 @@ fn reduce_predicate(
     match tag {
         RuleTag::Verb => Some(propagate(children.first()?)),
         RuleTag::VerbPhraseBase => {
-            let Features::Verb {
-                slot,
-                accepts_direct_object,
-                requires_direct_object,
-                proform,
-            } = children.first()?.features
-            else {
+            let Features::Verb { slot, frame } = children.first()?.features else {
                 return None;
             };
             let form = predicate_form(*slot);
@@ -553,10 +598,11 @@ fn reduce_predicate(
                 form,
                 passive: false,
                 object: PredicateObjectState::None,
+                indirect_object: false,
+                selected_preposition: false,
                 phase: PredicateAttachmentPhase::Object,
-                accepts_direct_object: *accepts_direct_object,
-                requires_direct_object: *requires_direct_object,
-                proform: *proform,
+                frame: *frame,
+                bare: true,
             })
         }
         RuleTag::VerbPhraseAuxiliary => {
@@ -567,9 +613,10 @@ fn reduce_predicate(
                 form: child_form,
                 passive: child_passive,
                 object,
+                indirect_object,
+                selected_preposition,
                 phase,
-                accepts_direct_object,
-                requires_direct_object,
+                frame,
                 ..
             } = children.get(1)?.features
             else {
@@ -586,13 +633,14 @@ fn reduce_predicate(
                 form,
                 passive,
                 object: *object,
+                indirect_object: *indirect_object,
+                selected_preposition: *selected_preposition,
                 phase: *phase,
-                accepts_direct_object: *accepts_direct_object,
-                requires_direct_object: *requires_direct_object,
-                proform: false,
+                frame: *frame,
+                bare: false,
             })
         }
-        RuleTag::VerbPhraseDirectObject => {
+        RuleTag::VerbPhraseDirectObject | RuleTag::VerbPhraseIndirectObject => {
             let Features::NounPhrase {
                 pronoun_case,
                 adjunct,
@@ -604,29 +652,31 @@ fn reduce_predicate(
             if *pronoun_case == Some(PronounCase::Subject) {
                 return None;
             }
-            let Features::VerbPhrase {
-                form,
-                passive,
-                object,
-                phase,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let attachment = if adjunct.is_some()
-                && (*form == PredicateForm::PastParticiple
-                    || *passive
-                    || matches!(
-                        phase,
-                        PredicateAttachmentPhase::Tail
-                            | PredicateAttachmentPhase::PrepositionalTail
-                    )
-                    || object.has_direct_object())
-            {
-                ObjectAttachment::None
+            let attachment = if tag == RuleTag::VerbPhraseIndirectObject {
+                PredicateAttachment::IndirectObject
             } else {
-                ObjectAttachment::Direct
+                let Features::VerbPhrase {
+                    form,
+                    passive,
+                    object,
+                    phase,
+                    frame,
+                    ..
+                } = children.first()?.features
+                else {
+                    return None;
+                };
+                match adjunct.filter(|adjunct| {
+                    frame.licenses_bare_nominal_adjunct(*adjunct)
+                        && (*form == PredicateForm::PastParticiple
+                            || *passive
+                            || *phase != PredicateAttachmentPhase::Object
+                            || object.has_direct_object()
+                            || !frame.direct_object().accepts())
+                }) {
+                    Some(adjunct) => PredicateAttachment::NominalAdjunct(adjunct),
+                    None => PredicateAttachment::DirectObject,
+                }
             };
             extend_predicate(children.first()?, attachment)
         }
@@ -637,7 +687,7 @@ fn reduce_predicate(
             else {
                 return None;
             };
-            extend_predicate(children.first()?, ObjectAttachment::Direct)
+            extend_predicate(children.first()?, PredicateAttachment::ScalarComplement)
         }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
@@ -651,13 +701,32 @@ fn reduce_predicate(
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity => {
             let attachment = match tag {
-                RuleTag::VerbPhraseAbility => ObjectAttachment::Ability,
-                RuleTag::VerbPhrasePrepositional => ObjectAttachment::Prepositional,
-                RuleTag::VerbPhraseOracleSymbol
-                | RuleTag::VerbPhraseSymbolSequence
-                | RuleTag::VerbPhrasePowerToughness => ObjectAttachment::Direct,
-                RuleTag::VerbPhraseQuantity => ObjectAttachment::DirectOrAbilityArgument,
-                _ => ObjectAttachment::None,
+                RuleTag::VerbPhraseAdjective => PredicateAttachment::AdjectiveComplement,
+                RuleTag::VerbPhrasePrepositional => {
+                    let Features::PrepositionalPhrase { preposition, .. } =
+                        children.get(1)?.features
+                    else {
+                        return None;
+                    };
+                    PredicateAttachment::Prepositional(*preposition)
+                }
+                RuleTag::VerbPhraseInfinitive => PredicateAttachment::InfinitiveComplement,
+                RuleTag::VerbPhraseAdverb | RuleTag::VerbPhraseFrequency => {
+                    PredicateAttachment::Adjunct
+                }
+                RuleTag::VerbPhraseParticle => {
+                    let Features::VerbParticle(particle) = children.get(1)?.features else {
+                        return None;
+                    };
+                    PredicateAttachment::Particle(*particle)
+                }
+                RuleTag::VerbPhraseAbility => PredicateAttachment::AbilityComplement,
+                RuleTag::VerbPhraseOracleSymbol | RuleTag::VerbPhraseSymbolSequence => {
+                    PredicateAttachment::ScalarComplement
+                }
+                RuleTag::VerbPhrasePowerToughness => PredicateAttachment::StatisticComplement,
+                RuleTag::VerbPhraseQuantity => PredicateAttachment::ScalarOrAbilityArgument,
+                _ => return None,
             };
             extend_predicate(children.first()?, attachment)
         }
@@ -665,14 +734,23 @@ fn reduce_predicate(
             let predicate_index = if tag == RuleTag::InfinitiveNotTo { 2 } else { 1 };
             let Features::VerbPhrase {
                 form: PredicateForm::Infinitive,
+                passive,
                 object,
-                requires_direct_object,
+                indirect_object,
+                selected_preposition,
+                frame,
                 ..
             } = children.get(predicate_index)?.features
             else {
                 return None;
             };
-            if *requires_direct_object && !object.has_direct_object() {
+            if !predicate_arguments_complete(
+                *frame,
+                *passive,
+                *object,
+                *indirect_object,
+                *selected_preposition,
+            ) {
                 return None;
             }
             Some(Features::InfinitiveClause)
@@ -683,74 +761,180 @@ fn reduce_predicate(
 
 fn extend_predicate(
     predicate: &Child<'_, EnglishGrammar<'_, '_>>,
-    attachment: ObjectAttachment,
+    attachment: PredicateAttachment,
 ) -> Option<Reduced> {
     let Features::VerbPhrase {
         form,
         passive,
         object,
+        indirect_object,
+        selected_preposition,
         phase,
-        accepts_direct_object,
-        requires_direct_object,
+        frame,
         ..
     } = predicate.features
     else {
         return None;
     };
-    let next_phase = match (attachment, *phase) {
-        (ObjectAttachment::None, _) => PredicateAttachmentPhase::Tail,
-        (ObjectAttachment::Prepositional, _) => PredicateAttachmentPhase::PrepositionalTail,
-        (_, PredicateAttachmentPhase::Object) => PredicateAttachmentPhase::Object,
-        (_, PredicateAttachmentPhase::Tail | PredicateAttachmentPhase::PrepositionalTail) => {
-            return None;
+    let prepositional_role = match attachment {
+        PredicateAttachment::Prepositional(preposition) => {
+            Some(frame.prepositional_role(preposition)?)
+        }
+        _ => None,
+    };
+    let licensed = match attachment {
+        PredicateAttachment::Adjunct => true,
+        PredicateAttachment::DirectObject => frame.direct_object().accepts(),
+        PredicateAttachment::IndirectObject => frame.indirect_object().accepts(),
+        PredicateAttachment::NominalAdjunct(adjunct) => {
+            frame.licenses_bare_nominal_adjunct(adjunct)
+        }
+        PredicateAttachment::AdjectiveComplement => {
+            frame.licenses_complement(PredicateComplementKind::Adjective)
+        }
+        PredicateAttachment::Prepositional(_) => true,
+        PredicateAttachment::InfinitiveComplement => {
+            frame.licenses_complement(PredicateComplementKind::Infinitive)
+        }
+        PredicateAttachment::Particle(particle) => frame.licenses_particle(particle),
+        PredicateAttachment::AbilityComplement => {
+            frame.licenses_complement(PredicateComplementKind::Ability)
+        }
+        PredicateAttachment::ScalarComplement | PredicateAttachment::ScalarOrAbilityArgument => {
+            frame.licenses_complement(PredicateComplementKind::Scalar)
+        }
+        PredicateAttachment::StatisticComplement => {
+            frame.licenses_complement(PredicateComplementKind::Statistic)
         }
     };
-    if !*accepts_direct_object
-        && !matches!(
-            attachment,
-            ObjectAttachment::None | ObjectAttachment::Prepositional
-        )
-    {
+    if !licensed {
         return None;
     }
     if *passive
         && !matches!(
             attachment,
-            ObjectAttachment::None | ObjectAttachment::Prepositional
+            PredicateAttachment::Adjunct
+                | PredicateAttachment::NominalAdjunct(_)
+                | PredicateAttachment::AdjectiveComplement
+                | PredicateAttachment::Prepositional(_)
+                | PredicateAttachment::InfinitiveComplement
+                | PredicateAttachment::Particle(_)
         )
     {
         return None;
     }
+    let next_phase = match attachment {
+        PredicateAttachment::DirectObject
+        | PredicateAttachment::IndirectObject
+        | PredicateAttachment::AbilityComplement
+        | PredicateAttachment::ScalarComplement
+        | PredicateAttachment::StatisticComplement
+        | PredicateAttachment::ScalarOrAbilityArgument => {
+            if *phase != PredicateAttachmentPhase::Object {
+                return None;
+            }
+            PredicateAttachmentPhase::Object
+        }
+        PredicateAttachment::Prepositional(_) => PredicateAttachmentPhase::PrepositionalTail,
+        PredicateAttachment::Adjunct
+        | PredicateAttachment::NominalAdjunct(_)
+        | PredicateAttachment::AdjectiveComplement
+        | PredicateAttachment::InfinitiveComplement
+        | PredicateAttachment::Particle(_) => PredicateAttachmentPhase::Tail,
+    };
     let object = match (attachment, *object) {
-        (ObjectAttachment::None | ObjectAttachment::Prepositional, object) => object,
-        (ObjectAttachment::Direct, PredicateObjectState::None) => PredicateObjectState::Direct,
-        (ObjectAttachment::Ability, PredicateObjectState::None) => PredicateObjectState::Ability,
-        (ObjectAttachment::DirectOrAbilityArgument, PredicateObjectState::None) => {
+        (
+            PredicateAttachment::Adjunct
+            | PredicateAttachment::IndirectObject
+            | PredicateAttachment::NominalAdjunct(_)
+            | PredicateAttachment::AdjectiveComplement
+            | PredicateAttachment::Prepositional(_)
+            | PredicateAttachment::InfinitiveComplement
+            | PredicateAttachment::Particle(_),
+            object,
+        ) => object,
+        (PredicateAttachment::DirectObject, PredicateObjectState::None)
+        | (PredicateAttachment::ScalarComplement, PredicateObjectState::None)
+        | (PredicateAttachment::StatisticComplement, PredicateObjectState::None) => {
             PredicateObjectState::Direct
         }
-        (ObjectAttachment::DirectOrAbilityArgument, PredicateObjectState::Ability) => {
+        (PredicateAttachment::AbilityComplement, PredicateObjectState::None) => {
+            PredicateObjectState::Ability
+        }
+        (PredicateAttachment::ScalarOrAbilityArgument, PredicateObjectState::None) => {
+            PredicateObjectState::Direct
+        }
+        (PredicateAttachment::ScalarOrAbilityArgument, PredicateObjectState::Ability) => {
             PredicateObjectState::AbilityWithArgument
         }
         _ => return None,
+    };
+    let indirect_object = match attachment {
+        PredicateAttachment::IndirectObject if !*indirect_object && !object.has_direct_object() => {
+            true
+        }
+        PredicateAttachment::IndirectObject => return None,
+        _ => *indirect_object,
+    };
+    let selected_preposition = match prepositional_role {
+        Some(PrepositionalRole::SelectedComplement) if *selected_preposition => return None,
+        Some(PrepositionalRole::SelectedComplement) => true,
+        Some(PrepositionalRole::Adjunct) | None => *selected_preposition,
     };
     Some(Features::VerbPhrase {
         form: *form,
         passive: *passive,
         object,
+        indirect_object,
+        selected_preposition,
         phase: next_phase,
-        accepts_direct_object: *accepts_direct_object,
-        requires_direct_object: *requires_direct_object,
-        proform: false,
+        frame: *frame,
+        bare: false,
     })
 }
 
 #[derive(Debug, Clone, Copy)]
-enum ObjectAttachment {
-    None,
-    Prepositional,
-    Direct,
-    Ability,
-    DirectOrAbilityArgument,
+enum PredicateAttachment {
+    Adjunct,
+    DirectObject,
+    IndirectObject,
+    NominalAdjunct(BareNominalAdjunct),
+    AdjectiveComplement,
+    Prepositional(Preposition),
+    InfinitiveComplement,
+    Particle(VerbParticle),
+    AbilityComplement,
+    ScalarComplement,
+    StatisticComplement,
+    ScalarOrAbilityArgument,
+}
+
+fn predicate_arguments_complete(
+    frame: PredicateFrame,
+    passive: bool,
+    object: PredicateObjectState,
+    indirect_object: bool,
+    selected_preposition: bool,
+) -> bool {
+    frame
+        .direct_object()
+        .is_satisfied_by(passive || object.has_direct_object())
+        && frame.indirect_object().is_satisfied_by(indirect_object)
+        && frame
+            .selected_preposition()
+            .is_satisfied_by(selected_preposition)
+}
+
+fn predicate_object_gap_complete(
+    frame: PredicateFrame,
+    indirect_object: bool,
+    selected_preposition: bool,
+) -> bool {
+    frame.direct_object().accepts()
+        && frame.indirect_object().is_satisfied_by(indirect_object)
+        && frame
+            .selected_preposition()
+            .is_satisfied_by(selected_preposition)
 }
 
 fn reduce_simple_clause(
@@ -772,8 +956,11 @@ fn reduce_simple_clause(
             }
             let Features::VerbPhrase {
                 form: PredicateForm::Finite(predicate_agreement),
+                passive,
                 object,
-                requires_direct_object,
+                indirect_object,
+                selected_preposition,
+                frame,
                 ..
             } = children.get(1)?.features
             else {
@@ -782,7 +969,13 @@ fn reduce_simple_clause(
             if predicate_agreement.is_some_and(|agreement| agreement != *subject_agreement) {
                 return None;
             }
-            if *requires_direct_object && !object.has_direct_object() {
+            if !predicate_arguments_complete(
+                *frame,
+                *passive,
+                *object,
+                *indirect_object,
+                *selected_preposition,
+            ) {
                 return None;
             }
             Some(simple_clause_reduction(
@@ -803,8 +996,11 @@ fn reduce_simple_clause(
             };
             let Features::VerbPhrase {
                 form: child_form,
+                passive,
                 object,
-                requires_direct_object,
+                indirect_object,
+                selected_preposition,
+                frame,
                 ..
             } = children.get(1)?.features
             else {
@@ -818,7 +1014,13 @@ fn reduce_simple_clause(
             if predicate_agreement != *subject_agreement {
                 return None;
             }
-            if *requires_direct_object && !object.has_direct_object() {
+            if !predicate_arguments_complete(
+                *frame,
+                *passive,
+                *object,
+                *indirect_object,
+                *selected_preposition,
+            ) {
                 return None;
             }
             Some(simple_clause_reduction(
@@ -831,14 +1033,23 @@ fn reduce_simple_clause(
         RuleTag::SimpleClauseSubjectless => {
             let Features::VerbPhrase {
                 form,
+                passive,
                 object,
-                requires_direct_object,
+                indirect_object,
+                selected_preposition,
+                frame,
                 ..
             } = children.first()?.features
             else {
                 return None;
             };
-            if *requires_direct_object && !object.has_direct_object() {
+            if !predicate_arguments_complete(
+                *frame,
+                *passive,
+                *object,
+                *indirect_object,
+                *selected_preposition,
+            ) {
                 return None;
             }
             match form {
@@ -925,13 +1136,19 @@ fn reduce_simple_clause(
             let Features::VerbPhrase {
                 form: PredicateForm::Finite(predicate_agreement),
                 object: PredicateObjectState::None,
-                proform: false,
+                indirect_object,
+                selected_preposition,
+                frame,
+                bare,
                 ..
             } = children.get(1)?.features
             else {
                 return None;
             };
-            if predicate_agreement.is_some_and(|agreement| agreement != *subject_agreement) {
+            if (*bare && frame.is_proform())
+                || !predicate_object_gap_complete(*frame, *indirect_object, *selected_preposition)
+                || predicate_agreement.is_some_and(|agreement| agreement != *subject_agreement)
+            {
                 return None;
             }
             Some(Features::RelativeClause {
@@ -951,7 +1168,10 @@ fn reduce_simple_clause(
             let Features::VerbPhrase {
                 form: child_form,
                 object: PredicateObjectState::None,
-                proform: false,
+                indirect_object,
+                selected_preposition,
+                frame,
+                bare,
                 ..
             } = children.get(1)?.features
             else {
@@ -962,7 +1182,10 @@ fn reduce_simple_clause(
             else {
                 return None;
             };
-            if predicate_agreement != *subject_agreement {
+            if (*bare && frame.is_proform())
+                || !predicate_object_gap_complete(*frame, *indirect_object, *selected_preposition)
+                || predicate_agreement != *subject_agreement
+            {
                 return None;
             }
             Some(Features::RelativeClause {
@@ -1001,14 +1224,23 @@ fn reduce_simple_clause(
         RuleTag::RelativeSubject => {
             let Features::VerbPhrase {
                 form: PredicateForm::Finite(antecedent_agreement),
+                passive,
                 object,
-                requires_direct_object,
+                indirect_object,
+                selected_preposition,
+                frame,
                 ..
             } = children.get(1)?.features
             else {
                 return None;
             };
-            if *requires_direct_object && !object.has_direct_object() {
+            if !predicate_arguments_complete(
+                *frame,
+                *passive,
+                *object,
+                *indirect_object,
+                *selected_preposition,
+            ) {
                 return None;
             }
             Some(Features::RelativeClause {
@@ -1329,6 +1561,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
         | RuleTag::VerbPhraseDirectObject
+        | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
@@ -1417,14 +1650,15 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::Verb => take(children, 0),
         RuleTag::VerbPhraseBase => {
-            let Lowered::Verb(verb) = take(children, 0)? else {
+            let Lowered::Verb(VerbAnalysis { instance, frame }) = take(children, 0)? else {
                 return None;
             };
             Some(Lowered::VerbPhrase(VerbPhrase {
                 auxiliaries: Vec::new(),
                 first_auxiliary_contracted_with_subject: false,
                 preverb_modifiers: Vec::new(),
-                verb,
+                verb: instance,
+                frame,
                 dependents: Vec::new(),
             }))
         }
@@ -1439,6 +1673,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             Some(Lowered::VerbPhrase(predicate))
         }
         RuleTag::VerbPhraseDirectObject
+        | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
@@ -1476,15 +1711,17 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
             let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
                 return None;
             };
-            let temporal_without_object = predicate.verb.slot == VerbSlot::PastParticiple;
-            match (temporal_without_object || !predicate.dependents.is_empty())
-                .then(|| nominal_adjunct_kind(&noun_phrase))
-                .flatten()
-            {
-                Some(NominalAdjunctKind::Temporal) => VerbDependent::Temporal(noun_phrase),
-                Some(NominalAdjunctKind::Manner) => VerbDependent::Manner(noun_phrase),
+            match lowered_nominal_adjunct_kind(&predicate, &noun_phrase) {
+                Some(BareNominalAdjunct::Temporal) => VerbDependent::Temporal(noun_phrase),
+                Some(BareNominalAdjunct::Manner) => VerbDependent::Manner(noun_phrase),
                 None => VerbDependent::DirectObject(noun_phrase),
             }
+        }
+        RuleTag::VerbPhraseIndirectObject => {
+            let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
+                return None;
+            };
+            VerbDependent::IndirectObject(noun_phrase)
         }
         RuleTag::VerbPhraseAdjective => {
             let Lowered::AdjectivePhrase(adjective) = take(children, 1)? else {
@@ -1496,7 +1733,15 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
             let Lowered::PrepositionalPhrase(preposition) = take(children, 1)? else {
                 return None;
             };
-            VerbDependent::Prepositional(preposition)
+            match predicate
+                .frame
+                .prepositional_role(preposition.preposition)?
+            {
+                PrepositionalRole::SelectedComplement => VerbDependent::PredicateComplement(
+                    Phrase::PrepositionalPhrase(Box::new(preposition)),
+                ),
+                PrepositionalRole::Adjunct => VerbDependent::Prepositional(preposition),
+            }
         }
         RuleTag::VerbPhraseInfinitive => {
             let Lowered::InfinitiveClause(infinitive) = take(children, 1)? else {
@@ -2167,6 +2412,7 @@ fn independent_with_subject(subject: Subject, predicate: Predicate) -> Option<In
 }
 
 fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
+    let proform = phrase.frame.is_proform();
     let modal = phrase
         .auxiliaries
         .first()
@@ -2186,15 +2432,7 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
     for dependent in phrase.dependents {
         match dependent {
             VerbDependent::DirectObject(noun_phrase) => {
-                match nominal_adjunct_for_verb(&phrase.verb, &noun_phrase) {
-                    Some(NominalAdjunctKind::Temporal) => elements.push(PredicateElement::Adjunct(
-                        PredicateAdjunct::Temporal(noun_phrase),
-                    )),
-                    Some(NominalAdjunctKind::Manner) => elements.push(PredicateElement::Adjunct(
-                        PredicateAdjunct::Manner(noun_phrase),
-                    )),
-                    None => attach_object(&mut object, PredicateObject::NounPhrase(noun_phrase))?,
-                }
+                attach_object(&mut object, PredicateObject::NounPhrase(noun_phrase))?;
             }
             VerbDependent::IndirectObject(noun_phrase) => {
                 elements.push(PredicateElement::Complement(
@@ -2220,6 +2458,11 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 Phrase::AdjectivePhrase(adjective) => {
                     elements.push(PredicateElement::Complement(
                         PredicateComplement::Adjective(*adjective),
+                    ));
+                }
+                Phrase::PrepositionalPhrase(preposition) => {
+                    elements.push(PredicateElement::Complement(
+                        PredicateComplement::Prepositional(*preposition),
                     ));
                 }
                 _ => return None,
@@ -2308,7 +2551,7 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
     } else if head.auxiliaries.is_empty()
         && head.preverb_modifiers.is_empty()
         && elements.is_empty()
-        && matches!(&head.verb.verb, Verb::Word(Vocab::Do))
+        && proform
     {
         Predicate::Proform(ProPredicate {
             auxiliary: AuxiliaryInstance {
@@ -2375,43 +2618,67 @@ const fn is_modal(auxiliary: Auxiliary) -> bool {
     )
 }
 
-fn nominal_adjunct_for_verb(
-    verb: &VerbInstance,
+fn lowered_nominal_adjunct_kind(
+    predicate: &VerbPhrase,
     phrase: &NounPhrase,
-) -> Option<NominalAdjunctKind> {
-    match nominal_adjunct_kind(phrase)? {
-        NominalAdjunctKind::Temporal
-            if matches!(
-                verb.verb,
-                crate::word::Verb::Word(Vocab::Attack | Vocab::Block)
-            ) =>
-        {
-            Some(NominalAdjunctKind::Temporal)
-        }
-        NominalAdjunctKind::Manner => Some(NominalAdjunctKind::Manner),
-        NominalAdjunctKind::Temporal => None,
+) -> Option<BareNominalAdjunct> {
+    let adjunct = nominal_adjunct_kind(phrase)?;
+    if !predicate.frame.licenses_bare_nominal_adjunct(adjunct) {
+        return None;
     }
+    let (form, passive) = lowered_predicate_form(predicate)?;
+    let has_direct_object = predicate.dependents.iter().any(|dependent| {
+        matches!(
+            dependent,
+            VerbDependent::DirectObject(_)
+                | VerbDependent::PredicateComplement(
+                    Phrase::CatalogAtom(_) | Phrase::EmbeddedAbility(_) | Phrase::QuotedAbility(_)
+                )
+                | VerbDependent::Scalar(_)
+                | VerbDependent::Statistic(_)
+                | VerbDependent::CoordinatedObject(_)
+        )
+    });
+    let has_tail = predicate.dependents.iter().any(|dependent| {
+        !matches!(
+            dependent,
+            VerbDependent::DirectObject(_)
+                | VerbDependent::IndirectObject(_)
+                | VerbDependent::PredicateComplement(
+                    Phrase::CatalogAtom(_) | Phrase::EmbeddedAbility(_) | Phrase::QuotedAbility(_)
+                )
+                | VerbDependent::Scalar(_)
+                | VerbDependent::Statistic(_)
+                | VerbDependent::CoordinatedObject(_)
+        )
+    });
+    (form == PredicateForm::PastParticiple
+        || passive
+        || has_direct_object
+        || has_tail
+        || !predicate.frame.direct_object().accepts())
+    .then_some(adjunct)
 }
 
-fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<NominalAdjunctKind> {
-    matches!(
-        phrase,
-        NounPhrase::Nominal(nominal)
-            if matches!(
-                nominal.head,
-                NounInstance::Singular(Noun::Word(Vocab::Combat | Vocab::Time | Vocab::Turn))
-                    | NounInstance::Plural(Noun::Word(Vocab::Combat | Vocab::Time | Vocab::Turn))
-            )
-    )
-    .then_some(NominalAdjunctKind::Temporal)
-    .or_else(|| {
-        matches!(
-            phrase,
-            NounPhrase::Nominal(nominal)
-                if matches!(nominal.head, NounInstance::Singular(Noun::Word(Vocab::Way)))
-        )
-        .then_some(NominalAdjunctKind::Manner)
-    })
+fn lowered_predicate_form(predicate: &VerbPhrase) -> Option<(PredicateForm, bool)> {
+    let mut form = predicate_form(predicate.verb.slot);
+    let mut passive = false;
+    for auxiliary in predicate.auxiliaries.iter().rev() {
+        passive |= auxiliary.auxiliary == Auxiliary::Be && form == PredicateForm::PastParticiple;
+        form = auxiliary_form(*auxiliary, form)?;
+    }
+    Some((form, passive))
+}
+
+fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<BareNominalAdjunct> {
+    let NounPhrase::Nominal(nominal) = phrase else {
+        return None;
+    };
+    match &nominal.head {
+        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
+            noun.bare_nominal_adjunct()
+        }
+    }
 }
 
 const fn sentence_ending(tag: RuleTag) -> Option<SentenceEnding> {
@@ -2766,7 +3033,7 @@ mod tests {
     }
 
     #[test]
-    fn any_time_is_temporal_after_a_prepositional_predicate_tail() {
+    fn selected_preposition_precedes_a_temporal_adjunct() {
         let source = "You may look at the top card of your library any time.";
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
@@ -2785,12 +3052,43 @@ mod tests {
             matches!(
                 predicate.elements.as_slice(),
                 [
-                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(_)),
+                    PredicateElement::Complement(PredicateComplement::Prepositional(_)),
                     PredicateElement::Adjunct(PredicateAdjunct::Temporal(NounPhrase::Nominal(time))),
                 ] if matches!(time.head, NounInstance::Singular(Noun::Word(Vocab::Time)))
             ),
             "{predicate:#?}"
         );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn intransitive_frame_rejects_a_direct_object() {
+        let result = parse_nonterminal("Look a card.", &fixture_catalogs(), Nonterminal::Sentence);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn ditransitive_frame_builds_an_indirect_object_complement() {
+        let source = "Ask a player a number.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative: {:#?}", parsed.sentence());
+        };
+        assert!(matches!(
+            predicate.object,
+            PredicateObject::NounPhrase(NounPhrase::Nominal(ref number))
+                if matches!(number.head, NounInstance::Singular(Noun::Word(Vocab::Number)))
+        ));
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [PredicateElement::Complement(PredicateComplement::IndirectObject(
+                NounPhrase::Nominal(player),
+            ))] if matches!(player.head, NounInstance::Singular(Noun::Word(Vocab::Player)))
+        ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
@@ -3332,6 +3630,23 @@ mod tests {
     }
 
     #[test]
+    fn directional_particle_requires_a_licensed_verb_pair() {
+        let parsed = parse_nonterminal(
+            "This creature transforms out.",
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+        )
+        .expect("opaque-noun fallback should remain available");
+
+        assert_eq!(parsed.opacity_mode(), OpacityMode::OpaqueNouns);
+        assert!(!matches!(
+            &parsed.sentence().expect("sentence root").body,
+            SentenceBody::Independent(IndependentClause::Intransitive(_, predicate))
+                if matches!(predicate.elements.as_slice(), [PredicateElement::Particle(_)])
+        ));
+    }
+
+    #[test]
     fn face_down_is_a_secondary_adjective_predicate() {
         let source = "Turn this creature face down.";
         let parsed = parse(source);
@@ -3447,52 +3762,31 @@ mod tests {
     }
 
     #[test]
-    fn predicate_prefix_pruning_keeps_possible_temporal_candidates() {
-        let open = Features::VerbPhrase {
+    fn predicate_prefix_pruning_keeps_possible_nominal_adjuncts() {
+        let predicate = |object, phase| Features::VerbPhrase {
             form: PredicateForm::Imperative,
             passive: false,
-            object: PredicateObjectState::None,
-            phase: PredicateAttachmentPhase::Object,
-            accepts_direct_object: true,
-            requires_direct_object: false,
-            proform: false,
+            object,
+            indirect_object: false,
+            selected_preposition: false,
+            phase,
+            frame: PredicateFrame::OPEN,
+            bare: object == PredicateObjectState::None,
         };
-        let occupied = Features::VerbPhrase {
-            form: PredicateForm::Imperative,
-            passive: false,
-            object: PredicateObjectState::Direct,
-            phase: PredicateAttachmentPhase::Object,
-            accepts_direct_object: true,
-            requires_direct_object: false,
-            proform: false,
-        };
-        let ability = Features::VerbPhrase {
-            form: PredicateForm::Imperative,
-            passive: false,
-            object: PredicateObjectState::Ability,
-            phase: PredicateAttachmentPhase::Object,
-            accepts_direct_object: true,
-            requires_direct_object: false,
-            proform: false,
-        };
-        let tail = Features::VerbPhrase {
-            form: PredicateForm::Imperative,
-            passive: false,
-            object: PredicateObjectState::None,
-            phase: PredicateAttachmentPhase::Tail,
-            accepts_direct_object: true,
-            requires_direct_object: false,
-            proform: false,
-        };
-        let prepositional_tail = Features::VerbPhrase {
-            form: PredicateForm::Imperative,
-            passive: false,
-            object: PredicateObjectState::None,
-            phase: PredicateAttachmentPhase::PrepositionalTail,
-            accepts_direct_object: true,
-            requires_direct_object: false,
-            proform: false,
-        };
+        let open = predicate(PredicateObjectState::None, PredicateAttachmentPhase::Object);
+        let occupied = predicate(
+            PredicateObjectState::Direct,
+            PredicateAttachmentPhase::Object,
+        );
+        let ability = predicate(
+            PredicateObjectState::Ability,
+            PredicateAttachmentPhase::Object,
+        );
+        let tail = predicate(PredicateObjectState::None, PredicateAttachmentPhase::Tail);
+        let prepositional_tail = predicate(
+            PredicateObjectState::None,
+            PredicateAttachmentPhase::PrepositionalTail,
+        );
 
         assert!(accepts_predicate_prefix(
             RuleTag::VerbPhraseDirectObject,
@@ -3639,16 +3933,20 @@ mod tests {
     fn passive_temporal_adjunct_is_not_a_direct_object() {
         let source = "No spells were cast last turn.";
         let parsed = parse(source);
-        assert!(matches!(
-            &parsed.sentence().expect("sentence root").body,
-            SentenceBody::Independent(IndependentClause::Passive(_, PassivePredicate {
-                elements,
-                ..
-            })) if matches!(
-                elements.as_slice(),
-                [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
-            )
-        ));
+        assert!(
+            matches!(
+                &parsed.sentence().expect("sentence root").body,
+                SentenceBody::Independent(IndependentClause::Passive(_, PassivePredicate {
+                    elements,
+                    ..
+                })) if matches!(
+                    elements.as_slice(),
+                    [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+                )
+            ),
+            "{:#?}",
+            parsed.sentence()
+        );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
@@ -3664,7 +3962,7 @@ mod tests {
         let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &matrix.object else {
             panic!("expected a nominal object");
         };
-        assert!(matrix.elements.is_empty());
+        assert!(matrix.elements.is_empty(), "{matrix:#?}");
         assert!(matches!(
             object.complements.as_slice(),
             [NominalComplement::Relative(RelativeClause {

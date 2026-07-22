@@ -7,6 +7,8 @@ use crate::catalog::CatalogAtom;
 use crate::catalog::KeywordAction;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OpaqueLexeme;
+use crate::syntax::Preposition;
+use crate::syntax::VerbParticle;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Person {
@@ -114,6 +116,191 @@ pub struct VerbInstance {
     pub verb: Verb,
     pub slot: VerbSlot,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ArgumentRequirement {
+    Forbidden,
+    Optional,
+    Required,
+}
+
+impl ArgumentRequirement {
+    pub(crate) const fn accepts(self) -> bool {
+        !matches!(self, Self::Forbidden)
+    }
+
+    pub(crate) const fn is_satisfied_by(self, present: bool) -> bool {
+        match self {
+            Self::Forbidden => !present,
+            Self::Optional => true,
+            Self::Required => present,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PredicateComplementKind {
+    Adjective,
+    Infinitive,
+    Ability,
+    Scalar,
+    Statistic,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum BareNominalAdjunct {
+    Temporal,
+    Manner,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PrepositionalRole {
+    SelectedComplement,
+    Adjunct,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct PredicateFrame {
+    direct_object: ArgumentRequirement,
+    indirect_object: ArgumentRequirement,
+    adjective_complement: bool,
+    infinitive_complement: bool,
+    ability_complement: bool,
+    scalar_complement: bool,
+    statistic_complement: bool,
+    selected_preposition: ArgumentRequirement,
+    selected_prepositions: &'static [Preposition],
+    prepositional_adjuncts: bool,
+    bare_nominal_adjuncts: &'static [BareNominalAdjunct],
+    particles: &'static [VerbParticle],
+    proform: bool,
+}
+
+impl PredicateFrame {
+    pub(crate) const OPEN: Self = Self {
+        direct_object: ArgumentRequirement::Optional,
+        indirect_object: ArgumentRequirement::Forbidden,
+        adjective_complement: true,
+        infinitive_complement: true,
+        ability_complement: true,
+        scalar_complement: true,
+        statistic_complement: true,
+        selected_preposition: ArgumentRequirement::Forbidden,
+        selected_prepositions: &[],
+        prepositional_adjuncts: true,
+        bare_nominal_adjuncts: &[BareNominalAdjunct::Temporal, BareNominalAdjunct::Manner],
+        particles: &[],
+        proform: false,
+    };
+
+    const fn with_direct_object(mut self, requirement: ArgumentRequirement) -> Self {
+        self.direct_object = requirement;
+        self
+    }
+
+    const fn with_indirect_object(mut self, requirement: ArgumentRequirement) -> Self {
+        self.indirect_object = requirement;
+        self
+    }
+
+    const fn with_selected_prepositions(
+        mut self,
+        requirement: ArgumentRequirement,
+        prepositions: &'static [Preposition],
+    ) -> Self {
+        self.selected_preposition = requirement;
+        self.selected_prepositions = prepositions;
+        self
+    }
+
+    const fn with_prepositional_adjuncts(mut self, allowed: bool) -> Self {
+        self.prepositional_adjuncts = allowed;
+        self
+    }
+
+    const fn with_particles(mut self, particles: &'static [VerbParticle]) -> Self {
+        self.particles = particles;
+        self
+    }
+
+    const fn with_proform(mut self) -> Self {
+        self.proform = true;
+        self
+    }
+
+    pub(crate) const fn direct_object(self) -> ArgumentRequirement {
+        self.direct_object
+    }
+
+    pub(crate) const fn indirect_object(self) -> ArgumentRequirement {
+        self.indirect_object
+    }
+
+    pub(crate) const fn selected_preposition(self) -> ArgumentRequirement {
+        self.selected_preposition
+    }
+
+    pub(crate) const fn is_proform(self) -> bool {
+        self.proform
+    }
+
+    pub(crate) const fn licenses_complement(self, kind: PredicateComplementKind) -> bool {
+        match kind {
+            PredicateComplementKind::Adjective => self.adjective_complement,
+            PredicateComplementKind::Infinitive => self.infinitive_complement,
+            PredicateComplementKind::Ability => {
+                self.direct_object.accepts() && self.ability_complement
+            }
+            PredicateComplementKind::Scalar => {
+                self.direct_object.accepts() && self.scalar_complement
+            }
+            PredicateComplementKind::Statistic => {
+                self.direct_object.accepts() && self.statistic_complement
+            }
+        }
+    }
+
+    pub(crate) fn prepositional_role(self, preposition: Preposition) -> Option<PrepositionalRole> {
+        if self.selected_prepositions.contains(&preposition) {
+            Some(PrepositionalRole::SelectedComplement)
+        } else if self.prepositional_adjuncts {
+            Some(PrepositionalRole::Adjunct)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn licenses_bare_nominal_adjunct(self, adjunct: BareNominalAdjunct) -> bool {
+        self.bare_nominal_adjuncts.contains(&adjunct)
+    }
+
+    pub(crate) fn licenses_particle(self, particle: VerbParticle) -> bool {
+        self.particles.contains(&particle)
+    }
+}
+
+const OPEN_PREDICATE_FRAMES: &[PredicateFrame] = &[PredicateFrame::OPEN];
+const INTRANSITIVE_PREDICATE_FRAME: PredicateFrame =
+    PredicateFrame::OPEN.with_direct_object(ArgumentRequirement::Forbidden);
+const INTRANSITIVE_PREDICATE_FRAMES: &[PredicateFrame] = &[INTRANSITIVE_PREDICATE_FRAME];
+const REQUIRED_OBJECT_PREDICATE_FRAMES: &[PredicateFrame] =
+    &[PredicateFrame::OPEN.with_direct_object(ArgumentRequirement::Required)];
+const PROFORM_PREDICATE_FRAMES: &[PredicateFrame] = &[PredicateFrame::OPEN.with_proform()];
+const ASK_PREDICATE_FRAMES: &[PredicateFrame] = &[
+    PredicateFrame::OPEN.with_direct_object(ArgumentRequirement::Required),
+    PredicateFrame::OPEN
+        .with_direct_object(ArgumentRequirement::Required)
+        .with_indirect_object(ArgumentRequirement::Required),
+];
+const ATTACK_PREDICATE_FRAMES: &[PredicateFrame] =
+    &[INTRANSITIVE_PREDICATE_FRAME, PredicateFrame::OPEN];
+const LOOK_PREDICATE_FRAMES: &[PredicateFrame] = &[
+    INTRANSITIVE_PREDICATE_FRAME.with_prepositional_adjuncts(false),
+    INTRANSITIVE_PREDICATE_FRAME
+        .with_selected_prepositions(ArgumentRequirement::Optional, &[Preposition::At]),
+];
+const PHASE_PREDICATE_FRAMES: &[PredicateFrame] =
+    &[PredicateFrame::OPEN.with_particles(&[VerbParticle::In, VerbParticle::Out])];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VerbForm {
@@ -309,6 +496,8 @@ struct VocabDefinition {
     noun: Option<(NounDeclension, Countability)>,
     catalog_noun: bool,
     verb: Option<VerbForm>,
+    predicate_frames: &'static [PredicateFrame],
+    bare_nominal_adjunct: Option<BareNominalAdjunct>,
     adjective: bool,
     adverb: bool,
     initial_sound: Option<InitialSound>,
@@ -321,6 +510,8 @@ impl VocabDefinition {
             noun: None,
             catalog_noun: false,
             verb: None,
+            predicate_frames: &[],
+            bare_nominal_adjunct: None,
             adjective: false,
             adverb: false,
             initial_sound: None,
@@ -352,6 +543,17 @@ impl VocabDefinition {
 
     const fn verb(mut self, form: VerbForm) -> Self {
         self.verb = Some(form);
+        self.predicate_frames = OPEN_PREDICATE_FRAMES;
+        self
+    }
+
+    const fn predicate_frames(mut self, frames: &'static [PredicateFrame]) -> Self {
+        self.predicate_frames = frames;
+        self
+    }
+
+    const fn bare_nominal_adjunct(mut self, adjunct: BareNominalAdjunct) -> Self {
+        self.bare_nominal_adjunct = Some(adjunct);
         self
     }
 
@@ -376,7 +578,9 @@ impl VocabDefinition {
         }
         if self.verb.is_none() {
             self.verb = regular.verb;
+            self.predicate_frames = regular.predicate_frames;
         }
+        self.bare_nominal_adjunct = self.bare_nominal_adjunct.or(regular.bare_nominal_adjunct);
         self.adjective |= regular.adjective;
         self.adverb |= regular.adverb;
         self
@@ -387,7 +591,10 @@ impl VocabDefinition {
             "noun_count" => self.add_regular_noun(Countability::Count),
             "noun_mass" => self.add_regular_noun(Countability::Mass),
             "noun_count_or_mass" => self.add_regular_noun(Countability::CountOrMass),
-            "verb" => self.verb = Some(VerbForm::Regular),
+            "verb" => {
+                self.verb = Some(VerbForm::Regular);
+                self.predicate_frames = OPEN_PREDICATE_FRAMES;
+            }
             "adjective" => self.adjective = true,
             "adverb" => self.adverb = true,
             _ => panic!("unknown regular-vocabulary part of speech: {part_of_speech:?}"),
@@ -496,6 +703,14 @@ macro_rules! vocabulary {
                 }
             }
 
+            pub(crate) fn predicate_frames(self) -> &'static [PredicateFrame] {
+                self.definition().predicate_frames
+            }
+
+            pub(crate) fn bare_nominal_adjunct(self) -> Option<BareNominalAdjunct> {
+                self.definition().bare_nominal_adjunct
+            }
+
             fn definition(self) -> VocabDefinition {
                 let definition = match self {
                     $(Self::$variant => VocabDefinition::new($spelling)
@@ -524,11 +739,15 @@ vocabulary! {
     Alone("alone").adverb();
     Amass("amass").verb(VerbForm::Regular);
     Apply("apply").verb(VerbForm::Regular);
-    Ask("ask").verb(VerbForm::Regular);
+    Ask("ask")
+        .verb(VerbForm::Regular)
+        .predicate_frames(ASK_PREDICATE_FRAMES);
     Assemble("assemble").verb(VerbForm::Regular);
     Astartes("Astartes").invariant_catalog_noun();
     Attach("attach").verb(VerbForm::Regular);
-    Attack("attack").verb(VerbForm::Regular);
+    Attack("attack")
+        .verb(VerbForm::Regular)
+        .predicate_frames(ATTACK_PREDICATE_FRAMES);
     Aurochs("Aurochs").invariant_catalog_noun();
     Bargain("bargain").verb(VerbForm::Regular);
     Battlefield("battlefield").noun(NounDeclension::Regular, Countability::Count);
@@ -538,7 +757,7 @@ vocabulary! {
             .with_past_agreement("were", "was", "were")
             .with_present_participle("being")
             .with_past_participle("been")
-    ));
+    )).predicate_frames(INTRANSITIVE_PREDICATE_FRAMES);
     Become("become").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("became")
@@ -557,7 +776,9 @@ vocabulary! {
     ));
     Bison("Bison").invariant_catalog_noun();
     Blight("blight").verb(VerbForm::Regular);
-    Block("block").verb(VerbForm::Regular);
+    Block("block")
+        .verb(VerbForm::Regular)
+        .predicate_frames(ATTACK_PREDICATE_FRAMES);
     Bolster("bolster").verb(VerbForm::Regular);
     Card("card").noun(NounDeclension::Regular, Countability::Count);
     Cast("cast").verb(VerbForm::Irregular(
@@ -581,7 +802,9 @@ vocabulary! {
     Color("color").noun(NounDeclension::Regular, Countability::Count);
     Colorless("colorless").adjective();
     Commander("commander").noun(NounDeclension::Regular, Countability::Count);
-    Combat("combat").noun(NounDeclension::Regular, Countability::CountOrMass);
+    Combat("combat")
+        .noun(NounDeclension::Regular, Countability::CountOrMass)
+        .bare_nominal_adjunct(BareNominalAdjunct::Temporal);
     Conjure("conjure").verb(VerbForm::Regular);
     Connive("connive").verb(VerbForm::Regular);
     Control("control").verb(VerbForm::Irregular(
@@ -640,7 +863,7 @@ vocabulary! {
                 .with_past("did")
                 .with_present_participle("doing")
                 .with_past_participle("done")
-        ));
+        )).predicate_frames(PROFORM_PREDICATE_FRAMES);
     Draft("draft").verb(VerbForm::Regular);
     Draw("draw").verb(VerbForm::Irregular(
             IrregularVerbDef::EMPTY
@@ -719,7 +942,7 @@ vocabulary! {
             .with_past("had")
             .with_present_participle("having")
             .with_past_participle("had")
-    ));
+    )).predicate_frames(REQUIRED_OBJECT_PREDICATE_FRAMES);
     Heal("heal").verb(VerbForm::Regular);
     Heist("heist").verb(VerbForm::Regular);
     Hero("Hero").irregular_catalog_noun("Heroes");
@@ -744,7 +967,9 @@ vocabulary! {
     Less("less").adjective().adverb();
     Library("library").noun(NounDeclension::Regular, Countability::Count);
     Life("life").noun(NounDeclension::Regular, Countability::Mass);
-    Look("look").verb(VerbForm::Regular);
+    Look("look")
+        .verb(VerbForm::Regular)
+        .predicate_frames(LOOK_PREDICATE_FRAMES);
     Lose("lose").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("lost")
@@ -786,7 +1011,9 @@ vocabulary! {
     ));
     Pegasus("Pegasus").irregular_catalog_noun("Pegasi");
     Permanent("permanent").noun(NounDeclension::Regular, Countability::Count);
-    Phase("phase").verb(VerbForm::Regular);
+    Phase("phase")
+        .verb(VerbForm::Regular)
+        .predicate_frames(PHASE_PREDICATE_FRAMES);
     Pile("pile").noun(NounDeclension::Regular, Countability::Count);
     Planeswalk("planeswalk").verb(VerbForm::Regular);
     Play("play").verb(VerbForm::Regular);
@@ -876,7 +1103,8 @@ vocabulary! {
     Then("then").adverb();
     Time("time")
         .noun(NounDeclension::Regular, Countability::CountOrMass)
-        .verb(VerbForm::Regular);
+        .verb(VerbForm::Regular)
+        .bare_nominal_adjunct(BareNominalAdjunct::Temporal);
     Token("token").noun(NounDeclension::Regular, Countability::Count);
     Top("top").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
@@ -890,7 +1118,8 @@ vocabulary! {
     Triple("triple").verb(VerbForm::Regular);
     Turn("turn")
         .noun(NounDeclension::Regular, Countability::Count)
-        .verb(VerbForm::Regular);
+        .verb(VerbForm::Regular)
+        .bare_nominal_adjunct(BareNominalAdjunct::Temporal);
     Twice("twice").adverb();
     Type("type").noun(NounDeclension::Regular, Countability::Count);
     Value("value").noun(NounDeclension::Regular, Countability::Count);
@@ -908,7 +1137,9 @@ vocabulary! {
             .with_past("waterbent")
             .with_past_participle("waterbent")
     ));
-    Way("way").noun(NounDeclension::Regular, Countability::Count);
+    Way("way")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .bare_nominal_adjunct(BareNominalAdjunct::Manner);
     Werewolf("Werewolf").irregular_catalog_noun("Werewolves");
     Win("win").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
@@ -919,6 +1150,24 @@ vocabulary! {
     Wolf("Wolf").irregular_catalog_noun("Wolves");
     Yell("yell").verb(VerbForm::Regular);
     Zubera("Zubera").invariant_catalog_noun();
+}
+
+impl Noun {
+    pub(crate) fn bare_nominal_adjunct(&self) -> Option<BareNominalAdjunct> {
+        match self {
+            Self::Word(vocab) => vocab.bare_nominal_adjunct(),
+            Self::Catalog(_) | Self::Die(_) | Self::Gerund(_) | Self::Opaque(_) => None,
+        }
+    }
+}
+
+impl Verb {
+    pub(crate) fn predicate_frames(&self) -> &'static [PredicateFrame] {
+        match self {
+            Self::Word(vocab) => vocab.predicate_frames(),
+            Self::KeywordAction(_) => OPEN_PREDICATE_FRAMES,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]

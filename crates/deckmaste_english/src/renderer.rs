@@ -553,11 +553,17 @@ impl<'identity> Renderer<'identity> {
         predicate: &crate::syntax::TransitivePredicate,
         auxiliary_start: usize,
     ) -> Result<String, RenderError> {
-        let mut parts = vec![
-            self.predicate_head_from(&predicate.head, auxiliary_start)?,
-            self.predicate_object(&predicate.object)?,
-        ];
-        self.extend_predicate_elements(&mut parts, &predicate.elements)?;
+        let mut parts = vec![self.predicate_head_from(&predicate.head, auxiliary_start)?];
+        let mut element_start = 0;
+        while let Some(PredicateElement::Complement(PredicateComplement::IndirectObject(
+            indirect_object,
+        ))) = predicate.elements.get(element_start)
+        {
+            parts.push(self.noun_phrase(indirect_object)?);
+            element_start += 1;
+        }
+        parts.push(self.predicate_object(&predicate.object)?);
+        self.extend_predicate_elements(&mut parts, &predicate.elements[element_start..])?;
         Ok(join_words(parts))
     }
 

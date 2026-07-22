@@ -75,6 +75,7 @@ use crate::word::Adjective;
 use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
+use crate::word::BareNominalAdjunct;
 use crate::word::CardOrientation;
 use crate::word::InitialSound;
 use crate::word::LexicalSlot;
@@ -83,6 +84,9 @@ use crate::word::NounInstance;
 use crate::word::NounUsage;
 use crate::word::Number;
 use crate::word::Person;
+use crate::word::PredicateComplementKind;
+use crate::word::PredicateFrame;
+use crate::word::PrepositionalRole;
 use crate::word::Pronoun;
 use crate::word::PronounCase;
 use crate::word::PronounInstance;
@@ -98,7 +102,14 @@ struct VerbPhrase {
     first_auxiliary_contracted_with_subject: bool,
     preverb_modifiers: Vec<PreverbModifier>,
     verb: VerbInstance,
+    frame: PredicateFrame,
     dependents: Vec<VerbDependent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct VerbAnalysis {
+    instance: VerbInstance,
+    frame: PredicateFrame,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -366,7 +377,7 @@ pub(crate) enum Features {
     Noun {
         form: NounForm,
         initial_sound: InitialSound,
-        adjunct: Option<NominalAdjunctKind>,
+        adjunct: Option<BareNominalAdjunct>,
     },
     Nominal {
         form: NounForm,
@@ -375,12 +386,12 @@ pub(crate) enum Features {
         leading_opacity: bool,
         attachment: NominalAttachmentPhase,
         comparison: AdjectiveComparisonState,
-        adjunct: Option<NominalAdjunctKind>,
+        adjunct: Option<BareNominalAdjunct>,
     },
     NounPhrase {
         agreement: Option<Agreement>,
         pronoun_case: Option<PronounCase>,
-        adjunct: Option<NominalAdjunctKind>,
+        adjunct: Option<BareNominalAdjunct>,
     },
     PossessiveThisCard {
         agreement: Agreement,
@@ -392,18 +403,17 @@ pub(crate) enum Features {
     },
     Verb {
         slot: VerbSlot,
-        accepts_direct_object: bool,
-        requires_direct_object: bool,
-        proform: bool,
+        frame: PredicateFrame,
     },
     VerbPhrase {
         form: PredicateForm,
         passive: bool,
         object: PredicateObjectState,
+        indirect_object: bool,
+        selected_preposition: bool,
         phase: PredicateAttachmentPhase,
-        accepts_direct_object: bool,
-        requires_direct_object: bool,
-        proform: bool,
+        frame: PredicateFrame,
+        bare: bool,
     },
     InfinitiveClause,
     GerundClause,
@@ -424,8 +434,10 @@ pub(crate) enum Features {
         gerund: bool,
     },
     PrepositionalPhrase {
+        preposition: Preposition,
         nominal_attachment: bool,
     },
+    VerbParticle(VerbParticle),
     RelativeClause {
         gap: RelativeGap,
         antecedent_agreement: Option<Agreement>,
@@ -441,12 +453,6 @@ pub(crate) enum Features {
         agreement: Agreement,
         auxiliary: AuxiliaryInstance,
     },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum NominalAdjunctKind {
-    Temporal,
-    Manner,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -702,7 +708,7 @@ pub(crate) enum MeaningKey {
     Frequency(FrequencyKey),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
-    Verb(VerbInstance),
+    Verb(VerbAnalysis),
     Catalog(crate::catalog::CatalogAtom),
     OracleSymbol(OracleSymbol),
     SymbolSequence(Vec<OracleSymbol>),
@@ -788,6 +794,7 @@ enum RuleTag {
     VerbPhraseBase,
     VerbPhraseAuxiliary,
     VerbPhraseDirectObject,
+    VerbPhraseIndirectObject,
     VerbPhraseAdjective,
     VerbPhrasePrepositional,
     VerbPhraseInfinitive,
@@ -945,7 +952,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         Vocabulary::new()
             .matches(surface, slot)
             .into_iter()
-            .filter_map(|word| lexical_word_match(word, start + 1))
+            .flat_map(|word| lexical_word_matches(word, start + 1))
             .collect()
     }
 
@@ -974,16 +981,18 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         }
         catalog_matches
             .into_iter()
-            .filter_map(|catalog_match| {
-                let end = Self::catalog_end(tokens, start, catalog_match.length)?;
+            .flat_map(|catalog_match| {
+                let Some(end) = Self::catalog_end(tokens, start, catalog_match.length) else {
+                    return Vec::new();
+                };
                 match catalog_match.value {
-                    CatalogValue::Word(word) => lexical_word_match(word, end),
-                    CatalogValue::Atom(atom) => Some(LexicalMatch {
+                    CatalogValue::Word(word) => lexical_word_matches(word, end),
+                    CatalogValue::Atom(atom) => vec![LexicalMatch {
                         end,
                         features: Features::None,
                         meaning: MeaningKey::Catalog(atom),
                         local_cost: ParseCost::default(),
-                    }),
+                    }],
                 }
             })
             .fold(Vec::new(), |mut matches, candidate| {
@@ -1062,7 +1071,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     && let Some(sides) = surface.strip_prefix('d')
                     && let Ok(value) = Numeral::Arabic(false).parse(sides)
                     && value > 0
-                    && let Some(candidate) = lexical_word_match(
+                {
+                    matches.extend(lexical_word_matches(
                         WordMatch::Noun(NounInstance::Singular(Noun::Die(
                             crate::syntax::NumberLiteral {
                                 value,
@@ -1070,9 +1080,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                             },
                         ))),
                         start + 1,
-                    )
-                {
-                    matches.push(candidate);
+                    ));
                 }
                 matches
             }
@@ -1098,7 +1106,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 )
                 .map(|end| LexicalMatch {
                     end,
-                    features: Features::None,
+                    features: Features::VerbParticle(particle),
                     meaning: MeaningKey::VerbParticle(particle),
                     local_cost: ParseCost::default(),
                 })
@@ -1662,16 +1670,16 @@ impl EnglishGrammar<'_, '_> {
         let mut matches = Vocabulary::new()
             .matches(stem, LexicalSlot::Noun(NounUsage::Either))
             .into_iter()
-            .filter_map(|word| lexical_word_match(word, start + 1))
+            .flat_map(|word| lexical_word_matches(word, start + 1))
             .collect::<Vec<_>>();
         matches.extend(
             self.catalogs
                 .matches(stem, CatalogSlot::Noun(NounUsage::Either))
                 .into_iter()
                 .filter(|catalog_match| catalog_match.length == stem.len())
-                .filter_map(|catalog_match| match catalog_match.value {
-                    CatalogValue::Word(word) => lexical_word_match(word, start + 1),
-                    CatalogValue::Atom(_) => None,
+                .flat_map(|catalog_match| match catalog_match.value {
+                    CatalogValue::Word(word) => lexical_word_matches(word, start + 1),
+                    CatalogValue::Atom(_) => Vec::new(),
                 }),
         );
         matches
@@ -2345,13 +2353,23 @@ impl RuleBuilder {
     }
 }
 
-fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Features, MeaningKey>> {
-    let (features, meaning) = match word {
+fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Features, MeaningKey>> {
+    let single = |features, meaning| {
+        vec![LexicalMatch {
+            end,
+            features,
+            meaning,
+            local_cost: ParseCost::default(),
+        }]
+    };
+    match word {
         WordMatch::Noun(noun) => {
             let form = noun_form(&noun);
-            let initial_sound = noun_initial_sound(&noun)?;
+            let Some(initial_sound) = noun_initial_sound(&noun) else {
+                return Vec::new();
+            };
             let adjunct = noun_adjunct_kind(&noun);
-            (
+            single(
                 Features::Noun {
                     form,
                     initial_sound,
@@ -2360,44 +2378,47 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
                 MeaningKey::Noun(noun),
             )
         }
-        WordMatch::Verb(verb) => {
-            let accepts_direct_object = !matches!(verb.verb, crate::word::Verb::Word(Vocab::Be));
-            let requires_direct_object = matches!(verb.verb, crate::word::Verb::Word(Vocab::Have));
-            let proform = matches!(verb.verb, crate::word::Verb::Word(Vocab::Do));
-            (
-                Features::Verb {
+        WordMatch::Verb(verb) => verb
+            .verb
+            .predicate_frames()
+            .iter()
+            .copied()
+            .map(|frame| LexicalMatch {
+                end,
+                features: Features::Verb {
                     slot: verb.slot,
-                    accepts_direct_object,
-                    requires_direct_object,
-                    proform,
+                    frame,
                 },
-                MeaningKey::Verb(verb),
+                meaning: MeaningKey::Verb(VerbAnalysis {
+                    instance: verb.clone(),
+                    frame,
+                }),
+                local_cost: ParseCost::default(),
+            })
+            .collect(),
+        WordMatch::Adjective(adjective) => {
+            let Some(initial_sound) = adjective_initial_sound(&adjective) else {
+                return Vec::new();
+            };
+            single(
+                Features::Adjective {
+                    initial_sound,
+                    comparison: adjective_comparison_state(&adjective),
+                    card_orientation: false,
+                },
+                MeaningKey::Adjective(adjective),
             )
         }
-        WordMatch::Adjective(adjective) => (
-            Features::Adjective {
-                initial_sound: adjective_initial_sound(&adjective)?,
-                comparison: adjective_comparison_state(&adjective),
-                card_orientation: false,
-            },
-            MeaningKey::Adjective(adjective),
-        ),
-        WordMatch::Adverb(adverb) => (Features::None, MeaningKey::Adverb(adverb)),
-        WordMatch::Pronoun(pronoun) => (
+        WordMatch::Adverb(adverb) => single(Features::None, MeaningKey::Adverb(adverb)),
+        WordMatch::Pronoun(pronoun) => single(
             noun_phrase_features(pronoun.pronoun, Some(pronoun.case)),
             MeaningKey::Pronoun(pronoun),
         ),
-        WordMatch::Auxiliary(auxiliary) => (
+        WordMatch::Auxiliary(auxiliary) => single(
             Features::Auxiliary(auxiliary),
             MeaningKey::Auxiliary(auxiliary),
         ),
-    };
-    Some(LexicalMatch {
-        end,
-        features,
-        meaning,
-        local_cost: ParseCost::default(),
-    })
+    }
 }
 
 fn quantity_match(end: usize, quantity: QuantityKey) -> LexicalMatch<Features, MeaningKey> {
@@ -2501,17 +2522,13 @@ fn noun_form(noun: &NounInstance) -> NounForm {
     }
 }
 
-fn noun_adjunct_kind(noun: &NounInstance) -> Option<NominalAdjunctKind> {
+fn noun_adjunct_kind(noun: &NounInstance) -> Option<BareNominalAdjunct> {
     let noun = match noun {
         NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
             noun
         }
     };
-    match noun {
-        Noun::Word(Vocab::Combat | Vocab::Time | Vocab::Turn) => Some(NominalAdjunctKind::Temporal),
-        Noun::Word(Vocab::Way) => Some(NominalAdjunctKind::Manner),
-        _ => None,
-    }
+    noun.bare_nominal_adjunct()
 }
 
 fn parse_symbol_sequence(source: &str) -> Option<Vec<OracleSymbol>> {
@@ -2669,6 +2686,7 @@ fn reduce(
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
         | RuleTag::VerbPhraseDirectObject
+        | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
@@ -3027,6 +3045,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             };
             let Features::PrepositionalPhrase {
                 nominal_attachment: true,
+                ..
             } = children.get(1)?.features
             else {
                 return None;
@@ -3319,6 +3338,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 return None;
             };
             Some(Features::PrepositionalPhrase {
+                preposition: *preposition,
                 nominal_attachment: !(*preposition == Preposition::By && *gerund),
             })
         }
@@ -3586,7 +3606,7 @@ enum Lowered {
     Preposition(Preposition),
     Phrase(Phrase),
     PrepositionalPhrase(PrepositionalPhrase),
-    Verb(VerbInstance),
+    Verb(VerbAnalysis),
     VerbPhrase(VerbPhrase),
     InfinitiveClause(InfinitiveClause),
     GerundClause(GerundClause),
@@ -3768,6 +3788,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
         | RuleTag::VerbPhraseDirectObject
+        | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
