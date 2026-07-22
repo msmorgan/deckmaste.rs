@@ -982,6 +982,8 @@ fn render_subordinator(subordinator: Subordinator) -> &'static str {
     match subordinator {
         Subordinator::When => "when",
         Subordinator::If => "if",
+        Subordinator::As => "as",
+        Subordinator::While => "while",
         Subordinator::Unless => "unless",
         Subordinator::AsLongAs => "as long as",
         Subordinator::Until => "until",

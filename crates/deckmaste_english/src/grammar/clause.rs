@@ -197,29 +197,24 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         ],
     );
     builder.add(
-        RuleTag::ClauseConditionalBefore,
+        RuleTag::ClauseSubordinateBefore,
         N::Clause,
         [
-            l(L::If),
+            l(L::Subordinator),
             n(N::Clause),
             l(L::Punctuation(Punctuation::Comma)),
             n(N::Clause),
         ],
     );
     builder.add(
-        RuleTag::ClauseConditionalAfterElliptical,
+        RuleTag::ClauseSubordinateAfterElliptical,
         N::Clause,
-        [n(N::Clause), l(L::If), n(N::AdjectivePhrase)],
+        [n(N::Clause), l(L::Subordinator), n(N::AdjectivePhrase)],
     );
     builder.add(
-        RuleTag::ClauseConditionalAfter,
+        RuleTag::ClauseSubordinateAfter,
         N::Clause,
-        [n(N::Clause), l(L::AsLongAs), n(N::Clause)],
-    );
-    builder.add(
-        RuleTag::ClauseConditionalAfterIf,
-        N::Clause,
-        [n(N::Clause), l(L::If), n(N::Clause)],
+        [n(N::Clause), l(L::Subordinator), n(N::Clause)],
     );
     builder.add(
         RuleTag::RelativeObject,
@@ -273,10 +268,9 @@ pub(super) fn reduce_clause(
         | RuleTag::RelativeObject => reduce_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseConditionalBefore
-        | RuleTag::ClauseConditionalAfterElliptical
-        | RuleTag::ClauseConditionalAfter
-        | RuleTag::ClauseConditionalAfterIf
+        | RuleTag::ClauseSubordinateBefore
+        | RuleTag::ClauseSubordinateAfterElliptical
+        | RuleTag::ClauseSubordinateAfter
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
@@ -518,6 +512,7 @@ fn reduce_simple_clause(
         RuleTag::ClauseSimple => {
             let Features::SimpleClause {
                 agreement,
+                has_subject,
                 standalone,
                 ..
             } = children.first()?.features
@@ -527,11 +522,13 @@ fn reduce_simple_clause(
             Some(Features::Clause {
                 agreement: *agreement,
                 standalone: *standalone,
+                finite: *has_subject,
             })
         }
         RuleTag::ClauseElliptical => Some(Features::Clause {
             agreement: None,
             standalone: false,
+            finite: false,
         }),
         RuleTag::ClauseExistential => {
             let Features::Existential {
@@ -553,6 +550,7 @@ fn reduce_simple_clause(
             Some(Features::Clause {
                 agreement: None,
                 standalone: true,
+                finite: true,
             })
         }
         tag @ (RuleTag::ClauseCopularNoun
@@ -626,6 +624,7 @@ fn reduce_copular_clause(
     Some(Features::Clause {
         agreement: Some(agreement),
         standalone: true,
+        finite: true,
     })
 }
 
@@ -652,6 +651,7 @@ fn reduce_composed_clause(
             let Features::Clause {
                 agreement: first_agreement,
                 standalone: true,
+                finite,
             } = children.first()?.features
             else {
                 return None;
@@ -672,16 +672,18 @@ fn reduce_composed_clause(
             Some(Features::Clause {
                 agreement: *first_agreement,
                 standalone: true,
+                finite: *finite,
             })
         }
-        RuleTag::ClauseConditionalBefore => {
+        RuleTag::ClauseSubordinateBefore => {
             conditional_reduction(children.get(1)?, children.get(3)?)
         }
-        RuleTag::ClauseConditionalAfterElliptical => {
+        RuleTag::ClauseSubordinateAfterElliptical => {
             let consequence = children.first()?;
             let Features::Clause {
                 agreement,
                 standalone: true,
+                finite,
             } = consequence.features
             else {
                 return None;
@@ -689,9 +691,10 @@ fn reduce_composed_clause(
             Some(Features::Clause {
                 agreement: *agreement,
                 standalone: true,
+                finite: *finite,
             })
         }
-        RuleTag::ClauseConditionalAfter | RuleTag::ClauseConditionalAfterIf => {
+        RuleTag::ClauseSubordinateAfter => {
             conditional_reduction(children.get(2)?, children.first()?)
         }
         RuleTag::SentencePeriod
@@ -715,7 +718,9 @@ fn conditional_reduction(
     consequence: &Child<'_, EnglishGrammar<'_, '_>>,
 ) -> Option<Reduced> {
     let Features::Clause {
-        standalone: true, ..
+        standalone: true,
+        finite: true,
+        ..
     } = condition.features
     else {
         return None;
@@ -723,6 +728,7 @@ fn conditional_reduction(
     let Features::Clause {
         agreement,
         standalone: true,
+        finite,
     } = consequence.features
     else {
         return None;
@@ -730,6 +736,7 @@ fn conditional_reduction(
     Some(Features::Clause {
         agreement: *agreement,
         standalone: true,
+        finite: *finite,
     })
 }
 
@@ -832,10 +839,9 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::RelativeObject => lower_simple_clause(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseConditionalBefore
-        | RuleTag::ClauseConditionalAfterElliptical
-        | RuleTag::ClauseConditionalAfter
-        | RuleTag::ClauseConditionalAfterIf
+        | RuleTag::ClauseSubordinateBefore
+        | RuleTag::ClauseSubordinateAfterElliptical
+        | RuleTag::ClauseSubordinateAfter
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
@@ -1110,7 +1116,7 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         RuleTag::ClauseCoordination | RuleTag::ClauseCoordinationComma => {
             lower_coordination(tag, children)
         }
-        RuleTag::ClauseConditionalBefore => {
+        RuleTag::ClauseSubordinateBefore => {
             let Lowered::Subordinator(subordinator) = take(children, 0)? else {
                 return None;
             };
@@ -1128,7 +1134,7 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
-        RuleTag::ClauseConditionalAfterElliptical => {
+        RuleTag::ClauseSubordinateAfterElliptical => {
             let Lowered::Clause(consequence) = take(children, 0)? else {
                 return None;
             };
@@ -1146,7 +1152,7 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
-        RuleTag::ClauseConditionalAfter | RuleTag::ClauseConditionalAfterIf => {
+        RuleTag::ClauseSubordinateAfter => {
             let Lowered::Clause(consequence) = take(children, 0)? else {
                 return None;
             };
@@ -1510,7 +1516,7 @@ mod tests {
     use crate::word::VerbSlot;
     use crate::word::Vocab;
 
-    const FIXTURES: [&str; 11] = [
+    const FIXTURES: [&str; 14] = [
         "Draw a card.",
         "Spells cost {1} less to cast.",
         "This creature costs {1} less to cast.",
@@ -1521,6 +1527,9 @@ mod tests {
         "Creatures you control gain flying, then draw a card.",
         "If you control a Plains, creatures you control get +1/+1.",
         "Creatures you control get +1/+1 as long as you control a Goblin.",
+        "You may exert this creature as it attacks.",
+        "As this creature enters, choose a creature type.",
+        "This creature attacks while saddled.",
         "Target creature you control fights target creature you don't control.",
     ];
 
@@ -1562,6 +1571,96 @@ mod tests {
                 number: Number::Singular,
             }
         );
+    }
+
+    #[test]
+    fn as_clauses_keep_their_surface_attachment_position() {
+        for (source, position) in [
+            (
+                "You may exert this creature as it attacks.",
+                AttachmentPosition::AfterMatrix,
+            ),
+            (
+                "As this creature enters, choose a creature type.",
+                AttachmentPosition::BeforeMatrix,
+            ),
+        ] {
+            let parsed = parse(source);
+            assert!(matches!(
+                &parsed.sentence().expect("sentence root").body,
+                SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                    attachments,
+                    ..
+                })) if matches!(
+                    attachments.as_slice(),
+                    [DependentAttachment {
+                        position: actual,
+                        clause: DependentClause::Subordinate(
+                            crate::syntax::Subordinator::As,
+                            SubordinateBody::Finite(_),
+                        ),
+                        ..
+                    }] if *actual == position
+                )
+            ));
+        }
+    }
+
+    #[test]
+    fn while_can_introduce_an_elliptical_postposed_clause() {
+        let parsed = parse("This creature attacks while saddled.");
+        assert!(matches!(
+            &parsed.sentence().expect("sentence root").body,
+            SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                attachments,
+                ..
+            })) if matches!(
+                attachments.as_slice(),
+                [DependentAttachment {
+                    position: AttachmentPosition::AfterMatrix,
+                    clause: DependentClause::Subordinate(
+                        crate::syntax::Subordinator::While,
+                        SubordinateBody::Elliptical(EllipticalClause::Adjective(_)),
+                    ),
+                    ..
+                }]
+            )
+        ));
+    }
+
+    #[test]
+    fn unless_introduces_a_finite_postposed_clause() {
+        let parsed = parse("This land enters tapped unless you control a basic land.");
+        assert!(matches!(
+            &parsed.sentence().expect("sentence root").body,
+            SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                attachments,
+                ..
+            })) if matches!(
+                attachments.as_slice(),
+                [DependentAttachment {
+                    position: AttachmentPosition::AfterMatrix,
+                    clause: DependentClause::Subordinate(
+                        crate::syntax::Subordinator::Unless,
+                        SubordinateBody::Finite(_),
+                    ),
+                    ..
+                }]
+            )
+        ));
+    }
+
+    #[test]
+    fn subjectless_imperatives_are_not_finite_subordinate_bodies() {
+        let parsed = parse("Target creature gets +1/+1 until end of turn.");
+        assert!(!parsed.chart.forest.nodes().any(|node| {
+            node.key.symbol == crate::forest::ForestSymbol::Nonterminal(Nonterminal::Clause)
+                && (node.key.start, node.key.end) == (5, 8)
+                && matches!(
+                    node.key.constituent_features(),
+                    Some(Features::Clause { finite: true, .. })
+                )
+        }));
     }
 
     #[test]
@@ -1790,7 +1889,7 @@ mod tests {
             .with_catalog(CatalogKind::KeywordAbility, ["Flying", "Haste"])
             .with_catalog(CatalogKind::CreatureType, ["Goblin"])
             .with_catalog(CatalogKind::LandType, ["Plains"])
-            .with_catalog(CatalogKind::CardType, ["Creature"])
+            .with_catalog(CatalogKind::CardType, ["Creature", "Land"])
     }
 
     fn finite(sentence: &Sentence) -> (&Subject, &crate::syntax::PredicateHead) {

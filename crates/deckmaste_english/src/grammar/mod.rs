@@ -179,8 +179,7 @@ pub(crate) enum EnglishLexicalSlot {
     OracleSymbol,
     PowerToughness,
     Punctuation(Punctuation),
-    If,
-    AsLongAs,
+    Subordinator,
     Conjunction,
     Existential,
     Copula,
@@ -340,6 +339,7 @@ pub(crate) enum Features {
     Clause {
         agreement: Option<Agreement>,
         standalone: bool,
+        finite: bool,
     },
     Sentence,
     PrepositionalPhrase,
@@ -506,8 +506,6 @@ pub(crate) enum LiteralKey {
     Up,
     To,
     Target,
-    If,
-    AsLongAs,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -598,10 +596,9 @@ enum RuleTag {
     ClauseElliptical,
     ClauseCoordination,
     ClauseCoordinationComma,
-    ClauseConditionalBefore,
-    ClauseConditionalAfterElliptical,
-    ClauseConditionalAfter,
-    ClauseConditionalAfterIf,
+    ClauseSubordinateBefore,
+    ClauseSubordinateAfterElliptical,
+    ClauseSubordinateAfter,
     ClauseExistential,
     ClauseCopularNoun,
     ClauseCopularAdjective,
@@ -927,8 +924,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::OracleSymbol
             | EnglishLexicalSlot::PowerToughness
             | EnglishLexicalSlot::Punctuation(_)
-            | EnglishLexicalSlot::If
-            | EnglishLexicalSlot::AsLongAs
+            | EnglishLexicalSlot::Subordinator
             | EnglishLexicalSlot::Conjunction) => self.scan_clause_lexical(slot, tokens, start),
             EnglishLexicalSlot::Unknown(slot)
                 if self.recovery_profile != RecoveryProfile::Exact =>
@@ -1017,15 +1013,7 @@ impl EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::If => {
-                self.scan_subordinator(tokens, start, &["if"], crate::syntax::Subordinator::If)
-            }
-            EnglishLexicalSlot::AsLongAs => self.scan_subordinator(
-                tokens,
-                start,
-                &["as", "long", "as"],
-                crate::syntax::Subordinator::AsLongAs,
-            ),
+            EnglishLexicalSlot::Subordinator => self.scan_subordinators(tokens, start),
             EnglishLexicalSlot::Conjunction => self.scan_conjunction(tokens, start),
             _ => Vec::new(),
         }
@@ -1057,6 +1045,7 @@ impl EnglishGrammar<'_, '_> {
             || !self.scan_determiner(tokens, start).is_empty()
             || !self.scan_preposition(tokens, start).is_empty()
             || !self.scan_conjunction(tokens, start).is_empty()
+            || self.subordinator_at(tokens, start).is_some()
             || !self
                 .catalog_matches(tokens, start, CatalogSlot::Noun(NounUsage::Either))
                 .is_empty()
@@ -1073,15 +1062,13 @@ impl EnglishGrammar<'_, '_> {
             })
     }
 
-    fn scan_subordinator(
+    fn scan_subordinators(
         &self,
         tokens: &[Token],
         start: usize,
-        spelling: &[&str],
-        subordinator: crate::syntax::Subordinator,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        self.words_match(tokens, start, spelling)
-            .map(|end| LexicalMatch {
+        self.subordinator_at(tokens, start)
+            .map(|(end, subordinator)| LexicalMatch {
                 end,
                 features: Features::None,
                 meaning: MeaningKey::Subordinator(subordinator),
@@ -1089,6 +1076,30 @@ impl EnglishGrammar<'_, '_> {
             })
             .into_iter()
             .collect()
+    }
+
+    fn subordinator_at(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Option<(usize, crate::syntax::Subordinator)> {
+        let surface = self.token_text(tokens, start)?;
+        if surface.eq_ignore_ascii_case("as") {
+            if let Some(end) = self.words_match(tokens, start, &["as", "long", "as"]) {
+                return Some((end, crate::syntax::Subordinator::AsLongAs));
+            }
+            return Some((start + 1, crate::syntax::Subordinator::As));
+        }
+        let subordinator = if surface.eq_ignore_ascii_case("if") {
+            crate::syntax::Subordinator::If
+        } else if surface.eq_ignore_ascii_case("while") {
+            crate::syntax::Subordinator::While
+        } else if surface.eq_ignore_ascii_case("unless") {
+            crate::syntax::Subordinator::Unless
+        } else {
+            return None;
+        };
+        Some((start + 1, subordinator))
     }
 
     fn scan_existential(
@@ -1828,10 +1839,9 @@ fn reduce(
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseConditionalBefore
-        | RuleTag::ClauseConditionalAfterElliptical
-        | RuleTag::ClauseConditionalAfter
-        | RuleTag::ClauseConditionalAfterIf
+        | RuleTag::ClauseSubordinateBefore
+        | RuleTag::ClauseSubordinateAfterElliptical
+        | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseExistential
         | RuleTag::ClauseCopularNoun
         | RuleTag::ClauseCopularAdjective
@@ -2534,10 +2544,9 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseConditionalBefore
-        | RuleTag::ClauseConditionalAfterElliptical
-        | RuleTag::ClauseConditionalAfter
-        | RuleTag::ClauseConditionalAfterIf
+        | RuleTag::ClauseSubordinateBefore
+        | RuleTag::ClauseSubordinateAfterElliptical
+        | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseExistential
         | RuleTag::ClauseCopularNoun
         | RuleTag::ClauseCopularAdjective

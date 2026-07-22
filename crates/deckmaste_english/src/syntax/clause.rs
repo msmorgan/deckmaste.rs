@@ -253,6 +253,8 @@ pub enum CoordinatedClauseMember {
 pub enum Subordinator {
     When,
     If,
+    As,
+    While,
     Unless,
     AsLongAs,
     Until,
