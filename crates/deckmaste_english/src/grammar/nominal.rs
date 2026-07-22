@@ -94,6 +94,7 @@ mod tests {
             ("maximum hand size", "size"),
             ("the amount of mana", "amount"),
             ("your party", "party"),
+            ("an emblem", "emblem"),
         ] {
             let parsed = parse(source);
             let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
