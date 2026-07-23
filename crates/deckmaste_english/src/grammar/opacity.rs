@@ -138,7 +138,7 @@ mod tests {
             matches!(
                 &paragraph.sentences[0].body,
                 SentenceBody::Recovered(recovery)
-                    if recovery.spelling() == "Target creature frobnitzes a card"
+                    if recovery.spelling() == "Target creature frobnitzes a card."
             ),
             "{:#?}",
             paragraph.sentences[0].body
@@ -153,7 +153,7 @@ mod tests {
         };
         assert!(matches!(
             &paragraph.sentences[0].body,
-            SentenceBody::Recovered(recovery) if recovery.spelling() == "You frobnitz a card"
+            SentenceBody::Recovered(recovery) if recovery.spelling() == "You frobnitz a card."
         ));
     }
 

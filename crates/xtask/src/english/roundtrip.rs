@@ -145,6 +145,7 @@ fn print_count(label: &str, count: usize) {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english::normalize_roll_row_dashes;
     use deckmaste_english::normalize_typographic_quotes;
     use deckmaste_english::strip_reminder_text;
 
@@ -153,7 +154,7 @@ mod tests {
     /// Builds a supported face exactly as `data::CardFace::from` does, so its
     /// `oracle_text` is the real normalized parse input.
     fn face(name: &str, source: &str, is_legendary: bool) -> CardFace {
-        let normalized_source = normalize_typographic_quotes(source);
+        let normalized_source = normalize_roll_row_dashes(&normalize_typographic_quotes(source));
         let normalized_name = normalize_typographic_quotes(name);
         let oracle_text = strip_reminder_text(&normalize_self_references(
             &normalized_source,
@@ -204,6 +205,23 @@ mod tests {
             true,
         );
         assert_eq!(card.oracle_text, "~~ deals damage. ~ attacks.");
+        assert_eq!(classify(&card, &Catalogs::default()), Outcome::Clean);
+    }
+
+    #[test]
+    fn mathise_hyphen_roll_rows_round_trip_clean_in_the_en_dash_domain() {
+        // Mathise, Surge Channeler is the only card printing hyphen roll-row
+        // ranges. Normalization rewrites them to en dashes, and the renderer
+        // emits en dashes, so the row keys round-trip clean in that domain.
+        let card = face(
+            "Mathise, Surge Channeler",
+            "1-9 | Each player draws a card.\n10-19 | You draw a card.\n20 | Draw a card.",
+            true,
+        );
+        assert_eq!(
+            card.oracle_text,
+            "1\u{2013}9 | Each player draws a card.\n10\u{2013}19 | You draw a card.\n20 | Draw a card."
+        );
         assert_eq!(classify(&card, &Catalogs::default()), Outcome::Clean);
     }
 

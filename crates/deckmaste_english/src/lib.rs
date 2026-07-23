@@ -28,6 +28,7 @@ pub use catalog::CatalogKind;
 pub use catalog::Catalogs;
 pub use chart::ChartStats;
 pub use forest::ForestStats;
+pub use input::normalize_roll_row_dashes;
 pub use input::normalize_self_references;
 pub use input::normalize_typographic_quotes;
 pub use input::strip_reminder_text;

@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::fmt;
 
 use crate::catalog::CatalogKind;
@@ -12,7 +13,10 @@ use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ComparisonMarker;
+use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedClauseMember;
+use crate::syntax::CoordinatedIndependentClause;
+use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::CopularComplement;
 use crate::syntax::CopularPredicate;
 use crate::syntax::Cost;
@@ -67,18 +71,17 @@ use crate::syntax::RelativeBody;
 use crate::syntax::RelativeClause;
 use crate::syntax::RelativeMarker;
 use crate::syntax::RollRange;
-use crate::syntax::RollRangeDash;
 use crate::syntax::RollRowAbility;
 use crate::syntax::ScalarSign;
 use crate::syntax::ScalarValue;
 use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
-use crate::syntax::SentenceEnding;
 use crate::syntax::SignedScalar;
 use crate::syntax::Subject;
 use crate::syntax::SubordinateBody;
 use crate::syntax::Subordinator;
 use crate::syntax::ThisCardForm;
+use crate::syntax::TransitivePredicate;
 use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
 use crate::syntax::VerbParticle;
@@ -87,6 +90,7 @@ use crate::word::InitialSound;
 use crate::word::Noun;
 use crate::word::NounInstance;
 use crate::word::PronounInstance;
+use crate::word::Verb;
 use crate::word::Vocab;
 use crate::word::Vocabulary;
 
@@ -160,6 +164,11 @@ struct Renderer<'identity> {
     name: &'identity str,
     short_name: &'identity str,
     vocabulary: Vocabulary,
+    /// How many quoted/embedded abilities enclose the ability currently being
+    /// rendered. The Aura enchant keyword line lacks a period only at the top
+    /// level (depth 0); nested inside a quote it is ordinary prose that keeps
+    /// its period (`becomes an Aura with "enchant creature …."`).
+    nesting: Cell<usize>,
 }
 
 impl<'identity> Renderer<'identity> {
@@ -173,7 +182,18 @@ impl<'identity> Renderer<'identity> {
             name,
             short_name,
             vocabulary: Vocabulary::new(),
+            nesting: Cell::new(0),
         }
+    }
+
+    /// Renders an ability nested inside a quoted or embedded ability, tracking
+    /// the enclosing depth so period derivation can tell top-level keyword
+    /// lines from the same words appearing as nested prose.
+    fn nested_ability(&self, ability: &Ability, capitalize: bool) -> Result<String, RenderError> {
+        self.nesting.set(self.nesting.get() + 1);
+        let rendered = self.ability(ability, capitalize);
+        self.nesting.set(self.nesting.get() - 1);
+        rendered
     }
 
     fn oracle_text(&self, oracle_text: &OracleText) -> Result<String, RenderError> {
@@ -260,7 +280,15 @@ impl<'identity> Renderer<'identity> {
 
     fn modal_ability(&self, modal: &ModalAbility) -> Result<String, RenderError> {
         let header_is_sentence_initial = !matches!(modal.frame, ModalFrame::Triggered { .. });
-        let header = self.paragraph(&modal.header, header_is_sentence_initial)?;
+        // A ` —` header suffix stands in for the final header sentence's period,
+        // so that sentence's derived period is withheld (`Choose one —`); a
+        // `None` suffix keeps the normal periods (`Choose one. If you …`).
+        let suppress_final_period = matches!(modal.header_suffix, ModalHeaderSuffix::SpacedEmDash);
+        let header = self.paragraph_with_suffix(
+            &modal.header,
+            header_is_sentence_initial,
+            suppress_final_period,
+        )?;
         let header = match modal.header_suffix {
             ModalHeaderSuffix::None => header,
             ModalHeaderSuffix::SpacedEmDash => format!("{header} —"),
@@ -404,6 +432,18 @@ impl<'identity> Renderer<'identity> {
         paragraph: &Paragraph,
         capitalize_first_sentence: bool,
     ) -> Result<String, RenderError> {
+        self.paragraph_with_suffix(paragraph, capitalize_first_sentence, false)
+    }
+
+    /// Renders a paragraph. When `suppress_final_period` is set, the last
+    /// sentence's derived terminal period is withheld — used for a modal header
+    /// whose ` —` suffix stands in for that period (`Choose one —`).
+    fn paragraph_with_suffix(
+        &self,
+        paragraph: &Paragraph,
+        capitalize_first_sentence: bool,
+        suppress_final_period: bool,
+    ) -> Result<String, RenderError> {
         let mut rendered = String::new();
         if let Some(header) = &paragraph.flavor_header {
             // Verbatim flavor header plus its em-dash separator; the trailing
@@ -411,8 +451,14 @@ impl<'identity> Renderer<'identity> {
             rendered.push_str(header.text());
             rendered.push_str(" \u{2014}");
         }
+        let last = paragraph.sentences.len().saturating_sub(1);
         for (index, sentence) in paragraph.sentences.iter().enumerate() {
-            let sentence = self.sentence(sentence, capitalize_first_sentence || index > 0)?;
+            let force_no_period = suppress_final_period && index == last;
+            let sentence = self.sentence(
+                sentence,
+                capitalize_first_sentence || index > 0,
+                force_no_period,
+            )?;
             let is_closing_punctuation = sentence.chars().next().is_some_and(|character| {
                 matches!(
                     character,
@@ -427,7 +473,12 @@ impl<'identity> Renderer<'identity> {
         Ok(rendered)
     }
 
-    fn sentence(&self, sentence: &Sentence, capitalize: bool) -> Result<String, RenderError> {
+    fn sentence(
+        &self,
+        sentence: &Sentence,
+        capitalize: bool,
+        force_no_period: bool,
+    ) -> Result<String, RenderError> {
         let capitalize = capitalize && sentence.initial_uppercase;
         let (body, capitalize) = match &sentence.body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
@@ -437,11 +488,70 @@ impl<'identity> Renderer<'identity> {
             }
         };
         let mut rendered = if capitalize { capitalize_first(body) } else { body };
-        match sentence.ending {
-            SentenceEnding::None => {}
-            SentenceEnding::Period => rendered.push('.'),
+        if !force_no_period && self.sentence_takes_period(sentence) {
+            rendered.push('.');
         }
         Ok(rendered)
+    }
+
+    /// Whether a rendered sentence takes a trailing period.
+    ///
+    /// This re-derives the period that [`Sentence`] no longer stores. Oracle
+    /// text terminates every sentence with a period **except** for these
+    /// structurally identifiable classes, which the corpus round-trip confirms
+    /// are exhaustive:
+    ///
+    /// - a sentence whose final rendered constituent is a *closed* quoted
+    ///   ability (`~ gains "…"`, `create a token with "…"`) — the period then
+    ///   sits inside the closing quote;
+    /// - a sentence whose final rendered constituent is a self-reference to a
+    ///   card whose name already ends in terminal punctuation (`Exile ~` where
+    ///   `~` = `Blood for the Blood God!`) — the name supplies the terminator;
+    /// - the Aura **enchant ability** line at top level (`Enchant creature`) —
+    ///   a subjectless imperative headed by, or a clause subjected by, the
+    ///   `enchant` keyword, printed without a period like the keyword ability
+    ///   it is (nested inside a quote the same words are ordinary prose and
+    ///   keep their period, hence the `nesting` guard); and
+    /// - a **recovered** span, which carries its own terminal punctuation
+    ///   verbatim.
+    ///
+    /// A modal `Choose …` header instruction is an ordinary complete sentence
+    /// and *does* take a period (`Choose one. If you control …`); the ` —`
+    /// header-suffix exception (`Choose one —`) is handled by the modal
+    /// renderer withholding the final period, keeping this a structural
+    /// function of the modal ability's suffix.
+    ///
+    /// Every clause branch is a structural function of the sentence's AST tail,
+    /// never an inspection of the rendered string's trailing character.
+    fn sentence_takes_period(&self, sentence: &Sentence) -> bool {
+        let clause = match &sentence.body {
+            SentenceBody::Choice(_) => return true,
+            SentenceBody::Recovered(_) => return false,
+            SentenceBody::Independent(clause) => clause,
+        };
+        if independent_clause_ends_with_closed_quote(clause)
+            || self.clause_ends_with_terminated_self_reference(clause)
+        {
+            return false;
+        }
+        if self.nesting.get() == 0 && is_aura_enchant_line(clause) {
+            return false;
+        }
+        true
+    }
+
+    /// Whether the clause's final rendered constituent is a self-reference to a
+    /// card whose (resolved) name ends in sentence-terminal punctuation, so the
+    /// name itself supplies the terminator and no period is derived.
+    fn clause_ends_with_terminated_self_reference(&self, clause: &IndependentClause) -> bool {
+        let Some(form) = independent_clause_final_self_reference(clause) else {
+            return false;
+        };
+        let name = match form {
+            ThisCardForm::AbbreviatedName => self.short_name,
+            ThisCardForm::FullName => self.name,
+        };
+        name.ends_with(['.', '!', '?'])
     }
 
     fn clause(&self, clause: &Clause) -> Result<String, RenderError> {
@@ -755,7 +865,7 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(value.power),
                 render_signed_scalar(value.toughness),
             )),
-            PredicateObject::EmbeddedAbility(ability) => self.ability(ability, true),
+            PredicateObject::EmbeddedAbility(ability) => self.nested_ability(ability, true),
             PredicateObject::QuotedAbility(quoted) => self.quoted_ability(quoted),
             PredicateObject::Coordinated(coordinated) => {
                 let mut rendered = self.predicate_object(&coordinated.first)?;
@@ -1234,7 +1344,7 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(power_toughness.power),
                 render_signed_scalar(power_toughness.toughness)
             )),
-            Phrase::EmbeddedAbility(ability) => self.ability(ability, true),
+            Phrase::EmbeddedAbility(ability) => self.nested_ability(ability, true),
             Phrase::QuotedAbility(quoted) => self.quoted_ability(quoted),
             Phrase::Recovered(recovery) => Ok(self.expand_self_references(recovery.spelling())),
         }
@@ -1243,7 +1353,7 @@ impl<'identity> Renderer<'identity> {
     fn quoted_ability(&self, quoted: &QuotedAbility) -> Result<String, RenderError> {
         let mut rendered = format!(
             "\"{}",
-            self.ability(&quoted.ability, quoted.initial_uppercase)?
+            self.nested_ability(&quoted.ability, quoted.initial_uppercase)?
         );
         if quoted.closed {
             rendered.push('"');
@@ -1309,25 +1419,235 @@ fn render_loyalty_cost(cost: LoyaltyCost) -> String {
 }
 
 /// Renders a die-roll row's face-value key. Inclusive spans join their bounds
-/// with an *unspaced* dash whose glyph is taken from the parsed
-/// [`RollRangeDash`], so an em-dash range and a hyphen range each round-trip to
-/// their own surface; the `+` and `or less` thresholds reproduce their surface
-/// too.
+/// with an *unspaced* en dash (`–`, U+2013) — the single canonical range glyph
+/// the input boundary normalizes every roll-row separator to — while the `+`
+/// and `or less` thresholds reproduce their surface too.
 fn render_roll_range(range: RollRange) -> String {
     match range {
         RollRange::Single(value) => value.numeral.format(value.value),
-        RollRange::Inclusive { low, high, dash } => format!(
-            "{}{}{}",
+        RollRange::Inclusive { low, high } => format!(
+            "{}\u{2013}{}",
             low.numeral.format(low.value),
-            match dash {
-                RollRangeDash::EmDash => "\u{2014}",
-                RollRangeDash::Hyphen => "-",
-            },
             high.numeral.format(high.value),
         ),
         RollRange::OrMore(value) => format!("{}+", value.numeral.format(value.value)),
         RollRange::OrLess(value) => format!("{} or less", value.numeral.format(value.value)),
     }
+}
+
+/// Whether a clause is an Aura's enchant-ability line — the top-level keyword
+/// ability oracle prints without a period. The parser lowers it two ways
+/// depending on the object's shape, both anchored on the `enchant` keyword:
+///
+/// - `Enchant creature`, `Enchant land you control` → a subjectless imperative
+///   headed by the `enchant` verb; and
+/// - `Enchant tapped creature`, `Enchant modified creature` → a clause whose
+///   *subject* is the `Enchant` keyword atom (the following adjective is
+///   misread as the verb).
+///
+/// Requiring the imperative or the enchant-keyword subject keeps an ordinary
+/// `~ enchants a creature` clause (a real subject, real verb) taking its
+/// period.
+fn is_aura_enchant_line(clause: &IndependentClause) -> bool {
+    match clause {
+        IndependentClause::Imperative(predicate) => predicate_verb_is_enchant(predicate),
+        IndependentClause::Transitive(subject, _)
+        | IndependentClause::Intransitive(subject, _)
+        | IndependentClause::Copular(subject, _)
+        | IndependentClause::Passive(subject, _)
+        | IndependentClause::Proform(subject, _) => subject_is_enchant_keyword(subject),
+        _ => false,
+    }
+}
+
+fn predicate_verb_is_enchant(predicate: &Predicate) -> bool {
+    let head = match predicate {
+        Predicate::Transitive(predicate) => &predicate.head,
+        Predicate::Intransitive(predicate) => &predicate.head,
+        Predicate::Passive(predicate) => &predicate.head,
+        Predicate::Copular(_) | Predicate::Proform(_) => return false,
+    };
+    head.verb.verb == Verb::Word(Vocab::Enchant)
+}
+
+/// Whether a subject is the bare `Enchant` keyword-ability atom (the misparse
+/// of `Enchant <adjective> <type>` that treats the keyword as the subject
+/// noun).
+fn subject_is_enchant_keyword(subject: &Subject) -> bool {
+    let NounPhrase::Nominal(nominal) = &subject.0 else {
+        return false;
+    };
+    if !nominal.modifiers.is_empty() || nominal.determiner.is_some() {
+        return false;
+    }
+    let (NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun)) =
+        &nominal.head;
+    matches!(
+        noun,
+        Noun::Catalog(atom)
+            if atom.kind == CatalogKind::KeywordAbility && atom.canonical() == "Enchant"
+    )
+}
+
+/// The [`ThisCardForm`] of a clause's final rendered constituent when that
+/// constituent is a self-reference, else `None`. Used to suppress the derived
+/// period when the card's name already ends in terminal punctuation.
+fn independent_clause_final_self_reference(clause: &IndependentClause) -> Option<ThisCardForm> {
+    let (IndependentClause::Transitive(_, predicate)
+    | IndependentClause::Imperative(Predicate::Transitive(predicate))) = clause
+    else {
+        return None;
+    };
+    if !predicate.elements.is_empty() {
+        return None;
+    }
+    match &predicate.object {
+        PredicateObject::NounPhrase(NounPhrase::ThisCard(form)) => Some(*form),
+        _ => None,
+    }
+}
+
+fn independent_clause_ends_with_closed_quote(clause: &IndependentClause) -> bool {
+    match clause {
+        IndependentClause::Transitive(_, predicate) => transitive_ends_with_closed_quote(predicate),
+        IndependentClause::Intransitive(_, predicate) => {
+            last_element_is_closed_quote(&predicate.elements)
+        }
+        IndependentClause::Passive(_, predicate) => {
+            last_element_is_closed_quote(&predicate.elements)
+        }
+        IndependentClause::Copular(_, predicate) => copular_ends_with_closed_quote(predicate),
+        IndependentClause::Imperative(predicate) => predicate_ends_with_closed_quote(predicate),
+        IndependentClause::Deontic(_, _, Some(predicate)) => {
+            predicate_ends_with_closed_quote(predicate)
+        }
+        IndependentClause::Coordinated(clause) => coordinated_ends_with_closed_quote(clause),
+        IndependentClause::Complex(clause) => complex_ends_with_closed_quote(clause),
+        IndependentClause::Existential(_)
+        | IndependentClause::Proform(..)
+        | IndependentClause::Deontic(_, _, None) => false,
+    }
+}
+
+fn predicate_ends_with_closed_quote(predicate: &Predicate) -> bool {
+    match predicate {
+        Predicate::Transitive(predicate) => transitive_ends_with_closed_quote(predicate),
+        Predicate::Intransitive(predicate) => last_element_is_closed_quote(&predicate.elements),
+        Predicate::Passive(predicate) => last_element_is_closed_quote(&predicate.elements),
+        Predicate::Copular(predicate) => copular_ends_with_closed_quote(predicate),
+        Predicate::Proform(_) => false,
+    }
+}
+
+/// A transitive predicate ends with its final adjunct/complement element, or —
+/// when it has none — with its object (`~ gains "…"` leaves the quoted ability
+/// as the object with no trailing element).
+fn transitive_ends_with_closed_quote(predicate: &TransitivePredicate) -> bool {
+    if predicate.elements.is_empty() {
+        predicate_object_is_closed_quote(&predicate.object)
+    } else {
+        last_element_is_closed_quote(&predicate.elements)
+    }
+}
+
+fn copular_ends_with_closed_quote(predicate: &CopularPredicate) -> bool {
+    if let Some(adjunct) = predicate.adjuncts.last() {
+        adjunct_ends_with_closed_quote(adjunct)
+    } else if let CopularComplement::Prepositional(prepositional) = &predicate.complement {
+        phrase_is_closed_quote(&prepositional.object)
+    } else {
+        false
+    }
+}
+
+fn coordinated_ends_with_closed_quote(clause: &CoordinatedIndependentClause) -> bool {
+    match clause.rest.last() {
+        Some(coordination) => match &coordination.member {
+            CoordinatedClauseMember::Independent(clause) => {
+                independent_clause_ends_with_closed_quote(clause)
+            }
+            CoordinatedClauseMember::SharedPredicate(predicate) => {
+                predicate_ends_with_closed_quote(predicate)
+            }
+        },
+        None => independent_clause_ends_with_closed_quote(&clause.first),
+    }
+}
+
+/// A complex clause renders its after-matrix attachments after the matrix, so
+/// the tail is the last such attachment when present, and the matrix otherwise.
+fn complex_ends_with_closed_quote(clause: &ComplexClause) -> bool {
+    match clause
+        .attachments
+        .iter()
+        .rev()
+        .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
+    {
+        Some(attachment) => match &attachment.kind {
+            ClauseAttachmentKind::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
+            ClauseAttachmentKind::Dependent(_) => false,
+        },
+        None => independent_clause_ends_with_closed_quote(&clause.matrix),
+    }
+}
+
+fn last_element_is_closed_quote(elements: &[PredicateElement]) -> bool {
+    elements
+        .last()
+        .is_some_and(predicate_element_is_closed_quote)
+}
+
+fn predicate_element_is_closed_quote(element: &PredicateElement) -> bool {
+    match element {
+        PredicateElement::Complement(complement) => complement_is_closed_quote(complement),
+        PredicateElement::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
+        PredicateElement::Particle(_) => false,
+    }
+}
+
+fn complement_is_closed_quote(complement: &PredicateComplement) -> bool {
+    match complement {
+        PredicateComplement::Prepositional(prepositional) => {
+            phrase_is_closed_quote(&prepositional.object)
+        }
+        PredicateComplement::IndirectObject(_)
+        | PredicateComplement::Adjective(_)
+        | PredicateComplement::Infinitive(_) => false,
+    }
+}
+
+fn adjunct_ends_with_closed_quote(adjunct: &PredicateAdjunct) -> bool {
+    match adjunct {
+        PredicateAdjunct::Prepositional(prepositional) => {
+            phrase_is_closed_quote(&prepositional.object)
+        }
+        PredicateAdjunct::Adverb(_)
+        | PredicateAdjunct::Frequency(_)
+        | PredicateAdjunct::Temporal(_)
+        | PredicateAdjunct::Manner(_)
+        | PredicateAdjunct::Dependent(_) => false,
+    }
+}
+
+fn predicate_object_is_closed_quote(object: &PredicateObject) -> bool {
+    match object {
+        PredicateObject::QuotedAbility(quoted) => quoted.closed,
+        PredicateObject::Coordinated(coordinated) => {
+            coordinated_object_is_closed_quote(coordinated)
+        }
+        _ => false,
+    }
+}
+
+fn coordinated_object_is_closed_quote(coordinated: &CoordinatedPredicateObject) -> bool {
+    match coordinated.rest.last() {
+        Some(coordination) => predicate_object_is_closed_quote(&coordination.object),
+        None => predicate_object_is_closed_quote(&coordinated.first),
+    }
+}
+
+fn phrase_is_closed_quote(phrase: &Phrase) -> bool {
+    matches!(phrase, Phrase::QuotedAbility(quoted) if quoted.closed)
 }
 
 fn render_quantity(quantity: Quantity) -> String {
@@ -1688,6 +2008,68 @@ mod tests {
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
 
         assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn an_ordinary_sentence_gets_a_derived_period() {
+        // The terminal period is not stored; the renderer derives it because the
+        // sentence's final constituent is not a period-absorbing one.
+        let ast = crate::parse_with_catalogs("Draw a card.", &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), "Draw a card.");
+    }
+
+    #[test]
+    fn a_quote_final_sentence_takes_no_outer_period() {
+        // The period lives inside the closing quote, so no outer period is
+        // derived; a following ordinary sentence still gets its own.
+        let catalogs = fixture_catalogs();
+        for source in [
+            "It has \"Whenever this creature attacks, draw a card.\"",
+            "It has \"Whenever this creature attacks, draw a card.\" Draw a card.",
+        ] {
+            let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+    }
+
+    #[test]
+    fn a_top_level_aura_enchant_line_omits_its_period() {
+        // `Enchant creature` is a keyword-ability line printed without a period.
+        let catalogs = fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Enchant"]);
+        for source in ["Enchant creature", "Enchant creature you control"] {
+            let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+        // But an ordinary clause that merely uses the verb keeps its period.
+        let ast =
+            crate::parse_with_catalogs("This creature enchants a creature.", &catalogs).into_ast();
+        assert_eq!(
+            source_free(&ast, "Test Card", false),
+            "This creature enchants a creature."
+        );
+    }
+
+    #[test]
+    fn a_modal_choose_header_period_follows_the_suffix() {
+        let catalogs = fixture_catalogs();
+        // A ` —` header suffix stands in for the header's period.
+        let em_dash = "Choose one —\n• Draw a card.\n• Draw a card.";
+        let ast = crate::parse_with_catalogs(em_dash, &catalogs).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), em_dash);
+        // No suffix: the `Choose …` header sentence keeps its period.
+        let period = "Choose one. Each mode must be chosen once.\n• Draw a card.\n• Draw a card.";
+        let ast = crate::parse_with_catalogs(period, &catalogs).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), period);
+    }
+
+    #[test]
+    fn a_recovered_sentence_reproduces_its_terminal_verbatim() {
+        // A recovered span keeps whatever terminal punctuation it had: a period
+        // when present, none when absent — no derivation involved.
+        for source in ["You frobnitz a card.", "You frobnitz a card"] {
+            let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
     }
 
     #[test]
@@ -2169,7 +2551,6 @@ mod tests {
                         ))],
                     ),
                 )),
-                ending: SentenceEnding::Period,
             }],
         };
         let triggered = OracleText {
@@ -2271,17 +2652,20 @@ mod tests {
                     },
                     header: Paragraph {
                         flavor_header: None,
+                        // A modal header instruction is a `Choice` body — as the
+                        // real parser produces — so no period is derived; the
+                        // ` —` header suffix follows instead.
                         sentences: vec![Sentence {
                             initial_uppercase: true,
-                            body: sentence_body(simple(
-                                None,
-                                verb_phrase(
+                            body: SentenceBody::Choice(ChoiceInstruction {
+                                trigger_prefix: None,
+                                imperative: strict_predicate(verb_phrase(
                                     Vocab::Choose,
                                     VerbSlot::Imperative,
                                     vec![VerbDependent::Scalar(Phrase::NumberLiteral(cardinal(1)))],
-                                ),
-                            )),
-                            ending: SentenceEnding::None,
+                                )),
+                                at_random: false,
+                            }),
                         }],
                     },
                     header_suffix: ModalHeaderSuffix::SpacedEmDash,
@@ -2305,8 +2689,7 @@ mod tests {
                     flavor_header: Some(FlavorHeader::new("Throw ...", 2)),
                     sentences: vec![Sentence {
                         initial_uppercase: true,
-                        body: SentenceBody::Recovered(RecoveredText::new("Draw a card", 3)),
-                        ending: SentenceEnding::Period,
+                        body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
                     }],
                 }),
             }],
@@ -2343,8 +2726,8 @@ mod tests {
     fn roll_row_abilities_render_inline_after_their_range() {
         for source in [
             "20 | Draw a card.",
-            "2—9 | Create five tokens.",
-            "1-9 | Draw a card.",
+            "2–9 | Create five tokens.",
+            "1–9 | Draw a card.",
             "15+ | Draw a card.",
             "9 or less | Draw a card.",
             // A flavor header stacked inside the row body stays on the line.
@@ -2357,7 +2740,7 @@ mod tests {
 
     #[test]
     fn a_multi_row_die_roll_table_round_trips_line_by_line() {
-        let source = "20 | Draw a card.\n2—9 | Create five tokens.";
+        let source = "20 | Draw a card.\n2–9 | Create five tokens.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
         assert_eq!(source_free(&ast, "Test Card", false), source);
     }
@@ -2365,7 +2748,8 @@ mod tests {
     #[test]
     fn inclusive_roll_range_renders_its_dash_unspaced_from_the_ast() {
         // Direct-AST render proves the inverse independently of the parser: the
-        // bounds join with an unspaced dash and each glyph reproduces itself.
+        // bounds join with an unspaced en dash — the single canonical range
+        // glyph the renderer always emits.
         let arabic = |value| NumberLiteral {
             value,
             numeral: Numeral::Arabic(false),
@@ -2379,8 +2763,7 @@ mod tests {
                         flavor_header: None,
                         sentences: vec![Sentence {
                             initial_uppercase: true,
-                            body: SentenceBody::Recovered(RecoveredText::new("Draw a card", 3)),
-                            ending: SentenceEnding::Period,
+                            body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
                         }],
                     },
                 }),
@@ -2391,17 +2774,8 @@ mod tests {
                 RollRange::Inclusive {
                     low: arabic(2),
                     high: arabic(9),
-                    dash: RollRangeDash::EmDash,
                 },
-                "2—9 | Draw a card.",
-            ),
-            (
-                RollRange::Inclusive {
-                    low: arabic(1),
-                    high: arabic(9),
-                    dash: RollRangeDash::Hyphen,
-                },
-                "1-9 | Draw a card.",
+                "2–9 | Draw a card.",
             ),
             (RollRange::OrMore(arabic(15)), "15+ | Draw a card."),
             (RollRange::OrLess(arabic(9)), "9 or less | Draw a card."),
@@ -2542,7 +2916,6 @@ mod tests {
                             Clause::Independent(clause) => SentenceBody::Independent(clause),
                             Clause::Dependent(_) => panic!("sentence fixture must be independent"),
                         },
-                        ending: SentenceEnding::Period,
                     }],
                 }),
             }],

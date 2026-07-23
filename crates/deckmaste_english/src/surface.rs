@@ -32,6 +32,7 @@ pub(crate) enum Punctuation {
     Minus,
     Slash,
     Hyphen,
+    EnDash,
     EmDash,
     Other(char),
 }
@@ -285,6 +286,7 @@ const fn punctuation(ch: char) -> Punctuation {
         '-' => Punctuation::Hyphen,
         '−' => Punctuation::Minus,
         '/' => Punctuation::Slash,
+        '–' => Punctuation::EnDash,
         '—' => Punctuation::EmDash,
         _ => Punctuation::Other(ch),
     }

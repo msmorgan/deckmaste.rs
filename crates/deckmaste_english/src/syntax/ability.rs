@@ -68,35 +68,26 @@ pub struct RollRowAbility {
 
 /// The face-value key of a die-roll result row. Every distinction the surface
 /// draws is carried here so the row renders as an exact inverse: a single face
-/// (`20`), an inclusive low–high span whose dash is *unspaced* (`2—9`), an
-/// at-least threshold (`15+`), or an at-most threshold (`9 or less`).
+/// (`20`), an inclusive low–high span joined by an *unspaced* en dash (`2–9`),
+/// an at-least threshold (`15+`), or an at-most threshold (`9 or less`).
+///
+/// The dash glyph is not carried: the input boundary normalizes every roll-row
+/// range separator (an em dash or an ASCII hyphen) to a single en dash
+/// (`–`, U+2013), so the renderer always emits that one glyph. See
+/// [`normalize_roll_row_dashes`](crate::normalize_roll_row_dashes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RollRange {
     /// A single face value: `20 | …`.
     Single(super::phrase::NumberLiteral),
-    /// An inclusive low–high span, printed with an unspaced dash: `2—9 | …`.
-    /// The dash glyph is carried by [`RollRangeDash`] so an em dash and an
-    /// ASCII hyphen (`1-9`) each reproduce their own surface.
+    /// An inclusive low–high span, printed with an unspaced en dash: `2–9 | …`.
     Inclusive {
         low: super::phrase::NumberLiteral,
         high: super::phrase::NumberLiteral,
-        dash: RollRangeDash,
     },
     /// A face value and everything above it: `15+ | …`.
     OrMore(super::phrase::NumberLiteral),
     /// A face value and everything below it: `9 or less | …`.
     OrLess(super::phrase::NumberLiteral),
-}
-
-/// The dash glyph joining an inclusive [`RollRange`]'s bounds. Both forms are
-/// unspaced; carrying the choice keeps rendering an exact inverse instead of
-/// normalizing one surface to the other.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RollRangeDash {
-    /// An unspaced em dash: `2—9`.
-    EmDash,
-    /// An unspaced ASCII hyphen: `1-9`.
-    Hyphen,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -279,11 +270,19 @@ impl FlavorHeader {
     }
 }
 
+/// A single sentence of an ability's body.
+///
+/// The terminal period is **not** stored: it is derivable from the sentence's
+/// structure. Oracle text ends every sentence with a period except when its
+/// final rendered constituent is a closed quoted ability — the period then
+/// lives inside the closing quote — or when it is a modal `Choose …` header
+/// instruction, which a separator or a bulleted mode list follows. The renderer
+/// re-derives the period from the AST tail; the parser strips a trailing period
+/// token without recording it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sentence {
     pub initial_uppercase: bool,
     pub body: SentenceBody,
-    pub ending: SentenceEnding,
 }
 
 #[allow(
@@ -332,12 +331,6 @@ pub struct ChoiceTrigger {
     pub introducer: TriggerWord,
     pub event: TriggerEvent,
     pub intervening_condition: Option<DependentClause>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SentenceEnding {
-    None,
-    Period,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

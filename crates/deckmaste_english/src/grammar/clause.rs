@@ -31,7 +31,6 @@ use crate::syntax::ProPredicate;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeMarker;
 use crate::syntax::SentenceBody;
-use crate::syntax::SentenceEnding;
 use crate::syntax::SubordinateBody;
 
 #[allow(
@@ -415,12 +414,15 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::SubjectAuxiliary), n(N::PrepositionalPhrase)],
     );
 
+    // Both rules carry the same tag: the terminal period is derivable from the
+    // sentence's structure at render time, so the parse need not record whether
+    // it was present. The period-consuming rule simply discards the token.
     builder.add(
-        RuleTag::SentencePeriod,
+        RuleTag::Sentence,
         N::Sentence,
         [n(N::Clause), l(L::Punctuation(Punctuation::Period))],
     );
-    builder.add(RuleTag::SentenceNone, N::Sentence, [n(N::Clause)]);
+    builder.add(RuleTag::Sentence, N::Sentence, [n(N::Clause)]);
 }
 
 pub(super) fn reduce_clause(
@@ -510,8 +512,7 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
-        | RuleTag::SentencePeriod
-        | RuleTag::SentenceNone => reduce_composed_clause(tag, children),
+        | RuleTag::Sentence => reduce_composed_clause(tag, children),
         _ => None,
     }
 }
@@ -1502,7 +1503,7 @@ fn reduce_composed_clause(
                 finite: *finite,
             })
         }
-        RuleTag::SentencePeriod | RuleTag::SentenceNone => {
+        RuleTag::Sentence => {
             let Features::Clause {
                 standalone: true, ..
             } = children.first()?.features
@@ -1716,8 +1717,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
-        | RuleTag::SentencePeriod
-        | RuleTag::SentenceNone => lower_composed_clause(tag, children),
+        | RuleTag::Sentence => lower_composed_clause(tag, children),
         _ => None,
     }
 }
@@ -2392,14 +2392,13 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
-        RuleTag::SentencePeriod | RuleTag::SentenceNone => {
+        RuleTag::Sentence => {
             let Lowered::Clause(Clause::Independent(clause)) = take(children, 0)? else {
                 return None;
             };
             Some(Lowered::Sentence(Sentence {
                 initial_uppercase: true,
                 body: SentenceBody::Independent(clause),
-                ending: sentence_ending(tag)?,
             }))
         }
         _ => None,
@@ -2872,14 +2871,6 @@ fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<BareNominalAdjunct> {
         NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
             noun.bare_nominal_adjunct()
         }
-    }
-}
-
-const fn sentence_ending(tag: RuleTag) -> Option<SentenceEnding> {
-    match tag {
-        RuleTag::SentencePeriod => Some(SentenceEnding::Period),
-        RuleTag::SentenceNone => Some(SentenceEnding::None),
-        _ => None,
     }
 }
 
@@ -4357,7 +4348,7 @@ mod tests {
             "the number of lands you control",
             "the number of creatures you control",
         ] {
-            let source = format!("~'s power and toughness are each equal to {measure}");
+            let source = format!("~'s power and toughness are each equal to {measure}.");
             let parsed = parse(&source);
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             let SentenceBody::Independent(IndependentClause::Copular(_, predicate)) =
@@ -4391,7 +4382,7 @@ mod tests {
             );
             assert_eq!(
                 render_sentence(parsed.sentence().unwrap()),
-                format!("Test Card's power and toughness are each equal to {measure}"),
+                format!("Test Card's power and toughness are each equal to {measure}."),
                 "{source}",
             );
         }
@@ -4416,8 +4407,8 @@ mod tests {
         // and the `each` form is exactly the carried flag, never a spelling
         // guess in the renderer.
         for source in [
-            "~'s power is equal to the number of lands you control",
-            "~'s power and toughness are equal to the number of lands you control",
+            "~'s power is equal to the number of lands you control.",
+            "~'s power and toughness are equal to the number of lands you control.",
         ] {
             let parsed = parse(source);
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");

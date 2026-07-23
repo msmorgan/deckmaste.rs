@@ -50,11 +50,9 @@ use crate::syntax::PrepositionalPhrase;
 use crate::syntax::QuotedAbility;
 use crate::syntax::RecoveredText;
 use crate::syntax::RollRange;
-use crate::syntax::RollRangeDash;
 use crate::syntax::RollRowAbility;
 use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
-use crate::syntax::SentenceEnding;
 use crate::syntax::SubordinateBody;
 use crate::syntax::Subordinator;
 use crate::syntax::TriggerEvent;
@@ -262,15 +260,20 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             [single] if single.kind == TokenKind::Integer => {
                 Some(RollRange::Single(self.arabic_literal(single)?))
             }
+            // The normalized corpus prints every inclusive range with an
+            // unspaced en dash; an em dash is tolerated too so an un-normalized
+            // surface still parses as a row (it renders back as an en dash).
             [low, dash, high]
                 if low.kind == TokenKind::Integer
-                    && dash.kind == TokenKind::Punctuation(Punctuation::EmDash)
+                    && matches!(
+                        dash.kind,
+                        TokenKind::Punctuation(Punctuation::EnDash | Punctuation::EmDash)
+                    )
                     && high.kind == TokenKind::Integer =>
             {
                 Some(RollRange::Inclusive {
                     low: self.arabic_literal(low)?,
                     high: self.arabic_literal(high)?,
-                    dash: RollRangeDash::EmDash,
                 })
             }
             [value, plus]
@@ -290,12 +293,14 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             }
             // An ASCII-hyphen inclusive span (`1-9`) is a single word token
             // because the hyphen is a word connector; split it on the hyphen.
+            // Normalization rewrites this surface to an en dash upstream, so
+            // this arm only fires for un-normalized input; either way the row
+            // renders back with an en dash.
             [word] if word.kind == TokenKind::Word => {
                 let (low, high) = self.token_text(word).split_once('-')?;
                 Some(RollRange::Inclusive {
                     low: arabic_number_literal(low)?,
                     high: arabic_number_literal(high)?,
-                    dash: RollRangeDash::Hyphen,
                 })
             }
             _ => None,
@@ -636,15 +641,21 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             return sentence;
         }
 
-        let (body, ending) = peel_sentence_ending(tokens);
         self.diagnostics.push(AbilityDiagnostic {
             kind: AbilityDiagnosticKind::NoCompleteParse,
             span: tokens_span(tokens),
         });
+        // A recovered span is reproduced verbatim, INCLUDING any terminal
+        // period, so its punctuation round-trips without derivation. The
+        // renderer therefore never appends a period to a recovered sentence.
+        // (`source_tokens` still counts the whole span, so the recovery census
+        // is unchanged.)
         Sentence {
             initial_uppercase,
-            body: SentenceBody::Recovered(RecoveredText::new(self.tokens_text(body), tokens.len())),
-            ending,
+            body: SentenceBody::Recovered(RecoveredText::new(
+                self.tokens_text(tokens),
+                tokens.len(),
+            )),
         }
     }
 
@@ -672,12 +683,11 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     /// unaffected).
     fn parse_choice_sentence(&mut self, tokens: &[Token]) -> Sentence {
         let initial_uppercase = self.tokens_start_uppercase(tokens);
-        let (body, ending) = peel_sentence_ending(tokens);
+        let body = peel_sentence_ending(tokens);
         if let Some(choice) = self.parse_choice_instruction(body) {
             return Sentence {
                 initial_uppercase,
                 body: SentenceBody::Choice(choice),
-                ending,
             };
         }
         self.parse_sentence(tokens)
@@ -800,7 +810,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             .iter()
             .position(|token| token.kind == TokenKind::Punctuation(Punctuation::DoubleQuote))
             .map(|relative| open + relative + 1)?;
-        let (trailing, ending) = peel_sentence_ending(&tokens[close + 1..]);
+        let trailing = peel_sentence_ending(&tokens[close + 1..]);
         if !trailing.is_empty() {
             return None;
         }
@@ -824,7 +834,6 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         Some(Sentence {
             initial_uppercase: self.tokens_start_uppercase(tokens),
             body: SentenceBody::Independent(clause),
-            ending,
         })
     }
 
@@ -1161,18 +1170,17 @@ fn find_top_level_punctuation(tokens: &[Token], expected: Punctuation) -> Option
     None
 }
 
-fn peel_sentence_ending(tokens: &[Token]) -> (&[Token], SentenceEnding) {
-    let Some(last) = tokens.last() else {
-        return (tokens, SentenceEnding::None);
-    };
-    // Only a trailing period is a sentence ending; `!`/`?` are absorbed by
-    // keyword spellings, self-references, or flavor headers upstream and, where
-    // they survive into a recovered span, stay verbatim in its text.
-    match last.kind {
-        TokenKind::Punctuation(Punctuation::Period) => {
-            (&tokens[..tokens.len() - 1], SentenceEnding::Period)
+/// Strips a trailing sentence-terminating period token, returning the body
+/// tokens. The period itself is not recorded: the renderer re-derives it from
+/// the sentence's structure. `!`/`?` are absorbed by keyword spellings,
+/// self-references, or flavor headers upstream and, where they survive into a
+/// recovered span, stay verbatim in its text.
+fn peel_sentence_ending(tokens: &[Token]) -> &[Token] {
+    match tokens.last() {
+        Some(last) if last.kind == TokenKind::Punctuation(Punctuation::Period) => {
+            &tokens[..tokens.len() - 1]
         }
-        _ => (tokens, SentenceEnding::None),
+        _ => tokens,
     }
 }
 
@@ -2523,8 +2531,9 @@ mod tests {
 
     #[test]
     fn unspaced_em_dash_range_row_lowers_to_a_roll_row_ability() {
-        // The unspaced em dash between the bounds is structure (an inclusive
-        // range), never a flavor header, and renders back unspaced.
+        // The unspaced dash between the bounds is structure (an inclusive
+        // range), never a flavor header. A raw em-dash surface is tolerated and
+        // renders back with the canonical en dash.
         let source = "2—9 | Create five tokens.";
         let report = parse(source);
         let row = roll_row(&report);
@@ -2533,7 +2542,6 @@ mod tests {
             RollRange::Inclusive {
                 low: arabic(2),
                 high: arabic(9),
-                dash: RollRangeDash::EmDash,
             }
         );
         assert_eq!(row.body.flavor_header, None);
@@ -2541,6 +2549,21 @@ mod tests {
             &row.body.sentences[0].body,
             SentenceBody::Independent(_)
         ));
+        assert_eq!(render(&report), "2–9 | Create five tokens.");
+    }
+
+    #[test]
+    fn unspaced_en_dash_range_row_round_trips() {
+        // The canonical normalized surface: an unspaced en dash between bounds.
+        let source = "2–9 | Create five tokens.";
+        let report = parse(source);
+        assert_eq!(
+            roll_row(&report).range,
+            RollRange::Inclusive {
+                low: arabic(2),
+                high: arabic(9),
+            }
+        );
         assert_eq!(render(&report), source);
     }
 
@@ -2582,10 +2605,10 @@ mod tests {
     }
 
     #[test]
-    fn ascii_hyphen_range_row_keeps_its_hyphen_glyph() {
-        // A hyphen range lexes as one word token; it lowers to the same
-        // inclusive shape but carries the hyphen so it does not normalize to an
-        // em dash.
+    fn ascii_hyphen_range_row_normalizes_to_an_en_dash_on_render() {
+        // A raw hyphen range lexes as one word token; it lowers to the inclusive
+        // shape and renders back with the canonical en dash (the input boundary
+        // normalizes the hyphen away, so the parser tolerates it defensively).
         let source = "1-9 | Draw a card.";
         let report = parse(source);
         assert_eq!(
@@ -2593,10 +2616,9 @@ mod tests {
             RollRange::Inclusive {
                 low: arabic(1),
                 high: arabic(9),
-                dash: RollRangeDash::Hyphen,
             }
         );
-        assert_eq!(render(&report), source);
+        assert_eq!(render(&report), "1–9 | Draw a card.");
     }
 
     #[test]
@@ -2604,8 +2626,8 @@ mod tests {
         let source = concat!(
             "{2}, {T}: Roll a d20.\n",
             "1 | Trapped! — You lose 3 life.\n",
-            "2—9 | Create five tokens.\n",
-            "10—19 | Draw two cards.\n",
+            "2–9 | Create five tokens.\n",
+            "10–19 | Draw two cards.\n",
             "20 | Draw four cards."
         );
         let report = parse(source);
@@ -2631,12 +2653,10 @@ mod tests {
                 RollRange::Inclusive {
                     low: arabic(2),
                     high: arabic(9),
-                    dash: RollRangeDash::EmDash,
                 },
                 RollRange::Inclusive {
                     low: arabic(10),
                     high: arabic(19),
-                    dash: RollRangeDash::EmDash,
                 },
                 RollRange::Single(arabic(20)),
             ]

@@ -776,7 +776,7 @@ mod tests {
 
         assert!(ast.recoveries().contains(&RecoveryRef {
             role: RecoveryRole::Clause,
-            text: "You frobnitz a card",
+            text: "You frobnitz a card.",
             source_tokens: 5,
         }));
     }
@@ -856,7 +856,6 @@ mod tests {
             sentences: vec![Sentence {
                 initial_uppercase: true,
                 body,
-                ending: SentenceEnding::Period,
             }],
         }
     }

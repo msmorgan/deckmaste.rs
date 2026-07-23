@@ -899,8 +899,7 @@ enum RuleTag {
     RelativeContractedCopularNoun,
     RelativeContractedCopularAdjective,
     RelativeContractedCopularPrepositional,
-    SentencePeriod,
-    SentenceNone,
+    Sentence,
     NounOpaque,
     FrequencyPhrase,
 }
@@ -3010,8 +3009,7 @@ fn reduce(
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
-        | RuleTag::SentencePeriod
-        | RuleTag::SentenceNone => clause::reduce_clause(tag, children)?,
+        | RuleTag::Sentence => clause::reduce_clause(tag, children)?,
         RuleTag::NounOpaque => opacity::reduce_opacity(tag, children)?,
     };
     Some(Reduction {
@@ -4163,8 +4161,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
-        | RuleTag::SentencePeriod
-        | RuleTag::SentenceNone => clause::lower_clause(tag, children),
+        | RuleTag::Sentence => clause::lower_clause(tag, children),
         RuleTag::NounOpaque => opacity::lower_opacity(tag, children),
     }
 }

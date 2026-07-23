@@ -25,7 +25,6 @@ mod tests {
     use crate::syntax::PredicateObject;
     use crate::syntax::Sentence;
     use crate::syntax::SentenceBody;
-    use crate::syntax::SentenceEnding;
     use crate::syntax::TransitivePredicate;
     use crate::word::Adjective;
     use crate::word::ColorWord;
@@ -1009,7 +1008,6 @@ mod tests {
                                 elements: vec![],
                             }),
                         )),
-                        ending: SentenceEnding::Period,
                     }],
                 }),
             }],
