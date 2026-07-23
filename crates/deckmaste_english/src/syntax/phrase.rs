@@ -207,12 +207,15 @@ impl Determiner {
     #[must_use]
     pub const fn noun_cardinality(&self) -> NounCardinality {
         match self {
-            Self::Each
-            | Self::Another
-            | Self::Indefinite(_)
-            | Self::Target(None)
-            | Self::Demonstrative(Demonstrative::This | Demonstrative::That) => {
+            Self::Each | Self::Another | Self::Indefinite(_) | Self::Target(None) => {
                 NounCardinality::SingularCount
+            }
+            // The singular demonstratives determine a singular count noun (`that
+            // creature`) or a mass one (`that damage`); only `these`/`those` are
+            // barred from mass. Mirrors `DeterminerKey::cardinality` in the
+            // grammar, which is what the parser enforces.
+            Self::Demonstrative(Demonstrative::This | Demonstrative::That) => {
+                NounCardinality::SingularOrMass
             }
             Self::Demonstrative(Demonstrative::These | Demonstrative::Those)
             | Self::Target(Some(Quantity::Or(_, _) | Quantity::X | Quantity::Both)) => {

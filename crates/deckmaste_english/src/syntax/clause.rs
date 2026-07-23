@@ -348,6 +348,12 @@ pub enum Subordinator {
     RatherThan,
     Before,
     After,
+    /// The grammaticalized temporal-frequency connective `the next time`, which
+    /// fronts a one-shot replacement/prevention window (`The next time a source
+    /// … would deal damage to you this turn, prevent that damage`). Like the
+    /// other multi-word connectives (`as long as`, `rather than`) it is carried
+    /// as a single subordinator lexeme and replayed verbatim by the renderer.
+    TheNextTime,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

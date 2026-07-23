@@ -2910,8 +2910,11 @@ mod tests {
     use crate::word::VerbSlot;
     use crate::word::Vocab;
 
-    const FIXTURES: [&str; 26] = [
+    const FIXTURES: [&str; 29] = [
         "Draw a card.",
+        "Prevent that damage.",
+        "If damage would be dealt to this creature, prevent that damage.",
+        "The next time this creature would deal damage this turn, prevent that damage.",
         "Spells cost {1} less to cast.",
         "This creature costs {1} less to cast.",
         "Creatures you control attack each combat if able.",
@@ -2948,6 +2951,77 @@ mod tests {
                 source
             );
         }
+    }
+
+    #[test]
+    fn singular_demonstratives_determine_mass_nouns() {
+        // Positive: `that`/`this` now determine a mass noun (`that damage`), the
+        // demonstrative object of a prevention/replacement imperative.
+        let parsed = parse("Prevent that damage.");
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected an imperative transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        assert_eq!(
+            nominal.determiner,
+            Some(Determiner::Demonstrative(Demonstrative::That))
+        );
+        assert!(matches!(
+            nominal.head,
+            NounInstance::Mass(Noun::Word(Vocab::Damage))
+        ));
+
+        // Negative (mirror direction): the plural demonstratives are still
+        // barred from a mass noun, and the singular ones from a plural count
+        // noun, so widening `this`/`that` to mass did not erase cardinality
+        // agreement. An exact sentence parse must fail for both.
+        for rejected in ["Prevent those damage.", "Prevent that cards."] {
+            assert!(
+                parse_nonterminal(rejected, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+                "{rejected:?} must not parse as a complete sentence"
+            );
+        }
+    }
+
+    #[test]
+    fn the_next_time_frame_fronts_a_subordinate_clause() {
+        let parsed =
+            parse("The next time this creature would deal damage this turn, prevent that damage.");
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+            matrix,
+            attachments,
+        })) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a fronted frame");
+        };
+        assert!(matches!(
+            matrix.as_ref(),
+            IndependentClause::Imperative(Predicate::Transitive(_))
+        ));
+        let [attachment] = attachments.as_slice() else {
+            panic!("expected exactly one fronted attachment");
+        };
+        assert_eq!(attachment.position, AttachmentPosition::BeforeMatrix);
+        assert!(attachment.comma);
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::TheNextTime,
+            SubordinateBody::Finite(condition),
+        )) = &attachment.kind
+        else {
+            panic!(
+                "expected a `the next time` subordinate frame, got {:?}",
+                attachment.kind
+            );
+        };
+        assert!(
+            matches!(condition.as_ref(), IndependentClause::Deontic(..)),
+            "the frame's event clause is a `would` modal clause"
+        );
     }
 
     #[test]

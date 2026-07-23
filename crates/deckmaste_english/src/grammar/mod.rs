@@ -610,12 +610,14 @@ pub(crate) enum DeterminerKey {
 impl DeterminerKey {
     const fn cardinality(&self) -> Cardinality {
         match self {
-            Self::Each
-            | Self::Another
-            | Self::Indefinite(_)
-            | Self::Target(None)
-            | Self::Demonstrative(DemonstrativeKey::This | DemonstrativeKey::That) => {
+            Self::Each | Self::Another | Self::Indefinite(_) | Self::Target(None) => {
                 Cardinality::SingularCount
+            }
+            // The singular demonstratives determine a singular count noun (`that
+            // creature`) or a mass one (`that damage`, `that mana`); only the
+            // plural `these`/`those` are barred from mass.
+            Self::Demonstrative(DemonstrativeKey::This | DemonstrativeKey::That) => {
+                Cardinality::SingularOrMass
             }
             Self::Demonstrative(DemonstrativeKey::These | DemonstrativeKey::Those) => {
                 Cardinality::PluralCount
@@ -1675,6 +1677,11 @@ impl EnglishGrammar<'_, '_> {
             && let Some(end) = self.words_match(tokens, start, &["for", "as", "long", "as"])
         {
             return Some((end, crate::syntax::Subordinator::ForAsLongAs));
+        }
+        if surface.eq_ignore_ascii_case("the")
+            && let Some(end) = self.words_match(tokens, start, &["the", "next", "time"])
+        {
+            return Some((end, crate::syntax::Subordinator::TheNextTime));
         }
         if surface.eq_ignore_ascii_case("as") {
             if let Some(end) = self.words_match(tokens, start, &["as", "long", "as"]) {

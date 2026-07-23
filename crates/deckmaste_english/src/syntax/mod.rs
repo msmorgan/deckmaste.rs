@@ -627,6 +627,14 @@ mod tests {
             NounCardinality::PluralCount
         );
         assert_eq!(
+            Determiner::Demonstrative(Demonstrative::That).noun_cardinality(),
+            NounCardinality::SingularOrMass
+        );
+        assert_eq!(
+            Determiner::Demonstrative(Demonstrative::This).noun_cardinality(),
+            NounCardinality::SingularOrMass
+        );
+        assert_eq!(
             Determiner::Target(Some(Quantity::UpTo(one))).noun_cardinality(),
             NounCardinality::SingularCount
         );
