@@ -6,6 +6,7 @@ use super::parse_nonterminal;
 use super::parse_symbol_sequence;
 use crate::Numeral;
 use crate::Span;
+use crate::catalog::CatalogAtom;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
 use crate::catalog::Catalogs;
@@ -39,6 +40,7 @@ use crate::syntax::ModalAbility;
 use crate::syntax::ModalFrame;
 use crate::syntax::ModalHeaderSuffix;
 use crate::syntax::Mode;
+use crate::syntax::ModeHeading;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
@@ -59,9 +61,12 @@ use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
 use crate::syntax::TriggeredAbility;
 use crate::word::ColorWord;
+use crate::word::LexicalSlot;
+use crate::word::NounUsage;
 use crate::word::Verb;
 use crate::word::VerbSlot;
 use crate::word::Vocab;
+use crate::word::Vocabulary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AbilityDiagnosticKind {
@@ -397,6 +402,8 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             )
         } else if let Some((chapters, effect)) = self.chapter_frame(header) {
             (ModalFrame::Chapter(chapters), effect)
+        } else if let Some(atom) = self.keyword_frame(header) {
+            (ModalFrame::Keyword(atom), &header[header.len()..])
         } else {
             (ModalFrame::Unframed, header)
         };
@@ -407,14 +414,98 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 frame,
                 header: self.parse_choice_header(header),
                 header_suffix,
-                modes: modes
-                    .iter()
-                    .map(|mode| Mode {
-                        body: self.parse_paragraph(mode),
-                    })
-                    .collect(),
+                modes: modes.iter().map(|mode| self.parse_mode(mode)).collect(),
             }),
         }
+    }
+
+    /// Recognizes a bare keyword-ability header (`Tiered`) that stands in for a
+    /// `Choose …` instruction. The atom must consume the whole header with no
+    /// argument; anything trailing is an ordinary header, not a keyword frame.
+    fn keyword_frame(&self, header: &[Token]) -> Option<CatalogAtom> {
+        let first = header.first()?;
+        let suffix = self.source.get(first.span.start..)?;
+        let (atom, matched_end) = self
+            .catalogs
+            .matches(suffix, CatalogSlot::AbilityItem)
+            .into_iter()
+            .filter_map(|catalog_match| {
+                let CatalogValue::Atom(atom) = catalog_match.value else {
+                    return None;
+                };
+                let byte_end = first.span.start.checked_add(catalog_match.length)?;
+                let token_end = token_boundary(header, byte_end)?;
+                Some((catalog_match.length, atom, token_end))
+            })
+            .max_by_key(|(length, _, _)| *length)
+            .map(|(_, atom, end)| (atom, end))?;
+        (matched_end == header.len()).then_some(atom)
+    }
+
+    /// Parses one bulleted mode. A [`Tiered`](ModalFrame::Keyword) mode carries
+    /// a `<name> — <cost> — ` heading before its body; every other mode is
+    /// a bare body paragraph. The heading is only peeled when the name is
+    /// followed by a spaced em dash, a cost, and a second spaced em dash,
+    /// so an ordinary mode whose body merely contains an em dash is left
+    /// intact.
+    fn parse_mode(&mut self, tokens: &[Token]) -> Mode {
+        if let Some((heading, body)) = self.mode_heading(tokens) {
+            Mode {
+                heading: Some(heading),
+                body: self.parse_paragraph(body),
+            }
+        } else {
+            Mode {
+                heading: None,
+                body: self.parse_paragraph(tokens),
+            }
+        }
+    }
+
+    /// Peels a tiered mode's `<name> — <cost> — ` heading: an opaque name run,
+    /// a spaced em dash, a mana cost, and a second spaced em dash. Returns
+    /// the heading and the remaining body tokens, or `None` when the shape
+    /// does not match.
+    fn mode_heading<'tokens>(
+        &mut self,
+        tokens: &'tokens [Token],
+    ) -> Option<(ModeHeading, &'tokens [Token])> {
+        let label_end = Self::spaced_em_dash(tokens, 0)?;
+        if label_end == 0 {
+            return None;
+        }
+        let cost_start = label_end + 1;
+        let cost_end = Self::spaced_em_dash(tokens, cost_start)?;
+        let cost_tokens = tokens.get(cost_start..cost_end)?;
+        let body = tokens.get(cost_end + 1..)?;
+        if cost_tokens.is_empty() || body.is_empty() {
+            return None;
+        }
+        let cost = self.parse_cost(cost_tokens);
+        if !matches!(&cost, Cost::Components(components) if components
+            .iter()
+            .all(|phrase| matches!(phrase, Phrase::OracleSymbol(_) | Phrase::SymbolSequence(_))))
+        {
+            return None;
+        }
+        let label_tokens = tokens.get(..label_end)?;
+        let label = FlavorHeader::new(self.tokens_text(label_tokens), label_tokens.len());
+        Some((ModeHeading { label, cost }, body))
+    }
+
+    /// Position of a spaced em dash (` — `) at or after `from`, or `None`. The
+    /// em dash must have surrounding space on both sides so an unspaced em
+    /// dash inside a name (`Cross-Slash`) never splits a heading.
+    fn spaced_em_dash(tokens: &[Token], from: usize) -> Option<usize> {
+        (from..tokens.len()).find(|&index| {
+            let token = &tokens[index];
+            token.kind == TokenKind::Punctuation(Punctuation::EmDash)
+                && index > 0
+                && tokens[index - 1].span.end < token.span.start
+                && tokens
+                    .get(index + 1)
+                    .is_some_and(|next| token.span.end < next.span.start)
+        })
     }
 
     fn ability_word_prefix<'tokens>(
@@ -498,9 +589,19 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         let event = if introducer == TriggerWord::At {
             let event = self.parse_exact(event_tokens, Nonterminal::NounPhrase)?;
             TriggerEvent::Temporal(event.noun_phrase()?.clone())
+        } else if let Some(clause) = self
+            .parse_exact(event_tokens, Nonterminal::SimpleClause)
+            .and_then(|event| event.simple_clause().cloned())
+            .and_then(finish_simple_clause)
+        {
+            TriggerEvent::Clause(clause)
         } else {
-            let event = self.parse_exact(event_tokens, Nonterminal::SimpleClause)?;
-            TriggerEvent::Clause(finish_simple_clause(event.simple_clause()?.clone())?)
+            // A coordinated event (`~ enters or attacks`, `this creature enters
+            // or the creature it haunts dies`) reduces only through the general
+            // clause nonterminal; the simple-clause frame parse above rejects
+            // the conjunction. Admit exactly the coordinated shape here so a
+            // single-clause event keeps its existing simple-clause parse.
+            TriggerEvent::Clause(self.coordinated_event(event_tokens)?)
         };
         let mut effect = tokens.get(comma + 1..)?;
         let intervening_condition = if effect
@@ -522,6 +623,48 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             None
         };
         Some((introducer, event, intervening_condition, effect))
+    }
+
+    /// Parses a coordinated trigger event (`this creature enters or dies`,
+    /// `~ enters or attacks`, `this creature enters or the creature it haunts
+    /// dies`) as a single [`IndependentClause::Coordinated`]. Restricted to the
+    /// coordinated shape so a single-clause event is never re-parsed here — it
+    /// keeps its more specific simple-clause frame parse.
+    fn coordinated_event(&mut self, tokens: &[Token]) -> Option<IndependentClause> {
+        // The event is re-parsed in isolation, so its first token sits at
+        // sentence position 0 and escapes the mid-sentence capitalization gate
+        // that would otherwise force a capitalized common word to an opaque
+        // proper noun. A capitalized first token that lowercases to a common
+        // vocabulary noun is almost always an un-normalized legendary nickname
+        // (e.g. `Ashcoat`), which that escape would miscase to its lowercase
+        // lemma. Decline the structural coordinated parse and leave the event as
+        // residue for the short-name-normalization round; catalog subtypes and
+        // opaque proper nouns, which carry their own casing, are unaffected.
+        if tokens
+            .first()
+            .is_some_and(|token| self.is_uncased_common_noun(token))
+        {
+            return None;
+        }
+        let parsed = self.parse_exact(tokens, Nonterminal::Clause)?;
+        match parsed.clause()? {
+            Clause::Independent(clause @ IndependentClause::Coordinated(_)) => Some(clause.clone()),
+            _ => None,
+        }
+    }
+
+    /// True when a token is a source-capitalized word whose lowercased form is
+    /// a common vocabulary noun — the signature of an un-normalized
+    /// legendary nickname that the isolated event re-parse would miscase.
+    fn is_uncased_common_noun(&self, token: &Token) -> bool {
+        let text = self.token_text(token);
+        text.as_bytes().first().is_some_and(u8::is_ascii_uppercase)
+            && !Vocabulary::new()
+                .matches(
+                    &text.to_ascii_lowercase(),
+                    LexicalSlot::Noun(NounUsage::Either),
+                )
+                .is_empty()
     }
 
     fn parse_cost(&mut self, tokens: &[Token]) -> Cost {
@@ -711,10 +854,12 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     }
 
     /// Peels an optional leading trigger clause (`When …,`, `Whenever …,`,
-    /// `At …,`) from a choice instruction, parsing its event with the chart so
-    /// a coordinated event (`~ enters or attacks`) the outer frame's
-    /// simple-clause parse rejects is admitted here. Returns the original
-    /// slice unchanged when there is no parseable trigger prefix.
+    /// `At …,`) from a choice instruction, parsing its event with the chart.
+    /// This fires for a reflexive second trigger (`When you do, …`) heading a
+    /// non-initial header sentence; an ability-initial trigger is absorbed by
+    /// the outer frame first. The chart admits coordinated events either way.
+    /// Returns the original slice unchanged when there is no parseable trigger
+    /// prefix.
     fn peel_choice_trigger<'tokens>(
         &mut self,
         tokens: &'tokens [Token],
@@ -2384,22 +2529,33 @@ mod tests {
     }
 
     #[test]
-    fn choice_instruction_carries_a_coordinated_trigger_prefix_via_the_chart() {
-        // The outer frame's simple-clause parse rejects the coordinated event, so
-        // the trigger rides on the choice instruction, parsed with the chart.
+    fn modal_frame_absorbs_a_coordinated_trigger_event() {
+        // A coordinated event heading a modal ability is absorbed by the outer
+        // `ModalFrame::Triggered`, exactly as a single-clause event is: the
+        // frame's trigger parse admits the conjunction through the general
+        // clause nonterminal, so the choice header stays a bare `choose one`.
         let source =
             "Whenever ~ enters or attacks, choose one —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
-        let choice = modal_header_choice(&report);
-        let prefix = choice
-            .trigger_prefix
-            .as_ref()
-            .expect("a trigger prefix is carried");
-        assert_eq!(prefix.introducer, TriggerWord::Whenever);
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a modal ability: {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        let ModalFrame::Triggered {
+            introducer, event, ..
+        } = &modal.frame
+        else {
+            panic!("expected a triggered modal frame: {:#?}", modal.frame);
+        };
+        assert_eq!(*introducer, TriggerWord::Whenever);
         assert!(matches!(
-            &prefix.event,
+            event,
             TriggerEvent::Clause(IndependentClause::Coordinated(_))
         ));
+        let choice = modal_header_choice(&report);
+        assert!(choice.trigger_prefix.is_none());
         assert!(!choice.at_random);
         assert_eq!(render(&report), source);
     }
@@ -2765,6 +2921,99 @@ mod tests {
         }
     }
 
+    #[test]
+    fn coordinated_trigger_events_parse_and_round_trip() {
+        for source in [
+            "When this creature enters or dies, draw a card.",
+            "Whenever this creature enters or attacks, draw a card.",
+            "When this creature enters or the creature it haunts dies, draw a card.",
+        ] {
+            let report = parse(source);
+            assert!(
+                report.diagnostics.is_empty(),
+                "failed on '{source}': {:?}",
+                report.diagnostics
+            );
+            let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+                panic!(
+                    "expected a triggered ability: {:#?}",
+                    report.ast.abilities[0].kind
+                );
+            };
+            assert!(matches!(
+                triggered.event,
+                TriggerEvent::Clause(IndependentClause::Coordinated(_))
+            ));
+            assert_eq!(render(&report), source);
+        }
+    }
+
+    #[test]
+    fn uncased_nickname_coordinated_event_stays_residue() {
+        // A source-capitalized common vocabulary word heading a coordinated
+        // event is an un-normalized legendary nickname the isolated re-parse
+        // would miscase; it is left as residue for the short-name round.
+        let report = parse("Whenever Ashcoat enters or dies, draw a card.");
+        assert!(
+            report
+                .ast
+                .recoveries()
+                .iter()
+                .any(|recovery| recovery.text.starts_with("Whenever Ashcoat")),
+            "expected the coordinated event to stay residue: {:#?}",
+            report.ast.recoveries()
+        );
+    }
+
+    #[test]
+    fn joint_face_self_reference_takes_plural_agreement() {
+        let plural = parse("When ~ enter, draw a card.");
+        assert!(plural.diagnostics.is_empty(), "{:?}", plural.diagnostics);
+        assert_eq!(render(&plural), "When ~ enter, draw a card.");
+
+        let singular = parse("When ~ enters, draw a card.");
+        assert!(
+            singular.diagnostics.is_empty(),
+            "{:?}",
+            singular.diagnostics
+        );
+        assert_eq!(render(&singular), "When ~ enters, draw a card.");
+    }
+
+    #[test]
+    fn tiered_keyword_header_and_mode_headings_parse() {
+        let source = "Tiered\n• Cross-Slash — {0} — Destroy target creature.\n\
+             • Blade Beam — {1} — Destroy target creature.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a modal ability: {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        let ModalFrame::Keyword(atom) = &modal.frame else {
+            panic!("expected a keyword modal frame: {:#?}", modal.frame);
+        };
+        assert_eq!(atom.spelling(), "Tiered");
+        assert!(modal.header.sentences.is_empty());
+        let [first, second] = modal.modes.as_slice() else {
+            panic!("expected two modes: {:#?}", modal.modes);
+        };
+        let heading = first
+            .heading
+            .as_ref()
+            .expect("first mode carries a heading");
+        assert_eq!(heading.label.text(), "Cross-Slash");
+        assert!(matches!(
+            &heading.cost,
+            Cost::Components(components)
+                if matches!(components.as_slice(), [Phrase::OracleSymbol(_)])
+        ));
+        assert!(second.heading.is_some());
+        assert_eq!(render(&report), source);
+    }
+
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
             .with_catalog(
@@ -2779,6 +3028,7 @@ mod tests {
                     "Haste",
                     "Crew",
                     "Morph",
+                    "Tiered",
                 ],
             )
             .with_catalog(

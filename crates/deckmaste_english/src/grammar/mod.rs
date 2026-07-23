@@ -1445,15 +1445,13 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::ThisCard => tokens
                 .get(start)
                 .filter(|token| token.kind == TokenKind::SelfReference)
-                .map(|_| this_card_match(start + 1, ThisCardForm::AbbreviatedName))
-                .into_iter()
-                .collect(),
+                .map(|_| this_card_matches(start + 1, ThisCardForm::AbbreviatedName))
+                .unwrap_or_default(),
             EnglishLexicalSlot::FullThisCard => tokens
                 .get(start)
                 .filter(|token| token.kind == TokenKind::FullSelfReference)
-                .map(|_| this_card_match(start + 1, ThisCardForm::FullName))
-                .into_iter()
-                .collect(),
+                .map(|_| this_card_matches(start + 1, ThisCardForm::FullName))
+                .unwrap_or_default(),
             EnglishLexicalSlot::PossessiveThisCard => {
                 let form = match tokens.get(start).map(|token| token.kind) {
                     Some(TokenKind::SelfReference) => Some(ThisCardForm::AbbreviatedName),
@@ -2744,20 +2742,29 @@ fn pronoun_match(
     }
 }
 
-fn this_card_match(end: usize, form: ThisCardForm) -> LexicalMatch<Features, MeaningKey> {
-    LexicalMatch {
-        end,
-        features: Features::NounPhrase {
-            agreement: Some(Agreement {
-                person: Person::Third,
-                number: Number::Singular,
-            }),
-            pronoun_case: None,
-            adjunct: None,
-        },
-        meaning: MeaningKey::ThisCard(form),
-        local_cost: ParseCost::default(),
-    }
+/// A self-reference resolves to one card, but a joint `&` face (`Casey & Raph`)
+/// names two creatures, and its text agrees plurally (`When ~ enter, …`). The
+/// self-reference sigil carries no number, so both third-person agreements are
+/// offered; the verb's own inflection selects one (`~ enters` singular, `~
+/// enter` plural). The lowered [`ThisCardForm`] is identical either way — the
+/// number lives on the verb — so an agreement-neutral verb packs to one AST.
+fn this_card_matches(end: usize, form: ThisCardForm) -> Vec<LexicalMatch<Features, MeaningKey>> {
+    [Number::Singular, Number::Plural]
+        .into_iter()
+        .map(|number| LexicalMatch {
+            end,
+            features: Features::NounPhrase {
+                agreement: Some(Agreement {
+                    person: Person::Third,
+                    number,
+                }),
+                pronoun_case: None,
+                adjunct: None,
+            },
+            meaning: MeaningKey::ThisCard(form),
+            local_cost: ParseCost::default(),
+        })
+        .collect()
 }
 
 fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features {

@@ -186,6 +186,12 @@ pub enum ModalFrame {
     /// structural (mirroring [`ChapterAbility`]) and render as an exact inverse
     /// before the choice header.
     Chapter(Vec<super::phrase::NumberLiteral>),
+    /// A keyword-ability header standing in for a `Choose …` instruction, e.g.
+    /// Final Fantasy's `Tiered`, whose bulleted modes each carry a name and an
+    /// additional cost ([`Mode::heading`]). The atom renders verbatim; the
+    /// header paragraph is normally empty but carries a shared instruction on
+    /// the members that print one before the modes.
+    Keyword(CatalogAtom),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -203,7 +209,21 @@ pub enum ModalPreambleSeparator {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mode {
+    /// A tiered mode's `<name> — <cost> — ` heading (e.g. `Cross-Slash — {0}
+    /// —`). Absent on ordinary `Choose …` modes, whose body follows the
+    /// bullet directly.
+    pub heading: Option<ModeHeading>,
     pub body: Paragraph,
+}
+
+/// The name and additional cost heading a [`Tiered`](ModalFrame::Keyword) mode.
+/// The label is a verbatim opaque run (licensed lexical opacity); the cost is
+/// the structural additional cost paid to choose the mode. Both always
+/// co-occur, so a single option carries the whole heading.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModeHeading {
+    pub label: FlavorHeader,
+    pub cost: Cost,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -308,11 +328,12 @@ pub enum SentenceBody {
 ///   more`, `up to N`, `up to that many`, …) is the [`Predicate`] object of the
 ///   `choose` imperative, reusing the existing quantity grammar and renderer;
 /// - an **`at random`** adverbial is a boolean flag appended after the object;
-/// - an optional **trigger prefix** (`When you do, …`, `Whenever ~ enters or
-///   attacks, …`) is an ordinary trigger clause parsed by the chart. It is
-///   present only when the outer [`ModalFrame`] did not already absorb the
-///   ability's trigger (a coordinated event the frame's simple-clause parse
-///   rejects, or a reflexive second trigger such as `When you do, …`).
+/// - an optional **trigger prefix** (`When you do, …`) is an ordinary trigger
+///   clause parsed by the chart. It is present only when the outer
+///   [`ModalFrame`] did not already absorb the ability's trigger — a reflexive
+///   second trigger such as `When you do, …` that heads a non-initial header
+///   sentence. An ability-initial trigger, coordinated (`~ enters or attacks`)
+///   or not, is instead absorbed by [`ModalFrame::Triggered`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChoiceInstruction {
     /// Boxed so the choice instruction stays no larger than a bare imperative

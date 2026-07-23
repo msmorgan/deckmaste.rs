@@ -323,13 +323,22 @@ impl<'identity> Renderer<'identity> {
                     .join(", ");
                 format!("{chapters} \u{2014} {header}")
             }
+            ModalFrame::Keyword(atom) => format!("{}{header}", atom.spelling()),
         };
         let modes = modal
             .modes
             .iter()
             .map(|mode| {
-                self.paragraph(&mode.body, true)
-                    .map(|body| format!("• {body}"))
+                let body = self.paragraph(&mode.body, true)?;
+                let rendered = match &mode.heading {
+                    Some(heading) => format!(
+                        "{} \u{2014} {} \u{2014} {body}",
+                        heading.label.text(),
+                        self.cost(&heading.cost)?
+                    ),
+                    None => body,
+                };
+                Ok(format!("• {rendered}"))
             })
             .collect::<Result<Vec<_>, _>>()?;
         if modes.is_empty() {

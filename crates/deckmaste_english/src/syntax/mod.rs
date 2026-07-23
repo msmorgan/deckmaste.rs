@@ -86,7 +86,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
             AbilityKind::Loyalty(loyalty) => self.paragraph(&loyalty.effect, context),
             AbilityKind::Modal(modal) => {
                 match &modal.frame {
-                    ModalFrame::Unframed | ModalFrame::Loyalty(_) | ModalFrame::Chapter(_) => {}
+                    ModalFrame::Unframed
+                    | ModalFrame::Loyalty(_)
+                    | ModalFrame::Chapter(_)
+                    | ModalFrame::Keyword(_) => {}
                     ModalFrame::Preamble { body, .. } => self.paragraph(body, context),
                     ModalFrame::Activated(cost) => {
                         self.cost(cost, Some(RecoveryRole::ActivationCost));
@@ -104,6 +107,14 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 }
                 self.paragraph(&modal.header, Some(RecoveryRole::ModalHeader));
                 for mode in &modal.modes {
+                    if let Some(heading) = &mode.heading {
+                        self.lexical_opacity.push(LexicalOpacityRef {
+                            kind: LexicalOpacityKind::FlavorHeader,
+                            text: heading.label.text(),
+                            source_tokens: heading.label.source_tokens(),
+                        });
+                        self.cost(&heading.cost, Some(RecoveryRole::ActivationCost));
+                    }
                     self.paragraph(&mode.body, context);
                 }
             }
