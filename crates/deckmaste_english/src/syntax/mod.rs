@@ -86,7 +86,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
             AbilityKind::Loyalty(loyalty) => self.paragraph(&loyalty.effect, context),
             AbilityKind::Modal(modal) => {
                 match &modal.frame {
-                    ModalFrame::Unframed | ModalFrame::Loyalty(_) => {}
+                    ModalFrame::Unframed | ModalFrame::Loyalty(_) | ModalFrame::Chapter(_) => {}
                     ModalFrame::Preamble { body, .. } => self.paragraph(body, context),
                     ModalFrame::Activated(cost) => {
                         self.cost(cost, Some(RecoveryRole::ActivationCost));
@@ -141,11 +141,26 @@ impl<'syntax> RecoveryWalker<'syntax> {
         for sentence in &paragraph.sentences {
             match &sentence.body {
                 SentenceBody::Independent(clause) => self.independent_clause(clause, context),
+                SentenceBody::Choice(choice) => self.choice_instruction(choice, context),
                 SentenceBody::Recovered(unknown) => {
                     self.push(unknown, RecoveryRole::Clause, context);
                 }
             }
         }
+    }
+
+    fn choice_instruction(
+        &mut self,
+        choice: &'syntax ChoiceInstruction,
+        context: Option<RecoveryRole>,
+    ) {
+        if let Some(trigger) = &choice.trigger_prefix {
+            self.trigger_event(&trigger.event, context);
+            if let Some(condition) = &trigger.intervening_condition {
+                self.dependent_clause(condition, context);
+            }
+        }
+        self.predicate(&choice.imperative, context);
     }
 
     fn clause(&mut self, clause: &'syntax Clause, context: Option<RecoveryRole>) {

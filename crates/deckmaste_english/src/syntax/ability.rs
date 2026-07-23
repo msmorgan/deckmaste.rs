@@ -1,5 +1,6 @@
 use super::clause::DependentClause;
 use super::clause::IndependentClause;
+use super::clause::Predicate;
 use super::phrase::NounPhrase;
 use super::phrase::Phrase;
 use super::phrase::RecoveredText;
@@ -189,6 +190,11 @@ pub enum ModalFrame {
         intervening_condition: Option<DependentClause>,
     },
     Loyalty(LoyaltyCost),
+    /// A saga chapter heading whose effect is a modal choice, e.g. Life of
+    /// Toshiro Umezawa's `I, II — Choose one —`. The chapter numbers are
+    /// structural (mirroring [`ChapterAbility`]) and render as an exact inverse
+    /// before the choice header.
+    Chapter(Vec<super::phrase::NumberLiteral>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -287,7 +293,45 @@ pub struct Sentence {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SentenceBody {
     Independent(IndependentClause),
+    /// A modal ability's `Choose one` header instruction. Structurally distinct
+    /// from a bare imperative so the choice quantity, an `at random` adverbial,
+    /// and an optional leading trigger clause are all carried and rendered as
+    /// an exact inverse. Only produced inside a modal header.
+    Choice(ChoiceInstruction),
     Recovered(RecoveredText),
+}
+
+/// The `Choose one` instruction that heads a modal ability. Every surface
+/// distinction the corpus draws is carried structurally so the renderer is an
+/// exact inverse, never a guess from spelling:
+///
+/// - the **choice quantity** (`one`, `two`, `three`, `one or both`, `one or
+///   more`, `up to N`, `up to that many`, …) is the [`Predicate`] object of the
+///   `choose` imperative, reusing the existing quantity grammar and renderer;
+/// - an **`at random`** adverbial is a boolean flag appended after the object;
+/// - an optional **trigger prefix** (`When you do, …`, `Whenever ~ enters or
+///   attacks, …`) is an ordinary trigger clause parsed by the chart. It is
+///   present only when the outer [`ModalFrame`] did not already absorb the
+///   ability's trigger (a coordinated event the frame's simple-clause parse
+///   rejects, or a reflexive second trigger such as `When you do, …`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChoiceInstruction {
+    /// Boxed so the choice instruction stays no larger than a bare imperative
+    /// header sentence: the trigger clause carries a full event clause, and the
+    /// unboxed grammar-lowering enum that wraps [`Sentence`] must not grow.
+    pub trigger_prefix: Option<Box<ChoiceTrigger>>,
+    pub imperative: Predicate,
+    pub at_random: bool,
+}
+
+/// A modal choice instruction's leading trigger clause. Mirrors the fields of
+/// [`ModalFrame::Triggered`] and renders through the same trigger renderer, so
+/// `When you do,` / `Whenever ~ enters or attacks,` reproduce exactly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChoiceTrigger {
+    pub introducer: TriggerWord,
+    pub event: TriggerEvent,
+    pub intervening_condition: Option<DependentClause>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

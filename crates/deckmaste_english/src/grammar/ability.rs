@@ -19,11 +19,14 @@ use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::ActivatedAbility;
 use crate::syntax::ChapterAbility;
+use crate::syntax::ChoiceInstruction;
+use crate::syntax::ChoiceTrigger;
 use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
 use crate::syntax::Cost;
 use crate::syntax::DependentClause;
 use crate::syntax::FlavorHeader;
+use crate::syntax::IndependentClause;
 use crate::syntax::KeywordAbility;
 use crate::syntax::KeywordAbilityList;
 use crate::syntax::KeywordArgumentSeparator;
@@ -41,6 +44,7 @@ use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
 use crate::syntax::Paragraph;
 use crate::syntax::Phrase;
+use crate::syntax::Predicate;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::QuotedAbility;
@@ -57,6 +61,8 @@ use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
 use crate::syntax::TriggeredAbility;
 use crate::word::ColorWord;
+use crate::word::Verb;
+use crate::word::Vocab;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AbilityDiagnosticKind {
@@ -383,6 +389,8 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 ModalFrame::Activated(self.parse_cost(&header[..colon])),
                 &header[colon + 1..],
             )
+        } else if let Some((chapters, effect)) = self.chapter_frame(header) {
+            (ModalFrame::Chapter(chapters), effect)
         } else {
             (ModalFrame::Unframed, header)
         };
@@ -391,7 +399,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             ability_word,
             kind: AbilityKind::Modal(ModalAbility {
                 frame,
-                header: self.parse_paragraph(header),
+                header: self.parse_choice_header(header),
                 header_suffix,
                 modes: modes
                     .iter()
@@ -637,6 +645,141 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             body: SentenceBody::Recovered(RecoveredText::new(self.tokens_text(body), tokens.len())),
             ending,
         }
+    }
+
+    /// Parses a modal ability's header like [`Self::parse_paragraph`], but each
+    /// sentence is first offered to the choice-instruction production. This is
+    /// scoped to modal headers so the `Choose one` instruction and its optional
+    /// trigger prefix are recognized structurally there without letting the
+    /// trigger-prefix grammar over-claim ordinary `When …, draw a card.`
+    /// abilities elsewhere.
+    fn parse_choice_header(&mut self, tokens: &[Token]) -> Paragraph {
+        let (flavor_header, body) = self.peel_flavor_header(tokens);
+        Paragraph {
+            flavor_header,
+            sentences: split_sentences(self.source, body)
+                .into_iter()
+                .filter(|sentence| !sentence.is_empty())
+                .map(|sentence| self.parse_choice_sentence(sentence))
+                .collect(),
+        }
+    }
+
+    /// Parses one modal-header sentence, trying the choice instruction first
+    /// and falling back to the ordinary sentence parse (so follow-up
+    /// sentences such as `Each mode must target a different player.` are
+    /// unaffected).
+    fn parse_choice_sentence(&mut self, tokens: &[Token]) -> Sentence {
+        let initial_uppercase = self.tokens_start_uppercase(tokens);
+        let (body, ending) = peel_sentence_ending(tokens);
+        if let Some(choice) = self.parse_choice_instruction(body) {
+            return Sentence {
+                initial_uppercase,
+                body: SentenceBody::Choice(choice),
+                ending,
+            };
+        }
+        self.parse_sentence(tokens)
+    }
+
+    /// Parses a `[When …,] choose <quantity> [at random]` choice instruction.
+    /// Returns `None` (so the caller recovers the sentence unchanged) unless
+    /// the core is a `choose` imperative. Every surface distinction is
+    /// carried structurally: the trigger prefix as a chart-parsed trigger
+    /// clause, the quantity as the imperative's object, and `at random` as
+    /// a flag.
+    fn parse_choice_instruction(&mut self, tokens: &[Token]) -> Option<ChoiceInstruction> {
+        let (trigger_prefix, rest) = self.peel_choice_trigger(tokens);
+        let (core, at_random) = self.peel_at_random(rest);
+        let imperative = self.parse_choice_core(core)?;
+        Some(ChoiceInstruction {
+            trigger_prefix,
+            imperative,
+            at_random,
+        })
+    }
+
+    /// Peels an optional leading trigger clause (`When …,`, `Whenever …,`,
+    /// `At …,`) from a choice instruction, parsing its event with the chart so
+    /// a coordinated event (`~ enters or attacks`) the outer frame's
+    /// simple-clause parse rejects is admitted here. Returns the original
+    /// slice unchanged when there is no parseable trigger prefix.
+    fn peel_choice_trigger<'tokens>(
+        &mut self,
+        tokens: &'tokens [Token],
+    ) -> (Option<Box<ChoiceTrigger>>, &'tokens [Token]) {
+        let Some(first) = tokens.first() else {
+            return (None, tokens);
+        };
+        let introducer = match self.token_text(first) {
+            text if text.eq_ignore_ascii_case("when") => TriggerWord::When,
+            text if text.eq_ignore_ascii_case("whenever") => TriggerWord::Whenever,
+            text if text.eq_ignore_ascii_case("at") => TriggerWord::At,
+            _ => return (None, tokens),
+        };
+        let Some(comma) = find_top_level_punctuation(tokens, Punctuation::Comma) else {
+            return (None, tokens);
+        };
+        let Some(event_tokens) = tokens.get(1..comma) else {
+            return (None, tokens);
+        };
+        let event = if introducer == TriggerWord::At {
+            let Some(parsed) = self.parse_exact(event_tokens, Nonterminal::NounPhrase) else {
+                return (None, tokens);
+            };
+            let Some(phrase) = parsed.noun_phrase() else {
+                return (None, tokens);
+            };
+            TriggerEvent::Temporal(phrase.clone())
+        } else {
+            let Some(parsed) = self.parse_exact(event_tokens, Nonterminal::Clause) else {
+                return (None, tokens);
+            };
+            let Some(Clause::Independent(clause)) = parsed.clause() else {
+                return (None, tokens);
+            };
+            TriggerEvent::Clause(clause.clone())
+        };
+        let Some(rest) = tokens.get(comma + 1..) else {
+            return (None, tokens);
+        };
+        (
+            Some(Box::new(ChoiceTrigger {
+                introducer,
+                event,
+                intervening_condition: None,
+            })),
+            rest,
+        )
+    }
+
+    /// Peels a trailing `at random` adverbial from a choice instruction's core.
+    fn peel_at_random<'tokens>(&self, tokens: &'tokens [Token]) -> (&'tokens [Token], bool) {
+        let [.., at, random] = tokens else {
+            return (tokens, false);
+        };
+        if at.kind == TokenKind::Word
+            && random.kind == TokenKind::Word
+            && self.token_text(at).eq_ignore_ascii_case("at")
+            && self.token_text(random).eq_ignore_ascii_case("random")
+        {
+            (&tokens[..tokens.len() - 2], true)
+        } else {
+            (tokens, false)
+        }
+    }
+
+    /// Parses a choice instruction's core, requiring a `choose` imperative. Any
+    /// other imperative (a follow-up `Create …`) or clause returns `None`, so
+    /// the trigger-prefix grammar cannot over-claim a non-choice sentence.
+    fn parse_choice_core(&mut self, tokens: &[Token]) -> Option<Predicate> {
+        let parsed = self.parse_exact(tokens, Nonterminal::Sentence)?;
+        let sentence = parsed.sentence()?;
+        let SentenceBody::Independent(IndependentClause::Imperative(predicate)) = &sentence.body
+        else {
+            return None;
+        };
+        predicate_is_choose(predicate).then(|| predicate.clone())
     }
 
     fn parse_quoted_sentence(&mut self, tokens: &[Token]) -> Option<Sentence> {
@@ -967,6 +1110,18 @@ fn token_boundary(tokens: &[Token], byte_end: usize) -> Option<usize> {
         .map(|index| index + 1)
 }
 
+/// Whether an imperative predicate's verb is `choose`, the head of a modal
+/// choice instruction. Identity is checked against [`Vocab::Choose`], never a
+/// surface spelling.
+fn predicate_is_choose(predicate: &Predicate) -> bool {
+    let head = match predicate {
+        Predicate::Transitive(predicate) => &predicate.head,
+        Predicate::Intransitive(predicate) => &predicate.head,
+        _ => return false,
+    };
+    matches!(head.verb.verb, Verb::Word(Vocab::Choose))
+}
+
 fn tokens_span(tokens: &[Token]) -> Span {
     match (tokens.first(), tokens.last()) {
         (Some(first), Some(last)) => Span::new(first.span.start, last.span.end),
@@ -1207,8 +1362,10 @@ mod tests {
         assert_eq!(modal.modes.len(), 2);
         assert!(matches!(
             &modal.header.sentences[0].body,
-            SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-                TransitivePredicate {
+            SentenceBody::Choice(ChoiceInstruction {
+                trigger_prefix: None,
+                at_random: false,
+                imperative: Predicate::Transitive(TransitivePredicate {
                     object: PredicateObject::NounPhrase(NounPhrase::Coordinated(
                         CoordinatedNounPhrase {
                             first,
@@ -1216,8 +1373,8 @@ mod tests {
                         }
                     )),
                     ..
-                }
-            ))) if matches!(
+                }),
+            }) if matches!(
                 first.as_ref(),
                 NounPhrase::Quantity(Quantity::Exact(number)) if number.value == 1
             ) && matches!(
@@ -1930,11 +2087,163 @@ mod tests {
         assert!(
             matches!(
                 &modal.header.sentences[0].body,
-                SentenceBody::Independent(_)
+                SentenceBody::Choice(ChoiceInstruction {
+                    trigger_prefix: None,
+                    at_random: false,
+                    ..
+                })
             ),
-            "the choice instruction parses, not opaque: {:#?}",
+            "the choice instruction parses structurally, not opaque: {:#?}",
             modal.header.sentences[0].body
         );
+    }
+
+    fn modal_header_choice(report: &ParseReport) -> &ChoiceInstruction {
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a modal ability: {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        let choice = modal
+            .header
+            .sentences
+            .iter()
+            .find_map(|sentence| match &sentence.body {
+                SentenceBody::Choice(choice) => Some(choice),
+                _ => None,
+            });
+        choice.unwrap_or_else(|| panic!("expected a choice instruction in the header: {modal:#?}"))
+    }
+
+    #[test]
+    fn choice_instruction_carries_an_at_random_adverbial_structurally() {
+        let source = "Choose one at random —\n• Draw a card.\n• Draw two cards.";
+        let report = parse(source);
+        let choice = modal_header_choice(&report);
+        assert!(choice.trigger_prefix.is_none());
+        assert!(
+            choice.at_random,
+            "the at-random adverbial is carried: {choice:#?}"
+        );
+        // The quantity stays the structural imperative object, never a spelling.
+        assert!(matches!(
+            &choice.imperative,
+            Predicate::Transitive(TransitivePredicate {
+                object: PredicateObject::NounPhrase(NounPhrase::Quantity(Quantity::Exact(number))),
+                ..
+            }) if number.value == 1
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn choice_instruction_carries_a_coordinated_trigger_prefix_via_the_chart() {
+        // The outer frame's simple-clause parse rejects the coordinated event, so
+        // the trigger rides on the choice instruction, parsed with the chart.
+        let source =
+            "Whenever ~ enters or attacks, choose one —\n• Draw a card.\n• Draw two cards.";
+        let report = parse(source);
+        let choice = modal_header_choice(&report);
+        let prefix = choice
+            .trigger_prefix
+            .as_ref()
+            .expect("a trigger prefix is carried");
+        assert_eq!(prefix.introducer, TriggerWord::Whenever);
+        assert!(matches!(
+            &prefix.event,
+            TriggerEvent::Clause(IndependentClause::Coordinated(_))
+        ));
+        assert!(!choice.at_random);
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn choice_instruction_carries_a_reflexive_second_trigger_prefix() {
+        // A `When you do, …` reflexive trigger is a non-initial header sentence,
+        // so it cannot be an outer frame: it is the choice's own trigger prefix.
+        let source = "Draw a card. When you do, choose one —\n• Draw a card.\n• Draw two cards.";
+        let report = parse(source);
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!("expected a modal ability");
+        };
+        assert!(matches!(
+            &modal.header.sentences[0].body,
+            SentenceBody::Independent(IndependentClause::Imperative(_))
+        ));
+        let choice = modal_header_choice(&report);
+        let prefix = choice
+            .trigger_prefix
+            .as_ref()
+            .expect("a reflexive trigger prefix is carried");
+        assert_eq!(prefix.introducer, TriggerWord::When);
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn choice_instruction_carries_an_or_both_quantity() {
+        let source = "When ~ enters, choose one or both —\n• Draw a card.\n• Draw two cards.";
+        let report = parse(source);
+        // The trigger is a simple event, so the outer frame absorbs it and the
+        // choice header is the bare `choose one or both`.
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!("expected a modal ability");
+        };
+        assert!(matches!(modal.frame, ModalFrame::Triggered { .. }));
+        let choice = modal_header_choice(&report);
+        assert!(choice.trigger_prefix.is_none());
+        assert!(matches!(
+            &choice.imperative,
+            Predicate::Transitive(TransitivePredicate {
+                object: PredicateObject::NounPhrase(NounPhrase::Coordinated(_)),
+                ..
+            })
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn combined_chapter_choice_header_round_trips() {
+        // Life of Toshiro Umezawa's shape: a saga chapter heading a choice, plus
+        // an at-random adverbial (Summon: Magus Sisters). Both distinctions are
+        // structural and render as an exact inverse.
+        let source = "I, II — Choose one at random —\n• Draw a card.\n• Draw two cards.";
+        let report = parse(source);
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!("expected a modal ability");
+        };
+        let ModalFrame::Chapter(chapters) = &modal.frame else {
+            panic!("expected a chapter frame: {:#?}", modal.frame);
+        };
+        assert_eq!(chapters.len(), 2);
+        let choice = modal_header_choice(&report);
+        assert!(choice.at_random);
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn plain_choose_one_header_still_round_trips_identically() {
+        // Regression armor: the motivating plain modal is unchanged on the wire.
+        let source = "Choose one —\n• Draw a card.\n• Draw two cards.";
+        let report = parse(source);
+        let choice = modal_header_choice(&report);
+        assert!(choice.trigger_prefix.is_none());
+        assert!(!choice.at_random);
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn a_plain_when_trigger_ability_is_not_over_claimed_as_a_choice() {
+        // The trigger-prefix grammar must not hijack an ordinary triggered
+        // ability whose effect is not a choice.
+        let source = "When ~ enters, draw a card.";
+        let report = parse(source);
+        assert!(
+            matches!(&report.ast.abilities[0].kind, AbilityKind::Triggered(_)),
+            "a non-choice When-clause stays a triggered ability: {:#?}",
+            report.ast.abilities[0].kind
+        );
+        assert_eq!(render(&report), source);
     }
 
     fn arabic(value: i32) -> NumberLiteral {

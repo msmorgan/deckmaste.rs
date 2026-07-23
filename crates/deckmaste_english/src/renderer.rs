@@ -7,6 +7,7 @@ use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::AttachmentPosition;
 use crate::syntax::ChapterAbility;
+use crate::syntax::ChoiceInstruction;
 use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
@@ -284,6 +285,14 @@ impl<'identity> Renderer<'identity> {
             ModalFrame::Loyalty(cost) => {
                 format!("[{}]: {header}", render_loyalty_cost(*cost))
             }
+            ModalFrame::Chapter(chapters) => {
+                let chapters = chapters
+                    .iter()
+                    .map(|number| number.numeral.format(number.value))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{chapters} \u{2014} {header}")
+            }
         };
         let modes = modal
             .modes
@@ -314,6 +323,23 @@ impl<'identity> Renderer<'identity> {
         if let Some(condition) = intervening_condition {
             rendered.push_str(", ");
             rendered.push_str(&self.dependent_clause(condition)?);
+        }
+        Ok(rendered)
+    }
+
+    fn choice_instruction(&self, choice: &ChoiceInstruction) -> Result<String, RenderError> {
+        let mut rendered = String::new();
+        if let Some(trigger) = &choice.trigger_prefix {
+            rendered.push_str(&self.trigger_frame(
+                trigger.introducer,
+                &trigger.event,
+                trigger.intervening_condition.as_ref(),
+            )?);
+            rendered.push_str(", ");
+        }
+        rendered.push_str(&self.predicate(&choice.imperative)?);
+        if choice.at_random {
+            rendered.push_str(" at random");
         }
         Ok(rendered)
     }
@@ -403,6 +429,7 @@ impl<'identity> Renderer<'identity> {
         let capitalize = capitalize && sentence.initial_uppercase;
         let (body, capitalize) = match &sentence.body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
+            SentenceBody::Choice(choice) => (self.choice_instruction(choice)?, capitalize),
             SentenceBody::Recovered(recovery) => {
                 (self.expand_self_references(recovery.spelling()), false)
             }
