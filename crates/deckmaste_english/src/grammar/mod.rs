@@ -156,6 +156,7 @@ struct ContractedSubjectAuxiliary {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CopularRemainder {
+    distributive_each: bool,
     precomplement_adverbs: Vec<Vocab>,
     complement: CopularComplement,
 }
@@ -890,6 +891,7 @@ enum RuleTag {
     CopularRemainderAdjective,
     CopularRemainderPrepositional,
     CopularRemainderAdverb,
+    CopularRemainderDistributiveEach,
     ClauseCopular,
     ClauseContractedCopular,
     RelativeObject,
@@ -3003,6 +3005,7 @@ fn reduce(
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
         | RuleTag::RelativeObject
@@ -4155,6 +4158,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
         | RuleTag::RelativeObject

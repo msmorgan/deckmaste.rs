@@ -105,6 +105,14 @@ pub struct PassivePredicate {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CopularPredicate {
     pub copula: Copula,
+    /// The distributive floating quantifier `each` sitting between the copula
+    /// and the complement (`~'s power and toughness are *each* equal to …`).
+    /// It quantifies the coordinated subject but surfaces post-copularly, so it
+    /// is a different position from the
+    /// [`PartitiveHead::Each`](crate::syntax::PartitiveHead) of `each of
+    /// X`; carried here as a flag and replayed by the renderer in its fixed
+    /// slot rather than synthesized from the subject's shape.
+    pub distributive_each: bool,
     pub precomplement_adverbs: Vec<Vocab>,
     pub complement: CopularComplement,
     pub adjuncts: Vec<PredicateAdjunct>,

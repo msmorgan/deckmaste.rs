@@ -598,10 +598,11 @@ impl<'identity> Renderer<'identity> {
             Predicate::Transitive(predicate) => self.transitive_predicate(predicate),
             Predicate::Intransitive(predicate) => self.intransitive_predicate(predicate),
             Predicate::Copular(predicate) => {
-                let mut parts = vec![
-                    self.render_auxiliary(predicate.copula.auxiliary)?,
-                    self.copular_complement(&predicate.complement)?,
-                ];
+                let mut parts = vec![self.render_auxiliary(predicate.copula.auxiliary)?];
+                if predicate.distributive_each {
+                    parts.push("each".to_owned());
+                }
+                parts.push(self.copular_complement(&predicate.complement)?);
                 for adjunct in &predicate.adjuncts {
                     parts.push(self.predicate_adjunct(adjunct)?);
                 }
@@ -810,6 +811,9 @@ impl<'identity> Renderer<'identity> {
             parts.push(subject);
             parts.push(self.render_auxiliary(predicate.copula.auxiliary)?);
         }
+        if predicate.distributive_each {
+            parts.push("each".to_owned());
+        }
         parts.extend(
             predicate
                 .precomplement_adverbs
@@ -939,7 +943,11 @@ impl<'identity> Renderer<'identity> {
             {
                 let auxiliary = self.render_auxiliary(predicate.copula.auxiliary)?;
                 marker.push_str(contraction_suffix(&auxiliary)?);
-                let mut parts = vec![self.copular_complement(&predicate.complement)?];
+                let mut parts = Vec::new();
+                if predicate.distributive_each {
+                    parts.push("each".to_owned());
+                }
+                parts.push(self.copular_complement(&predicate.complement)?);
                 for adjunct in &predicate.adjuncts {
                     parts.push(self.predicate_adjunct(adjunct)?);
                 }
@@ -2572,6 +2580,7 @@ mod tests {
                     },
                     contracted_with_subject: false,
                 },
+                distributive_each: false,
                 precomplement_adverbs: vec![],
                 complement,
                 adjuncts: vec![],

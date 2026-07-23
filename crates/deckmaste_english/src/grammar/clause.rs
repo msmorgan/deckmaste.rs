@@ -276,6 +276,21 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::CopularRemainder,
         [l(L::Adverb), n(N::CopularRemainder)],
     );
+    // The distributive floating `each` of a characteristic-defining copular
+    // (`~'s power and toughness are each equal to <measure>`). Requiring the
+    // `each` token keeps this frame off the non-`each` singular/plural forms,
+    // which stay on the intransitive `be` + adjective + prepositional-adjunct
+    // analysis. The adjective and its `to`-standard are taken apart here and
+    // rejoined as an `equal to X` adjective phrase (prepositional complement).
+    builder.add(
+        RuleTag::CopularRemainderDistributiveEach,
+        N::CopularRemainder,
+        [
+            l(L::EachDeterminer),
+            n(N::AdjectivePhrase),
+            n(N::PrepositionalPhrase),
+        ],
+    );
     builder.add(
         RuleTag::ClauseCopular,
         N::Clause,
@@ -475,6 +490,7 @@ pub(super) fn reduce_clause(
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
         | RuleTag::RelativeObject
@@ -1173,7 +1189,8 @@ fn reduce_simple_clause(
         RuleTag::CopularRemainderNoun
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
-        | RuleTag::CopularRemainderAdverb => Some(Features::None),
+        | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderDistributiveEach => Some(Features::None),
         tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
             reduce_copular_clause(tag, children)
         }
@@ -1679,6 +1696,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
         | RuleTag::RelativeObject
@@ -1967,7 +1985,8 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
         tag @ (RuleTag::CopularRemainderNoun
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
-        | RuleTag::CopularRemainderAdverb) => lower_copular_remainder(tag, children),
+        | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderDistributiveEach) => lower_copular_remainder(tag, children),
         tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
             lower_copular_clause(tag, children)
         }
@@ -2116,6 +2135,7 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                             auxiliary: subject_auxiliary.auxiliary,
                             contracted_with_subject: true,
                         },
+                        distributive_each: false,
                         precomplement_adverbs: vec![],
                         complement,
                         adjuncts: vec![],
@@ -2134,6 +2154,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             CopularRemainder {
+                distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::NounPhrase(complement),
             }
@@ -2143,6 +2164,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             CopularRemainder {
+                distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Adjective(complement),
             }
@@ -2152,6 +2174,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             CopularRemainder {
+                distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Prepositional(complement),
             }
@@ -2165,6 +2188,27 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             };
             remainder.precomplement_adverbs.insert(0, adverb);
             remainder
+        }
+        RuleTag::CopularRemainderDistributiveEach => {
+            // `each` (index 0) is the floating quantifier — carried as a flag,
+            // its lexical child discarded. The adjective (`equal`) takes the
+            // trailing prepositional phrase (`to X`) as its own complement so
+            // the standard stays bound to the adjective rather than floating as
+            // a clause adjunct.
+            let Lowered::AdjectivePhrase(mut adjective) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::PrepositionalPhrase(standard) = take(children, 2)? else {
+                return None;
+            };
+            adjective
+                .complements
+                .push(crate::syntax::AdjectiveComplement::Prepositional(standard));
+            CopularRemainder {
+                distributive_each: true,
+                precomplement_adverbs: Vec::new(),
+                complement: CopularComplement::Adjective(adjective),
+            }
         }
         _ => return None,
     };
@@ -2212,6 +2256,7 @@ fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowere
             subject,
             crate::syntax::CopularPredicate {
                 copula,
+                distributive_each: remainder.distributive_each,
                 precomplement_adverbs: remainder.precomplement_adverbs,
                 complement: remainder.complement,
                 adjuncts: Vec::new(),
@@ -4298,6 +4343,89 @@ mod tests {
         // predicate and renders the bare modal.
         let elided = "Exile each creature that can't.";
         assert_eq!(render_sentence(parse(elided).sentence().unwrap()), elided);
+    }
+
+    #[test]
+    fn distributive_each_copular_carries_each_and_binds_the_standard() {
+        // The characteristic-defining copular: a coordinated `power and
+        // toughness` subject, the distributive `each` floating between the
+        // copula and the `equal to <measure>` complement. The `each` is carried
+        // as a flag on the copular predicate (never re-derived from the subject
+        // shape) and the `to`-standard binds to `equal` as a prepositional
+        // adjective complement rather than escaping as a clause adjunct.
+        for measure in [
+            "the number of lands you control",
+            "the number of creatures you control",
+        ] {
+            let source = format!("~'s power and toughness are each equal to {measure}");
+            let parsed = parse(&source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let SentenceBody::Independent(IndependentClause::Copular(_, predicate)) =
+                &parsed.sentence().expect("sentence root").body
+            else {
+                panic!(
+                    "expected a copular clause for {source:?}: {:#?}",
+                    parsed.sentence()
+                );
+            };
+            assert!(
+                predicate.distributive_each,
+                "each must be carried: {predicate:#?}"
+            );
+            let crate::syntax::CopularComplement::Adjective(adjective) = &predicate.complement
+            else {
+                panic!("expected an adjective complement: {predicate:#?}");
+            };
+            assert_eq!(adjective.head, Adjective::Word(Vocab::Equal));
+            assert!(
+                matches!(
+                    adjective.complements.as_slice(),
+                    [AdjectiveComplement::Prepositional(preposition)]
+                        if preposition.preposition == crate::syntax::Preposition::To
+                ),
+                "the `to`-standard must bind to `equal`: {adjective:#?}"
+            );
+            assert!(
+                predicate.adjuncts.is_empty(),
+                "the standard must not float as a clause adjunct: {predicate:#?}"
+            );
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                format!("Test Card's power and toughness are each equal to {measure}"),
+                "{source}",
+            );
+        }
+    }
+
+    #[test]
+    fn non_distributive_copular_forms_are_unchanged_and_lack_each() {
+        // Mirror direction: the singular and the plural-without-`each` forms
+        // stay on the intransitive `be` + adjective + prepositional-adjunct
+        // analysis the earlier grammar already produced — the `each` frame does
+        // not steal them — and each round-trips. The distinction between these
+        // and the `each` form is exactly the carried flag, never a spelling
+        // guess in the renderer.
+        for source in [
+            "~'s power is equal to the number of lands you control",
+            "~'s power and toughness are equal to the number of lands you control",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert!(
+                matches!(
+                    &parsed.sentence().expect("sentence root").body,
+                    SentenceBody::Independent(IndependentClause::Intransitive(_, _))
+                ),
+                "non-`each` copular must stay intransitive: {:#?}",
+                parsed.sentence(),
+            );
+            let rendered = render_sentence(parsed.sentence().unwrap());
+            assert!(
+                !rendered.contains(" each "),
+                "no `each` may be synthesized for the non-distributive form: {rendered}"
+            );
+            assert_eq!(rendered, source.replacen('~', "Test Card", 1), "{source}",);
+        }
     }
 
     fn parse(source: &str) -> ParsedNonterminal {
