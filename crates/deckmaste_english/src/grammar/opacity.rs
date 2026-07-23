@@ -219,6 +219,21 @@ mod tests {
         .collect()
     }
 
+    #[test]
+    fn the_ring_tempts_you_parses_without_structural_recovery() {
+        let report = crate::parse("Draw a card. The Ring tempts you.");
+        assert_eq!(report.ast.abilities.len(), 1);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph");
+        };
+        assert_eq!(paragraph.sentences.len(), 2);
+        assert!(matches!(
+            &paragraph.sentences[1].body,
+            SentenceBody::Independent(IndependentClause::Transitive(_, predicate))
+                if matches!(predicate.head.verb.verb, crate::word::Verb::Word(v) if v.spelling() == "tempt")
+        ));
+    }
+
     fn transitive(sentence: &crate::syntax::Sentence) -> &crate::syntax::TransitivePredicate {
         match &sentence.body {
             SentenceBody::Independent(
