@@ -1663,6 +1663,60 @@ mod tests {
     }
 
     #[test]
+    fn affect_is_a_transitive_verb_not_an_opaque_noun() {
+        // Motivating shape (Undergrowth / Fallaji Wayfarer): a negated
+        // does-support clause. As an opaque noun this rendered "doesn't do
+        // affect …"; as a required-object transitive verb it must invert.
+        let negated = "This creature doesn't affect combat damage.";
+        let ast = crate::parse_with_catalogs(negated, &fixture_catalogs()).into_ast();
+
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!("expected a paragraph ability");
+        };
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!(
+                "expected a transitive clause: {:#?}",
+                paragraph.sentences[0].body
+            );
+        };
+        assert_eq!(
+            predicate.head.verb.verb,
+            Verb::Word(Vocab::Affect),
+            "affect must parse as the transitive verb, not an opaque noun"
+        );
+        assert_eq!(source_free(&ast, "Test Card", false), negated);
+
+        // Mirror direction: plain present-tense inflection with no does-support.
+        let plain = "This creature affects combat damage.";
+        let ast = crate::parse_with_catalogs(plain, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), plain);
+    }
+
+    #[test]
+    fn ring_bearer_proper_term_preserves_case() {
+        // Motivating shape (One Ring to Rule Them All): the possessive noun
+        // path bypasses the mid-sentence caps gate, so the lowercase lemma
+        // used to render "ring-bearer"; the case-preserved proper term must
+        // round-trip capitalized.
+        let possessive = "Each player mills cards equal to your Ring-bearer's power.";
+        let ast = crate::parse_with_catalogs(possessive, &fixture_catalogs()).into_ast();
+        let rendered = source_free(&ast, "Test Card", false);
+        assert_eq!(rendered, possessive);
+        assert!(
+            rendered.contains("Ring-bearer") && !rendered.contains("ring-bearer"),
+            "the proper term must keep its capitalization: {rendered:?}"
+        );
+
+        // Mirror direction: the bare (non-possessive) proper term must keep the
+        // same casing through the opaque path.
+        let bare = "Put a +1/+1 counter on your Ring-bearer.";
+        let ast = crate::parse_with_catalogs(bare, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), bare);
+    }
+
+    #[test]
     fn pre_object_adverbs_render_before_the_object() {
         let source = "Draw only one card.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();

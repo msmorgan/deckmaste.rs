@@ -741,6 +741,9 @@ vocabulary! {
     Add("add").verb(VerbForm::Regular);
     Additional("additional").adjective();
     Aetherborn("Aetherborn").invariant_catalog_noun();
+    Affect("affect")
+        .verb(VerbForm::Regular)
+        .predicate_frames(REQUIRED_OBJECT_PREDICATE_FRAMES);
     Again("again").adverb();
     Airbend("airbend").verb(VerbForm::Regular);
     Alone("alone").adverb();
@@ -1057,6 +1060,7 @@ vocabulary! {
     Result("result").noun(NounDeclension::Regular, Countability::Count);
     Return("return").verb(VerbForm::Regular);
     Reveal("reveal").verb(VerbForm::Regular);
+    RingBearer("Ring-bearer").noun(NounDeclension::Regular, Countability::Count);
     Roll("roll")
         .noun(NounDeclension::Regular, Countability::Count)
         .verb(VerbForm::Regular);
