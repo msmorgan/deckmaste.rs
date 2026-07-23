@@ -869,8 +869,14 @@ fn extend_predicate(
             PredicateAttachmentPhase::Object
         }
         PredicateAttachment::Prepositional(_) => PredicateAttachmentPhase::PrepositionalTail,
-        PredicateAttachment::Adjunct
-        | PredicateAttachment::NominalAdjunct(_)
+        PredicateAttachment::Adjunct => {
+            if *object == PredicateObjectState::None {
+                PredicateAttachmentPhase::Object
+            } else {
+                PredicateAttachmentPhase::Tail
+            }
+        }
+        PredicateAttachment::NominalAdjunct(_)
         | PredicateAttachment::AdjectiveComplement
         | PredicateAttachment::InfinitiveComplement
         | PredicateAttachment::Particle(_) => PredicateAttachmentPhase::Tail,
@@ -4092,6 +4098,13 @@ mod tests {
     #[test]
     fn enchanted_creature_cant_attack_or_block_parses() {
         let source = "Enchanted creature can't attack or block.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn this_creature_can_block_only_creatures_with_flying_parses() {
+        let source = "This creature can block only creatures with flying.";
         let parsed = parse(source);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }

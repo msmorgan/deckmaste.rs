@@ -555,12 +555,22 @@ impl<'identity> Renderer<'identity> {
     ) -> Result<String, RenderError> {
         let mut parts = vec![self.predicate_head_from(&predicate.head, auxiliary_start)?];
         let mut element_start = 0;
-        while let Some(PredicateElement::Complement(PredicateComplement::IndirectObject(
-            indirect_object,
-        ))) = predicate.elements.get(element_start)
-        {
-            parts.push(self.noun_phrase(indirect_object)?);
-            element_start += 1;
+        while let Some(element) = predicate.elements.get(element_start) {
+            match element {
+                PredicateElement::Complement(PredicateComplement::IndirectObject(
+                    indirect_object,
+                )) => {
+                    parts.push(self.noun_phrase(indirect_object)?);
+                    element_start += 1;
+                }
+                PredicateElement::Adjunct(PredicateAdjunct::Adverb(adverb))
+                    if adverb.spelling() == "only" =>
+                {
+                    parts.push(adverb.spelling().to_owned());
+                    element_start += 1;
+                }
+                _ => break,
+            }
         }
         parts.push(self.predicate_object(&predicate.object)?);
         self.extend_predicate_elements(&mut parts, &predicate.elements[element_start..])?;

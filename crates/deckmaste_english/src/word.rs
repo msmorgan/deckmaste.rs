@@ -1260,9 +1260,8 @@ impl Vocabulary {
         match noun {
             Noun::Word(vocab) => Self::render_vocab_noun(*vocab, form),
             Noun::Catalog(atom) => match form {
-                NounSurface::Singular => Some(atom.render_noun(false)),
+                NounSurface::Singular | NounSurface::Mass => Some(atom.render_noun(false)),
                 NounSurface::Plural => Some(atom.render_noun(true)),
-                NounSurface::Mass => None,
             },
             Noun::Die(number) => match form {
                 NounSurface::Singular => Some(format!("d{}", number.numeral.format(number.value))),

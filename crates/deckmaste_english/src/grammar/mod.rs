@@ -988,12 +988,21 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
                 };
                 match catalog_match.value {
                     CatalogValue::Word(word) => lexical_word_matches(word, end),
-                    CatalogValue::Atom(atom) => vec![LexicalMatch {
-                        end,
-                        features: Features::None,
-                        meaning: MeaningKey::Catalog(atom),
-                        local_cost: ParseCost::default(),
-                    }],
+                    CatalogValue::Atom(atom) => {
+                        if slot == CatalogSlot::KeywordAbilityNoun {
+                            lexical_word_matches(
+                                WordMatch::Noun(NounInstance::Mass(Noun::Catalog(atom))),
+                                end,
+                            )
+                        } else {
+                            vec![LexicalMatch {
+                                end,
+                                features: Features::None,
+                                meaning: MeaningKey::Catalog(atom),
+                                local_cost: ParseCost::default(),
+                            }]
+                        }
+                    }
                 }
             })
             .fold(Vec::new(), |mut matches, candidate| {
@@ -1071,6 +1080,13 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Noun(usage) => {
                 let mut matches = self.word_matches(tokens, start, LexicalSlot::Noun(usage));
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Noun(usage)));
+                if usage != NounUsage::Count {
+                    matches.extend(self.catalog_matches(
+                        tokens,
+                        start,
+                        CatalogSlot::KeywordAbilityNoun,
+                    ));
+                }
                 if usage != NounUsage::Mass
                     && let Some(surface) = self.token_text(tokens, start)
                     && let Some(sides) = surface.strip_prefix('d')

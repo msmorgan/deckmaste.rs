@@ -131,11 +131,14 @@ impl CatalogAtom {
             }
         });
 
-        match self.kind.case_policy() {
-            CasePolicy::Lowercase => rendered.to_ascii_lowercase(),
-            CasePolicy::Exact | CasePolicy::Insensitive => {
-                apply_initial_case(&rendered, &self.canonical)
-            }
+        match self.kind {
+            CatalogKind::KeywordAbility => rendered.to_ascii_lowercase(),
+            _ => match self.kind.case_policy() {
+                CasePolicy::Lowercase => rendered.to_ascii_lowercase(),
+                CasePolicy::Exact | CasePolicy::Insensitive => {
+                    apply_initial_case(&rendered, &self.canonical)
+                }
+            },
         }
     }
 
