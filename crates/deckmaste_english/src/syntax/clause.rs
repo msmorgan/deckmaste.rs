@@ -354,6 +354,13 @@ pub enum Subordinator {
     /// other multi-word connectives (`as long as`, `rather than`) it is carried
     /// as a single subordinator lexeme and replayed verbatim by the renderer.
     TheNextTime,
+    /// The variable-definition connective `where`, which trails a clause with a
+    /// finite copular body binding a variable to a value (`…, where X is the
+    /// number of creatures you control`). Unlike the adverbial subordinators it
+    /// does not gate its matrix; it defines the value the matrix's `X` denotes.
+    /// It is carried as a distinct subordinator so the binding is recorded in
+    /// the AST rather than inferred from the surface word.
+    Where,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -3026,6 +3026,94 @@ mod tests {
     }
 
     #[test]
+    fn trailing_where_clause_binds_a_variable_definition() {
+        // A trailing `, where X is <value>` clause attaches to the independent
+        // clause it follows as a `where` subordinate whose finite body is a
+        // copular equation binding the count variable `X` to a value-denoting
+        // nominal. Unlike the adverbial subordinators it does not gate the
+        // matrix; the matrix carries the `X` the clause defines.
+        let source = "Target creature gets +X/+0 until end of turn, where X is the number of creatures you control.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+            matrix,
+            attachments,
+        })) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a trailing where-definition");
+        };
+        assert!(matches!(matrix.as_ref(), IndependentClause::Transitive(..)));
+        let [attachment] = attachments.as_slice() else {
+            panic!("expected exactly one trailing attachment");
+        };
+        assert_eq!(attachment.position, AttachmentPosition::AfterMatrix);
+        assert!(attachment.comma);
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::Where,
+            SubordinateBody::Finite(body),
+        )) = &attachment.kind
+        else {
+            panic!(
+                "expected a `where` subordinate definition, got {:?}",
+                attachment.kind
+            );
+        };
+        let IndependentClause::Copular(Subject(subject), _) = body.as_ref() else {
+            panic!("the where-body is a copular equation, got {body:?}");
+        };
+        // The bound variable reuses the count-context `X` quantity rather than a
+        // fresh variable kind.
+        assert!(matches!(subject, NounPhrase::Quantity(Quantity::X)));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn where_clause_attaches_to_choose_up_to_x() {
+        // The `choose up to X …, where X is …` host (Bumi, Riku, Discordant
+        // Dirge), a previously unattached residue, takes the same trailing
+        // `where` definition as an ordinary effect clause.
+        let source =
+            "Choose up to X target creatures, where X is the number of creatures you control.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+            attachments,
+            ..
+        })) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a trailing where-definition");
+        };
+        assert!(attachments.iter().any(|attachment| matches!(
+            &attachment.kind,
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::Where, _))
+        )));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn where_body_prefers_possessive_self_reference_over_a_vocab_noun() {
+        // Regression for `Fang, Roku's Companion`: the where-body `X is Fang's
+        // power` must read `Fang's` as the face's own possessive self-reference,
+        // not as the regular-vocabulary noun `fang` (which renders lowercase and
+        // corrupts the printed name). The possessive scan site pays the same
+        // nickname-collision dispreference as the other lowercasing sites, so the
+        // case-preserving self-reference wins and the face round-trips with a
+        // capital `Fang's`.
+        let self_reference = SelfReference::new("Fang, Roku's Companion", true);
+        let source = "Target creature gets +X/+0 until end of turn, where X is Fang's power.";
+        let parsed = parse_nonterminal_with_self_reference(
+            source,
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+            &self_reference,
+        )
+        .expect("Fang's where-body must parse");
+        assert_eq!(
+            render_sentence_as(parsed.sentence().unwrap(), "Fang, Roku's Companion", true),
+            source,
+            "the possessive must re-emit as the capitalized self-reference, not lowercase `fang's`"
+        );
+    }
+
+    #[test]
     fn finite_verbs_agree_with_their_subjects() {
         let plural_parse = parse("Spells cost {1} less to cast.");
         let (plural_subject, plural) = finite(plural_parse.sentence().unwrap());

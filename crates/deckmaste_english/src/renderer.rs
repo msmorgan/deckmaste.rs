@@ -1734,6 +1734,7 @@ fn render_subordinator(subordinator: Subordinator) -> &'static str {
         Subordinator::Before => "before",
         Subordinator::After => "after",
         Subordinator::TheNextTime => "the next time",
+        Subordinator::Where => "where",
     }
 }
 

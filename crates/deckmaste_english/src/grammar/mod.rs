@@ -1806,6 +1806,8 @@ impl EnglishGrammar<'_, '_> {
             crate::syntax::Subordinator::Before
         } else if surface.eq_ignore_ascii_case("after") {
             crate::syntax::Subordinator::After
+        } else if surface.eq_ignore_ascii_case("where") {
+            crate::syntax::Subordinator::Where
         } else {
             return None;
         };
@@ -1998,6 +2000,22 @@ impl EnglishGrammar<'_, '_> {
                     CatalogValue::Atom(_) => Vec::new(),
                 }),
         );
+        // A possessive vocabulary noun renders its stem lowercase (`fang's`), so
+        // reading a capitalized nickname's possessive (`Fang's`) as one corrupts
+        // the printed name. Dispreference such readings when the nickname collides
+        // here so the case-preserving
+        // [`PossessiveThisCard`](EnglishLexicalSlot::PossessiveThisCard)
+        // self-reference wins; this is the possessive counterpart of the same
+        // penalty in `word_matches` and `catalog_matches`.
+        if self.nickname_lowercasing_collision(tokens, start) {
+            let dispreference = ParseCost {
+                reading_dispreference: 3,
+                ..ParseCost::default()
+            };
+            for candidate in &mut matches {
+                candidate.local_cost += dispreference;
+            }
+        }
         matches
     }
 
