@@ -74,6 +74,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
             AbilityKind::ClassLevel(level) => {
                 self.cost(&level.cost, Some(RecoveryRole::ActivationCost));
             }
+            AbilityKind::Chapter(chapter) => self.paragraph(&chapter.body, context),
             AbilityKind::Triggered(triggered) => {
                 self.trigger_event(&triggered.event, context);
                 if let Some(condition) = &triggered.intervening_condition {

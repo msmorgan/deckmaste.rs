@@ -6,6 +6,7 @@ use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::AttachmentPosition;
+use crate::syntax::ChapterAbility;
 use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
@@ -214,10 +215,29 @@ impl<'identity> Renderer<'identity> {
                 render_loyalty_cost(loyalty.cost),
                 self.paragraph(&loyalty.effect, true)?
             )),
+            AbilityKind::Chapter(chapter) => self.chapter_ability(chapter),
             AbilityKind::Modal(modal) => self.modal_ability(modal),
             AbilityKind::Keyword(keyword) => self.keyword_ability_list(keyword),
             AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph, capitalize),
         }
+    }
+
+    /// Renders a saga chapter ability in oracle layout: the comma-separated
+    /// Roman-numeral header, a spaced em dash, then the single effect body
+    /// inline. This is the exact inverse of [`chapter_frame`]; the body never
+    /// takes a `• ` bullet, which is what separates a chapter from a modal
+    /// choice ability.
+    ///
+    /// [`chapter_frame`]: crate::grammar
+    fn chapter_ability(&self, chapter: &ChapterAbility) -> Result<String, RenderError> {
+        let header = chapter
+            .chapters
+            .iter()
+            .map(|number| number.numeral.format(number.value))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let body = self.paragraph(&chapter.body, true)?;
+        Ok(format!("{header} \u{2014} {body}"))
     }
 
     fn modal_ability(&self, modal: &ModalAbility) -> Result<String, RenderError> {
@@ -2089,6 +2109,37 @@ mod tests {
             source_free(&ast, "Test Card", false),
             "Throw ... — Draw a card."
         );
+    }
+
+    #[test]
+    fn chapter_abilities_render_inline_after_their_header() {
+        for source in [
+            "I — Draw a card.",
+            "I, II — Draw a card.",
+            "I, II, III — Draw a card.",
+            "II, III, IV — Draw a card.",
+            // A flavor header stacked inside the chapter body stays on the line.
+            "I — Boom! — Draw a card.",
+        ] {
+            let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+    }
+
+    #[test]
+    fn a_multi_chapter_saga_face_round_trips_line_by_line() {
+        let source = "I — Draw a card.\nII, III — Draw a card.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn a_modal_choice_ability_still_renders_its_bullets() {
+        // Mirror of the chapter case: a genuine modal choice keeps its `• ` bullet
+        // modes; the inline chapter layout must not strip them.
+        let source = "Choose one —\n• Draw a card.\n• Draw two cards.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), source);
     }
 
     fn source_free(ast: &OracleText, name: &str, legendary: bool) -> String {

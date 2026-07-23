@@ -20,6 +20,7 @@ pub struct Ability {
 pub enum AbilityKind {
     Activated(ActivatedAbility),
     ClassLevel(ClassLevelAbility),
+    Chapter(ChapterAbility),
     Triggered(TriggeredAbility),
     Loyalty(LoyaltyAbility),
     Modal(ModalAbility),
@@ -31,6 +32,22 @@ pub enum AbilityKind {
 pub struct ClassLevelAbility {
     pub cost: Cost,
     pub level: super::phrase::NumberLiteral,
+}
+
+/// A saga chapter ability: one effect that resolves as each listed chapter
+/// number is reached. A single chapter (`I — …`) carries a one-element list;
+/// a combined header (`I, II — …`) carries the whole comma-separated list. The
+/// chapter numbers are structural [`NumberLiteral`]s, so nothing recovers at
+/// the header, and the body is a single [`Paragraph`] rendered inline after
+/// `HEADER — ` — never as a bulleted mode. The inline layout is carried by the
+/// node type itself, which is what distinguishes a chapter from a modal choice
+/// ability whose modes render as `• `-prefixed bullet lines.
+///
+/// [`NumberLiteral`]: super::phrase::NumberLiteral
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChapterAbility {
+    pub chapters: Vec<super::phrase::NumberLiteral>,
+    pub body: Paragraph,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

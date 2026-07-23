@@ -18,6 +18,7 @@ use crate::surface::TokenKind;
 use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::ActivatedAbility;
+use crate::syntax::ChapterAbility;
 use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
 use crate::syntax::Cost;
@@ -200,37 +201,51 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 effect_initial_uppercase: self.tokens_start_uppercase(effect_tokens),
             });
         }
-        if let Some((header, effect)) = self.chapter_frame(tokens) {
-            return AbilityKind::Modal(ModalAbility {
-                frame: ModalFrame::Unframed,
-                header: self.parse_paragraph(header),
-                header_suffix: ModalHeaderSuffix::SpacedEmDash,
-                modes: vec![Mode {
-                    body: self.parse_paragraph(effect),
-                }],
+        if let Some((chapters, effect)) = self.chapter_frame(tokens) {
+            return AbilityKind::Chapter(ChapterAbility {
+                chapters,
+                body: self.parse_paragraph(effect),
             });
         }
         AbilityKind::Paragraph(self.parse_paragraph(tokens))
     }
 
-    fn chapter_frame<'a>(&self, tokens: &'a [Token]) -> Option<(&'a [Token], &'a [Token])> {
+    /// Splits a saga chapter header (`I — …`, `I, II — …`) into its list of
+    /// chapter numbers and the effect body after the spaced em dash. The header
+    /// is a comma-separated list of Roman numerals; every distinction is
+    /// carried by the returned [`NumberLiteral`]s, so nothing recovers.
+    fn chapter_frame<'a>(&self, tokens: &'a [Token]) -> Option<(Vec<NumberLiteral>, &'a [Token])> {
         let em_dash = tokens
             .iter()
             .position(|token| matches!(token.kind, TokenKind::Punctuation(Punctuation::EmDash)))?;
         if em_dash == 0 || em_dash + 1 >= tokens.len() {
             return None;
         }
-        let header = &tokens[..em_dash];
-        let body = &tokens[em_dash + 1..];
-        let is_chapter = !header.is_empty()
-            && header.iter().all(|token| {
-                if matches!(token.kind, TokenKind::Punctuation(Punctuation::Comma)) {
-                    return true;
-                }
-                let text = self.token_text(token);
-                Numeral::Roman.parse(text).is_ok()
-            });
-        if is_chapter { Some((header, body)) } else { None }
+        let chapters = self.chapter_numbers(&tokens[..em_dash])?;
+        Some((chapters, &tokens[em_dash + 1..]))
+    }
+
+    /// Parses a chapter header's comma-separated Roman-numeral list. Each
+    /// comma-delimited group must be exactly one canonical Roman numeral;
+    /// anything else (a bare word, a multi-token group, an empty group from a
+    /// trailing comma) makes this not a chapter header.
+    fn chapter_numbers(&self, header: &[Token]) -> Option<Vec<NumberLiteral>> {
+        if header.is_empty() {
+            return None;
+        }
+        split_top_level(header, &[Punctuation::Comma])
+            .into_iter()
+            .map(|group| {
+                let [token] = group else {
+                    return None;
+                };
+                let value = Numeral::Roman.parse(self.token_text(token)).ok()?;
+                Some(NumberLiteral {
+                    value,
+                    numeral: Numeral::Roman,
+                })
+            })
+            .collect()
     }
 
     fn class_level(&self, tokens: &[Token]) -> Option<NumberLiteral> {
@@ -1656,30 +1671,29 @@ mod tests {
 
     #[test]
     fn flavor_header_stacks_inside_a_single_chapter_body() {
-        let report = parse("I — Stampede! — Draw a card.");
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let source = "I — Stampede! — Draw a card.";
+        let report = parse(source);
+        let AbilityKind::Chapter(chapter) = &report.ast.abilities[0].kind else {
             panic!(
-                "expected a single-chapter modal, got {:#?}",
+                "expected a single-chapter ability, got {:#?}",
                 report.ast.abilities[0].kind
             );
         };
-        assert_eq!(modal.modes.len(), 1);
+        assert_eq!(chapter.chapters.len(), 1);
         assert_eq!(
-            modal.modes[0]
-                .body
-                .flavor_header
-                .as_ref()
-                .map(FlavorHeader::text),
+            chapter.body.flavor_header.as_ref().map(FlavorHeader::text),
             Some("Stampede!")
         );
         assert!(matches!(
-            &modal.modes[0].body.sentences[0].body,
+            &chapter.body.sentences[0].body,
             SentenceBody::Independent(_)
         ));
         // The chapter body's flavor header is licensed opacity, not recovery.
         assert!(report.ast.lexical_opacity().iter().any(|opaque| {
             opaque.kind == LexicalOpacityKind::FlavorHeader && opaque.text == "Stampede!"
         }));
+        // The stacked flavor header round-trips inline on the single chapter line.
+        assert_eq!(render(&report), source);
     }
 
     #[test]
@@ -1717,14 +1731,89 @@ mod tests {
         assert_eq!(paragraph.flavor_header, None);
     }
 
-    #[test]
-    fn single_chapter_saga_header_still_lowers_to_a_modal() {
-        let report = parse("I — Draw a card.");
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
-            panic!("expected a single-chapter modal");
+    fn chapter_values(report: &ParseReport) -> Vec<i32> {
+        let AbilityKind::Chapter(chapter) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a chapter ability, got {:#?}",
+                report.ast.abilities[0].kind
+            );
         };
-        assert_eq!(modal.modes.len(), 1);
-        assert_eq!(modal.modes[0].body.flavor_header, None);
+        assert!(
+            chapter
+                .chapters
+                .iter()
+                .all(|number| number.numeral == Numeral::Roman),
+            "chapter numbers carry the Roman notation structurally"
+        );
+        chapter.chapters.iter().map(|number| number.value).collect()
+    }
+
+    #[test]
+    fn single_chapter_saga_header_lowers_to_a_chapter_ability() {
+        let report = parse("I — Draw a card.");
+        assert_eq!(chapter_values(&report), vec![1]);
+        let AbilityKind::Chapter(chapter) = &report.ast.abilities[0].kind else {
+            unreachable!();
+        };
+        assert_eq!(chapter.body.flavor_header, None);
+        // Chapter numbers are structural: nothing recovers at the modal header.
+        assert!(
+            report
+                .ast
+                .recoveries()
+                .iter()
+                .all(|recovery| recovery.role != RecoveryRole::ModalHeader),
+            "a chapter header carries no modal-header recovery: {:?}",
+            report.ast.recoveries()
+        );
+    }
+
+    #[test]
+    fn combined_chapter_header_carries_every_listed_chapter() {
+        assert_eq!(chapter_values(&parse("I, II — Draw a card.")), vec![1, 2]);
+        assert_eq!(chapter_values(&parse("II, III — Draw a card.")), vec![2, 3]);
+        assert_eq!(
+            chapter_values(&parse("I, II, III — Draw a card.")),
+            vec![1, 2, 3]
+        );
+        assert_eq!(
+            chapter_values(&parse("I, II, III, IV — Draw a card.")),
+            vec![1, 2, 3, 4]
+        );
+        // A combined header carries no modal-header recovery either.
+        let report = parse("I, II — Draw a card.");
+        assert!(
+            report
+                .ast
+                .recoveries()
+                .iter()
+                .all(|recovery| recovery.role != RecoveryRole::ModalHeader),
+            "a combined chapter header carries no modal-header recovery: {:?}",
+            report.ast.recoveries()
+        );
+    }
+
+    #[test]
+    fn a_roman_numeral_without_a_header_em_dash_is_not_a_chapter() {
+        // A leading Roman-numeral-like token with no spaced-em-dash split stays an
+        // ordinary paragraph; nothing becomes a chapter mid-sentence.
+        let report = parse("Exile target creature.");
+        assert!(matches!(
+            &report.ast.abilities[0].kind,
+            AbilityKind::Paragraph(_)
+        ));
+    }
+
+    #[test]
+    fn a_header_group_that_is_not_a_bare_roman_numeral_is_not_a_chapter() {
+        // "III" is Roman, but the "and III" group holds a word, so the header is
+        // not a chapter list and the line falls through to the paragraph path.
+        let report = parse("I, and III — Draw a card.");
+        assert!(
+            !matches!(&report.ast.abilities[0].kind, AbilityKind::Chapter(_)),
+            "a non-Roman header group must not parse as a chapter: {:#?}",
+            report.ast.abilities[0].kind
+        );
     }
 
     #[test]
