@@ -15,6 +15,7 @@ use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
 use deckmaste_engine::PlayerId;
 use ratatui::Frame;
+use ratatui::crossterm::event::KeyCode;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
 use ratatui::layout::Rect;
@@ -130,6 +131,39 @@ pub fn render(
     pass: &PassState,
     help: bool,
 ) {
+    render_with_key(
+        frame,
+        state,
+        view,
+        board,
+        stop,
+        interaction,
+        error,
+        pass,
+        help,
+        None,
+    );
+}
+
+/// Draw the whole board and highlight a pressed key when its token is present
+/// in the footer legend.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "render_with_key adds one transient presentation input to render's \
+              existing per-frame context"
+)]
+pub fn render_with_key(
+    frame: &mut Frame,
+    state: &GameState,
+    view: &LayeredView,
+    board: &BoardState,
+    stop: &Stop,
+    interaction: Option<&crate::interact::Interaction>,
+    error: Option<&str>,
+    pass: &PassState,
+    help: bool,
+    flashed_key: Option<KeyCode>,
+) {
     let [header, main, footer] = Layout::vertical([
         Constraint::Length(3),
         Constraint::Fill(1),
@@ -218,7 +252,7 @@ pub fn render(
         &hand_title,
     );
     render_detail(frame, detail_area, state, view, board);
-    render_footer(frame, footer, stop, interaction, error);
+    render_footer(frame, footer, stop, interaction, error, flashed_key);
     if let Some(crate::interact::Interaction::Priority { sub: Some(pick) }) = interaction {
         render_ability_popup(frame, frame.area(), state, pick);
     }
@@ -427,6 +461,7 @@ fn render_footer(
     stop: &Stop,
     interaction: Option<&crate::interact::Interaction>,
     error: Option<&str>,
+    flashed_key: Option<KeyCode>,
 ) {
     use crate::interact::Interaction;
     let mut base_style = Style::new();
@@ -472,7 +507,7 @@ fn render_footer(
         ),
         (Stop::Decision(_), None) => "deciding…".to_string(),
     };
-    let mut spans = vec![Span::styled(text, base_style)];
+    let mut spans = footer_spans(text, base_style, flashed_key);
     if let Some(e) = error {
         spans.push(Span::styled(
             format!("   ⚠ {e}"),
@@ -480,6 +515,54 @@ fn render_footer(
         ));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+/// Split the footer around the pressed key's legend token and style just that
+/// token. Keys absent from the current legend leave the footer unchanged.
+fn footer_spans(
+    text: String,
+    base_style: Style,
+    flashed_key: Option<KeyCode>,
+) -> Vec<Span<'static>> {
+    let Some(token) = flashed_key.and_then(legend_token) else {
+        return vec![Span::styled(text, base_style)];
+    };
+    let Some(start) = text.find(&token) else {
+        return vec![Span::styled(text, base_style)];
+    };
+    let end = start + token.len();
+    let mut spans = Vec::with_capacity(3);
+    if start > 0 {
+        spans.push(Span::styled(text[..start].to_owned(), base_style));
+    }
+    spans.push(Span::styled(
+        token,
+        Style::new()
+            .fg(Color::Black)
+            .bg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    ));
+    if end < text.len() {
+        spans.push(Span::styled(text[end..].to_owned(), base_style));
+    }
+    spans
+}
+
+/// The footer spelling for a physical key. Function-key aliases highlight the
+/// action token shown to the user rather than introducing a second legend.
+fn legend_token(key: KeyCode) -> Option<String> {
+    Some(match key {
+        KeyCode::Char(' ') => "[space]".to_string(),
+        KeyCode::Char(c) => format!("[{c}]"),
+        KeyCode::Enter => "[enter]".to_string(),
+        KeyCode::Esc => "[esc]".to_string(),
+        KeyCode::Backspace => "[backspace]".to_string(),
+        KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right => "[↑↓]".to_string(),
+        KeyCode::F(2) => "[a]".to_string(),
+        KeyCode::F(4) => "[y]".to_string(),
+        KeyCode::F(6) => "[P]".to_string(),
+        _ => return None,
+    })
 }
 
 fn render_ability_popup(

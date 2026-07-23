@@ -51,7 +51,7 @@ pub fn auto_answer(pending: &PendingDecision) -> Option<Decision> {
 /// player's hand whenever that player holds priority and a land play is legal
 /// (their main phase, land drop still available). Flip to `false` to restore
 /// fully-manual land plays.
-pub const AUTOPLAY_LANDS: bool = true;
+pub const AUTOPLAY_LANDS: bool = false;
 
 /// The oldest (front-of-hand) land the player may play right now, as its
 /// `PlayLand` action, or `None` if no card in `hand` has a legal land play in

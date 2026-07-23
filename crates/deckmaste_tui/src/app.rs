@@ -1,4 +1,6 @@
 use std::process::ExitCode;
+use std::time::Duration;
+use std::time::Instant;
 
 use anyhow::Result;
 use clap::Parser;
@@ -26,6 +28,9 @@ use crate::shortcuts::PassState;
 use crate::ui;
 use crate::ui::BoardState;
 use crate::ui::Selected;
+
+/// How long a pressed key remains highlighted in the footer legend.
+const KEY_FLASH_DURATION: Duration = Duration::from_millis(250);
 
 /// Binary entry point. Prints a clean error and exits non-zero on failure.
 #[must_use]
@@ -104,6 +109,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
     let mut current = interaction_for(&stop, &driver.state);
     let mut error: Option<String> = None;
     let mut help = false;
+    let mut key_flash: Option<(KeyCode, Instant)> = None;
     // When a fresh pick-step opens, land the cursor on a legal candidate so the
     // player can act immediately (esp. blockers, whose legal blockers sit on
     // their own battlefield, away from the just-declared attackers).
@@ -119,7 +125,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
             board.steer_to(first, &driver.state, &view);
         }
         terminal.draw(|frame| {
-            ui::render(
+            ui::render_with_key(
                 frame,
                 &driver.state,
                 &view,
@@ -129,13 +135,25 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 error.as_deref(),
                 &pass,
                 help,
+                key_flash.as_ref().map(|(code, _)| *code),
             );
         })?;
 
-        let Event::Key(key) = event::read()? else { continue };
+        let next_event = if let Some((_, until)) = key_flash.as_ref() {
+            let remaining = until.saturating_duration_since(Instant::now());
+            if !event::poll(remaining)? {
+                key_flash = None;
+                continue;
+            }
+            event::read()?
+        } else {
+            event::read()?
+        };
+        let Event::Key(key) = next_event else { continue };
         if key.kind != KeyEventKind::Press {
             continue;
         }
+        key_flash = Some((key.code, Instant::now() + KEY_FLASH_DURATION));
         match handle_global_key(
             key,
             &mut board,

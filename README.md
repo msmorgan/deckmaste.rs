@@ -90,7 +90,7 @@ thousand complete games.
 
 ## Architecture
 
-Ten crates, plus a thin root binary that launches the client:
+Eleven crates, plus a thin root binary that launches the client:
 
 - **`deckmaste_core`** — the card-encoding language: the typed vocabulary of
   abilities, effects, costs, zones, durations, and conditions.
@@ -101,6 +101,10 @@ Ten crates, plus a thin root binary that launches the client:
 - **`deckmaste_tui`** — the interactive terminal client, built on ratatui.
 - **`deckmaste_migrations`** — the data pipeline (extract, resolve, graduate)
   that turns oracle text into encodings.
+- **`deckmaste_english`** — an experimental English syntax front end, kept
+  separate from semantic card encoding; currently exercised through `xtask`
+  inspection and self-check tooling and not yet wired into the main migration
+  pipeline.
 - **`deckmaste_noncanon`** — a non-canon proving ground: complete WC99 decks
   and matchup tests that exercise the engine end-to-end.
 - **`macro_ron`** / **`macro_ron_derive`** — the RON macro-expansion layer the
@@ -119,6 +123,21 @@ breadth of card coverage. A curated set of real cards is encoded by hand and
 graduated through the data pipeline, and the encoding grammar continues to expand
 toward the remaining mechanics. `docs/rules-taxonomy.md` records the plan for
 that work.
+
+---
+
+## The English syntax front end (`deckmaste_english`)
+
+`deckmaste_english` is an early, deliberately separate parsing stage for card
+text. It produces an English-specific syntactic representation without folding
+syntax and semantic card encoding into the same operation. That boundary makes
+it possible to inspect and test the language analysis independently before
+lowering it into the typed vocabulary used by the engine.
+
+Today the front end is exercised through `xtask` inspection and self-check
+tooling. The primary extract/resolve/graduate pipeline does not consume it yet;
+integrating the two is future work rather than a claimed capability of the
+current card generator.
 
 ---
 
@@ -172,14 +191,16 @@ prose, the representation runs in reverse too: a renderer reconstructs
 approximate card text from the definitions — still partial, but real, and it's
 what the client prints on each card.
 
-The second is method. The engine was a way to develop a working practice for
-agentic development in a domain with little tolerance for imprecision: Magic's
-rules resolve to definite outcomes, so an encoding is either correct or it
-produces a wrong result in play. That makes the domain a demanding test of
-whether AI agents can be directed toward sustained correctness across many
-interacting cases rather than a plausible but shallow approximation. Most of the
-code was produced under that workflow, against an architecture and review
-process I maintained. Version control is jj (Jujutsu), chosen for its
+The second is method. I architected the system: its domain model, crate
+boundaries, verification strategy, and review process. The engine was also a
+way to develop a working practice for agentic development in a domain with
+little tolerance for imprecision: Magic's rules resolve to definite outcomes,
+so an encoding is either correct or it produces a wrong result in play. That
+makes the domain a demanding test of whether AI agents can be directed toward
+sustained correctness across many interacting cases rather than a plausible but
+shallow approximation. Most of the implementation was produced under that
+workflow, within that architecture and under my review. Version control is jj
+(Jujutsu), chosen for its
 first-class conflicts, freely rewritable history, and lightweight parallel
 workspaces — a good fit for several agents working at once — and much of the
 repository's tooling follows from that, including a per-ticket
