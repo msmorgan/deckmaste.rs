@@ -1101,9 +1101,13 @@ fn reduce_simple_clause(
                     false,
                     object.has_direct_object(),
                 )),
-                PredicateForm::Infinitive
-                | PredicateForm::PresentParticiple
-                | PredicateForm::PastParticiple => None,
+                PredicateForm::Infinitive => Some(simple_clause_reduction(
+                    None,
+                    false,
+                    false,
+                    object.has_direct_object(),
+                )),
+                PredicateForm::PresentParticiple | PredicateForm::PastParticiple => None,
             }
         }
         RuleTag::ClauseSimple => {
@@ -4081,6 +4085,13 @@ mod tests {
     #[test]
     fn if_you_dont_it_enters_tapped_parses() {
         let source = "If you don't, it enters tapped.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn enchanted_creature_cant_attack_or_block_parses() {
+        let source = "Enchanted creature can't attack or block.";
         let parsed = parse(source);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
