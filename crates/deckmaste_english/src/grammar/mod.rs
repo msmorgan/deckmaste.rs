@@ -34,9 +34,11 @@ use crate::forest::ForestSymbol;
 use crate::forest::NodeId;
 use crate::forest::ParseCost;
 use crate::forest::ParseForest;
+use crate::identity::SelfReference;
 use crate::surface::Punctuation;
 use crate::surface::Token;
 use crate::surface::TokenKind;
+use crate::surface::collapse_full_names;
 use crate::surface::lex;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
@@ -914,6 +916,7 @@ pub(crate) struct EnglishGrammar<'source, 'catalogs> {
     tags: Vec<RuleTag>,
     rules_by_lhs: HashMap<Nonterminal, Vec<RuleId>>,
     opacity_profile: OpacityProfile,
+    self_reference: SelfReference,
 }
 
 impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
@@ -922,7 +925,13 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         catalogs: &'catalogs Catalogs,
         start: Nonterminal,
     ) -> Self {
-        Self::with_opacity_profile(source, catalogs, start, OpacityProfile::Exact)
+        Self::with_opacity_profile(
+            source,
+            catalogs,
+            start,
+            OpacityProfile::Exact,
+            SelfReference::default(),
+        )
     }
 
     fn with_opacity_profile(
@@ -930,6 +939,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         catalogs: &'catalogs Catalogs,
         start: Nonterminal,
         opacity_profile: OpacityProfile,
+        self_reference: SelfReference,
     ) -> Self {
         let mut builder = RuleBuilder::default();
         builder.add_nominal_rules();
@@ -945,7 +955,63 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             tags: builder.tags,
             rules_by_lhs: builder.rules_by_lhs,
             opacity_profile,
+            self_reference,
         }
+    }
+
+    /// Matches a self-reference name spelled by `spellings` against the source
+    /// tokens at `start`. Comparison is case-sensitive and by whole-token
+    /// spelling. When `possessive`, the final source token must be the last
+    /// name token with a trailing `'s`.
+    fn match_self_reference(
+        &self,
+        tokens: &[Token],
+        start: usize,
+        spellings: &[String],
+        possessive: bool,
+    ) -> Option<usize> {
+        if spellings.is_empty() {
+            return None;
+        }
+        let last = spellings.len() - 1;
+        for (offset, spelling) in spellings.iter().enumerate() {
+            let actual = self.token_text(tokens, start + offset)?;
+            let matches = if possessive && offset == last {
+                actual.strip_suffix("'s") == Some(spelling.as_str())
+            } else {
+                actual == spelling
+            };
+            if !matches {
+                return None;
+            }
+        }
+        Some(start + spellings.len())
+    }
+
+    /// Whether the face's derived nickname matches the tokens at `start` and
+    /// the source token there is capitalized. The full name is
+    /// pre-collapsed to a single [`TokenKind::FullSelfReference`] token, so
+    /// only the still-spelled nickname can collide with an ordinary lexical
+    /// reading of a `Word` token. A non-self-reference reading of such a
+    /// token renders it lowercase — a vocabulary lemma, the `the`
+    /// determiner, a lowercase keyword-ability spelling — which corrupts
+    /// the printed name, so callers dispreference those readings to let the
+    /// case-preserving self-reference win. When no nickname competes (the
+    /// common case, and every anonymous parse) this is `false` and ordinary
+    /// readings pay nothing.
+    fn nickname_lowercasing_collision(&self, tokens: &[Token], start: usize) -> bool {
+        let capitalized = self
+            .token_text(tokens, start)
+            .and_then(|surface| surface.as_bytes().first().copied())
+            .is_some_and(|byte| byte.is_ascii_uppercase());
+        capitalized
+            && self.self_reference.nickname().is_some_and(|spellings| {
+                self.match_self_reference(tokens, start, spellings, false)
+                    .is_some()
+                    || self
+                        .match_self_reference(tokens, start, spellings, true)
+                        .is_some()
+            })
     }
 
     fn token_text<'tokens>(&self, tokens: &'tokens [Token], start: usize) -> Option<&'source str> {
@@ -997,21 +1063,41 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         let Some(surface) = token.span.text(self.source) else {
             return Vec::new();
         };
-        if matches!(
+        let gated = matches!(
             slot,
             LexicalSlot::Noun(_) | LexicalSlot::Adjective | LexicalSlot::Verb(_)
-        ) && !Self::is_sentence_initial(tokens, start)
-            && surface
-                .as_bytes()
-                .first()
-                .is_some_and(u8::is_ascii_uppercase)
-        {
+        );
+        let capitalized = surface
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_uppercase);
+        let sentence_initial = Self::is_sentence_initial(tokens, start);
+        if gated && !sentence_initial && capitalized {
             return Vec::new();
         }
+        // A vocabulary lemma is lowercase, so reading a capitalized token as one
+        // lowercases it. When that token is also the face's nickname (e.g. the
+        // legend `Carnage`, whose name coincides with a common noun), that
+        // lowercasing reading corrupts the printed name; dispreference it so the
+        // case-preserving self-reference wins. Gated on an actual nickname
+        // collision, so ordinary sentence-initial words (which have no competing
+        // self-reference) keep their normal cost.
+        let dispreference = if self.nickname_lowercasing_collision(tokens, start) {
+            ParseCost {
+                reading_dispreference: 3,
+                ..ParseCost::default()
+            }
+        } else {
+            ParseCost::default()
+        };
         Vocabulary::new()
             .matches(surface, slot)
             .into_iter()
             .flat_map(|word| lexical_word_matches(word, start + 1))
+            .map(|mut lexical_match| {
+                lexical_match.local_cost += dispreference;
+                lexical_match
+            })
             .collect()
     }
 
@@ -1038,13 +1124,32 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             lowercased.make_ascii_lowercase();
             catalog_matches.extend(self.catalogs.matches(&lowercased, slot));
         }
+        let collision = self.nickname_lowercasing_collision(tokens, start);
         catalog_matches
             .into_iter()
             .flat_map(|catalog_match| {
                 let Some(end) = Self::catalog_end(tokens, start, catalog_match.length) else {
                     return Vec::new();
                 };
-                match catalog_match.value {
+                // A keyword-ability (or supertype/card-type) atom renders as a
+                // lowercase noun (e.g. `prowl`), so reading a capitalized nickname
+                // (`Prowl`) as one lowercases the name. Dispreference such readings
+                // when the nickname collides here so the case-preserving
+                // self-reference wins; type/subtype words render with their
+                // canonical case and are untouched.
+                let lowercasing = matches!(
+                    &catalog_match.value,
+                    CatalogValue::Atom(atom) if atom.renders_lowercase_noun()
+                );
+                let penalty = if collision && lowercasing {
+                    ParseCost {
+                        reading_dispreference: 3,
+                        ..ParseCost::default()
+                    }
+                } else {
+                    ParseCost::default()
+                };
+                let mut produced = match catalog_match.value {
                     CatalogValue::Word(word) => lexical_word_matches(word, end),
                     CatalogValue::Atom(atom) => {
                         if slot == CatalogSlot::KeywordAbilityNoun {
@@ -1061,7 +1166,11 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
                             }]
                         }
                     }
+                };
+                for candidate in &mut produced {
+                    candidate.local_cost += penalty;
                 }
+                produced
             })
             .fold(Vec::new(), |mut matches, candidate| {
                 if !matches.contains(&candidate) {
@@ -1442,10 +1551,11 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| pronoun_match(end, Pronoun::EachOther, PronounCase::Object))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::ThisCard => tokens
-                .get(start)
-                .filter(|token| token.kind == TokenKind::SelfReference)
-                .map(|_| this_card_matches(start + 1, ThisCardForm::AbbreviatedName))
+            EnglishLexicalSlot::ThisCard => self
+                .self_reference
+                .nickname()
+                .and_then(|spellings| self.match_self_reference(tokens, start, spellings, false))
+                .map(|end| this_card_matches(end, ThisCardForm::AbbreviatedName))
                 .unwrap_or_default(),
             EnglishLexicalSlot::FullThisCard => tokens
                 .get(start)
@@ -1453,27 +1563,26 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|_| this_card_matches(start + 1, ThisCardForm::FullName))
                 .unwrap_or_default(),
             EnglishLexicalSlot::PossessiveThisCard => {
-                let form = match tokens.get(start).map(|token| token.kind) {
-                    Some(TokenKind::SelfReference) => Some(ThisCardForm::AbbreviatedName),
-                    Some(TokenKind::FullSelfReference) => Some(ThisCardForm::FullName),
-                    _ => None,
-                };
-                form.and_then(|form| {
-                    self.one_token_match(tokens, start + 1, "'s")
-                        .map(|end| LexicalMatch {
-                            end,
-                            features: Features::PossessiveThisCard {
-                                agreement: Agreement {
-                                    person: Person::Third,
-                                    number: Number::Singular,
-                                },
-                            },
-                            meaning: MeaningKey::ThisCard(form),
-                            local_cost: ParseCost::default(),
-                        })
-                })
-                .into_iter()
-                .collect()
+                // The full name is pre-collapsed to one token, so its possessive
+                // is that token followed by a separate `'s`; the nickname is
+                // still spelled out, so its possessive is matched as a sequence.
+                let mut matches = Vec::new();
+                if tokens
+                    .get(start)
+                    .is_some_and(|token| token.kind == TokenKind::FullSelfReference)
+                    && let Some(end) = self.one_token_match(tokens, start + 1, "'s")
+                {
+                    matches.push(possessive_this_card_match(end, ThisCardForm::FullName));
+                }
+                if let Some(spellings) = self.self_reference.nickname()
+                    && let Some(end) = self.match_self_reference(tokens, start, spellings, true)
+                {
+                    matches.push(possessive_this_card_match(
+                        end,
+                        ThisCardForm::AbbreviatedName,
+                    ));
+                }
+                matches
             }
             EnglishLexicalSlot::Preposition => self.scan_preposition(tokens, start),
             EnglishLexicalSlot::Existential => self.scan_existential(tokens, start),
@@ -1974,6 +2083,19 @@ impl EnglishGrammar<'_, '_> {
         } else {
             return Vec::new();
         };
+        // `The` heading a multi-word nickname (e.g. `The Beast`) also parses as
+        // the lowercase `the` determiner leading an opaque noun; that reading
+        // lowercases the name's first word. Dispreference it so the nickname,
+        // which reproduces the capitalized `The`, wins.
+        let local_cost =
+            if key == DeterminerKey::The && self.nickname_lowercasing_collision(tokens, start) {
+                ParseCost {
+                    reading_dispreference: 3,
+                    ..ParseCost::default()
+                }
+            } else {
+                ParseCost::default()
+            };
         vec![LexicalMatch {
             end: start + 1,
             features: Features::Determiner {
@@ -1981,7 +2103,7 @@ impl EnglishGrammar<'_, '_> {
                 article: key.article(),
             },
             meaning: MeaningKey::Determiner(key),
-            local_cost: ParseCost::default(),
+            local_cost,
         }]
     }
 
@@ -2742,12 +2864,13 @@ fn pronoun_match(
     }
 }
 
-/// A self-reference resolves to one card, but a joint `&` face (`Casey & Raph`)
-/// names two creatures, and its text agrees plurally (`When ~ enter, …`). The
-/// self-reference sigil carries no number, so both third-person agreements are
-/// offered; the verb's own inflection selects one (`~ enters` singular, `~
-/// enter` plural). The lowered [`ThisCardForm`] is identical either way — the
-/// number lives on the verb — so an agreement-neutral verb packs to one AST.
+/// A self-reference resolves to one card, but a joint `and` face (`Aang and
+/// Katara`) names two creatures, and its text agrees plurally (`When Aang and
+/// Katara enter, …`). The recognized name carries no number, so both
+/// third-person agreements are offered; the verb's own inflection selects one
+/// (`… enters` singular, `… enter` plural). The lowered [`ThisCardForm`] is
+/// identical either way — the number lives on the verb — so an
+/// agreement-neutral verb packs to one AST.
 fn this_card_matches(end: usize, form: ThisCardForm) -> Vec<LexicalMatch<Features, MeaningKey>> {
     [Number::Singular, Number::Plural]
         .into_iter()
@@ -2762,9 +2885,40 @@ fn this_card_matches(end: usize, form: ThisCardForm) -> Vec<LexicalMatch<Feature
                 adjunct: None,
             },
             meaning: MeaningKey::ThisCard(form),
-            local_cost: ParseCost::default(),
+            local_cost: this_card_cost(form),
         })
         .collect()
+}
+
+fn possessive_this_card_match(
+    end: usize,
+    form: ThisCardForm,
+) -> LexicalMatch<Features, MeaningKey> {
+    LexicalMatch {
+        end,
+        features: Features::PossessiveThisCard {
+            agreement: Agreement {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+        },
+        meaning: MeaningKey::ThisCard(form),
+        local_cost: this_card_cost(form),
+    }
+}
+
+/// The tiebreak cost of reading tokens as a self-reference. A
+/// non-self-reference reading pays nothing here and so wins any tie on the
+/// structural fields; among self-references the fuller
+/// [`ThisCardForm::FullName`] outranks a derived nickname.
+fn this_card_cost(form: ThisCardForm) -> ParseCost {
+    ParseCost {
+        reading_dispreference: match form {
+            ThisCardForm::FullName => 1,
+            ThisCardForm::AbbreviatedName => 2,
+        },
+        ..ParseCost::default()
+    }
 }
 
 fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features {
@@ -3853,21 +4007,33 @@ pub(crate) fn parse_nonterminal(
     catalogs: &Catalogs,
     nonterminal: Nonterminal,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
+    parse_nonterminal_with_self_reference(source, catalogs, nonterminal, &SelfReference::default())
+}
+
+pub(crate) fn parse_nonterminal_with_self_reference(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    self_reference: &SelfReference,
+) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
     match parse_nonterminal_with_profile(
         source,
         catalogs,
         nonterminal,
-        &surface.tokens,
+        &tokens,
         OpacityProfile::Exact,
+        self_reference,
     ) {
         Ok(parsed) => Ok(parsed),
         Err(ParseNonterminalError::NoCompleteParse(_)) => parse_nonterminal_with_profile(
             source,
             catalogs,
             nonterminal,
-            &surface.tokens,
+            &tokens,
             OpacityProfile::Nouns,
+            self_reference,
         ),
         Err(error) => Err(error),
     }
@@ -3879,9 +4045,15 @@ fn parse_nonterminal_with_profile(
     nonterminal: Nonterminal,
     tokens: &[Token],
     opacity_profile: OpacityProfile,
+    self_reference: &SelfReference,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
-    let grammar =
-        EnglishGrammar::with_opacity_profile(source, catalogs, nonterminal, opacity_profile);
+    let grammar = EnglishGrammar::with_opacity_profile(
+        source,
+        catalogs,
+        nonterminal,
+        opacity_profile,
+        self_reference.clone(),
+    );
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
     let (root, best) = chart
         .forest

@@ -7,7 +7,10 @@ pub(crate) enum TokenKind {
     OracleSymbol,
     SymbolSequence,
     PowerToughness,
-    SelfReference,
+    /// A collapsed full-name self-reference. Minted by [`collapse_full_names`]
+    /// when the source spells out the face's own full name, so a name that
+    /// lexes to several tokens — including internal commas — is one atomic
+    /// token the structural splitter never divides.
     FullSelfReference,
     Bullet,
     Punctuation(Punctuation),
@@ -98,17 +101,6 @@ pub(crate) fn lex(source: &str) -> Surface {
             index = end;
             continue;
         }
-        if ch == '~' {
-            let doubled = source[index + width..].starts_with('~');
-            let end = index + width * if doubled { 2 } else { 1 };
-            surface.tokens.push(token(
-                if doubled { TokenKind::FullSelfReference } else { TokenKind::SelfReference },
-                index,
-                end,
-            ));
-            index = end;
-            continue;
-        }
         if is_word_start(source, index, ch) {
             let end = word_end(source, index);
             let text = &source[index..end];
@@ -163,6 +155,82 @@ pub(crate) fn lex(source: &str) -> Surface {
         ));
     }
     surface
+}
+
+/// Collapses every occurrence of the face's full name into a single
+/// [`TokenKind::FullSelfReference`] token, taking over what the retired `~~`
+/// sigil did. A full name spells to several tokens — often with an internal
+/// comma (`Aang, A Lot to Learn`) — so collapsing it keeps the structural
+/// splitter from dividing a self-reference at that comma. A possessive full
+/// name (`… Akros's power`) collapses the name and leaves its trailing `'s` as
+/// its own word token, so the possessive self-reference rule sees the same
+/// `[FullSelfReference, 's]` shape it always has.
+///
+/// Matching is case-sensitive and by whole-token spelling, so a shorter or
+/// differently cased phrase never collapses. A full name is unique to the card
+/// that bears it, so this collapse needs no ambiguity resolution; nicknames,
+/// which do, are recognized in the chart instead.
+pub(crate) fn collapse_full_names(
+    source: &str,
+    tokens: Vec<Token>,
+    full_name: &[String],
+) -> Vec<Token> {
+    if full_name.is_empty() || tokens.len() < full_name.len() {
+        return tokens;
+    }
+    let mut collapsed = Vec::with_capacity(tokens.len());
+    let mut index = 0;
+    while index < tokens.len() {
+        if let Some((consumed, possessive_split)) =
+            match_full_name(source, &tokens[index..], full_name)
+        {
+            let first = tokens[index];
+            let last = tokens[index + consumed - 1];
+            let name_end = possessive_split.unwrap_or(last.span.end);
+            collapsed.push(token(
+                TokenKind::FullSelfReference,
+                first.span.start,
+                name_end,
+            ));
+            if let Some(split) = possessive_split {
+                collapsed.push(token(TokenKind::Word, split, last.span.end));
+            }
+            index += consumed;
+        } else {
+            collapsed.push(tokens[index]);
+            index += 1;
+        }
+    }
+    collapsed
+}
+
+/// Attempts to match `full_name` at the head of `tokens`. Returns the number of
+/// tokens consumed and, for a possessive match, the byte offset where the name
+/// ends and its trailing `'s` begins.
+fn match_full_name(
+    source: &str,
+    tokens: &[Token],
+    full_name: &[String],
+) -> Option<(usize, Option<usize>)> {
+    let slice = tokens.get(..full_name.len())?;
+    let (last_spelling, leading) = full_name.split_last()?;
+    for (token, spelling) in slice.iter().zip(leading) {
+        if token.span.text(source)? != spelling {
+            return None;
+        }
+    }
+    let last = slice.last()?;
+    let last_text = last.span.text(source)?;
+    if last_text == last_spelling {
+        Some((full_name.len(), None))
+    } else if last_text
+        .strip_suffix("'s")
+        .is_some_and(|stem| stem == last_spelling)
+    {
+        Some((full_name.len(), Some(last.span.end - "'s".len())))
+    } else {
+        None
+    }
 }
 
 fn scan_symbols(source: &str, start: usize, surface: &mut Surface) -> usize {
@@ -355,8 +423,16 @@ mod tests {
     use super::Punctuation;
     use super::SurfaceDiagnosticKind;
     use super::TokenKind;
+    use super::collapse_full_names;
     use super::lex;
     use crate::Span;
+
+    fn spellings<'source>(source: &'source str, tokens: &[super::Token]) -> Vec<&'source str> {
+        tokens
+            .iter()
+            .map(|token| token.span.text(source).expect("token span is in source"))
+            .collect()
+    }
 
     fn kinds(source: &str) -> Vec<TokenKind> {
         lex(source)
@@ -399,58 +475,56 @@ mod tests {
     }
 
     #[test]
-    fn self_references_and_quotes_keep_exact_boundaries() {
-        let source =
-            "~ attacks. ~~'s power is 3.\n\"Whenever this creature attacks, draw a card.\"";
-        let surface = lex(source);
+    fn full_name_collapse_makes_a_multi_token_name_one_atomic_token() {
+        // A comma name collapses to one FullSelfReference token spanning the
+        // whole name, so the later trigger comma is the only top-level comma
+        // the structural splitter sees.
+        let source = "When Aang, A Lot to Learn dies, draw a card.";
+        let full_name = ["Aang", ",", "A", "Lot", "to", "Learn"].map(str::to_owned);
+        let collapsed = collapse_full_names(source, lex(source).tokens, &full_name);
 
         assert_eq!(
-            surface
-                .tokens
-                .iter()
-                .map(|token| token.kind)
-                .collect::<Vec<_>>(),
-            vec![
-                TokenKind::SelfReference,
-                TokenKind::Word,
-                TokenKind::Punctuation(Punctuation::Period),
-                TokenKind::FullSelfReference,
-                TokenKind::Word,
-                TokenKind::Word,
-                TokenKind::Word,
-                TokenKind::Integer,
-                TokenKind::Punctuation(Punctuation::Period),
-                TokenKind::Newline,
-                TokenKind::Punctuation(Punctuation::DoubleQuote),
-                TokenKind::Word,
-                TokenKind::Word,
-                TokenKind::Word,
-                TokenKind::Word,
-                TokenKind::Punctuation(Punctuation::Comma),
-                TokenKind::Word,
-                TokenKind::Word,
-                TokenKind::Word,
-                TokenKind::Punctuation(Punctuation::Period),
-                TokenKind::Punctuation(Punctuation::DoubleQuote),
+            spellings(source, &collapsed),
+            [
+                "When",
+                "Aang, A Lot to Learn",
+                "dies",
+                ",",
+                "draw",
+                "a",
+                "card",
+                "."
             ]
         );
+        assert_eq!(collapsed[1].kind, TokenKind::FullSelfReference);
+    }
+
+    #[test]
+    fn full_name_collapse_splits_a_possessive_into_name_and_apostrophe_s() {
+        let source = "\"Whenever this creature attacks, draw a card.\" Return Akros's card.";
+        let full_name = ["Akros"].map(str::to_owned);
+        let collapsed = collapse_full_names(source, lex(source).tokens, &full_name);
+
+        // The quoted clause is untouched; the possessive name splits its 's off.
         assert_eq!(
-            surface
-                .tokens
-                .iter()
-                .map(|token| token.span.text(source).expect("token span is in source"))
-                .collect::<Vec<_>>(),
-            vec![
-                "~", "attacks", ".", "~~", "'s", "power", "is", "3", ".", "\n", "\"", "Whenever",
-                "this", "creature", "attacks", ",", "draw", "a", "card", ".", "\"",
+            spellings(source, &collapsed),
+            [
+                "\"", "Whenever", "this", "creature", "attacks", ",", "draw", "a", "card", ".",
+                "\"", "Return", "Akros", "'s", "card", ".",
             ]
         );
+        let name = collapsed
+            .iter()
+            .position(|token| token.kind == TokenKind::FullSelfReference)
+            .expect("the possessive name collapses");
+        assert_eq!(collapsed[name].span.text(source), Some("Akros"));
+        assert_eq!(collapsed[name + 1].span.text(source), Some("'s"));
     }
 
     #[test]
     fn modal_bullets_and_brims_punctuation_are_structural_tokens() {
         assert_eq!(
-            kinds("Choose one —\n• Draw a card.\n~~: Add {C}.\n~~, \"Brims\" Barone"),
+            kinds("Choose one —\n• Draw a card.\n\"Brims\" Barone"),
             vec![
                 TokenKind::Word,
                 TokenKind::Word,
@@ -462,14 +536,6 @@ mod tests {
                 TokenKind::Word,
                 TokenKind::Punctuation(Punctuation::Period),
                 TokenKind::Newline,
-                TokenKind::FullSelfReference,
-                TokenKind::Punctuation(Punctuation::Colon),
-                TokenKind::Word,
-                TokenKind::OracleSymbol,
-                TokenKind::Punctuation(Punctuation::Period),
-                TokenKind::Newline,
-                TokenKind::FullSelfReference,
-                TokenKind::Punctuation(Punctuation::Comma),
                 TokenKind::Punctuation(Punctuation::DoubleQuote),
                 TokenKind::Word,
                 TokenKind::Punctuation(Punctuation::DoubleQuote),

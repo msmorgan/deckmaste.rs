@@ -5,6 +5,7 @@ mod tests {
     use crate::catalog::Catalogs;
     use crate::chart::Grammar;
     use crate::forest::ForestSymbol;
+    use crate::identity::SelfReference;
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::AdjectiveComplement;
@@ -477,7 +478,7 @@ mod tests {
 
     #[test]
     fn self_reference_possessive_is_one_determiner() {
-        let parsed = parse("~'s power");
+        let parsed = parse_self("Nissa's power");
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
             panic!("expected a possessive nominal");
@@ -491,14 +492,14 @@ mod tests {
             "{nominal:#?}"
         );
         assert_eq!(
-            render_fragment(parsed.noun_phrase().unwrap()),
-            "Test Card's power"
+            render_fragment_as(parsed.noun_phrase().unwrap(), "Nissa Revane", true),
+            "Nissa's power"
         );
     }
 
     #[test]
     fn self_reference_possessive_can_stand_as_an_elliptical_noun_phrase() {
-        let parsed = parse("~'s");
+        let parsed = parse_self("Nissa's");
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert!(matches!(
             parsed.noun_phrase(),
@@ -506,14 +507,15 @@ mod tests {
                 if matches!(possessor.as_ref(), NounPhrase::ThisCard(_))
         ));
         assert_eq!(
-            render_fragment(parsed.noun_phrase().unwrap()),
-            "Test Card's"
+            render_fragment_as(parsed.noun_phrase().unwrap(), "Nissa Revane", true),
+            "Nissa's"
         );
     }
 
     #[test]
     fn comparison_inside_preposition_stays_with_its_object() {
-        let parsed = parse("target creature card with mana value less than or equal to ~'s power");
+        let parsed =
+            parse_self("target creature card with mana value less than or equal to Nissa's power");
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let Some(NounPhrase::Nominal(card)) = parsed.noun_phrase() else {
             panic!("expected a card nominal");
@@ -977,6 +979,18 @@ mod tests {
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
     }
 
+    /// Parses a noun phrase as the legendary face `Nissa Revane` (nickname
+    /// `Nissa`), so a `Nissa`/`Nissa's` self-reference is recognized.
+    fn parse_self(source: &str) -> ParsedNonterminal {
+        parse_nonterminal_with_self_reference(
+            source,
+            &fixture_catalogs(),
+            Nonterminal::NounPhrase,
+            &SelfReference::new("Nissa Revane", true),
+        )
+        .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
+    }
+
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
             .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"])
@@ -985,6 +999,10 @@ mod tests {
     }
 
     fn render_fragment(noun_phrase: &NounPhrase) -> String {
+        render_fragment_as(noun_phrase, "Test Card", false)
+    }
+
+    fn render_fragment_as(noun_phrase: &NounPhrase, name: &str, is_legendary: bool) -> String {
         let ast = OracleText {
             abilities: vec![Ability {
                 ability_word: None,
@@ -1012,7 +1030,7 @@ mod tests {
                 }),
             }],
         };
-        ast.render("Test Card", false)
+        ast.render(name, is_legendary)
             .expect("parsed noun phrase must render")
             .strip_prefix("Draw ")
             .and_then(|rendered| rendered.strip_suffix('.'))

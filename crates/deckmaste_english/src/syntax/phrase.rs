@@ -56,9 +56,18 @@ impl OpaqueLexeme {
     }
 }
 
+/// The surface form of a self-reference to the card being parsed.
+///
+/// Both forms denote the same object: [CR#201.5] holds that text referring to
+/// the object it is on by name means just that object. Neither variant stores a
+/// spelling — the renderer re-derives it from the face name — so the two forms
+/// are interchangeable referents distinguished only by how the card wrote them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ThisCardForm {
+    /// The 2024 Oracle shortened self-reference. [CR#201.5c] treats a card's
+    /// shortened name as though it used the card's full name.
     AbbreviatedName,
+    /// The card's full name.
     FullName,
 }
 

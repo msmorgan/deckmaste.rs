@@ -2,7 +2,7 @@ use super::Nonterminal;
 use super::ParsedNonterminal;
 use super::VerbDependent;
 use super::clause::finish_simple_clause;
-use super::parse_nonterminal;
+use super::parse_nonterminal_with_self_reference;
 use super::parse_symbol_sequence;
 use crate::Numeral;
 use crate::Span;
@@ -13,6 +13,7 @@ use crate::catalog::Catalogs;
 use crate::chart::ChartStats;
 use crate::forest::ForestStats;
 use crate::forest::ParseCost;
+use crate::identity::SelfReference;
 use crate::surface::Punctuation;
 use crate::surface::Token;
 use crate::surface::TokenKind;
@@ -61,12 +62,9 @@ use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
 use crate::syntax::TriggeredAbility;
 use crate::word::ColorWord;
-use crate::word::LexicalSlot;
-use crate::word::NounUsage;
 use crate::word::Verb;
 use crate::word::VerbSlot;
 use crate::word::Vocab;
-use crate::word::Vocabulary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AbilityDiagnosticKind {
@@ -102,22 +100,29 @@ pub(crate) fn parse_oracle_text(
     source: &str,
     catalogs: &Catalogs,
     tokens: &[Token],
+    self_reference: &SelfReference,
 ) -> AbilityParse {
-    Parser::new(source, catalogs).parse(tokens)
+    Parser::new(source, catalogs, self_reference).parse(tokens)
 }
 
-struct Parser<'source, 'catalogs> {
+struct Parser<'source, 'catalogs, 'sr> {
     source: &'source str,
     catalogs: &'catalogs Catalogs,
+    self_reference: &'sr SelfReference,
     diagnostics: Vec<AbilityDiagnostic>,
     selections: Vec<AbilitySelection>,
 }
 
-impl<'source, 'catalogs> Parser<'source, 'catalogs> {
-    fn new(source: &'source str, catalogs: &'catalogs Catalogs) -> Self {
+impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
+    fn new(
+        source: &'source str,
+        catalogs: &'catalogs Catalogs,
+        self_reference: &'sr SelfReference,
+    ) -> Self {
         Self {
             source,
             catalogs,
+            self_reference,
             diagnostics: Vec::new(),
             selections: Vec::new(),
         }
@@ -596,8 +601,8 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         {
             TriggerEvent::Clause(clause)
         } else {
-            // A coordinated event (`~ enters or attacks`, `this creature enters
-            // or the creature it haunts dies`) reduces only through the general
+            // A coordinated event (`Ashcoat enters or attacks`, `this creature
+            // enters or the creature it haunts dies`) reduces only through the general
             // clause nonterminal; the simple-clause frame parse above rejects
             // the conjunction. Admit exactly the coordinated shape here so a
             // single-clause event keeps its existing simple-clause parse.
@@ -626,45 +631,16 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     }
 
     /// Parses a coordinated trigger event (`this creature enters or dies`,
-    /// `~ enters or attacks`, `this creature enters or the creature it haunts
-    /// dies`) as a single [`IndependentClause::Coordinated`]. Restricted to the
-    /// coordinated shape so a single-clause event is never re-parsed here — it
-    /// keeps its more specific simple-clause frame parse.
+    /// `Ashcoat enters or attacks`, `this creature enters or the creature it
+    /// haunts dies`) as a single [`IndependentClause::Coordinated`]. Restricted
+    /// to the coordinated shape so a single-clause event is never re-parsed
+    /// here — it keeps its more specific simple-clause frame parse.
     fn coordinated_event(&mut self, tokens: &[Token]) -> Option<IndependentClause> {
-        // The event is re-parsed in isolation, so its first token sits at
-        // sentence position 0 and escapes the mid-sentence capitalization gate
-        // that would otherwise force a capitalized common word to an opaque
-        // proper noun. A capitalized first token that lowercases to a common
-        // vocabulary noun is almost always an un-normalized legendary nickname
-        // (e.g. `Ashcoat`), which that escape would miscase to its lowercase
-        // lemma. Decline the structural coordinated parse and leave the event as
-        // residue for the short-name-normalization round; catalog subtypes and
-        // opaque proper nouns, which carry their own casing, are unaffected.
-        if tokens
-            .first()
-            .is_some_and(|token| self.is_uncased_common_noun(token))
-        {
-            return None;
-        }
         let parsed = self.parse_exact(tokens, Nonterminal::Clause)?;
         match parsed.clause()? {
             Clause::Independent(clause @ IndependentClause::Coordinated(_)) => Some(clause.clone()),
             _ => None,
         }
-    }
-
-    /// True when a token is a source-capitalized word whose lowercased form is
-    /// a common vocabulary noun — the signature of an un-normalized
-    /// legendary nickname that the isolated event re-parse would miscase.
-    fn is_uncased_common_noun(&self, token: &Token) -> bool {
-        let text = self.token_text(token);
-        text.as_bytes().first().is_some_and(u8::is_ascii_uppercase)
-            && !Vocabulary::new()
-                .matches(
-                    &text.to_ascii_lowercase(),
-                    LexicalSlot::Noun(NounUsage::Either),
-                )
-                .is_empty()
     }
 
     fn parse_cost(&mut self, tokens: &[Token]) -> Cost {
@@ -940,13 +916,14 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
 
     /// A quoted ability (`"..."`) may fill any grammatical slot the oracle
     /// licenses it in, not just a `with` postmodifier: the direct object of a
-    /// grant verb (`~ has "..."`, `~ gains "..."`) shares the slot too. The
-    /// quoted text parses recursively as an ability, and its interior parse
-    /// failures recover at the embedded-rules role (the `syntax` visitor tags
-    /// them) without poisoning this outer clause — recovery there is a
-    /// reclassification, not a whole-clause loss. The quote must occupy the
-    /// tail (only a sentence ending may follow the closing quote); anything
-    /// after it is a different construction and this production declines.
+    /// grant verb (`this creature has "..."`, `this creature gains "..."`)
+    /// shares the slot too. The quoted text parses recursively as an
+    /// ability, and its interior parse failures recover at the
+    /// embedded-rules role (the `syntax` visitor tags them) without
+    /// poisoning this outer clause — recovery there is a reclassification,
+    /// not a whole-clause loss. The quote must occupy the tail (only a
+    /// sentence ending may follow the closing quote); anything after it is
+    /// a different construction and this production declines.
     fn parse_quoted_sentence(&mut self, tokens: &[Token]) -> Option<Sentence> {
         let open = tokens
             .iter()
@@ -1011,14 +988,15 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     }
 
     /// Attaches a quoted ability as the direct object of a grant verb
-    /// (`~ has/have/gains/gain/loses/lose "..."`). Only a grant verb licenses a
-    /// quoted object here, so a quoted string in any other tail position
-    /// (`... named "A. B"`) is not this slot and this production declines,
-    /// leaving that construction to whatever owns it. Optional-object grant
-    /// verbs (`gains`) parse the prefix as a complete clause directly; the
-    /// required-object `has`/`have` prefix has no object of its own, so a
-    /// sentinel ability complement lets it parse and is then dropped so the
-    /// quoted ability takes the freed object slot.
+    /// (`this creature has/have/gains/gain/loses/lose "..."`). Only a grant
+    /// verb licenses a quoted object here, so a quoted string in any other
+    /// tail position (`... named "A. B"`) is not this slot and this
+    /// production declines, leaving that construction to whatever owns it.
+    /// Optional-object grant verbs (`gains`) parse the prefix as a complete
+    /// clause directly; the required-object `has`/`have` prefix has no
+    /// object of its own, so a sentinel ability complement lets it parse
+    /// and is then dropped so the quoted ability takes the freed object
+    /// slot.
     fn quoted_grant_object_clause(
         &mut self,
         prefix: &[Token],
@@ -1033,15 +1011,20 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         let mut clause = if let Some(parsed) = self.parse_exact(prefix, Nonterminal::SimpleClause) {
             parsed.simple_clause()?.clone()
         } else {
-            // A required-object grant verb (`~ has`) will not parse without an
+            // A required-object grant verb (`this creature has`) will not parse without an
             // object of its own. Supply a sentinel ability complement so the
             // prefix parses, then drop it — the quoted ability takes the freed
             // object slot.
             let probe = format!("{} {GRANT_OBJECT_SENTINEL}", self.tokens_text(prefix));
-            let mut clause = parse_nonterminal(&probe, self.catalogs, Nonterminal::SimpleClause)
-                .ok()?
-                .simple_clause()?
-                .clone();
+            let mut clause = parse_nonterminal_with_self_reference(
+                &probe,
+                self.catalogs,
+                Nonterminal::SimpleClause,
+                self.self_reference,
+            )
+            .ok()?
+            .simple_clause()?
+            .clone();
             clause.predicate.dependents.pop();
             clause
         };
@@ -1166,7 +1149,13 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             return None;
         }
         let span = tokens_span(tokens);
-        let parsed = parse_nonterminal(span.text(self.source)?, self.catalogs, nonterminal).ok()?;
+        let parsed = parse_nonterminal_with_self_reference(
+            span.text(self.source)?,
+            self.catalogs,
+            nonterminal,
+            self.self_reference,
+        )
+        .ok()?;
         self.selections.push(AbilitySelection {
             span,
             rule: parsed.root_rule(),
@@ -1386,8 +1375,8 @@ fn is_grant_verb(surface: &str) -> bool {
 }
 
 /// A base-form ability keyword used only to satisfy a required-object grant
-/// verb (`~ has`) so its prefix parses; it is dropped before the quoted ability
-/// takes the object slot, so it never reaches the AST.
+/// verb (`this creature has`) so its prefix parses; it is dropped before the
+/// quoted ability takes the object slot, so it never reaches the AST.
 const GRANT_OBJECT_SENTINEL: &str = "flying";
 
 /// A flavor header ends in inert terminal junk — `!`, `?`, or an ellipsis
@@ -1493,11 +1482,12 @@ mod tests {
     use crate::parse::DiagnosticKind;
     use crate::parse::ParseReport;
     use crate::parse::parse_with_catalogs;
+    use crate::parse::parse_with_identity;
     use crate::syntax::*;
 
     #[test]
     fn activated_ability_has_cost_components_and_effect_sentences() {
-        let report = parse("{1}{R}, {T}, Sacrifice ~: Draw a card. If you do, discard a card.");
+        let report = parse("{1}{R}, {T}, Sacrifice Nissa: Draw a card. If you do, discard a card.");
         let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
             panic!("expected activated ability");
         };
@@ -1571,7 +1561,7 @@ mod tests {
 
     #[test]
     fn condition_in_intervening_position_is_lifted_out_of_the_effect() {
-        let report = parse("Whenever ~ attacks, if you control another creature, draw a card.");
+        let report = parse("Whenever Nissa attacks, if you control another creature, draw a card.");
         let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
             panic!("expected triggered ability");
         };
@@ -1585,7 +1575,7 @@ mod tests {
         ));
         assert_eq!(
             render(&report),
-            "Whenever ~ attacks, if you control another creature, draw a card."
+            "Whenever Nissa attacks, if you control another creature, draw a card."
         );
     }
 
@@ -1640,7 +1630,7 @@ mod tests {
         };
         assert!(matches!(modal.frame, ModalFrame::Activated(_)));
 
-        let triggered = parse("Whenever ~ attacks, choose one —\n• Draw a card.\n• Scry 1.");
+        let triggered = parse("Whenever Nissa attacks, choose one —\n• Draw a card.\n• Scry 1.");
         let AbilityKind::Modal(modal) = &triggered.ast.abilities[0].kind else {
             panic!("expected triggered modal");
         };
@@ -2060,7 +2050,7 @@ mod tests {
             crate::word::Verb::KeywordAction(_)
         ));
 
-        let ability_word = parse("Void — Whenever ~ attacks, draw a card.");
+        let ability_word = parse("Void — Whenever Nissa attacks, draw a card.");
         assert_eq!(
             ability_word.ast.abilities[0]
                 .ability_word
@@ -2132,12 +2122,12 @@ mod tests {
     #[test]
     fn ability_fixtures_render_without_source_text() {
         for source in [
-            "{1}{R}, {T}, Sacrifice ~: Draw a card. If you do, discard a card.",
+            "{1}{R}, {T}, Sacrifice Nissa: Draw a card. If you do, discard a card.",
             "Landfall — Whenever a land enters under your control, draw a card.",
-            "Whenever ~ attacks, if you control another creature, draw a card.",
+            "Whenever Nissa attacks, if you control another creature, draw a card.",
             "Choose one —\n• Draw two cards.\n• Destroy target artifact or enchantment.",
             "{2}, {T}: Choose one —\n• Draw a card.\n• Create a Treasure token.",
-            "Whenever ~ attacks, choose one —\n• Draw a card.\n• Scry 1.",
+            "Whenever Nissa attacks, choose one —\n• Draw a card.\n• Scry 1.",
             "Create a token with \"{T}: Add {G}.\" Then draw a card.",
             "Draw two cards if you control an artifact.",
             "[−X]: Exile each nonland permanent with mana value X or less.",
@@ -2151,11 +2141,11 @@ mod tests {
             "Create a token named \"A. B\" and draw a card.",
             "Flying, first strike, protection from red",
             "Manifest dread 2.",
-            "Void — Whenever ~ attacks, draw a card.",
+            "Void — Whenever Nissa attacks, draw a card.",
         ] {
             let ast = parse(source).into_ast();
             assert_eq!(
-                ast.render("~", false).expect("AST should render"),
+                ast.render(FIXTURE_NAME, true).expect("AST should render"),
                 source,
                 "{source}"
             );
@@ -2175,9 +2165,7 @@ mod tests {
         .expect("the Aang existential condition should parse independently");
 
         let aang_source = "Aang has vigilance as long as there's a Lesson card in your graveyard.\nWhenever another creature you control dies, put a +1/+1 counter on Aang.";
-        let aang_input =
-            crate::normalize_self_references(aang_source, "Aang, A Lot to Learn", true);
-        let aang = parse_with_catalogs(&aang_input, &catalogs);
+        let aang = parse_with_identity(aang_source, &catalogs, "Aang, A Lot to Learn", true);
         let AbilityKind::Paragraph(aang_static) = &aang.ast.abilities[0].kind else {
             panic!("expected Aang's first ability to be a paragraph");
         };
@@ -2535,7 +2523,7 @@ mod tests {
         // frame's trigger parse admits the conjunction through the general
         // clause nonterminal, so the choice header stays a bare `choose one`.
         let source =
-            "Whenever ~ enters or attacks, choose one —\n• Draw a card.\n• Draw two cards.";
+            "Whenever Nissa enters or attacks, choose one —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
         let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
             panic!(
@@ -2584,7 +2572,7 @@ mod tests {
 
     #[test]
     fn choice_instruction_carries_an_or_both_quantity() {
-        let source = "When ~ enters, choose one or both —\n• Draw a card.\n• Draw two cards.";
+        let source = "When Nissa enters, choose one or both —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
         // The trigger is a simple event, so the outer frame absorbs it and the
         // choice header is the bare `choose one or both`.
@@ -2638,7 +2626,7 @@ mod tests {
     fn a_plain_when_trigger_ability_is_not_over_claimed_as_a_choice() {
         // The trigger-prefix grammar must not hijack an ordinary triggered
         // ability whose effect is not a choice.
-        let source = "When ~ enters, draw a card.";
+        let source = "When Nissa enters, draw a card.";
         let report = parse(source);
         assert!(
             matches!(&report.ast.abilities[0].kind, AbilityKind::Triggered(_)),
@@ -2864,12 +2852,20 @@ mod tests {
         assert_eq!(render(&report), source);
     }
 
+    /// A legendary identity (nickname `Nissa`, full name `Nissa Revane`) so the
+    /// self-referencing fixtures below recognize their own name; fixtures that
+    /// never name the face are unaffected by the identity.
+    const FIXTURE_NAME: &str = "Nissa Revane";
+
     fn parse(source: &str) -> ParseReport {
-        parse_with_catalogs(source, &fixture_catalogs())
+        parse_with_identity(source, &fixture_catalogs(), FIXTURE_NAME, true)
     }
 
     fn render(report: &ParseReport) -> String {
-        report.ast.render("~", false).expect("AST should render")
+        report
+            .ast
+            .render(FIXTURE_NAME, true)
+            .expect("AST should render")
     }
 
     fn sentence_independent(sentence: &Sentence) -> &IndependentClause {
@@ -2949,35 +2945,52 @@ mod tests {
     }
 
     #[test]
-    fn uncased_nickname_coordinated_event_stays_residue() {
-        // A source-capitalized common vocabulary word heading a coordinated
-        // event is an un-normalized legendary nickname the isolated re-parse
-        // would miscase; it is left as residue for the short-name round.
-        let report = parse("Whenever Ashcoat enters or dies, draw a card.");
-        assert!(
+    fn shortened_name_coordinated_event_parses_clean() {
+        // With real nickname recognition, a coordinated event headed by the
+        // face's shortened name parses as an AbbreviatedName self-reference plus
+        // a coordinated trigger — no longer residue.
+        let source = "Whenever Ashcoat attacks or blocks, draw a card.";
+        let report = parse_with_identity(
+            source,
+            &fixture_catalogs(),
+            "Ashcoat of the Shadow Swarm",
+            true,
+        );
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a triggered ability: {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        assert!(matches!(
+            triggered.event,
+            TriggerEvent::Clause(IndependentClause::Coordinated(_))
+        ));
+        assert_eq!(
             report
                 .ast
-                .recoveries()
-                .iter()
-                .any(|recovery| recovery.text.starts_with("Whenever Ashcoat")),
-            "expected the coordinated event to stay residue: {:#?}",
-            report.ast.recoveries()
+                .render("Ashcoat of the Shadow Swarm", true)
+                .unwrap(),
+            source
         );
     }
 
     #[test]
-    fn joint_face_self_reference_takes_plural_agreement() {
-        let plural = parse("When ~ enter, draw a card.");
+    fn self_reference_takes_verb_selected_agreement() {
+        // The self-reference offers both third-person agreements; the verb's own
+        // inflection selects one (a joint `and` face reads as plural).
+        let plural = parse("When Nissa enter, draw a card.");
         assert!(plural.diagnostics.is_empty(), "{:?}", plural.diagnostics);
-        assert_eq!(render(&plural), "When ~ enter, draw a card.");
+        assert_eq!(render(&plural), "When Nissa enter, draw a card.");
 
-        let singular = parse("When ~ enters, draw a card.");
+        let singular = parse("When Nissa enters, draw a card.");
         assert!(
             singular.diagnostics.is_empty(),
             "{:?}",
             singular.diagnostics
         );
-        assert_eq!(render(&singular), "When ~ enters, draw a card.");
+        assert_eq!(render(&singular), "When Nissa enters, draw a card.");
     }
 
     #[test]

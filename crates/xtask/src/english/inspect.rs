@@ -6,7 +6,7 @@ use anyhow::bail;
 use clap::Args;
 use deckmaste_english::Catalogs;
 use deckmaste_english::ParseReport;
-use deckmaste_english::parse_with_catalogs;
+use deckmaste_english::parse_with_identity;
 
 use super::data::CardFace;
 use super::data::OracleDataArgs;
@@ -93,7 +93,12 @@ fn write_cards(
             None => writeln!(writer, "{}", card.card_name)?,
         }
         writeln!(writer, "\nOracle text:\n{}", card.oracle_text)?;
-        let report = parse_with_catalogs(&card.oracle_text, catalogs);
+        let report = parse_with_identity(
+            &card.oracle_text,
+            catalogs,
+            card.printed_name(),
+            card.is_legendary,
+        );
         let ast = report.ast();
         if output_config.abilities_only {
             writeln!(writer, "\nAbilities:\n{:#?}", ast.abilities)?;
@@ -222,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn incoming_legendary_names_use_distinct_self_reference_sigils() {
+    fn incoming_legendary_names_are_kept_verbatim_in_the_name_bearing_domain() {
         let data = concat!(
             r#"{"name":"Aang, A Lot to Learn","face":null,"supertypes":["Legendary"],"text":"Aang attacks. Aang, A Lot to Learn's power is 3."}"#,
             "\n",
@@ -230,11 +235,16 @@ mod tests {
 
         let cards = find_cards(&cards(data), "Aang, A Lot to Learn");
 
-        assert_eq!(cards[0].oracle_text, "~ attacks. ~~'s power is 3.");
+        // The self-reference is recognized during the parse, not rewritten on
+        // the way in, so the Oracle text keeps the face's own name verbatim.
+        assert_eq!(
+            cards[0].oracle_text,
+            "Aang attacks. Aang, A Lot to Learn's power is 3."
+        );
     }
 
     #[test]
-    fn incoming_double_faced_cards_normalize_against_the_face_name() {
+    fn incoming_double_faced_cards_keep_the_face_name_verbatim() {
         let data = concat!(
             r#"{"name":"Aang, Swift Savior // Aang and La, Ocean's Fury","face":"Aang, Swift Savior","supertypes":["Legendary"],"text":"Aang transforms. Aang, Swift Savior has flying."}"#,
             "\n",
@@ -242,7 +252,10 @@ mod tests {
 
         let cards = find_cards(&cards(data), "Aang, Swift Savior");
 
-        assert_eq!(cards[0].oracle_text, "~ transforms. ~~ has flying.");
+        assert_eq!(
+            cards[0].oracle_text,
+            "Aang transforms. Aang, Swift Savior has flying."
+        );
     }
 
     #[test]
@@ -334,7 +347,12 @@ mod tests {
 
         let outcomes = map_supported_faces(&data.faces, |index, card| {
             let started = Instant::now();
-            let report = parse_with_catalogs(&card.oracle_text, &data.catalogs);
+            let report = parse_with_identity(
+                &card.oracle_text,
+                &data.catalogs,
+                card.printed_name(),
+                card.is_legendary,
+            );
             let elapsed = started.elapsed();
             let printed_name = card.printed_name().to_owned();
             let failure = match report

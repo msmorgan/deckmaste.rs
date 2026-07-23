@@ -2,6 +2,7 @@ use std::cell::Cell;
 use std::fmt;
 
 use crate::catalog::CatalogKind;
+use crate::identity::short_name;
 use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
@@ -162,7 +163,10 @@ impl Determiner {
 
 struct Renderer<'identity> {
     name: &'identity str,
-    short_name: &'identity str,
+    /// The face's derived shortened name, or `None` when it has none. An
+    /// [`ThisCardForm::AbbreviatedName`] node is emitted only for a face that
+    /// has one, so rendering it with the same identity always finds it here.
+    short_name: Option<&'identity str>,
     vocabulary: Vocabulary,
     /// How many quoted/embedded abilities enclose the ability currently being
     /// rendered. The Aura enchant keyword line lacks a period only at the top
@@ -173,14 +177,9 @@ struct Renderer<'identity> {
 
 impl<'identity> Renderer<'identity> {
     fn new(name: &'identity str, is_legendary: bool) -> Self {
-        let short_name = if is_legendary {
-            name.split_once(',').map_or(name, |(short, _)| short.trim())
-        } else {
-            name
-        };
         Self {
             name,
-            short_name,
+            short_name: short_name(name, is_legendary),
             vocabulary: Vocabulary::new(),
             nesting: Cell::new(0),
         }
@@ -492,9 +491,7 @@ impl<'identity> Renderer<'identity> {
         let (body, capitalize) = match &sentence.body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
             SentenceBody::Choice(choice) => (self.choice_instruction(choice)?, capitalize),
-            SentenceBody::Recovered(recovery) => {
-                (self.expand_self_references(recovery.spelling()), false)
-            }
+            SentenceBody::Recovered(recovery) => (recovery.spelling().to_owned(), false),
         };
         let mut rendered = if capitalize { capitalize_first(body) } else { body };
         if !force_no_period && self.sentence_takes_period(sentence) {
@@ -511,11 +508,12 @@ impl<'identity> Renderer<'identity> {
     /// are exhaustive:
     ///
     /// - a sentence whose final rendered constituent is a *closed* quoted
-    ///   ability (`~ gains "…"`, `create a token with "…"`) — the period then
-    ///   sits inside the closing quote;
+    ///   ability (`this creature gains "…"`, `create a token with "…"`) — the
+    ///   period then sits inside the closing quote;
     /// - a sentence whose final rendered constituent is a self-reference to a
-    ///   card whose name already ends in terminal punctuation (`Exile ~` where
-    ///   `~` = `Blood for the Blood God!`) — the name supplies the terminator;
+    ///   card whose name already ends in terminal punctuation (`Exile Blood for
+    ///   the Blood God!`, the self-reference being the whole card name) — the
+    ///   name supplies the terminator;
     /// - the Aura **enchant ability** line at top level (`Enchant creature`) —
     ///   a subjectless imperative headed by, or a clause subjected by, the
     ///   `enchant` keyword, printed without a period like the keyword ability
@@ -557,7 +555,7 @@ impl<'identity> Renderer<'identity> {
             return false;
         };
         let name = match form {
-            ThisCardForm::AbbreviatedName => self.short_name,
+            ThisCardForm::AbbreviatedName => self.short_name.unwrap_or_default(),
             ThisCardForm::FullName => self.name,
         };
         name.ends_with(['.', '!', '?'])
@@ -1240,9 +1238,7 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(|surface| spelling_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("gerund")),
-            Noun::Opaque(opaque) => Ok(spelling_initial_sound(
-                &self.expand_self_references(opaque.spelling()),
-            )),
+            Noun::Opaque(opaque) => Ok(spelling_initial_sound(opaque.spelling())),
         }
     }
 
@@ -1355,7 +1351,7 @@ impl<'identity> Renderer<'identity> {
             )),
             Phrase::EmbeddedAbility(ability) => self.nested_ability(ability, true),
             Phrase::QuotedAbility(quoted) => self.quoted_ability(quoted),
-            Phrase::Recovered(recovery) => Ok(self.expand_self_references(recovery.spelling())),
+            Phrase::Recovered(recovery) => Ok(recovery.spelling().to_owned()),
         }
     }
 
@@ -1378,7 +1374,10 @@ impl<'identity> Renderer<'identity> {
 
     fn this_card(&self, form: ThisCardForm) -> Result<String, RenderError> {
         let rendered = match form {
-            ThisCardForm::AbbreviatedName => self.short_name,
+            ThisCardForm::AbbreviatedName => self.short_name.expect(
+                "AbbreviatedName is emitted only for a face with a shortened name; \
+                 render with the parse identity",
+            ),
             ThisCardForm::FullName => self.name,
         };
         if rendered.is_empty() {
@@ -1386,23 +1385,6 @@ impl<'identity> Renderer<'identity> {
         } else {
             Ok(rendered.to_owned())
         }
-    }
-
-    fn expand_self_references(&self, text: &str) -> String {
-        let mut rendered = String::with_capacity(text.len());
-        let mut rest = text;
-        while let Some(index) = rest.find('~') {
-            rendered.push_str(&rest[..index]);
-            rest = &rest[index + 1..];
-            if let Some(after_second) = rest.strip_prefix('~') {
-                rendered.push_str(self.name);
-                rest = after_second;
-            } else {
-                rendered.push_str(self.short_name);
-            }
-        }
-        rendered.push_str(rest);
-        rendered
     }
 }
 
@@ -1455,8 +1437,8 @@ fn render_roll_range(range: RollRange) -> String {
 ///   misread as the verb).
 ///
 /// Requiring the imperative or the enchant-keyword subject keeps an ordinary
-/// `~ enchants a creature` clause (a real subject, real verb) taking its
-/// period.
+/// `this creature enchants a creature` clause (a real subject, real verb)
+/// taking its period.
 fn is_aura_enchant_line(clause: &IndependentClause) -> bool {
     match clause {
         IndependentClause::Imperative(predicate) => predicate_verb_is_enchant(predicate),
@@ -1549,8 +1531,8 @@ fn predicate_ends_with_closed_quote(predicate: &Predicate) -> bool {
 }
 
 /// A transitive predicate ends with its final adjunct/complement element, or —
-/// when it has none — with its object (`~ gains "…"` leaves the quoted ability
-/// as the object with no trailing element).
+/// when it has none — with its object (`this creature gains "…"` leaves the
+/// quoted ability as the object with no trailing element).
 fn transitive_ends_with_closed_quote(predicate: &TransitivePredicate) -> bool {
     if predicate.elements.is_empty() {
         predicate_object_is_closed_quote(&predicate.object)
@@ -2637,13 +2619,16 @@ mod tests {
     }
 
     #[test]
-    fn opaque_fallbacks_expand_self_reference_sigils() {
-        let ast = crate::parse("~ frobnitzes ~~.").into_ast();
+    fn recovered_spans_emit_self_reference_names_verbatim() {
+        // `frobnitzes` is unknown, so the text recovers as its raw source span.
+        // In the name-bearing domain the face's names are already spelled out,
+        // so a recovered span round-trips byte-for-byte with no sigil expansion.
+        let source = "Aang frobnitzes Aang, A Lot to Learn.";
+        let ast =
+            crate::parse_with_identity(source, &fixture_catalogs(), "Aang, A Lot to Learn", true)
+                .into_ast();
 
-        assert_eq!(
-            source_free(&ast, "Aang, A Lot to Learn", true),
-            "Aang frobnitzes Aang, A Lot to Learn."
-        );
+        assert_eq!(source_free(&ast, "Aang, A Lot to Learn", true), source);
     }
 
     #[test]

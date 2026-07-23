@@ -2,7 +2,7 @@ use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
 use deckmaste_english::ParseReport;
-use deckmaste_english::parse_with_catalogs;
+use deckmaste_english::parse_with_identity;
 use deckmaste_english::syntax::LexicalOpacityKind;
 use deckmaste_english::syntax::RecoveryRole;
 use serde::Serialize;
@@ -139,7 +139,12 @@ impl Census {
 pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
     let data = args.data.load()?;
     let census = map_supported_faces(&data.faces, |_, card| {
-        let report = parse_with_catalogs(&card.oracle_text, &data.catalogs);
+        let report = parse_with_identity(
+            &card.oracle_text,
+            &data.catalogs,
+            card.printed_name(),
+            card.is_legendary,
+        );
         let mut census = Census::default();
         census.observe_report(&report);
         census

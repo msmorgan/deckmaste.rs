@@ -2,8 +2,7 @@ use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
 use deckmaste_english::Catalogs;
-use deckmaste_english::normalize_self_references;
-use deckmaste_english::parse_with_catalogs;
+use deckmaste_english::parse_with_identity;
 use serde::Serialize;
 
 use crate::english::data::CardFace;
@@ -50,24 +49,25 @@ impl Outcome {
     }
 }
 
-/// Round-trips one supported face: parse its normalized Oracle text, render it
-/// back with the real card identity, and compare in the self-reference
-/// normalized domain (so `~`-vs-name differences never read as mismatches).
+/// Round-trips one supported face: parse its normalized, name-bearing Oracle
+/// text as that face, render it back with the same identity, and compare
+/// byte-for-byte. Self-references are recognized during the parse and
+/// re-emitted as the face's own name, so the comparison is a direct equality in
+/// the name-bearing domain.
 fn classify(card: &CardFace, catalogs: &Catalogs) -> Outcome {
-    let report = parse_with_catalogs(&card.oracle_text, catalogs);
+    let report = parse_with_identity(
+        &card.oracle_text,
+        catalogs,
+        card.printed_name(),
+        card.is_legendary,
+    );
     let Ok(rendered) = report
         .into_ast()
         .render(card.printed_name(), card.is_legendary)
     else {
         return Outcome::Error;
     };
-    if normalize_self_references(&rendered, card.printed_name(), card.is_legendary)
-        == card.oracle_text
-    {
-        Outcome::Clean
-    } else {
-        Outcome::Mismatch
-    }
+    if rendered == card.oracle_text { Outcome::Clean } else { Outcome::Mismatch }
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize)]
@@ -152,15 +152,10 @@ mod tests {
     use super::*;
 
     /// Builds a supported face exactly as `data::CardFace::from` does, so its
-    /// `oracle_text` is the real normalized parse input.
+    /// `oracle_text` is the real name-bearing parse input.
     fn face(name: &str, source: &str, is_legendary: bool) -> CardFace {
         let normalized_source = normalize_roll_row_dashes(&normalize_typographic_quotes(source));
-        let normalized_name = normalize_typographic_quotes(name);
-        let oracle_text = strip_reminder_text(&normalize_self_references(
-            &normalized_source,
-            &normalized_name,
-            is_legendary,
-        ));
+        let oracle_text = strip_reminder_text(&normalized_source);
         CardFace {
             card_name: name.to_owned(),
             face_name: None,
@@ -186,25 +181,28 @@ mod tests {
     }
 
     #[test]
-    fn self_reference_round_trips_in_normalized_domain() {
-        // The source text contains the face's own name; its `oracle_text` holds
-        // `~`, render re-expands the real name, and normalization maps it back.
-        // This is the test that fails if the comparison uses the wrong domain.
+    fn self_reference_round_trips_in_the_name_bearing_domain() {
+        // The source text contains the face's own name; `oracle_text` keeps it
+        // verbatim, the parse recognizes it as a self-reference, and render
+        // re-emits it, so the comparison is a direct equality.
         let card = face("Test Card", "Test Card deals 1 damage to you.", false);
-        assert_eq!(card.oracle_text, "~ deals 1 damage to you.");
+        assert_eq!(card.oracle_text, "Test Card deals 1 damage to you.");
         assert_eq!(classify(&card, &Catalogs::default()), Outcome::Clean);
     }
 
     #[test]
     fn legendary_self_reference_round_trips() {
-        // Exercises the `~~` (full name) / `~` (pre-comma short name) paths
-        // through render + normalize.
+        // Exercises the full-name and the pre-comma shortened-name paths in the
+        // name-bearing domain.
         let card = face(
             "Hero, the Bold",
             "Hero, the Bold deals damage. Hero attacks.",
             true,
         );
-        assert_eq!(card.oracle_text, "~~ deals damage. ~ attacks.");
+        assert_eq!(
+            card.oracle_text,
+            "Hero, the Bold deals damage. Hero attacks."
+        );
         assert_eq!(classify(&card, &Catalogs::default()), Outcome::Clean);
     }
 

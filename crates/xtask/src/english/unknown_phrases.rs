@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
-use deckmaste_english::parse_with_catalogs;
+use deckmaste_english::parse_with_identity;
 use deckmaste_english::syntax::OracleText;
 use deckmaste_english::syntax::RecoveryRole;
 
@@ -93,7 +93,12 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
 
     let card_count = data.faces.iter().filter(|card| card.supported).count();
     let mut occurrences = map_supported_faces(&data.faces, |_, card| {
-        let report = parse_with_catalogs(&card.oracle_text, &data.catalogs);
+        let report = parse_with_identity(
+            &card.oracle_text,
+            &data.catalogs,
+            card.printed_name(),
+            card.is_legendary,
+        );
         unknown_occurrences(report.ast(), card.printed_name())
     })
     .into_iter()
@@ -357,6 +362,7 @@ fn sort_unique_occurrences(
 #[cfg(test)]
 mod tests {
     use deckmaste_english::Catalogs;
+    use deckmaste_english::parse_with_catalogs;
 
     use super::*;
 

@@ -4,7 +4,9 @@ use crate::chart::ChartStats;
 use crate::forest::ForestStats;
 use crate::grammar::ability::AbilityDiagnosticKind;
 use crate::grammar::ability::parse_oracle_text;
+use crate::identity::SelfReference;
 use crate::surface::SurfaceDiagnosticKind;
+use crate::surface::collapse_full_names;
 use crate::surface::lex;
 use crate::syntax::OracleText;
 
@@ -118,16 +120,46 @@ impl ParseSelection {
     }
 }
 
+/// Parses Oracle text with no card identity, so no self-reference is
+/// recognized. Suitable for text known to contain no reference to the card's
+/// own name.
 #[must_use]
 pub fn parse(source: &str) -> ParseReport {
     parse_with_catalogs(source, &Catalogs::default())
 }
 
+/// Parses Oracle text with catalogs but no card identity. See [`parse`].
 #[must_use]
 pub fn parse_with_catalogs(source: &str, catalogs: &Catalogs) -> ParseReport {
+    parse_internal(source, catalogs, &SelfReference::default())
+}
+
+/// Parses Oracle text as a specific face, so the face's own name — written in
+/// full or as its shortened self-reference — is recognized as a self-reference
+/// rather than left as opaque residue. Render the resulting tree with the same
+/// `name` and `is_legendary` to round-trip.
+#[must_use]
+pub fn parse_with_identity(
+    source: &str,
+    catalogs: &Catalogs,
+    name: &str,
+    is_legendary: bool,
+) -> ParseReport {
+    parse_internal(source, catalogs, &SelfReference::new(name, is_legendary))
+}
+
+fn parse_internal(
+    source: &str,
+    catalogs: &Catalogs,
+    self_reference: &SelfReference,
+) -> ParseReport {
     let surface = lex(source);
+    // The corpus metric counts the name-bearing tokenization; the full-name
+    // collapse below is an internal step that keeps the structural splitter
+    // from dividing a comma-bearing self-reference.
     let source_tokens = surface.tokens.len();
-    let parsed = parse_oracle_text(source, catalogs, &surface.tokens);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let parsed = parse_oracle_text(source, catalogs, &tokens, self_reference);
     let mut diagnostics = surface
         .diagnostics
         .into_iter()

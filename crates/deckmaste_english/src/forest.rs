@@ -13,6 +13,21 @@ pub(crate) struct ParseCost {
     pub(crate) opaque_words: u32,
     pub(crate) opaque_lexemes: u32,
     pub(crate) generic_rules: u32,
+    /// A soft dispreference among competing readings of the same span, ranked
+    /// below the structural fields but above `precedence`. Higher loses. It
+    /// orders the ambiguous readings the scanner offers for a card's own name:
+    ///
+    /// - `0` — an ordinary reading (a catalog term, a lowercase common word, an
+    ///   opaque proper noun): most preferred, so a self-reference wins only
+    ///   when nothing else equally structural explains the tokens.
+    /// - `1` — a full-name self-reference.
+    /// - `2` — a shortened-name (nickname) self-reference.
+    /// - `3` — a capitalized word read as a common Noun/Adjective/Verb solely
+    ///   by sentence-initial license. This reading lowercases the word, so it
+    ///   must lose to a self-reference that reproduces the capitalized surface
+    ///   (a nickname that coincides with a common noun, e.g. `Carnage`, in a
+    ///   re-parsed trigger event whose position 0 only looks sentence-initial).
+    pub(crate) reading_dispreference: u32,
     pub(crate) precedence: u32,
 }
 
@@ -30,6 +45,9 @@ impl AddAssign for ParseCost {
         self.opaque_words = self.opaque_words.saturating_add(rhs.opaque_words);
         self.opaque_lexemes = self.opaque_lexemes.saturating_add(rhs.opaque_lexemes);
         self.generic_rules = self.generic_rules.saturating_add(rhs.generic_rules);
+        self.reading_dispreference = self
+            .reading_dispreference
+            .saturating_add(rhs.reading_dispreference);
         self.precedence = self.precedence.saturating_add(rhs.precedence);
     }
 }

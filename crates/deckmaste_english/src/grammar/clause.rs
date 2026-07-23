@@ -276,7 +276,7 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::Adverb), n(N::CopularRemainder)],
     );
     // The distributive floating `each` of a characteristic-defining copular
-    // (`~'s power and toughness are each equal to <measure>`). Requiring the
+    // (`Rosie's power and toughness are each equal to <measure>`). Requiring the
     // `each` token keeps this frame off the non-`each` singular/plural forms,
     // which stay on the intransitive `be` + adjective + prepositional-adjunct
     // analysis. The adjective and its `to`-standard are taken apart here and
@@ -2879,6 +2879,7 @@ mod tests {
     use super::*;
     use crate::catalog::CatalogKind;
     use crate::catalog::Catalogs;
+    use crate::identity::SelfReference;
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::AdjectiveComplement;
@@ -4422,8 +4423,8 @@ mod tests {
             "the number of lands you control",
             "the number of creatures you control",
         ] {
-            let source = format!("~'s power and toughness are each equal to {measure}.");
-            let parsed = parse(&source);
+            let source = format!("Nissa's power and toughness are each equal to {measure}.");
+            let parsed = parse_self(&source);
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             let SentenceBody::Independent(IndependentClause::Copular(_, predicate)) =
                 &parsed.sentence().expect("sentence root").body
@@ -4455,8 +4456,8 @@ mod tests {
                 "the standard must not float as a clause adjunct: {predicate:#?}"
             );
             assert_eq!(
-                render_sentence(parsed.sentence().unwrap()),
-                format!("Test Card's power and toughness are each equal to {measure}."),
+                render_sentence_as(parsed.sentence().unwrap(), "Nissa Revane", true),
+                format!("Nissa's power and toughness are each equal to {measure}."),
                 "{source}",
             );
         }
@@ -4481,10 +4482,10 @@ mod tests {
         // and the `each` form is exactly the carried flag, never a spelling
         // guess in the renderer.
         for source in [
-            "~'s power is equal to the number of lands you control.",
-            "~'s power and toughness are equal to the number of lands you control.",
+            "Nissa's power is equal to the number of lands you control.",
+            "Nissa's power and toughness are equal to the number of lands you control.",
         ] {
-            let parsed = parse(source);
+            let parsed = parse_self(source);
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             assert!(
                 matches!(
@@ -4494,18 +4495,30 @@ mod tests {
                 "non-`each` copular must stay intransitive: {:#?}",
                 parsed.sentence(),
             );
-            let rendered = render_sentence(parsed.sentence().unwrap());
+            let rendered = render_sentence_as(parsed.sentence().unwrap(), "Nissa Revane", true);
             assert!(
                 !rendered.contains(" each "),
                 "no `each` may be synthesized for the non-distributive form: {rendered}"
             );
-            assert_eq!(rendered, source.replacen('~', "Test Card", 1), "{source}");
+            assert_eq!(rendered, source, "{source}");
         }
     }
 
     fn parse(source: &str) -> ParsedNonterminal {
         parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence)
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
+    }
+
+    /// Parses a sentence as the legendary face `Nissa Revane` (nickname
+    /// `Nissa`), so a `Nissa`/`Nissa's` self-reference is recognized.
+    fn parse_self(source: &str) -> ParsedNonterminal {
+        parse_nonterminal_with_self_reference(
+            source,
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+            &SelfReference::new("Nissa Revane", true),
+        )
+        .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
     }
 
     fn fixture_catalogs() -> Catalogs {
@@ -4555,6 +4568,10 @@ mod tests {
     }
 
     fn render_sentence(sentence: &Sentence) -> String {
+        render_sentence_as(sentence, "Test Card", false)
+    }
+
+    fn render_sentence_as(sentence: &Sentence, name: &str, is_legendary: bool) -> String {
         OracleText {
             abilities: vec![Ability {
                 ability_word: None,
@@ -4564,7 +4581,7 @@ mod tests {
                 }),
             }],
         }
-        .render("Test Card", false)
+        .render(name, is_legendary)
         .expect("parsed sentence must render")
     }
 }

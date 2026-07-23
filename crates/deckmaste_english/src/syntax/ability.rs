@@ -332,8 +332,8 @@ pub enum SentenceBody {
 ///   clause parsed by the chart. It is present only when the outer
 ///   [`ModalFrame`] did not already absorb the ability's trigger — a reflexive
 ///   second trigger such as `When you do, …` that heads a non-initial header
-///   sentence. An ability-initial trigger, coordinated (`~ enters or attacks`)
-///   or not, is instead absorbed by [`ModalFrame::Triggered`].
+///   sentence. An ability-initial trigger, coordinated (`Ashcoat enters or
+///   attacks`) or not, is instead absorbed by [`ModalFrame::Triggered`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChoiceInstruction {
     /// Boxed so the choice instruction stays no larger than a bare imperative
@@ -346,7 +346,7 @@ pub struct ChoiceInstruction {
 
 /// A modal choice instruction's leading trigger clause. Mirrors the fields of
 /// [`ModalFrame::Triggered`] and renders through the same trigger renderer, so
-/// `When you do,` / `Whenever ~ enters or attacks,` reproduce exactly.
+/// `When you do,` / `Whenever Ashcoat enters or attacks,` reproduce exactly.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChoiceTrigger {
     pub introducer: TriggerWord,

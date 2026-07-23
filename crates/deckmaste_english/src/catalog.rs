@@ -142,6 +142,17 @@ impl CatalogAtom {
         }
     }
 
+    /// Whether [`Self::render_noun`] lowercases this atom's canonical spelling,
+    /// so reading a capitalized token as this noun corrupts its case. Mirrors
+    /// the lowercasing branches of `render_noun`: keyword abilities always
+    /// lowercase, and every [`CasePolicy::Lowercase`] kind (supertypes,
+    /// card types) does too.
+    #[must_use]
+    pub fn renders_lowercase_noun(&self) -> bool {
+        matches!(self.kind, CatalogKind::KeywordAbility)
+            || matches!(self.kind.case_policy(), CasePolicy::Lowercase)
+    }
+
     #[must_use]
     pub fn render_adjective(&self) -> String {
         match self.kind.case_policy() {
