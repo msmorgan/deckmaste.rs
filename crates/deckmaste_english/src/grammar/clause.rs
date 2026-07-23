@@ -1637,7 +1637,9 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::VerbPhrase(predicate) = take(children, 0)? else {
                 return None;
             };
-            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
+            let FinishedPredicate {
+                modal, predicate, ..
+            } = finish_predicate(predicate)?;
             if modal.is_some() {
                 return None;
             }
@@ -1976,7 +1978,9 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
             let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
                 return None;
             };
-            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
+            let FinishedPredicate {
+                modal, predicate, ..
+            } = finish_predicate(predicate)?;
             if modal.is_some() {
                 return None;
             }
@@ -2004,7 +2008,9 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
             };
             predicate.auxiliaries.insert(0, subject_auxiliary.auxiliary);
             predicate.first_auxiliary_contracted_with_subject = true;
-            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
+            let FinishedPredicate {
+                modal, predicate, ..
+            } = finish_predicate(predicate)?;
             if modal.is_some() {
                 return None;
             }
@@ -2032,7 +2038,9 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
             };
             predicate.auxiliaries.insert(0, subject_auxiliary.auxiliary);
             predicate.first_auxiliary_contracted_with_subject = true;
-            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
+            let FinishedPredicate {
+                modal, predicate, ..
+            } = finish_predicate(predicate)?;
             if modal.is_some() {
                 return None;
             }
@@ -2049,16 +2057,20 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
             let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
                 return None;
             };
-            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
-            let is_empty_proform = match &predicate {
-                Predicate::Proform(_) => true,
-                Predicate::Intransitive(intra) => intra.elements.is_empty(),
-                _ => false,
-            };
+            let FinishedPredicate {
+                modal,
+                predicate,
+                elided,
+            } = finish_predicate(predicate)?;
+            // Only VP-ellipsis under the modal ("creature that can't") drops the
+            // predicate. A modal with a real, complement-less verb ("damage that
+            // would be", "creature that would die") keeps it — nulling those on
+            // the loose "intransitive with empty elements" test silently ate the
+            // verb (e.g. the "be" of "would be dealt").
             let body = match modal {
                 Some(modal) => RelativeBody::ModalSubjectGap {
                     modal,
-                    predicate: if is_empty_proform { None } else { Some(predicate) },
+                    predicate: if elided { None } else { Some(predicate) },
                 },
                 None => RelativeBody::SubjectGap(predicate),
             };
@@ -2317,7 +2329,9 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
             let Lowered::VerbPhrase(predicate) = take(children, 2)? else {
                 return None;
             };
-            let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
+            let FinishedPredicate {
+                modal, predicate, ..
+            } = finish_predicate(predicate)?;
             if modal.is_some() {
                 return None;
             }
@@ -2372,7 +2386,9 @@ fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered>
     let member = if next.subject.is_some() {
         CoordinatedClauseMember::Independent(Box::new(finish_simple_clause(next)?))
     } else {
-        let FinishedPredicate { modal, predicate } = finish_predicate(next.predicate)?;
+        let FinishedPredicate {
+            modal, predicate, ..
+        } = finish_predicate(next.predicate)?;
         if modal.is_some() {
             return None;
         }
@@ -2464,17 +2480,28 @@ fn with_clause_attachment(
 struct FinishedPredicate {
     modal: Option<Modal>,
     predicate: Predicate,
+    /// True when the verb phrase was an elided proform under a modal, i.e.
+    /// VP-ellipsis ("If you can't, …"). The `predicate` field then holds the
+    /// synthesized proform as a placeholder; consumers building a modal clause
+    /// drop it so the modal renders alone.
+    elided: bool,
 }
 
 pub(super) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentClause> {
     let imperative = simple.subject.is_none() && simple.predicate.verb.slot == VerbSlot::Imperative;
     let subject = simple.subject;
-    let FinishedPredicate { modal, predicate } = finish_predicate(simple.predicate)?;
+    let FinishedPredicate {
+        modal,
+        predicate,
+        elided,
+    } = finish_predicate(simple.predicate)?;
     match (subject, modal, imperative) {
         (None, None, true) => Some(IndependentClause::Imperative(predicate)),
-        (Some(subject), Some(modal), false) => {
-            Some(IndependentClause::Deontic(subject, modal, predicate))
-        }
+        (Some(subject), Some(modal), false) => Some(IndependentClause::Deontic(
+            subject,
+            modal,
+            if elided { None } else { Some(predicate) },
+        )),
         (Some(subject), None, false) => Some(independent_with_subject(subject, predicate)),
         _ => None,
     }
@@ -2622,6 +2649,17 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
         preverb_modifiers: phrase.preverb_modifiers,
         verb: phrase.verb,
     };
+    // A bare proform under a modal (nothing surviving beside the modal) is
+    // VP-ellipsis: "If you can't, …". The synthesized `do` pro-verb is a
+    // placeholder the surface never spelled, so flag it for the modal-clause
+    // builder to drop rather than render.
+    let elided = proform
+        && modal.is_some()
+        && object.is_none()
+        && head.auxiliaries.is_empty()
+        && head.preverb_modifiers.is_empty()
+        && pre_object_elements.is_empty()
+        && elements.is_empty();
     let predicate = if passive {
         if object.is_some() {
             return None;
@@ -2668,7 +2706,11 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
             elements: pre_object_elements,
         })
     };
-    Some(FinishedPredicate { modal, predicate })
+    Some(FinishedPredicate {
+        modal,
+        predicate,
+        elided,
+    })
 }
 
 const fn proform_inflection(slot: VerbSlot) -> AuxiliaryInflection {
@@ -2684,7 +2726,9 @@ const fn proform_inflection(slot: VerbSlot) -> AuxiliaryInflection {
 pub(super) fn finish_infinitive(
     clause: InfinitiveClause,
 ) -> Option<crate::syntax::InfinitiveClause> {
-    let FinishedPredicate { modal, predicate } = finish_predicate(*clause.predicate)?;
+    let FinishedPredicate {
+        modal, predicate, ..
+    } = finish_predicate(*clause.predicate)?;
     if modal.is_some() {
         return None;
     }
@@ -2999,7 +3043,7 @@ mod tests {
                 SentenceBody::Independent(IndependentClause::Deontic(
                     _,
                     _,
-                    Predicate::Transitive(predicate),
+                    Some(Predicate::Transitive(predicate)),
                 )) => &predicate.elements,
                 SentenceBody::Independent(IndependentClause::Imperative(
                     Predicate::Intransitive(predicate),
@@ -3093,7 +3137,7 @@ mod tests {
                 SentenceBody::Independent(IndependentClause::Deontic(
                     _,
                     _,
-                    Predicate::Intransitive(predicate),
+                    Some(Predicate::Intransitive(predicate)),
                 )) if matches!(
                     predicate.elements.as_slice(),
                     [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
@@ -3113,7 +3157,7 @@ mod tests {
         let SentenceBody::Independent(IndependentClause::Deontic(
             _,
             _,
-            Predicate::Transitive(predicate),
+            Some(Predicate::Transitive(predicate)),
         )) = &parsed.sentence().expect("sentence root").body
         else {
             panic!("expected a deontic transitive clause");
@@ -3135,7 +3179,7 @@ mod tests {
         let SentenceBody::Independent(IndependentClause::Deontic(
             _,
             _,
-            Predicate::Intransitive(predicate),
+            Some(Predicate::Intransitive(predicate)),
         )) = &parsed.sentence().expect("sentence root").body
         else {
             panic!(
@@ -3639,7 +3683,7 @@ mod tests {
         let SentenceBody::Independent(IndependentClause::Deontic(
             _,
             _,
-            Predicate::Transitive(cast),
+            Some(Predicate::Transitive(cast)),
         )) = &parsed.sentence().expect("sentence root").body
         else {
             panic!("expected a deontic cast clause: {:#?}", parsed.sentence());
@@ -3687,7 +3731,7 @@ mod tests {
         let SentenceBody::Independent(IndependentClause::Deontic(
             _,
             _,
-            Predicate::Intransitive(choose),
+            Some(Predicate::Intransitive(choose)),
         )) = &parsed.sentence().expect("sentence root").body
         else {
             panic!("expected a deontic choose clause: {:#?}", parsed.sentence());
@@ -3831,7 +3875,7 @@ mod tests {
         let SentenceBody::Independent(IndependentClause::Deontic(
             _,
             _,
-            Predicate::Passive(predicate),
+            Some(Predicate::Passive(predicate)),
         )) = &parsed.sentence().expect("sentence root").body
         else {
             panic!("expected a deontic passive clause");
@@ -4129,6 +4173,31 @@ mod tests {
         let source = "This creature can block only creatures with flying.";
         let parsed = parse(source);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn deontic_modal_ellipsis_drops_the_predicate_but_keeps_a_real_verb() {
+        // Motivating shape: VP-ellipsis under the modal renders the bare modal
+        // with no synthesized `do` ("If you can't, …").
+        let elided = "If you can't, draw a card.";
+        assert_eq!(render_sentence(parse(elided).sentence().unwrap()), elided);
+        // Mirror shape: the same modal production with a real verb keeps it.
+        let full = "Creatures you control can't attack.";
+        assert_eq!(render_sentence(parse(full).sentence().unwrap()), full);
+    }
+
+    #[test]
+    fn modal_subject_relative_keeps_the_passive_be_across_a_coordinated_agent() {
+        // Motivating shape: the passive `be` must survive when the modal
+        // relative carries a prepositional phrase and coordination — the loose
+        // "empty intransitive" nulling used to eat it.
+        let passive =
+            "Prevent all combat damage that would be dealt to you and creatures you control.";
+        assert_eq!(render_sentence(parse(passive).sentence().unwrap()), passive);
+        // Mirror shape: a genuinely elided modal relative still drops its
+        // predicate and renders the bare modal.
+        let elided = "Exile each creature that can't.";
+        assert_eq!(render_sentence(parse(elided).sentence().unwrap()), elided);
     }
 
     fn parse(source: &str) -> ParsedNonterminal {

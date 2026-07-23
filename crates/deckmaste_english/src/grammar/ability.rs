@@ -1677,7 +1677,11 @@ mod tests {
         assert!(
             matches!(
                 keeper_upkeep.effect.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Deontic(_, _, Predicate::Passive(_),))
+                SentenceBody::Independent(IndependentClause::Deontic(
+                    _,
+                    _,
+                    Some(Predicate::Passive(_)),
+                ))
             ),
             "{:#?}",
             keeper_upkeep.effect.sentences[0].body
@@ -1702,7 +1706,7 @@ mod tests {
                 SentenceBody::Independent(IndependentClause::Deontic(
                     _,
                     _,
-                    Predicate::Transitive(_),
+                    Some(Predicate::Transitive(_)),
                 ))
             ),
             "{:#?}",

@@ -25,7 +25,10 @@ pub enum IndependentClause {
     Copular(Subject, CopularPredicate),
     Passive(Subject, PassivePredicate),
     Imperative(Predicate),
-    Deontic(Subject, Modal, Predicate),
+    /// A modal clause. The predicate is `None` when the verb phrase is elided
+    /// under the modal (VP-ellipsis, e.g. "If you can't, …"); the modal then
+    /// renders alone with no synthesized pro-verb.
+    Deontic(Subject, Modal, Option<Predicate>),
     Existential(ExistentialClause),
     Proform(Subject, ProPredicate),
     Complex(ComplexClause),

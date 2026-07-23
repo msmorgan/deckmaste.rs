@@ -190,7 +190,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
             IndependentClause::Imperative(predicate) => self.predicate(predicate, context),
             IndependentClause::Deontic(subject, _, predicate) => {
                 self.subject(subject, context);
-                self.predicate(predicate, context);
+                if let Some(predicate) = predicate {
+                    self.predicate(predicate, context);
+                }
             }
             IndependentClause::Existential(existential) => {
                 self.noun_phrase(&existential.pivot, context);

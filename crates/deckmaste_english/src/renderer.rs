@@ -452,11 +452,16 @@ impl<'identity> Renderer<'identity> {
                 ]))
             }
             IndependentClause::Imperative(predicate) => self.predicate(predicate),
-            IndependentClause::Deontic(subject, modal, predicate) => Ok(join_words(vec![
-                self.subject(subject)?,
-                self.render_auxiliary(modal.auxiliary)?,
-                self.predicate(predicate)?,
-            ])),
+            IndependentClause::Deontic(subject, modal, predicate) => {
+                let mut parts = vec![
+                    self.subject(subject)?,
+                    self.render_auxiliary(modal.auxiliary)?,
+                ];
+                if let Some(predicate) = predicate {
+                    parts.push(self.predicate(predicate)?);
+                }
+                Ok(join_words(parts))
+            }
             IndependentClause::Existential(existential) => self.existential_clause(existential),
             IndependentClause::Proform(subject, predicate) => Ok(join_words(vec![
                 self.subject(subject)?,
