@@ -991,7 +991,10 @@ impl<'identity> Renderer<'identity> {
             NounPhrase::ThisCard(form) => self.this_card(*form),
             NounPhrase::Partitive(partitive) => Ok(format!(
                 "{} of {}",
-                render_quantity(partitive.quantity),
+                match partitive.head {
+                    crate::syntax::PartitiveHead::Quantity(quantity) => render_quantity(quantity),
+                    crate::syntax::PartitiveHead::Each => "each".to_owned(),
+                },
                 self.noun_phrase(&partitive.whole)?
             )),
             NounPhrase::Coordinated(coordinated) => {
@@ -1410,6 +1413,7 @@ fn render_predicate_conjunction(conjunction: PredicateConjunction) -> &'static s
 
 fn render_preposition(preposition: Preposition) -> &'static str {
     match preposition {
+        Preposition::After => "after",
         Preposition::Among => "among",
         Preposition::As => "as",
         Preposition::At => "at",

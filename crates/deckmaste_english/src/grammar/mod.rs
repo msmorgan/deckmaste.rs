@@ -235,6 +235,7 @@ pub(crate) enum EnglishLexicalSlot {
     Not,
     To,
     Of,
+    EachDeterminer,
     Reciprocal,
     ThisCard,
     FullThisCard,
@@ -796,6 +797,7 @@ enum RuleTag {
     NounPhrasePossessiveThisCard,
     NounPhraseDemonstrative,
     NounPhrasePartitive,
+    NounPhraseEachPartitive,
     NounPhraseCoordination,
     NounPhraseAdditiveCoordination,
     PrepositionalPhrase,
@@ -1265,6 +1267,19 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     end,
                     features: Features::Preposition(Preposition::Of),
                     meaning: MeaningKey::Preposition(Preposition::Of),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::EachDeterminer => self
+                .one_token_match(tokens, start, "each")
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::Determiner {
+                        cardinality: Cardinality::SingularCount,
+                        article: None,
+                    },
+                    meaning: MeaningKey::Determiner(DeterminerKey::Each),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -2060,7 +2075,9 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let preposition = if surface.eq_ignore_ascii_case("among") {
+        let preposition = if surface.eq_ignore_ascii_case("after") {
+            Preposition::After
+        } else if surface.eq_ignore_ascii_case("among") {
             Preposition::Among
         } else if surface.eq_ignore_ascii_case("as") {
             Preposition::As
@@ -2394,6 +2411,11 @@ impl RuleBuilder {
             RuleTag::NounPhrasePartitive,
             N::NounPhrase,
             [n(N::Quantity), l(L::Of), n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::NounPhraseEachPartitive,
+            N::NounPhrase,
+            [l(L::EachDeterminer), l(L::Of), n(N::NounPhrase)],
         );
         self.add_with_cost(
             RuleTag::NounPhraseCoordination,
@@ -2769,6 +2791,7 @@ fn reduce(
         | RuleTag::NounPhrasePossessiveThisCard
         | RuleTag::NounPhraseDemonstrative
         | RuleTag::NounPhrasePartitive
+        | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::PrepositionalPhrase
@@ -3374,6 +3397,21 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 adjunct: None,
             })
         }
+        RuleTag::NounPhraseEachPartitive => {
+            // The `each` slot only ever scans "each", so the distributive
+            // partitive is always grammatically third-person singular.
+            let Features::Determiner { .. } = children.first()?.features else {
+                return None;
+            };
+            Some(Features::NounPhrase {
+                agreement: Some(Agreement {
+                    person: Person::Third,
+                    number: Number::Singular,
+                }),
+                pronoun_case: None,
+                adjunct: None,
+            })
+        }
         RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
             reduce_noun_phrase_coordination(tag, children)
         }
@@ -3892,6 +3930,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhrasePossessiveThisCard
         | RuleTag::NounPhraseDemonstrative
         | RuleTag::NounPhrasePartitive
+        | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::PrepositionalPhrase
@@ -4374,7 +4413,24 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             };
             Some(Lowered::NounPhrase(NounPhrase::Partitive(
                 crate::syntax::PartitiveNounPhrase {
-                    quantity,
+                    head: crate::syntax::PartitiveHead::Quantity(quantity),
+                    whole: Box::new(whole),
+                },
+            )))
+        }
+        RuleTag::NounPhraseEachPartitive => {
+            let Lowered::Determiner(crate::syntax::Determiner::Each) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Preposition(Preposition::Of) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::NounPhrase(whole) = take(children, 2)? else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(NounPhrase::Partitive(
+                crate::syntax::PartitiveNounPhrase {
+                    head: crate::syntax::PartitiveHead::Each,
                     whole: Box::new(whole),
                 },
             )))

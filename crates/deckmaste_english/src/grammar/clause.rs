@@ -3016,6 +3016,105 @@ mod tests {
     }
 
     #[test]
+    fn turn_structure_family_parses_and_renders_structurally() {
+        // Every admitted turn-structure sub-shape, source-free round-trip.
+        for source in [
+            // Sub-shape 3: `skip <step>` imperatives.
+            "Skip your draw step.",
+            "Skip your upkeep.",
+            "Skip your next combat phase.",
+            // Sub-shape 2: extra/additional + turn-structure nominal, with the
+            // `after this one` / `after this phase` tail and the fronted mirror.
+            "Take an extra turn after this one.",
+            "Target player takes an extra turn after this one.",
+            "There is an additional combat phase after this phase.",
+            "After this phase, there is an additional combat phase.",
+            "You may play an additional land on each of your turns.",
+            "You take the initiative.",
+            // Sub-shape 4: `during` PPs over steps, whose-step causal pair.
+            "Activate only during your upkeep.",
+            "Activate only during an opponent's upkeep.",
+            // Plain-draw sanity mirror: the `draw` noun sense must not disturb
+            // the imperative `draw` verb.
+            "Draw a card.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(render_sentence(parsed.sentence().expect(source)), source);
+        }
+    }
+
+    #[test]
+    fn extra_and_additional_keep_their_distinct_printed_adjectives() {
+        // Causal pair: the modifier word is carried structurally, so `extra`
+        // (an imperative `take an extra turn`) and `additional` (an existential
+        // `there is an additional combat phase`) never collapse to one spelling.
+        let extra = parse("Take an extra turn after this one.");
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &extra.sentence().expect("extra turn").body
+        else {
+            panic!("expected an imperative transitive: {:?}", extra.sentence());
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(turn)) = &predicate.object else {
+            panic!("expected an `extra turn` object: {predicate:#?}");
+        };
+        assert_eq!(turn_head_spelling(turn), "turn");
+        assert_eq!(sole_adjective_spelling(turn), "extra");
+
+        let additional = parse("There is an additional combat phase.");
+        let SentenceBody::Independent(IndependentClause::Existential(existential)) =
+            &additional.sentence().expect("additional phase").body
+        else {
+            panic!("expected an existential: {:?}", additional.sentence());
+        };
+        let NounPhrase::Nominal(phase) = &existential.pivot else {
+            panic!("expected an `additional combat phase` pivot: {existential:#?}");
+        };
+        assert_eq!(turn_head_spelling(phase), "phase");
+        assert_eq!(sole_adjective_spelling(phase), "additional");
+    }
+
+    #[test]
+    fn after_preposition_attaches_both_trailing_and_fronted() {
+        // Causal pair on the `after` preposition: a trailing temporal adjunct on
+        // an imperative, and a fronted one on an existential.
+        let trailing = parse("Take an extra turn after this one.");
+        let debug = format!("{:?}", trailing.sentence().expect("trailing").body);
+        assert!(
+            debug.contains("Prepositional") && debug.contains("After"),
+            "trailing `after this one` should be a prepositional adjunct: {debug}"
+        );
+
+        let fronted = parse("After this phase, there is an additional combat phase.");
+        let debug = format!("{:?}", fronted.sentence().expect("fronted").body);
+        assert!(
+            debug.contains("After"),
+            "fronted `After this phase` should carry the After preposition: {debug}"
+        );
+    }
+
+    #[test]
+    fn draw_noun_sense_does_not_capture_the_imperative_draw_verb() {
+        // Negative armor for the `draw` noun addition: `Draw a card.` stays an
+        // imperative headed by the `draw` verb, never a bare `draw` nominal.
+        let parsed = parse("Draw a card.");
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("draw a card").body
+        else {
+            panic!("expected an imperative transitive: {:?}", parsed.sentence());
+        };
+        assert!(matches!(
+            predicate.head.verb,
+            VerbInstance {
+                verb: Verb::Word(Vocab::Draw),
+                slot: VerbSlot::Imperative,
+            }
+        ));
+    }
+
+    #[test]
     fn bounded_frequency_phrases_are_predicate_adjuncts() {
         for (source, expected_bound, expected_count) in [
             (
@@ -4223,6 +4322,28 @@ mod tests {
             IndependentClause::Passive(subject, predicate) => (subject, &predicate.head),
             other => panic!("expected a finite lexical predicate, got {other:?}"),
         }
+    }
+
+    fn turn_head_spelling(nominal: &crate::syntax::NominalPhrase) -> &'static str {
+        match &nominal.head {
+            NounInstance::Singular(Noun::Word(word)) | NounInstance::Mass(Noun::Word(word)) => {
+                word.spelling()
+            }
+            other => panic!("unexpected nominal head: {other:?}"),
+        }
+    }
+
+    fn sole_adjective_spelling(nominal: &crate::syntax::NominalPhrase) -> &'static str {
+        for modifier in &nominal.modifiers {
+            if let NominalModifier::Adjective(crate::syntax::AdjectivePhrase {
+                head: Adjective::Word(word),
+                ..
+            }) = modifier
+            {
+                return word.spelling();
+            }
+        }
+        panic!("no word-adjective modifier in {nominal:#?}");
     }
 
     fn render_sentence(sentence: &Sentence) -> String {

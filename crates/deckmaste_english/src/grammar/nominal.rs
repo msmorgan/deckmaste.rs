@@ -37,6 +37,110 @@ mod tests {
     use crate::word::Vocab;
 
     #[test]
+    fn turn_structure_nominals_render_without_source() {
+        // Sub-shape 1: named steps/phases as ordinary nominals. `draw step`
+        // needs the new `draw` count-noun sense; the rest already parse.
+        // Causal pair on whose-step: `your upkeep` vs `an opponent's upkeep`.
+        for source in [
+            "your draw step",
+            "the draw step",
+            "your upkeep",
+            "an opponent's upkeep",
+            "your combat phase",
+            "each of your turns",
+            "each of them",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn draw_step_head_is_a_noun_modifier_not_a_reshaped_verb() {
+        // `draw step` is a stacked noun-modifier compound: `step` head with a
+        // `draw` count-noun modifier — the same shape the negative-armor
+        // `combat damage` uses. Guards that adding the `draw` noun sense did not
+        // reshape it into anything verb-flavored.
+        let parsed = parse("your draw step");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal for the draw step");
+        };
+        assert!(
+            matches!(
+                nominal.modifiers.as_slice(),
+                [NominalModifier::Noun(NounInstance::Singular(Noun::Word(
+                    Vocab::Draw
+                )))]
+            ),
+            "{nominal:#?}"
+        );
+        assert!(matches!(
+            &nominal.head,
+            NounInstance::Singular(Noun::Word(word)) if word.spelling() == "step"
+        ));
+    }
+
+    #[test]
+    fn combat_damage_negative_armor_keeps_combat_as_a_noun_modifier() {
+        // Negative armor: `combat` in noun-modifier position must stay a noun
+        // modifier of `damage`, unaffected by turn-structure work.
+        let parsed = parse("combat damage");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal for combat damage");
+        };
+        assert!(
+            matches!(
+                nominal.modifiers.as_slice(),
+                [NominalModifier::Noun(NounInstance::Singular(Noun::Word(
+                    Vocab::Combat
+                )))]
+            ),
+            "{nominal:#?}"
+        );
+        assert!(matches!(
+            &nominal.head,
+            NounInstance::Mass(Noun::Word(Vocab::Damage))
+        ));
+    }
+
+    #[test]
+    fn distributive_and_counted_partitives_keep_distinct_heads() {
+        use crate::syntax::PartitiveHead;
+        // Causal pair: the distributive `each of X` records `PartitiveHead::Each`
+        // while the counted `one of X` keeps `PartitiveHead::Quantity`.
+        let each = parse("each of your turns");
+        assert!(
+            matches!(
+                each.noun_phrase(),
+                Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+                    head: PartitiveHead::Each,
+                    ..
+                }))
+            ),
+            "{:#?}",
+            each.noun_phrase()
+        );
+        assert_eq!(
+            render_fragment(each.noun_phrase().unwrap()),
+            "each of your turns"
+        );
+
+        let one = parse("one of them");
+        assert!(matches!(
+            one.noun_phrase(),
+            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+                head: PartitiveHead::Quantity(crate::syntax::Quantity::Exact(number)),
+                ..
+            })) if number.value == 1
+        ));
+    }
+
+    #[test]
     fn nominal_fixtures_parse_structurally_and_render_without_source() {
         for source in [
             "a card",
@@ -293,7 +397,7 @@ mod tests {
         assert!(matches!(
             partitive.noun_phrase(),
             Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                quantity: crate::syntax::Quantity::Exact(one),
+                head: crate::syntax::PartitiveHead::Quantity(crate::syntax::Quantity::Exact(one)),
                 ..
             })) if one.value == 1
         ));
@@ -362,7 +466,7 @@ mod tests {
         assert!(matches!(
             partitive.noun_phrase(),
             Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                quantity: crate::syntax::Quantity::MoreThan(one),
+                head: crate::syntax::PartitiveHead::Quantity(crate::syntax::Quantity::MoreThan(one)),
                 ..
             })) if one.value == 1
         ));

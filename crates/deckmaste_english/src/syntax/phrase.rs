@@ -287,8 +287,17 @@ pub enum NounPhrase {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartitiveNounPhrase {
-    pub quantity: Quantity,
+    pub head: PartitiveHead,
     pub whole: Box<NounPhrase>,
+}
+
+/// The quantifier heading a partitive `<head> of <whole>`. `Quantity` covers
+/// the counted partitives (`one of them`, `more than one of X`); `Each` is the
+/// distributive `each of X`, whose determiner is not a count quantity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PartitiveHead {
+    Quantity(Quantity),
+    Each,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -369,6 +378,7 @@ pub struct PrepositionalPhrase {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Preposition {
+    After,
     Among,
     As,
     At,

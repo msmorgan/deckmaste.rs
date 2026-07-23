@@ -924,11 +924,13 @@ vocabulary! {
                 .with_past_participle("done")
         )).predicate_frames(PROFORM_PREDICATE_FRAMES);
     Draft("draft").verb(VerbForm::Regular);
-    Draw("draw").verb(VerbForm::Irregular(
+    Draw("draw")
+        .verb(VerbForm::Irregular(
             IrregularVerbDef::EMPTY
                 .with_past("drew")
                 .with_past_participle("drawn")
-        ));
+        ))
+        .noun(NounDeclension::Regular, Countability::Count);
     Drix("Drix").invariant_catalog_noun();
     Dwarf("Dwarf").irregular_catalog_noun("Dwarves");
     Earthbend("earthbend").verb(VerbForm::Regular);
@@ -1155,6 +1157,11 @@ vocabulary! {
             .with_past("tapped")
             .with_present_participle("tapping")
             .with_past_participle("tapped")
+    ));
+    Take("take").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("took")
+            .with_past_participle("taken")
     ));
     Target("target")
         .noun(NounDeclension::Regular, Countability::Count)
