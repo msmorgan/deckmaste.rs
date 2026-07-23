@@ -1538,6 +1538,118 @@ mod tests {
     }
 
     #[test]
+    fn keyword_atom_first_word_of_a_name_keeps_its_source_casing() {
+        let catalogs = fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Storm"]);
+        let source = "Sacrifice a creature named Storm Crow: Draw a card.";
+        let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn keyword_atom_in_predicate_noun_position_stays_lowercase() {
+        let catalogs = fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
+        let source = "This creature gains flying.";
+        let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn elided_modal_relative_clause_renders_the_bare_modal_without_synthesized_do() {
+        let source = "Exile each creature that can't.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!("expected a paragraph ability");
+        };
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &paragraph.sentences[0].body
+        else {
+            panic!("expected an imperative transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
+            panic!("expected a nominal object");
+        };
+        let [NominalComplement::Relative(relative)] = object.complements.as_slice() else {
+            panic!("expected one relative complement: {object:#?}");
+        };
+        assert!(
+            matches!(
+                relative.body,
+                RelativeBody::ModalSubjectGap {
+                    predicate: None,
+                    ..
+                }
+            ),
+            "{:#?}",
+            relative.body
+        );
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn bare_proform_without_a_modal_still_synthesizes_do() {
+        let source = "If you do, draw a card.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn pre_object_adverbs_render_before_the_object() {
+        let source = "Draw only one card.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!("expected a paragraph ability");
+        };
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &paragraph.sentences[0].body
+        else {
+            panic!("expected an imperative transitive clause");
+        };
+        assert!(
+            !predicate.pre_object_elements.is_empty(),
+            "the adverb must be carried before the object: {predicate:#?}"
+        );
+        assert!(predicate.elements.is_empty(), "{predicate:#?}");
+
+        for source in ["Draw only one card.", "Draw again one card."] {
+            let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+    }
+
+    #[test]
+    fn post_object_adverbs_render_after_the_object() {
+        let source = "Draw one card only.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!("expected a paragraph ability");
+        };
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &paragraph.sentences[0].body
+        else {
+            panic!("expected an imperative transitive clause");
+        };
+        assert!(predicate.pre_object_elements.is_empty(), "{predicate:#?}");
+        assert!(
+            !predicate.elements.is_empty(),
+            "the adverb must be carried after the object: {predicate:#?}"
+        );
+
+        for source in ["Draw one card only.", "Draw one card again."] {
+            let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+    }
+
+    #[test]
     fn capitalized_subtypes_do_not_start_coordinated_imperatives() {
         let catalogs = fixture_catalogs()
             .with_catalog(CatalogKind::KeywordAction, ["Food"])

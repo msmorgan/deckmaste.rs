@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 use crate::Numeral;
 use crate::Span;
+use crate::catalog::CatalogKind;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
 use crate::catalog::Catalogs;
@@ -90,6 +91,7 @@ use crate::word::PrepositionalRole;
 use crate::word::Pronoun;
 use crate::word::PronounCase;
 use crate::word::PronounInstance;
+use crate::word::Verb;
 use crate::word::VerbInstance;
 use crate::word::VerbSlot;
 use crate::word::Vocab;
@@ -4030,6 +4032,51 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
     }
 }
 
+/// Whether an adjectival modifier is the `named` participle that introduces a
+/// proper name (e.g. `creature named Storm Crow`).
+fn introduces_proper_name(adjective: &AdjectivePhrase) -> bool {
+    matches!(
+        adjective.head,
+        Adjective::Participle(_, Verb::Word(Vocab::Name))
+    )
+}
+
+/// Re-labels keyword-ability catalog atoms inside a proper name so they are
+/// carried as case-preserved opaque tokens. Inside `named Storm Crow`, `Storm`
+/// is the first word of the name, not the keyword ability, so it must keep its
+/// matched source spelling instead of being lowercased by the keyword-atom noun
+/// case policy. Everything to the right of the `named` participle — the
+/// accumulated modifiers and the head — is name interior at the point this
+/// runs.
+///
+/// Only keyword-ability atoms are re-labelled: their spelling is the matched
+/// surface, so opacifying them is casing-faithful, whereas subtype/type atoms
+/// already render case- and inflection-faithfully (their spelling is a
+/// canonical singular). This also leaves the adjectival `differently named
+/// <type>` reading — which shares this flat shape but carries no keyword atom —
+/// untouched.
+fn open_name_interior(nominal: &mut NominalPhrase) {
+    detach_keyword_noun(&mut nominal.head);
+    for modifier in &mut nominal.modifiers {
+        if let NominalModifier::Noun(noun) = modifier {
+            detach_keyword_noun(noun);
+        }
+    }
+}
+
+fn detach_keyword_noun(noun: &mut NounInstance) {
+    let inner = match noun {
+        NounInstance::Singular(inner) | NounInstance::Plural(inner) | NounInstance::Mass(inner) => {
+            inner
+        }
+    };
+    if let Noun::Catalog(atom) = inner
+        && atom.kind == CatalogKind::KeywordAbility
+    {
+        *inner = Noun::Opaque(OpaqueLexeme::new(atom.spelling()));
+    }
+}
+
 #[allow(
     clippy::too_many_lines,
     reason = "lowering nominals is intentionally long"
@@ -4111,6 +4158,9 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             let Lowered::Nominal(mut nominal) = take(children, 1)? else {
                 return None;
             };
+            if introduces_proper_name(&adjective) {
+                open_name_interior(&mut nominal);
+            }
             nominal
                 .modifiers
                 .insert(0, NominalModifier::Adjective(adjective));
