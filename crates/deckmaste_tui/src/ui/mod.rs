@@ -176,7 +176,8 @@ pub fn render_with_key(
     let [fields, mid_row, hand_area] = Layout::vertical([
         Constraint::Fill(1),
         Constraint::Length(7),
-        Constraint::Length(7),
+        // Seven visible cards plus the hand block's top and bottom borders.
+        Constraint::Length(9),
     ])
     .areas(left);
     let [p0_area, p1_area] =

@@ -8,6 +8,7 @@ use std::fmt::Write as _;
 use deckmaste_cards::render::CardView;
 use deckmaste_cards::render::RenderedCard;
 use deckmaste_cards::render::render as render_card_view;
+use deckmaste_core::Expand;
 use deckmaste_core::StatValue;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
@@ -45,7 +46,7 @@ fn object_detail(state: &GameState, view: &LayeredView, id: ObjectId) -> Text<'s
     // into the `StatValue` the renderer's `CardView` expects.
     let power = chars.power.map(StatValue::Number);
     let toughness = chars.toughness.map(StatValue::Number);
-    let card = render_card_view(&CardView {
+    let card_view = CardView {
         name: &printed.name,
         mana_cost: Some(&printed.mana_cost),
         supertypes: &chars.supertypes,
@@ -54,7 +55,24 @@ fn object_detail(state: &GameState, view: &LayeredView, id: ObjectId) -> Text<'s
         power: power.as_ref(),
         toughness: toughness.as_ref(),
         abilities: &chars.abilities,
-    });
+    };
+    let mut card = render_card_view(&card_view);
+    // Remembered macro invocations carry templates that usually produce the
+    // best prose. If any rule still falls back to Debug output, rerender the
+    // whole card without that provenance so the marker describes concrete,
+    // recursively expanded grammar instead of the authored macro spelling.
+    if card.rules.iter().any(|rule| rule.contains("[unrendered")) {
+        let expanded_abilities = chars
+            .abilities
+            .iter()
+            .cloned()
+            .map(Expand::expand_all)
+            .collect::<Vec<_>>();
+        card = render_card_view(&CardView {
+            abilities: &expanded_abilities,
+            ..card_view
+        });
+    }
     detail_text(&card)
 }
 

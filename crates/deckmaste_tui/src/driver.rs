@@ -292,33 +292,39 @@ mod tests {
         not(wizards_corpus),
         ignore = "requires generated plugins/wizards corpus"
     )]
-    fn advance_auto_plays_your_oldest_land_on_your_main() {
+    fn advance_leaves_land_plays_for_the_human() {
         use deckmaste_core::Type;
 
-        // With AUTOPLAY_LANDS on, reaching your main auto-plays your oldest land
-        // before surfacing priority. This loop only ever PASSES priority and
-        // never submits a PlayLand, so any land on the battlefield proves the
-        // runner played it.
+        // Reaching a main phase surfaces priority with a legal land play but
+        // does not take it automatically. The loop only passes priority, so
+        // the battlefield must still contain no land at that window.
         let state = game::build_game().expect("build demo game");
         let mut driver = Driver::new(state, Box::new(GreedyCreatures));
         let mut pass = PassState::new();
         let mut stop = driver.advance(&mut pass).expect("advance");
         for _ in 0..100 {
-            let view = driver.state.layers();
-            if driver
-                .state
-                .zones
-                .battlefield
-                .iter()
-                .any(|&id| view.get(id).has_type(Type::Land))
-            {
-                return; // a land was auto-played
-            }
             match &stop {
                 Stop::GameOver(_) | Stop::Budget => break,
                 Stop::Decision(PendingDecision::Priority(deckmaste_engine::Priority {
+                    legal,
                     ..
                 })) => {
+                    if legal
+                        .iter()
+                        .any(|action| matches!(action, Action::PlayLand { .. }))
+                    {
+                        let view = driver.state.layers();
+                        assert!(
+                            !driver
+                                .state
+                                .zones
+                                .battlefield
+                                .iter()
+                                .any(|&id| view.get(id).has_type(Type::Land)),
+                            "advance must leave the legal land play for the human"
+                        );
+                        return;
+                    }
                     stop = driver
                         .submit_and_advance(Decision::Act(Action::Pass), &mut pass)
                         .expect("pass priority");
@@ -329,7 +335,7 @@ mod tests {
                 }
             }
         }
-        panic!("no land was auto-played reaching a main phase");
+        panic!("never reached a priority window with a legal land play");
     }
 
     #[test]
@@ -400,9 +406,10 @@ mod tests {
         use deckmaste_engine::sim::GreedyDemo;
 
         // Drive the real demo to a P0 priority window where a hand spell is
-        // castable ONLY via auto-tapping (no mana floated by hand). Then
-        // autotap-and-cast it and confirm a land got tapped and the spell left
-        // the hand — the whole point: casting without a manual tap first.
+        // castable ONLY via auto-tapping (no mana floated by hand), explicitly
+        // playing lands as those actions become legal. Then autotap-and-cast it
+        // and confirm a land got tapped and the spell left the hand — the whole
+        // point: casting without a manual tap first.
         let state = game::build_game().expect("build demo game");
         let mut driver = Driver::new(state, Box::new(GreedyDemo));
         let mut pass = PassState::new();
@@ -414,26 +421,26 @@ mod tests {
                 Stop::GameOver(_) | Stop::Budget => break,
                 Stop::Decision(PendingDecision::Priority(deckmaste_engine::Priority {
                     player,
-                    ..
-                })) if *player == me => {
-                    if let Some(id) = driver.state.zones.hands[me.index()]
-                        .iter()
-                        .copied()
-                        .find(|&id| driver.state.autotap_for_cast(me, id).is_some())
-                    {
-                        spell = Some(id);
-                        break;
-                    }
-                    stop = driver
-                        .submit_and_advance(Decision::Act(Action::Pass), &mut pass)
-                        .expect("pass");
-                }
-                Stop::Decision(PendingDecision::Priority(deckmaste_engine::Priority {
-                    ..
+                    legal,
                 })) => {
+                    if *player == me {
+                        if let Some(id) = driver.state.zones.hands[me.index()]
+                            .iter()
+                            .copied()
+                            .find(|&id| driver.state.autotap_for_cast(me, id).is_some())
+                        {
+                            spell = Some(id);
+                            break;
+                        }
+                    }
+                    let action = legal
+                        .iter()
+                        .find(|action| matches!(action, Action::PlayLand { .. }))
+                        .cloned()
+                        .unwrap_or(Action::Pass);
                     stop = driver
-                        .submit_and_advance(Decision::Act(Action::Pass), &mut pass)
-                        .expect("pass opp");
+                        .submit_and_advance(Decision::Act(action), &mut pass)
+                        .expect("play land or pass");
                 }
                 Stop::Decision(p) => {
                     let d = answer(&driver.state, p);
