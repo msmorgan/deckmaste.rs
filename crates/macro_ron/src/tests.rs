@@ -2595,8 +2595,9 @@ fn add_typed_registers_a_deserialize_validator() {
     let as_value: u32 = macros.read_str("7").unwrap();
     assert_eq!(as_value, 7);
     let err = validate("nope", &macros).unwrap_err();
+    let err = err.clone();
     assert!(
-        err.to_string().contains("Expected integer"),
+        err.contains("Expected integer"),
         "non-numeral parse failed for expected reason: {err}"
     );
 }

@@ -160,6 +160,10 @@ pub(crate) enum PrepositionalRole {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "frame model is stable and shared across many call sites"
+)]
 pub(crate) struct PredicateFrame {
     direct_object: ArgumentRequirement,
     indirect_object: ArgumentRequirement,

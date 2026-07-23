@@ -807,9 +807,9 @@ impl GameEvent {
 // consumers workspace-wide (see the `WorkItem` note in `agenda.rs`, same
 // rationale). A uniform engine-event `Arc` conversion is tracked in the
 // `arc-engine-event-types` ticket.
-#[expect(
+#[allow(
     clippy::large_enum_variant,
-    reason = "GameEvent rides the hot step() path one-at-a-time; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
+    reason = "occurrences are expected to carry large but hot-path event payloads"
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Occurrence {

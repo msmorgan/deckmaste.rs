@@ -499,10 +499,6 @@ fn floating_watches(
 // ── Task 4: replace_event loop + lineage + apply Instead/Also ────────────────
 
 /// The outcome of running the [CR#616.1] replacement loop for one event.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "GameEvent rides the hot step() path one-at-a-time; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
-)]
 #[derive(Debug)]
 pub(crate) enum ReplaceOutcome {
     /// No applicable replacement rewrote the event — apply `e` as-is.
@@ -943,10 +939,6 @@ pub(crate) fn resume_replacements(
 
 /// Outcome of re-entering the replacement loop on an already-partially-applied
 /// event during a `resume_replacements` call.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "GameEvent rides the hot step() path one-at-a-time; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
-)]
 enum ResumeOutcome {
     /// The event survived the loop — apply it.
     Fact(GameEvent),

@@ -15,7 +15,42 @@ use crate::forest::ParseCost;
 use crate::surface::Punctuation;
 use crate::surface::Token;
 use crate::surface::TokenKind;
-use crate::syntax::*;
+use crate::syntax::Ability;
+use crate::syntax::AbilityKind;
+use crate::syntax::ActivatedAbility;
+use crate::syntax::ClassLevelAbility;
+use crate::syntax::Clause;
+use crate::syntax::Cost;
+use crate::syntax::DependentClause;
+use crate::syntax::KeywordAbility;
+use crate::syntax::KeywordAbilityList;
+use crate::syntax::KeywordArgumentSeparator;
+use crate::syntax::KeywordListSeparator;
+use crate::syntax::LoyaltyAbility;
+use crate::syntax::LoyaltyCost;
+use crate::syntax::LoyaltyCostSign;
+use crate::syntax::LoyaltyCostValue;
+use crate::syntax::ModalAbility;
+use crate::syntax::ModalFrame;
+use crate::syntax::ModalHeaderSuffix;
+use crate::syntax::Mode;
+use crate::syntax::NumberLiteral;
+use crate::syntax::OracleSymbol;
+use crate::syntax::OracleText;
+use crate::syntax::Paragraph;
+use crate::syntax::Phrase;
+use crate::syntax::Preposition;
+use crate::syntax::PrepositionalPhrase;
+use crate::syntax::QuotedAbility;
+use crate::syntax::RecoveredText;
+use crate::syntax::Sentence;
+use crate::syntax::SentenceBody;
+use crate::syntax::SentenceEnding;
+use crate::syntax::SubordinateBody;
+use crate::syntax::Subordinator;
+use crate::syntax::TriggerEvent;
+use crate::syntax::TriggerWord;
+use crate::syntax::TriggeredAbility;
 use crate::word::ColorWord;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1472,6 +1507,14 @@ mod tests {
         clause
     }
 
+    #[allow(
+        clippy::match_same_arms,
+        reason = "independent predicate variants intentionally share the same head access path"
+    )]
+    #[allow(
+        clippy::unnested_or_patterns,
+        reason = "nested pattern variant is equivalent but less readable with this shared head projection"
+    )]
     fn predicate_head(clause: &IndependentClause) -> &PredicateHead {
         match clause {
             IndependentClause::Transitive(_, predicate) => &predicate.head,

@@ -68,9 +68,9 @@ pub(crate) trait EventApply {
 }
 
 /// What one `step()` call produced.
-#[expect(
+#[allow(
     clippy::large_enum_variant,
-    reason = "carries Progress/GameEvent on the hot step() path; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
+    reason = "step outcomes are short-lived hot-path messages"
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StepOutcome {
@@ -82,9 +82,9 @@ pub enum StepOutcome {
 }
 
 /// One unit of engine work, observed.
-#[expect(
+#[allow(
     clippy::large_enum_variant,
-    reason = "carries Occurrence/GameEvent on the hot step() path; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
+    reason = "progress variants encode event payloads needed in hot path"
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Progress {

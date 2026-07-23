@@ -424,10 +424,10 @@ impl<'identity> Renderer<'identity> {
                 self.subject(subject)?,
                 self.render_auxiliary(predicate.auxiliary)?,
             ])),
-            IndependentClause::Complex(complex) => self.clause_with_attachments(
-                self.independent_clause(&complex.matrix)?,
-                &complex.attachments,
-            ),
+            IndependentClause::Complex(complex) => {
+                let matrix = self.independent_clause(&complex.matrix)?;
+                self.clause_with_attachments(&matrix, &complex.attachments)
+            }
             IndependentClause::Coordinated(coordinated) => {
                 let mut rendered = self.independent_clause(&coordinated.first)?;
                 for coordination in &coordinated.rest {
@@ -459,7 +459,7 @@ impl<'identity> Renderer<'identity> {
 
     fn clause_with_attachments(
         &self,
-        matrix: String,
+        matrix: &str,
         attachments: &[ClauseAttachment],
     ) -> Result<String, RenderError> {
         let mut rendered = String::new();
@@ -473,7 +473,7 @@ impl<'identity> Renderer<'identity> {
             }
             rendered.push(' ');
         }
-        rendered.push_str(&matrix);
+        rendered.push_str(matrix);
         for attachment in attachments
             .iter()
             .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
@@ -711,8 +711,9 @@ impl<'identity> Renderer<'identity> {
         match adjunct {
             PredicateAdjunct::Adverb(adverb) => Ok(adverb.spelling().to_owned()),
             PredicateAdjunct::Frequency(frequency) => Ok(render_frequency(*frequency)),
-            PredicateAdjunct::Temporal(phrase) => self.noun_phrase(phrase),
-            PredicateAdjunct::Manner(phrase) => self.noun_phrase(phrase),
+            PredicateAdjunct::Temporal(phrase) | PredicateAdjunct::Manner(phrase) => {
+                self.noun_phrase(phrase)
+            }
             PredicateAdjunct::Prepositional(phrase) => self.prepositional_phrase(phrase),
             PredicateAdjunct::Dependent(clause) => self.dependent_clause(clause),
         }

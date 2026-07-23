@@ -1,3 +1,7 @@
+#[allow(
+    clippy::wildcard_imports,
+    reason = "module uses generated imports and shared grammar aliases"
+)]
 use super::*;
 use crate::syntax::AbilityObject;
 use crate::syntax::AttachmentPosition;
@@ -30,6 +34,10 @@ use crate::syntax::SentenceBody;
 use crate::syntax::SentenceEnding;
 use crate::syntax::SubordinateBody;
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "grammar table builder is intentionally verbose"
+)]
 pub(super) fn add_rules(builder: &mut RuleBuilder) {
     use EnglishLexicalSlot as L;
     use Expected::Lexical as l;
@@ -556,7 +564,6 @@ pub(super) fn accepts_predicate_prefix(
                 PredicateObjectState::None | PredicateObjectState::Ability
             ) && frame.licenses_complement(PredicateComplementKind::Scalar)
         }
-        RuleTag::VerbPhrasePrepositional => true,
         RuleTag::VerbPhraseParticle => !frame.particles.is_empty(),
         _ => true,
     }
@@ -584,6 +591,10 @@ pub(super) fn reduction_cost(
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "grammar reduction rule set is intentionally long"
+)]
 fn reduce_predicate(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
@@ -784,7 +795,7 @@ fn extend_predicate(
         _ => None,
     };
     let licensed = match attachment {
-        PredicateAttachment::Adjunct => true,
+        PredicateAttachment::Adjunct | PredicateAttachment::Prepositional(_) => true,
         PredicateAttachment::DirectObject => frame.direct_object().accepts(),
         PredicateAttachment::IndirectObject => frame.indirect_object().accepts(),
         PredicateAttachment::NominalAdjunct(adjunct) => {
@@ -793,7 +804,6 @@ fn extend_predicate(
         PredicateAttachment::AdjectiveComplement => {
             frame.licenses_complement(PredicateComplementKind::Adjective)
         }
-        PredicateAttachment::Prepositional(_) => true,
         PredicateAttachment::InfinitiveComplement => {
             frame.licenses_complement(PredicateComplementKind::Infinitive)
         }
@@ -854,16 +864,15 @@ fn extend_predicate(
             | PredicateAttachment::Particle(_),
             object,
         ) => object,
-        (PredicateAttachment::DirectObject, PredicateObjectState::None)
-        | (PredicateAttachment::ScalarComplement, PredicateObjectState::None)
-        | (PredicateAttachment::StatisticComplement, PredicateObjectState::None) => {
-            PredicateObjectState::Direct
-        }
+        (
+            PredicateAttachment::DirectObject
+            | PredicateAttachment::ScalarComplement
+            | PredicateAttachment::StatisticComplement
+            | PredicateAttachment::ScalarOrAbilityArgument,
+            PredicateObjectState::None,
+        ) => PredicateObjectState::Direct,
         (PredicateAttachment::AbilityComplement, PredicateObjectState::None) => {
             PredicateObjectState::Ability
-        }
-        (PredicateAttachment::ScalarOrAbilityArgument, PredicateObjectState::None) => {
-            PredicateObjectState::Direct
         }
         (PredicateAttachment::ScalarOrAbilityArgument, PredicateObjectState::Ability) => {
             PredicateObjectState::AbilityWithArgument
@@ -938,6 +947,10 @@ fn predicate_object_gap_complete(
             .is_satisfied_by(selected_preposition)
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "simple-clause reduction logic is intentionally long"
+)]
 fn reduce_simple_clause(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
@@ -1823,6 +1836,7 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
     Some(Lowered::VerbPhrase(predicate))
 }
 
+#[allow(clippy::too_many_lines, reason = "lowering has many grammar variants")]
 fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::SimpleClauseSubject => {
@@ -2397,21 +2411,25 @@ pub(super) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentCl
         (Some(subject), Some(modal), false) => {
             Some(IndependentClause::Deontic(subject, modal, predicate))
         }
-        (Some(subject), None, false) => independent_with_subject(subject, predicate),
+        (Some(subject), None, false) => Some(independent_with_subject(subject, predicate)),
         _ => None,
     }
 }
 
-fn independent_with_subject(subject: Subject, predicate: Predicate) -> Option<IndependentClause> {
-    Some(match predicate {
+fn independent_with_subject(subject: Subject, predicate: Predicate) -> IndependentClause {
+    match predicate {
         Predicate::Transitive(predicate) => IndependentClause::Transitive(subject, predicate),
         Predicate::Intransitive(predicate) => IndependentClause::Intransitive(subject, predicate),
         Predicate::Copular(predicate) => IndependentClause::Copular(subject, predicate),
         Predicate::Passive(predicate) => IndependentClause::Passive(subject, predicate),
         Predicate::Proform(predicate) => IndependentClause::Proform(subject, predicate),
-    })
+    }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "sentence assembly is intentionally verbose"
+)]
 fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
     let proform = phrase.frame.is_proform();
     let modal = phrase
@@ -2483,7 +2501,6 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
             VerbDependent::Statistic(Phrase::PowerToughness(value)) => {
                 attach_object(&mut object, PredicateObject::PowerToughness(value))?;
             }
-            VerbDependent::Statistic(_) => return None,
             VerbDependent::Prepositional(phrase) => {
                 elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
                     phrase,
@@ -2518,7 +2535,7 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                     PredicateComplement::Adjective(*adjective),
                 ));
             }
-            VerbDependent::Adverbial(_) => return None,
+            VerbDependent::Statistic(_) | VerbDependent::Adverbial(_) => return None,
             VerbDependent::Particle(particle) => {
                 elements.push(PredicateElement::Particle(particle));
             }
@@ -2854,12 +2871,10 @@ mod tests {
         ] {
             let parsed = parse(source);
             let predicate = match &parsed.sentence().expect("sentence root").body {
-                SentenceBody::Independent(IndependentClause::Imperative(
-                    Predicate::Intransitive(predicate),
-                ))
-                | SentenceBody::Independent(IndependentClause::Intransitive(_, predicate)) => {
-                    predicate
-                }
+                SentenceBody::Independent(
+                    IndependentClause::Imperative(Predicate::Intransitive(predicate))
+                    | IndependentClause::Intransitive(_, predicate),
+                ) => predicate,
                 clause => panic!("expected an intransitive clause, got {clause:#?}"),
             };
             assert!(matches!(

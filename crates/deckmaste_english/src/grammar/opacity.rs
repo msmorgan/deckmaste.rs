@@ -1,3 +1,7 @@
+#[allow(
+    clippy::wildcard_imports,
+    reason = "module-level import intentionally reuses generated grammar helpers"
+)]
 use super::*;
 
 pub(super) fn add_rules(builder: &mut RuleBuilder) {

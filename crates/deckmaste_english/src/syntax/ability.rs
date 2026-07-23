@@ -106,6 +106,10 @@ pub struct ModalAbility {
     pub modes: Vec<Mode>,
 }
 
+#[allow(
+    clippy::large_enum_variant,
+    reason = "larger enum shapes are part of the serialized card-ability model"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModalFrame {
     Unframed,
@@ -178,6 +182,10 @@ pub struct Sentence {
     pub ending: SentenceEnding,
 }
 
+#[allow(
+    clippy::large_enum_variant,
+    reason = "sentence bodies can legitimately hold a large independent clause payload"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SentenceBody {
     Independent(IndependentClause),

@@ -506,9 +506,9 @@ impl Catalogs {
                 .expect("indexed keyword-action head must render");
             if prefix_equals(text, &rendered, CasePolicy::Exact) {
                 let mut action = action.clone();
-                let matched = &text[..rendered.len()];
+                let verb_match = &text[..rendered.len()];
                 action.tail = Arc::from(
-                    matched
+                    verb_match
                         .split_once(' ')
                         .map_or("", |(_, matched_tail)| matched_tail),
                 );

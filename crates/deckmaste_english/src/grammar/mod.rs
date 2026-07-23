@@ -628,8 +628,8 @@ impl DeterminerKey {
         }
     }
 
-    fn syntax(&self) -> Option<Determiner> {
-        Some(match self {
+    fn syntax(&self) -> Determiner {
+        match self {
             Self::The => Determiner::The,
             Self::Each => Determiner::Each,
             Self::Another => Determiner::Another,
@@ -657,7 +657,7 @@ impl DeterminerKey {
             Self::All => Determiner::All,
             Self::Any => Determiner::Any,
             Self::No => Determiner::No,
-        })
+        }
     }
 
     const fn article(&self) -> Option<IndefiniteArticleKey> {
@@ -941,7 +941,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         if matches!(
             slot,
             LexicalSlot::Noun(_) | LexicalSlot::Adjective | LexicalSlot::Verb(_)
-        ) && !self.is_sentence_initial(tokens, start)
+        ) && !Self::is_sentence_initial(tokens, start)
             && surface
                 .as_bytes()
                 .first()
@@ -969,7 +969,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             return Vec::new();
         };
         let mut catalog_matches = self.catalogs.matches(suffix, slot);
-        if self.is_sentence_initial(tokens, start)
+        if Self::is_sentence_initial(tokens, start)
             && suffix
                 .as_bytes()
                 .first()
@@ -1003,7 +1003,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             })
     }
 
-    fn is_sentence_initial(&self, tokens: &[Token], start: usize) -> bool {
+    fn is_sentence_initial(tokens: &[Token], start: usize) -> bool {
         start == 0
             || tokens.get(start.wrapping_sub(1)).is_some_and(|token| {
                 matches!(
@@ -1037,6 +1037,10 @@ impl Grammar for EnglishGrammar<'_, '_> {
         self.rules_by_lhs.get(&lhs).map_or(&[], Vec::as_slice)
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "scan logic is intentionally exhaustive"
+    )]
     fn scan(
         &self,
         slot: Self::LexicalSlot,
@@ -2058,6 +2062,10 @@ impl RuleBuilder {
         self.rules_by_lhs.entry(lhs).or_default().push(id);
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "nominal rule construction is intentionally broad"
+    )]
     fn add_nominal_rules(&mut self) {
         use EnglishLexicalSlot as L;
         use Expected::Lexical as l;
@@ -2817,7 +2825,9 @@ fn reduce_quantity_or_determiner(
         | RuleTag::QuantityX
         | RuleTag::QuantityBoth
         | RuleTag::QuantityMoreThan
-        | RuleTag::QuantityFewerThan => {
+        | RuleTag::QuantityFewerThan
+        | RuleTag::QuantityThatMany
+        | RuleTag::QuantityThatMuch => {
             let Features::Quantity(features) = children.first()?.features else {
                 return None;
             };
@@ -2828,12 +2838,6 @@ fn reduce_quantity_or_determiner(
                 return None;
             };
             Some(Features::Quantity(number_quantity_features(*is_one)))
-        }
-        RuleTag::QuantityThatMany | RuleTag::QuantityThatMuch => {
-            let Features::Quantity(features) = children.first()?.features else {
-                return None;
-            };
-            Some(Features::Quantity(*features))
         }
         RuleTag::DeterminerClosed => {
             let Features::Determiner {
@@ -2906,6 +2910,10 @@ const fn target_cardinality(cardinality: Cardinality) -> Cardinality {
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "quantity/reduction mapping is intentionally long"
+)]
 fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
         RuleTag::Adjective | RuleTag::Noun => Some(propagate(children.first()?)),
@@ -2982,18 +2990,14 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 AdjectiveComparisonState::NotComparative,
             )
         }
-        RuleTag::NominalQuantityModifier => nominal_with_prefix(
-            children.get(1)?,
-            InitialSound::Consonant,
-            false,
-            AdjectiveComparisonState::NotComparative,
-        ),
-        RuleTag::NominalPowerToughnessModifier => nominal_with_prefix(
-            children.get(1)?,
-            InitialSound::Consonant,
-            false,
-            AdjectiveComparisonState::NotComparative,
-        ),
+        RuleTag::NominalQuantityModifier | RuleTag::NominalPowerToughnessModifier => {
+            nominal_with_prefix(
+                children.get(1)?,
+                InitialSound::Consonant,
+                false,
+                AdjectiveComparisonState::NotComparative,
+            )
+        }
         RuleTag::NominalDeterminer => {
             let Features::Determiner {
                 cardinality,
@@ -3679,7 +3683,7 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Literal(_) | MeaningKey::Punctuation(_) => Lowered::Ignored,
         MeaningKey::Number(number) => Lowered::Number(*number),
         MeaningKey::Quantity(quantity) => Lowered::Quantity(quantity.syntax()),
-        MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.syntax()?),
+        MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.syntax()),
         MeaningKey::Noun(noun) => Lowered::Noun(noun.clone()),
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
         MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
@@ -3929,6 +3933,10 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "lowering nominals is intentionally long"
+)]
 fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::Adjective | RuleTag::Noun => take(children, 0),

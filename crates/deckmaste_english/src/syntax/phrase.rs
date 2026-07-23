@@ -184,7 +184,8 @@ impl Determiner {
             | Self::Demonstrative(Demonstrative::This | Demonstrative::That) => {
                 NounCardinality::SingularCount
             }
-            Self::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
+            Self::Demonstrative(Demonstrative::These | Demonstrative::Those)
+            | Self::Target(Some(Quantity::Or(_, _) | Quantity::X | Quantity::Both)) => {
                 NounCardinality::PluralCount
             }
             Self::Target(Some(
@@ -202,9 +203,6 @@ impl Determiner {
                 | Quantity::FewerThan(_)
                 | Quantity::ThatMany,
             )) => NounCardinality::PluralCount,
-            Self::Target(Some(Quantity::Or(_, _) | Quantity::X | Quantity::Both)) => {
-                NounCardinality::PluralCount
-            }
             Self::Target(Some(Quantity::ThatMuch)) => NounCardinality::Mass,
             Self::Quantity(quantity) => quantity.noun_cardinality(),
             Self::All => NounCardinality::PluralOrMass,

@@ -182,6 +182,7 @@ type GrammarForest<G> = ParseForest<
     <G as Grammar>::Features,
     <G as Grammar>::Meaning,
 >;
+type WaitingKey<N> = (usize, N);
 
 struct ChartParser<'grammar, 'tokens, G>
 where
@@ -193,7 +194,7 @@ where
     chart: Vec<ChartColumn<G::Features>>,
     agenda: VecDeque<(usize, ItemKey<G::Features>)>,
     completed: HashMap<(usize, G::Nonterminal), Vec<NodeId>>,
-    waiting: HashMap<(usize, G::Nonterminal), Vec<ItemKey<G::Features>>>,
+    waiting: HashMap<WaitingKey<G::Nonterminal>, Vec<ItemKey<G::Features>>>,
     scans: HashMap<(G::LexicalSlot, usize), Vec<LexicalEdge>>,
 }
 
@@ -223,7 +224,7 @@ where
             {
                 return Err(GrammarError::StateLimitExceeded { limit });
             }
-            self.process_item(position, item)?;
+            self.process_item(position, &item)?;
             processed += 1;
         }
 
@@ -271,7 +272,7 @@ where
     fn process_item(
         &mut self,
         position: usize,
-        item: ItemKey<G::Features>,
+        item: &ItemKey<G::Features>,
     ) -> Result<(), GrammarError> {
         let rule = &self.grammar.rules()[item.rule.index()];
         let lhs = rule.lhs;
@@ -292,7 +293,7 @@ where
     fn complete_item(
         &mut self,
         position: usize,
-        item: ItemKey<G::Features>,
+        item: &ItemKey<G::Features>,
         lhs: G::Nonterminal,
         rule_cost: ParseCost,
     ) {
@@ -305,7 +306,12 @@ where
         let Some(reduction) = reduction else {
             return;
         };
-        let Some(intermediate) = self.chart[position].seen.get(&item).copied().flatten() else {
+        let Some(intermediate) = self.chart[position]
+            .seen
+            .get(&item.clone())
+            .copied()
+            .flatten()
+        else {
             return;
         };
         let interned = self.forest.intern_node(
@@ -328,14 +334,14 @@ where
             return;
         };
         for waiter in waiters {
-            self.advance_with_child(position, item.origin, waiter, interned.node);
+            self.advance_with_child(position, item.origin, &waiter, interned.node);
         }
     }
 
     fn predict_and_advance(
         &mut self,
         position: usize,
-        item: ItemKey<G::Features>,
+        item: &ItemKey<G::Features>,
         nonterminal: G::Nonterminal,
     ) {
         self.waiting
@@ -360,7 +366,7 @@ where
         if let Some(existing) = self.completed.get(&(position, nonterminal)).cloned() {
             for child in existing {
                 let end = self.forest.node(child).key.end;
-                self.advance_with_child(end, position, item.clone(), child);
+                self.advance_with_child(end, position, item, child);
             }
         }
     }
@@ -368,11 +374,11 @@ where
     fn scan_and_advance(
         &mut self,
         position: usize,
-        item: ItemKey<G::Features>,
+        item: &ItemKey<G::Features>,
         slot: G::LexicalSlot,
     ) -> Result<(), GrammarError> {
         for edge in self.lexical_edges(slot, position)? {
-            self.advance_with_child(edge.end, position, item.clone(), edge.node);
+            self.advance_with_child(edge.end, position, item, edge.node);
         }
         Ok(())
     }
@@ -381,7 +387,7 @@ where
         &mut self,
         position: usize,
         item_position: usize,
-        item: ItemKey<G::Features>,
+        item: &ItemKey<G::Features>,
         child: NodeId,
     ) {
         let Some(child_features) = self.forest.node(child).key.constituent_features().cloned()
@@ -395,7 +401,11 @@ where
             return;
         }
 
-        let previous = self.chart[item_position].seen.get(&item).copied().flatten();
+        let previous = self.chart[item_position]
+            .seen
+            .get(&item.clone())
+            .copied()
+            .flatten();
         if item.dot > 0 && previous.is_none() {
             return;
         }
@@ -403,7 +413,7 @@ where
         let mut prefix_features = Vec::with_capacity(item.prefix_features.len() + 1);
         prefix_features.extend(item.prefix_features.iter().cloned());
         prefix_features.push(child_features);
-        let mut advanced = item;
+        let mut advanced = item.clone();
         advanced.dot += 1;
         advanced.prefix_features = prefix_features.into();
         let mut children = Vec::with_capacity(2);
@@ -893,13 +903,7 @@ mod tests {
 
         parse_chart(&grammar, &["a"]).expect("the artificial grammar parses one atom");
 
-        assert!(
-            grammar
-                .reduced_child_counts
-                .borrow()
-                .iter()
-                .any(|&count| count == 1)
-        );
+        assert!(grammar.reduced_child_counts.borrow().contains(&1));
     }
 
     #[test]
