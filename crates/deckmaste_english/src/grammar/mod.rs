@@ -3367,53 +3367,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             })
         }
         RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
-            let Features::NounPhrase {
-                agreement: first_agreement,
-                adjunct: first_adjunct,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let conjunction = if tag == RuleTag::NounPhraseAdditiveCoordination {
-                crate::syntax::NounPhraseConjunction::Plus
-            } else {
-                let Features::Conjunction(conjunction) = children.get(1)?.features else {
-                    return None;
-                };
-                match conjunction {
-                    crate::syntax::PredicateConjunction::And => {
-                        crate::syntax::NounPhraseConjunction::And
-                    }
-                    crate::syntax::PredicateConjunction::Or => {
-                        crate::syntax::NounPhraseConjunction::Or
-                    }
-                    crate::syntax::PredicateConjunction::Then => return None,
-                }
-            };
-            let Features::NounPhrase {
-                agreement: next_agreement,
-                adjunct: next_adjunct,
-                ..
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            let agreement = match conjunction {
-                crate::syntax::NounPhraseConjunction::And => Some(Agreement {
-                    person: Person::Third,
-                    number: Number::Plural,
-                }),
-                crate::syntax::NounPhraseConjunction::Or => *next_agreement,
-                crate::syntax::NounPhraseConjunction::Plus => *first_agreement,
-            };
-            Some(Features::NounPhrase {
-                agreement,
-                pronoun_case: None,
-                adjunct: (*first_adjunct == *next_adjunct)
-                    .then_some(*first_adjunct)
-                    .flatten(),
-            })
+            reduce_noun_phrase_coordination(tag, children)
         }
         RuleTag::PrepositionalPhrase => {
             let Features::Preposition(preposition) = children.first()?.features else {
@@ -3432,6 +3386,55 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
         }),
         _ => None,
     }
+}
+
+fn reduce_noun_phrase_coordination(
+    tag: RuleTag,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Option<Reduced> {
+    let Features::NounPhrase {
+        agreement: first_agreement,
+        adjunct: first_adjunct,
+        ..
+    } = children.first()?.features
+    else {
+        return None;
+    };
+    let conjunction = if tag == RuleTag::NounPhraseAdditiveCoordination {
+        crate::syntax::NounPhraseConjunction::Plus
+    } else {
+        let Features::Conjunction(conjunction) = children.get(1)?.features else {
+            return None;
+        };
+        match conjunction {
+            crate::syntax::PredicateConjunction::And => crate::syntax::NounPhraseConjunction::And,
+            crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
+            crate::syntax::PredicateConjunction::Then => return None,
+        }
+    };
+    let Features::NounPhrase {
+        agreement: next_agreement,
+        adjunct: next_adjunct,
+        ..
+    } = children.get(2)?.features
+    else {
+        return None;
+    };
+    let agreement = match conjunction {
+        crate::syntax::NounPhraseConjunction::And => Some(Agreement {
+            person: Person::Third,
+            number: Number::Plural,
+        }),
+        crate::syntax::NounPhraseConjunction::Or => *next_agreement,
+        crate::syntax::NounPhraseConjunction::Plus => *first_agreement,
+    };
+    Some(Features::NounPhrase {
+        agreement,
+        pronoun_case: None,
+        adjunct: (*first_adjunct == *next_adjunct)
+            .then_some(*first_adjunct)
+            .flatten(),
+    })
 }
 
 fn propagate(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Reduced {

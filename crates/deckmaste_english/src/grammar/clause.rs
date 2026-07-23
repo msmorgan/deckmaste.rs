@@ -607,11 +607,8 @@ pub(super) fn reduction_cost(
                 ..
             })
         );
-    let precedence = if active_temporal_attachment || tag == RuleTag::ClauseSubordinateAfter {
-        1
-    } else {
-        0
-    };
+    let precedence =
+        u32::from(active_temporal_attachment || tag == RuleTag::ClauseSubordinateAfter);
     ParseCost {
         precedence,
         ..ParseCost::default()
