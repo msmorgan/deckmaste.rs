@@ -549,6 +549,7 @@ mod tests {
                                         slot: VerbSlot::Imperative,
                                     },
                                 },
+                                pre_object_elements: vec![],
                                 object: PredicateObject::NounPhrase(noun_phrase.clone()),
                                 elements: vec![],
                             }),

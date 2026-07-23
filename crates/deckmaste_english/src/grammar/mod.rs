@@ -213,6 +213,7 @@ pub(crate) enum EnglishLexicalSlot {
     AbilityItem,
     AbilityWord,
     Determiner,
+    Demonstrative,
     DeterminerTarget,
     QuantityAtLeast,
     QuantityOr,
@@ -785,6 +786,7 @@ enum RuleTag {
     NounPhraseThisCard,
     NounPhraseFullThisCard,
     NounPhrasePossessiveThisCard,
+    NounPhraseDemonstrative,
     NounPhrasePartitive,
     NounPhraseCoordination,
     NounPhraseAdditiveCoordination,
@@ -802,6 +804,7 @@ enum RuleTag {
     VerbPhraseAdverb,
     VerbPhraseParticle,
     VerbPhraseFrequency,
+    FrequencyPhraseAdverb,
     VerbPhraseAbility,
     VerbPhraseOracleSymbol,
     VerbPhraseSymbolSequence,
@@ -825,6 +828,7 @@ enum RuleTag {
     ClauseSubordinateBefore,
     ClauseSubordinateAfterElliptical,
     ClauseSubordinateAfter,
+    ClauseSubordinateAfterComma,
     ClauseSubordinateAfterInfinitive,
     ClauseExistential,
     CopularRemainderNoun,
@@ -1161,6 +1165,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 self.catalog_matches(tokens, start, CatalogSlot::AbilityWord)
             }
             EnglishLexicalSlot::Determiner => self.scan_determiner(tokens, start),
+            EnglishLexicalSlot::Demonstrative => self.scan_demonstrative(tokens, start),
             EnglishLexicalSlot::DeterminerTarget => self
                 .one_token_match(tokens, start, "target")
                 .map(|end| LexicalMatch {
@@ -1511,6 +1516,10 @@ impl EnglishGrammar<'_, '_> {
             crate::syntax::Subordinator::While
         } else if surface.eq_ignore_ascii_case("unless") {
             crate::syntax::Subordinator::Unless
+        } else if surface.eq_ignore_ascii_case("before") {
+            crate::syntax::Subordinator::Before
+        } else if surface.eq_ignore_ascii_case("after") {
+            crate::syntax::Subordinator::After
         } else {
             return None;
         };
@@ -1795,6 +1804,45 @@ impl EnglishGrammar<'_, '_> {
                 article: key.article(),
             },
             meaning: MeaningKey::Determiner(key),
+            local_cost: ParseCost::default(),
+        }]
+    }
+
+    fn scan_demonstrative(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let Some(surface) = self.token_text(tokens, start) else {
+            return Vec::new();
+        };
+        let (demonstrative, number) = if surface.eq_ignore_ascii_case("this") {
+            (crate::syntax::Demonstrative::This, Number::Singular)
+        } else if surface.eq_ignore_ascii_case("that") {
+            (crate::syntax::Demonstrative::That, Number::Singular)
+        } else if surface.eq_ignore_ascii_case("these") {
+            (crate::syntax::Demonstrative::These, Number::Plural)
+        } else if surface.eq_ignore_ascii_case("those") {
+            (crate::syntax::Demonstrative::Those, Number::Plural)
+        } else {
+            return Vec::new();
+        };
+        vec![LexicalMatch {
+            end: start + 1,
+            features: Features::NounPhrase {
+                agreement: Some(Agreement {
+                    person: Person::Third,
+                    number,
+                }),
+                pronoun_case: None,
+                adjunct: None,
+            },
+            meaning: MeaningKey::Determiner(DeterminerKey::Demonstrative(match demonstrative {
+                crate::syntax::Demonstrative::This => DemonstrativeKey::This,
+                crate::syntax::Demonstrative::That => DemonstrativeKey::That,
+                crate::syntax::Demonstrative::These => DemonstrativeKey::These,
+                crate::syntax::Demonstrative::Those => DemonstrativeKey::Those,
+            })),
             local_cost: ParseCost::default(),
         }]
     }
@@ -2323,6 +2371,11 @@ impl RuleBuilder {
             [l(L::PossessiveThisCard)],
         );
         self.add(
+            RuleTag::NounPhraseDemonstrative,
+            N::NounPhrase,
+            [l(L::Demonstrative)],
+        );
+        self.add(
             RuleTag::NounPhrasePartitive,
             N::NounPhrase,
             [n(N::Quantity), l(L::Of), n(N::NounPhrase)],
@@ -2669,7 +2722,7 @@ fn reduce(
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity
         | RuleTag::DeterminerPossessiveThisCard => reduce_quantity_or_determiner(tag, children)?,
-        RuleTag::FrequencyPhrase => Features::None,
+        RuleTag::FrequencyPhrase | RuleTag::FrequencyPhraseAdverb => Features::None,
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun => reduce_possessive_noun_phrase(tag, children)?,
@@ -2702,6 +2755,7 @@ fn reduce(
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
         | RuleTag::NounPhrasePossessiveThisCard
+        | RuleTag::NounPhraseDemonstrative
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
@@ -2742,6 +2796,7 @@ fn reduce(
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
+        | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::ClauseExistential
         | RuleTag::CopularRemainderNoun
@@ -3287,6 +3342,12 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 adjunct: None,
             })
         }
+        RuleTag::NounPhraseDemonstrative => {
+            let Features::NounPhrase { .. } = children.first()?.features else {
+                return None;
+            };
+            Some(children.first()?.features.clone())
+        }
         RuleTag::NounPhrasePartitive => {
             let Features::Quantity(QuantityFeatures {
                 standalone_number, ..
@@ -3769,6 +3830,21 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::DeterminerQuantity
         | RuleTag::DeterminerPossessiveThisCard => lower_quantity_or_determiner(tag, children),
         RuleTag::FrequencyPhrase => take(children, 0),
+        RuleTag::FrequencyPhraseAdverb => {
+            let Lowered::Adverb(adverb) = take(children, 0)? else {
+                return None;
+            };
+            if adverb != Vocab::Only {
+                return None;
+            }
+            let Lowered::Frequency(freq) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::Frequency(crate::syntax::FrequencyPhrase {
+                bound: crate::syntax::FrequencyBound::NoMoreThan,
+                count: freq.count,
+            }))
+        }
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun => lower_possessive_noun_phrase(tag, children),
@@ -3801,6 +3877,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
         | RuleTag::NounPhrasePossessiveThisCard
+        | RuleTag::NounPhraseDemonstrative
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
@@ -3841,6 +3918,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
+        | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::ClauseExistential
         | RuleTag::CopularRemainderNoun
@@ -4213,6 +4291,16 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             };
             Some(Lowered::NounPhrase(NounPhrase::Possessive(
                 Possessor::NounPhrase(Box::new(NounPhrase::ThisCard(form))),
+            )))
+        }
+        RuleTag::NounPhraseDemonstrative => {
+            let Lowered::Determiner(crate::syntax::Determiner::Demonstrative(demonstrative)) =
+                take(children, 0)?
+            else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(NounPhrase::Demonstrative(
+                demonstrative,
             )))
         }
         RuleTag::NounPhrasePartitive => {

@@ -554,6 +554,7 @@ impl<'identity> Renderer<'identity> {
         auxiliary_start: usize,
     ) -> Result<String, RenderError> {
         let mut parts = vec![self.predicate_head_from(&predicate.head, auxiliary_start)?];
+        self.extend_predicate_elements(&mut parts, &predicate.pre_object_elements)?;
         let mut element_start = 0;
         while let Some(element) = predicate.elements.get(element_start) {
             match element {
@@ -561,12 +562,6 @@ impl<'identity> Renderer<'identity> {
                     indirect_object,
                 )) => {
                     parts.push(self.noun_phrase(indirect_object)?);
-                    element_start += 1;
-                }
-                PredicateElement::Adjunct(PredicateAdjunct::Adverb(adverb))
-                    if adverb.spelling() == "only" =>
-                {
-                    parts.push(adverb.spelling().to_owned());
                     element_start += 1;
                 }
                 _ => break,
@@ -880,10 +875,13 @@ impl<'identity> Renderer<'identity> {
                 join_words(parts)
             }
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate)?,
-            RelativeBody::ModalSubjectGap { modal, predicate } => join_words(vec![
-                self.render_auxiliary(modal.auxiliary)?,
-                self.predicate(predicate)?,
-            ]),
+            RelativeBody::ModalSubjectGap { modal, predicate } => {
+                let mut parts = vec![self.render_auxiliary(modal.auxiliary)?];
+                if let Some(predicate) = predicate {
+                    parts.push(self.predicate(predicate)?);
+                }
+                join_words(parts)
+            }
             RelativeBody::ObjectGap { subject, predicate } => {
                 let (subject, auxiliary_start) =
                     self.subject_with_predicate_head(subject, &predicate.head)?;
@@ -1301,6 +1299,8 @@ fn render_subordinator(subordinator: Subordinator) -> &'static str {
         Subordinator::Until => "until",
         Subordinator::Because => "because",
         Subordinator::RatherThan => "rather than",
+        Subordinator::Before => "before",
+        Subordinator::After => "after",
     }
 }
 
@@ -2219,6 +2219,7 @@ mod tests {
         match object {
             Some(object) => Predicate::Transitive(TransitivePredicate {
                 head,
+                pre_object_elements: Vec::new(),
                 object,
                 elements,
             }),

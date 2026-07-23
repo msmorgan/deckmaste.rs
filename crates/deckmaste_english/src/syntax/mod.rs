@@ -279,6 +279,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
         context: Option<RecoveryRole>,
     ) {
         Self::predicate_head(&predicate.head, context);
+        self.predicate_elements(&predicate.pre_object_elements, context);
         self.predicate_object(&predicate.object, context);
         self.predicate_elements(&predicate.elements, context);
     }
@@ -397,7 +398,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
         match &relative.body {
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate, context),
             RelativeBody::ModalSubjectGap { predicate, .. } => {
-                self.predicate(predicate, context);
+                if let Some(predicate) = predicate {
+                    self.predicate(predicate, context);
+                }
             }
             RelativeBody::ObjectGap { subject, predicate } => {
                 self.subject(subject, context);
@@ -685,6 +688,7 @@ mod tests {
                 paragraph(IndependentClause::Imperative(Predicate::Transitive(
                     TransitivePredicate {
                         head: predicate_head(Vocab::Draw),
+                        pre_object_elements: vec![],
                         object: PredicateObject::QuotedAbility(Box::new(QuotedAbility {
                             ability: Box::new(paragraph_recovered("embedded")),
                             initial_uppercase: false,

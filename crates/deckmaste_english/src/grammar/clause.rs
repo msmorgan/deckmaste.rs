@@ -49,6 +49,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::FrequencyPhrase,
         [l(L::Frequency)],
     );
+    builder.add(
+        RuleTag::FrequencyPhraseAdverb,
+        N::FrequencyPhrase,
+        [l(L::Adverb), l(L::Frequency)],
+    );
 
     for slot in crate::word::VERB_SLOTS {
         builder.add(RuleTag::Verb, N::Verb, [l(L::Verb(slot))]);
@@ -345,6 +350,16 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [n(N::Clause), l(L::Subordinator), n(N::Clause)],
     );
     builder.add(
+        RuleTag::ClauseSubordinateAfterComma,
+        N::Clause,
+        [
+            n(N::Clause),
+            l(L::Punctuation(Punctuation::Comma)),
+            l(L::Subordinator),
+            n(N::Clause),
+        ],
+    );
+    builder.add(
         RuleTag::ClauseSubordinateAfterInfinitive,
         N::Clause,
         [n(N::Clause), l(L::RatherThan), n(N::VerbPhrase)],
@@ -483,6 +498,7 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
+        | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
@@ -591,8 +607,13 @@ pub(super) fn reduction_cost(
                 ..
             })
         );
+    let precedence = if active_temporal_attachment || tag == RuleTag::ClauseSubordinateAfter {
+        1
+    } else {
+        0
+    };
     ParseCost {
-        precedence: u32::from(active_temporal_attachment),
+        precedence,
         ..ParseCost::default()
     }
 }
@@ -1450,6 +1471,9 @@ fn reduce_composed_clause(
         RuleTag::ClauseSubordinateAfter => {
             conditional_reduction(children.get(2)?, children.first()?)
         }
+        RuleTag::ClauseSubordinateAfterComma => {
+            conditional_reduction(children.get(3)?, children.first()?)
+        }
         RuleTag::ClauseSubordinateAfterInfinitive => {
             let Features::Clause {
                 agreement,
@@ -1684,6 +1708,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
+        | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
@@ -2041,8 +2066,16 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                 return None;
             };
             let FinishedPredicate { modal, predicate } = finish_predicate(predicate)?;
+            let is_empty_proform = match &predicate {
+                Predicate::Proform(_) => true,
+                Predicate::Intransitive(intra) => intra.elements.is_empty(),
+                _ => false,
+            };
             let body = match modal {
-                Some(modal) => RelativeBody::ModalSubjectGap { modal, predicate },
+                Some(modal) => RelativeBody::ModalSubjectGap {
+                    modal,
+                    predicate: if is_empty_proform { None } else { Some(predicate) },
+                },
                 None => RelativeBody::SubjectGap(predicate),
             };
             Some(Lowered::RelativeClause(RelativeClause {
@@ -2270,20 +2303,21 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
-        RuleTag::ClauseSubordinateAfter => {
+        RuleTag::ClauseSubordinateAfter | RuleTag::ClauseSubordinateAfterComma => {
+            let offset = usize::from(tag == RuleTag::ClauseSubordinateAfterComma);
             let Lowered::Clause(consequence) = take(children, 0)? else {
                 return None;
             };
-            let Lowered::Subordinator(subordinator) = take(children, 1)? else {
+            let Lowered::Subordinator(subordinator) = take(children, 1 + offset)? else {
                 return None;
             };
-            let Lowered::Clause(condition) = take(children, 2)? else {
+            let Lowered::Clause(condition) = take(children, 2 + offset)? else {
                 return None;
             };
             conditional(
                 subordinator,
                 AttachmentPosition::AfterMatrix,
-                false,
+                tag == RuleTag::ClauseSubordinateAfterComma,
                 condition,
                 consequence,
             )
@@ -2496,14 +2530,17 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
             .first()
             .is_some_and(|auxiliary| auxiliary.auxiliary == Auxiliary::Be);
     let mut object = None;
+    let mut pre_object_elements = Vec::new();
     let mut elements = Vec::new();
     for dependent in phrase.dependents {
+        let target_elements =
+            if object.is_none() { &mut pre_object_elements } else { &mut elements };
         match dependent {
             VerbDependent::DirectObject(noun_phrase) => {
                 attach_object(&mut object, PredicateObject::NounPhrase(noun_phrase))?;
             }
             VerbDependent::IndirectObject(noun_phrase) => {
-                elements.push(PredicateElement::Complement(
+                target_elements.push(PredicateElement::Complement(
                     PredicateComplement::IndirectObject(noun_phrase),
                 ));
             }
@@ -2524,12 +2561,12 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                     attach_object(&mut object, PredicateObject::QuotedAbility(ability))?;
                 }
                 Phrase::AdjectivePhrase(adjective) => {
-                    elements.push(PredicateElement::Complement(
+                    target_elements.push(PredicateElement::Complement(
                         PredicateComplement::Adjective(*adjective),
                     ));
                 }
                 Phrase::PrepositionalPhrase(preposition) => {
-                    elements.push(PredicateElement::Complement(
+                    target_elements.push(PredicateElement::Complement(
                         PredicateComplement::Prepositional(*preposition),
                     ));
                 }
@@ -2551,20 +2588,20 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 attach_object(&mut object, PredicateObject::PowerToughness(value))?;
             }
             VerbDependent::Prepositional(phrase) => {
-                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
                     phrase,
                 )));
             }
             VerbDependent::Temporal(phrase) => {
-                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Temporal(
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Temporal(
                     phrase,
                 )));
             }
             VerbDependent::Manner(phrase) => {
-                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Manner(phrase)));
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Manner(phrase)));
             }
             VerbDependent::Infinitive(clause) => {
-                elements.push(PredicateElement::Complement(
+                target_elements.push(PredicateElement::Complement(
                     PredicateComplement::Infinitive(finish_infinitive(clause)?),
                 ));
             }
@@ -2572,24 +2609,24 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 let Clause::Dependent(clause) = *clause else {
                     return None;
                 };
-                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Dependent(
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Dependent(
                     Box::new(clause),
                 )));
             }
             VerbDependent::Adverbial(Phrase::Adverb(adverb)) => {
-                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Adverb(adverb)));
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Adverb(adverb)));
             }
             VerbDependent::Adverbial(Phrase::AdjectivePhrase(adjective)) => {
-                elements.push(PredicateElement::Complement(
+                target_elements.push(PredicateElement::Complement(
                     PredicateComplement::Adjective(*adjective),
                 ));
             }
             VerbDependent::Statistic(_) | VerbDependent::Adverbial(_) => return None,
             VerbDependent::Particle(particle) => {
-                elements.push(PredicateElement::Particle(particle));
+                target_elements.push(PredicateElement::Particle(particle));
             }
             VerbDependent::Frequency(frequency) => {
-                elements.push(PredicateElement::Adjunct(PredicateAdjunct::Frequency(
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Frequency(
                     frequency,
                 )));
             }
@@ -2608,15 +2645,22 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
         if object.is_some() {
             return None;
         }
-        Predicate::Passive(PassivePredicate { head, elements })
+        pre_object_elements.append(&mut elements);
+        Predicate::Passive(PassivePredicate {
+            head,
+            elements: pre_object_elements,
+        })
     } else if let Some(object) = object {
         Predicate::Transitive(crate::syntax::TransitivePredicate {
             head,
+            pre_object_elements,
             object,
             elements,
         })
     } else if head.auxiliaries.is_empty()
+        && modal.is_none()
         && head.preverb_modifiers.is_empty()
+        && pre_object_elements.is_empty()
         && elements.is_empty()
         && proform
     {
@@ -2629,6 +2673,7 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
         })
     } else if head.auxiliaries.len() == 1
         && head.preverb_modifiers.is_empty()
+        && pre_object_elements.is_empty()
         && elements.is_empty()
         && proform
     {
@@ -2636,7 +2681,11 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
             auxiliary: head.auxiliaries[0],
         })
     } else {
-        Predicate::Intransitive(crate::syntax::IntransitivePredicate { head, elements })
+        pre_object_elements.append(&mut elements);
+        Predicate::Intransitive(crate::syntax::IntransitivePredicate {
+            head,
+            elements: pre_object_elements,
+        })
     };
     Some(FinishedPredicate { modal, predicate })
 }
@@ -2925,27 +2974,21 @@ mod tests {
         for source in [
             "Activate only once each turn.",
             "This ability triggers only once each turn.",
+            "Do this only once each turn.",
         ] {
             let parsed = parse(source);
-            let predicate = match &parsed.sentence().expect("sentence root").body {
-                SentenceBody::Independent(
-                    IndependentClause::Imperative(Predicate::Intransitive(predicate))
-                    | IndependentClause::Intransitive(_, predicate),
-                ) => predicate,
-                clause => panic!("expected an intransitive clause, got {clause:#?}"),
-            };
-            assert!(matches!(
-                predicate.elements.as_slice(),
-                [
-                    PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
-                    PredicateElement::Adjunct(PredicateAdjunct::Adverb(once)),
-                    PredicateElement::Adjunct(PredicateAdjunct::Temporal(
-                        NounPhrase::Nominal(turn),
-                    )),
-                ] if once.spelling() == "once"
-                    && matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
-            ));
-            assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+            assert_eq!(render_sentence(parsed.sentence().expect(source)), source);
+        }
+    }
+
+    #[test]
+    fn activation_restriction_clauses_parse_and_render_structurally() {
+        for source in [
+            "Activate only during your turn, before attackers are declared.",
+            "Activate only as a sorcery.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(render_sentence(parsed.sentence().expect(source)), source);
         }
     }
 
@@ -3157,7 +3200,7 @@ mod tests {
                 if matches!(number.head, NounInstance::Singular(Noun::Word(Vocab::Number)))
         ));
         assert!(matches!(
-            predicate.elements.as_slice(),
+            predicate.pre_object_elements.as_slice(),
             [PredicateElement::Complement(PredicateComplement::IndirectObject(
                 NounPhrase::Nominal(player),
             ))] if matches!(player.head, NounInstance::Singular(Noun::Word(Vocab::Player)))
@@ -4048,7 +4091,7 @@ mod tests {
                             ..
                         },
                     },
-                    predicate: Predicate::Passive(PassivePredicate { elements, .. }),
+                    predicate: Some(Predicate::Passive(PassivePredicate { elements, .. })),
                 },
             })] if matches!(
                 elements.as_slice(),

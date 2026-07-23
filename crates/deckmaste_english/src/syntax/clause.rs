@@ -82,6 +82,7 @@ pub enum PreverbModifier {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransitivePredicate {
     pub head: PredicateHead,
+    pub pre_object_elements: Vec<PredicateElement>,
     pub object: PredicateObject,
     pub elements: Vec<PredicateElement>,
 }
@@ -263,7 +264,7 @@ pub enum RelativeBody {
     SubjectGap(Predicate),
     ModalSubjectGap {
         modal: Modal,
-        predicate: Predicate,
+        predicate: Option<Predicate>,
     },
     ObjectGap {
         subject: Subject,
@@ -334,6 +335,8 @@ pub enum Subordinator {
     Until,
     Because,
     RatherThan,
+    Before,
+    After,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
