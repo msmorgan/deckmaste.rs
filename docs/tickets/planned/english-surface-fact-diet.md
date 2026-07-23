@@ -15,7 +15,10 @@ from the English AST.** Successor to the 2026-07-23 structure diet
   casing is structural, not lexical: quoted sentence abilities capitalize
   while quoted keyword lines (`"bands with other legendary creatures"`) and
   phrase references (`"legend rule"`) do not — derive it from the quoted
-  node's kind.
+  node's kind. (Rejected alternative: an explicit casing-exception wrapper
+  preserving Necratog's raw bytes — that mints structure from a single typo
+  witness, and raw-typo fidelity is a non-goal: the gate compares in the
+  normalized canonical-template domain.)
 - Comma records: the `comma: bool` fields on `ClauseCoordination`,
   `PredicateObjectCoordination`, `ClauseAttachment`, and
   `DependentAttachment`. Determine per field whether the comma is derivable
