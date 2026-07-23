@@ -60,6 +60,7 @@ use crate::syntax::NounPhrase;
 use crate::syntax::OpaqueLexeme;
 use crate::syntax::OracleSymbol;
 use crate::syntax::Phrase;
+use crate::syntax::Polarity;
 use crate::syntax::Possessor;
 use crate::syntax::PowerToughness;
 use crate::syntax::Preposition;
@@ -209,6 +210,11 @@ pub(crate) enum EnglishLexicalSlot {
     PossessiveNoun,
     Verb(VerbSlot),
     Adjective,
+    /// A single-token `non-` negation whose residue resolves as a modifier base
+    /// (`nonland`, `nonblack`, `non-Human`, `nonattacking`). Scanned as
+    /// sub-word morphology, not a chart production, because the prefix is
+    /// not a token.
+    NegatedModifier,
     Adverb,
     VerbParticle(VerbParticle),
     Frequency,
@@ -731,7 +737,45 @@ pub(crate) enum MeaningKey {
     SubjectAuxiliary(SubjectAuxiliaryKey),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
+    NegatedModifier(NegatedModifierKey),
     Opaque(OpaqueKey),
+}
+
+/// A `non-` negation resolved to its base modifier at scan time. Held as a
+/// bare [`Adjective`] or [`NounInstance`] (both `Hash`, unlike
+/// `AdjectivePhrase`) plus the observed hyphenation; lowered into a negated
+/// [`NominalModifier`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct NegatedModifierKey {
+    hyphenated: bool,
+    base: NegatedBase,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum NegatedBase {
+    Adjective(Adjective),
+    Noun(NounInstance),
+}
+
+impl NegatedModifierKey {
+    fn build(&self) -> NominalModifier {
+        let polarity = Polarity::Negative {
+            hyphenated: self.hyphenated,
+        };
+        match &self.base {
+            NegatedBase::Adjective(adjective) => NominalModifier::Adjective {
+                polarity,
+                phrase: AdjectivePhrase {
+                    head: adjective.clone(),
+                    complements: Vec::new(),
+                },
+            },
+            NegatedBase::Noun(noun) => NominalModifier::Noun {
+                polarity,
+                noun: noun.clone(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -778,6 +822,7 @@ enum RuleTag {
     NominalNoun,
     NominalAdjective,
     NominalNounModifier,
+    NominalNegatedModifier,
     NominalQuantityModifier,
     NominalPowerToughnessModifier,
     NominalDeterminer,
@@ -1038,6 +1083,115 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
                 )
             })
     }
+
+    /// Scans a single-token `non-` negation as sub-word morphology. Strips a
+    /// leading `non` or `non-` and, only when the residue resolves as a known
+    /// modifier base, emits one negated-modifier match per base reading. When
+    /// the residue does not resolve — `none`, `nonetheless`, any narrative word
+    /// — nothing fires and the token falls through to the existing paths, so
+    /// those spellings stay intact. The hyphenation glyph is recorded from the
+    /// source, not re-derived, so `nonblack` and `non-black` each round-trip.
+    fn scan_negated_modifier(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let Some(token) = tokens.get(start) else {
+            return Vec::new();
+        };
+        if token.kind != TokenKind::Word {
+            return Vec::new();
+        }
+        let Some(surface) = token.span.text(self.source) else {
+            return Vec::new();
+        };
+        // Case-insensitive `non` prefix so sentence-initial `Noncreature` and
+        // mid-sentence `nonland` both strip; the residue keeps its own case.
+        if !surface
+            .get(..3)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("non"))
+        {
+            return Vec::new();
+        }
+        let rest = &surface[3..];
+        let (hyphenated, residue) = match rest.strip_prefix('-') {
+            Some(residue) => (true, residue),
+            None => (false, rest),
+        };
+        if residue.is_empty() {
+            return Vec::new();
+        }
+        self.resolve_negation_bases(residue)
+            .into_iter()
+            .map(|base| LexicalMatch {
+                end: start + 1,
+                features: Features::None,
+                meaning: MeaningKey::NegatedModifier(NegatedModifierKey { hyphenated, base }),
+                local_cost: ParseCost::default(),
+            })
+            .fold(Vec::new(), |mut matches, candidate| {
+                if !matches.contains(&candidate) {
+                    matches.push(candidate);
+                }
+                matches
+            })
+    }
+
+    /// Resolves a stripped negation residue to the modifier bases it names,
+    /// mirroring the adjective and noun scan slots but over the whole residue
+    /// string. A catalog match must consume the entire residue (its length must
+    /// equal the residue's) so `nonlander` — residue `lander`, a partial `land`
+    /// prefix — does not spuriously fire.
+    fn resolve_negation_bases(&self, residue: &str) -> Vec<NegatedBase> {
+        let mut bases = Vec::new();
+        let mut push = |base: NegatedBase| {
+            if !bases.contains(&base) {
+                bases.push(base);
+            }
+        };
+        // Vocabulary lemmas are lowercase; a capitalized residue (`non-Phyrexian`,
+        // `non-Human`) is the case-preserving catalog subtype reading, never the
+        // common-word one — the same guard `word_matches` applies to a
+        // capitalized surface. The catalog lookups below self-guard by case
+        // policy, so they stay unconditional.
+        let residue_is_capitalized = residue
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_uppercase);
+        if !residue_is_capitalized {
+            let vocabulary = Vocabulary::new();
+            for word in vocabulary.matches(residue, LexicalSlot::Adjective) {
+                if let WordMatch::Adjective(adjective) = word {
+                    push(NegatedBase::Adjective(adjective));
+                }
+            }
+            for word in vocabulary.matches(residue, LexicalSlot::Noun(NounUsage::Either)) {
+                if let WordMatch::Noun(noun) = word {
+                    push(NegatedBase::Noun(noun));
+                }
+            }
+        }
+        for catalog_match in self.catalogs.matches(residue, CatalogSlot::Adjective) {
+            if catalog_match.length != residue.len() {
+                continue;
+            }
+            if let CatalogValue::Word(WordMatch::Adjective(adjective)) = catalog_match.value {
+                push(NegatedBase::Adjective(adjective));
+            }
+        }
+        for catalog_match in self
+            .catalogs
+            .matches(residue, CatalogSlot::Noun(NounUsage::Either))
+        {
+            if catalog_match.length != residue.len() {
+                continue;
+            }
+            if let CatalogValue::Word(WordMatch::Noun(noun)) = catalog_match.value {
+                push(NegatedBase::Noun(noun));
+            }
+        }
+        bases
+    }
 }
 
 impl Grammar for EnglishGrammar<'_, '_> {
@@ -1127,6 +1281,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Adjective));
                 matches
             }
+            EnglishLexicalSlot::NegatedModifier => self.scan_negated_modifier(tokens, start),
             EnglishLexicalSlot::Adverb => self.word_matches(tokens, start, LexicalSlot::Adverb),
             EnglishLexicalSlot::VerbParticle(particle) => self
                 .one_token_match(
@@ -2317,6 +2472,15 @@ impl RuleBuilder {
             },
         );
         self.add_with_cost(
+            RuleTag::NominalNegatedModifier,
+            N::Nominal,
+            [l(L::NegatedModifier), n(N::Nominal)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
+        self.add_with_cost(
             RuleTag::NominalQuantityModifier,
             N::Nominal,
             [n(N::Quantity), n(N::Nominal)],
@@ -2772,6 +2936,7 @@ fn reduce(
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
+        | RuleTag::NominalNegatedModifier
         | RuleTag::NominalQuantityModifier
         | RuleTag::NominalPowerToughnessModifier
         | RuleTag::NominalDeterminer
@@ -3097,6 +3262,16 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             )
         }
         RuleTag::NominalQuantityModifier | RuleTag::NominalPowerToughnessModifier => {
+            nominal_with_prefix(
+                children.get(1)?,
+                InitialSound::Consonant,
+                false,
+                AdjectiveComparisonState::NotComparative,
+            )
+        }
+        RuleTag::NominalNegatedModifier => {
+            // The `non-` prefix fixes the phrase's initial sound to a consonant
+            // (`a nonland permanent`, never `an`), regardless of the base.
             nominal_with_prefix(
                 children.get(1)?,
                 InitialSound::Consonant,
@@ -3723,6 +3898,7 @@ enum Lowered {
     AdjectivePhrase(AdjectivePhrase),
     ComparisonComplement(ComparisonComplement),
     Noun(NounInstance),
+    NominalModifier(NominalModifier),
     Nominal(NominalPhrase),
     PossessiveNominal(NominalPhrase),
     NounPhrase(NounPhrase),
@@ -3847,6 +4023,7 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Existential(form) => Lowered::Existential(*form),
         MeaningKey::ThisCard(form) => Lowered::ThisCard(*form),
         MeaningKey::Preposition(preposition) => Lowered::Preposition(*preposition),
+        MeaningKey::NegatedModifier(key) => Lowered::NominalModifier(key.build()),
         MeaningKey::Opaque(key) => {
             let opaque = OpaqueLexeme::new(key.span.text(grammar.source)?);
             match key.slot {
@@ -3911,6 +4088,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
+        | RuleTag::NominalNegatedModifier
         | RuleTag::NominalQuantityModifier
         | RuleTag::NominalPowerToughnessModifier
         | RuleTag::NominalDeterminer
@@ -4106,7 +4284,7 @@ fn introduces_proper_name(adjective: &AdjectivePhrase) -> bool {
 fn open_name_interior(nominal: &mut NominalPhrase) {
     detach_keyword_noun(&mut nominal.head);
     for modifier in &mut nominal.modifiers {
-        if let NominalModifier::Noun(noun) = modifier {
+        if let NominalModifier::Noun { noun, .. } = modifier {
             detach_keyword_noun(noun);
         }
     }
@@ -4209,9 +4387,13 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             if introduces_proper_name(&adjective) {
                 open_name_interior(&mut nominal);
             }
-            nominal
-                .modifiers
-                .insert(0, NominalModifier::Adjective(adjective));
+            nominal.modifiers.insert(
+                0,
+                NominalModifier::Adjective {
+                    polarity: Polarity::Positive,
+                    phrase: adjective,
+                },
+            );
             Some(Lowered::Nominal(nominal))
         }
         RuleTag::NominalNounModifier => {
@@ -4221,7 +4403,23 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             let Lowered::Nominal(mut nominal) = take(children, 1)? else {
                 return None;
             };
-            nominal.modifiers.insert(0, NominalModifier::Noun(noun));
+            nominal.modifiers.insert(
+                0,
+                NominalModifier::Noun {
+                    polarity: Polarity::Positive,
+                    noun,
+                },
+            );
+            Some(Lowered::Nominal(nominal))
+        }
+        RuleTag::NominalNegatedModifier => {
+            let Lowered::NominalModifier(modifier) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
+                return None;
+            };
+            nominal.modifiers.insert(0, modifier);
             Some(Lowered::Nominal(nominal))
         }
         RuleTag::NominalQuantityModifier => {
@@ -4328,7 +4526,10 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             let adjective = nominal.modifiers.iter_mut().rev().find_map(|modifier| {
-                let NominalModifier::Adjective(adjective) = modifier else {
+                let NominalModifier::Adjective {
+                    phrase: adjective, ..
+                } = modifier
+                else {
                     return None;
                 };
                 (adjective_comparison_state(&adjective.head) == AdjectiveComparisonState::Pending

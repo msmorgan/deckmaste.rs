@@ -3198,11 +3198,12 @@ mod tests {
                 .modifiers
                 .iter()
                 .find_map(|modifier| match modifier {
-                    NominalModifier::Adjective(adjective)
-                        if matches!(
-                            adjective.head,
-                            Adjective::Word(word) if word.spelling() == expected_adjective
-                        ) =>
+                    NominalModifier::Adjective {
+                        phrase: adjective, ..
+                    } if matches!(
+                        adjective.head,
+                        Adjective::Word(word) if word.spelling() == expected_adjective
+                    ) =>
                     {
                         Some(adjective)
                     }
@@ -3578,7 +3579,7 @@ mod tests {
         };
         assert!(matches!(
             subject.modifiers.as_slice(),
-            [NominalModifier::Adjective(adjective)]
+            [NominalModifier::Adjective { phrase: adjective, .. }]
                 if matches!(
                     adjective.head,
                     Adjective::Participle(Tense::Past, Verb::Word(Vocab::Prevent))
@@ -4335,10 +4336,14 @@ mod tests {
 
     fn sole_adjective_spelling(nominal: &crate::syntax::NominalPhrase) -> &'static str {
         for modifier in &nominal.modifiers {
-            if let NominalModifier::Adjective(crate::syntax::AdjectivePhrase {
-                head: Adjective::Word(word),
+            if let NominalModifier::Adjective {
+                phrase:
+                    crate::syntax::AdjectivePhrase {
+                        head: Adjective::Word(word),
+                        ..
+                    },
                 ..
-            }) = modifier
+            } = modifier
             {
                 return word.spelling();
             }

@@ -1054,9 +1054,6 @@ vocabulary! {
     Name("name").verb(VerbForm::Regular);
     Myr("Myr").invariant_catalog_noun();
     Night("night").noun(NounDeclension::Regular, Countability::Count);
-    Nonbasic("nonbasic").adjective();
-    Noncreature("noncreature").adjective();
-    Nonland("nonland").adjective();
     Number("number").noun(NounDeclension::Regular, Countability::Count);
     Odd("odd").adjective();
     Open("open").verb(VerbForm::Regular);

@@ -49,6 +49,7 @@ use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
 use crate::syntax::Paragraph;
 use crate::syntax::Phrase;
+use crate::syntax::Polarity;
 use crate::syntax::Possessor;
 use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
@@ -1033,12 +1034,14 @@ impl<'identity> Renderer<'identity> {
         }
         for modifier in &phrase.modifiers {
             parts.push(match modifier {
-                NominalModifier::Adjective(adjective) => {
-                    let (head, trailing) = self.nominal_modifier_adjective(adjective)?;
+                NominalModifier::Adjective { polarity, phrase } => {
+                    let (head, trailing) = self.nominal_modifier_adjective(phrase)?;
                     trailing_modifier_complements.extend(trailing);
-                    head
+                    apply_polarity(*polarity, head)
                 }
-                NominalModifier::Noun(noun) => self.render_noun(noun)?,
+                NominalModifier::Noun { polarity, noun } => {
+                    apply_polarity(*polarity, self.render_noun(noun)?)
+                }
                 NominalModifier::Quantity(quantity) => render_quantity(*quantity),
                 NominalModifier::PowerToughness(value) => format!(
                     "{}/{}",
@@ -1066,10 +1069,18 @@ impl<'identity> Renderer<'identity> {
     fn nominal_initial_sound(&self, phrase: &NominalPhrase) -> Result<InitialSound, RenderError> {
         if let Some(first) = phrase.modifiers.first() {
             return match first {
-                NominalModifier::Adjective(adjective) => {
-                    self.adjective_initial_sound(&adjective.head)
+                // A negated modifier's surface starts with `non`, so its initial
+                // sound is a consonant regardless of the base it negates.
+                NominalModifier::Adjective { polarity, .. }
+                | NominalModifier::Noun { polarity, .. }
+                    if polarity.is_negative() =>
+                {
+                    Ok(InitialSound::Consonant)
                 }
-                NominalModifier::Noun(noun) => self.noun_initial_sound(noun),
+                NominalModifier::Adjective { phrase, .. } => {
+                    self.adjective_initial_sound(&phrase.head)
+                }
+                NominalModifier::Noun { noun, .. } => self.noun_initial_sound(noun),
                 NominalModifier::Quantity(quantity) => {
                     Ok(spelling_initial_sound(&render_quantity(*quantity)))
                 }
@@ -1432,6 +1443,19 @@ fn render_preposition(preposition: Preposition) -> &'static str {
         Preposition::Under => "under",
         Preposition::With => "with",
         Preposition::Without => "without",
+    }
+}
+
+/// Prefixes a rendered modifier base with its `non-` negation, replaying the
+/// hyphenation glyph recorded at parse time. The distinction rides on the
+/// [`Polarity`] flag alone — never on the base's spelling — so `nonland`,
+/// `nonblack`, `non-Human`, and the lowercase-hyphen exception `non-black` each
+/// round-trip.
+fn apply_polarity(polarity: Polarity, base: String) -> String {
+    match polarity {
+        Polarity::Positive => base,
+        Polarity::Negative { hyphenated: true } => format!("non-{base}"),
+        Polarity::Negative { hyphenated: false } => format!("non{base}"),
     }
 }
 
@@ -1939,11 +1963,17 @@ mod tests {
             Some(Subject(nominal(
                 None,
                 vec![
-                    NominalModifier::Adjective(AdjectivePhrase {
-                        head: Adjective::Word(Vocab::Other),
-                        complements: vec![],
-                    }),
-                    NominalModifier::Noun(catalog_noun(&catalogs, "Goblin", false)),
+                    NominalModifier::Adjective {
+                        polarity: Polarity::Positive,
+                        phrase: AdjectivePhrase {
+                            head: Adjective::Word(Vocab::Other),
+                            complements: vec![],
+                        },
+                    },
+                    NominalModifier::Noun {
+                        polarity: Polarity::Positive,
+                        noun: catalog_noun(&catalogs, "Goblin", false),
+                    },
                 ],
                 creatures.head,
                 creatures.complements,

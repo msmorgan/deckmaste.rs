@@ -1935,7 +1935,7 @@ mod tests {
         };
         assert!(matches!(
             subject.modifiers.as_slice(),
-            [NominalModifier::Adjective(_), NominalModifier::Noun(crate::word::NounInstance::Singular(crate::word::Noun::Catalog(goblin)))]
+            [NominalModifier::Adjective { .. }, NominalModifier::Noun { noun: crate::word::NounInstance::Singular(crate::word::Noun::Catalog(goblin)), .. }]
                 if goblin.kind == CatalogKind::CreatureType
         ));
     }

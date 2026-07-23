@@ -327,10 +327,43 @@ pub struct NominalPhrase {
     pub complements: Vec<NominalComplement>,
 }
 
+/// The productive `non-` polarity of a nominal modifier. `land card` and
+/// `nonland card` are the *same* outer modifier node — an attributive
+/// [`NominalModifier::Noun`] over the `land` catalog atom — differing only in
+/// this flag; negation is never a mechanism or category change. Only the
+/// adjective and noun modifier kinds can carry it, because those are the only
+/// bases the surface negates (card/subtypes, supertypes, colors, participles,
+/// and vocabulary adjectives/nouns); quantities and power/toughness never do.
+///
+/// The negative variant also records whether the surface hyphenated the prefix.
+/// The corpus writes solid `nonland`/`nonblack` but hyphenated `non-Human`, and
+/// carries one lowercase exception (`non-black`) plus the hyphenated supertype
+/// `non-ongoing`, so the glyph is preserved structurally — as
+/// [`RollRangeDash`](crate::syntax::RollRangeDash) preserves a range dash —
+/// rather than re-derived from the base's capitalization at render time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Polarity {
+    Positive,
+    Negative { hyphenated: bool },
+}
+
+impl Polarity {
+    #[must_use]
+    pub const fn is_negative(self) -> bool {
+        matches!(self, Self::Negative { .. })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NominalModifier {
-    Adjective(AdjectivePhrase),
-    Noun(NounInstance),
+    Adjective {
+        polarity: Polarity,
+        phrase: AdjectivePhrase,
+    },
+    Noun {
+        polarity: Polarity,
+        noun: NounInstance,
+    },
     Quantity(Quantity),
     PowerToughness(PowerToughness),
 }

@@ -14,9 +14,11 @@ mod tests {
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalModifier;
+    use crate::syntax::NominalPhrase;
     use crate::syntax::NounPhrase;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
+    use crate::syntax::Polarity;
     use crate::syntax::Possessor;
     use crate::syntax::Predicate;
     use crate::syntax::PredicateHead;
@@ -26,6 +28,7 @@ mod tests {
     use crate::syntax::SentenceEnding;
     use crate::syntax::TransitivePredicate;
     use crate::word::Adjective;
+    use crate::word::ColorWord;
     use crate::word::Noun;
     use crate::word::NounInstance;
     use crate::word::NounUsage;
@@ -73,9 +76,10 @@ mod tests {
         assert!(
             matches!(
                 nominal.modifiers.as_slice(),
-                [NominalModifier::Noun(NounInstance::Singular(Noun::Word(
-                    Vocab::Draw
-                )))]
+                [NominalModifier::Noun {
+                    noun: NounInstance::Singular(Noun::Word(Vocab::Draw)),
+                    ..
+                }]
             ),
             "{nominal:#?}"
         );
@@ -96,9 +100,10 @@ mod tests {
         assert!(
             matches!(
                 nominal.modifiers.as_slice(),
-                [NominalModifier::Noun(NounInstance::Singular(Noun::Word(
-                    Vocab::Combat
-                )))]
+                [NominalModifier::Noun {
+                    noun: NounInstance::Singular(Noun::Word(Vocab::Combat)),
+                    ..
+                }]
             ),
             "{nominal:#?}"
         );
@@ -106,6 +111,162 @@ mod tests {
             &nominal.head,
             NounInstance::Mass(Noun::Word(Vocab::Damage))
         ));
+    }
+
+    #[test]
+    fn productive_negation_shares_the_positive_outer_shape_up_to_polarity() {
+        // Owner's invariant: `nonland card` and `land card` are the same outer
+        // modifier node, differing only in the polarity flag — negation is never
+        // a mechanism or category change. One causal pair per base category the
+        // corpus needs: supertype, card type, hyphenated subtype, color,
+        // participle.
+        for (positive, negative) in [
+            ("basic land", "nonbasic land"), // supertype catalog adjective
+            ("land card", "nonland card"),   // card-type attributive noun
+            ("Human creature", "non-Human creature"), // hyphenated subtype noun
+            ("black creature", "nonblack creature"), // color adjective
+            ("attacking creature", "nonattacking creature"), // participle
+        ] {
+            let positive_modifier = first_modifier(&parse(positive));
+            let negative_modifier = first_modifier(&parse(negative));
+            assert!(
+                matches!(polarity_of(&positive_modifier), Some(Polarity::Positive)),
+                "{positive}: {positive_modifier:#?}"
+            );
+            assert!(
+                matches!(
+                    polarity_of(&negative_modifier),
+                    Some(Polarity::Negative { .. })
+                ),
+                "{negative}: {negative_modifier:#?}"
+            );
+            assert_eq!(
+                depolarize(&negative_modifier),
+                positive_modifier,
+                "{negative} must equal {positive} up to the polarity flag",
+            );
+        }
+    }
+
+    #[test]
+    fn hyphenation_glyph_is_recorded_from_the_surface_not_the_base_case() {
+        // Solid `nonblack` and hyphenated `non-Human` are the ordinary rule;
+        // the negative variant records which the surface used so each replays
+        // exactly. (The corpus exception `non-black` — a hyphenated lowercase
+        // color — is covered render-side by
+        // `negation_render_replays_the_recorded_hyphen`.)
+        let solid = first_modifier(&parse("nonblack creature"));
+        assert!(matches!(
+            polarity_of(&solid),
+            Some(Polarity::Negative { hyphenated: false })
+        ));
+        let hyphenated = first_modifier(&parse("non-Human creature"));
+        assert!(matches!(
+            polarity_of(&hyphenated),
+            Some(Polarity::Negative { hyphenated: true })
+        ));
+    }
+
+    #[test]
+    fn negation_safety_net_leaves_narrative_words_intact() {
+        // Only a residue that resolves fires the morphology; `none` and
+        // `nonetheless` strip to non-words and must not decompose, so those
+        // spellings survive unchanged.
+        let catalogs = fixture_catalogs();
+        for word in ["none", "nonetheless"] {
+            let surface = crate::surface::lex(word);
+            let grammar = EnglishGrammar::new(word, &catalogs, Nonterminal::NounPhrase);
+            assert!(
+                grammar
+                    .scan(EnglishLexicalSlot::NegatedModifier, &surface.tokens, 0)
+                    .is_empty(),
+                "{word} must not decompose as a negation"
+            );
+        }
+        // Control: a resolving residue does fire.
+        let surface = crate::surface::lex("nonland");
+        let grammar = EnglishGrammar::new("nonland", &catalogs, Nonterminal::NounPhrase);
+        assert!(
+            !grammar
+                .scan(EnglishLexicalSlot::NegatedModifier, &surface.tokens, 0)
+                .is_empty(),
+            "nonland must decompose as a negation"
+        );
+    }
+
+    #[test]
+    fn negation_round_trips_solid_and_hyphenated_byte_exactly() {
+        for source in ["nonland permanent", "non-Human creature"] {
+            let parsed = parse(source);
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn negation_render_replays_the_recorded_hyphen() {
+        // Render-side shapes the rule newly admits, including the lowercase
+        // hyphen exception `non-black` that the capitalization rule alone would
+        // mis-spell as `nonblack`.
+        for (hyphenated, expected) in [(false, "nonblack card"), (true, "non-black card")] {
+            let modifier = NominalModifier::Adjective {
+                polarity: Polarity::Negative { hyphenated },
+                phrase: AdjectivePhrase {
+                    head: Adjective::Color(ColorWord::Black),
+                    complements: vec![],
+                },
+            };
+            let noun_phrase = NounPhrase::Nominal(NominalPhrase {
+                determiner: None,
+                modifiers: vec![modifier],
+                head: NounInstance::Singular(Noun::Word(Vocab::Card)),
+                complements: vec![],
+            });
+            assert_eq!(render_fragment(&noun_phrase), expected);
+        }
+    }
+
+    /// The first nominal modifier of a parsed noun phrase, cloned for
+    /// polarity-shape comparisons.
+    fn first_modifier(parsed: &ParsedNonterminal) -> NominalModifier {
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!(
+                "expected a nominal noun phrase: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        nominal
+            .modifiers
+            .first()
+            .cloned()
+            .unwrap_or_else(|| panic!("expected at least one modifier: {nominal:#?}"))
+    }
+
+    fn polarity_of(modifier: &NominalModifier) -> Option<Polarity> {
+        match modifier {
+            NominalModifier::Adjective { polarity, .. }
+            | NominalModifier::Noun { polarity, .. } => Some(*polarity),
+            NominalModifier::Quantity(_) | NominalModifier::PowerToughness(_) => None,
+        }
+    }
+
+    /// Rewrites a modifier's polarity to `Positive`, isolating the "same outer
+    /// shape up to the flag" comparison.
+    fn depolarize(modifier: &NominalModifier) -> NominalModifier {
+        match modifier.clone() {
+            NominalModifier::Adjective { phrase, .. } => NominalModifier::Adjective {
+                polarity: Polarity::Positive,
+                phrase,
+            },
+            NominalModifier::Noun { noun, .. } => NominalModifier::Noun {
+                polarity: Polarity::Positive,
+                noun,
+            },
+            other => other,
+        }
     }
 
     #[test]
@@ -358,7 +519,7 @@ mod tests {
         assert!(matches!(
             definite_quantity.modifiers.as_slice(),
             [
-                NominalModifier::Adjective(_),
+                NominalModifier::Adjective { .. },
                 NominalModifier::Quantity(crate::syntax::Quantity::Exact(three)),
             ] if three.value == 3
         ));
@@ -486,10 +647,13 @@ mod tests {
         assert_eq!(nominal.determiner, Some(Determiner::Each));
         assert!(matches!(
             nominal.modifiers.as_slice(),
-            [NominalModifier::Adjective(AdjectivePhrase {
-                head: Adjective::Word(Vocab::Other),
+            [NominalModifier::Adjective {
+                phrase: AdjectivePhrase {
+                    head: Adjective::Word(Vocab::Other),
+                    ..
+                },
                 ..
-            })]
+            }]
         ));
     }
 
@@ -502,11 +666,17 @@ mod tests {
         assert!(matches!(
             nominal.modifiers.as_slice(),
             [
-                NominalModifier::Adjective(AdjectivePhrase {
-                    head: Adjective::Catalog(legendary),
+                NominalModifier::Adjective {
+                    phrase: AdjectivePhrase {
+                        head: Adjective::Catalog(legendary),
+                        ..
+                    },
                     ..
-                }),
-                NominalModifier::Noun(NounInstance::Singular(Noun::Catalog(goblin))),
+                },
+                NominalModifier::Noun {
+                    noun: NounInstance::Singular(Noun::Catalog(goblin)),
+                    ..
+                },
             ] if legendary.kind == CatalogKind::Supertype
                 && goblin.kind == CatalogKind::CreatureType
         ));
@@ -747,9 +917,9 @@ mod tests {
 
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
-            .with_catalog(CatalogKind::CreatureType, ["Goblin"])
+            .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"])
             .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
-            .with_catalog(CatalogKind::Supertype, ["Legendary"])
+            .with_catalog(CatalogKind::Supertype, ["Basic", "Legendary"])
     }
 
     fn render_fragment(noun_phrase: &NounPhrase) -> String {

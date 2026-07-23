@@ -463,12 +463,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 }
                 for modifier in &nominal.modifiers {
                     match modifier {
-                        NominalModifier::Adjective(adjective) => self.adjective_phrase(
-                            adjective,
-                            RecoveryRole::NominalComplement,
-                            context,
-                        ),
-                        NominalModifier::Noun(_)
+                        NominalModifier::Adjective { phrase, .. } => {
+                            self.adjective_phrase(phrase, RecoveryRole::NominalComplement, context)
+                        }
+                        NominalModifier::Noun { .. }
                         | NominalModifier::Quantity(_)
                         | NominalModifier::PowerToughness(_) => {}
                     }

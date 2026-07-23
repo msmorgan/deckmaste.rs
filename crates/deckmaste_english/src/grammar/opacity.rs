@@ -168,8 +168,14 @@ mod tests {
             matches!(
                 object.modifiers.as_slice(),
                 [
-                    NominalModifier::Noun(NounInstance::Singular(Noun::Opaque(shiny))),
-                    NominalModifier::Noun(NounInstance::Singular(Noun::Opaque(strange))),
+                    NominalModifier::Noun {
+                        noun: NounInstance::Singular(Noun::Opaque(shiny)),
+                        ..
+                    },
+                    NominalModifier::Noun {
+                        noun: NounInstance::Singular(Noun::Opaque(strange)),
+                        ..
+                    },
                 ] if shiny.spelling() == "shiny" && strange.spelling() == "strange"
             ),
             "{:#?}",
