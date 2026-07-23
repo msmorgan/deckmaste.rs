@@ -3,6 +3,7 @@ use anyhow::bail;
 use clap::Args;
 use deckmaste_english::ParseReport;
 use deckmaste_english::parse_with_catalogs;
+use deckmaste_english::syntax::LexicalOpacityKind;
 use deckmaste_english::syntax::RecoveryRole;
 use serde::Serialize;
 
@@ -87,17 +88,22 @@ impl RecoveryCounts {
 struct LexicalOpacityCounts {
     total: Counts,
     noun: Counts,
+    flavor_header: Counts,
 }
 
 impl LexicalOpacityCounts {
-    fn observe_noun(&mut self, source_tokens: usize) {
+    fn observe(&mut self, kind: LexicalOpacityKind, source_tokens: usize) {
         self.total.observe(source_tokens);
-        self.noun.observe(source_tokens);
+        match kind {
+            LexicalOpacityKind::Noun => self.noun.observe(source_tokens),
+            LexicalOpacityKind::FlavorHeader => self.flavor_header.observe(source_tokens),
+        }
     }
 
     fn add(&mut self, other: &Self) {
         self.total.add(other.total);
         self.noun.add(other.noun);
+        self.flavor_header.add(other.flavor_header);
     }
 }
 
@@ -117,7 +123,8 @@ impl Census {
             self.recovery.observe(recovery.role, recovery.source_tokens);
         }
         for opaque in report.ast().lexical_opacity() {
-            self.lexical_opacity.observe_noun(opaque.source_tokens);
+            self.lexical_opacity
+                .observe(opaque.kind, opaque.source_tokens);
         }
     }
 
@@ -174,6 +181,7 @@ fn print_human(census: &Census) {
     print_counts("total", census.recovery.total);
     println!("licensed lexical opacity:");
     print_counts("noun", census.lexical_opacity.noun);
+    print_counts("flavor header", census.lexical_opacity.flavor_header);
     print_counts("total", census.lexical_opacity.total);
 }
 
@@ -201,5 +209,17 @@ mod tests {
         assert_eq!(census.recovery.clause.source_tokens, 5);
         assert_eq!(census.lexical_opacity.noun.occurrences, 1);
         assert_eq!(census.lexical_opacity.noun.source_tokens, 1);
+    }
+
+    #[test]
+    fn census_reports_flavor_header_opacity_without_clause_recovery() {
+        let mut census = Census::default();
+        census.observe_report(&parse("Zorbo Rampage! — Draw a card."));
+
+        assert_eq!(census.recovery.total.occurrences, 0);
+        assert_eq!(census.lexical_opacity.flavor_header.occurrences, 1);
+        assert_eq!(census.lexical_opacity.flavor_header.source_tokens, 3);
+        assert_eq!(census.lexical_opacity.noun.occurrences, 0);
+        assert_eq!(census.lexical_opacity.total.occurrences, 1);
     }
 }

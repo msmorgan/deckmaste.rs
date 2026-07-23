@@ -209,6 +209,7 @@ mod tests {
             abilities: vec![Ability {
                 ability_word: None,
                 kind: AbilityKind::Paragraph(Paragraph {
+                    flavor_header: None,
                     sentences: vec![sentence.clone()],
                 }),
             }],

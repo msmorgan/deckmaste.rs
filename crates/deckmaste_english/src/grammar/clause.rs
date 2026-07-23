@@ -400,17 +400,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::SubjectAuxiliary), n(N::PrepositionalPhrase)],
     );
 
-    for (tag, punctuation) in [
-        (RuleTag::SentencePeriod, Punctuation::Period),
-        (RuleTag::SentenceExclamation, Punctuation::Exclamation),
-        (RuleTag::SentenceQuestion, Punctuation::Question),
-    ] {
-        builder.add(
-            tag,
-            N::Sentence,
-            [n(N::Clause), l(L::Punctuation(punctuation))],
-        );
-    }
+    builder.add(
+        RuleTag::SentencePeriod,
+        N::Sentence,
+        [n(N::Clause), l(L::Punctuation(Punctuation::Period))],
+    );
     builder.add(RuleTag::SentenceNone, N::Sentence, [n(N::Clause)]);
 }
 
@@ -501,8 +495,6 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::SentencePeriod
-        | RuleTag::SentenceExclamation
-        | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => reduce_composed_clause(tag, children),
         _ => None,
     }
@@ -1493,10 +1485,7 @@ fn reduce_composed_clause(
                 finite: *finite,
             })
         }
-        RuleTag::SentencePeriod
-        | RuleTag::SentenceExclamation
-        | RuleTag::SentenceQuestion
-        | RuleTag::SentenceNone => {
+        RuleTag::SentencePeriod | RuleTag::SentenceNone => {
             let Features::Clause {
                 standalone: true, ..
             } = children.first()?.features
@@ -1708,8 +1697,6 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::SentencePeriod
-        | RuleTag::SentenceExclamation
-        | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => lower_composed_clause(tag, children),
         _ => None,
     }
@@ -2346,10 +2333,7 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
-        RuleTag::SentencePeriod
-        | RuleTag::SentenceExclamation
-        | RuleTag::SentenceQuestion
-        | RuleTag::SentenceNone => {
+        RuleTag::SentencePeriod | RuleTag::SentenceNone => {
             let Lowered::Clause(Clause::Independent(clause)) = take(children, 0)? else {
                 return None;
             };
@@ -2804,9 +2788,7 @@ fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<BareNominalAdjunct> {
 
 const fn sentence_ending(tag: RuleTag) -> Option<SentenceEnding> {
     match tag {
-        RuleTag::SentencePeriod => Some(SentenceEnding::Period(1)),
-        RuleTag::SentenceExclamation => Some(SentenceEnding::Exclamation(1)),
-        RuleTag::SentenceQuestion => Some(SentenceEnding::Question(1)),
+        RuleTag::SentencePeriod => Some(SentenceEnding::Period),
         RuleTag::SentenceNone => Some(SentenceEnding::None),
         _ => None,
     }
@@ -4179,6 +4161,7 @@ mod tests {
             abilities: vec![Ability {
                 ability_word: None,
                 kind: AbilityKind::Paragraph(Paragraph {
+                    flavor_header: None,
                     sentences: vec![sentence.clone()],
                 }),
             }],

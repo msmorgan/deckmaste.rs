@@ -172,7 +172,40 @@ pub enum KeywordArgumentSeparator {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Paragraph {
+    /// Semantically inert flavor text carried before an em dash in header
+    /// position (ability start or saga chapter body). Licensed lexical opacity:
+    /// the surface is preserved verbatim and reproduced with its em-dash
+    /// separator, never parsed structurally.
+    pub flavor_header: Option<FlavorHeader>,
     pub sentences: Vec<Sentence>,
+}
+
+/// A flavor junk-before-dash header: an arbitrary token run reproduced
+/// verbatim.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlavorHeader {
+    text: String,
+    source_tokens: usize,
+}
+
+impl FlavorHeader {
+    #[must_use]
+    pub fn new(text: impl Into<String>, source_tokens: usize) -> Self {
+        Self {
+            text: text.into(),
+            source_tokens,
+        }
+    }
+
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    #[must_use]
+    pub const fn source_tokens(&self) -> usize {
+        self.source_tokens
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -195,9 +228,7 @@ pub enum SentenceBody {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SentenceEnding {
     None,
-    Period(u8),
-    Exclamation(u8),
-    Question(u8),
+    Period,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

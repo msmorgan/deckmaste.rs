@@ -26,6 +26,7 @@ pub struct RecoveryRef<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LexicalOpacityKind {
     Noun,
+    FlavorHeader,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -128,6 +129,13 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn paragraph(&mut self, paragraph: &'syntax Paragraph, context: Option<RecoveryRole>) {
+        if let Some(header) = &paragraph.flavor_header {
+            self.lexical_opacity.push(LexicalOpacityRef {
+                kind: LexicalOpacityKind::FlavorHeader,
+                text: header.text(),
+                source_tokens: header.source_tokens(),
+            });
+        }
         for sentence in &paragraph.sentences {
             match &sentence.body {
                 SentenceBody::Independent(clause) => self.independent_clause(clause, context),
@@ -822,10 +830,11 @@ mod tests {
 
     fn paragraph_body(body: SentenceBody) -> Paragraph {
         Paragraph {
+            flavor_header: None,
             sentences: vec![Sentence {
                 initial_uppercase: true,
                 body,
-                ending: SentenceEnding::Period(1),
+                ending: SentenceEnding::Period,
             }],
         }
     }

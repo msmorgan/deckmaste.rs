@@ -536,6 +536,7 @@ mod tests {
             abilities: vec![Ability {
                 ability_word: None,
                 kind: AbilityKind::Paragraph(Paragraph {
+                    flavor_header: None,
                     sentences: vec![Sentence {
                         initial_uppercase: true,
                         body: SentenceBody::Independent(IndependentClause::Imperative(
@@ -554,7 +555,7 @@ mod tests {
                                 elements: vec![],
                             }),
                         )),
-                        ending: SentenceEnding::Period(1),
+                        ending: SentenceEnding::Period,
                     }],
                 }),
             }],

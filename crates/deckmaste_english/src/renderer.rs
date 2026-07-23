@@ -342,6 +342,12 @@ impl<'identity> Renderer<'identity> {
         capitalize_first_sentence: bool,
     ) -> Result<String, RenderError> {
         let mut rendered = String::new();
+        if let Some(header) = &paragraph.flavor_header {
+            // Verbatim flavor header plus its em-dash separator; the trailing
+            // space of the ` — ` separator is contributed by the sentence loop.
+            rendered.push_str(header.text());
+            rendered.push_str(" \u{2014}");
+        }
         for (index, sentence) in paragraph.sentences.iter().enumerate() {
             let sentence = self.sentence(sentence, capitalize_first_sentence || index > 0)?;
             let is_closing_punctuation = sentence.chars().next().is_some_and(|character| {
@@ -367,13 +373,10 @@ impl<'identity> Renderer<'identity> {
             }
         };
         let mut rendered = if capitalize { capitalize_first(body) } else { body };
-        let (terminal, count) = match sentence.ending {
-            SentenceEnding::None => ('\0', 0),
-            SentenceEnding::Period(count) => ('.', count),
-            SentenceEnding::Exclamation(count) => ('!', count),
-            SentenceEnding::Question(count) => ('?', count),
-        };
-        rendered.extend(std::iter::repeat_n(terminal, usize::from(count)));
+        match sentence.ending {
+            SentenceEnding::None => {}
+            SentenceEnding::Period => rendered.push('.'),
+        }
         Ok(rendered)
     }
 
@@ -1924,6 +1927,7 @@ mod tests {
     #[test]
     fn self_references_expand_without_source_text() {
         let draw_effect = Paragraph {
+            flavor_header: None,
             sentences: vec![Sentence {
                 initial_uppercase: true,
                 body: sentence_body(simple(
@@ -1939,7 +1943,7 @@ mod tests {
                         ))],
                     ),
                 )),
-                ending: SentenceEnding::Period(1),
+                ending: SentenceEnding::Period,
             }],
         };
         let triggered = OracleText {
@@ -2040,6 +2044,7 @@ mod tests {
                         intervening_condition: None,
                     },
                     header: Paragraph {
+                        flavor_header: None,
                         sentences: vec![Sentence {
                             initial_uppercase: true,
                             body: sentence_body(simple(
@@ -2062,6 +2067,27 @@ mod tests {
         assert_eq!(
             source_free(&ast, "Aang, A Lot to Learn", true),
             "Whenever Aang attacks, choose one —"
+        );
+    }
+
+    #[test]
+    fn flavor_header_renders_verbatim_with_its_em_dash_separator() {
+        let ast = OracleText {
+            abilities: vec![Ability {
+                ability_word: None,
+                kind: AbilityKind::Paragraph(Paragraph {
+                    flavor_header: Some(FlavorHeader::new("Throw ...", 2)),
+                    sentences: vec![Sentence {
+                        initial_uppercase: true,
+                        body: SentenceBody::Recovered(RecoveredText::new("Draw a card", 3)),
+                        ending: SentenceEnding::Period,
+                    }],
+                }),
+            }],
+        };
+        assert_eq!(
+            source_free(&ast, "Test Card", false),
+            "Throw ... — Draw a card."
         );
     }
 
@@ -2180,13 +2206,14 @@ mod tests {
             abilities: vec![Ability {
                 ability_word: None,
                 kind: AbilityKind::Paragraph(Paragraph {
+                    flavor_header: None,
                     sentences: vec![Sentence {
                         initial_uppercase: true,
                         body: match clause {
                             Clause::Independent(clause) => SentenceBody::Independent(clause),
                             Clause::Dependent(_) => panic!("sentence fixture must be independent"),
                         },
-                        ending: SentenceEnding::Period(1),
+                        ending: SentenceEnding::Period,
                     }],
                 }),
             }],

@@ -22,6 +22,7 @@ use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
 use crate::syntax::Cost;
 use crate::syntax::DependentClause;
+use crate::syntax::FlavorHeader;
 use crate::syntax::KeywordAbility;
 use crate::syntax::KeywordAbilityList;
 use crate::syntax::KeywordArgumentSeparator;
@@ -450,13 +451,63 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     }
 
     fn parse_paragraph(&mut self, tokens: &[Token]) -> Paragraph {
+        let (flavor_header, body) = self.peel_flavor_header(tokens);
         Paragraph {
-            sentences: split_sentences(self.source, tokens)
+            flavor_header,
+            sentences: split_sentences(self.source, body)
                 .into_iter()
                 .filter(|sentence| !sentence.is_empty())
                 .map(|sentence| self.parse_sentence(sentence))
                 .collect(),
         }
+    }
+
+    /// Peels a licensed flavor junk-before-dash header from the front of a
+    /// paragraph. A flavor header is an arbitrary token run terminated by a
+    /// spaced em dash (` — `) in header position. Structural em-dash headers —
+    /// ability words and saga chapter headers — are consumed by
+    /// [`Self::ability_word_prefix`] and [`Self::chapter_frame`] before a
+    /// paragraph is parsed, so the peel only fires as a staged fallback (never
+    /// competing with those exact parses).
+    ///
+    /// Two guards keep the peel off the mid-rules em dashes that punctuate real
+    /// text (`… faces a villainous choice — You draw a card`), mode labels
+    /// (`Run and Hide — Prevent …`), and die-roll ranges (`2—9`):
+    /// - the em dash must be *spaced* (` — `), excluding unspaced ranges; and
+    /// - the run before it must end in inert flavor terminal punctuation (`!`,
+    ///   `?`, or an ellipsis), never a word or a lone period.
+    fn peel_flavor_header<'tokens>(
+        &self,
+        tokens: &'tokens [Token],
+    ) -> (Option<FlavorHeader>, &'tokens [Token]) {
+        let mut depth = Nesting::default();
+        for (index, token) in tokens.iter().enumerate() {
+            if depth.is_top_level() && token.kind == TokenKind::Punctuation(Punctuation::EmDash) {
+                // Only the first top-level em dash can begin a header body; if it
+                // does not qualify, the run is not a flavor header.
+                if index == 0 || index + 1 >= tokens.len() {
+                    return (None, tokens);
+                }
+                let dash = self.token_text(token);
+                let before_end = tokens[index - 1].span.end;
+                let after_start = tokens[index + 1].span.start;
+                let separator = self.source.get(before_end..after_start);
+                if separator != Some(&format!(" {dash} ")) {
+                    return (None, tokens);
+                }
+                if !ends_in_flavor_terminal(&tokens[..index]) {
+                    return (None, tokens);
+                }
+                let header_start = tokens[0].span.start;
+                let Some(text) = self.source.get(header_start..before_end) else {
+                    return (None, tokens);
+                };
+                let header = FlavorHeader::new(text, index);
+                return (Some(header), &tokens[index + 1..]);
+            }
+            depth.observe(token.kind);
+        }
+        (None, tokens)
     }
 
     fn parse_sentence(&mut self, tokens: &[Token]) -> Sentence {
@@ -794,13 +845,15 @@ fn peel_sentence_ending(tokens: &[Token]) -> (&[Token], SentenceEnding) {
     let Some(last) = tokens.last() else {
         return (tokens, SentenceEnding::None);
     };
-    let ending = match last.kind {
-        TokenKind::Punctuation(Punctuation::Period) => SentenceEnding::Period(1),
-        TokenKind::Punctuation(Punctuation::Exclamation) => SentenceEnding::Exclamation(1),
-        TokenKind::Punctuation(Punctuation::Question) => SentenceEnding::Question(1),
-        _ => return (tokens, SentenceEnding::None),
-    };
-    (&tokens[..tokens.len() - 1], ending)
+    // Only a trailing period is a sentence ending; `!`/`?` are absorbed by
+    // keyword spellings, self-references, or flavor headers upstream and, where
+    // they survive into a recovered span, stay verbatim in its text.
+    match last.kind {
+        TokenKind::Punctuation(Punctuation::Period) => {
+            (&tokens[..tokens.len() - 1], SentenceEnding::Period)
+        }
+        _ => (tokens, SentenceEnding::None),
+    }
 }
 
 fn token_boundary(tokens: &[Token], byte_end: usize) -> Option<usize> {
@@ -825,6 +878,25 @@ fn starts_with_bullet(tokens: &[Token]) -> bool {
 
 fn strip_bullet(tokens: &[Token]) -> &[Token] {
     if starts_with_bullet(tokens) { &tokens[1..] } else { tokens }
+}
+
+/// A flavor header ends in inert terminal junk — `!`, `?`, or an ellipsis
+/// (`...`) — never a word or a single sentence-final period. This is what
+/// distinguishes a real header (`Exterminate! — …`) from a mid-rules em dash or
+/// a mode label, whose run before the dash ends in a word.
+fn ends_in_flavor_terminal(header: &[Token]) -> bool {
+    match header.last().map(|token| token.kind) {
+        Some(TokenKind::Punctuation(Punctuation::Exclamation | Punctuation::Question)) => true,
+        Some(TokenKind::Punctuation(Punctuation::Period)) => matches!(
+            header
+                .len()
+                .checked_sub(2)
+                .and_then(|index| header.get(index))
+                .map(|token| token.kind),
+            Some(TokenKind::Punctuation(Punctuation::Period))
+        ),
+        _ => false,
+    }
 }
 
 fn is_sentence_terminal(kind: TokenKind) -> bool {
@@ -1526,6 +1598,186 @@ mod tests {
             justice.ast.render("Karmic Justice", false).unwrap(),
             justice_source
         );
+    }
+
+    #[test]
+    fn flavor_header_at_ability_start_is_licensed_opacity() {
+        let source = "Zorbo Rampage! — Draw a card.";
+        let report = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected paragraph ability, got {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        let header = paragraph.flavor_header.as_ref().expect("flavor header");
+        assert_eq!(header.text(), "Zorbo Rampage!");
+        assert_eq!(header.source_tokens(), 3);
+        assert!(
+            matches!(&paragraph.sentences[0].body, SentenceBody::Independent(_)),
+            "body should parse structurally, got {:#?}",
+            paragraph.sentences[0].body
+        );
+        assert!(
+            report.ast.recoveries().is_empty(),
+            "flavor header leaves no clause recovery: {:#?}",
+            report.ast.recoveries()
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn ellipsis_and_question_flavor_header_round_trips() {
+        let source = "Would You Believe...? — Draw a card.";
+        let report = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability");
+        };
+        assert_eq!(
+            paragraph.flavor_header.as_ref().map(FlavorHeader::text),
+            Some("Would You Believe...?")
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn internal_periods_flavor_header_round_trips() {
+        let source = "I. AM. LOUD! — Draw a card.";
+        let report = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability");
+        };
+        assert_eq!(
+            paragraph.flavor_header.as_ref().map(FlavorHeader::text),
+            Some("I. AM. LOUD!")
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn flavor_header_stacks_inside_a_single_chapter_body() {
+        let report = parse("I — Stampede! — Draw a card.");
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a single-chapter modal, got {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        assert_eq!(modal.modes.len(), 1);
+        assert_eq!(
+            modal.modes[0]
+                .body
+                .flavor_header
+                .as_ref()
+                .map(FlavorHeader::text),
+            Some("Stampede!")
+        );
+        assert!(matches!(
+            &modal.modes[0].body.sentences[0].body,
+            SentenceBody::Independent(_)
+        ));
+        // The chapter body's flavor header is licensed opacity, not recovery.
+        assert!(report.ast.lexical_opacity().iter().any(|opaque| {
+            opaque.kind == LexicalOpacityKind::FlavorHeader && opaque.text == "Stampede!"
+        }));
+    }
+
+    #[test]
+    fn flavor_header_inside_a_bulleted_mode_body_round_trips() {
+        let source = "I —\n• Stampede! — Draw a card.";
+        let report = parse(source);
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!("expected a modal ability");
+        };
+        assert_eq!(
+            modal.modes[0]
+                .body
+                .flavor_header
+                .as_ref()
+                .map(FlavorHeader::text),
+            Some("Stampede!")
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn ability_word_header_is_not_read_as_a_flavor_header() {
+        let report = parse("Landfall — Draw a card.");
+        let ability = &report.ast.abilities[0];
+        assert_eq!(
+            ability
+                .ability_word
+                .as_ref()
+                .map(crate::catalog::CatalogAtom::canonical),
+            Some("Landfall")
+        );
+        let AbilityKind::Paragraph(paragraph) = &ability.kind else {
+            panic!("expected paragraph body under the ability word");
+        };
+        assert_eq!(paragraph.flavor_header, None);
+    }
+
+    #[test]
+    fn single_chapter_saga_header_still_lowers_to_a_modal() {
+        let report = parse("I — Draw a card.");
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!("expected a single-chapter modal");
+        };
+        assert_eq!(modal.modes.len(), 1);
+        assert_eq!(modal.modes[0].body.flavor_header, None);
+    }
+
+    #[test]
+    fn modal_choice_header_is_not_eaten_as_a_flavor_header() {
+        let report = parse("Choose one —\n• Draw a card.\n• Draw two cards.");
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!("expected a modal ability");
+        };
+        assert_eq!(modal.modes.len(), 2);
+        assert_eq!(modal.header.flavor_header, None);
+        assert!(
+            matches!(
+                &modal.header.sentences[0].body,
+                SentenceBody::Independent(_)
+            ),
+            "the choice instruction parses, not opaque: {:#?}",
+            modal.header.sentences[0].body
+        );
+    }
+
+    #[test]
+    fn unspaced_roll_range_em_dash_is_not_a_flavor_header() {
+        let report = parse("2—9 | Create five tokens.");
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability");
+        };
+        assert_eq!(paragraph.flavor_header, None);
+    }
+
+    #[test]
+    fn mid_rules_em_dash_after_a_word_is_not_a_flavor_header() {
+        // The em dash follows a word ("choice"), so it is a mid-rules construction
+        // (a villainous choice), never a flavor header. Its span stays verbatim.
+        let source = "Each opponent faces a villainous choice — You draw a card, or that player discards a card.";
+        let report = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability");
+        };
+        assert_eq!(paragraph.flavor_header, None);
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn mode_label_before_a_spaced_em_dash_is_not_a_flavor_header() {
+        // A word-terminated mode label ("Run and Hide") is not inert junk, so it
+        // is not peeled; the mode body round-trips verbatim as before.
+        let source = "Run and Hide — Prevent all combat damage this turn.";
+        let report = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability");
+        };
+        assert_eq!(paragraph.flavor_header, None);
+        assert_eq!(render(&report), source);
     }
 
     fn parse(source: &str) -> ParseReport {
