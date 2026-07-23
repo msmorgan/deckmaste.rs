@@ -289,7 +289,8 @@ const INTRANSITIVE_PREDICATE_FRAME: PredicateFrame =
 const INTRANSITIVE_PREDICATE_FRAMES: &[PredicateFrame] = &[INTRANSITIVE_PREDICATE_FRAME];
 const REQUIRED_OBJECT_PREDICATE_FRAMES: &[PredicateFrame] =
     &[PredicateFrame::OPEN.with_direct_object(ArgumentRequirement::Required)];
-const PROFORM_PREDICATE_FRAMES: &[PredicateFrame] = &[PredicateFrame::OPEN.with_proform()];
+pub(crate) const PROFORM_PREDICATE_FRAMES: &[PredicateFrame] =
+    &[INTRANSITIVE_PREDICATE_FRAME.with_proform()];
 const ASK_PREDICATE_FRAMES: &[PredicateFrame] = &[
     PredicateFrame::OPEN.with_direct_object(ArgumentRequirement::Required),
     PredicateFrame::OPEN

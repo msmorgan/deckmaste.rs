@@ -60,6 +60,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::Auxiliary), n(N::VerbPhrase)],
     );
     builder.add(
+        RuleTag::VerbPhraseAuxiliaryProform,
+        N::VerbPhrase,
+        [l(L::Auxiliary)],
+    );
+    builder.add(
         RuleTag::VerbPhraseDirectObject,
         N::VerbPhrase,
         [n(N::VerbPhrase), n(N::NounPhrase)],
@@ -402,6 +407,7 @@ pub(super) fn reduce_clause(
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
+        | RuleTag::VerbPhraseAuxiliaryProform
         | RuleTag::VerbPhraseDirectObject
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
@@ -615,6 +621,22 @@ fn reduce_predicate(
                 phase: PredicateAttachmentPhase::Object,
                 frame: *frame,
                 bare: true,
+            })
+        }
+        RuleTag::VerbPhraseAuxiliaryProform => {
+            let Features::Auxiliary(auxiliary) = children.first()?.features else {
+                return None;
+            };
+            let form = auxiliary_form(*auxiliary, PredicateForm::Infinitive)?;
+            Some(Features::VerbPhrase {
+                form,
+                passive: false,
+                object: PredicateObjectState::None,
+                indirect_object: false,
+                selected_preposition: false,
+                phase: PredicateAttachmentPhase::Object,
+                frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
+                bare: false,
             })
         }
         RuleTag::VerbPhraseAuxiliary => {
@@ -1574,6 +1596,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
+        | RuleTag::VerbPhraseAuxiliaryProform
         | RuleTag::VerbPhraseDirectObject
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
@@ -1673,6 +1696,22 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 preverb_modifiers: Vec::new(),
                 verb: instance,
                 frame,
+                dependents: Vec::new(),
+            }))
+        }
+        RuleTag::VerbPhraseAuxiliaryProform => {
+            let Lowered::Auxiliary(auxiliary) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::VerbPhrase(VerbPhrase {
+                auxiliaries: vec![auxiliary],
+                first_auxiliary_contracted_with_subject: false,
+                preverb_modifiers: Vec::new(),
+                verb: VerbInstance {
+                    verb: crate::word::Verb::Word(Vocab::Do),
+                    slot: VerbSlot::Infinitive,
+                },
+                frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
                 dependents: Vec::new(),
             }))
         }
@@ -2577,6 +2616,14 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
                 inflection: proform_inflection(head.verb.slot),
                 contracted_negation: false,
             },
+        })
+    } else if head.auxiliaries.len() == 1
+        && head.preverb_modifiers.is_empty()
+        && elements.is_empty()
+        && proform
+    {
+        Predicate::Proform(ProPredicate {
+            auxiliary: head.auxiliaries[0],
         })
     } else {
         Predicate::Intransitive(crate::syntax::IntransitivePredicate { head, elements })
@@ -4028,6 +4075,13 @@ mod tests {
                 ]
             )
         ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn if_you_dont_it_enters_tapped_parses() {
+        let source = "If you don't, it enters tapped.";
+        let parsed = parse(source);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 

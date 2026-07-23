@@ -793,6 +793,7 @@ enum RuleTag {
     Verb,
     VerbPhraseBase,
     VerbPhraseAuxiliary,
+    VerbPhraseAuxiliaryProform,
     VerbPhraseDirectObject,
     VerbPhraseIndirectObject,
     VerbPhraseAdjective,
@@ -2693,6 +2694,7 @@ fn reduce(
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
+        | RuleTag::VerbPhraseAuxiliaryProform
         | RuleTag::VerbPhraseDirectObject
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
@@ -3791,6 +3793,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
         | RuleTag::VerbPhraseAuxiliary
+        | RuleTag::VerbPhraseAuxiliaryProform
         | RuleTag::VerbPhraseDirectObject
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
