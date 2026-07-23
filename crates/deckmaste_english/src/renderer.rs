@@ -64,6 +64,9 @@ use crate::syntax::QuotedAbility;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeClause;
 use crate::syntax::RelativeMarker;
+use crate::syntax::RollRange;
+use crate::syntax::RollRangeDash;
+use crate::syntax::RollRowAbility;
 use crate::syntax::ScalarSign;
 use crate::syntax::ScalarValue;
 use crate::syntax::Sentence;
@@ -216,6 +219,7 @@ impl<'identity> Renderer<'identity> {
                 self.paragraph(&loyalty.effect, true)?
             )),
             AbilityKind::Chapter(chapter) => self.chapter_ability(chapter),
+            AbilityKind::RollRow(row) => self.roll_row_ability(row),
             AbilityKind::Modal(modal) => self.modal_ability(modal),
             AbilityKind::Keyword(keyword) => self.keyword_ability_list(keyword),
             AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph, capitalize),
@@ -238,6 +242,17 @@ impl<'identity> Renderer<'identity> {
             .join(", ");
         let body = self.paragraph(&chapter.body, true)?;
         Ok(format!("{header} \u{2014} {body}"))
+    }
+
+    /// Renders a die-roll result row in oracle layout: the face-value key, a
+    /// spaced ` | `, then the effect body inline. This is the exact inverse of
+    /// [`roll_row_frame`]: an inclusive range's dash stays *unspaced* and keeps
+    /// its own glyph, while the ` | ` separator is reproduced verbatim.
+    ///
+    /// [`roll_row_frame`]: crate::grammar
+    fn roll_row_ability(&self, row: &RollRowAbility) -> Result<String, RenderError> {
+        let body = self.paragraph(&row.body, true)?;
+        Ok(format!("{} | {body}", render_roll_range(row.range)))
     }
 
     fn modal_ability(&self, modal: &ModalAbility) -> Result<String, RenderError> {
@@ -1234,6 +1249,28 @@ fn render_loyalty_cost(cost: LoyaltyCost) -> String {
     format!("{sign}{value}")
 }
 
+/// Renders a die-roll row's face-value key. Inclusive spans join their bounds
+/// with an *unspaced* dash whose glyph is taken from the parsed
+/// [`RollRangeDash`], so an em-dash range and a hyphen range each round-trip to
+/// their own surface; the `+` and `or less` thresholds reproduce their surface
+/// too.
+fn render_roll_range(range: RollRange) -> String {
+    match range {
+        RollRange::Single(value) => value.numeral.format(value.value),
+        RollRange::Inclusive { low, high, dash } => format!(
+            "{}{}{}",
+            low.numeral.format(low.value),
+            match dash {
+                RollRangeDash::EmDash => "\u{2014}",
+                RollRangeDash::Hyphen => "-",
+            },
+            high.numeral.format(high.value),
+        ),
+        RollRange::OrMore(value) => format!("{}+", value.numeral.format(value.value)),
+        RollRange::OrLess(value) => format!("{} or less", value.numeral.format(value.value)),
+    }
+}
+
 fn render_quantity(quantity: Quantity) -> String {
     match quantity {
         Quantity::Exact(number) => number.numeral.format(number.value),
@@ -2131,6 +2168,78 @@ mod tests {
         let source = "I — Draw a card.\nII, III — Draw a card.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
         assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn roll_row_abilities_render_inline_after_their_range() {
+        for source in [
+            "20 | Draw a card.",
+            "2—9 | Create five tokens.",
+            "1-9 | Draw a card.",
+            "15+ | Draw a card.",
+            "9 or less | Draw a card.",
+            // A flavor header stacked inside the row body stays on the line.
+            "1 | Trapped! — Draw a card.",
+        ] {
+            let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+    }
+
+    #[test]
+    fn a_multi_row_die_roll_table_round_trips_line_by_line() {
+        let source = "20 | Draw a card.\n2—9 | Create five tokens.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn inclusive_roll_range_renders_its_dash_unspaced_from_the_ast() {
+        // Direct-AST render proves the inverse independently of the parser: the
+        // bounds join with an unspaced dash and each glyph reproduces itself.
+        let arabic = |value| NumberLiteral {
+            value,
+            numeral: Numeral::Arabic(false),
+        };
+        let row = |range| OracleText {
+            abilities: vec![Ability {
+                ability_word: None,
+                kind: AbilityKind::RollRow(RollRowAbility {
+                    range,
+                    body: Paragraph {
+                        flavor_header: None,
+                        sentences: vec![Sentence {
+                            initial_uppercase: true,
+                            body: SentenceBody::Recovered(RecoveredText::new("Draw a card", 3)),
+                            ending: SentenceEnding::Period,
+                        }],
+                    },
+                }),
+            }],
+        };
+        for (range, expected) in [
+            (
+                RollRange::Inclusive {
+                    low: arabic(2),
+                    high: arabic(9),
+                    dash: RollRangeDash::EmDash,
+                },
+                "2—9 | Draw a card.",
+            ),
+            (
+                RollRange::Inclusive {
+                    low: arabic(1),
+                    high: arabic(9),
+                    dash: RollRangeDash::Hyphen,
+                },
+                "1-9 | Draw a card.",
+            ),
+            (RollRange::OrMore(arabic(15)), "15+ | Draw a card."),
+            (RollRange::OrLess(arabic(9)), "9 or less | Draw a card."),
+            (RollRange::Single(arabic(20)), "20 | Draw a card."),
+        ] {
+            assert_eq!(source_free(&row(range), "Test Card", false), expected);
+        }
     }
 
     #[test]

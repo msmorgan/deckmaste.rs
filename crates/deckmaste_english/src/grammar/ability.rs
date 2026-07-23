@@ -45,6 +45,9 @@ use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::QuotedAbility;
 use crate::syntax::RecoveredText;
+use crate::syntax::RollRange;
+use crate::syntax::RollRangeDash;
+use crate::syntax::RollRowAbility;
 use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
 use crate::syntax::SentenceEnding;
@@ -207,7 +210,93 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 body: self.parse_paragraph(effect),
             });
         }
+        if let Some((range, body)) = self.roll_row_frame(tokens) {
+            return AbilityKind::RollRow(RollRowAbility {
+                range,
+                body: self.parse_paragraph(body),
+            });
+        }
         AbilityKind::Paragraph(self.parse_paragraph(tokens))
+    }
+
+    /// Splits a die-roll result-table row (`20 | …`, `2—9 | …`, `15+ | …`,
+    /// `9 or less | …`) into its face-value [`RollRange`] and the body after
+    /// the spaced ` | ` separator. The pipe lexes as
+    /// [`Punctuation::Other`]`('|')`, and the separator must be exactly ` |
+    /// ` so the renderer reproduces it verbatim. The whole range prefix is
+    /// structural, so nothing recovers at the row key; the body parses as
+    /// an ordinary paragraph. Dispatched after the chapter frame and before
+    /// the flavor-header fallback, so a row whose body opens with a flavor
+    /// header (`1 | Trapped! — …`) keeps that header on the body paragraph
+    /// rather than swallowing the `1 | ` key into it.
+    fn roll_row_frame<'a>(&self, tokens: &'a [Token]) -> Option<(RollRange, &'a [Token])> {
+        let pipe = tokens
+            .iter()
+            .position(|token| token.kind == TokenKind::Punctuation(Punctuation::Other('|')))?;
+        if pipe == 0 || pipe + 1 >= tokens.len() {
+            return None;
+        }
+        let before_end = tokens[pipe - 1].span.end;
+        let after_start = tokens[pipe + 1].span.start;
+        if self.source.get(before_end..after_start) != Some(" | ") {
+            return None;
+        }
+        let range = self.roll_range(&tokens[..pipe])?;
+        Some((range, &tokens[pipe + 1..]))
+    }
+
+    /// Parses a die-roll row's face-value key from the tokens before the ` | `.
+    /// Every surface shape the supported corpus prints is carried structurally:
+    /// a single face, an inclusive em-dash or hyphen span, an at-least `+`
+    /// threshold, or an `or less` at-most threshold. Anything else is not a row
+    /// key and the line falls through to the paragraph path.
+    fn roll_range(&self, tokens: &[Token]) -> Option<RollRange> {
+        match tokens {
+            [single] if single.kind == TokenKind::Integer => {
+                Some(RollRange::Single(self.arabic_literal(single)?))
+            }
+            [low, dash, high]
+                if low.kind == TokenKind::Integer
+                    && dash.kind == TokenKind::Punctuation(Punctuation::EmDash)
+                    && high.kind == TokenKind::Integer =>
+            {
+                Some(RollRange::Inclusive {
+                    low: self.arabic_literal(low)?,
+                    high: self.arabic_literal(high)?,
+                    dash: RollRangeDash::EmDash,
+                })
+            }
+            [value, plus]
+                if value.kind == TokenKind::Integer
+                    && plus.kind == TokenKind::Punctuation(Punctuation::Plus) =>
+            {
+                Some(RollRange::OrMore(self.arabic_literal(value)?))
+            }
+            [value, or, less]
+                if value.kind == TokenKind::Integer
+                    && or.kind == TokenKind::Word
+                    && less.kind == TokenKind::Word
+                    && self.token_text(or).eq_ignore_ascii_case("or")
+                    && self.token_text(less).eq_ignore_ascii_case("less") =>
+            {
+                Some(RollRange::OrLess(self.arabic_literal(value)?))
+            }
+            // An ASCII-hyphen inclusive span (`1-9`) is a single word token
+            // because the hyphen is a word connector; split it on the hyphen.
+            [word] if word.kind == TokenKind::Word => {
+                let (low, high) = self.token_text(word).split_once('-')?;
+                Some(RollRange::Inclusive {
+                    low: arabic_number_literal(low)?,
+                    high: arabic_number_literal(high)?,
+                    dash: RollRangeDash::Hyphen,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn arabic_literal(&self, token: &Token) -> Option<NumberLiteral> {
+        arabic_number_literal(self.token_text(token))
     }
 
     /// Splits a saga chapter header (`I — …`, `I, II — …`) into its list of
@@ -883,6 +972,16 @@ fn tokens_span(tokens: &[Token]) -> Span {
         (Some(first), Some(last)) => Span::new(first.span.start, last.span.end),
         _ => Span::default(),
     }
+}
+
+/// Parses a plain decimal roll-range bound (`9`, `20`) into a structural
+/// [`NumberLiteral`]. Returns `None` for anything that is not a canonical
+/// unsigned decimal, so a malformed prefix is not read as a row key.
+fn arabic_number_literal(text: &str) -> Option<NumberLiteral> {
+    Some(NumberLiteral {
+        value: Numeral::Arabic(false).parse(text).ok()?,
+        numeral: Numeral::Arabic(false),
+    })
 }
 
 fn starts_with_bullet(tokens: &[Token]) -> bool {
@@ -1834,13 +1933,182 @@ mod tests {
         );
     }
 
-    #[test]
-    fn unspaced_roll_range_em_dash_is_not_a_flavor_header() {
-        let report = parse("2—9 | Create five tokens.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
-            panic!("expected paragraph ability");
+    fn arabic(value: i32) -> NumberLiteral {
+        NumberLiteral {
+            value,
+            numeral: Numeral::Arabic(false),
+        }
+    }
+
+    fn roll_row(report: &ParseReport) -> &RollRowAbility {
+        let AbilityKind::RollRow(row) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a roll-row ability, got {:#?}",
+                report.ast.abilities[0].kind
+            );
         };
-        assert_eq!(paragraph.flavor_header, None);
+        row
+    }
+
+    #[test]
+    fn single_value_roll_row_lowers_to_a_roll_row_ability() {
+        let source = "20 | Search your library for a card.";
+        let report = parse(source);
+        let row = roll_row(&report);
+        assert_eq!(row.range, RollRange::Single(arabic(20)));
+        assert_eq!(row.body.flavor_header, None);
+        assert!(matches!(
+            &row.body.sentences[0].body,
+            SentenceBody::Independent(_)
+        ));
+        // The range key is structural: nothing recovers at the row prefix.
+        assert!(
+            report.ast.recoveries().is_empty(),
+            "a roll-row key carries no recovery: {:?}",
+            report.ast.recoveries()
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn unspaced_em_dash_range_row_lowers_to_a_roll_row_ability() {
+        // The unspaced em dash between the bounds is structure (an inclusive
+        // range), never a flavor header, and renders back unspaced.
+        let source = "2—9 | Create five tokens.";
+        let report = parse(source);
+        let row = roll_row(&report);
+        assert_eq!(
+            row.range,
+            RollRange::Inclusive {
+                low: arabic(2),
+                high: arabic(9),
+                dash: RollRangeDash::EmDash,
+            }
+        );
+        assert_eq!(row.body.flavor_header, None);
+        assert!(matches!(
+            &row.body.sentences[0].body,
+            SentenceBody::Independent(_)
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn roll_row_body_flavor_header_stacks_inside_the_row() {
+        // The interim behavior peeled `1 | Trapped!` as one flavor header; now
+        // `1 |` is the structural key and only `Trapped!` stays a flavor header
+        // on the body paragraph, whose sentence parses.
+        let source = "1 | Trapped! — You lose 3 life.";
+        let report = parse(source);
+        let row = roll_row(&report);
+        assert_eq!(row.range, RollRange::Single(arabic(1)));
+        assert_eq!(
+            row.body.flavor_header.as_ref().map(FlavorHeader::text),
+            Some("Trapped!")
+        );
+        assert!(matches!(
+            &row.body.sentences[0].body,
+            SentenceBody::Independent(_)
+        ));
+        // The stacked flavor header is licensed opacity, not recovery.
+        assert!(report.ast.recoveries().is_empty());
+        assert!(report.ast.lexical_opacity().iter().any(|opaque| {
+            opaque.kind == LexicalOpacityKind::FlavorHeader && opaque.text == "Trapped!"
+        }));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn at_least_and_at_most_threshold_rows_round_trip() {
+        // Mirror thresholds the range now admits: `N+` and `N or less`.
+        let more = parse("15+ | Draw a card.");
+        assert_eq!(roll_row(&more).range, RollRange::OrMore(arabic(15)));
+        assert_eq!(render(&more), "15+ | Draw a card.");
+
+        let less = parse("9 or less | Draw a card.");
+        assert_eq!(roll_row(&less).range, RollRange::OrLess(arabic(9)));
+        assert_eq!(render(&less), "9 or less | Draw a card.");
+    }
+
+    #[test]
+    fn ascii_hyphen_range_row_keeps_its_hyphen_glyph() {
+        // A hyphen range lexes as one word token; it lowers to the same
+        // inclusive shape but carries the hyphen so it does not normalize to an
+        // em dash.
+        let source = "1-9 | Draw a card.";
+        let report = parse(source);
+        assert_eq!(
+            roll_row(&report).range,
+            RollRange::Inclusive {
+                low: arabic(1),
+                high: arabic(9),
+                dash: RollRangeDash::Hyphen,
+            }
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn a_multi_row_die_roll_table_parses_into_row_abilities() {
+        let source = concat!(
+            "{2}, {T}: Roll a d20.\n",
+            "1 | Trapped! — You lose 3 life.\n",
+            "2—9 | Create five tokens.\n",
+            "10—19 | Draw two cards.\n",
+            "20 | Draw four cards."
+        );
+        let report = parse(source);
+        assert_eq!(report.ast.abilities.len(), 5);
+        assert!(
+            matches!(&report.ast.abilities[0].kind, AbilityKind::Activated(_)),
+            "the instruction line stays an activated ability: {:#?}",
+            report.ast.abilities[0].kind
+        );
+        let ranges: Vec<RollRange> = report.ast.abilities[1..]
+            .iter()
+            .map(|ability| {
+                let AbilityKind::RollRow(row) = &ability.kind else {
+                    panic!("expected a roll-row ability, got {:#?}", ability.kind);
+                };
+                row.range
+            })
+            .collect();
+        assert_eq!(
+            ranges,
+            vec![
+                RollRange::Single(arabic(1)),
+                RollRange::Inclusive {
+                    low: arabic(2),
+                    high: arabic(9),
+                    dash: RollRangeDash::EmDash,
+                },
+                RollRange::Inclusive {
+                    low: arabic(10),
+                    high: arabic(19),
+                    dash: RollRangeDash::EmDash,
+                },
+                RollRange::Single(arabic(20)),
+            ]
+        );
+        // Every row's face key is structure: the whole table has no recovery.
+        assert!(
+            report.ast.recoveries().is_empty(),
+            "die-roll table rows carry no recovery: {:?}",
+            report.ast.recoveries()
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn an_unspaced_range_without_a_pipe_is_not_a_roll_row() {
+        // No ` | ` separator, so the leading `2—9` is not a row key; the line
+        // must not become a roll row (it stays an ordinary paragraph).
+        let report = parse("2—9 creatures attack.");
+        assert!(
+            !matches!(&report.ast.abilities[0].kind, AbilityKind::RollRow(_)),
+            "an unspaced range with no pipe must not parse as a roll row: {:#?}",
+            report.ast.abilities[0].kind
+        );
     }
 
     #[test]

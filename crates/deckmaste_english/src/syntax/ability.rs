@@ -21,6 +21,7 @@ pub enum AbilityKind {
     Activated(ActivatedAbility),
     ClassLevel(ClassLevelAbility),
     Chapter(ChapterAbility),
+    RollRow(RollRowAbility),
     Triggered(TriggeredAbility),
     Loyalty(LoyaltyAbility),
     Modal(ModalAbility),
@@ -48,6 +49,53 @@ pub struct ClassLevelAbility {
 pub struct ChapterAbility {
     pub chapters: Vec<super::phrase::NumberLiteral>,
     pub body: Paragraph,
+}
+
+/// A die-roll result-table row: one keyed outcome of a `Roll a dN` table,
+/// printed as its own paragraph in `RANGE | body` layout (e.g. Treasure
+/// Chest's `2—9 | Create five Treasure tokens.`). The face-value key is
+/// structural — carried by [`RollRange`] — so nothing recovers at the row
+/// prefix, and the body is an ordinary [`Paragraph`] (its own flavor header and
+/// sentences) rendered inline after ` | `. This mirrors [`ChapterAbility`]: the
+/// range is the row's analogue of the saga chapter header, reproduced exactly
+/// by the renderer, and the inline layout is carried by the node type itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RollRowAbility {
+    pub range: RollRange,
+    pub body: Paragraph,
+}
+
+/// The face-value key of a die-roll result row. Every distinction the surface
+/// draws is carried here so the row renders as an exact inverse: a single face
+/// (`20`), an inclusive low–high span whose dash is *unspaced* (`2—9`), an
+/// at-least threshold (`15+`), or an at-most threshold (`9 or less`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RollRange {
+    /// A single face value: `20 | …`.
+    Single(super::phrase::NumberLiteral),
+    /// An inclusive low–high span, printed with an unspaced dash: `2—9 | …`.
+    /// The dash glyph is carried by [`RollRangeDash`] so an em dash and an
+    /// ASCII hyphen (`1-9`) each reproduce their own surface.
+    Inclusive {
+        low: super::phrase::NumberLiteral,
+        high: super::phrase::NumberLiteral,
+        dash: RollRangeDash,
+    },
+    /// A face value and everything above it: `15+ | …`.
+    OrMore(super::phrase::NumberLiteral),
+    /// A face value and everything below it: `9 or less | …`.
+    OrLess(super::phrase::NumberLiteral),
+}
+
+/// The dash glyph joining an inclusive [`RollRange`]'s bounds. Both forms are
+/// unspaced; carrying the choice keeps rendering an exact inverse instead of
+/// normalizing one surface to the other.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RollRangeDash {
+    /// An unspaced em dash: `2—9`.
+    EmDash,
+    /// An unspaced ASCII hyphen: `1-9`.
+    Hyphen,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
