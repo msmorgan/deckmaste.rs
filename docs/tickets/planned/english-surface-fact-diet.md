@@ -22,6 +22,24 @@ from the English AST.** Successor to the 2026-07-23 structure diet
   from list arity and attachment position; delete where the corpus proves
   the derivation exact, keep (documented) only where two supported faces
   genuinely differ on the bit alone.
+- Contraction records: `first_auxiliary_contracted_with_subject`,
+  `Copula.contracted_with_subject`, and `ExistentialForm::ContractedIs`.
+  NOT trivially derivable — measured 2026-07-23 on the supported corpus:
+  `it's` 1132 vs `it is` 73, `there's` 9 vs `there is` 67 (opposite
+  majorities), `you're` 67 vs `you are` 1. Refined hypothesis to test:
+  contraction is a function of construction kind (copular and subordinate
+  positions contract; passive `it is` and sentence-initial existential
+  `There is` do not). Negation contraction needs no storage at all
+  (`cannot` / `does not` / `is not`: zero supported occurrences).
+- `IndefiniteArticle` (a/an): candidate-derivable from the following word's
+  initial sound; the renderer already carries initial-sound logic from the
+  `non-` polarity work. Witness test: any same-sound minimal pair.
+- `ComparativeWord`: direction (`more`/`greater` vs `fewer`/`less`) is
+  semantic and stays. Only the within-direction lexical choice is
+  candidate-derivable from the head's class — and the count/mass story is
+  already dubious (`5 or more damage`, `X or more life` put `more` on mass
+  heads). Requires a minimal-pair search; interacts with the
+  `AdjectiveComparison` metadata machinery.
 - Then the systematic sweep: enumerate EVERY AST field populated from a
   surface observation (casing, spacing, punctuation, glyph records) and
   witness-count each — how many supported faces differ solely on that bit;
