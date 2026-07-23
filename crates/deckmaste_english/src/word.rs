@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 
 use crate::catalog::CatalogAtom;
 use crate::catalog::KeywordAction;
+use crate::syntax::ComparativeWord;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OpaqueLexeme;
 use crate::syntax::Preposition;
@@ -497,6 +498,19 @@ pub enum WordMatch {
     Auxiliary(AuxiliaryInstance),
 }
 
+/// The comparison capability of an adjective, recorded as vocabulary metadata
+/// rather than matched by spelling in grammar control flow. Every member takes
+/// a `… than X` complement (the parser marks it comparison-pending);
+/// `OrComparative` members additionally head an `N or <word>` quantity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum AdjectiveComparison {
+    /// `less`/`fewer`/`greater`/`more` — heads `N or <word>` and `<word> than
+    /// X`.
+    OrComparative(ComparativeWord),
+    /// `other` — heads `other than X` only, never a quantity bound.
+    ThanOnly,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct VocabDefinition {
     spelling: &'static str,
@@ -507,6 +521,7 @@ struct VocabDefinition {
     bare_nominal_adjunct: Option<BareNominalAdjunct>,
     adjective: bool,
     adverb: bool,
+    comparison: Option<AdjectiveComparison>,
     initial_sound: Option<InitialSound>,
 }
 
@@ -521,6 +536,7 @@ impl VocabDefinition {
             bare_nominal_adjunct: None,
             adjective: false,
             adverb: false,
+            comparison: None,
             initial_sound: None,
         }
     }
@@ -566,6 +582,12 @@ impl VocabDefinition {
 
     const fn adjective(mut self) -> Self {
         self.adjective = true;
+        self
+    }
+
+    const fn comparison(mut self, comparison: AdjectiveComparison) -> Self {
+        self.adjective = true;
+        self.comparison = Some(comparison);
         self
     }
 
@@ -679,6 +701,29 @@ fn regular_definition(spelling: &str) -> Option<VocabDefinition> {
         .map(|index| regular_vocabulary()[index])
 }
 
+/// Surface → comparative-word index, derived from the per-[`Vocab`] comparison
+/// metadata so the fact lives in one place. Only `OrComparative` adjectives
+/// (`less`/`fewer`/`greater`/`more`) can head an `N or <word>` quantity;
+/// `other` (`ThanOnly`) is deliberately absent.
+fn comparison_lexicon() -> &'static HashMap<&'static str, ComparativeWord> {
+    static LEXICON: OnceLock<HashMap<&'static str, ComparativeWord>> = OnceLock::new();
+    LEXICON.get_or_init(|| {
+        Vocab::ALL
+            .iter()
+            .filter_map(|&vocab| match vocab.comparison() {
+                Some(AdjectiveComparison::OrComparative(word)) => Some((vocab.spelling(), word)),
+                Some(AdjectiveComparison::ThanOnly) | None => None,
+            })
+            .collect()
+    })
+}
+
+/// The comparative word a surface form names when it heads an `N or <word>`
+/// quantity, or `None` if the form is not a quantity-heading comparative.
+pub(crate) fn comparative_word(surface: &str) -> Option<ComparativeWord> {
+    comparison_lexicon().get(surface).copied()
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RegularVocab(&'static str);
 
@@ -716,6 +761,10 @@ macro_rules! vocabulary {
 
             pub(crate) fn bare_nominal_adjunct(self) -> Option<BareNominalAdjunct> {
                 self.definition().bare_nominal_adjunct
+            }
+
+            pub(crate) fn comparison(self) -> Option<AdjectiveComparison> {
+                self.definition().comparison
             }
 
             fn definition(self) -> VocabDefinition {
@@ -906,6 +955,7 @@ vocabulary! {
         .verb(VerbForm::Regular);
     Explore("explore").verb(VerbForm::Regular);
     Fateseal("fateseal").verb(VerbForm::Regular);
+    Fewer("fewer").comparison(AdjectiveComparison::OrComparative(ComparativeWord::Fewer));
     Fight("fight").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("fought")
@@ -943,7 +993,7 @@ vocabulary! {
     Goad("goad").verb(VerbForm::Regular);
     Graveborn("Graveborn").invariant_catalog_noun();
     Graveyard("graveyard").noun(NounDeclension::Regular, Countability::Count);
-    Greater("greater").adjective();
+    Greater("greater").comparison(AdjectiveComparison::OrComparative(ComparativeWord::Greater));
     Hand("hand").noun(NounDeclension::Regular, Countability::Count);
     Harness("harness").verb(VerbForm::Regular);
     Have("have").verb(VerbForm::Irregular(
@@ -974,7 +1024,7 @@ vocabulary! {
             .with_past("left")
             .with_past_participle("left")
     ));
-    Less("less").adjective().adverb();
+    Less("less").adverb().comparison(AdjectiveComparison::OrComparative(ComparativeWord::Less));
     Library("library").noun(NounDeclension::Regular, Countability::Count);
     Life("life").noun(NounDeclension::Regular, Countability::Mass);
     Look("look")
@@ -993,6 +1043,7 @@ vocabulary! {
     Modify("modify").verb(VerbForm::Regular);
     Monarch("monarch").noun(NounDeclension::Regular, Countability::Count);
     Monocolored("monocolored").adjective();
+    More("more").comparison(AdjectiveComparison::OrComparative(ComparativeWord::More));
     Monstrosity("monstrosity").noun(NounDeclension::Regular, Countability::Count);
     Monstrous("monstrous").adjective();
     Moonfolk("Moonfolk").invariant_catalog_noun();
@@ -1009,7 +1060,7 @@ vocabulary! {
     Open("open").verb(VerbForm::Regular);
     Opponent("opponent").noun(NounDeclension::Regular, Countability::Count);
     Only("only").adverb();
-    Other("other").adjective();
+    Other("other").comparison(AdjectiveComparison::ThanOnly);
     Own("own").verb(VerbForm::Regular);
     Owner("owner").noun(NounDeclension::Regular, Countability::Count);
     Ox("Ox").irregular_catalog_noun("Oxen");

@@ -1447,6 +1447,40 @@ mod tests {
     }
 
     #[test]
+    fn comparative_characteristic_postmodifier_gates_the_whole_sentence() {
+        // The bound is what lets each sentence parse: the postmodifier gates
+        // the surrounding predicate. Causal pair — a ceiling that gates a
+        // deontic subject, and its floor mirror gating an imperative object.
+        for source in [
+            "Target creature with power 2 or less can't be blocked this turn.",
+            "Destroy target creature with power 4 or greater.",
+        ] {
+            let report = parse(source);
+            assert!(
+                report.diagnostics.is_empty(),
+                "{source}: {:?}",
+                report.diagnostics
+            );
+            assert_eq!(render(&report), source);
+        }
+    }
+
+    #[test]
+    fn unrelated_object_or_coordination_is_not_a_comparative_bound() {
+        // Negative armor: a plain `X or Y` object coordination must keep
+        // parsing structurally without being drawn into the `N or <word>`
+        // quantity production.
+        let source = "Destroy target artifact or enchantment.";
+        let report = parse(source);
+        assert!(
+            report.diagnostics.is_empty(),
+            "{source}: {:?}",
+            report.diagnostics
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
     fn loyalty_cost_is_not_mistaken_for_an_activation_cost() {
         let report = parse("[−X]: Exile each nonland permanent with mana value X or less.");
         let AbilityKind::Loyalty(loyalty) = &report.ast.abilities[0].kind else {

@@ -1309,8 +1309,12 @@ fn render_quantity(quantity: Quantity) -> String {
         Quantity::AtLeast(number) => {
             format!("at least {}", number.numeral.format(number.value))
         }
-        Quantity::OrMore(number) => {
-            format!("{} or more", number.numeral.format(number.value))
+        Quantity::OrComparison(number, word) => {
+            format!(
+                "{} or {}",
+                number.numeral.format(number.value),
+                word.spelling()
+            )
         }
         Quantity::Or(first, second) => format!(
             "{} or {}",

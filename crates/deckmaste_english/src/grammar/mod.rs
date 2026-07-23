@@ -40,6 +40,7 @@ use crate::surface::TokenKind;
 use crate::surface::lex;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
+use crate::syntax::ComparativeWord;
 use crate::syntax::ComparisonComplement;
 use crate::syntax::ComparisonMarker;
 use crate::syntax::CopularComplement;
@@ -97,6 +98,7 @@ use crate::word::VerbSlot;
 use crate::word::Vocab;
 use crate::word::Vocabulary;
 use crate::word::WordMatch;
+use crate::word::comparative_word;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct VerbPhrase {
@@ -477,7 +479,7 @@ impl NumberKey {
 pub(crate) enum QuantityKey {
     Exact(NumberKey),
     AtLeast(NumberKey),
-    OrMore(NumberKey),
+    OrComparison(NumberKey, ComparativeWord),
     Or(NumberKey, NumberKey),
     UpTo(NumberKey),
     MoreThan(NumberKey),
@@ -528,14 +530,18 @@ impl QuantityKey {
             Self::Or(first, second) if first.value == 1 && second.value == 1 => {
                 Cardinality::SingularOrMass
             }
-            Self::Exact(_)
+            // Every `N or <word>` bound heads a plural count (`two or more
+            // creatures`) or a mass characteristic (`30 or more life`), never a
+            // bare singular.
+            Self::OrComparison(_, _)
+            | Self::Exact(_)
             | Self::Or(_, _)
             | Self::UpTo(_)
             | Self::MoreThan(_)
             | Self::FewerThan(_)
             | Self::X
             | Self::Both => Cardinality::PluralOrMass,
-            Self::AtLeast(_) | Self::OrMore(_) | Self::ThatMany => Cardinality::PluralCount,
+            Self::AtLeast(_) | Self::ThatMany => Cardinality::PluralCount,
             Self::ThatMuch => Cardinality::Mass,
         }
     }
@@ -544,7 +550,7 @@ impl QuantityKey {
         match self {
             Self::Exact(number) => Quantity::Exact(number.literal()),
             Self::AtLeast(number) => Quantity::AtLeast(number.literal()),
-            Self::OrMore(number) => Quantity::OrMore(number.literal()),
+            Self::OrComparison(number, word) => Quantity::OrComparison(number.literal(), word),
             Self::Or(first, second) => Quantity::Or(first.literal(), second.literal()),
             Self::UpTo(number) => Quantity::UpTo(number.literal()),
             Self::MoreThan(number) => Quantity::MoreThan(number.literal()),
@@ -615,7 +621,7 @@ impl DeterminerKey {
             Self::Target(Some(
                 QuantityKey::Exact(_)
                 | QuantityKey::AtLeast(_)
-                | QuantityKey::OrMore(_)
+                | QuantityKey::OrComparison(_, _)
                 | QuantityKey::Or(_, _)
                 | QuantityKey::UpTo(_)
                 | QuantityKey::MoreThan(_)
@@ -1852,20 +1858,30 @@ impl EnglishGrammar<'_, '_> {
         tokens: &[Token],
         start: usize,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        let (surface, end, at_least_surface) =
+        // `at least N` floors the count; `N or <word>` bounds it with a
+        // comparative word (`more`/`greater` above, `fewer`/`less` at or
+        // below). The word is resolved from vocabulary comparison metadata —
+        // no comparative spelling is matched here.
+        let (surface, end, comparative) =
             if let Some(number_start) = self.words_match(tokens, start, &["at", "least"]) {
                 let Some(surface) = self.token_text(tokens, number_start) else {
                     return Vec::new();
                 };
-                (surface, number_start + 1, true)
+                (surface, number_start + 1, None)
             } else {
                 let Some(surface) = self.token_text(tokens, start) else {
                     return Vec::new();
                 };
-                let Some(end) = self.words_match(tokens, start + 1, &["or", "more"]) else {
+                let Some(after_or) = self.one_token_match(tokens, start + 1, "or") else {
                     return Vec::new();
                 };
-                (surface, end, false)
+                let Some(word_surface) = self.token_text(tokens, after_or) else {
+                    return Vec::new();
+                };
+                let Some(word) = comparative_word(word_surface) else {
+                    return Vec::new();
+                };
+                (surface, after_or + 1, Some(word))
             };
         [
             Numeral::Cardinal,
@@ -1880,10 +1896,9 @@ impl EnglishGrammar<'_, '_> {
                 let number = NumberKey { value, notation };
                 quantity_match(
                     end,
-                    if at_least_surface {
-                        QuantityKey::AtLeast(number)
-                    } else {
-                        QuantityKey::OrMore(number)
+                    match comparative {
+                        Some(word) => QuantityKey::OrComparison(number, word),
+                        None => QuantityKey::AtLeast(number),
                     },
                 )
             })
@@ -2648,14 +2663,11 @@ fn adjective_initial_sound(adjective: &Adjective) -> Option<InitialSound> {
 
 fn adjective_comparison_state(adjective: &Adjective) -> AdjectiveComparisonState {
     match adjective {
-        Adjective::Word(word)
-            if matches!(
-                word.spelling(),
-                "fewer" | "greater" | "less" | "more" | "other"
-            ) =>
-        {
-            AdjectiveComparisonState::Pending
-        }
+        // Comparison capability is vocabulary metadata (`Vocab::comparison`),
+        // not a spelling match: every comparison-capable adjective
+        // (`less`/`fewer`/`greater`/`more`/`other`) awaits a `… than X`
+        // complement.
+        Adjective::Word(word) if word.comparison().is_some() => AdjectiveComparisonState::Pending,
         _ => AdjectiveComparisonState::NotComparative,
     }
 }

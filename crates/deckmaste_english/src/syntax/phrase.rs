@@ -115,11 +115,37 @@ pub struct PowerToughness {
     pub toughness: SignedScalar,
 }
 
+/// The comparative word heading an `N or …` quantity floor or ceiling. Every
+/// distinction the surface draws — `more`/`greater` above the bound,
+/// `fewer`/`less` at or below it — is preserved here so the renderer replays
+/// the exact word rather than guessing one from the bound's direction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ComparativeWord {
+    Fewer,
+    Greater,
+    Less,
+    More,
+}
+
+impl ComparativeWord {
+    #[must_use]
+    pub const fn spelling(self) -> &'static str {
+        match self {
+            Self::Fewer => "fewer",
+            Self::Greater => "greater",
+            Self::Less => "less",
+            Self::More => "more",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Quantity {
     Exact(NumberLiteral),
     AtLeast(NumberLiteral),
-    OrMore(NumberLiteral),
+    /// `N or <word>` — a comparative floor (`N or more/greater`) or ceiling
+    /// (`N or fewer/less`); the word is carried structurally.
+    OrComparison(NumberLiteral, ComparativeWord),
     Or(NumberLiteral, NumberLiteral),
     UpTo(NumberLiteral),
     MoreThan(NumberLiteral),
@@ -145,14 +171,18 @@ impl Quantity {
             Self::Or(first, second) if first.value == 1 && second.value == 1 => {
                 NounCardinality::SingularOrMass
             }
-            Self::Exact(_)
+            // Every `N or <word>` bound heads a plural count (`two or more
+            // creatures`) or a mass characteristic (`30 or more life`), never a
+            // bare singular.
+            Self::OrComparison(_, _)
+            | Self::Exact(_)
             | Self::Or(_, _)
             | Self::UpTo(_)
             | Self::MoreThan(_)
             | Self::FewerThan(_)
             | Self::X
             | Self::Both => NounCardinality::PluralOrMass,
-            Self::AtLeast(_) | Self::OrMore(_) | Self::ThatMany => NounCardinality::PluralCount,
+            Self::AtLeast(_) | Self::ThatMany => NounCardinality::PluralCount,
             Self::ThatMuch => NounCardinality::Mass,
         }
     }
@@ -197,7 +227,7 @@ impl Determiner {
             Self::Target(Some(
                 Quantity::Exact(_)
                 | Quantity::AtLeast(_)
-                | Quantity::OrMore(_)
+                | Quantity::OrComparison(_, _)
                 | Quantity::UpTo(_)
                 | Quantity::MoreThan(_)
                 | Quantity::FewerThan(_)

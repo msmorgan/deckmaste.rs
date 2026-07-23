@@ -228,7 +228,10 @@ mod tests {
         };
         assert!(matches!(
             at_least.determiner,
-            Some(Determiner::Quantity(crate::syntax::Quantity::OrMore(number)))
+            Some(Determiner::Quantity(crate::syntax::Quantity::OrComparison(
+                number,
+                crate::syntax::ComparativeWord::More
+            )))
                 if number.value == 1
         ));
         assert!(matches!(at_least.head, NounInstance::Plural(_)));
@@ -517,6 +520,120 @@ mod tests {
                 "{slot:?}"
             );
         }
+    }
+
+    #[test]
+    fn characteristic_postmodifier_bounds_parse_as_structural_quantities() {
+        use crate::syntax::ComparativeWord;
+        use crate::syntax::Quantity;
+        // Causal pair: `or less` (ceiling) and its `or greater` (floor) mirror,
+        // both as a `with <characteristic> N or <word>` postmodifier.
+        for (source, value, word) in [
+            ("creatures with power 2 or less", 2, ComparativeWord::Less),
+            (
+                "creatures with power 4 or greater",
+                4,
+                ComparativeWord::Greater,
+            ),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+            let bound = characteristic_bound(&parsed);
+            assert!(
+                matches!(bound, Quantity::OrComparison(number, seen)
+                    if number.value == value && seen == word),
+                "{source}: {bound:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn comparative_quantity_determiners_mirror_the_postmodifier() {
+        use crate::syntax::ComparativeWord;
+        use crate::syntax::Quantity;
+        // Causal pair: the same bound in determiner position — `two or fewer`
+        // ceiling against its `three or more` floor mirror.
+        for (source, value, word) in [
+            ("two or fewer other lands", 2, ComparativeWord::Fewer),
+            ("three or more lands", 3, ComparativeWord::More),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                panic!("expected a quantified nominal for {source:?}");
+            };
+            assert!(
+                matches!(
+                    &nominal.determiner,
+                    Some(Determiner::Quantity(Quantity::OrComparison(number, seen)))
+                        if number.value == value && *seen == word
+                ),
+                "{source}: {nominal:#?}"
+            );
+        }
+    }
+
+    #[test]
+    fn plain_value_and_number_coordination_are_not_comparative_bounds() {
+        use crate::syntax::Quantity;
+        // Negative armor 1: a bare `with power 2` stays an exact value — no
+        // comparative word, so no `or`-bound production fires.
+        let plain = parse("creatures with power 2");
+        assert_eq!(
+            render_fragment(plain.noun_phrase().expect("noun-phrase root")),
+            "creatures with power 2"
+        );
+        assert!(
+            matches!(characteristic_bound(&plain), Quantity::Exact(number) if number.value == 2),
+            "plain characteristic must stay exact: {:?}",
+            characteristic_bound(&plain)
+        );
+
+        // Negative armor 2: an unrelated number `or` coordination is the `Or`
+        // quantity, never hijacked into a comparative bound.
+        let either = parse("one or two target creatures");
+        let Some(NounPhrase::Nominal(either)) = either.noun_phrase() else {
+            panic!("expected an either-quantity nominal");
+        };
+        assert!(
+            matches!(
+                either.determiner,
+                Some(Determiner::Target(Some(Quantity::Or(one, two))))
+                    if one.value == 1 && two.value == 2
+            ),
+            "{either:#?}"
+        );
+    }
+
+    /// Extracts the quantity bounding the characteristic inside a
+    /// `<noun> with <characteristic> …` postmodifier.
+    fn characteristic_bound(parsed: &ParsedNonterminal) -> crate::syntax::Quantity {
+        let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
+            panic!("expected an outer nominal");
+        };
+        let [NominalComplement::Prepositional(with)] = outer.complements.as_slice() else {
+            panic!("expected a single `with` complement: {outer:#?}");
+        };
+        let crate::syntax::Phrase::NounPhrase(object) = with.object.as_ref() else {
+            panic!("`with` object should be a noun phrase");
+        };
+        let NounPhrase::Nominal(characteristic) = object.as_ref() else {
+            panic!("`with` object should be nominal");
+        };
+        let [NominalComplement::Quantity(quantity)] = characteristic.complements.as_slice() else {
+            panic!("expected a single quantity complement: {characteristic:#?}");
+        };
+        *quantity
     }
 
     fn parse(source: &str) -> ParsedNonterminal {
