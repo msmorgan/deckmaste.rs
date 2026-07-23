@@ -113,6 +113,7 @@ fn row_style(
 
 /// Draw the whole board for one frame. `view` is the caller's once-per-frame
 /// `state.layers()`. `help` overlays the keybinding cheat-sheet.
+#[cfg(test)]
 #[expect(
     clippy::too_many_arguments,
     reason = "render is the board's per-frame draw entry point, threading nine \
