@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
+    use crate::catalog::Bundle;
     use crate::catalog::CatalogKind;
     use crate::catalog::Catalogs;
     use crate::chart::Grammar;
@@ -201,9 +202,10 @@ mod tests {
         for source in [
             "nonland permanent",
             "non-Human creature",
-            // `outlaw` is a lowercase vocabulary noun that still hyphenates —
-            // the lexical exception, keyed off `Vocab::Outlaw`'s metadata
-            // (Shoot the Sheriff: "Destroy target non-outlaw creature.").
+            // `outlaw` is a lowercase rules-bundle noun that still hyphenates —
+            // its `non-` glyph derives from the bundle category, not
+            // capitalization (Shoot the Sheriff: "Destroy target non-outlaw
+            // creature.").
             "target non-outlaw creature",
         ] {
             let parsed = parse(source);
@@ -213,6 +215,53 @@ mod tests {
                 "{source}"
             );
         }
+    }
+
+    #[test]
+    fn rules_bundle_words_round_trip_in_nominal_slots() {
+        // The four rules-bundle shorthands reach the AST through the ordinary
+        // catalog adjective/noun paths and render back byte-exactly: `historic`
+        // and `modified` as attributive adjectives, `party` as a count noun,
+        // and `outlaw` as both a head noun and an attributive adjective.
+        for source in [
+            "a historic card",
+            "a modified creature",
+            "your party",
+            "an outlaw",
+            "outlaw creatures",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn rules_bundle_words_carry_the_bundle_category() {
+        // The attributive adjective and the head noun both land on
+        // `RulesBundle` catalog atoms, so the render side can derive the `non-`
+        // glyph by category.
+        let modified_parse = parse("a modified creature");
+        let Some(NounPhrase::Nominal(modified)) = modified_parse.noun_phrase() else {
+            panic!("expected a nominal for a modified creature");
+        };
+        assert!(matches!(
+            modified.modifiers.first(),
+            Some(NominalModifier::Adjective { phrase, .. })
+                if matches!(&phrase.head, Adjective::Catalog(atom) if atom.is_rules_bundle())
+        ));
+
+        let outlaw_parse = parse("an outlaw");
+        let Some(NounPhrase::Nominal(outlaw)) = outlaw_parse.noun_phrase() else {
+            panic!("expected a nominal for an outlaw");
+        };
+        assert!(matches!(
+            &outlaw.head,
+            NounInstance::Singular(Noun::Catalog(atom)) if atom.is_rules_bundle()
+        ));
     }
 
     #[test]
@@ -262,15 +311,14 @@ mod tests {
 
     #[test]
     fn negation_render_consults_lexical_metadata_when_capitalization_gives_no_signal() {
-        // Two lowercase vocabulary nouns, opposite outcomes: `outlaw` carries
-        // the hyphenated-negation lexical attribute and hyphenates
-        // (`non-outlaw`, Shoot the Sheriff), while an ordinary lowercase
-        // vocabulary noun like `combat` carries no such attribute and stays
-        // solid (`noncombat`) — proving the metadata lookup drives the
-        // hyphen, not a stray default.
+        // Two lowercase nouns, opposite outcomes: the rules-bundle noun
+        // `outlaw` hyphenates by category (`non-outlaw`, Shoot the Sheriff),
+        // while an ordinary lowercase vocabulary noun like `combat` is not a
+        // bundle and stays solid (`noncombat`) — proving the category drives
+        // the hyphen, not a stray default.
         for (noun, expected) in [
             (
-                NounInstance::Singular(Noun::Word(Vocab::Outlaw)),
+                NounInstance::Singular(Noun::Catalog(Bundle::Outlaw.atom())),
                 "non-outlaw card",
             ),
             (
@@ -421,7 +469,7 @@ mod tests {
         for (source, expected) in [
             ("maximum hand size", "size"),
             ("the amount of mana", "amount"),
-            ("your party", "party"),
+            ("your upkeep", "upkeep"),
             ("an emblem", "emblem"),
         ] {
             let parsed = parse(source);

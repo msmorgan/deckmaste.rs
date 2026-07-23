@@ -40,10 +40,16 @@ pub enum CatalogKind {
     SpellType,
     Supertype,
     CardType,
+    /// A rules collective shorthand (`historic`, `modified`, `party`,
+    /// `outlaw`) whose membership the Comprehensive Rules enumerate. Unlike the
+    /// Scryfall-derived kinds this one is never populated externally through
+    /// [`Catalogs::with_catalog`]; its atoms come from the hand-curated
+    /// [`Bundle`] table.
+    RulesBundle,
 }
 
 impl CatalogKind {
-    const ALL: [Self; 12] = [
+    const ALL: [Self; 13] = [
         Self::KeywordAbility,
         Self::KeywordAction,
         Self::AbilityWord,
@@ -56,6 +62,7 @@ impl CatalogKind {
         Self::SpellType,
         Self::Supertype,
         Self::CardType,
+        Self::RulesBundle,
     ];
     const COUNT: usize = Self::ALL.len();
 
@@ -72,7 +79,7 @@ impl CatalogKind {
             | Self::LandType
             | Self::PlaneswalkerType
             | Self::SpellType => CasePolicy::Exact,
-            Self::Supertype | Self::CardType => CasePolicy::Lowercase,
+            Self::Supertype | Self::CardType | Self::RulesBundle => CasePolicy::Lowercase,
             Self::KeywordAbility | Self::KeywordAction | Self::AbilityWord => {
                 CasePolicy::Insensitive
             }
@@ -151,6 +158,14 @@ impl CatalogAtom {
     pub fn renders_lowercase_noun(&self) -> bool {
         matches!(self.kind, CatalogKind::KeywordAbility)
             || matches!(self.kind.case_policy(), CasePolicy::Lowercase)
+    }
+
+    /// Whether this atom is a rules collective shorthand (see [`Bundle`]). Such
+    /// words hyphenate under `non-` as a category — the render side derives the
+    /// glyph from this instead of a per-word flag.
+    #[must_use]
+    pub(crate) fn is_rules_bundle(&self) -> bool {
+        matches!(self.kind, CatalogKind::RulesBundle)
     }
 
     #[must_use]
@@ -368,6 +383,7 @@ impl Catalogs {
             }
             CatalogSlot::Verb(slot) => self.action_matches(text, slot),
         };
+        matches.extend(bundle_matches(text, slot));
         matches.sort_by_key(|catalog_match| catalog_match.length);
         matches
     }
@@ -537,6 +553,126 @@ impl Catalogs {
         }
         matches
     }
+}
+
+/// A rules collective shorthand: a bundle word whose membership the
+/// Comprehensive Rules enumerate. This is the single, hand-curated source for
+/// the four such words the parser recognizes; each entry fixes the shorthand's
+/// spelling, the grammatical slots it fills on the supported corpus, and the CR
+/// rule that defines the bundle. The words share [`CatalogKind::RulesBundle`]
+/// (lowercase, no external population) and reach the AST through the ordinary
+/// [`Adjective::Catalog`] and [`Noun::Catalog`] paths, so no bundle-specific
+/// syntax is needed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum Bundle {
+    /// `historic` — an object with the legendary supertype, the artifact card
+    /// type, or the Saga subtype [CR#700.6]. Attributive adjective only
+    /// (`historic spell`, `historic permanent`); never a head noun and never
+    /// attested with `non-`.
+    Historic,
+    /// `modified` — a permanent with a counter on it, that is equipped, or
+    /// that is enchanted by an Aura its controller controls [CR#700.9].
+    /// Adjective,
+    /// used attributively (`modified creature`) and predicatively
+    /// (`as long as it's modified`); never attested with `non-`.
+    Modified,
+    /// `party` — up to one each of Cleric, Rogue, Warrior, and Wizard among the
+    /// creatures a player controls [CR#700.8]. Count noun (`creatures in your
+    /// party`, `a full party`); never attributive and never attested with
+    /// `non-`.
+    Party,
+    /// `outlaw` — an object with the Assassin, Mercenary, Pirate, Rogue, and/or
+    /// Warlock creature types [CR#700.12]. Both a count noun (`outlaws you
+    /// control`, `an outlaw`) and an attributive adjective (`outlaw creature`,
+    /// `outlaw spell`). Its `non-` form is the sole attested bundle witness and
+    /// hyphenates (`non-outlaw`, Shoot the Sheriff).
+    Outlaw,
+}
+
+impl Bundle {
+    const ALL: [Self; 4] = [Self::Historic, Self::Modified, Self::Party, Self::Outlaw];
+
+    const fn spelling(self) -> &'static str {
+        match self {
+            Self::Historic => "historic",
+            Self::Modified => "modified",
+            Self::Party => "party",
+            Self::Outlaw => "outlaw",
+        }
+    }
+
+    /// Whether this shorthand fills the attributive/predicative adjective slot.
+    const fn fills_adjective(self) -> bool {
+        matches!(self, Self::Historic | Self::Modified | Self::Outlaw)
+    }
+
+    /// Whether this shorthand fills the count-noun slot.
+    const fn fills_count_noun(self) -> bool {
+        matches!(self, Self::Party | Self::Outlaw)
+    }
+
+    pub(crate) fn atom(self) -> CatalogAtom {
+        let canonical: Arc<str> = Arc::from(self.spelling());
+        CatalogAtom {
+            kind: CatalogKind::RulesBundle,
+            canonical: Arc::clone(&canonical),
+            spelling: canonical,
+            vocab: None,
+        }
+    }
+}
+
+/// Scans the fixed [`Bundle`] table for matches in the requested slot. Bundle
+/// words are lowercase (matched exactly, like every [`CasePolicy::Lowercase`]
+/// atom; a sentence-initial capital is handled by the grammar's lowercased
+/// retry) and reach the AST as [`Adjective::Catalog`] / [`Noun::Catalog`].
+fn bundle_matches(text: &str, slot: CatalogSlot) -> Vec<CatalogMatch> {
+    let mut matches = Vec::new();
+    for bundle in Bundle::ALL {
+        match slot {
+            CatalogSlot::Adjective if bundle.fills_adjective() => {
+                if let Some(length) = lowercase_word_prefix(text, bundle.spelling()) {
+                    matches.push(CatalogMatch {
+                        length,
+                        value: CatalogValue::Word(WordMatch::Adjective(Adjective::Catalog(
+                            bundle.atom(),
+                        ))),
+                    });
+                }
+            }
+            CatalogSlot::Noun(NounUsage::Count | NounUsage::Either)
+                if bundle.fills_count_noun() =>
+            {
+                let atom = bundle.atom();
+                if let Some(length) = lowercase_word_prefix(text, &atom.render_noun(false)) {
+                    matches.push(CatalogMatch {
+                        length,
+                        value: CatalogValue::Word(WordMatch::Noun(NounInstance::Singular(
+                            Noun::Catalog(atom.clone()),
+                        ))),
+                    });
+                }
+                if let Some(length) = lowercase_word_prefix(text, &atom.render_noun(true)) {
+                    matches.push(CatalogMatch {
+                        length,
+                        value: CatalogValue::Word(WordMatch::Noun(NounInstance::Plural(
+                            Noun::Catalog(atom),
+                        ))),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+    matches
+}
+
+/// The length of an exact lowercase `expected` prefix of `text` ending at a
+/// word boundary, or `None`. `expected` is already lowercase, so a capitalized
+/// surface never matches here.
+fn lowercase_word_prefix(text: &str, expected: &str) -> Option<usize> {
+    let prefix = text.get(..expected.len())?;
+    (prefix == expected && is_word_boundary(text, expected.len())).then_some(expected.len())
 }
 
 fn resolve_keyword_action(canonical: &Arc<str>) -> KeywordAction {
@@ -999,6 +1135,77 @@ mod tests {
             one_word_match(&catalogs, "Food", CatalogSlot::Noun(NounUsage::Count)),
             WordMatch::Noun(NounInstance::Singular(Noun::Catalog(_)))
         ));
+    }
+
+    #[test]
+    fn rules_bundle_words_fill_their_declared_slots() {
+        // The hand-curated bundle catalog is always present, independent of the
+        // externally supplied Scryfall catalogs.
+        let catalogs = Catalogs::default();
+
+        // Adjective-only bundles fill the adjective slot and no noun slot.
+        for spelling in ["historic", "modified"] {
+            let WordMatch::Adjective(Adjective::Catalog(atom)) =
+                one_word_match(&catalogs, spelling, CatalogSlot::Adjective)
+            else {
+                panic!("{spelling} must be a catalog adjective");
+            };
+            assert!(atom.is_rules_bundle());
+            assert_eq!(atom.canonical(), spelling);
+            assert!(
+                catalogs
+                    .matches(spelling, CatalogSlot::Noun(NounUsage::Count))
+                    .is_empty(),
+                "{spelling} is not a noun"
+            );
+        }
+
+        // `party` is a count noun only, singular and plural, never attributive.
+        let WordMatch::Noun(NounInstance::Singular(Noun::Catalog(party))) =
+            one_word_match(&catalogs, "party", CatalogSlot::Noun(NounUsage::Count))
+        else {
+            panic!("party must be a singular catalog noun");
+        };
+        assert!(party.is_rules_bundle());
+        assert_eq!(party.render_noun(true), "parties");
+        assert!(matches!(
+            one_word_match(&catalogs, "parties", CatalogSlot::Noun(NounUsage::Count)),
+            WordMatch::Noun(NounInstance::Plural(Noun::Catalog(_)))
+        ));
+        assert!(catalogs.matches("party", CatalogSlot::Adjective).is_empty());
+
+        // `outlaw` fills both the count-noun and the adjective slot.
+        assert!(matches!(
+            one_word_match(&catalogs, "outlaw", CatalogSlot::Noun(NounUsage::Count)),
+            WordMatch::Noun(NounInstance::Singular(Noun::Catalog(atom))) if atom.is_rules_bundle()
+        ));
+        assert!(matches!(
+            one_word_match(&catalogs, "outlaws", CatalogSlot::Noun(NounUsage::Count)),
+            WordMatch::Noun(NounInstance::Plural(Noun::Catalog(_)))
+        ));
+        assert!(matches!(
+            one_word_match(&catalogs, "outlaw", CatalogSlot::Adjective),
+            WordMatch::Adjective(Adjective::Catalog(atom)) if atom.is_rules_bundle()
+        ));
+
+        // A capitalized surface never matches directly (the grammar retries a
+        // sentence-initial capital lowercased), and the mass slot never fills.
+        assert!(
+            catalogs
+                .matches("Outlaw", CatalogSlot::Adjective)
+                .is_empty()
+        );
+        assert!(
+            catalogs
+                .matches("party", CatalogSlot::Noun(NounUsage::Mass))
+                .is_empty()
+        );
+        // A partial prefix does not fire without a word boundary.
+        assert!(
+            catalogs
+                .matches("partying", CatalogSlot::Noun(NounUsage::Count))
+                .is_empty()
+        );
     }
 
     fn one_word_match(catalogs: &Catalogs, surface: &str, slot: CatalogSlot) -> WordMatch {

@@ -4464,13 +4464,30 @@ mod tests {
     }
 
     #[test]
-    fn hyphenated_negation_lexical_exception_round_trips_the_full_sentence() {
-        // Shoot the Sheriff: `outlaw` is a lowercase vocabulary noun, but its
-        // `non-` negation still hyphenates (`non-outlaw`) — a lexical fact on
-        // `Vocab::Outlaw`'s metadata, not a spelling guess in the renderer.
+    fn rules_bundle_negation_hyphenates_and_round_trips_the_full_sentence() {
+        // Shoot the Sheriff: `outlaw` is a lowercase rules-bundle word, but its
+        // `non-` negation still hyphenates (`non-outlaw`) — derived from the
+        // bundle category, not a spelling guess in the renderer.
         let source = "Destroy target non-outlaw creature.";
         let parsed = parse(source);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn rules_bundle_words_round_trip_the_full_sentence() {
+        // Each bundle shorthand parses structurally in the slot it occupies and
+        // renders back byte-exactly: `modified` attributively (Kodama of the
+        // West Tree) and predicatively (Obstinate Gargoyle), `outlaw` as a head
+        // noun (Vihaan, Goldwaker), and `historic` attributively.
+        for source in [
+            "Destroy target modified creature.",
+            "This creature has flying as long as it's modified.",
+            "Outlaws you control have haste.",
+            "Destroy target historic permanent.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        }
     }
 
     #[test]

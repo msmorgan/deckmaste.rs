@@ -1163,15 +1163,13 @@ impl<'identity> Renderer<'identity> {
                 NominalModifier::Adjective { polarity, phrase } => {
                     let (head, trailing) = self.nominal_modifier_adjective(phrase)?;
                     trailing_modifier_complements.extend(trailing);
-                    let hyphenated_by_lexicon =
-                        adjective_vocab(&phrase.head).is_some_and(Vocab::hyphenated_negation);
-                    apply_polarity(*polarity, head, hyphenated_by_lexicon)
+                    apply_polarity(*polarity, head, adjective_is_rules_bundle(&phrase.head))
                 }
-                NominalModifier::Noun { polarity, noun } => {
-                    let hyphenated_by_lexicon =
-                        noun_vocab(noun).is_some_and(Vocab::hyphenated_negation);
-                    apply_polarity(*polarity, self.render_noun(noun)?, hyphenated_by_lexicon)
-                }
+                NominalModifier::Noun { polarity, noun } => apply_polarity(
+                    *polarity,
+                    self.render_noun(noun)?,
+                    noun_is_rules_bundle(noun),
+                ),
                 NominalModifier::Quantity(quantity) => render_quantity(*quantity),
                 NominalModifier::PowerToughness(value) => format!(
                     "{}/{}",
@@ -1771,43 +1769,43 @@ fn render_preposition(preposition: Preposition) -> &'static str {
     }
 }
 
-/// The [`Vocab`] identity behind an adjective base, when it has one — only
-/// [`Adjective::Word`] carries vocabulary metadata; colors, participles, and
-/// catalog atoms don't.
-fn adjective_vocab(adjective: &Adjective) -> Option<Vocab> {
+/// Whether an adjective base is a rules collective shorthand (see
+/// [`crate::catalog::Bundle`]) — only [`Adjective::Catalog`] atoms can be, and
+/// only those tagged as bundles. Bundle words hyphenate under `non-`.
+fn adjective_is_rules_bundle(adjective: &Adjective) -> bool {
     match adjective {
-        Adjective::Word(vocab) => Some(*vocab),
-        Adjective::Color(_)
+        Adjective::Catalog(atom) => atom.is_rules_bundle(),
+        Adjective::Word(_)
+        | Adjective::Color(_)
         | Adjective::CardOrientation(_)
-        | Adjective::Participle(..)
-        | Adjective::Catalog(_) => None,
+        | Adjective::Participle(..) => false,
     }
 }
 
-/// The [`Vocab`] identity behind a noun base, when it has one — only
-/// [`Noun::Word`] carries vocabulary metadata; catalog atoms, dice, gerunds,
-/// and opaque nouns don't.
-fn noun_vocab(noun: &NounInstance) -> Option<Vocab> {
+/// Whether a noun base is a rules collective shorthand (see
+/// [`crate::catalog::Bundle`]) — only [`Noun::Catalog`] atoms can be. Bundle
+/// words hyphenate under `non-`.
+fn noun_is_rules_bundle(noun: &NounInstance) -> bool {
     let (NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun)) =
         noun;
     match noun {
-        Noun::Word(vocab) => Some(*vocab),
-        Noun::Catalog(_) | Noun::Die(_) | Noun::Gerund(_) | Noun::Opaque(_) => None,
+        Noun::Catalog(atom) => atom.is_rules_bundle(),
+        Noun::Word(_) | Noun::Die(_) | Noun::Gerund(_) | Noun::Opaque(_) => false,
     }
 }
 
 /// Prefixes a rendered modifier base with its `non-` negation, deriving the
 /// hyphenation glyph rather than replaying a stored flag: on the supported
 /// corpus a capitalized base (`Human`, `Phyrexian`) is always hyphenated
-/// (`non-Human`), and so is the one lowercase lexical exception, `outlaw`
-/// (`non-outlaw`, Shoot the Sheriff) — recorded on the word itself and looked
-/// up by identity, never by comparing spellings. Every other lowercase base
-/// (`land`, `black`) stays solid (`nonland`).
-fn apply_polarity(polarity: Polarity, base: String, hyphenated_by_lexicon: bool) -> String {
+/// (`non-Human`), and so is a rules collective shorthand — witnessed by
+/// `outlaw` (`non-outlaw`, Shoot the Sheriff) — recognized by category, never
+/// by comparing spellings. Every other lowercase base (`land`, `black`) stays
+/// solid (`nonland`).
+fn apply_polarity(polarity: Polarity, base: String, hyphenated_by_category: bool) -> String {
     match polarity {
         Polarity::Positive => base,
         Polarity::Negative => {
-            if hyphenated_by_lexicon || base.starts_with(char::is_uppercase) {
+            if hyphenated_by_category || base.starts_with(char::is_uppercase) {
                 format!("non-{base}")
             } else {
                 format!("non{base}")

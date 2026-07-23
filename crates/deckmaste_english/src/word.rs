@@ -511,17 +511,6 @@ pub(crate) enum AdjectiveComparison {
     ThanOnly,
 }
 
-/// A `non-` negation lexical exception: this word's negation hyphenates on
-/// the supported corpus even though the word itself is lowercase — e.g.
-/// `non-outlaw` (Shoot the Sheriff). The ordinary rule derives the glyph from
-/// the base's capitalization at render time; `Hyphenated` is the lexical
-/// exception to that rule, recorded once on the word — like
-/// [`AdjectiveComparison`] — rather than matched by spelling.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum NegationGlyph {
-    Hyphenated,
-}
-
 #[derive(Debug, Clone, Copy)]
 struct VocabDefinition {
     spelling: &'static str,
@@ -533,7 +522,6 @@ struct VocabDefinition {
     adjective: bool,
     adverb: bool,
     comparison: Option<AdjectiveComparison>,
-    negation_glyph: Option<NegationGlyph>,
     initial_sound: Option<InitialSound>,
 }
 
@@ -549,7 +537,6 @@ impl VocabDefinition {
             adjective: false,
             adverb: false,
             comparison: None,
-            negation_glyph: None,
             initial_sound: None,
         }
     }
@@ -601,11 +588,6 @@ impl VocabDefinition {
     const fn comparison(mut self, comparison: AdjectiveComparison) -> Self {
         self.adjective = true;
         self.comparison = Some(comparison);
-        self
-    }
-
-    const fn negation_glyph(mut self, glyph: NegationGlyph) -> Self {
-        self.negation_glyph = Some(glyph);
         self
     }
 
@@ -783,14 +765,6 @@ macro_rules! vocabulary {
 
             pub(crate) fn comparison(self) -> Option<AdjectiveComparison> {
                 self.definition().comparison
-            }
-
-            /// Whether this word's `non-` negation hyphenates on the
-            /// supported corpus regardless of its own capitalization (e.g.
-            /// `outlaw` → `non-outlaw`) — a lexical fact queried by identity,
-            /// never matched by spelling.
-            pub(crate) fn hyphenated_negation(self) -> bool {
-                matches!(self.definition().negation_glyph, Some(NegationGlyph::Hyphenated))
             }
 
             fn definition(self) -> VocabDefinition {
@@ -1068,7 +1042,6 @@ vocabulary! {
     Merfolk("Merfolk").invariant_catalog_noun();
     Mill("mill").verb(VerbForm::Regular);
     Mode("mode").noun(NounDeclension::Regular, Countability::Count);
-    Modify("modify").verb(VerbForm::Regular);
     Monarch("monarch").noun(NounDeclension::Regular, Countability::Count);
     Monocolored("monocolored").adjective();
     More("more").comparison(AdjectiveComparison::OrComparative(ComparativeWord::More));
@@ -1086,9 +1059,6 @@ vocabulary! {
     Opponent("opponent").noun(NounDeclension::Regular, Countability::Count);
     Only("only").adverb();
     Other("other").comparison(AdjectiveComparison::ThanOnly);
-    Outlaw("outlaw")
-        .noun(NounDeclension::Regular, Countability::Count)
-        .negation_glyph(NegationGlyph::Hyphenated);
     Own("own").verb(VerbForm::Regular);
     Owner("owner").noun(NounDeclension::Regular, Countability::Count);
     Ox("Ox").irregular_catalog_noun("Oxen");
