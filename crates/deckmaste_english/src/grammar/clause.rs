@@ -4398,6 +4398,16 @@ mod tests {
     }
 
     #[test]
+    fn hyphenated_negation_lexical_exception_round_trips_the_full_sentence() {
+        // Shoot the Sheriff: `outlaw` is a lowercase vocabulary noun, but its
+        // `non-` negation still hyphenates (`non-outlaw`) — a lexical fact on
+        // `Vocab::Outlaw`'s metadata, not a spelling guess in the renderer.
+        let source = "Destroy target non-outlaw creature.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
     fn non_distributive_copular_forms_are_unchanged_and_lack_each() {
         // Mirror direction: the singular and the plural-without-`each` forms
         // stay on the intransitive `be` + adjective + prepositional-adjunct
@@ -4424,7 +4434,7 @@ mod tests {
                 !rendered.contains(" each "),
                 "no `each` may be synthesized for the non-distributive form: {rendered}"
             );
-            assert_eq!(rendered, source.replacen('~', "Test Card", 1), "{source}",);
+            assert_eq!(rendered, source.replacen('~', "Test Card", 1), "{source}");
         }
     }
 

@@ -744,11 +744,11 @@ pub(crate) enum MeaningKey {
 
 /// A `non-` negation resolved to its base modifier at scan time. Held as a
 /// bare [`Adjective`] or [`NounInstance`] (both `Hash`, unlike
-/// `AdjectivePhrase`) plus the observed hyphenation; lowered into a negated
-/// [`NominalModifier`].
+/// `AdjectivePhrase`); lowered into a negated [`NominalModifier`]. Both
+/// surface spellings (`non` and `non-`) resolve to the same key — the render
+/// side derives the glyph from the base's capitalization.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct NegatedModifierKey {
-    hyphenated: bool,
     base: NegatedBase,
 }
 
@@ -760,9 +760,7 @@ pub(crate) enum NegatedBase {
 
 impl NegatedModifierKey {
     fn build(&self) -> NominalModifier {
-        let polarity = Polarity::Negative {
-            hyphenated: self.hyphenated,
-        };
+        let polarity = Polarity::Negative;
         match &self.base {
             NegatedBase::Adjective(adjective) => NominalModifier::Adjective {
                 polarity,
@@ -1091,8 +1089,8 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
     /// modifier base, emits one negated-modifier match per base reading. When
     /// the residue does not resolve — `none`, `nonetheless`, any narrative word
     /// — nothing fires and the token falls through to the existing paths, so
-    /// those spellings stay intact. The hyphenation glyph is recorded from the
-    /// source, not re-derived, so `nonblack` and `non-black` each round-trip.
+    /// those spellings stay intact. Both spellings resolve to the same key;
+    /// the render side re-derives the glyph from the base's capitalization.
     fn scan_negated_modifier(
         &self,
         tokens: &[Token],
@@ -1116,10 +1114,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             return Vec::new();
         }
         let rest = &surface[3..];
-        let (hyphenated, residue) = match rest.strip_prefix('-') {
-            Some(residue) => (true, residue),
-            None => (false, rest),
-        };
+        let residue = rest.strip_prefix('-').unwrap_or(rest);
         if residue.is_empty() {
             return Vec::new();
         }
@@ -1128,7 +1123,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             .map(|base| LexicalMatch {
                 end: start + 1,
                 features: Features::None,
-                meaning: MeaningKey::NegatedModifier(NegatedModifierKey { hyphenated, base }),
+                meaning: MeaningKey::NegatedModifier(NegatedModifierKey { base }),
                 local_cost: ParseCost::default(),
             })
             .fold(Vec::new(), |mut matches, candidate| {

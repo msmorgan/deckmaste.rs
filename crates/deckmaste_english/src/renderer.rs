@@ -87,6 +87,7 @@ use crate::word::InitialSound;
 use crate::word::Noun;
 use crate::word::NounInstance;
 use crate::word::PronounInstance;
+use crate::word::Vocab;
 use crate::word::Vocabulary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1045,10 +1046,14 @@ impl<'identity> Renderer<'identity> {
                 NominalModifier::Adjective { polarity, phrase } => {
                     let (head, trailing) = self.nominal_modifier_adjective(phrase)?;
                     trailing_modifier_complements.extend(trailing);
-                    apply_polarity(*polarity, head)
+                    let hyphenated_by_lexicon =
+                        adjective_vocab(&phrase.head).is_some_and(Vocab::hyphenated_negation);
+                    apply_polarity(*polarity, head, hyphenated_by_lexicon)
                 }
                 NominalModifier::Noun { polarity, noun } => {
-                    apply_polarity(*polarity, self.render_noun(noun)?)
+                    let hyphenated_by_lexicon =
+                        noun_vocab(noun).is_some_and(Vocab::hyphenated_negation);
+                    apply_polarity(*polarity, self.render_noun(noun)?, hyphenated_by_lexicon)
                 }
                 NominalModifier::Quantity(quantity) => render_quantity(*quantity),
                 NominalModifier::PowerToughness(value) => format!(
@@ -1454,16 +1459,48 @@ fn render_preposition(preposition: Preposition) -> &'static str {
     }
 }
 
-/// Prefixes a rendered modifier base with its `non-` negation, replaying the
-/// hyphenation glyph recorded at parse time. The distinction rides on the
-/// [`Polarity`] flag alone — never on the base's spelling — so `nonland`,
-/// `nonblack`, `non-Human`, and the lowercase-hyphen exception `non-black` each
-/// round-trip.
-fn apply_polarity(polarity: Polarity, base: String) -> String {
+/// The [`Vocab`] identity behind an adjective base, when it has one — only
+/// [`Adjective::Word`] carries vocabulary metadata; colors, participles, and
+/// catalog atoms don't.
+fn adjective_vocab(adjective: &Adjective) -> Option<Vocab> {
+    match adjective {
+        Adjective::Word(vocab) => Some(*vocab),
+        Adjective::Color(_)
+        | Adjective::CardOrientation(_)
+        | Adjective::Participle(..)
+        | Adjective::Catalog(_) => None,
+    }
+}
+
+/// The [`Vocab`] identity behind a noun base, when it has one — only
+/// [`Noun::Word`] carries vocabulary metadata; catalog atoms, dice, gerunds,
+/// and opaque nouns don't.
+fn noun_vocab(noun: &NounInstance) -> Option<Vocab> {
+    let (NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun)) =
+        noun;
+    match noun {
+        Noun::Word(vocab) => Some(*vocab),
+        Noun::Catalog(_) | Noun::Die(_) | Noun::Gerund(_) | Noun::Opaque(_) => None,
+    }
+}
+
+/// Prefixes a rendered modifier base with its `non-` negation, deriving the
+/// hyphenation glyph rather than replaying a stored flag: on the supported
+/// corpus a capitalized base (`Human`, `Phyrexian`) is always hyphenated
+/// (`non-Human`), and so is the one lowercase lexical exception, `outlaw`
+/// (`non-outlaw`, Shoot the Sheriff) — recorded on the word itself and looked
+/// up by identity, never by comparing spellings. Every other lowercase base
+/// (`land`, `black`) stays solid (`nonland`).
+fn apply_polarity(polarity: Polarity, base: String, hyphenated_by_lexicon: bool) -> String {
     match polarity {
         Polarity::Positive => base,
-        Polarity::Negative { hyphenated: true } => format!("non-{base}"),
-        Polarity::Negative { hyphenated: false } => format!("non{base}"),
+        Polarity::Negative => {
+            if hyphenated_by_lexicon || base.starts_with(char::is_uppercase) {
+                format!("non-{base}")
+            } else {
+                format!("non{base}")
+            }
+        }
     }
 }
 

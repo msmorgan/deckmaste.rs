@@ -134,10 +134,7 @@ mod tests {
                 "{positive}: {positive_modifier:#?}"
             );
             assert!(
-                matches!(
-                    polarity_of(&negative_modifier),
-                    Some(Polarity::Negative { .. })
-                ),
+                matches!(polarity_of(&negative_modifier), Some(Polarity::Negative)),
                 "{negative}: {negative_modifier:#?}"
             );
             assert_eq!(
@@ -149,22 +146,27 @@ mod tests {
     }
 
     #[test]
-    fn hyphenation_glyph_is_recorded_from_the_surface_not_the_base_case() {
-        // Solid `nonblack` and hyphenated `non-Human` are the ordinary rule;
-        // the negative variant records which the surface used so each replays
-        // exactly. (The corpus exception `non-black` — a hyphenated lowercase
-        // color — is covered render-side by
-        // `negation_render_replays_the_recorded_hyphen`.)
-        let solid = first_modifier(&parse("nonblack creature"));
-        assert!(matches!(
-            polarity_of(&solid),
-            Some(Polarity::Negative { hyphenated: false })
-        ));
-        let hyphenated = first_modifier(&parse("non-Human creature"));
-        assert!(matches!(
-            polarity_of(&hyphenated),
-            Some(Polarity::Negative { hyphenated: true })
-        ));
+    fn negation_scan_accepts_either_spelling_for_the_same_base() {
+        // The hyphenation glyph is no longer recorded structurally: solid
+        // `nonland` and hyphenated `non-land` spellings of the same base
+        // resolve to the identical negated modifier, as do solid `nonHuman`
+        // and hyphenated `non-Human` — only the renderer decides which
+        // spelling to emit, from the base's capitalization.
+        for (solid, hyphenated) in [
+            ("nonland permanent", "non-land permanent"),
+            ("nonHuman creature", "non-Human creature"),
+        ] {
+            let solid_modifier = first_modifier(&parse(solid));
+            let hyphenated_modifier = first_modifier(&parse(hyphenated));
+            assert_eq!(
+                solid_modifier, hyphenated_modifier,
+                "{solid} vs {hyphenated}"
+            );
+            assert!(matches!(
+                polarity_of(&solid_modifier),
+                Some(Polarity::Negative)
+            ));
+        }
     }
 
     #[test]
@@ -196,7 +198,14 @@ mod tests {
 
     #[test]
     fn negation_round_trips_solid_and_hyphenated_byte_exactly() {
-        for source in ["nonland permanent", "non-Human creature"] {
+        for source in [
+            "nonland permanent",
+            "non-Human creature",
+            // `outlaw` is a lowercase vocabulary noun that still hyphenates —
+            // the lexical exception, keyed off `Vocab::Outlaw`'s metadata
+            // (Shoot the Sheriff: "Destroy target non-outlaw creature.").
+            "target non-outlaw creature",
+        ] {
             let parsed = parse(source);
             assert_eq!(
                 render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
@@ -207,17 +216,71 @@ mod tests {
     }
 
     #[test]
-    fn negation_render_replays_the_recorded_hyphen() {
-        // Render-side shapes the rule newly admits, including the lowercase
-        // hyphen exception `non-black` that the capitalization rule alone would
-        // mis-spell as `nonblack`.
-        for (hyphenated, expected) in [(false, "nonblack card"), (true, "non-black card")] {
-            let modifier = NominalModifier::Adjective {
-                polarity: Polarity::Negative { hyphenated },
-                phrase: AdjectivePhrase {
-                    head: Adjective::Color(ColorWord::Black),
-                    complements: vec![],
+    fn negation_render_derives_the_hyphen_from_base_capitalization() {
+        // The render side derives the `non-` glyph from whether the rendered
+        // base is capitalized, never from a stored flag: the lowercase color
+        // adjective base `black` stays solid (`nonblack`), while the
+        // capitalized catalog subtype noun base `Human` gets the hyphen
+        // (`non-Human`).
+        let solid_modifier = NominalModifier::Adjective {
+            polarity: Polarity::Negative,
+            phrase: AdjectivePhrase {
+                head: Adjective::Color(ColorWord::Black),
+                complements: vec![],
+            },
+        };
+        let solid_phrase = NounPhrase::Nominal(NominalPhrase {
+            determiner: None,
+            modifiers: vec![solid_modifier],
+            head: NounInstance::Singular(Noun::Word(Vocab::Card)),
+            complements: vec![],
+        });
+        assert_eq!(render_fragment(&solid_phrase), "nonblack card");
+
+        let parsed = parse("Human creature");
+        let Some(NounPhrase::Nominal(human_creature)) = parsed.noun_phrase() else {
+            panic!("expected a nominal for Human creature");
+        };
+        let hyphenated_modifiers = human_creature
+            .modifiers
+            .iter()
+            .cloned()
+            .map(|modifier| match modifier {
+                NominalModifier::Noun { noun, .. } => NominalModifier::Noun {
+                    polarity: Polarity::Negative,
+                    noun,
                 },
+                other => other,
+            })
+            .collect();
+        let hyphenated_phrase = NounPhrase::Nominal(NominalPhrase {
+            modifiers: hyphenated_modifiers,
+            ..human_creature.clone()
+        });
+        assert_eq!(render_fragment(&hyphenated_phrase), "non-Human creature");
+    }
+
+    #[test]
+    fn negation_render_consults_lexical_metadata_when_capitalization_gives_no_signal() {
+        // Two lowercase vocabulary nouns, opposite outcomes: `outlaw` carries
+        // the hyphenated-negation lexical attribute and hyphenates
+        // (`non-outlaw`, Shoot the Sheriff), while an ordinary lowercase
+        // vocabulary noun like `combat` carries no such attribute and stays
+        // solid (`noncombat`) — proving the metadata lookup drives the
+        // hyphen, not a stray default.
+        for (noun, expected) in [
+            (
+                NounInstance::Singular(Noun::Word(Vocab::Outlaw)),
+                "non-outlaw card",
+            ),
+            (
+                NounInstance::Mass(Noun::Word(Vocab::Combat)),
+                "noncombat card",
+            ),
+        ] {
+            let modifier = NominalModifier::Noun {
+                polarity: Polarity::Negative,
+                noun,
             };
             let noun_phrase = NounPhrase::Nominal(NominalPhrase {
                 determiner: None,

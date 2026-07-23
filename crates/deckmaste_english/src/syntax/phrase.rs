@@ -335,22 +335,21 @@ pub struct NominalPhrase {
 /// bases the surface negates (card/subtypes, supertypes, colors, participles,
 /// and vocabulary adjectives/nouns); quantities and power/toughness never do.
 ///
-/// The negative variant also records whether the surface hyphenated the prefix.
-/// The corpus writes solid `nonland`/`nonblack` but hyphenated `non-Human`, and
-/// carries one lowercase exception (`non-black`) plus the hyphenated supertype
-/// `non-ongoing`, so the glyph is preserved structurally — as
-/// [`RollRangeDash`](crate::syntax::RollRangeDash) preserves a range dash —
-/// rather than re-derived from the base's capitalization at render time.
+/// On the supported corpus the hyphenation rule is exact and derivable from
+/// the base's capitalization alone: solid `nonland`/`nonblack` bases are
+/// always lowercase, hyphenated `non-Human` bases are always capitalized, so
+/// the glyph is never recorded structurally — the renderer derives it at
+/// render time instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Polarity {
     Positive,
-    Negative { hyphenated: bool },
+    Negative,
 }
 
 impl Polarity {
     #[must_use]
     pub const fn is_negative(self) -> bool {
-        matches!(self, Self::Negative { .. })
+        matches!(self, Self::Negative)
     }
 }
 
