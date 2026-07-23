@@ -405,6 +405,12 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         {
             return Phrase::Clause(Box::new(clause.clone()));
         }
+        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Sentence)
+            && let Some(sentence) = parsed.sentence()
+            && let SentenceBody::Independent(independent) = &sentence.body
+        {
+            return Phrase::Clause(Box::new(Clause::Independent(independent.clone())));
+        }
         if let Some(parsed) = self.parse_exact(tokens, Nonterminal::NounPhrase)
             && let Some(noun_phrase) = parsed.noun_phrase()
         {
@@ -1524,6 +1530,28 @@ mod tests {
             IndependentClause::Imperative(Predicate::Intransitive(predicate)) => &predicate.head,
             IndependentClause::Imperative(Predicate::Passive(predicate)) => &predicate.head,
             other => panic!("expected lexical predicate, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn activation_cost_imperatives_parse_structurally() {
+        for source in [
+            "Sacrifice this creature: Draw a card.",
+            "Sacrifice this artifact: Draw a card.",
+            "Discard a card: Draw a card.",
+            "Sacrifice this land: Add {C}.",
+            "Sacrifice a creature: Draw a card.",
+            "Sacrifice another creature: Scry 1.",
+            "Sacrifice this enchantment: Draw a card.",
+            "Discard this card: Draw two cards.",
+            "Sacrifice an artifact: Draw a card.",
+        ] {
+            let report = parse(source);
+            assert!(
+                report.diagnostics.is_empty(),
+                "failed on '{source}': {:?}",
+                report.diagnostics
+            );
         }
     }
 
