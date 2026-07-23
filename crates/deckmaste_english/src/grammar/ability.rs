@@ -199,7 +199,37 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 effect_initial_uppercase: self.tokens_start_uppercase(effect_tokens),
             });
         }
+        if let Some((header, effect)) = self.chapter_frame(tokens) {
+            return AbilityKind::Modal(ModalAbility {
+                frame: ModalFrame::Unframed,
+                header: self.parse_paragraph(header),
+                header_suffix: ModalHeaderSuffix::SpacedEmDash,
+                modes: vec![Mode {
+                    body: self.parse_paragraph(effect),
+                }],
+            });
+        }
         AbilityKind::Paragraph(self.parse_paragraph(tokens))
+    }
+
+    fn chapter_frame<'a>(&self, tokens: &'a [Token]) -> Option<(&'a [Token], &'a [Token])> {
+        let em_dash = tokens
+            .iter()
+            .position(|token| matches!(token.kind, TokenKind::Punctuation(Punctuation::EmDash)))?;
+        if em_dash == 0 || em_dash + 1 >= tokens.len() {
+            return None;
+        }
+        let header = &tokens[..em_dash];
+        let body = &tokens[em_dash + 1..];
+        let is_chapter = !header.is_empty()
+            && header.iter().all(|token| {
+                if matches!(token.kind, TokenKind::Punctuation(Punctuation::Comma)) {
+                    return true;
+                }
+                let text = self.token_text(token);
+                Numeral::Roman.parse(text).is_ok()
+            });
+        if is_chapter { Some((header, body)) } else { None }
     }
 
     fn class_level(&self, tokens: &[Token]) -> Option<NumberLiteral> {
