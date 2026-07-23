@@ -62,6 +62,7 @@ use crate::syntax::TriggerWord;
 use crate::syntax::TriggeredAbility;
 use crate::word::ColorWord;
 use crate::word::Verb;
+use crate::word::VerbSlot;
 use crate::word::Vocab;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -782,6 +783,15 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         predicate_is_choose(predicate).then(|| predicate.clone())
     }
 
+    /// A quoted ability (`"..."`) may fill any grammatical slot the oracle
+    /// licenses it in, not just a `with` postmodifier: the direct object of a
+    /// grant verb (`~ has "..."`, `~ gains "..."`) shares the slot too. The
+    /// quoted text parses recursively as an ability, and its interior parse
+    /// failures recover at the embedded-rules role (the `syntax` visitor tags
+    /// them) without poisoning this outer clause — recovery there is a
+    /// reclassification, not a whole-clause loss. The quote must occupy the
+    /// tail (only a sentence ending may follow the closing quote); anything
+    /// after it is a different construction and this production declines.
     fn parse_quoted_sentence(&mut self, tokens: &[Token]) -> Option<Sentence> {
         let open = tokens
             .iter()
@@ -797,40 +807,97 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
 
         let quoted_tokens = &tokens[open + 1..close];
         let initial_uppercase = self.tokens_start_uppercase(quoted_tokens);
-        let quoted = self.parse_ability(quoted_tokens);
-        let mut prefix = &tokens[..open];
-        let preposition = prefix.last().and_then(|token| {
-            self.token_text(token)
-                .eq_ignore_ascii_case("with")
-                .then_some(Preposition::With)
-        });
-        if preposition.is_some() {
-            prefix = &prefix[..prefix.len() - 1];
-        }
-        let parsed = self.parse_exact(prefix, Nonterminal::SimpleClause)?;
-        let mut clause = parsed.simple_clause()?.clone();
-        let dependent = if let Some(preposition) = preposition {
-            VerbDependent::Prepositional(PrepositionalPhrase {
-                preposition,
-                object: Box::new(Phrase::QuotedAbility(Box::new(QuotedAbility {
-                    ability: Box::new(quoted),
-                    initial_uppercase,
-                    closed: true,
-                }))),
-            })
-        } else {
-            VerbDependent::PredicateComplement(Phrase::QuotedAbility(Box::new(QuotedAbility {
-                ability: Box::new(quoted),
-                initial_uppercase,
-                closed: true,
-            })))
+        let quoted = QuotedAbility {
+            ability: Box::new(self.parse_ability(quoted_tokens)),
+            initial_uppercase,
+            closed: true,
         };
-        clause.predicate.dependents.push(dependent);
+        let prefix = &tokens[..open];
+        let clause = if prefix
+            .last()
+            .is_some_and(|token| self.token_text(token).eq_ignore_ascii_case("with"))
+        {
+            self.quoted_with_clause(&prefix[..prefix.len() - 1], quoted)?
+        } else {
+            self.quoted_grant_object_clause(prefix, quoted)?
+        };
         Some(Sentence {
             initial_uppercase: self.tokens_start_uppercase(tokens),
-            body: SentenceBody::Independent(finish_simple_clause(clause)?),
+            body: SentenceBody::Independent(clause),
             ending,
         })
+    }
+
+    /// Attaches a quoted ability as the object of a `with` postmodifier on the
+    /// clause the prefix spells (`create a ... token with "..."`). A
+    /// subjectless imperative prefix, parsed in isolation, resolves its
+    /// base-form verb to the infinitive slot; coerce it to the imperative a
+    /// standalone effect clause is, so `finish_simple_clause` accepts the
+    /// subjectless clause.
+    fn quoted_with_clause(
+        &mut self,
+        prefix: &[Token],
+        quoted: QuotedAbility,
+    ) -> Option<IndependentClause> {
+        let mut clause = self
+            .parse_exact(prefix, Nonterminal::SimpleClause)?
+            .simple_clause()?
+            .clone();
+        if clause.subject.is_none() && clause.predicate.verb.slot == VerbSlot::Infinitive {
+            clause.predicate.verb.slot = VerbSlot::Imperative;
+        }
+        clause
+            .predicate
+            .dependents
+            .push(VerbDependent::Prepositional(PrepositionalPhrase {
+                preposition: Preposition::With,
+                object: Box::new(Phrase::QuotedAbility(Box::new(quoted))),
+            }));
+        finish_simple_clause(clause)
+    }
+
+    /// Attaches a quoted ability as the direct object of a grant verb
+    /// (`~ has/have/gains/gain/loses/lose "..."`). Only a grant verb licenses a
+    /// quoted object here, so a quoted string in any other tail position
+    /// (`... named "A. B"`) is not this slot and this production declines,
+    /// leaving that construction to whatever owns it. Optional-object grant
+    /// verbs (`gains`) parse the prefix as a complete clause directly; the
+    /// required-object `has`/`have` prefix has no object of its own, so a
+    /// sentinel ability complement lets it parse and is then dropped so the
+    /// quoted ability takes the freed object slot.
+    fn quoted_grant_object_clause(
+        &mut self,
+        prefix: &[Token],
+        quoted: QuotedAbility,
+    ) -> Option<IndependentClause> {
+        if !prefix
+            .last()
+            .is_some_and(|token| is_grant_verb(self.token_text(token)))
+        {
+            return None;
+        }
+        let mut clause = if let Some(parsed) = self.parse_exact(prefix, Nonterminal::SimpleClause) {
+            parsed.simple_clause()?.clone()
+        } else {
+            // A required-object grant verb (`~ has`) will not parse without an
+            // object of its own. Supply a sentinel ability complement so the
+            // prefix parses, then drop it — the quoted ability takes the freed
+            // object slot.
+            let probe = format!("{} {GRANT_OBJECT_SENTINEL}", self.tokens_text(prefix));
+            let mut clause = parse_nonterminal(&probe, self.catalogs, Nonterminal::SimpleClause)
+                .ok()?
+                .simple_clause()?
+                .clone();
+            clause.predicate.dependents.pop();
+            clause
+        };
+        clause
+            .predicate
+            .dependents
+            .push(VerbDependent::PredicateComplement(Phrase::QuotedAbility(
+                Box::new(quoted),
+            )));
+        finish_simple_clause(clause)
     }
 
     fn parse_keyword_list(&mut self, tokens: &[Token]) -> Option<KeywordAbilityList> {
@@ -858,9 +925,15 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 .max_by_key(|(length, _, _)| *length)
                 .map(|(_, atom, end)| (atom, end))?;
             let argument_tokens = &chunk[matched_end..];
+            // A lone sentence-terminal (a granted keyword ability's own closing
+            // period, e.g. inside `"Cascade, cascade."`) is never a keyword
+            // argument. Reject it even inside a comma list, so the ability falls
+            // through to the paragraph path and keeps its terminal, rather than
+            // rendering a spurious space before the period.
             if !argument_tokens.is_empty()
-                && !has_list_separator
-                && !keyword_argument_is_plausible(&atom, argument_tokens, self.source)
+                && (matches!(argument_tokens, [token] if is_sentence_terminal(token.kind))
+                    || (!has_list_separator
+                        && !keyword_argument_is_plausible(&atom, argument_tokens, self.source)))
             {
                 return None;
             }
@@ -1148,6 +1221,21 @@ fn starts_with_bullet(tokens: &[Token]) -> bool {
 fn strip_bullet(tokens: &[Token]) -> &[Token] {
     if starts_with_bullet(tokens) { &tokens[1..] } else { tokens }
 }
+
+/// The verbs that grant an ability as their direct object, so a quoted ability
+/// may fill that object slot after them. Matched on surface form because both
+/// inflections of each lemma appear in the corpus (`has`/`have`,
+/// `gains`/`gain`, `loses`/`lose`).
+fn is_grant_verb(surface: &str) -> bool {
+    ["has", "have", "gains", "gain", "loses", "lose"]
+        .iter()
+        .any(|verb| surface.eq_ignore_ascii_case(verb))
+}
+
+/// A base-form ability keyword used only to satisfy a required-object grant
+/// verb (`~ has`) so its prefix parses; it is dropped before the quoted ability
+/// takes the object slot, so it never reaches the AST.
+const GRANT_OBJECT_SENTINEL: &str = "flying";
 
 /// A flavor header ends in inert terminal junk — `!`, `?`, or an ellipsis
 /// (`...`) — never a word or a single sentence-final period. This is what
@@ -1622,6 +1710,122 @@ mod tests {
             PredicateObject::QuotedAbility(quoted)
                 if matches!(quoted.ability.kind, AbilityKind::Triggered(_))
         ));
+    }
+
+    #[test]
+    fn quoted_ability_fills_the_grant_verb_object_for_has_and_have() {
+        // Causal pair: the singular `has` and plural `have` inflections of the
+        // grant verb both take the quoted ability as their direct object,
+        // through the same generalized slot the optional-object `gains` uses —
+        // not a `has`/`have`-only special case. (`has`/`have` require an object,
+        // so the prefix cannot parse alone; the slot supplies it.)
+        for source in [
+            "It has \"Sacrifice this token: Add {C}.\"",
+            "They have \"Sacrifice this token: Add {C}.\"",
+        ] {
+            let report = parse(source);
+            let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+                panic!("{source}: expected paragraph");
+            };
+            let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+                &paragraph.sentences[0].body
+            else {
+                panic!(
+                    "{source}: expected transitive grant clause, got {:?}",
+                    paragraph.sentences[0].body
+                );
+            };
+            assert!(
+                matches!(&predicate.object, PredicateObject::QuotedAbility(_)),
+                "{source}: the quoted ability should be the grant verb's object"
+            );
+            assert_eq!(render(&report), source);
+        }
+    }
+
+    #[test]
+    fn quoted_ability_object_and_with_postmodifier_share_one_slot() {
+        // Causal pair across slot kinds: `gains` takes the quoted ability as a
+        // grant-verb object, `with` as a postmodifier on a created token. Both
+        // are the same generalized quoted-ability slot and both round-trip.
+        let object = parse("Target creature gains \"Flying.\"");
+        let AbilityKind::Paragraph(object_paragraph) = &object.ast.abilities[0].kind else {
+            panic!("expected paragraph");
+        };
+        assert!(matches!(
+            &object_paragraph.sentences[0].body,
+            SentenceBody::Independent(IndependentClause::Transitive(_, predicate))
+                if matches!(predicate.object, PredicateObject::QuotedAbility(_))
+        ));
+        assert_eq!(render(&object), "Target creature gains \"Flying.\"");
+
+        let with = parse("Create a Goblin creature token with \"{T}: Add {C}.\"");
+        let AbilityKind::Paragraph(with_paragraph) = &with.ast.abilities[0].kind else {
+            panic!("expected paragraph");
+        };
+        assert!(
+            matches!(
+                &with_paragraph.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(_)))
+            ),
+            "the with-postmodifier clause should be a parsed imperative, got {:?}",
+            with_paragraph.sentences[0].body
+        );
+        assert_eq!(
+            render(&with),
+            "Create a Goblin creature token with \"{T}: Add {C}.\""
+        );
+    }
+
+    #[test]
+    fn quoted_ability_interior_failure_recovers_at_embedded_rules_only() {
+        // A quoted ability whose interior does not parse must still let the
+        // outer grant clause parse: the interior failure recovers at the
+        // embedded-rules role, never poisons the outer clause with a clause
+        // recovery, and the whole span round-trips verbatim.
+        let source = "It has \"Glarf the wug quux.\"";
+        let report = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph");
+        };
+        assert!(
+            matches!(
+                &paragraph.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Transitive(_, predicate))
+                    if matches!(predicate.object, PredicateObject::QuotedAbility(_))
+            ),
+            "outer grant clause must parse despite the interior failure, got {:?}",
+            paragraph.sentences[0].body
+        );
+        let recoveries = report.ast.recoveries();
+        assert!(
+            recoveries
+                .iter()
+                .any(|recovery| recovery.role == RecoveryRole::EmbeddedRules),
+            "the interior failure should recover at the embedded-rules role: {recoveries:?}"
+        );
+        assert!(
+            recoveries
+                .iter()
+                .all(|recovery| recovery.role != RecoveryRole::Clause),
+            "the interior failure must not surface as an outer clause recovery: {recoveries:?}"
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn a_quoted_name_is_not_admitted_as_a_grant_object() {
+        // Negative armor: a quoted string after `named` is a name, not a
+        // granted ability. The grant-object slot fires only after a grant verb,
+        // so the existing `named` machinery is untouched — no quoted-ability
+        // node appears and the sentence round-trips exactly.
+        let source = "Create a token named \"A. B\" and draw a card.";
+        let report = parse(source);
+        assert!(
+            !format!("{:#?}", report.ast).contains("QuotedAbility"),
+            "a quoted name must not be lowered to a quoted ability"
+        );
+        assert_eq!(render(&report), source);
     }
 
     #[test]

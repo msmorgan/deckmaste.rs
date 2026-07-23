@@ -110,10 +110,15 @@ impl<'syntax> RecoveryWalker<'syntax> {
             AbilityKind::Keyword(list) => {
                 for keyword in &list.abilities {
                     if let Some(argument) = &keyword.argument {
+                        // A keyword argument's recovery is normally its own
+                        // role, but inside a quoted or embedded ability the
+                        // inherited context (`embedded rules`) wins: an interior
+                        // failure of a quoted ability stays attributed to the
+                        // quoted text, never leaking into the outer census.
                         self.phrase(
                             argument,
                             RecoveryRole::KeywordArgument,
-                            Some(RecoveryRole::KeywordArgument),
+                            context.or(Some(RecoveryRole::KeywordArgument)),
                         );
                     }
                 }
