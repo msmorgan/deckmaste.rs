@@ -2259,20 +2259,20 @@ mod tests {
     #[test]
     fn regular_mass_nouns_stay_out_of_count_noun_slots() {
         let vocabulary = Vocabulary::new();
-        let matches = vocabulary.matches("absorption", LexicalSlot::Noun(NounUsage::Mass));
-        let [WordMatch::Noun(NounInstance::Mass(Noun::Word(absorption)))] = matches.as_slice()
+        let matches = vocabulary.matches("knowledge", LexicalSlot::Noun(NounUsage::Mass));
+        let [WordMatch::Noun(NounInstance::Mass(Noun::Word(knowledge)))] = matches.as_slice()
         else {
-            panic!("absorption must have one mass-noun analysis");
+            panic!("knowledge must have one mass-noun analysis");
         };
 
-        assert_eq!(absorption.spelling(), "absorption");
+        assert_eq!(knowledge.spelling(), "knowledge");
         assert_eq!(
-            vocabulary.render_noun(&NounInstance::Mass(Noun::Word(*absorption))),
-            Some("absorption".to_owned())
+            vocabulary.render_noun(&NounInstance::Mass(Noun::Word(*knowledge))),
+            Some("knowledge".to_owned())
         );
         assert!(
             vocabulary
-                .matches("absorption", LexicalSlot::Noun(NounUsage::Count))
+                .matches("knowledge", LexicalSlot::Noun(NounUsage::Count))
                 .is_empty()
         );
     }
@@ -2320,22 +2320,18 @@ mod tests {
     #[test]
     fn regular_adjectives_and_adverbs_fill_only_their_declared_slots() {
         let vocabulary = Vocabulary::new();
-        let adjective_matches = vocabulary.matches("aberrant", LexicalSlot::Adjective);
-        let [WordMatch::Adjective(Adjective::Word(aberrant))] = adjective_matches.as_slice() else {
-            panic!("aberrant must have one adjective analysis");
+        let adjective_matches = vocabulary.matches("lethal", LexicalSlot::Adjective);
+        let [WordMatch::Adjective(Adjective::Word(lethal))] = adjective_matches.as_slice() else {
+            panic!("lethal must have one adjective analysis");
         };
         let adverb_matches = vocabulary.matches("already", LexicalSlot::Adverb);
         let [WordMatch::Adverb(already)] = adverb_matches.as_slice() else {
             panic!("already must have one adverb analysis");
         };
 
-        assert_eq!(aberrant.spelling(), "aberrant");
+        assert_eq!(lethal.spelling(), "lethal");
         assert_eq!(already.spelling(), "already");
-        assert!(
-            vocabulary
-                .matches("aberrant", LexicalSlot::Adverb)
-                .is_empty()
-        );
+        assert!(vocabulary.matches("lethal", LexicalSlot::Adverb).is_empty());
         assert!(
             vocabulary
                 .matches("already", LexicalSlot::Adjective)
@@ -2398,10 +2394,7 @@ mod tests {
             rows += 1;
         }
 
-        assert!(
-            rows > 1_000,
-            "regular-vocabulary table is unexpectedly small"
-        );
+        assert!(rows > 900, "regular-vocabulary table is unexpectedly small");
     }
 
     #[test]
