@@ -21,6 +21,7 @@ use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::CopularComplement;
 use crate::syntax::CopularPredicate;
 use crate::syntax::Cost;
+use crate::syntax::CostComponent;
 use crate::syntax::Demonstrative;
 use crate::syntax::DependentClause;
 use crate::syntax::Determiner;
@@ -407,8 +408,8 @@ impl<'identity> Renderer<'identity> {
         Ok(match argument {
             KeywordArgument::Absent => String::new(),
             KeywordArgument::Counted(quantity) => format!(" {}", render_quantity(*quantity)),
-            KeywordArgument::Costed(KeywordCost::Symbols(cost)) => {
-                format!(" {}", self.cost(cost)?)
+            KeywordArgument::Costed(KeywordCost::Symbols(symbols)) => {
+                format!(" {}", render_symbol_sequence(symbols))
             }
             KeywordArgument::Costed(KeywordCost::Sentence { separator, ability }) => {
                 format!(
@@ -417,11 +418,11 @@ impl<'identity> Renderer<'identity> {
                     self.nested_ability(ability, true)?
                 )
             }
-            KeywordArgument::CountedCost { count, cost } => {
+            KeywordArgument::CountedCost { count, symbols } => {
                 format!(
                     " {}—{}",
                     count.numeral.format(count.value),
-                    self.cost(cost)?
+                    render_symbol_sequence(symbols)
                 )
             }
             KeywordArgument::Predicated(predicated) => {
@@ -438,9 +439,9 @@ impl<'identity> Renderer<'identity> {
                 }
                 rendered
             }
-            KeywordArgument::Statted { cost, stats } => format!(
+            KeywordArgument::Statted { symbols, stats } => format!(
                 " {} — {}/{}",
-                self.cost(cost)?,
+                render_symbol_sequence(symbols),
                 render_signed_scalar(stats.power),
                 render_signed_scalar(stats.toughness)
             ),
@@ -458,34 +459,33 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn cost(&self, cost: &Cost) -> Result<String, RenderError> {
-        let components = match cost {
-            Cost::Components(components) => components,
-            Cost::SymbolList(symbols) => return Ok(symbols.clone()),
-        };
         let mut rendered = String::new();
         let mut saw_lexical_component = false;
-        for (index, component) in components.iter().enumerate() {
+        for (index, component) in cost.components.iter().enumerate() {
             if index > 0 {
                 rendered.push_str(", ");
             }
-            let is_symbol = matches!(
-                component,
-                Phrase::OracleSymbol(_) | Phrase::SymbolSequence(_)
-            );
+            let is_symbol = matches!(component, CostComponent::Symbols(_));
             let starts_action = matches!(
                 component,
-                Phrase::Clause(clause)
-                    if matches!(
-                        clause.as_ref(),
-                        Clause::Independent(IndependentClause::Imperative(_))
-                    )
+                CostComponent::Clause(clause)
+                    if matches!(clause.as_ref(), IndependentClause::Imperative(_))
             );
             let capitalize = starts_action || (!saw_lexical_component && !is_symbol);
-            let component = self.phrase(component)?;
-            rendered.push_str(&if capitalize { capitalize_first(component) } else { component });
+            let text = self.cost_component(component)?;
+            rendered.push_str(&if capitalize { capitalize_first(text) } else { text });
             saw_lexical_component |= !is_symbol;
         }
         Ok(rendered)
+    }
+
+    fn cost_component(&self, component: &CostComponent) -> Result<String, RenderError> {
+        Ok(match component {
+            CostComponent::Symbols(symbols) => render_symbol_sequence(symbols),
+            CostComponent::Clause(clause) => self.independent_clause(clause)?,
+            CostComponent::Noun(noun) => self.noun_phrase(noun)?,
+            CostComponent::Recovered(text) => text.spelling().to_owned(),
+        })
     }
 
     fn paragraph(
@@ -917,9 +917,7 @@ impl<'identity> Renderer<'identity> {
             }
             PredicateObject::Quantity(quantity) => Ok(render_quantity(*quantity)),
             PredicateObject::OracleSymbol(symbol) => Ok(symbol.as_str().to_owned()),
-            PredicateObject::SymbolSequence(symbols) => {
-                Ok(symbols.iter().map(OracleSymbol::as_str).collect())
-            }
+            PredicateObject::SymbolSequence(symbols) => Ok(render_symbol_sequence(symbols)),
             PredicateObject::PowerToughness(value) => Ok(format!(
                 "{}/{}",
                 render_signed_scalar(value.power),
@@ -1390,9 +1388,7 @@ impl<'identity> Renderer<'identity> {
             Phrase::Cost(cost) => self.cost(cost),
             Phrase::ThisCard(form) => self.this_card(*form),
             Phrase::OracleSymbol(symbol) => Ok(symbol.as_str().to_owned()),
-            Phrase::SymbolSequence(symbols) => {
-                Ok(symbols.iter().map(OracleSymbol::as_str).collect())
-            }
+            Phrase::SymbolSequence(symbols) => Ok(render_symbol_sequence(symbols)),
             Phrase::NumberLiteral(number) => Ok(number.numeral.format(number.value)),
             Phrase::SignedScalar(scalar) => Ok(render_signed_scalar(*scalar)),
             Phrase::PowerToughness(power_toughness) => Ok(format!(
@@ -1756,6 +1752,14 @@ fn contraction_suffix(auxiliary: &str) -> Result<&'static str, RenderError> {
         "have" => Ok("'ve"),
         _ => Err(RenderError::MissingLexicalForm("subject contraction")),
     }
+}
+
+/// Renders a run of oracle symbols by concatenating their spellings with no
+/// separator — the exact inverse of how a braced run is tokenized. Shared by
+/// the symbol cost component, `Phrase::SymbolSequence`, and the keyword symbol
+/// costs.
+fn render_symbol_sequence(symbols: &[OracleSymbol]) -> String {
+    symbols.iter().map(OracleSymbol::as_str).collect()
 }
 
 fn render_signed_scalar(scalar: SignedScalar) -> String {

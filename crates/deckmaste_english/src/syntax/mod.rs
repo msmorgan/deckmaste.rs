@@ -159,9 +159,18 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn cost(&mut self, cost: &'syntax Cost, context: Option<RecoveryRole>) {
-        if let Cost::Components(components) = cost {
-            for component in components {
-                self.phrase(component, RecoveryRole::ActivationCost, context);
+        for component in &cost.components {
+            match component {
+                // A recovered component is the only thing that recovers at the
+                // activation-cost role; a clause or noun component recurses so
+                // its interior failures stay attributed to their own roles, and
+                // a symbol run never recovers.
+                CostComponent::Recovered(text) => {
+                    self.push(text, RecoveryRole::ActivationCost, context);
+                }
+                CostComponent::Clause(clause) => self.independent_clause(clause, context),
+                CostComponent::Noun(noun) => self.noun_phrase(noun, context),
+                CostComponent::Symbols(_) => {}
             }
         }
     }
@@ -729,7 +738,9 @@ mod tests {
                 Ability {
                     ability_word: None,
                     kind: AbilityKind::Activated(ActivatedAbility {
-                        cost: Cost::Components(vec![Phrase::Recovered(recovered("cost"))]),
+                        cost: Cost {
+                            components: vec![CostComponent::Recovered(recovered("cost"))],
+                        },
                         effect: Paragraph::default(),
                         effect_initial_uppercase: true,
                     }),
@@ -824,11 +835,13 @@ mod tests {
 
     #[test]
     fn splitting_recovery_does_not_reduce_recovered_source_tokens() {
-        let one_span =
-            activated_with_cost(vec![Phrase::Recovered(RecoveredText::new("alpha beta", 2))]);
+        let one_span = activated_with_cost(vec![CostComponent::Recovered(RecoveredText::new(
+            "alpha beta",
+            2,
+        ))]);
         let split = activated_with_cost(vec![
-            Phrase::Recovered(recovered("alpha")),
-            Phrase::Recovered(recovered("beta")),
+            CostComponent::Recovered(recovered("alpha")),
+            CostComponent::Recovered(recovered("beta")),
         ]);
 
         let recovered_tokens = |ast: &OracleText| {
@@ -878,12 +891,12 @@ mod tests {
         }
     }
 
-    fn activated_with_cost(components: Vec<Phrase>) -> OracleText {
+    fn activated_with_cost(components: Vec<CostComponent>) -> OracleText {
         OracleText {
             abilities: vec![Ability {
                 ability_word: None,
                 kind: AbilityKind::Activated(ActivatedAbility {
-                    cost: Cost::Components(components),
+                    cost: Cost { components },
                     effect: Paragraph::default(),
                     effect_initial_uppercase: true,
                 }),

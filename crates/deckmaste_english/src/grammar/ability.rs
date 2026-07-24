@@ -26,6 +26,7 @@ use crate::syntax::ChoiceTrigger;
 use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
 use crate::syntax::Cost;
+use crate::syntax::CostComponent;
 use crate::syntax::DependentClause;
 use crate::syntax::FlavorHeader;
 use crate::syntax::IndependentClause;
@@ -491,9 +492,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return None;
         }
         let cost = self.parse_cost(cost_tokens);
-        if !matches!(&cost, Cost::Components(components) if components
+        if !cost
+            .components
             .iter()
-            .all(|phrase| matches!(phrase, Phrase::OracleSymbol(_) | Phrase::SymbolSequence(_))))
+            .all(|component| matches!(component, CostComponent::Symbols(_)))
         {
             return None;
         }
@@ -653,42 +655,46 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             .filter(|component| !component.is_empty())
             .map(|component| self.parse_cost_component(component))
             .collect();
-        Cost::Components(components)
+        Cost { components }
     }
 
-    fn parse_cost_component(&mut self, tokens: &[Token]) -> Phrase {
+    fn parse_cost_component(&mut self, tokens: &[Token]) -> CostComponent {
         if tokens.len() == 1 {
             match tokens[0].kind {
                 TokenKind::OracleSymbol => {
                     if let Some(symbol) = OracleSymbol::new(self.token_text(&tokens[0])) {
-                        return Phrase::OracleSymbol(symbol);
+                        return CostComponent::Symbols(vec![symbol]);
                     }
                 }
                 TokenKind::SymbolSequence => {
                     if let Some(symbols) = parse_symbol_sequence(self.token_text(&tokens[0])) {
-                        return Phrase::SymbolSequence(symbols);
+                        return CostComponent::Symbols(symbols);
                     }
                 }
                 _ => {}
             }
         }
+        // A cost expressed as a full clause is always independent (imperative or
+        // coordinated); the dependent-clause branch never fires on the supported
+        // corpus, so narrowing to `IndependentClause` loses nothing and rejects
+        // the shape rather than mistyping it.
         if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Clause)
-            && let Some(clause) = parsed.clause()
+            && let Some(Clause::Independent(independent)) = parsed.clause()
         {
-            return Phrase::Clause(Box::new(clause.clone()));
+            return CostComponent::Clause(Box::new(independent.clone()));
         }
         if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Sentence)
             && let Some(sentence) = parsed.sentence()
             && let SentenceBody::Independent(independent) = &sentence.body
         {
-            return Phrase::Clause(Box::new(Clause::Independent(independent.clone())));
+            return CostComponent::Clause(Box::new(independent.clone()));
         }
         if let Some(parsed) = self.parse_exact(tokens, Nonterminal::NounPhrase)
             && let Some(noun_phrase) = parsed.noun_phrase()
         {
-            return Phrase::NounPhrase(Box::new(noun_phrase.clone()));
+            return CostComponent::Noun(Box::new(noun_phrase.clone()));
         }
-        self.recovered_phrase(tokens)
+        CostComponent::Recovered(self.recovered_text(tokens))
     }
 
     fn parse_paragraph(&mut self, tokens: &[Token]) -> Paragraph {
@@ -1166,8 +1172,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if let Some(counted) = self.parse_counted(body) {
             return Some(counted);
         }
-        if let Some(cost) = symbol_cost(self.tokens_text(body)) {
-            return Some(KeywordArgument::Costed(KeywordCost::Symbols(cost)));
+        if let Some(symbols) = symbol_cost(self.tokens_text(body)) {
+            return Some(KeywordArgument::Costed(KeywordCost::Symbols(symbols)));
         }
         self.parse_predicated(body, in_list)
     }
@@ -1185,12 +1191,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return None;
         }
         let count = arabic_number_literal(self.token_text(count))?;
-        let cost = symbol_cost(self.tokens_text(right))?;
-        Some(KeywordArgument::CountedCost { count, cost })
+        let symbols = symbol_cost(self.tokens_text(right))?;
+        Some(KeywordArgument::CountedCost { count, symbols })
     }
 
     fn parse_statted(&self, left: &[Token], right: &[Token]) -> Option<KeywordArgument> {
-        let cost = symbol_cost(self.tokens_text(left))?;
+        let symbols = symbol_cost(self.tokens_text(left))?;
         let [stats] = right else {
             return None;
         };
@@ -1198,7 +1204,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return None;
         }
         let stats = super::parse_power_toughness(self.token_text(stats))?;
-        Some(KeywordArgument::Statted { cost, stats })
+        Some(KeywordArgument::Statted { symbols, stats })
     }
 
     fn parse_predicated(&mut self, body: &[Token], in_list: bool) -> Option<KeywordArgument> {
@@ -1308,11 +1314,15 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn recovered_phrase(&mut self, tokens: &[Token]) -> Phrase {
+        Phrase::Recovered(self.recovered_text(tokens))
+    }
+
+    fn recovered_text(&mut self, tokens: &[Token]) -> RecoveredText {
         self.diagnostics.push(AbilityDiagnostic {
             kind: AbilityDiagnosticKind::NoCompleteParse,
             span: tokens_span(tokens),
         });
-        Phrase::Recovered(RecoveredText::new(self.tokens_text(tokens), tokens.len()))
+        RecoveredText::new(self.tokens_text(tokens), tokens.len())
     }
 
     fn token_text(&self, token: &Token) -> &str {
@@ -1613,10 +1623,11 @@ fn predicated_preposition(surface: &str) -> Option<Preposition> {
 }
 
 /// A symbol-sequence cost — a run wrapped in braces (`{2}`, `{X}`,
-/// `{5}{G}{G}`).
-fn symbol_cost(text: &str) -> Option<Cost> {
+/// `{5}{G}{G}`) parsed into its structured oracle symbols.
+fn symbol_cost(text: &str) -> Option<Vec<OracleSymbol>> {
     (text.starts_with('{') && text.len() > 2 && text.ends_with('}'))
-        .then(|| Cost::SymbolList(text.to_owned()))
+        .then(|| parse_symbol_sequence(text))
+        .flatten()
 }
 
 /// Splits a coordinated predicated argument (`from red and from white`) at each
@@ -1700,10 +1711,7 @@ mod tests {
         let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
             panic!("expected activated ability");
         };
-        assert!(matches!(
-            ability.cost,
-            Cost::Components(ref components) if components.len() == 3
-        ));
+        assert_eq!(ability.cost.components.len(), 3);
         assert_eq!(ability.effect.sentences.len(), 2);
         assert!(
             matches!(
@@ -1728,6 +1736,77 @@ mod tests {
     }
 
     #[test]
+    fn typed_multi_component_cost_carries_each_shape() {
+        // A three-part activation cost exercises every non-recovered shape: a
+        // multi-symbol run, a single-symbol run, and an imperative cost clause.
+        let source = "{1}{R}, {T}, Sacrifice a creature: Draw a card.";
+        let report = parse(source);
+        let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
+            panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [mana, tap, sacrifice] = ability.cost.components.as_slice() else {
+            panic!("expected three cost components: {:#?}", ability.cost);
+        };
+        assert!(matches!(mana, CostComponent::Symbols(symbols) if symbols.len() == 2));
+        assert!(matches!(tap, CostComponent::Symbols(symbols) if symbols.len() == 1));
+        assert!(matches!(
+            sacrifice,
+            CostComponent::Clause(clause) if matches!(clause.as_ref(), IndependentClause::Imperative(_))
+        ));
+        assert_eq!(report.ast.render(FIXTURE_NAME, true).unwrap(), source);
+    }
+
+    #[test]
+    fn symbol_cost_round_trips_through_structured_symbols() {
+        // The keyword symbol cost is now carried as `Vec<OracleSymbol>`, never a
+        // raw string; it must reproduce its spelling byte-exactly by
+        // concatenation.
+        let report = parse("Morph {2}{W}");
+        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+            panic!("expected keyword ability");
+        };
+        let KeywordArgument::Costed(KeywordCost::Symbols(symbols)) =
+            &keywords.abilities[0].argument
+        else {
+            panic!(
+                "expected a symbol keyword cost: {:#?}",
+                keywords.abilities[0]
+            );
+        };
+        assert_eq!(symbols.len(), 2);
+        assert_eq!(
+            symbols.iter().map(OracleSymbol::as_str).collect::<String>(),
+            "{2}{W}"
+        );
+        assert_eq!(render(&report), "Morph {2}{W}");
+    }
+
+    #[test]
+    fn unparsed_cost_component_recovers_at_the_activation_cost_role() {
+        // A cost component that matches no closed shape recovers verbatim,
+        // mirroring `KeywordArgument::Recovered`. It renders back byte-for-byte
+        // and is attributed to the activation-cost role, not the clause role.
+        let source = "{T}, Frobnicate a creature: Draw a card.";
+        let report = parse(source);
+        let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
+            panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [tap, frobnicate] = ability.cost.components.as_slice() else {
+            panic!("expected two cost components: {:#?}", ability.cost);
+        };
+        assert!(matches!(tap, CostComponent::Symbols(_)));
+        let CostComponent::Recovered(text) = frobnicate else {
+            panic!("expected a recovered cost component: {frobnicate:#?}");
+        };
+        assert_eq!(text.spelling(), "Frobnicate a creature");
+        assert_eq!(report.ast.render(FIXTURE_NAME, true).unwrap(), source);
+        assert!(report.ast.recoveries().iter().any(|recovery| {
+            recovery.role == RecoveryRole::ActivationCost
+                && recovery.text == "Frobnicate a creature"
+        }));
+    }
+
+    #[test]
     fn class_level_ability_has_a_cost_and_numeric_level() {
         let source = "{1}{R}: Level 2";
         let report = parse(source);
@@ -1740,9 +1819,8 @@ mod tests {
         assert_eq!(level.level.value, 2);
         assert_eq!(level.level.numeral, Numeral::Arabic(false));
         assert!(matches!(
-            level.cost,
-            Cost::Components(ref components)
-                if matches!(components.as_slice(), [Phrase::SymbolSequence(symbols)] if symbols.len() == 2)
+            level.cost.components.as_slice(),
+            [CostComponent::Symbols(symbols)] if symbols.len() == 2
         ));
         assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
     }
@@ -2200,8 +2278,8 @@ mod tests {
         };
         assert!(matches!(
             &keywords.abilities[0].argument,
-            KeywordArgument::Costed(KeywordCost::Symbols(Cost::SymbolList(symbols)))
-                if symbols == "{2}{W}"
+            KeywordArgument::Costed(KeywordCost::Symbols(symbols))
+                if symbols.iter().map(OracleSymbol::as_str).collect::<String>() == "{2}{W}"
         ));
         assert_eq!(render(&report), "Morph {2}{W}");
     }
@@ -3137,8 +3215,8 @@ mod tests {
         // Costed, symbol-sequence surface.
         assert!(matches!(
             shape_argument("Ward {2}"),
-            KeywordArgument::Costed(KeywordCost::Symbols(Cost::SymbolList(ref cost)))
-                if cost == "{2}"
+            KeywordArgument::Costed(KeywordCost::Symbols(ref symbols))
+                if symbols.iter().map(OracleSymbol::as_str).collect::<String>() == "{2}"
         ));
         // CountedCost.
         assert!(matches!(
@@ -3397,9 +3475,8 @@ mod tests {
             .expect("first mode carries a heading");
         assert_eq!(heading.label.text(), "Cross-Slash");
         assert!(matches!(
-            &heading.cost,
-            Cost::Components(components)
-                if matches!(components.as_slice(), [Phrase::OracleSymbol(_)])
+            heading.cost.components.as_slice(),
+            [CostComponent::Symbols(symbols)] if symbols.len() == 1
         ));
         assert!(second.heading.is_some());
         assert_eq!(render(&report), source);

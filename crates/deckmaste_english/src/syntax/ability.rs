@@ -3,6 +3,7 @@ use super::clause::IndependentClause;
 use super::clause::Predicate;
 use super::phrase::NounPhrase;
 use super::phrase::NumberLiteral;
+use super::phrase::OracleSymbol;
 use super::phrase::Phrase;
 use super::phrase::PowerToughness;
 use super::phrase::Preposition;
@@ -101,16 +102,42 @@ pub struct ActivatedAbility {
     pub effect_initial_uppercase: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Cost {
-    Components(Vec<Phrase>),
-    SymbolList(String),
+/// An activation cost: the comma-separated list of components paid before the
+/// colon. Every cost is a list of typed [`CostComponent`]s; the earlier raw
+/// `SymbolList(String)` and untyped `Components(Vec<Phrase>)` shapes are gone.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Cost {
+    pub components: Vec<CostComponent>,
 }
 
-impl Default for Cost {
-    fn default() -> Self {
-        Self::Components(Vec::new())
-    }
+/// One component of an activation cost's comma-separated list. A closed sum
+/// over the cost-component *shapes* the supported corpus attests, never over a
+/// cost's meaning: a mana/symbol run, a cost expressed as an independent
+/// clause, a bare noun phrase, or a verbatim recovery when no shape parses.
+/// Which shape a component takes is decided by its surface alone — the clause's
+/// verb is open, the shape is not, so this crate records no per-action semantic
+/// facts. An escape variant ([`Recovered`](CostComponent::Recovered)) keeps the
+/// type from over-closing, mirroring [`KeywordArgument::Recovered`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CostComponent {
+    /// A mana or symbol run paid as a cost — `{2}{R}`, `{T}`, `{Q}`, `{E}{E}`.
+    /// One or more oracle symbols; a single symbol is a one-element run,
+    /// reproduced by concatenation exactly as [`Phrase::SymbolSequence`] is.
+    Symbols(Vec<OracleSymbol>),
+    /// A cost expressed as an independent clause: an imperative (`Sacrifice a
+    /// creature`, `Pay 3 life`, `Discard a card`, `Remove N counters`, `Tap`),
+    /// a coordinated pair (`Exile a creature card from your graveyard and
+    /// pay its mana cost`), or a transitive sentence. Boxed so the
+    /// component stays small.
+    Clause(Box<IndependentClause>),
+    /// A bare noun-phrase cost — the comma-split continuation of a preceding
+    /// clause's object list (`Sacrifice a red creature, a green creature, and a
+    /// white creature` splits each trailing conjunct into its own component).
+    Noun(Box<NounPhrase>),
+    /// No cost shape parsed these tokens; they recover verbatim at the
+    /// activation-cost role — the term-level echo of "misparameterization has
+    /// no term."
+    Recovered(RecoveredText),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -270,20 +297,26 @@ pub enum KeywordArgument {
     /// surfaces). The shape's exemplar rules give the argument as `[cost]`
     /// [CR#702.21a,702.29a].
     Costed(KeywordCost),
-    /// A count and a cost joined by an unspaced em dash. The shape's exemplar
-    /// rule gives the argument as `N—[cost]` [CR#702.62a].
-    CountedCost { count: NumberLiteral, cost: Cost },
+    /// A count and a symbol cost joined by an unspaced em dash. The shape's
+    /// exemplar rule gives the argument as `N—[cost]` [CR#702.62a].
+    CountedCost {
+        count: NumberLiteral,
+        symbols: Vec<OracleSymbol>,
+    },
     /// A quality filter introduced by a preposition, coordinated where the
     /// surface repeats it. The shape's exemplar rules give the argument as
     /// `from [quality]` and `for [text]` [CR#702.16a,702.11d,702.41a], the
     /// coordinated form as `from [A] and from [B]` [CR#702.16g,702.11f].
     Predicated(PredicatedArgument),
-    /// A cost paired with power/toughness by a spaced em dash. The shape's
-    /// exemplar rules give the argument as `[cost] — [P]/[T]`
+    /// A symbol cost paired with power/toughness by a spaced em dash. The
+    /// shape's exemplar rules give the argument as `[cost] — [P]/[T]`
     /// [CR#702.160a,718.1]. A shape added beyond the CR's six observed
     /// keyword-parameter shapes for the one argument surface that needs it
     /// (see the round's report).
-    Statted { cost: Cost, stats: PowerToughness },
+    Statted {
+        symbols: Vec<OracleSymbol>,
+        stats: PowerToughness,
+    },
     /// A verbatim pairing label after an em dash. The shape's exemplar rule
     /// gives the argument as `[text]` [CR#702.124i]; the label is carried
     /// opaquely, like a card name.
@@ -303,8 +336,10 @@ pub enum KeywordArgument {
 /// The two surfaces a [`KeywordArgument::Costed`] cost takes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeywordCost {
-    /// A mana/symbol cost written after a space — `ward {2}`, `equip {3}`.
-    Symbols(Cost),
+    /// A mana/symbol cost written after a space — `ward {2}`, `equip {3}`. The
+    /// run is carried as its structured oracle symbols, reproduced by
+    /// concatenation.
+    Symbols(Vec<OracleSymbol>),
     /// A non-mana cost written as an em-dash sentence — `cumulative upkeep—Put
     /// a -1/-1 counter on this creature.` The dash spacing is carried
     /// structurally so rendering never inspects the surface.
