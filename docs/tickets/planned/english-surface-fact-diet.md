@@ -20,8 +20,10 @@ from the English AST.** Successor to the 2026-07-23 structure diet
   witness, and raw-typo fidelity is a non-goal: the gate compares in the
   normalized canonical-template domain.)
 - Comma records: the `comma: bool` fields on `ClauseCoordination`,
-  `PredicateObjectCoordination`, `ClauseAttachment`, and
-  `DependentAttachment`. Determine per field whether the comma is derivable
+  `PredicateObjectCoordination`, `ClauseAttachment`,
+  `DependentAttachment`, and `ExceptionConjunct` (added 2026-07-23 by
+  the copy-exception round; its Oxford lists make the arity-derivation
+  question concrete). Determine per field whether the comma is derivable
   from list arity and attachment position; delete where the corpus proves
   the derivation exact, keep (documented) only where two supported faces
   genuinely differ on the bit alone.
