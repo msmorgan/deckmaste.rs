@@ -452,6 +452,12 @@ pub enum SentenceBody {
     /// and an optional leading trigger clause are all carried and rendered as
     /// an exact inverse. Only produced inside a modal header.
     Choice(ChoiceInstruction),
+    /// A verbless power/toughness sentence: the whole sentence is a single
+    /// `[P]/[T]` value (`3/2.`). It surfaces as a tiered mode's body, where the
+    /// mode's effect is the base power and toughness it sets; the value carries
+    /// the same statistic the copular and object positions already model, and
+    /// the renderer reproduces it with a derived terminal period.
+    PowerToughness(PowerToughness),
     Recovered(RecoveredText),
 }
 

@@ -22,11 +22,15 @@ use crate::surface::lex;
 use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::ActivatedAbility;
+use crate::syntax::AttachmentPosition;
 use crate::syntax::ChapterAbility;
 use crate::syntax::ChoiceInstruction;
 use crate::syntax::ChoiceTrigger;
 use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
+use crate::syntax::ClauseAttachment;
+use crate::syntax::ClauseAttachmentKind;
+use crate::syntax::ComplexClause;
 use crate::syntax::Cost;
 use crate::syntax::CostComponent;
 use crate::syntax::DependentClause;
@@ -53,6 +57,7 @@ use crate::syntax::OracleText;
 use crate::syntax::Paragraph;
 use crate::syntax::Phrase;
 use crate::syntax::Predicate;
+use crate::syntax::PredicateConjunction;
 use crate::syntax::PredicatedArgument;
 use crate::syntax::PredicatedQuality;
 use crate::syntax::Preposition;
@@ -871,6 +876,15 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             sentence.initial_uppercase = initial_uppercase;
             return sentence;
         }
+        if let Some(sentence) = self.parse_dash_appositive(tokens, initial_uppercase) {
+            return sentence;
+        }
+        if let Some(body) = self.parse_power_toughness_body(tokens) {
+            return Sentence {
+                initial_uppercase,
+                body,
+            };
+        }
 
         self.diagnostics.push(AbilityDiagnostic {
             kind: AbilityDiagnosticKind::NoCompleteParse,
@@ -888,6 +902,119 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 tokens.len(),
             )),
         }
+    }
+
+    /// Parses a trailing dash-body appositive sentence: a complete clause
+    /// matrix, a spaced ` — `, then a top-level `or`-coordinated run of
+    /// independent clauses that spell out the choice the matrix tail named
+    /// (`… faces a villainous choice — <clause>, or <clause>`). Both licensing
+    /// conditions are structural, never lexical: the matrix must reduce to a
+    /// complete independent clause, and the dash body must reduce to an
+    /// `or`-coordinated independent clause. A flavor header (`<label> —
+    /// <sentence>`) fails the first test — a bare label is not a clause — and a
+    /// single-clause dash body fails the second, so neither fires this. Built
+    /// directly rather than through the chart because the spaced em dash is not
+    /// a chart terminal; the construction only composes two existing clause
+    /// parses under a [`ComplexClause`] appositive attachment.
+    fn parse_dash_appositive(
+        &mut self,
+        tokens: &[Token],
+        initial_uppercase: bool,
+    ) -> Option<Sentence> {
+        let dash = self.spaced_top_level_em_dash(tokens)?;
+        let matrix_tokens = &tokens[..dash];
+        let body_tokens = tokens.get(dash + 1..)?;
+        if matrix_tokens.is_empty() || body_tokens.is_empty() {
+            return None;
+        }
+        // The matrix is a complete independent clause; there is no terminal
+        // period on this side of the dash, so it parses as a bare clause.
+        let matrix = self.parse_exact(matrix_tokens, Nonterminal::Clause)?;
+        let Clause::Independent(matrix) = matrix.clause()?.clone() else {
+            return None;
+        };
+        // The dash body is parsed as a whole sentence so its terminal period is
+        // consumed like any other; it must reduce to an `or`-coordinated
+        // independent clause for the appositive to license.
+        let body = self.parse_exact(body_tokens, Nonterminal::Sentence)?;
+        let SentenceBody::Independent(body) = &body.sentence()?.body else {
+            return None;
+        };
+        if !Self::coordinates_with_or(body) {
+            return None;
+        }
+        let body = body.clone();
+        Some(Sentence {
+            initial_uppercase,
+            body: SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+                matrix: Box::new(matrix),
+                attachments: vec![ClauseAttachment {
+                    position: AttachmentPosition::AfterMatrix,
+                    comma: false,
+                    kind: ClauseAttachmentKind::Appositive(Box::new(body)),
+                }],
+            })),
+        })
+    }
+
+    /// Position of the first top-level spaced em dash (` — `), or `None`. The
+    /// dash must be spaced exactly ` {dash} ` (excluding unspaced ranges) and
+    /// at the top nesting level (outside quotes and brackets), mirroring
+    /// the flavor-header and cost-header peels.
+    fn spaced_top_level_em_dash(&self, tokens: &[Token]) -> Option<usize> {
+        let mut depth = Nesting::default();
+        for (index, token) in tokens.iter().enumerate() {
+            if depth.is_top_level()
+                && token.kind == TokenKind::Punctuation(Punctuation::EmDash)
+                && index > 0
+                && index + 1 < tokens.len()
+            {
+                let dash = self.token_text(token);
+                let before_end = tokens[index - 1].span.end;
+                let after_start = tokens[index + 1].span.start;
+                if self.source.get(before_end..after_start) == Some(&format!(" {dash} ")) {
+                    return Some(index);
+                }
+            }
+            depth.observe(token.kind);
+        }
+        None
+    }
+
+    /// Parses a verbless power/toughness sentence body (`3/2.`): a single
+    /// power/toughness token terminated by a period. It surfaces as a tiered
+    /// mode's whole body, where the mode's effect is the base power and
+    /// toughness it sets. The terminal period is required — a bare `N/N` with
+    /// no period is a level-band stat line that stays verbatim, not a P/T
+    /// sentence — and the renderer re-derives the period like any other
+    /// sentence. Nothing else stands in the sentence, so no clause frame ever
+    /// competes; this is reached only after the chart declines the bare value.
+    fn parse_power_toughness_body(&self, tokens: &[Token]) -> Option<SentenceBody> {
+        let body = peel_sentence_ending(tokens);
+        if body.len() == tokens.len() {
+            // No terminal period was present: not a P/T sentence.
+            return None;
+        }
+        let [stat] = body else {
+            return None;
+        };
+        if stat.kind != TokenKind::PowerToughness {
+            return None;
+        }
+        let value = super::parse_power_toughness(self.token_text(stat))?;
+        Some(SentenceBody::PowerToughness(value))
+    }
+
+    /// Whether an independent clause is a top-level coordination carrying at
+    /// least one `or` conjunction — the dash-body appositive's licensing gate.
+    fn coordinates_with_or(clause: &IndependentClause) -> bool {
+        let IndependentClause::Coordinated(coordinated) = clause else {
+            return false;
+        };
+        coordinated
+            .rest
+            .iter()
+            .any(|coordination| coordination.conjunction == Some(PredicateConjunction::Or))
     }
 
     /// Parses a modal ability's header like [`Self::parse_paragraph`], but each

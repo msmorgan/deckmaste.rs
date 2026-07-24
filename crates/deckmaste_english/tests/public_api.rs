@@ -548,3 +548,129 @@ fn top_of_library_peek_and_play_are_supported() {
     assert_eq!(rendered, play);
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
 }
+
+// --- R31: the choice / mode-header cluster ----------------------------------
+
+/// The card-type atom the choice-cluster witnesses name.
+fn choice_catalogs() -> Catalogs {
+    Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"])
+}
+
+#[test]
+fn trailing_dash_body_licenses_an_or_coordinated_appositive() {
+    // The Master, Gallifrey's End shape: a complete clause whose tail names a
+    // choice, then a spaced ` — ` and an `or`-coordinated pair of full clauses
+    // spelling the options. Both sides parse as clauses; the dash body attaches
+    // as a `ComplexClause` appositive. Licensed on shape, never on any word.
+    let source = "That player faces a villainous choice — They lose 4 life, or you create a token.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("kind:Appositive("),
+        "expected a trailing dash-body appositive\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn dash_appositive_attaches_under_a_coordinated_predicate_matrix() {
+    // This Is How It Ends shape: the matrix is itself a `then`-coordinated
+    // predicate, and the appositive trails the whole clause.
+    let source = "Target creature's owner shuffles it into their library, then faces a villainous \
+                  choice — They lose 5 life, or they draw a card.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "This Is How It Ends", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(compact(&ast).contains("kind:Appositive("), "AST:\n{ast}");
+}
+
+#[test]
+fn flavor_header_dash_is_not_read_as_an_appositive() {
+    // Over-fire gate: a flavor header (`<label> — <sentence>`, the label not a
+    // clause and the body a single sentence) stays a flavor header. The
+    // appositive requires a clause matrix and an `or`-coordinated body, so a
+    // non-clause label never fires it.
+    let source = "Zorbo Rampage! — Draw a card.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(
+        compact(&ast).contains("flavor_header:Some("),
+        "expected a flavor header\nAST:\n{ast}"
+    );
+    assert!(
+        !compact(&ast).contains("Appositive("),
+        "a flavor header must not become an appositive\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn single_clause_dash_body_does_not_license_an_appositive() {
+    // Over-fire gate: the dash body must be `or`-coordinated. A clause matrix
+    // followed by a single clause after the dash fails that test, so no
+    // appositive fires — the sentence stays a verbatim recovered span.
+    let source = "That player faces a villainous choice — They lose 4 life.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(
+        !compact(&ast).contains("Appositive("),
+        "a single-clause dash body must not become an appositive\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn bare_power_toughness_sentence_is_a_verbless_body() {
+    // Vincent's Limit Break tiered-mode body: `3/2.` is a whole sentence whose
+    // content is the base power and toughness the mode sets. The period marks a
+    // sentence; the value reuses the statistic the object and copular positions
+    // already model, and the renderer re-derives the period.
+    let source = "3/2.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("body:PowerToughness(PowerToughness{"),
+        "expected a verbless power/toughness body\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn bare_power_toughness_without_a_period_stays_verbatim() {
+    // Over-fire gate: a bare `N/N` with no terminal period is a level-band stat
+    // line, not a sentence. It must stay a recovered span (rendered verbatim),
+    // never a P/T body that would gain a spurious period.
+    let source = "2/3";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(
+        !compact(&ast).contains("body:PowerToughness("),
+        "a periodless `N/N` must not become a P/T sentence body\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn those_characteristics_anaphor_parses_as_a_plural_nominal() {
+    // Genku, Future Shaper / Outlaws' Merriment modal header: `... token with
+    // those characteristics`. The blocker was a plural-form lemma; the singular
+    // `characteristic` lemma lets the regular plural satisfy the `those`
+    // demonstrative's required plural nominal.
+    let source = "Create a creature token with those characteristics.";
+    let (rendered, ast) = parse_face(source, &choice_catalogs(), "Genku, Future Shaper", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("head:Plural(Word(Regular(\"characteristic\""),
+        "expected the singular `characteristic` lemma pluralized under `those`\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn descended_intervening_condition_parses_as_a_verb_clause() {
+    // Molten Collapse modal header: `If you descended this turn, you may choose
+    // both instead.` The bare `both` object and trailing `instead` already
+    // parse; the sole blocker was the verb `descend`, now a regular-vocabulary
+    // verb whose ordinary past tense heads the `if` condition.
+    let source = "If you descended this turn, you may choose both instead.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Molten Collapse", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+}

@@ -198,6 +198,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
             match &sentence.body {
                 SentenceBody::Independent(clause) => self.independent_clause(clause, context),
                 SentenceBody::Choice(choice) => self.choice_instruction(choice, context),
+                SentenceBody::PowerToughness(_) => {}
                 SentenceBody::Recovered(unknown) => {
                     self.push(unknown, RecoveryRole::Clause, context);
                 }
@@ -285,6 +286,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                             for conjunct in &rider.rest {
                                 self.independent_clause(&conjunct.clause, context);
                             }
+                        }
+                        ClauseAttachmentKind::Appositive(clause) => {
+                            self.independent_clause(clause, context);
                         }
                     }
                 }

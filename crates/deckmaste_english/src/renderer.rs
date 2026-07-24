@@ -582,6 +582,14 @@ impl<'identity> Renderer<'identity> {
         let (body, capitalize) = match &sentence.body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
             SentenceBody::Choice(choice) => (self.choice_instruction(choice)?, capitalize),
+            SentenceBody::PowerToughness(value) => (
+                format!(
+                    "{}/{}",
+                    render_signed_scalar(value.power),
+                    render_signed_scalar(value.toughness),
+                ),
+                false,
+            ),
             SentenceBody::Recovered(recovery) => (recovery.spelling().to_owned(), false),
         };
         let mut rendered = if capitalize { capitalize_first(body) } else { body };
@@ -623,7 +631,7 @@ impl<'identity> Renderer<'identity> {
     /// never an inspection of the rendered string's trailing character.
     fn sentence_takes_period(&self, sentence: &Sentence) -> bool {
         let clause = match &sentence.body {
-            SentenceBody::Choice(_) => return true,
+            SentenceBody::Choice(_) | SentenceBody::PowerToughness(_) => return true,
             SentenceBody::Recovered(_) => return false,
             SentenceBody::Independent(clause) => clause,
         };
@@ -772,6 +780,17 @@ impl<'identity> Renderer<'identity> {
             ClauseAttachmentKind::Dependent(clause) => self.dependent_clause(clause),
             ClauseAttachmentKind::Adjunct(adjunct) => self.predicate_adjunct(adjunct),
             ClauseAttachmentKind::Exception(rider) => self.exception_rider(rider),
+            ClauseAttachmentKind::Appositive(clause) => {
+                // The spaced ` — ` is fixed for this attachment: the enclosing
+                // clause loop contributes the leading space, and this arm emits
+                // the em dash and the coordinated option run after it. The
+                // option run opens a fresh capitalized clause after the dash,
+                // exactly as an ability word's em-dash body does.
+                Ok(format!(
+                    "\u{2014} {}",
+                    capitalize_first(self.independent_clause(clause)?)
+                ))
+            }
         }
     }
 
@@ -1808,6 +1827,9 @@ fn complex_ends_with_closed_quote(clause: &ComplexClause) -> bool {
                 Some(conjunct) => independent_clause_ends_with_closed_quote(&conjunct.clause),
                 None => independent_clause_ends_with_closed_quote(&rider.first),
             },
+            ClauseAttachmentKind::Appositive(clause) => {
+                independent_clause_ends_with_closed_quote(clause)
+            }
         },
         None => independent_clause_ends_with_closed_quote(&clause.matrix),
     }

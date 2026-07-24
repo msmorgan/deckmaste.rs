@@ -165,7 +165,7 @@ chant	noun_count
 chaos	noun_count
 chapter	noun_count
 character	noun_count
-characteristics	noun_count
+characteristic	noun_count
 charge	noun_count
 charge	verb
 cheer	noun_count
@@ -284,6 +284,7 @@ deliverance	noun_count
 denial	noun_count
 depletion	noun_count
 depth	noun_count
+descend	verb
 descent	noun_count
 despair	noun_count
 determine	verb
@@ -1178,6 +1179,7 @@ vengeance	noun_count
 venom	noun_count
 venture	noun_count
 venture	verb
+villainous	adjective
 visions	noun_count
 visit	verb
 vitality	noun_count

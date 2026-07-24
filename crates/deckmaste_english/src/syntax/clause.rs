@@ -322,6 +322,16 @@ pub enum ClauseAttachmentKind {
     /// [CR#707.9]; each is an ordinary finite independent clause parsed by the
     /// existing clause productions.
     Exception(ExceptionRider),
+    /// A trailing appositive elaboration introduced by a spaced em dash: the
+    /// dash body of a clause whose tail names a choice and then spells its
+    /// coordinated options (`… faces a villainous choice — <clause>, or
+    /// <clause>`). Licensed purely on shape — a complete clause matrix, a
+    /// spaced ` — `, then a top-level `or`-coordinated run of independent
+    /// clauses — never on any word in the matrix. The body is always an
+    /// [`IndependentClause::Coordinated`] whose members are the options; the
+    /// renderer reproduces the ` — ` separator, so the attachment's own `comma`
+    /// flag is unused.
+    Appositive(Box<IndependentClause>),
 }
 
 /// A coordinated list of exception clauses trailing a host clause under a
