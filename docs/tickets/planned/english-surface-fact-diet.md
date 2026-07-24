@@ -34,6 +34,11 @@ from the English AST.** Successor to the 2026-07-23 structure diet
   positions contract; passive `it is` and sentence-initial existential
   `There is` do not). Negation contraction needs no storage at all
   (`cannot` / `does not` / `is not`: zero supported occurrences).
+- `QuotedAbility.terminal_period` (added 2026-07-23 by the
+  quoted-coordination round): whether the interior's period sits inside
+  the quote. Hypothesis: derivable from position — the quote closes its
+  host sentence ⟺ the period is interior. If the corpus proves the
+  derivation exact, delete the field and derive at render.
 - `IndefiniteArticle` (a/an): candidate-derivable from the following word's
   initial sound; the renderer already carries initial-sound logic from the
   `non-` polarity work. Witness test: any same-sound minimal pair.
