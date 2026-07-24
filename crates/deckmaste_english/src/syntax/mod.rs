@@ -120,21 +120,41 @@ impl<'syntax> RecoveryWalker<'syntax> {
             }
             AbilityKind::Keyword(list) => {
                 for keyword in &list.abilities {
-                    if let Some(argument) = &keyword.argument {
-                        // A keyword argument's recovery is normally its own
-                        // role, but inside a quoted or embedded ability the
-                        // inherited context (`embedded rules`) wins: an interior
-                        // failure of a quoted ability stays attributed to the
-                        // quoted text, never leaking into the outer census.
-                        self.phrase(
-                            argument,
-                            RecoveryRole::KeywordArgument,
-                            context.or(Some(RecoveryRole::KeywordArgument)),
-                        );
-                    }
+                    self.keyword_argument(&keyword.argument, context);
                 }
             }
             AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph, context),
+        }
+    }
+
+    fn keyword_argument(
+        &mut self,
+        argument: &'syntax KeywordArgument,
+        context: Option<RecoveryRole>,
+    ) {
+        // A keyword argument's recovery is normally its own role, but inside a
+        // quoted or embedded ability the inherited context wins: an interior
+        // failure stays attributed to that text, never leaking into the outer
+        // census.
+        let inner = context.or(Some(RecoveryRole::KeywordArgument));
+        match argument {
+            KeywordArgument::Costed(KeywordCost::Sentence { ability, .. }) => {
+                self.ability(ability, inner);
+            }
+            KeywordArgument::Predicated(predicated) => {
+                for quality in &predicated.qualities {
+                    self.phrase(&quality.quality, RecoveryRole::KeywordArgument, inner);
+                }
+            }
+            KeywordArgument::Recovered { text, .. } => {
+                self.push(text, RecoveryRole::KeywordArgument, inner);
+            }
+            KeywordArgument::Absent
+            | KeywordArgument::Counted(_)
+            | KeywordArgument::Costed(KeywordCost::Symbols(_))
+            | KeywordArgument::CountedCost { .. }
+            | KeywordArgument::Statted { .. }
+            | KeywordArgument::Named { .. } => {}
         }
     }
 
@@ -720,8 +740,10 @@ mod tests {
                         abilities: vec![KeywordAbility {
                             preceding_separator: None,
                             ability: flying,
-                            argument_separator: Some(KeywordArgumentSeparator::Space),
-                            argument: Some(Phrase::Recovered(recovered("argument"))),
+                            argument: KeywordArgument::Recovered {
+                                separator: KeywordArgumentSeparator::Space,
+                                text: recovered("argument"),
+                            },
                         }],
                     }),
                 },

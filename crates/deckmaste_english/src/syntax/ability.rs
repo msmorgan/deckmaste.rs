@@ -2,7 +2,11 @@ use super::clause::DependentClause;
 use super::clause::IndependentClause;
 use super::clause::Predicate;
 use super::phrase::NounPhrase;
+use super::phrase::NumberLiteral;
 use super::phrase::Phrase;
+use super::phrase::PowerToughness;
+use super::phrase::Preposition;
+use super::phrase::Quantity;
 use super::phrase::RecoveredText;
 use crate::catalog::CatalogAtom;
 
@@ -231,12 +235,101 @@ pub struct KeywordAbilityList {
     pub abilities: Vec<KeywordAbility>,
 }
 
+/// A keyword ability: its open-set name (the catalog atom) and the argument the
+/// surface attaches to it. The keyword *name* is an open set (new sets keep
+/// minting keywords); what is closed is the argument-shape vocabulary
+/// [`KeywordArgument`]. This crate is a surface grammar and records no
+/// per-keyword semantic facts: which shape a keyword may take is decided by the
+/// argument tokens' surface form alone — any keyword may carry any argument
+/// that parses as one of the closed shapes, and an argument that parses as none
+/// of them becomes [`KeywordArgument::Recovered`]. Whether a given
+/// keyword+shape pairing is legal Magic is the engine's concern, not the
+/// grammar's.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeywordAbility {
     pub preceding_separator: Option<KeywordListSeparator>,
     pub ability: CatalogAtom,
-    pub argument_separator: Option<KeywordArgumentSeparator>,
-    pub argument: Option<Phrase>,
+    pub argument: KeywordArgument,
+}
+
+/// A keyword ability's argument, a closed sum over the parameter *shapes* the
+/// Comprehensive Rules give keywords — never over the keywords themselves. Each
+/// variant is recognized purely from the argument's surface and carries exactly
+/// that shape's payload; surface variants (a symbol cost versus an em-dash
+/// sentence cost, a single quality versus a coordinated one) live inside a
+/// shape's payload, never as sibling shapes. The per-shape citations name the
+/// exemplar CR rules for the shape, not facts about any keyword.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeywordArgument {
+    /// No argument — flying, first strike, deathtouch.
+    Absent,
+    /// A count. The shape's exemplar rules give the numeric argument as `N`
+    /// [CR#702.86a,702.164a].
+    Counted(Quantity),
+    /// A cost, symbol-sequence or em-dash sentence (the [`KeywordCost`]
+    /// surfaces). The shape's exemplar rules give the argument as `[cost]`
+    /// [CR#702.21a,702.29a].
+    Costed(KeywordCost),
+    /// A count and a cost joined by an unspaced em dash. The shape's exemplar
+    /// rule gives the argument as `N—[cost]` [CR#702.62a].
+    CountedCost { count: NumberLiteral, cost: Cost },
+    /// A quality filter introduced by a preposition, coordinated where the
+    /// surface repeats it. The shape's exemplar rules give the argument as
+    /// `from [quality]` and `for [text]` [CR#702.16a,702.11d,702.41a], the
+    /// coordinated form as `from [A] and from [B]` [CR#702.16g,702.11f].
+    Predicated(PredicatedArgument),
+    /// A cost paired with power/toughness by a spaced em dash. The shape's
+    /// exemplar rules give the argument as `[cost] — [P]/[T]`
+    /// [CR#702.160a,718.1]. A shape added beyond the CR's six observed
+    /// keyword-parameter shapes for the one argument surface that needs it
+    /// (see the round's report).
+    Statted { cost: Cost, stats: PowerToughness },
+    /// A verbatim pairing label after an em dash. The shape's exemplar rule
+    /// gives the argument as `[text]` [CR#702.124i]; the label is carried
+    /// opaquely, like a card name.
+    Named {
+        separator: KeywordArgumentSeparator,
+        label: String,
+    },
+    /// No closed shape parsed the argument tokens; they recover verbatim at the
+    /// keyword-argument role — the term-level echo of the model's
+    /// "misparameterization has no term."
+    Recovered {
+        separator: KeywordArgumentSeparator,
+        text: RecoveredText,
+    },
+}
+
+/// The two surfaces a [`KeywordArgument::Costed`] cost takes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeywordCost {
+    /// A mana/symbol cost written after a space — `ward {2}`, `equip {3}`.
+    Symbols(Cost),
+    /// A non-mana cost written as an em-dash sentence — `cumulative upkeep—Put
+    /// a -1/-1 counter on this creature.` The dash spacing is carried
+    /// structurally so rendering never inspects the surface.
+    Sentence {
+        separator: KeywordArgumentSeparator,
+        ability: Box<Ability>,
+    },
+}
+
+/// A [`KeywordArgument::Predicated`] quality filter: one quality, or several
+/// coordinated qualities that the surface joins with ` and ` and the CR treats
+/// as separate abilities [CR#702.16g,702.11f].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PredicatedArgument {
+    pub qualities: Vec<PredicatedQuality>,
+}
+
+/// One quality of a [`PredicatedArgument`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PredicatedQuality {
+    /// The preposition introducing this quality on the surface (`from` for
+    /// protection/hexproof, `for` for affinity), or `None` when the keyword
+    /// atom itself carries it (`Hexproof from`).
+    pub preposition: Option<Preposition>,
+    pub quality: Phrase,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

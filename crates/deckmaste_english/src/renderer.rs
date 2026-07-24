@@ -36,7 +36,9 @@ use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveClause;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::KeywordAbilityList;
+use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
+use crate::syntax::KeywordCost;
 use crate::syntax::KeywordListSeparator;
 use crate::syntax::LoyaltyCost;
 use crate::syntax::LoyaltyCostSign;
@@ -392,16 +394,67 @@ impl<'identity> Renderer<'identity> {
                 });
             }
             rendered.push_str(item.ability.spelling());
-            if let Some(argument) = &item.argument {
-                rendered.push_str(match item.argument_separator {
-                    Some(KeywordArgumentSeparator::Space) | None => " ",
-                    Some(KeywordArgumentSeparator::EmDash) => "—",
-                    Some(KeywordArgumentSeparator::SpacedEmDash) => " — ",
-                });
-                rendered.push_str(&self.phrase(argument)?);
-            }
+            rendered.push_str(&self.keyword_argument(&item.argument)?);
         }
         Ok(rendered)
+    }
+
+    /// Renders a keyword argument, including the leading separator that joins
+    /// it to the keyword. Each shape reproduces its own surface; the
+    /// joining and internal dashes are carried structurally, never inferred
+    /// from spelling.
+    fn keyword_argument(&self, argument: &KeywordArgument) -> Result<String, RenderError> {
+        Ok(match argument {
+            KeywordArgument::Absent => String::new(),
+            KeywordArgument::Counted(quantity) => format!(" {}", render_quantity(*quantity)),
+            KeywordArgument::Costed(KeywordCost::Symbols(cost)) => {
+                format!(" {}", self.cost(cost)?)
+            }
+            KeywordArgument::Costed(KeywordCost::Sentence { separator, ability }) => {
+                format!(
+                    "{}{}",
+                    keyword_argument_separator(*separator),
+                    self.nested_ability(ability, true)?
+                )
+            }
+            KeywordArgument::CountedCost { count, cost } => {
+                format!(
+                    " {}—{}",
+                    count.numeral.format(count.value),
+                    self.cost(cost)?
+                )
+            }
+            KeywordArgument::Predicated(predicated) => {
+                let mut rendered = String::from(" ");
+                for (index, quality) in predicated.qualities.iter().enumerate() {
+                    if index > 0 {
+                        rendered.push_str(" and ");
+                    }
+                    if let Some(preposition) = quality.preposition {
+                        rendered.push_str(render_preposition(preposition));
+                        rendered.push(' ');
+                    }
+                    rendered.push_str(&self.phrase(&quality.quality)?);
+                }
+                rendered
+            }
+            KeywordArgument::Statted { cost, stats } => format!(
+                " {} — {}/{}",
+                self.cost(cost)?,
+                render_signed_scalar(stats.power),
+                render_signed_scalar(stats.toughness)
+            ),
+            KeywordArgument::Named { separator, label } => {
+                format!("{}{label}", keyword_argument_separator(*separator))
+            }
+            KeywordArgument::Recovered { separator, text } => {
+                format!(
+                    "{}{}",
+                    keyword_argument_separator(*separator),
+                    text.spelling()
+                )
+            }
+        })
     }
 
     fn cost(&self, cost: &Cost) -> Result<String, RenderError> {
@@ -1746,6 +1799,14 @@ fn render_predicate_conjunction(conjunction: PredicateConjunction) -> &'static s
     }
 }
 
+fn keyword_argument_separator(separator: KeywordArgumentSeparator) -> &'static str {
+    match separator {
+        KeywordArgumentSeparator::Space => " ",
+        KeywordArgumentSeparator::EmDash => "—",
+        KeywordArgumentSeparator::SpacedEmDash => " — ",
+    }
+}
+
 fn render_preposition(preposition: Preposition) -> &'static str {
     match preposition {
         Preposition::After => "after",
@@ -1909,14 +1970,12 @@ mod tests {
                         KeywordAbility {
                             preceding_separator: None,
                             ability: keyword_atom(&catalogs, "flying"),
-                            argument_separator: None,
-                            argument: None,
+                            argument: KeywordArgument::Absent,
                         },
                         KeywordAbility {
                             preceding_separator: Some(KeywordListSeparator::Comma),
                             ability: keyword_atom(&catalogs, "deathtouch"),
-                            argument_separator: None,
-                            argument: None,
+                            argument: KeywordArgument::Absent,
                         },
                     ],
                 }),

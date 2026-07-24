@@ -31,7 +31,9 @@ use crate::syntax::FlavorHeader;
 use crate::syntax::IndependentClause;
 use crate::syntax::KeywordAbility;
 use crate::syntax::KeywordAbilityList;
+use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
+use crate::syntax::KeywordCost;
 use crate::syntax::KeywordListSeparator;
 use crate::syntax::LoyaltyAbility;
 use crate::syntax::LoyaltyCost;
@@ -48,6 +50,8 @@ use crate::syntax::OracleText;
 use crate::syntax::Paragraph;
 use crate::syntax::Phrase;
 use crate::syntax::Predicate;
+use crate::syntax::PredicatedArgument;
+use crate::syntax::PredicatedQuality;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::QuotedAbility;
@@ -1042,7 +1046,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return None;
         }
         let chunks = split_keyword_items(tokens);
-        let has_list_separator = chunks.len() > 1;
+        let in_list = chunks.len() > 1;
         let mut abilities = Vec::with_capacity(chunks.len());
         for (preceding_separator, chunk) in chunks {
             let first = chunk.first()?;
@@ -1062,82 +1066,218 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 .max_by_key(|(length, _, _)| *length)
                 .map(|(_, atom, end)| (atom, end))?;
             let argument_tokens = &chunk[matched_end..];
-            // A lone sentence-terminal (a granted keyword ability's own closing
-            // period, e.g. inside `"Cascade, cascade."`) is never a keyword
-            // argument. Reject it even inside a comma list, so the ability falls
-            // through to the paragraph path and keeps its terminal, rather than
-            // rendering a spurious space before the period.
-            if !argument_tokens.is_empty()
-                && (matches!(argument_tokens, [token] if is_sentence_terminal(token.kind))
-                    || (!has_list_separator
-                        && !keyword_argument_is_plausible(&atom, argument_tokens, self.source)))
-            {
-                return None;
-            }
-            let (argument_separator, argument) = if argument_tokens.is_empty() {
-                (None, None)
-            } else if argument_tokens[0].kind == TokenKind::Punctuation(Punctuation::EmDash) {
-                let ability_end = chunk.get(matched_end.checked_sub(1)?)?.span.end;
-                let separator = if ability_end < argument_tokens[0].span.start
-                    || argument_tokens
-                        .get(1)
-                        .is_some_and(|next| argument_tokens[0].span.end < next.span.start)
-                {
-                    KeywordArgumentSeparator::SpacedEmDash
-                } else {
-                    KeywordArgumentSeparator::EmDash
-                };
-                let embedded = self.parse_ability(&argument_tokens[1..]);
-                (
-                    Some(separator),
-                    Some(Phrase::EmbeddedAbility(Box::new(embedded))),
-                )
-            } else {
-                (
-                    Some(KeywordArgumentSeparator::Space),
-                    Some(self.parse_keyword_argument(argument_tokens)),
-                )
-            };
+            let ability_end = chunk.get(matched_end.checked_sub(1)?)?.span.end;
+            let argument = self.parse_keyword_argument(argument_tokens, ability_end, in_list)?;
             abilities.push(KeywordAbility {
                 preceding_separator,
                 ability: atom,
-                argument_separator,
                 argument,
             });
         }
         (!abilities.is_empty()).then_some(KeywordAbilityList { abilities })
     }
 
-    fn parse_keyword_argument(&mut self, tokens: &[Token]) -> Phrase {
-        let text = self.tokens_text(tokens);
-        if text.starts_with('{') && text.len() > 2 && text.ends_with('}') {
-            return Phrase::Cost(Cost::SymbolList(text.to_owned()));
+    /// Parses a keyword ability's argument from the tokens trailing its atom,
+    /// consulting only the closed shape vocabulary [`KeywordArgument`] and
+    /// nothing about the keyword. Returns `None` to reject the whole
+    /// keyword line — a single line whose trailing tokens are neither
+    /// empty, a recognized shape, nor a symbol-class run (which a keyword
+    /// argument always is) is ordinary rules text and must reparse as such.
+    /// `ability_end` is the byte offset just past the keyword atom, read
+    /// only for the leading separator's dash spacing.
+    fn parse_keyword_argument(
+        &mut self,
+        argument_tokens: &[Token],
+        ability_end: usize,
+        in_list: bool,
+    ) -> Option<KeywordArgument> {
+        if argument_tokens.is_empty() {
+            return Some(KeywordArgument::Absent);
         }
-        if tokens.len() == 2
-            && self.token_text(&tokens[0]).eq_ignore_ascii_case("from")
-            && let Some(color) = color_word(self.token_text(&tokens[1]))
-        {
-            return Phrase::PrepositionalPhrase(Box::new(PrepositionalPhrase {
-                preposition: Preposition::From,
-                object: Box::new(Phrase::ColorWord(color)),
+        // A lone sentence-terminal (a granted keyword ability's own closing
+        // period, e.g. inside `"Cascade, cascade."`) is never an argument. Reject
+        // it even inside a comma list, so the ability keeps its terminal on the
+        // paragraph path rather than rendering a spurious space before the period.
+        if matches!(argument_tokens, [token] if is_sentence_terminal(token.kind)) {
+            return None;
+        }
+        let (separator, body) = split_keyword_argument_separator(argument_tokens, ability_end);
+        if let Some(argument) = self.parse_shaped_argument(separator, body, in_list) {
+            return Some(argument);
+        }
+        // No closed shape matched. On a single keyword line, keep the argument
+        // only when it opens the way a keyword argument does — a symbol-class run
+        // or a `from`/`for` quality filter — even though the grammar cannot yet
+        // structure it; otherwise the line is ordinary rules text. A
+        // comma/semicolon list has already committed to keyword items, so a
+        // recovered argument stays attached there regardless.
+        if !in_list && !opens_like_keyword_argument(body, self.source) {
+            return None;
+        }
+        Some(self.recovered_keyword_argument(separator, body))
+    }
+
+    /// Attempts each closed argument shape against the surface of `body`, the
+    /// argument tokens after the leading `separator`. Returns `None` when no
+    /// shape matches (the caller decides whether to recover or reject).
+    fn parse_shaped_argument(
+        &mut self,
+        separator: KeywordArgumentSeparator,
+        body: &[Token],
+        in_list: bool,
+    ) -> Option<KeywordArgument> {
+        if separator != KeywordArgumentSeparator::Space {
+            if body.is_empty() {
+                return None;
+            }
+            // An em-dash argument is either an em-dash sentence cost — an embedded
+            // ability, `cumulative upkeep—Sacrifice a creature` — or a bare pairing
+            // label, `partner—Friends forever`. Surface alone tells them apart: a
+            // sentence carries sentence-terminal or clause punctuation; a label
+            // carries none.
+            if keyword_label_is_bare(self.tokens_text(body)) {
+                return Some(KeywordArgument::Named {
+                    separator,
+                    label: self.tokens_text(body).to_owned(),
+                });
+            }
+            let ability = self.parse_ability(body);
+            return Some(KeywordArgument::Costed(KeywordCost::Sentence {
+                separator,
+                ability: Box::new(ability),
             }));
         }
-        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::PrepositionalPhrase)
-            && let Some(preposition) = parsed.prepositional_phrase()
+        self.parse_space_argument(body, in_list)
+    }
+
+    fn parse_space_argument(&mut self, body: &[Token], in_list: bool) -> Option<KeywordArgument> {
+        // An internal em dash pairs a count with a cost (`suspend N—[cost]`) or a
+        // cost with power/toughness (`prototype [cost] — [P]/[T]`).
+        if let Some(dash) = body
+            .iter()
+            .position(|token| token.kind == TokenKind::Punctuation(Punctuation::EmDash))
         {
-            return Phrase::PrepositionalPhrase(Box::new(preposition.clone()));
+            let left = &body[..dash];
+            let right = body.get(dash + 1..)?;
+            return self
+                .parse_counted_cost(left, right)
+                .or_else(|| self.parse_statted(left, right));
         }
-        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Quantity)
-            && let Some(quantity) = parsed.quantity()
+        if let Some(counted) = self.parse_counted(body) {
+            return Some(counted);
+        }
+        if let Some(cost) = symbol_cost(self.tokens_text(body)) {
+            return Some(KeywordArgument::Costed(KeywordCost::Symbols(cost)));
+        }
+        self.parse_predicated(body, in_list)
+    }
+
+    fn parse_counted(&mut self, body: &[Token]) -> Option<KeywordArgument> {
+        let parsed = self.parse_exact(body, Nonterminal::Quantity)?;
+        Some(KeywordArgument::Counted(*parsed.quantity()?))
+    }
+
+    fn parse_counted_cost(&self, left: &[Token], right: &[Token]) -> Option<KeywordArgument> {
+        let [count] = left else {
+            return None;
+        };
+        if count.kind != TokenKind::Integer {
+            return None;
+        }
+        let count = arabic_number_literal(self.token_text(count))?;
+        let cost = symbol_cost(self.tokens_text(right))?;
+        Some(KeywordArgument::CountedCost { count, cost })
+    }
+
+    fn parse_statted(&self, left: &[Token], right: &[Token]) -> Option<KeywordArgument> {
+        let cost = symbol_cost(self.tokens_text(left))?;
+        let [stats] = right else {
+            return None;
+        };
+        if stats.kind != TokenKind::PowerToughness {
+            return None;
+        }
+        let stats = super::parse_power_toughness(self.token_text(stats))?;
+        Some(KeywordArgument::Statted { cost, stats })
+    }
+
+    fn parse_predicated(&mut self, body: &[Token], in_list: bool) -> Option<KeywordArgument> {
+        // A `from`/`for` argument is the coordinable quality filter and reads on
+        // its own line (`protection from red`, `affinity for artifacts`); any
+        // other prepositional or bare quality (`hexproof from blue`, where the
+        // keyword atom carries the `from`; a `Champion of Freedom` name fragment a
+        // comma split off) reads only inside a keyword list, where the split has
+        // already committed to keyword items.
+        let starts_from_for = body
+            .first()
+            .is_some_and(|token| predicated_preposition(self.token_text(token)).is_some());
+        let segments = if starts_from_for {
+            split_coordinated_predicates(body, self.source)
+        } else if in_list {
+            vec![body]
+        } else {
+            return None;
+        };
+        let mut qualities = Vec::with_capacity(segments.len());
+        for segment in segments {
+            qualities.push(self.parse_predicated_quality(segment)?);
+        }
+        (!qualities.is_empty()).then_some(KeywordArgument::Predicated(PredicatedArgument {
+            qualities,
+        }))
+    }
+
+    fn parse_predicated_quality(&mut self, segment: &[Token]) -> Option<PredicatedQuality> {
+        // The `from [color]` shorthand does not reach the noun-phrase grammar; read
+        // the color directly, as the single-quality path always has.
+        if let Some(first) = segment.first()
+            && predicated_preposition(self.token_text(first)) == Some(Preposition::From)
+            && let [color_token] = &segment[1..]
+            && let Some(color) = color_word(self.token_text(color_token))
         {
-            return Phrase::Quantity(*quantity);
+            return Some(PredicatedQuality {
+                preposition: Some(Preposition::From),
+                quality: Phrase::ColorWord(color),
+            });
         }
-        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::NounPhrase)
-            && let Some(noun_phrase) = parsed.noun_phrase()
+        // Any prepositional phrase, carrying its actual preposition.
+        if let Some(parsed) = self.parse_exact(segment, Nonterminal::PrepositionalPhrase)
+            && let Some(prepositional) = parsed.prepositional_phrase()
         {
-            return Phrase::NounPhrase(Box::new(noun_phrase.clone()));
+            return Some(PredicatedQuality {
+                preposition: Some(prepositional.preposition),
+                quality: (*prepositional.object).clone(),
+            });
         }
-        self.recovered_phrase(tokens)
+        // A bare quality with no preposition (`hexproof from blue` → `blue`).
+        if let [token] = segment
+            && let Some(color) = color_word(self.token_text(token))
+        {
+            return Some(PredicatedQuality {
+                preposition: None,
+                quality: Phrase::ColorWord(color),
+            });
+        }
+        let parsed = self.parse_exact(segment, Nonterminal::NounPhrase)?;
+        Some(PredicatedQuality {
+            preposition: None,
+            quality: Phrase::NounPhrase(Box::new(parsed.noun_phrase()?.clone())),
+        })
+    }
+
+    fn recovered_keyword_argument(
+        &mut self,
+        separator: KeywordArgumentSeparator,
+        body: &[Token],
+    ) -> KeywordArgument {
+        self.diagnostics.push(AbilityDiagnostic {
+            kind: AbilityDiagnosticKind::NoCompleteParse,
+            span: tokens_span(body),
+        });
+        KeywordArgument::Recovered {
+            separator,
+            text: RecoveredText::new(self.tokens_text(body), body.len()),
+        }
     }
 
     fn parse_exact(
@@ -1407,29 +1547,98 @@ fn is_sentence_terminal(kind: TokenKind) -> bool {
     )
 }
 
-fn keyword_argument_is_plausible(
-    ability: &crate::catalog::CatalogAtom,
-    argument: &[Token],
-    source: &str,
-) -> bool {
-    if argument.first().is_some_and(|token| {
-        matches!(
-            token.kind,
-            TokenKind::Integer
-                | TokenKind::OracleSymbol
-                | TokenKind::SymbolSequence
-                | TokenKind::PowerToughness
-                | TokenKind::Punctuation(Punctuation::EmDash)
-        )
-    }) {
-        return true;
+/// Splits the leading keyword→argument separator from an argument's tokens. A
+/// leading em dash is the separator (spaced when whitespace surrounds it) and
+/// is consumed; otherwise the separator is an implicit space and the whole run
+/// is the body. `ability_end` is the byte offset just past the keyword atom.
+fn split_keyword_argument_separator(
+    argument_tokens: &[Token],
+    ability_end: usize,
+) -> (KeywordArgumentSeparator, &[Token]) {
+    let Some(first) = argument_tokens.first() else {
+        return (KeywordArgumentSeparator::Space, argument_tokens);
+    };
+    if first.kind != TokenKind::Punctuation(Punctuation::EmDash) {
+        return (KeywordArgumentSeparator::Space, argument_tokens);
     }
-    let Some(first) = argument.first().and_then(|token| token.span.text(source)) else {
+    let spaced = ability_end < first.span.start
+        || argument_tokens
+            .get(1)
+            .is_some_and(|next| first.span.end < next.span.start);
+    let separator = if spaced {
+        KeywordArgumentSeparator::SpacedEmDash
+    } else {
+        KeywordArgumentSeparator::EmDash
+    };
+    (separator, &argument_tokens[1..])
+}
+
+/// Whether an argument opens the way a keyword argument does — with a
+/// symbol-class token (an integer, an oracle symbol, a symbol sequence, or a
+/// power/toughness) or with a `from`/`for` quality-filter preposition. Such a
+/// run stays attached to the keyword and recovers, even when the grammar cannot
+/// yet structure it, rather than falling to the paragraph path. Both marks are
+/// surface facts about the argument, never about the keyword.
+fn opens_like_keyword_argument(tokens: &[Token], source: &str) -> bool {
+    let Some(first) = tokens.first() else {
         return false;
     };
-    (ability.canonical().eq_ignore_ascii_case("protection") && first.eq_ignore_ascii_case("from"))
-        || (ability.canonical().eq_ignore_ascii_case("affinity")
-            && first.eq_ignore_ascii_case("for"))
+    matches!(
+        first.kind,
+        TokenKind::Integer
+            | TokenKind::OracleSymbol
+            | TokenKind::SymbolSequence
+            | TokenKind::PowerToughness
+    ) || predicated_preposition(first.span.text(source).unwrap_or_default()).is_some()
+}
+
+/// Whether an em-dash argument is a bare pairing label (`Friends forever`)
+/// rather than a sentence cost. A label carries none of the punctuation a
+/// rules sentence does; the distinction is drawn from the surface alone, never
+/// from the keyword.
+fn keyword_label_is_bare(text: &str) -> bool {
+    !text.is_empty() && !text.contains(['.', '!', '?', ':'])
+}
+
+/// The `from`/`for` preposition that opens a predicated quality filter, or
+/// `None` for any other leading word.
+fn predicated_preposition(surface: &str) -> Option<Preposition> {
+    if surface.eq_ignore_ascii_case("from") {
+        Some(Preposition::From)
+    } else if surface.eq_ignore_ascii_case("for") {
+        Some(Preposition::For)
+    } else {
+        None
+    }
+}
+
+/// A symbol-sequence cost — a run wrapped in braces (`{2}`, `{X}`,
+/// `{5}{G}{G}`).
+fn symbol_cost(text: &str) -> Option<Cost> {
+    (text.starts_with('{') && text.len() > 2 && text.ends_with('}'))
+        .then(|| Cost::SymbolList(text.to_owned()))
+}
+
+/// Splits a coordinated predicated argument (`from red and from white`) at each
+/// top-level `and` that a repeated preposition follows [CR#702.16g,702.11f]. An
+/// `and` inside a single quality (`activated and triggered abilities`) is not a
+/// split point because no preposition follows it.
+fn split_coordinated_predicates<'a>(tokens: &'a [Token], source: &str) -> Vec<&'a [Token]> {
+    let text_of = |token: &Token| token.span.text(source).unwrap_or_default();
+    let mut segments = Vec::new();
+    let mut start = 0;
+    for index in 0..tokens.len() {
+        let is_and = text_of(&tokens[index]).eq_ignore_ascii_case("and");
+        let next_is_preposition = tokens
+            .get(index + 1)
+            .is_some_and(|next| predicated_preposition(text_of(next)).is_some());
+        if index > start && is_and && next_is_preposition {
+            segments.push(&tokens[start..index]);
+            start = index + 1;
+        }
+    }
+    segments.push(&tokens[start..]);
+    segments
 }
 
 fn color_word(surface: &str) -> Option<ColorWord> {
@@ -1979,7 +2188,7 @@ mod tests {
         };
         assert!(matches!(
             keywords.abilities[0].argument,
-            Some(Phrase::EmbeddedAbility(_))
+            KeywordArgument::Costed(KeywordCost::Sentence { .. })
         ));
     }
 
@@ -1991,7 +2200,8 @@ mod tests {
         };
         assert!(matches!(
             &keywords.abilities[0].argument,
-            Some(Phrase::Cost(Cost::SymbolList(symbols))) if symbols == "{2}{W}"
+            KeywordArgument::Costed(KeywordCost::Symbols(Cost::SymbolList(symbols)))
+                if symbols == "{2}{W}"
         ));
         assert_eq!(render(&report), "Morph {2}{W}");
     }
@@ -2094,11 +2304,11 @@ mod tests {
             list.abilities.as_slice(),
             [KeywordAbility {
                 ability,
-                argument: Some(argument),
+                argument: KeywordArgument::Predicated(predicated),
                 ..
             }] if ability.canonical() == "Affinity"
-                && matches!(argument, Phrase::PrepositionalPhrase(preposition)
-                    if preposition.preposition == Preposition::For)
+                && matches!(predicated.qualities.as_slice(), [quality]
+                    if quality.preposition == Some(Preposition::For))
         ));
         assert_eq!(
             report.ast.render("Test Card", false).unwrap(),
@@ -2866,6 +3076,174 @@ mod tests {
             .ast
             .render(FIXTURE_NAME, true)
             .expect("AST should render")
+    }
+
+    /// A catalog exercising every keyword-argument shape. The keyword names are
+    /// arbitrary here — the grammar consults no per-keyword facts, so any name
+    /// paired with any parsing surface exercises the same shape.
+    fn shape_catalogs() -> Catalogs {
+        Catalogs::default()
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                [
+                    "Flying",
+                    "First strike",
+                    "Reach",
+                    "Trample",
+                    "Fabricate",
+                    "Ward",
+                    "Suspend",
+                    "Prototype",
+                    "Partner",
+                    "Protection",
+                    "Hexproof from",
+                    "Affinity",
+                    "Rampage",
+                ],
+            )
+            .with_catalog(CatalogKind::CardType, ["Creature", "Artifact"])
+    }
+
+    fn shape_argument(source: &str) -> KeywordArgument {
+        let report = parse_with_catalogs(source, &shape_catalogs());
+        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a keyword ability for {source:?}: {:#?}",
+                report.ast
+            );
+        };
+        assert_eq!(
+            list.abilities.len(),
+            1,
+            "expected one keyword for {source:?}"
+        );
+        assert_eq!(
+            report.ast.render("Test Card", false).unwrap(),
+            source,
+            "shape argument must round-trip"
+        );
+        list.abilities[0].argument.clone()
+    }
+
+    #[test]
+    fn keyword_argument_shapes_parse_and_round_trip() {
+        // No argument.
+        assert!(matches!(shape_argument("Flying"), KeywordArgument::Absent));
+        // Counted.
+        assert!(matches!(
+            shape_argument("Fabricate 2"),
+            KeywordArgument::Counted(_)
+        ));
+        // Costed, symbol-sequence surface.
+        assert!(matches!(
+            shape_argument("Ward {2}"),
+            KeywordArgument::Costed(KeywordCost::Symbols(Cost::SymbolList(ref cost)))
+                if cost == "{2}"
+        ));
+        // CountedCost.
+        assert!(matches!(
+            shape_argument("Suspend 4—{1}{U}"),
+            KeywordArgument::CountedCost { .. }
+        ));
+        // Predicated, single quality carrying its actual preposition.
+        assert!(matches!(
+            shape_argument("Protection from red"),
+            KeywordArgument::Predicated(ref predicated)
+                if matches!(predicated.qualities.as_slice(), [quality]
+                    if quality.preposition == Some(Preposition::From))
+        ));
+        // Predicated, coordinated.
+        assert!(matches!(
+            shape_argument("Protection from red and from white"),
+            KeywordArgument::Predicated(ref predicated) if predicated.qualities.len() == 2
+        ));
+        // Statted (the deliberate seventh shape).
+        assert!(matches!(
+            shape_argument("Prototype {2}{G}{G} — 3/3"),
+            KeywordArgument::Statted { .. }
+        ));
+        // Named — an em-dash pairing label, told from a sentence cost by surface.
+        assert!(matches!(
+            shape_argument("Partner—Friends forever"),
+            KeywordArgument::Named { ref label, .. } if label == "Friends forever"
+        ));
+    }
+
+    #[test]
+    fn costed_sentence_surface_carries_an_embedded_ability() {
+        // An em-dash cost whose body is a sentence, not a bare label.
+        assert!(matches!(
+            shape_argument("Ward—Sacrifice a creature."),
+            KeywordArgument::Costed(KeywordCost::Sentence { .. })
+        ));
+    }
+
+    #[test]
+    fn bare_quality_is_a_predicated_argument_only_inside_a_list() {
+        // Inside a list a bare quality (the atom carries the preposition) parses.
+        let report = parse_with_catalogs("Reach, hexproof from blue", &shape_catalogs());
+        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+            panic!("expected a keyword ability: {:#?}", report.ast);
+        };
+        assert!(matches!(
+            &list.abilities[1].argument,
+            KeywordArgument::Predicated(predicated)
+                if matches!(predicated.qualities.as_slice(), [quality]
+                    if quality.preposition.is_none())
+        ));
+        assert_eq!(
+            report.ast.render("Test Card", false).unwrap(),
+            "Reach, hexproof from blue"
+        );
+    }
+
+    #[test]
+    fn a_shape_outside_the_vocabulary_recovers_at_the_keyword_argument_role() {
+        // A cost with a trailing sentence is no closed shape; it opens with a
+        // symbol, so it stays a keyword argument and recovers rather than being
+        // forced into Costed.
+        let report =
+            parse_with_catalogs("Ward {3}. This ability costs {1} less.", &shape_catalogs());
+        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+            panic!("expected a keyword ability: {:#?}", report.ast);
+        };
+        assert!(matches!(
+            &list.abilities[0].argument,
+            KeywordArgument::Recovered { .. }
+        ));
+        assert_eq!(
+            report.ast.render("Test Card", false).unwrap(),
+            "Ward {3}. This ability costs {1} less."
+        );
+    }
+
+    #[test]
+    fn a_bare_noun_argument_is_not_admitted_as_a_keyword_line() {
+        // Without a preposition or symbol, `Protection creature` is ordinary rules
+        // text, not a keyword ability with a quality argument.
+        let report = parse_with_catalogs("Protection creature", &shape_catalogs());
+        assert!(
+            !matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_)),
+            "a bare noun argument must not become a keyword line: {:#?}",
+            report.ast
+        );
+    }
+
+    #[test]
+    fn comma_and_semicolon_keyword_lists_round_trip() {
+        for source in [
+            "Flying, first strike, protection from red",
+            "Flying, protection from red and from white",
+            "Trample; rampage 1",
+        ] {
+            let report = parse_with_catalogs(source, &shape_catalogs());
+            assert!(
+                matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_)),
+                "expected a keyword list for {source:?}: {:#?}",
+                report.ast
+            );
+            assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
+        }
     }
 
     fn sentence_independent(sentence: &Sentence) -> &IndependentClause {
