@@ -1,6 +1,7 @@
 use super::ability::Ability;
 use super::ability::QuotedAbility;
 use super::phrase::AdjectivePhrase;
+use super::phrase::CoordinatedAdjectivePhrase;
 use super::phrase::NounPhrase;
 use super::phrase::NumberLiteral;
 use super::phrase::OracleSymbol;
@@ -128,6 +129,12 @@ pub struct Copula {
 pub enum CopularComplement {
     NounPhrase(NounPhrase),
     Adjective(AdjectivePhrase),
+    /// A coordinated run of predicative adjective phrases (`it's legendary and
+    /// snow`, `that's red or green`, `that are green and/or white`). It reuses
+    /// the landed coordination idiom over adjective phrases; the copula and
+    /// relative-copular positions both consume it through the same
+    /// [`CoordinatedAdjectivePhrase`] shape.
+    CoordinatedAdjective(CoordinatedAdjectivePhrase),
     Prepositional(PrepositionalPhrase),
     /// A power/toughness statistic predicated of the subject (`it's 7/7`). The
     /// value is the same `N/N` token that heads a stat-setting object, carried
@@ -188,6 +195,12 @@ pub struct AbilityObject {
 pub enum PredicateComplement {
     IndirectObject(NounPhrase),
     Adjective(AdjectivePhrase),
+    /// A coordinated run of predicative adjective phrases in an intransitive
+    /// `be` complement (`that are green and white`, `that are green and/or
+    /// white`). Shares the [`CoordinatedAdjectivePhrase`] shape with the
+    /// copular complement so relative and matrix predications coordinate
+    /// identically.
+    CoordinatedAdjective(CoordinatedAdjectivePhrase),
     Prepositional(PrepositionalPhrase),
     Infinitive(InfinitiveClause),
 }

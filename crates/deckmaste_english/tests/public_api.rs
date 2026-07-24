@@ -258,3 +258,96 @@ fn name_exception_on_a_becomes_copy_carries_a_self_reference() {
         "AST:\n{ast}"
     );
 }
+
+// --- Family C: predicative-adjective coordination ---------------------------
+
+/// Catalogs naming the card types and supertypes the Family C witnesses use;
+/// colors are built-in adjectives and need no catalog entry.
+fn predicative_catalogs() -> Catalogs {
+    Catalogs::default()
+        .with_catalog(
+            CatalogKind::CardType,
+            ["Creature", "Permanent", "Planeswalker"],
+        )
+        .with_catalog(CatalogKind::Supertype, ["Legendary", "Snow"])
+}
+
+#[test]
+fn contracted_relative_copular_coordinates_color_adjectives() {
+    // Fry / Aether Gust shape: `that's <color> or <color>` on a coordinated
+    // relative antecedent.
+    let source = "Fry deals 5 damage to target creature or planeswalker that's white or blue.";
+    let (rendered, ast) = parse_face(source, &predicative_catalogs(), "Fry", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("CoordinatedAdjective("), "AST:\n{ast}");
+}
+
+#[test]
+fn matrix_copular_coordinates_supertype_adjectives() {
+    // Moritte shape: `it's legendary and snow …`. Supertypes scan as both
+    // adjective and noun, so this also exercises the all-adjective gate keeping
+    // the adjective reading.
+    let source = "It's legendary and snow in addition to its other types.";
+    let (rendered, ast) = parse_face(source, &predicative_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("CoordinatedAdjective("), "AST:\n{ast}");
+}
+
+#[test]
+fn noncontracted_relative_copular_coordinates_with_and_or() {
+    // Glistening Deluge shape: `that are <color> and/or <color>` on the
+    // intransitive-`be` verb-phrase path, admitting the `and/or` connective.
+    let source = "Creatures that are green and/or white get -2/-2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &predicative_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("CoordinatedAdjective("), "AST:\n{ast}");
+}
+
+#[test]
+fn coordinated_noun_object_after_a_verb_is_not_a_predicative_adjective() {
+    // The gate: a bare coordinated *noun* pair after a verb keeps its ordinary
+    // coordinated-noun-object parse and never reduces as a coordinated adjective
+    // complement.
+    let source = "Exile target creature or planeswalker.";
+    let (rendered, ast) = parse_face(source, &predicative_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(!ast.contains("CoordinatedAdjective("), "AST:\n{ast}");
+}
+
+// --- Family A: base power and toughness -------------------------------------
+
+fn characteristic_catalogs() -> Catalogs {
+    Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"])
+}
+
+#[test]
+fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
+    // Candlekeep Inspiration shape: `have base power and toughness X/X, where X
+    // is …`. The `power and toughness` pair rides the existing noun-phrase
+    // coordination under the shared `base` modifier; the `X/X` value is a
+    // power/toughness complement on the final characteristic.
+    let source = "Creatures you control have base power and toughness X/X, where X is the \
+                  number of cards in your graveyard.";
+    let (rendered, ast) = parse_face(source, &characteristic_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        ast.contains("Coordinated(") && ast.contains("PowerToughness("),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn base_power_or_toughness_quantity_bound_rides_the_existing_quantity_complement() {
+    // Angelic Aberration stretch shape: the `or` pair with a `1 or less`
+    // quantity bound reuses the existing quantity complement — no new machinery.
+    let source = "Creatures you control have base power or toughness 1 or less.";
+    let (rendered, ast) = parse_face(source, &characteristic_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("Coordinated("), "AST:\n{ast}");
+}

@@ -135,6 +135,9 @@ enum VerbDependent {
     Frequency(FrequencyPhrase),
     Particle(VerbParticle),
     CoordinatedObject(crate::syntax::CoordinatedPredicateObject),
+    /// A coordinated predicative-adjective complement (`are green and white`),
+    /// finished into a [`PredicateComplement::CoordinatedAdjective`].
+    CoordinatedAdjective(crate::syntax::CoordinatedAdjectivePhrase),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -537,8 +540,17 @@ pub(crate) enum Features {
     /// of the whole phrase (`an artifact, creature, and land card`, `a
     /// white and blue creature`); a leading `non-` conjunct fixes it to a
     /// consonant.
+    ///
+    /// `all_adjectives` is `true` only when every conjunct is a plain positive
+    /// attributive adjective (a color, a supertype, a vocabulary adjective) —
+    /// never a noun or a `non-` negation. The predicative-adjective consumer
+    /// (Family C's `VerbPhraseCoordinatedAdjective`) gates on it so a bare
+    /// coordinated *noun* pair after a verb (`Enchant creature or Vehicle`)
+    /// never reduces as a predicative adjective complement, keeping the
+    /// ordinary coordinated-noun-object parse.
     CoordinatedModifier {
         initial_sound: InitialSound,
+        all_adjectives: bool,
     },
 }
 
@@ -1045,6 +1057,27 @@ enum RuleTag {
     NounPhraseListComma,
     /// The final Oxford member closing a noun-phrase head list (`…, or land`).
     NounPhraseCoordinationOxford,
+    // --- Coordination-consumer rules (appended after `add_coordination_rules`)
+    // ---
+    /// A coordinated predicative-adjective complement on an intransitive-`be`
+    /// verb phrase (`are green and white`, `are green and/or white`). Consumes
+    /// the closed [`Nonterminal::CoordinatedModifier`] in the
+    /// adjective-complement slot; covers the non-contracted relative (`that
+    /// are …`) and matrix copulars.
+    VerbPhraseCoordinatedAdjective,
+    /// A coordinated predicative-adjective copular complement (`it's legendary
+    /// and snow`). Consumes the closed coordinated modifier as a copular
+    /// remainder.
+    CopularRemainderCoordinatedAdjective,
+    /// A contracted relative copular with a coordinated adjective complement
+    /// (`that's red or green`, `that's white or blue`).
+    RelativeContractedCopularCoordinatedAdjective,
+    /// A power/toughness value complement on a characteristic nominal (`base
+    /// power and toughness *X/X*`). The `N/N` token sets the base
+    /// characteristic; it rides the final coordinated characteristic of a
+    /// `power and toughness` pair. Mirrors
+    /// [`Self::NominalQuantityComplement`] for the P/T token.
+    NominalPowerToughnessComplement,
 }
 
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
@@ -1090,6 +1123,11 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // rules keep their `RuleId`s and existing forests keep their alternative
         // indices, even under the opacity profiles.
         builder.add_coordination_rules();
+        // Coordination *consumers* — new attachment points that read the landed
+        // coordination nonterminals — are appended after every coordination rule
+        // so they take the highest `RuleId`s in the grammar; the equal-cost
+        // tiebreak then leaves every already-clean parse untouched.
+        builder.add_coordination_consumer_rules();
         Self {
             source,
             catalogs,
@@ -3220,6 +3258,61 @@ impl RuleBuilder {
             },
         );
     }
+
+    /// Attachment points that *consume* the landed coordination nonterminals at
+    /// positions other than the nominal head. Appended after
+    /// [`Self::add_coordination_rules`] so every rule here takes a higher
+    /// `RuleId` than the coordination machinery it reads.
+    ///
+    /// * **Predicative-adjective coordination** (Family C) — a closed
+    ///   [`Nonterminal::CoordinatedModifier`] filling a copular or
+    ///   intransitive-`be` adjective complement (`it's legendary and snow`,
+    ///   `that's red or green`, `that are green and/or white`). The three rules
+    ///   below cover the matrix copular remainder, the contracted relative
+    ///   copular, and the non-contracted intransitive-`be` verb phrase;
+    ///   lowering converts the modifier list into a
+    ///   [`CoordinatedAdjectivePhrase`](crate::syntax::CoordinatedAdjectivePhrase),
+    ///   rejecting any non-adjective conjunct so the attributive-only shapes
+    ///   stay out of predicative position.
+    fn add_coordination_consumer_rules(&mut self) {
+        use EnglishLexicalSlot as L;
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        // Family C: predicative-adjective coordination.
+        self.add(
+            RuleTag::VerbPhraseCoordinatedAdjective,
+            N::VerbPhrase,
+            [n(N::VerbPhrase), n(N::CoordinatedModifier)],
+        );
+        self.add(
+            RuleTag::CopularRemainderCoordinatedAdjective,
+            N::CopularRemainder,
+            [n(N::CoordinatedModifier)],
+        );
+        self.add(
+            RuleTag::RelativeContractedCopularCoordinatedAdjective,
+            N::RelativeClause,
+            [l(L::SubjectAuxiliary), n(N::CoordinatedModifier)],
+        );
+
+        // Family A: a power/toughness value complement on a characteristic
+        // nominal (`base power and toughness X/X`). Mirrors the quantity
+        // complement (`base power 2`) for the `N/N` token; the shared `base`
+        // modifier and coordinated `power and toughness` heads ride the existing
+        // nominal-modifier and noun-phrase coordination, with the value recorded
+        // on the final characteristic.
+        self.add_with_cost(
+            RuleTag::NominalPowerToughnessComplement,
+            N::Nominal,
+            [n(N::Nominal), l(L::PowerToughness)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
+    }
 }
 
 fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Features, MeaningKey>> {
@@ -3574,6 +3667,7 @@ fn reduce(
         | RuleTag::NominalPrepositional
         | RuleTag::NominalInfinitive
         | RuleTag::NominalQuantityComplement
+        | RuleTag::NominalPowerToughnessComplement
         | RuleTag::NominalRelative
         | RuleTag::NominalPostpositiveAdjective
         | RuleTag::NominalComparison
@@ -3674,6 +3768,9 @@ fn reduce(
         | RuleTag::ExceptionRiderComma
         | RuleTag::ExceptionRiderOxford
         | RuleTag::VerbPhraseCausative
+        | RuleTag::VerbPhraseCoordinatedAdjective
+        | RuleTag::CopularRemainderCoordinatedAdjective
+        | RuleTag::RelativeContractedCopularCoordinatedAdjective
         | RuleTag::Sentence => clause::reduce_clause(tag, children)?,
         RuleTag::NounOpaque => opacity::reduce_opacity(tag, children)?,
     };
@@ -4103,6 +4200,35 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 adjunct: *adjunct,
             })
         }
+        RuleTag::NominalPowerToughnessComplement => {
+            let Features::Nominal {
+                form,
+                initial_sound,
+                determined,
+                leading_opacity,
+                attachment,
+                comparison,
+                adjunct,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if matches!(
+                attachment,
+                NominalAttachmentPhase::PostpositiveAdjective | NominalAttachmentPhase::Comparison
+            ) {
+                return None;
+            }
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: *determined,
+                leading_opacity: *leading_opacity,
+                attachment: *attachment,
+                comparison: *comparison,
+                adjunct: *adjunct,
+            })
+        }
         RuleTag::NominalPostpositiveAdjective => {
             let Features::Adjective {
                 card_orientation: false,
@@ -4217,6 +4343,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             };
             Some(Features::CoordinatedModifier {
                 initial_sound: *initial_sound,
+                all_adjectives: true,
             })
         }
         RuleTag::ModifierConjunctNoun => {
@@ -4225,12 +4352,14 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             };
             Some(Features::CoordinatedModifier {
                 initial_sound: *initial_sound,
+                all_adjectives: false,
             })
         }
         RuleTag::ModifierConjunctNegated => {
             // A `non-` conjunct always renders `non…`, a consonant onset.
             Some(Features::CoordinatedModifier {
                 initial_sound: InitialSound::Consonant,
+                all_adjectives: false,
             })
         }
         RuleTag::ModifierListSingle => {
@@ -4241,17 +4370,33 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
         }
         RuleTag::ModifierListComma => {
             // The list keeps its first conjunct's onset regardless of what a
-            // comma continuation appends.
-            let Features::CoordinatedModifier { .. } = children.first()?.features else {
+            // comma continuation appends; `all_adjectives` holds only while every
+            // appended conjunct is itself an adjective.
+            let Features::CoordinatedModifier {
+                initial_sound,
+                all_adjectives,
+            } = children.first()?.features
+            else {
                 return None;
             };
-            let Features::CoordinatedModifier { .. } = children.get(2)?.features else {
+            let Features::CoordinatedModifier {
+                all_adjectives: appended_adjectives,
+                ..
+            } = children.get(2)?.features
+            else {
                 return None;
             };
-            Some(children.first()?.features.clone())
+            Some(Features::CoordinatedModifier {
+                initial_sound: *initial_sound,
+                all_adjectives: *all_adjectives && *appended_adjectives,
+            })
         }
         RuleTag::CoordinatedModifierConjoined | RuleTag::CoordinatedModifierOxford => {
-            let Features::CoordinatedModifier { .. } = children.first()?.features else {
+            let Features::CoordinatedModifier {
+                initial_sound,
+                all_adjectives,
+            } = children.first()?.features
+            else {
                 return None;
             };
             let conjunction_index =
@@ -4264,13 +4409,21 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             if matches!(conjunction, crate::syntax::PredicateConjunction::Then) {
                 return None;
             }
-            let Features::CoordinatedModifier { .. } = children.last()?.features else {
+            let Features::CoordinatedModifier {
+                all_adjectives: closing_adjectives,
+                ..
+            } = children.last()?.features
+            else {
                 return None;
             };
-            Some(children.first()?.features.clone())
+            Some(Features::CoordinatedModifier {
+                initial_sound: *initial_sound,
+                all_adjectives: *all_adjectives && *closing_adjectives,
+            })
         }
         RuleTag::NominalCoordinatedModifier => {
-            let Features::CoordinatedModifier { initial_sound } = children.first()?.features else {
+            let Features::CoordinatedModifier { initial_sound, .. } = children.first()?.features
+            else {
                 return None;
             };
             nominal_with_prefix(
@@ -4970,6 +5123,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalPrepositional
         | RuleTag::NominalInfinitive
         | RuleTag::NominalQuantityComplement
+        | RuleTag::NominalPowerToughnessComplement
         | RuleTag::NominalRelative
         | RuleTag::NominalPostpositiveAdjective
         | RuleTag::NominalComparison
@@ -5070,6 +5224,9 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ExceptionRiderComma
         | RuleTag::ExceptionRiderOxford
         | RuleTag::VerbPhraseCausative
+        | RuleTag::VerbPhraseCoordinatedAdjective
+        | RuleTag::CopularRemainderCoordinatedAdjective
+        | RuleTag::RelativeContractedCopularCoordinatedAdjective
         | RuleTag::Sentence => clause::lower_clause(tag, children),
         RuleTag::NounOpaque => opacity::lower_opacity(tag, children),
     }
@@ -5397,6 +5554,18 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             nominal
                 .complements
                 .push(NominalComplement::Quantity(quantity));
+            Some(Lowered::Nominal(nominal))
+        }
+        RuleTag::NominalPowerToughnessComplement => {
+            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::PowerToughness(power_toughness) = take(children, 1)? else {
+                return None;
+            };
+            nominal
+                .complements
+                .push(NominalComplement::PowerToughness(power_toughness));
             Some(Lowered::Nominal(nominal))
         }
         RuleTag::NominalRelative => {

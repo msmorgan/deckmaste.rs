@@ -15,6 +15,7 @@ use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ComparisonMarker;
 use crate::syntax::ComplexClause;
+use crate::syntax::CoordinatedAdjectivePhrase;
 use crate::syntax::CoordinatedClauseMember;
 use crate::syntax::CoordinatedIndependentClause;
 use crate::syntax::CoordinatedPredicateObject;
@@ -992,6 +993,9 @@ impl<'identity> Renderer<'identity> {
         match complement {
             PredicateComplement::IndirectObject(phrase) => self.noun_phrase(phrase),
             PredicateComplement::Adjective(phrase) => self.adjective_phrase(phrase),
+            PredicateComplement::CoordinatedAdjective(coordinated) => {
+                self.coordinated_adjective_phrase(coordinated)
+            }
             PredicateComplement::Prepositional(phrase) => self.prepositional_phrase(phrase),
             PredicateComplement::Infinitive(clause) => self.infinitive_clause(clause),
         }
@@ -1044,6 +1048,9 @@ impl<'identity> Renderer<'identity> {
         match complement {
             CopularComplement::NounPhrase(phrase) => self.noun_phrase(phrase),
             CopularComplement::Adjective(phrase) => self.adjective_phrase(phrase),
+            CopularComplement::CoordinatedAdjective(coordinated) => {
+                self.coordinated_adjective_phrase(coordinated)
+            }
             CopularComplement::Prepositional(phrase) => self.prepositional_phrase(phrase),
             CopularComplement::PowerToughness(value) => Ok(format!(
                 "{}/{}",
@@ -1301,6 +1308,11 @@ impl<'identity> Renderer<'identity> {
                 NominalComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
                 NominalComplement::Relative(relative) => self.relative_clause(relative)?,
                 NominalComplement::Quantity(quantity) => render_quantity(*quantity),
+                NominalComplement::PowerToughness(value) => format!(
+                    "{}/{}",
+                    render_signed_scalar(value.power),
+                    render_signed_scalar(value.toughness),
+                ),
                 NominalComplement::Devotion(colors) => render_devotion_colors(*colors),
                 NominalComplement::EventClause(clause) => self.independent_clause(clause)?,
             });
@@ -1450,6 +1462,27 @@ impl<'identity> Renderer<'identity> {
             parts.push(self.adjective_complement(complement)?);
         }
         Ok(join_words(parts))
+    }
+
+    /// Renders a coordinated run of predicative adjective phrases, replaying
+    /// the exact comma/connective surface recorded between the conjuncts.
+    fn coordinated_adjective_phrase(
+        &self,
+        coordinated: &CoordinatedAdjectivePhrase,
+    ) -> Result<String, RenderError> {
+        let mut rendered = self.adjective_phrase(&coordinated.first)?;
+        for coordination in &coordinated.rest {
+            if coordination.comma {
+                rendered.push(',');
+            }
+            rendered.push(' ');
+            if let Some(conjunction) = coordination.conjunction {
+                rendered.push_str(render_predicate_conjunction(conjunction));
+                rendered.push(' ');
+            }
+            rendered.push_str(&self.adjective_phrase(&coordination.phrase)?);
+        }
+        Ok(rendered)
     }
 
     fn nominal_modifier_adjective(
@@ -1789,6 +1822,7 @@ fn complement_is_closed_quote(complement: &PredicateComplement) -> bool {
         }
         PredicateComplement::IndirectObject(_)
         | PredicateComplement::Adjective(_)
+        | PredicateComplement::CoordinatedAdjective(_)
         | PredicateComplement::Infinitive(_) => false,
     }
 }

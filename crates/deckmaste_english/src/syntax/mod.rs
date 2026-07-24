@@ -409,6 +409,13 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     PredicateComplement::Adjective(adjective) => {
                         self.adjective_phrase(adjective, RecoveryRole::Clause, context);
                     }
+                    PredicateComplement::CoordinatedAdjective(coordinated) => {
+                        self.coordinated_adjective_phrase(
+                            coordinated,
+                            RecoveryRole::Clause,
+                            context,
+                        );
+                    }
                     PredicateComplement::Prepositional(preposition) => {
                         self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
                     }
@@ -460,6 +467,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
             CopularComplement::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase, context),
             CopularComplement::Adjective(adjective) => {
                 self.adjective_phrase(adjective, RecoveryRole::Clause, context);
+            }
+            CopularComplement::CoordinatedAdjective(coordinated) => {
+                self.coordinated_adjective_phrase(coordinated, RecoveryRole::Clause, context);
             }
             CopularComplement::Prepositional(preposition) => {
                 self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
@@ -533,7 +543,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         NominalComplement::EventClause(clause) => {
                             self.independent_clause(clause, context);
                         }
-                        NominalComplement::Quantity(_) | NominalComplement::Devotion(_) => {}
+                        NominalComplement::Quantity(_)
+                        | NominalComplement::PowerToughness(_)
+                        | NominalComplement::Devotion(_) => {}
                     }
                 }
             }
@@ -602,6 +614,18 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.predicate(&infinitive.predicate, context);
                 }
             }
+        }
+    }
+
+    fn coordinated_adjective_phrase(
+        &mut self,
+        coordinated: &'syntax CoordinatedAdjectivePhrase,
+        role: RecoveryRole,
+        context: Option<RecoveryRole>,
+    ) {
+        self.adjective_phrase(&coordinated.first, role, context);
+        for coordination in &coordinated.rest {
+            self.adjective_phrase(&coordination.phrase, role, context);
         }
     }
 

@@ -575,6 +575,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::VerbPhraseCausative
+        | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo => reduce_predicate(tag, children),
         RuleTag::GerundClauseBase => {
@@ -630,7 +631,11 @@ pub(super) fn reduce_clause(
         | RuleTag::RelativeSubject
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional => reduce_simple_clause(tag, children),
+        | RuleTag::RelativeContractedCopularPrepositional
+        | RuleTag::CopularRemainderCoordinatedAdjective
+        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
+            reduce_simple_clause(tag, children)
+        }
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -664,6 +669,7 @@ pub(super) fn accepts_predicate_prefix(
         RuleTag::VerbPhraseDirectObject
             | RuleTag::VerbPhraseIndirectObject
             | RuleTag::VerbPhraseAdjective
+            | RuleTag::VerbPhraseCoordinatedAdjective
             | RuleTag::VerbPhrasePrepositional
             | RuleTag::VerbPhraseInfinitive
             | RuleTag::VerbPhraseParticle
@@ -717,7 +723,7 @@ pub(super) fn accepts_predicate_prefix(
                 && !*indirect_object
                 && frame.indirect_object().accepts()
         }
-        RuleTag::VerbPhraseAdjective => {
+        RuleTag::VerbPhraseAdjective | RuleTag::VerbPhraseCoordinatedAdjective => {
             frame.licenses_complement(PredicateComplementKind::Adjective)
         }
         RuleTag::VerbPhraseInfinitive => {
@@ -910,6 +916,21 @@ fn reduce_predicate(
                 return None;
             };
             extend_predicate(children.first()?, PredicateAttachment::QuotedObject)
+        }
+        RuleTag::VerbPhraseCoordinatedAdjective => {
+            // Only a coordinated run whose every conjunct is an adjective
+            // predicates as an adjective complement. A bare coordinated *noun*
+            // pair after a verb (`Enchant creature or Vehicle`) keeps its
+            // ordinary coordinated-noun-object parse rather than reducing here
+            // and then failing to lower.
+            let Features::CoordinatedModifier {
+                all_adjectives: true,
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            extend_predicate(children.first()?, PredicateAttachment::AdjectiveComplement)
         }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
@@ -1428,6 +1449,20 @@ fn reduce_simple_clause(
         | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
         | RuleTag::CopularRemainderDistributiveEach => Some(Features::None),
+        RuleTag::CopularRemainderCoordinatedAdjective => {
+            // Only an all-adjective coordinated run predicates as a copular
+            // adjective complement; a coordinated run holding a noun reading
+            // (supertypes such as `snow` scan as both) is rejected here so the
+            // adjective-reading conjuncts are the ones lowering converts.
+            let Features::CoordinatedModifier {
+                all_adjectives: true,
+                ..
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            Some(Features::None)
+        }
         tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
             reduce_copular_clause(tag, children)
         }
@@ -1560,7 +1595,8 @@ fn reduce_simple_clause(
         }
         RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional => {
+        | RuleTag::RelativeContractedCopularPrepositional
+        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             let Features::SubjectAuxiliary {
                 subject: ContractedSubjectKey::Demonstrative(Demonstrative::That),
                 agreement,
@@ -1571,6 +1607,20 @@ fn reduce_simple_clause(
                 return None;
             };
             if auxiliary.auxiliary != Auxiliary::Be {
+                return None;
+            }
+            // The coordinated variant only predicates when every conjunct is an
+            // adjective; a noun-reading coordinated run is rejected so the
+            // adjective-reading conjuncts are the ones lowering keeps.
+            if tag == RuleTag::RelativeContractedCopularCoordinatedAdjective
+                && !matches!(
+                    children.get(1)?.features,
+                    Features::CoordinatedModifier {
+                        all_adjectives: true,
+                        ..
+                    }
+                )
+            {
                 return None;
             }
             Some(Features::RelativeClause {
@@ -1930,6 +1980,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::VerbPhraseCausative
+        | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo => lower_predicate(tag, children),
         RuleTag::GerundClauseBase => {
@@ -1989,7 +2040,11 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::RelativeSubject
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional => lower_simple_clause(tag, children),
+        | RuleTag::RelativeContractedCopularPrepositional
+        | RuleTag::CopularRemainderCoordinatedAdjective
+        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
+            lower_simple_clause(tag, children)
+        }
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -2084,7 +2139,8 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhraseOracleSymbolCoordination
         | RuleTag::VerbPhrasePowerToughness
-        | RuleTag::VerbPhraseQuantity => lower_predicate_dependent(tag, children),
+        | RuleTag::VerbPhraseQuantity
+        | RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate_dependent(tag, children),
         RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
             let negated = tag == RuleTag::InfinitiveNotTo;
             let predicate_index = if negated { 2 } else { 1 };
@@ -2131,6 +2187,12 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 return None;
             };
             VerbDependent::Adverbial(Phrase::AdjectivePhrase(Box::new(adjective)))
+        }
+        RuleTag::VerbPhraseCoordinatedAdjective => {
+            let Lowered::CoordinatedModifier(coordinated) = take(children, 1)? else {
+                return None;
+            };
+            VerbDependent::CoordinatedAdjective(coordinated_modifier_as_adjectives(coordinated)?)
         }
         RuleTag::VerbPhrasePrepositional => {
             let Lowered::PrepositionalPhrase(preposition) = take(children, 1)? else {
@@ -2346,7 +2408,8 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
         | RuleTag::CopularRemainderPowerToughness
         | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
-        | RuleTag::CopularRemainderDistributiveEach) => lower_copular_remainder(tag, children),
+        | RuleTag::CopularRemainderDistributiveEach
+        | RuleTag::CopularRemainderCoordinatedAdjective) => lower_copular_remainder(tag, children),
         tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
             lower_copular_clause(tag, children)
         }
@@ -2461,7 +2524,8 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
         }
         RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional => {
+        | RuleTag::RelativeContractedCopularPrepositional
+        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
                 return None;
             };
@@ -2477,6 +2541,14 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                         return None;
                     };
                     crate::syntax::CopularComplement::Adjective(complement)
+                }
+                RuleTag::RelativeContractedCopularCoordinatedAdjective => {
+                    let Lowered::CoordinatedModifier(coordinated) = take(children, 1)? else {
+                        return None;
+                    };
+                    crate::syntax::CopularComplement::CoordinatedAdjective(
+                        coordinated_modifier_as_adjectives(coordinated)?,
+                    )
                 }
                 RuleTag::RelativeContractedCopularPrepositional => {
                     let Lowered::PrepositionalPhrase(complement) = take(children, 1)? else {
@@ -2528,6 +2600,19 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Adjective(complement),
+                adjuncts: Vec::new(),
+            }
+        }
+        RuleTag::CopularRemainderCoordinatedAdjective => {
+            let Lowered::CoordinatedModifier(coordinated) = take(children, 0)? else {
+                return None;
+            };
+            CopularRemainder {
+                distributive_each: false,
+                precomplement_adverbs: Vec::new(),
+                complement: CopularComplement::CoordinatedAdjective(
+                    coordinated_modifier_as_adjectives(coordinated)?,
+                ),
                 adjuncts: Vec::new(),
             }
         }
@@ -3014,6 +3099,49 @@ fn independent_with_subject(subject: Subject, predicate: Predicate) -> Independe
     clippy::too_many_lines,
     reason = "sentence assembly is intentionally verbose"
 )]
+/// Converts a parsed
+/// [`CoordinatedModifier`](crate::syntax::CoordinatedModifier)
+/// into a predicative
+/// [`CoordinatedAdjectivePhrase`](crate::syntax::CoordinatedAdjectivePhrase),
+/// keeping only positive attributive-adjective conjuncts. Returns `None` when
+/// any conjunct is a noun, a `non-` negated modifier, a quantity, or a
+/// power/toughness — none of those predicate coordinately in a copular
+/// position, so rejecting them keeps the attributive-only shapes out of the
+/// predicative slot.
+fn coordinated_modifier_as_adjectives(
+    modifier: crate::syntax::CoordinatedModifier,
+) -> Option<crate::syntax::CoordinatedAdjectivePhrase> {
+    let first = modifier_as_predicative_adjective(*modifier.first)?;
+    let mut rest = Vec::with_capacity(modifier.rest.len());
+    for coordination in modifier.rest {
+        rest.push(crate::syntax::AdjectivePhraseCoordination {
+            conjunction: coordination.conjunction,
+            comma: coordination.comma,
+            phrase: modifier_as_predicative_adjective(coordination.modifier)?,
+        });
+    }
+    Some(crate::syntax::CoordinatedAdjectivePhrase {
+        first: Box::new(first),
+        rest,
+    })
+}
+
+fn modifier_as_predicative_adjective(
+    modifier: crate::syntax::NominalModifier,
+) -> Option<crate::syntax::AdjectivePhrase> {
+    match modifier {
+        crate::syntax::NominalModifier::Adjective {
+            polarity: crate::syntax::Polarity::Positive,
+            phrase,
+        } => Some(phrase),
+        _ => None,
+    }
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "one arm per verb dependent is intentionally verbose"
+)]
 fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
     let proform = phrase.frame.is_proform();
     let modal = phrase
@@ -3133,6 +3261,11 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
             }
             VerbDependent::CoordinatedObject(coordinated) => {
                 attach_object(&mut object, PredicateObject::Coordinated(coordinated))?;
+            }
+            VerbDependent::CoordinatedAdjective(coordinated) => {
+                target_elements.push(PredicateElement::Complement(
+                    PredicateComplement::CoordinatedAdjective(coordinated),
+                ));
             }
         }
     }

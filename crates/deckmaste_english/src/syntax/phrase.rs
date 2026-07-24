@@ -463,6 +463,35 @@ pub struct AdjectivePhrase {
     pub complements: Vec<AdjectiveComplement>,
 }
 
+/// A coordinated run of predicative adjective phrases filling one copular or
+/// intransitive-`be` complement slot: `green and white` (Glistening Deluge),
+/// `red or green` (Aether Gust), `legendary and snow` (Moritte of the Frost),
+/// `green and/or white` (Glistening Deluge). It reuses the landed coordination
+/// idiom — a first conjunct plus a list of [`AdjectivePhraseCoordination`]
+/// continuations, each recording its own comma and optional connective — so the
+/// renderer replays the exact surface list. Reached only from predicative
+/// positions (a copular complement or an intransitive-`be` adjective
+/// complement); the attributive modifier list stays a
+/// [`CoordinatedModifier`](crate::syntax::CoordinatedModifier), so no
+/// attributive slot competes with it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoordinatedAdjectivePhrase {
+    pub first: Box<AdjectivePhrase>,
+    pub rest: Vec<AdjectivePhraseCoordination>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdjectivePhraseCoordination {
+    /// The connective introducing this member: `None` on the asyndetic
+    /// comma-separated interior members of an Oxford list; `Some` on a bare
+    /// `and`/`or`/`and/or` member and on the final Oxford member. The
+    /// disjunctive-or-conjunctive `and/or` is admitted here because a supported
+    /// copular witness (Glistening Deluge) attests it.
+    pub conjunction: Option<PredicateConjunction>,
+    pub comma: bool,
+    pub phrase: AdjectivePhrase,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComparisonMarker {
     Than,
@@ -497,6 +526,13 @@ pub enum NominalComplement {
     /// that color` shapes are ordinary `color`-headed nominals and ride the
     /// [`NominalComplement::Prepositional`] path instead.
     Devotion(DevotionColors),
+    /// A power/toughness value setting a base-characteristic nominal (`base
+    /// power and toughness *X/X*`, `base power and toughness *2/2*`). It is the
+    /// same `N/N` token that heads a stat-setting object, carried here so the
+    /// characteristic nominal records the value it is set to. Rides the final
+    /// coordinated characteristic when the head is a `power and toughness`
+    /// pair.
+    PowerToughness(PowerToughness),
     /// A bare finite clause counting occurrences of an event — the complement
     /// of `times` in the measured value `the number of times <clause>`
     /// (Riku of Many Paths, Temporal Firestorm). It is a reduced adjunct
