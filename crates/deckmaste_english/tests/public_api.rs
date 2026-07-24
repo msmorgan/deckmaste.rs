@@ -351,3 +351,65 @@ fn base_power_or_toughness_quantity_bound_rides_the_existing_quantity_complement
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
     assert!(ast.contains("Coordinated("), "AST:\n{ast}");
 }
+
+// --- Activation-cost round --------------------------------------------------
+
+fn cost_catalogs() -> Catalogs {
+    Catalogs::default().with_catalog(CatalogKind::CardType, ["Artifact", "Creature"])
+}
+
+#[test]
+fn labeled_activation_cost_peels_a_flavor_header() {
+    // Boast/Forecast/ability-word shape: an arbitrary label before a spaced
+    // em dash heads the activation cost; the label is licensed flavor-header
+    // opacity and the remainder parses as an ordinary cost.
+    let source = "Boast — {1}{R}: Draw a card.";
+    let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("FlavorHeader"), "AST:\n{ast}");
+}
+
+#[test]
+fn alternative_cost_components_join_with_or() {
+    // A top-level `or` between cost payments becomes an Alternative component
+    // rather than recovering verbatim.
+    let source = "{T} or {W}: Add {G}.";
+    let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("Alternative("), "AST:\n{ast}");
+}
+
+#[test]
+fn an_or_inside_a_cost_clause_does_not_split_into_alternatives() {
+    // The gate on the alternative split: it is tried only after the whole
+    // component fails to parse, so a coordinated noun object inside a cost
+    // clause keeps its ordinary parse.
+    let source = "{T}, Sacrifice an artifact or creature: Draw a card.";
+    let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(!ast.contains("Alternative("), "AST:\n{ast}");
+}
+
+#[test]
+fn discard_at_random_parses_as_a_cost_clause() {
+    // `at random` rides the prepositional path with `random` as a mass noun
+    // (the idiom is historically `at` + noun).
+    let source = "{T}, Discard a card at random: Draw a card.";
+    let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+}
+
+#[test]
+fn cost_noun_phrases_coordinate_with_and_or() {
+    // Keskit/Mechtitan shape: `and/or` now joins noun phrases (the cost
+    // witnesses attest it); `then` still never does.
+    let source = "Sacrifice two artifacts and/or creatures: Draw a card.";
+    let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("AndOr"), "AST:\n{ast}");
+}

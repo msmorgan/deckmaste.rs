@@ -487,6 +487,10 @@ impl<'identity> Renderer<'identity> {
 
     fn cost(&self, cost: &Cost) -> Result<String, RenderError> {
         let mut rendered = String::new();
+        if let Some(header) = &cost.flavor_header {
+            rendered.push_str(header.text());
+            rendered.push_str(" \u{2014} ");
+        }
         let mut saw_lexical_component = false;
         for (index, component) in cost.components.iter().enumerate() {
             if index > 0 {
@@ -511,6 +515,13 @@ impl<'identity> Renderer<'identity> {
             CostComponent::Symbols(symbols) => render_symbol_sequence(symbols),
             CostComponent::Clause(clause) => self.independent_clause(clause)?,
             CostComponent::Noun(noun) => self.noun_phrase(noun)?,
+            CostComponent::Alternative(left, right) => {
+                format!(
+                    "{} or {}",
+                    self.cost_component(left)?,
+                    self.cost_component(right)?
+                )
+            }
             CostComponent::Recovered(text) => text.spelling().to_owned(),
         })
     }
@@ -1243,6 +1254,7 @@ impl<'identity> Renderer<'identity> {
                             NounPhraseConjunction::And => "and",
                             NounPhraseConjunction::Or => "or",
                             NounPhraseConjunction::Plus => "plus",
+                            NounPhraseConjunction::AndOr => "and/or",
                         });
                         rendered.push(' ');
                     }

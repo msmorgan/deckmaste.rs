@@ -107,6 +107,7 @@ pub struct ActivatedAbility {
 /// `SymbolList(String)` and untyped `Components(Vec<Phrase>)` shapes are gone.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Cost {
+    pub flavor_header: Option<FlavorHeader>,
     pub components: Vec<CostComponent>,
 }
 
@@ -134,6 +135,12 @@ pub enum CostComponent {
     /// clause's object list (`Sacrifice a red creature, a green creature, and a
     /// white creature` splits each trailing conjunct into its own component).
     Noun(Box<NounPhrase>),
+    /// An alternative cost payment joined by `or` where paying either
+    /// component satisfies the cost — `{T} or {W}`, `Pay 2 life or {2}`.
+    /// Tried only after the whole component fails to parse as a clause or
+    /// noun phrase, so an `or` inside an ordinary cost clause (`Sacrifice an
+    /// artifact or creature`) never splits.
+    Alternative(Box<CostComponent>, Box<CostComponent>),
     /// No cost shape parsed these tokens; they recover verbatim at the
     /// activation-cost role — the term-level echo of "misparameterization has
     /// no term."

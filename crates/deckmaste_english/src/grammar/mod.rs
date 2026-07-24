@@ -3624,6 +3624,7 @@ fn parse_signed_scalar(surface: &str) -> Option<crate::syntax::SignedScalar> {
     Some(crate::syntax::SignedScalar { sign, value })
 }
 
+#[allow(clippy::too_many_lines, reason = "reduce matches on all rule tags")]
 fn reduce(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
@@ -4621,9 +4622,11 @@ fn reduce_noun_phrase_coordination(
         match conjunction {
             crate::syntax::PredicateConjunction::And => crate::syntax::NounPhraseConjunction::And,
             crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
-            // `then`/`and/or` never join noun phrases.
-            crate::syntax::PredicateConjunction::Then
-            | crate::syntax::PredicateConjunction::AndOr => return None,
+            crate::syntax::PredicateConjunction::AndOr => {
+                crate::syntax::NounPhraseConjunction::AndOr
+            }
+            // `then` never joins noun phrases.
+            crate::syntax::PredicateConjunction::Then => return None,
         }
     };
     let Features::NounPhrase {
@@ -4639,7 +4642,9 @@ fn reduce_noun_phrase_coordination(
             person: Person::Third,
             number: Number::Plural,
         }),
-        crate::syntax::NounPhraseConjunction::Or => *next_agreement,
+        crate::syntax::NounPhraseConjunction::Or | crate::syntax::NounPhraseConjunction::AndOr => {
+            *next_agreement
+        }
         crate::syntax::NounPhraseConjunction::Plus => *first_agreement,
     };
     Some(Features::NounPhrase {
@@ -5857,9 +5862,11 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                     crate::syntax::PredicateConjunction::Or => {
                         crate::syntax::NounPhraseConjunction::Or
                     }
-                    // `then`/`and/or` never join noun phrases.
-                    crate::syntax::PredicateConjunction::Then
-                    | crate::syntax::PredicateConjunction::AndOr => return None,
+                    crate::syntax::PredicateConjunction::AndOr => {
+                        crate::syntax::NounPhraseConjunction::AndOr
+                    }
+                    // `then` never joins noun phrases.
+                    crate::syntax::PredicateConjunction::Then => return None,
                 }
             };
             let Lowered::NounPhrase(next) = take(children, 2)? else {
@@ -5890,9 +5897,11 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                     crate::syntax::PredicateConjunction::Or => {
                         crate::syntax::NounPhraseConjunction::Or
                     }
-                    // `then`/`and/or` never join noun phrases.
-                    crate::syntax::PredicateConjunction::Then
-                    | crate::syntax::PredicateConjunction::AndOr => return None,
+                    crate::syntax::PredicateConjunction::AndOr => {
+                        crate::syntax::NounPhraseConjunction::AndOr
+                    }
+                    // `then` never joins noun phrases.
+                    crate::syntax::PredicateConjunction::Then => return None,
                 };
                 (Some(conjunction), 3)
             } else {

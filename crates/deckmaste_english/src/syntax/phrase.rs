@@ -375,6 +375,7 @@ pub enum NounPhraseConjunction {
     And,
     Or,
     Plus,
+    AndOr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -692,12 +692,45 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_cost(&mut self, tokens: &[Token]) -> Cost {
+        let (flavor_header, tokens) = self.peel_cost_flavor_header(tokens);
         let components = split_top_level(tokens, &[Punctuation::Comma])
             .into_iter()
             .filter(|component| !component.is_empty())
             .map(|component| self.parse_cost_component(component))
             .collect();
-        Cost { components }
+        Cost {
+            flavor_header,
+            components,
+        }
+    }
+
+    fn peel_cost_flavor_header<'tokens>(
+        &self,
+        tokens: &'tokens [Token],
+    ) -> (Option<FlavorHeader>, &'tokens [Token]) {
+        let mut depth = Nesting::default();
+        for (index, token) in tokens.iter().enumerate() {
+            if depth.is_top_level() && token.kind == TokenKind::Punctuation(Punctuation::EmDash) {
+                if index == 0 || index + 1 >= tokens.len() {
+                    return (None, tokens);
+                }
+                let dash = self.token_text(token);
+                let before_end = tokens[index - 1].span.end;
+                let after_start = tokens[index + 1].span.start;
+                let separator = self.source.get(before_end..after_start);
+                if separator != Some(&format!(" {dash} ")) {
+                    return (None, tokens);
+                }
+                let header_start = tokens[0].span.start;
+                let Some(text) = self.source.get(header_start..before_end) else {
+                    return (None, tokens);
+                };
+                let header = FlavorHeader::new(text, index);
+                return (Some(header), &tokens[index + 1..]);
+            }
+            depth.observe(token.kind);
+        }
+        (None, tokens)
     }
 
     fn parse_cost_component(&mut self, tokens: &[Token]) -> CostComponent {
@@ -736,7 +769,34 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         {
             return CostComponent::Noun(Box::new(noun_phrase.clone()));
         }
+        if let Some(or_index) = self.find_top_level_or(tokens) {
+            let left_tokens = &tokens[..or_index];
+            let right_tokens = &tokens[or_index + 1..];
+            if !left_tokens.is_empty() && !right_tokens.is_empty() {
+                let left = self.parse_cost_component(left_tokens);
+                let right = self.parse_cost_component(right_tokens);
+                if !matches!(left, CostComponent::Recovered(_))
+                    && !matches!(right, CostComponent::Recovered(_))
+                {
+                    return CostComponent::Alternative(Box::new(left), Box::new(right));
+                }
+            }
+        }
         CostComponent::Recovered(self.recovered_text(tokens))
+    }
+
+    fn find_top_level_or(&self, tokens: &[Token]) -> Option<usize> {
+        let mut depth = Nesting::default();
+        for (index, token) in tokens.iter().enumerate() {
+            if depth.is_top_level()
+                && token.kind == TokenKind::Word
+                && self.token_text(token).eq_ignore_ascii_case("or")
+            {
+                return Some(index);
+            }
+            depth.observe(token.kind);
+        }
+        None
     }
 
     fn parse_paragraph(&mut self, tokens: &[Token]) -> Paragraph {

@@ -159,19 +159,30 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn cost(&mut self, cost: &'syntax Cost, context: Option<RecoveryRole>) {
+        if let Some(header) = &cost.flavor_header {
+            self.lexical_opacity.push(LexicalOpacityRef {
+                kind: LexicalOpacityKind::FlavorHeader,
+                text: header.text(),
+                source_tokens: header.source_tokens(),
+            });
+        }
         for component in &cost.components {
-            match component {
-                // A recovered component is the only thing that recovers at the
-                // activation-cost role; a clause or noun component recurses so
-                // its interior failures stay attributed to their own roles, and
-                // a symbol run never recovers.
-                CostComponent::Recovered(text) => {
-                    self.push(text, RecoveryRole::ActivationCost, context);
-                }
-                CostComponent::Clause(clause) => self.independent_clause(clause, context),
-                CostComponent::Noun(noun) => self.noun_phrase(noun, context),
-                CostComponent::Symbols(_) => {}
+            self.cost_component(component, context);
+        }
+    }
+
+    fn cost_component(&mut self, component: &'syntax CostComponent, context: Option<RecoveryRole>) {
+        match component {
+            CostComponent::Recovered(text) => {
+                self.push(text, RecoveryRole::ActivationCost, context);
             }
+            CostComponent::Clause(clause) => self.independent_clause(clause, context),
+            CostComponent::Noun(noun) => self.noun_phrase(noun, context),
+            CostComponent::Alternative(left, right) => {
+                self.cost_component(left, context);
+                self.cost_component(right, context);
+            }
+            CostComponent::Symbols(_) => {}
         }
     }
 
@@ -793,6 +804,7 @@ mod tests {
                     ability_word: None,
                     kind: AbilityKind::Activated(ActivatedAbility {
                         cost: Cost {
+                            flavor_header: None,
                             components: vec![CostComponent::Recovered(recovered("cost"))],
                         },
                         effect: Paragraph::default(),
@@ -951,7 +963,10 @@ mod tests {
             abilities: vec![Ability {
                 ability_word: None,
                 kind: AbilityKind::Activated(ActivatedAbility {
-                    cost: Cost { components },
+                    cost: Cost {
+                        flavor_header: None,
+                        components,
+                    },
                     effect: Paragraph::default(),
                     effect_initial_uppercase: true,
                 }),
