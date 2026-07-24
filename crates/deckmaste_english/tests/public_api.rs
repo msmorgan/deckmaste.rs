@@ -674,3 +674,189 @@ fn descended_intervening_condition_parses_as_a_verb_clause() {
     assert_eq!(rendered, source);
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
 }
+
+// --- R32: the flavor-word sentence-header cluster ---------------------------
+
+/// The flavor words the header-cluster witnesses name, plus the one card-type
+/// atom their bodies need. `Exterminate!` is a real member ending in `!`: the
+/// terminal-punctuation gate must still route it to the old paragraph path.
+fn flavor_catalogs() -> Catalogs {
+    Catalogs::default()
+        .with_catalog(
+            CatalogKind::FlavorWord,
+            [
+                "Chaos",
+                "Polymorphine",
+                "Make Them Pay",
+                "Sanctified Rules of Combat",
+                "Aerial Blast",
+                "Exterminate!",
+            ],
+        )
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+}
+
+#[test]
+fn flavor_word_header_before_a_paragraph_peels_as_licensed_opacity() {
+    // Callidus Assassin shape: a bare flavor-word label set off by a spaced em
+    // dash blocked the whole ability. Peeling the catalog-member label leaves
+    // the paragraph body to parse by the ordinary machinery, and the label is
+    // reproduced verbatim as an ability-level flavor header (licensed opacity,
+    // never recovery).
+    let source = "Polymorphine — Draw a card.";
+    let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Callidus Assassin", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        ast.contains("text: \"Polymorphine\""),
+        "expected an ability-level flavor-word header\nAST:\n{ast}"
+    );
+    assert!(
+        compact(&ast).contains("flavor_header:Some(FlavorHeader{text:\"Polymorphine\""),
+        "the flavor header must sit at the ability level\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn flavor_word_header_before_a_trigger_lets_the_trigger_recover() {
+    // Vincent, Vengeful Atoner shape: the label stands ahead of a trigger frame
+    // no paragraph-level header could reach. Peeling it at the ability level
+    // lets `Whenever …` recover as a triggered ability.
+    let source = "Chaos — Whenever this creature attacks, draw a card.";
+    let (rendered, ast) = parse_face(
+        source,
+        &flavor_catalogs(),
+        "Vincent, Vengeful Atoner",
+        false,
+    );
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("text: \"Chaos\""), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("kind:Triggered("),
+        "expected the trigger behind the label to recover\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn multi_word_flavor_word_header_peels_the_whole_label() {
+    // `Make Them Pay` is a three-token flavor word: the peel matches the whole
+    // catalog member, never a shorter prefix, and reproduces it verbatim.
+    let source = "Make Them Pay — Draw a card.";
+    let (rendered, ast) = parse_face(
+        source,
+        &flavor_catalogs(),
+        "The Master, Gallifrey's End",
+        false,
+    );
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        ast.contains("text: \"Make Them Pay\",") && ast.contains("source_tokens: 3"),
+        "expected the whole three-token label as one flavor header\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn flavor_word_header_uncovers_a_villainous_choice_appositive() {
+    // Midnight Crusader Shuttle / The Master cascade: behind the un-peeled label
+    // sat a villainous-choice appositive the prior round's machinery already
+    // handles. Once the label peels, the inner `— <or-coordinated>` attaches as
+    // a `ComplexClause` appositive with no new grammar.
+    let source =
+        "Chaos — That player faces a villainous choice — They lose 4 life, or you create a token.";
+    let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Sycorax Commander", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("text: \"Chaos\""), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("kind:Appositive("),
+        "expected the inner villainous-choice appositive to parse\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn flavor_word_header_inside_a_saga_chapter_body_peels() {
+    // Summon: Primal Garuda shape: a saga chapter body opens with a flavor-word
+    // label (`I — Aerial Blast — <effect>`). The chapter header `I` peels
+    // structurally at the ability level; the paragraph-level peel then takes the
+    // catalog-member label off the chapter body so the effect recovers. This is
+    // the paragraph-start half of the licensing, one level below the trigger
+    // case, reached only after the chapter frame splits the header.
+    let source = "I — Aerial Blast — This creature deals 4 damage to target creature.";
+    let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Summon: Primal Garuda", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(compact(&ast).contains("kind:Chapter("), "AST:\n{ast}");
+    assert!(
+        ast.contains("text: \"Aerial Blast\""),
+        "expected the chapter body's flavor-word header to peel\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn saga_chapter_roman_header_is_not_a_flavor_word() {
+    // Over-fire gate (a): a saga chapter's `I — <body>` carries a spaced em
+    // dash, but `I` is not a flavor-word member, so the peel declines and the
+    // chapter frame keeps it. Nothing peels as a flavor header.
+    let source = "I — Draw a card.";
+    let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Test Saga", false);
+    assert_eq!(rendered, source);
+    assert!(
+        !compact(&ast).contains("flavor_header:Some("),
+        "a roman chapter header must not peel as a flavor word\nAST:\n{ast}"
+    );
+    assert!(
+        compact(&ast).contains("kind:Chapter("),
+        "the roman numeral must stay a saga chapter header\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn a_capitalized_non_member_label_stays_recovered() {
+    // Over-fire gate (b): a capitalized label that is not a catalog member is
+    // never peeled — it falls through to a verbatim recovered span exactly as
+    // before, so the peel is strictly catalog-licensed.
+    let source = "Foobar — Draw a card.";
+    let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(
+        !compact(&ast).contains("flavor_header:Some("),
+        "a non-member label must not peel\nAST:\n{ast}"
+    );
+    assert!(ast.contains("Recovered"), "AST:\n{ast}");
+}
+
+#[test]
+fn a_terminal_punctuation_flavor_member_keeps_the_paragraph_path() {
+    // Over-fire gate (c): `Exterminate!` is a real flavor-word member, but it
+    // ends in inert terminal punctuation, so the ability-level peel declines and
+    // the existing paragraph-level flavor-header peel keeps it. The header lands
+    // on the paragraph, not the ability.
+    let source = "Exterminate! — Draw a card.";
+    let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("flavor_header:None,kind:Paragraph(Paragraph{flavor_header:Some("),
+        "an exclamation-terminated member must keep the paragraph flavor-header path\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn a_cost_flavor_header_with_a_non_member_label_is_unaffected() {
+    // Over-fire gate (d): the activation-cost flavor-header peel is untouched. A
+    // bare non-member label ahead of a cost still lands on the cost, never the
+    // ability, so activation-cost handling does not move.
+    let source = "Sneaky — {T}: Draw a card.";
+    let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(
+        compact(&ast).contains("Cost{flavor_header:Some("),
+        "a non-member cost label must stay a cost flavor header\nAST:\n{ast}"
+    );
+    assert!(
+        compact(&ast).contains("ability_word:None,flavor_header:None,kind:Activated("),
+        "the ability-level flavor slot must stay empty for a cost header\nAST:\n{ast}"
+    );
+}

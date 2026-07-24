@@ -15,7 +15,7 @@ use deckmaste_english::strip_reminder_text;
 use rayon::prelude::*;
 use serde::Deserialize;
 
-const CATALOG_FILES: [(CatalogKind, &str); 12] = [
+const CATALOG_FILES: [(CatalogKind, &str); 13] = [
     (CatalogKind::KeywordAbility, "keyword-abilities"),
     (CatalogKind::KeywordAction, "keyword-actions"),
     (CatalogKind::AbilityWord, "ability-words"),
@@ -28,6 +28,10 @@ const CATALOG_FILES: [(CatalogKind, &str); 12] = [
     (CatalogKind::SpellType, "spell-types"),
     (CatalogKind::Supertype, "supertypes"),
     (CatalogKind::CardType, "card-types"),
+    // Flavor words are not CR-derived, so they have no generated bare-text
+    // catalog; they load from the Scryfall catalog dump instead (see
+    // `load_catalogs`).
+    (CatalogKind::FlavorWord, "flavor-words"),
 ];
 
 #[derive(Debug, Default, Args)]
@@ -163,10 +167,21 @@ fn default_catalogs_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs")
 }
 
+fn scryfall_catalogs_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/catalogs")
+}
+
 fn load_catalogs(path: &Path) -> Result<Catalogs> {
     let mut catalogs = Catalogs::default();
     for (kind, file) in CATALOG_FILES {
-        catalogs = catalogs.with_catalog(kind, load_catalog(path, file)?);
+        // Every CR-derived catalog is a generated bare-text file under `path`.
+        // Flavor words are the one Scryfall-only catalog: they carry no CR
+        // authority, so they are read straight from the Scryfall catalog dump.
+        let values = match kind {
+            CatalogKind::FlavorWord => load_scryfall_catalog(file)?,
+            _ => load_catalog(path, file)?,
+        };
+        catalogs = catalogs.with_catalog(kind, values);
     }
     Ok(catalogs)
 }
@@ -183,6 +198,22 @@ fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {
         .lines()
         .collect::<std::io::Result<Vec<_>>>()
         .with_context(|| format!("could not read generated catalog {}", path.display()))
+}
+
+/// A Scryfall catalog dump: `{ "data": [ "…", … ], … }`. Only the value list is
+/// modeled.
+#[derive(Deserialize)]
+struct ScryfallCatalog {
+    data: Vec<String>,
+}
+
+fn load_scryfall_catalog(name: &str) -> Result<Vec<String>> {
+    let path = scryfall_catalogs_path().join(format!("{name}.json"));
+    let bytes = std::fs::read(&path)
+        .with_context(|| format!("could not open Scryfall catalog {}", path.display()))?;
+    let catalog: ScryfallCatalog = serde_json::from_slice(&bytes)
+        .with_context(|| format!("could not parse Scryfall catalog {}", path.display()))?;
+    Ok(catalog.data)
 }
 
 #[cfg(test)]
@@ -293,5 +324,32 @@ mod tests {
                 source
             );
         }
+    }
+
+    #[test]
+    fn scryfall_flavor_words_license_a_header_peel() {
+        // The flavor-word catalog is the one Scryfall-only catalog `load_catalogs`
+        // reads from the dump rather than the generated bare-text files.
+        // `Polymorphine` (Callidus Assassin) is a real member: loaded from the
+        // dump, it licenses the ability-level header peel end to end.
+        let catalogs = load_catalogs(&default_catalogs_path()).unwrap();
+
+        let source = "Polymorphine — Draw a card.";
+        let report = deckmaste_english::parse_with_catalogs(source, &catalogs);
+        let [ability] = report.ast().abilities.as_slice() else {
+            panic!("expected one ability: {:#?}", report.ast());
+        };
+        let flavor = ability
+            .flavor_header
+            .as_ref()
+            .expect("a Scryfall flavor word should license the header peel");
+        assert_eq!(flavor.text(), "Polymorphine");
+        assert_eq!(
+            report
+                .into_ast()
+                .render("Callidus Assassin", false)
+                .unwrap(),
+            source
+        );
     }
 }

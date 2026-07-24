@@ -66,6 +66,13 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn ability(&mut self, ability: &'syntax Ability, context: Option<RecoveryRole>) {
+        if let Some(header) = &ability.flavor_header {
+            self.lexical_opacity.push(LexicalOpacityRef {
+                kind: LexicalOpacityKind::FlavorHeader,
+                text: header.text(),
+                source_tokens: header.source_tokens(),
+            });
+        }
         match &ability.kind {
             AbilityKind::Activated(activated) => {
                 self.cost(&activated.cost, Some(RecoveryRole::ActivationCost));
@@ -806,6 +813,7 @@ mod tests {
                 )),
                 Ability {
                     ability_word: None,
+                    flavor_header: None,
                     kind: AbilityKind::Activated(ActivatedAbility {
                         cost: Cost {
                             flavor_header: None,
@@ -817,6 +825,7 @@ mod tests {
                 },
                 Ability {
                     ability_word: None,
+                    flavor_header: None,
                     kind: AbilityKind::Keyword(KeywordAbilityList {
                         abilities: vec![KeywordAbility {
                             preceding_separator: None,
@@ -830,6 +839,7 @@ mod tests {
                 },
                 Ability {
                     ability_word: None,
+                    flavor_header: None,
                     kind: AbilityKind::Modal(ModalAbility {
                         frame: ModalFrame::Unframed,
                         header: paragraph_body(SentenceBody::Recovered(recovered("header"))),
@@ -951,6 +961,7 @@ mod tests {
     fn paragraph(clause: IndependentClause) -> Ability {
         Ability {
             ability_word: None,
+            flavor_header: None,
             kind: AbilityKind::Paragraph(paragraph_body(SentenceBody::Independent(clause))),
         }
     }
@@ -958,6 +969,7 @@ mod tests {
     fn paragraph_recovered(text: &str) -> Ability {
         Ability {
             ability_word: None,
+            flavor_header: None,
             kind: AbilityKind::Paragraph(paragraph_body(SentenceBody::Recovered(recovered(text)))),
         }
     }
@@ -966,6 +978,7 @@ mod tests {
         OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::Activated(ActivatedAbility {
                     cost: Cost {
                         flavor_header: None,

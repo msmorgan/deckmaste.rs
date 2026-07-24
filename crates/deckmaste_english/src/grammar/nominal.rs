@@ -1323,6 +1323,7 @@ mod tests {
         let ast = OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::Paragraph(Paragraph {
                     flavor_header: None,
                     sentences: vec![Sentence {

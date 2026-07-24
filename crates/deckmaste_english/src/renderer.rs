@@ -227,6 +227,11 @@ impl<'identity> Renderer<'identity> {
         let body = self.ability_kind(&ability.kind, capitalize, suppress_final_period)?;
         let rendered = if let Some(ability_word) = &ability.ability_word {
             format!("{} — {}", ability_word.spelling(), capitalize_first(body))
+        } else if let Some(flavor_header) = &ability.flavor_header {
+            // A flavor-word label reproduces verbatim before its em dash, the
+            // same shape as an ability word; the body after ` — ` carries its
+            // own capitalization exactly as it was peeled.
+            format!("{} — {}", flavor_header.text(), capitalize_first(body))
         } else {
             body
         };
@@ -2188,6 +2193,7 @@ mod tests {
         let ast = OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::Keyword(KeywordAbilityList {
                     abilities: vec![
                         KeywordAbility {
@@ -2829,6 +2835,7 @@ mod tests {
         let triggered = OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::Triggered(TriggeredAbility {
                     introducer: TriggerWord::Whenever,
                     event: TriggerEvent::Clause(independent(simple(
@@ -2917,6 +2924,7 @@ mod tests {
         let ast = OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::Modal(ModalAbility {
                     frame: ModalFrame::Triggered {
                         introducer: TriggerWord::Whenever,
@@ -2961,6 +2969,7 @@ mod tests {
         let ast = OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::Paragraph(Paragraph {
                     flavor_header: Some(FlavorHeader::new("Throw ...", 2)),
                     sentences: vec![Sentence {
@@ -3033,6 +3042,7 @@ mod tests {
         let row = |range| OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::RollRow(RollRowAbility {
                     range,
                     body: Paragraph {
@@ -3184,6 +3194,7 @@ mod tests {
         OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::Paragraph(Paragraph {
                     flavor_header: None,
                     sentences: vec![Sentence {

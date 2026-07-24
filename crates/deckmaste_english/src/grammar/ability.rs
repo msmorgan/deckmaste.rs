@@ -228,8 +228,21 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let (ability_word, body) = self
             .ability_word_prefix(tokens)
             .map_or((None, tokens), |(word, body)| (Some(word), body));
+        // An ability word wins the header slot outright; only when none matches
+        // does a flavor-word label get a chance to peel. The two never co-occur
+        // on the supported corpus, so this ordering never loses a header.
+        let (flavor_header, body) = if ability_word.is_some() {
+            (None, body)
+        } else {
+            self.flavor_word_prefix(body)
+                .map_or((None, body), |(header, rest)| (Some(header), rest))
+        };
         let kind = self.parse_ability_kind(body);
-        Ability { ability_word, kind }
+        Ability {
+            ability_word,
+            flavor_header,
+            kind,
+        }
     }
 
     fn parse_ability_kind(&mut self, tokens: &[Token]) -> AbilityKind {
@@ -467,6 +480,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
         Ability {
             ability_word,
+            // A modal choice header is never peeled as a flavor word: the six
+            // known flavor-word faces and the measured residue population are
+            // all single-frame abilities, and a modal header's leading ` — `
+            // belongs to the `Choose …` instruction, not a label.
+            flavor_header: None,
             kind: AbilityKind::Modal(ModalAbility {
                 frame,
                 header: self.parse_choice_header(header),
@@ -590,6 +608,47 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             })
             .max_by_key(|(length, _, _)| *length)
             .map(|(_, atom, body)| (atom, body))
+    }
+
+    /// Peels a licensed flavor-word header from the front of an ability: a
+    /// Scryfall flavor word ([`CatalogKind::FlavorWord`]) named ahead of the
+    /// ability's frame and set off by a spaced em dash (`Chaos — Whenever …`,
+    /// `Sanctified Rules of Combat — When …`). The label reproduces verbatim as
+    /// licensed lexical opacity (a [`FlavorHeader`]); the frame after ` — `
+    /// parses by the ordinary machinery, so a trigger or activated cost the
+    /// un-peeled label had blocked recovers unchanged.
+    ///
+    /// Three gates keep the peel off structural em dashes and off headers other
+    /// paths already own, mirroring the flavor-header peel's discipline:
+    /// - the em dash must be the paragraph-initial *spaced* ` — `, found by
+    ///   [`Self::spaced_top_level_em_dash`] (never an unspaced roll range, a
+    ///   mid-rules villainous-choice dash, or a nested quoted dash);
+    /// - the whole label before it must be a byte-exact flavor-word catalog
+    ///   member, so ordinary sentence-initial vocabulary and a capitalized
+    ///   non-catalog label are left recovered; and
+    /// - the label must not end in inert flavor terminal punctuation (`!`, `?`,
+    ///   ellipsis) — those keep the existing paragraph-level
+    ///   [`peel_flavor_header`] path so nothing that already peels is rerouted
+    ///   here.
+    ///
+    /// [`CatalogKind::FlavorWord`]: crate::CatalogKind::FlavorWord
+    /// [`peel_flavor_header`]: Self::peel_flavor_header
+    fn flavor_word_prefix<'tokens>(
+        &self,
+        tokens: &'tokens [Token],
+    ) -> Option<(FlavorHeader, &'tokens [Token])> {
+        let dash = self.spaced_top_level_em_dash(tokens)?;
+        let label = &tokens[..dash];
+        if ends_in_flavor_terminal(label) {
+            return None;
+        }
+        let start = tokens.first()?.span.start;
+        let end = tokens[dash - 1].span.end;
+        let text = self.source.get(start..end)?;
+        if !self.catalogs.is_flavor_word(text) {
+            return None;
+        }
+        Some((FlavorHeader::new(text, dash), &tokens[dash + 1..]))
     }
 
     fn loyalty_frame<'tokens>(
@@ -828,8 +887,13 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// text (`… faces a villainous choice — You draw a card`), mode labels
     /// (`Run and Hide — Prevent …`), and die-roll ranges (`2—9`):
     /// - the em dash must be *spaced* (` — `), excluding unspaced ranges; and
-    /// - the run before it must end in inert flavor terminal punctuation (`!`,
-    ///   `?`, or an ellipsis), never a word or a lone period.
+    /// - the run before it must be a licensed label: either it ends in inert
+    ///   flavor terminal punctuation (`!`, `?`, or an ellipsis) or it is a
+    ///   byte-exact flavor-word catalog member (`Aerial Blast — …` at a saga
+    ///   chapter body's start). A bare non-catalog word, a lone period, or a
+    ///   clause is not a header and stays recovered. The catalog arm mirrors
+    ///   the ability-level [`Self::flavor_word_prefix`], which peels the same
+    ///   labels one level up when they stand ahead of a trigger or cost frame.
     fn peel_flavor_header<'tokens>(
         &self,
         tokens: &'tokens [Token],
@@ -849,13 +913,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 if separator != Some(&format!(" {dash} ")) {
                     return (None, tokens);
                 }
-                if !ends_in_flavor_terminal(&tokens[..index]) {
-                    return (None, tokens);
-                }
                 let header_start = tokens[0].span.start;
                 let Some(text) = self.source.get(header_start..before_end) else {
                     return (None, tokens);
                 };
+                if !ends_in_flavor_terminal(&tokens[..index]) && !self.catalogs.is_flavor_word(text)
+                {
+                    return (None, tokens);
+                }
                 let header = FlavorHeader::new(text, index);
                 return (Some(header), &tokens[index + 1..]);
             }

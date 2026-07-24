@@ -47,10 +47,18 @@ pub enum CatalogKind {
     /// populated externally through [`Catalogs::with_catalog`]; its atoms come
     /// from the hand-curated [`RulesNominal`] table.
     RulesBundle,
+    /// A Scryfall flavor word: an italicized, rules-inert label a card prints
+    /// before an em dash to name an ability for flavor (`Polymorphine`,
+    /// `Chaos`, `Sanctified Rules of Combat`). Members are matched byte-exact
+    /// ([`CasePolicy::Exact`]) so ordinary sentence-initial vocabulary never
+    /// collides. Populated externally from `data/catalogs/flavor-words.json`;
+    /// used only to license a header peel (see
+    /// [`Catalogs::is_flavor_word`]), never as a noun or adjective.
+    FlavorWord,
 }
 
 impl CatalogKind {
-    const ALL: [Self; 13] = [
+    const ALL: [Self; 14] = [
         Self::KeywordAbility,
         Self::KeywordAction,
         Self::AbilityWord,
@@ -64,6 +72,7 @@ impl CatalogKind {
         Self::Supertype,
         Self::CardType,
         Self::RulesBundle,
+        Self::FlavorWord,
     ];
     const COUNT: usize = Self::ALL.len();
 
@@ -79,7 +88,8 @@ impl CatalogKind {
             | Self::EnchantmentType
             | Self::LandType
             | Self::PlaneswalkerType
-            | Self::SpellType => CasePolicy::Exact,
+            | Self::SpellType
+            | Self::FlavorWord => CasePolicy::Exact,
             Self::Supertype | Self::CardType | Self::RulesBundle => CasePolicy::Lowercase,
             Self::KeywordAbility | Self::KeywordAction | Self::AbilityWord => {
                 CasePolicy::Insensitive
@@ -387,6 +397,18 @@ impl Catalogs {
         matches.extend(bundle_matches(text, slot));
         matches.sort_by_key(|catalog_match| catalog_match.length);
         matches
+    }
+
+    /// Whether `text` is a byte-exact member of the flavor-word catalog
+    /// ([`CatalogKind::FlavorWord`]). Licenses a flavor-word header peel: the
+    /// whole label before a spaced em dash must match a member exactly (case
+    /// and all), so ordinary sentence-initial vocabulary is never mistaken for
+    /// a flavor label. A shorter member that is only a prefix of `text` does
+    /// not qualify — the match length must span the entire label.
+    pub(crate) fn is_flavor_word(&self, text: &str) -> bool {
+        self.atom_matches(text, CatalogKind::FlavorWord)
+            .into_iter()
+            .any(|catalog_match| catalog_match.length == text.len())
     }
 
     fn rebuild(&mut self) {

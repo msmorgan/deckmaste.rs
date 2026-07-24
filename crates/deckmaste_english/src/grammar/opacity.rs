@@ -214,6 +214,7 @@ mod tests {
         OracleText {
             abilities: vec![Ability {
                 ability_word: None,
+                flavor_header: None,
                 kind: AbilityKind::Paragraph(Paragraph {
                     flavor_header: None,
                     sentences: vec![sentence.clone()],

@@ -18,7 +18,25 @@ pub struct OracleText {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ability {
+    /// A Scryfall ability word ([`CatalogKind::AbilityWord`]) peeled before the
+    /// ability frame and reproduced as `<word> — `. An ability word is a
+    /// rules-relevant grouping label, so it is a licensed structural header,
+    /// not lexical opacity.
+    ///
+    /// [`CatalogKind::AbilityWord`]: crate::CatalogKind::AbilityWord
     pub ability_word: Option<CatalogAtom>,
+    /// A Scryfall flavor word ([`CatalogKind::FlavorWord`]) peeled before the
+    /// ability frame and reproduced as `<label> — `. Unlike an ability word a
+    /// flavor word carries no rules meaning: it is licensed lexical opacity
+    /// (counted as [`LexicalOpacityKind::FlavorHeader`]), the sibling of a
+    /// paragraph's or cost's [`Paragraph::flavor_header`], carried one level up
+    /// because a flavor word can stand ahead of a trigger or cost frame that a
+    /// paragraph header cannot reach. At most one of `ability_word` and
+    /// `flavor_header` is set; the two never co-occur on the supported corpus.
+    ///
+    /// [`CatalogKind::FlavorWord`]: crate::CatalogKind::FlavorWord
+    /// [`LexicalOpacityKind::FlavorHeader`]: super::LexicalOpacityKind::FlavorHeader
+    pub flavor_header: Option<FlavorHeader>,
     pub kind: AbilityKind,
 }
 
