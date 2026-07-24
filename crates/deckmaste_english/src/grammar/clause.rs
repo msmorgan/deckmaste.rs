@@ -775,8 +775,32 @@ pub(super) fn reduction_cost(
         );
     let precedence =
         u32::from(active_temporal_attachment || tag == RuleTag::ClauseSubordinateAfter);
+    // The finite-first shared-predicate reading (a modal/finite clause hosting
+    // a subjectless standalone-imperative continuation, asyndetic or
+    // `then`/`and`-joined) is a narrow additive allowance layered on top of the
+    // existing coordination gate. Dispreference it so it never outranks an
+    // existing winning parse of a currently-supported card and only wins when
+    // no subject/`and`/`then`-independent reading exists for the same span.
+    let finite_first_shared_predicate = matches!(
+        tag,
+        RuleTag::ClauseCoordination
+            | RuleTag::ClauseCoordinationComma
+            | RuleTag::ClauseCoordinationAsyndetic
+    ) && matches!(
+        children.first().map(|child| child.features),
+        Some(Features::Clause { finite: true, .. })
+    ) && matches!(
+        children.last().map(|child| child.features),
+        Some(Features::SimpleClause {
+            agreement: None,
+            has_subject: false,
+            standalone: true,
+            ..
+        })
+    );
     ParseCost {
         precedence,
+        reading_dispreference: u32::from(finite_first_shared_predicate),
         ..ParseCost::default()
     }
 }
@@ -1717,7 +1741,26 @@ fn reduce_composed_clause(
             else {
                 return None;
             };
+            // A finite, subject-bearing first clause may still host a bare
+            // (subjectless, standalone) imperative continuation asyndetically —
+            // "you may search ..., reveal it" — even though the first-clause
+            // conditions below would otherwise disqualify it. The continuation
+            // side (`next_agreement`/`standalone`) still must hold, and the
+            // host must agree in the second person: a bare imperative shares
+            // the addressee "you", so a third-person host (in practice an
+            // opaque-noun subject like "When ..." misparsed as a nominal)
+            // cannot adopt it and stays honestly unparsed.
+            let continuation_is_bare_imperative =
+                next_agreement.is_none() && !*has_subject && *standalone;
+            let second_person_host = matches!(
+                first_agreement,
+                Some(Agreement {
+                    person: Person::Second,
+                    ..
+                })
+            );
             if tag == RuleTag::ClauseCoordinationAsyndetic
+                && !(continuation_is_bare_imperative && second_person_host)
                 && (first_agreement.is_some()
                     || *finite
                     || *has_subject
@@ -1898,6 +1941,22 @@ fn coordination_agrees(
         )
         || matches!((first, next, next_standalone), (None, None, true))
         || matches!((first, next, next_standalone), (Some(_), None, false))
+        // Finite second-person first clause (often a modal, "you may search
+        // ...") followed by a subjectless standalone imperative continuation
+        // ("..., then shuffle") — the `then`-tail counterpart to the asyndetic
+        // allowance in `reduce_composed_clause`, with the same second-person
+        // restriction: an imperative tail shares the addressee "you".
+        || matches!(
+            (first, next, next_standalone),
+            (
+                Some(Agreement {
+                    person: Person::Second,
+                    ..
+                }),
+                None,
+                true
+            )
+        )
 }
 
 const fn predicate_form(slot: VerbSlot) -> PredicateForm {
@@ -5453,6 +5512,72 @@ mod tests {
         assert!(
             parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
             "the three-way Oxford-comma quoted object list must not parse"
+        );
+    }
+
+    #[test]
+    fn modal_finite_first_clause_hosts_a_bare_imperative_chain() {
+        let source = "You may search your library for a Plains card, reveal it, put it into your hand, then shuffle.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn finite_subject_bearing_first_clause_hosts_a_then_joined_bare_imperative() {
+        let source = "You draw a card, then discard a card.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    /// A finite clause and a following subject-bearing clause remain two
+    /// independent members, not a shared-predicate reduction — the allowance
+    /// is narrow to subjectless standalone-imperative continuations only.
+    #[test]
+    fn finite_first_clause_then_subject_bearing_clause_stays_independent() {
+        let source = "You draw a card, then that player shuffles.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    /// Two sentences never merge across a period, even when the first is
+    /// finite and the second would otherwise look like a bare imperative.
+    #[test]
+    fn two_sentences_do_not_merge_across_a_period() {
+        let source = "You gain 2 life. Draw a card.";
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "a period-separated pair must not parse as a single Sentence nonterminal"
+        );
+    }
+
+    /// A modal on the *continuation* ("you may draw a card") is a distinct,
+    /// rarer shape left out of scope by this round's narrow allowance; the
+    /// `lower_coordination` modal-continuation guard stays untouched and the
+    /// span stays unparsed rather than parsing wrong.
+    #[test]
+    fn modal_on_a_continuation_stays_unparsed() {
+        let source = "You may search your library for a Plains card, you may draw a card.";
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "a modal on the continuation must not parse via the new allowance"
+        );
+    }
+
+    /// A third-person host cannot adopt a bare imperative tail. Without this
+    /// restriction the allowance let unparsed trigger sentences misparse with
+    /// the trigger word licensed as an opaque noun subject ("When [you lose]"
+    /// as a nominal, "control" as its verb) and the effect clause absorbed as
+    /// a shared-predicate continuation — render-identical but structurally
+    /// wrong. The sentence must stay unparsed and recover honestly.
+    #[test]
+    fn third_person_host_does_not_adopt_a_bare_imperative_tail() {
+        let source = "When there are no lands on the battlefield, sacrifice this enchantment.";
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "a trigger sentence must not misparse as third-person coordination"
         );
     }
 
