@@ -1326,11 +1326,16 @@ fn reduce_simple_clause(
             ) {
                 return None;
             }
+            let host_addressee_subject = *pronoun_case == Some(PronounCase::Subject)
+                && subject_agreement.person == Person::Second;
+            let host_modal = predicate_agreement.is_none();
             Some(simple_clause_reduction(
                 Some(*subject_agreement),
                 true,
                 true,
                 object.has_direct_object(),
+                host_addressee_subject,
+                host_modal,
             ))
         }
         RuleTag::SimpleClauseContractedSubject => {
@@ -1371,11 +1376,18 @@ fn reduce_simple_clause(
             ) {
                 return None;
             }
+            let host_addressee_subject = subject_agreement.person == Person::Second;
+            // `auxiliary_form` only yields `Finite(Some(_))` here (the
+            // `Finite(None)` base-modal path never satisfies this pattern),
+            // so a contracted-subject host never carries `host_modal`.
+            let host_modal = false;
             Some(simple_clause_reduction(
                 Some(*subject_agreement),
                 true,
                 true,
                 object.has_direct_object(),
+                host_addressee_subject,
+                host_modal,
             ))
         }
         RuleTag::SimpleClauseSubjectless => {
@@ -1406,18 +1418,24 @@ fn reduce_simple_clause(
                     false,
                     true,
                     object.has_direct_object(),
+                    false,
+                    false,
                 )),
                 PredicateForm::Finite(agreement) => Some(simple_clause_reduction(
                     *agreement,
                     false,
                     false,
                     object.has_direct_object(),
+                    false,
+                    agreement.is_none(),
                 )),
                 PredicateForm::Infinitive => Some(simple_clause_reduction(
                     None,
                     false,
                     false,
                     object.has_direct_object(),
+                    false,
+                    false,
                 )),
                 PredicateForm::PresentParticiple | PredicateForm::PastParticiple => None,
             }
@@ -1427,6 +1445,8 @@ fn reduce_simple_clause(
                 agreement,
                 has_subject,
                 standalone,
+                host_addressee_subject,
+                host_modal,
                 ..
             } = children.first()?.features
             else {
@@ -1436,12 +1456,16 @@ fn reduce_simple_clause(
                 agreement: *agreement,
                 standalone: *standalone,
                 finite: *has_subject,
+                host_addressee_subject: *host_addressee_subject,
+                host_modal: *host_modal,
             })
         }
         RuleTag::ClauseElliptical => Some(Features::Clause {
             agreement: None,
             standalone: false,
             finite: false,
+            host_addressee_subject: false,
+            host_modal: false,
         }),
         RuleTag::ClauseExistential => {
             let Features::Existential {
@@ -1464,6 +1488,8 @@ fn reduce_simple_clause(
                 agreement: None,
                 standalone: true,
                 finite: true,
+                host_addressee_subject: false,
+                host_modal: false,
             })
         }
         RuleTag::CopularRemainderNoun
@@ -1698,23 +1724,38 @@ fn reduce_copular_clause(
         agreement: Some(agreement),
         standalone: true,
         finite: true,
+        host_addressee_subject: false,
+        host_modal: false,
     })
 }
 
+#[allow(
+    clippy::fn_params_excessive_bools,
+    reason = "each bool is an independently-computed SimpleClause feature bit; \
+              grouping into enums would obscure the 1:1 field mapping"
+)]
 fn simple_clause_reduction(
     agreement: Option<Agreement>,
     has_subject: bool,
     standalone: bool,
     has_direct_object: bool,
+    host_addressee_subject: bool,
+    host_modal: bool,
 ) -> Reduced {
     Features::SimpleClause {
         agreement,
         has_subject,
         standalone,
         has_direct_object,
+        host_addressee_subject,
+        host_modal,
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "composed-clause reduction logic is intentionally long"
+)]
 fn reduce_composed_clause(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
@@ -1727,6 +1768,8 @@ fn reduce_composed_clause(
                 agreement: first_agreement,
                 standalone: true,
                 finite,
+                host_addressee_subject: first_host_addressee_subject,
+                host_modal: first_host_modal,
             } = children.first()?.features
             else {
                 return None;
@@ -1741,26 +1784,22 @@ fn reduce_composed_clause(
             else {
                 return None;
             };
+            let host_adopts_imperative = *first_host_addressee_subject || *first_host_modal;
             // A finite, subject-bearing first clause may still host a bare
             // (subjectless, standalone) imperative continuation asyndetically —
             // "you may search ..., reveal it" — even though the first-clause
             // conditions below would otherwise disqualify it. The continuation
             // side (`next_agreement`/`standalone`) still must hold, and the
-            // host must agree in the second person: a bare imperative shares
-            // the addressee "you", so a third-person host (in practice an
-            // opaque-noun subject like "When ..." misparsed as a nominal)
-            // cannot adopt it and stays honestly unparsed.
+            // host must adopt the imperative: a genuine addressee-`you`
+            // subject or a base-inflection modal (`may`/`can`/...) shares the
+            // continuation's implicit "you", so a third-person, modal-less
+            // host (in practice an opaque-noun subject like "When ..."
+            // misparsed as a nominal, or its nearest-conjunct-donated
+            // agreement) cannot adopt it and stays honestly unparsed.
             let continuation_is_bare_imperative =
                 next_agreement.is_none() && !*has_subject && *standalone;
-            let second_person_host = matches!(
-                first_agreement,
-                Some(Agreement {
-                    person: Person::Second,
-                    ..
-                })
-            );
             if tag == RuleTag::ClauseCoordinationAsyndetic
-                && !(continuation_is_bare_imperative && second_person_host)
+                && !(continuation_is_bare_imperative && host_adopts_imperative)
                 && (first_agreement.is_some()
                     || *finite
                     || *has_subject
@@ -1769,13 +1808,21 @@ fn reduce_composed_clause(
             {
                 return None;
             }
-            if !coordination_agrees(*first_agreement, *next_agreement, *has_subject, *standalone) {
+            if !coordination_agrees(
+                *first_agreement,
+                *next_agreement,
+                *has_subject,
+                *standalone,
+                host_adopts_imperative,
+            ) {
                 return None;
             }
             Some(Features::Clause {
                 agreement: *first_agreement,
                 standalone: true,
                 finite: *finite,
+                host_addressee_subject: *first_host_addressee_subject,
+                host_modal: *first_host_modal,
             })
         }
         RuleTag::ClauseSubordinateBefore => {
@@ -1794,6 +1841,8 @@ fn reduce_composed_clause(
                 agreement,
                 standalone: true,
                 finite,
+                host_addressee_subject,
+                host_modal,
             } = consequence.features
             else {
                 return None;
@@ -1802,6 +1851,8 @@ fn reduce_composed_clause(
                 agreement: *agreement,
                 standalone: true,
                 finite: *finite,
+                host_addressee_subject: *host_addressee_subject,
+                host_modal: *host_modal,
             })
         }
         RuleTag::ClauseSubordinateAfter => {
@@ -1815,6 +1866,8 @@ fn reduce_composed_clause(
                 agreement,
                 standalone: true,
                 finite,
+                host_addressee_subject,
+                host_modal,
             } = children.first()?.features
             else {
                 return None;
@@ -1830,6 +1883,8 @@ fn reduce_composed_clause(
                 agreement: *agreement,
                 standalone: true,
                 finite: *finite,
+                host_addressee_subject: *host_addressee_subject,
+                host_modal: *host_modal,
             })
         }
         RuleTag::ExceptionRiderSingle => {
@@ -1860,6 +1915,8 @@ fn reduce_composed_clause(
                 agreement,
                 standalone: true,
                 finite,
+                host_addressee_subject,
+                host_modal,
             } = children.first()?.features
             else {
                 return None;
@@ -1871,6 +1928,8 @@ fn reduce_composed_clause(
                 agreement: *agreement,
                 standalone: true,
                 finite: *finite,
+                host_addressee_subject: *host_addressee_subject,
+                host_modal: *host_modal,
             })
         }
         RuleTag::Sentence => {
@@ -1891,6 +1950,8 @@ fn fronted_attachment_reduction(matrix: &Child<'_, EnglishGrammar<'_, '_>>) -> O
         agreement,
         standalone: true,
         finite,
+        host_addressee_subject,
+        host_modal,
     } = matrix.features
     else {
         return None;
@@ -1899,6 +1960,8 @@ fn fronted_attachment_reduction(matrix: &Child<'_, EnglishGrammar<'_, '_>>) -> O
         agreement: *agreement,
         standalone: true,
         finite: *finite,
+        host_addressee_subject: *host_addressee_subject,
+        host_modal: *host_modal,
     })
 }
 
@@ -1918,6 +1981,8 @@ fn conditional_reduction(
         agreement,
         standalone: true,
         finite,
+        host_addressee_subject,
+        host_modal,
     } = consequence.features
     else {
         return None;
@@ -1926,6 +1991,8 @@ fn conditional_reduction(
         agreement: *agreement,
         standalone: true,
         finite: *finite,
+        host_addressee_subject: *host_addressee_subject,
+        host_modal: *host_modal,
     })
 }
 
@@ -1934,6 +2001,7 @@ fn coordination_agrees(
     next: Option<Agreement>,
     next_has_subject: bool,
     next_standalone: bool,
+    first_adopts_imperative: bool,
 ) -> bool {
     next_has_subject
         || matches!((first, next, next_standalone),
@@ -1941,22 +2009,13 @@ fn coordination_agrees(
         )
         || matches!((first, next, next_standalone), (None, None, true))
         || matches!((first, next, next_standalone), (Some(_), None, false))
-        // Finite second-person first clause (often a modal, "you may search
-        // ...") followed by a subjectless standalone imperative continuation
-        // ("..., then shuffle") — the `then`-tail counterpart to the asyndetic
-        // allowance in `reduce_composed_clause`, with the same second-person
-        // restriction: an imperative tail shares the addressee "you".
-        || matches!(
-            (first, next, next_standalone),
-            (
-                Some(Agreement {
-                    person: Person::Second,
-                    ..
-                }),
-                None,
-                true
-            )
-        )
+        // A first clause whose host adopts the imperative (a genuine
+        // addressee-`you` subject or a base-inflection modal, often "you may
+        // search ..." or "Its controller may search ...") followed by a
+        // subjectless standalone imperative continuation ("..., then
+        // shuffle") — the `then`-tail counterpart to the asyndetic allowance
+        // in `reduce_composed_clause`.
+        || (first_adopts_imperative && next.is_none() && next_standalone)
 }
 
 const fn predicate_form(slot: VerbSlot) -> PredicateForm {
@@ -5579,6 +5638,49 @@ mod tests {
             parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
             "a trigger sentence must not misparse as third-person coordination"
         );
+    }
+
+    /// A coordinated junk subject donating Second-person agreement by
+    /// nearest-conjunct (`When [rel] or you`) is not a genuine addressee
+    /// subject (`pronoun_case: None`), and `lose` is not a modal, so
+    /// `host_adopts_imperative` stays false and the asyndetic tail is
+    /// rejected at both gates — the sentence stays honestly unparsed rather
+    /// than misparsing with `When` licensed as an opaque noun subject.
+    #[test]
+    fn coordinated_donated_agreement_does_not_adopt_a_bare_imperative_tail() {
+        let source = "When this creature becomes untapped or you lose control of this creature, exile that creature.";
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "nearest-conjunct-donated agreement must not license the asyndetic tail"
+        );
+    }
+
+    // NOTE (out of scope for this round): the plan's negative fixtures
+    // `"That player sacrifices a creature, then draw a card."` and
+    // `"There is a creature, then draw a card."` were expected to be
+    // rejected by the new `host_adopts_imperative` gate. In fact both still
+    // parse — not via the new gate, but via two pre-existing,
+    // `coordination_agrees` arms this round did not touch:
+    // `(Some(_), None, false)` (fires because the bare-stem "draw a card"
+    // continuation here lexes as `PredicateForm::Infinitive`, i.e.
+    // `standalone: false`, not `Imperative`) and `(None, None, true)`
+    // (fires unconditionally whenever the host's own `agreement` is `None`,
+    // as it is for an existential clause, regardless of host shape). Both
+    // arms predate this round and are unrelated to `host_addressee_subject`/
+    // `host_modal`, so fixing them is out of scope here; they are a
+    // pre-existing third-person-host over-fire left for a future round.
+    // The re-key correctly rejects both shapes via `host_adopts_imperative`
+    // — see `coordinated_donated_agreement_does_not_adopt_a_bare_imperative_tail`
+    // for the shape the new gate is actually responsible for.
+
+    /// A third-person modal host adopts a bare-imperative chain sharing the
+    /// modal, not the addressee (the Cleansing Wildfire shape).
+    #[test]
+    fn third_person_modal_host_adopts_a_bare_imperative_chain() {
+        let source = "Its controller may draw a card, then discard a card.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
     fn parse(source: &str) -> ParsedNonterminal {
