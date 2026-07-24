@@ -240,6 +240,179 @@ mod tests {
     }
 
     #[test]
+    fn coordinated_modifiers_round_trip_byte_exactly() {
+        // One witness-shaped round-trip per coordinated-modifier sub-shape. The
+        // causal control is the single-modifier baseline `a white creature`,
+        // which already parses; adding a conjunct must keep it byte-exact.
+        for source in [
+            "a white creature",                     // control: single modifier
+            "a white and blue creature",            // color pair (Ashiok)
+            "a black and green Goblin creature",    // color pair + noun stack (Amzu)
+            "a white and/or blue creature",         // and/or pair (Amphibious Kavu)
+            "a white, blue, and black creature",    // Oxford color triple
+            "a white, blue, or black creature",     // Oxford `or` color triple
+            "an artifact, creature, and land card", // type-noun Oxford list (Warp World)
+            "a creature and land card",             // two-way type-noun modifiers
+            "a nonwhite and nonblue creature",      // coordinated negated conjuncts
+        ] {
+            let parsed = parse(source);
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn coordinated_head_lists_round_trip_byte_exactly() {
+        // Head-list coordination: comma/Oxford extensions of the existing binary
+        // noun-phrase coordination under a shared determiner. The causal control
+        // is the two-way `target artifact or land`, which already parsed; the
+        // Oxford comma extends it to three heads (Acidic Slime).
+        for source in [
+            "target artifact or land",             // control: two-way head coordination
+            "target artifact, creature, or land",  // Oxford `or` head list (Acidic Slime)
+            "all artifacts, creatures, and lands", // Oxford `and` head list
+        ] {
+            let parsed = parse(source);
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn oxford_head_list_records_comma_and_final_conjunction_per_member() {
+        // The interior members carry a comma with no conjunction; the final
+        // member carries the closing conjunction with its comma — the exact
+        // surface the renderer replays.
+        let parsed = parse("target artifact, creature, or land");
+        let Some(NounPhrase::Coordinated(coordinated)) = parsed.noun_phrase() else {
+            panic!(
+                "expected a coordinated noun phrase: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        let [interior, final_member] = coordinated.rest.as_slice() else {
+            panic!("expected two continuations, got {:#?}", coordinated.rest);
+        };
+        assert_eq!(interior.conjunction, None);
+        assert!(interior.comma);
+        assert_eq!(
+            final_member.conjunction,
+            Some(crate::syntax::NounPhraseConjunction::Or)
+        );
+        assert!(final_member.comma);
+    }
+
+    #[test]
+    fn coordinated_modifier_is_one_outer_node_with_conjuncts() {
+        // The owner's invariant applied to coordination: `white and blue Goblin`
+        // is ONE `Coordinated` modifier slot carrying the color conjuncts, with
+        // `Goblin` following as a separate ordinary noun modifier — not a
+        // per-mechanism list type and not a flattened run of sibling modifiers.
+        let parsed = parse("a white and blue Goblin creature");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal");
+        };
+        let [
+            NominalModifier::Coordinated(coordinated),
+            NominalModifier::Noun { .. },
+        ] = nominal.modifiers.as_slice()
+        else {
+            panic!("expected [Coordinated, Noun], got {:#?}", nominal.modifiers);
+        };
+        assert!(matches!(
+            coordinated.first.as_ref(),
+            NominalModifier::Adjective {
+                polarity: Polarity::Positive,
+                phrase: AdjectivePhrase {
+                    head: Adjective::Color(ColorWord::White),
+                    ..
+                },
+            }
+        ));
+        let [member] = coordinated.rest.as_slice() else {
+            panic!("expected one continuation");
+        };
+        assert_eq!(
+            member.conjunction,
+            Some(crate::syntax::PredicateConjunction::And)
+        );
+        assert!(!member.comma);
+        assert!(matches!(
+            &member.modifier,
+            NominalModifier::Adjective {
+                polarity: Polarity::Positive,
+                phrase: AdjectivePhrase {
+                    head: Adjective::Color(ColorWord::Blue),
+                    ..
+                },
+            }
+        ));
+    }
+
+    #[test]
+    fn coordinated_modifier_preserves_per_conjunct_polarity() {
+        // Coordination of a negated conjunct keeps each conjunct's own polarity
+        // (ticket invariant: polarity composes). `nonwhite and nonblue` carries
+        // two independently negated color conjuncts.
+        let parsed = parse("a nonwhite and nonblue creature");
+        let modifier = first_modifier(&parsed);
+        let NominalModifier::Coordinated(coordinated) = &modifier else {
+            panic!("expected a coordinated modifier, got {modifier:#?}");
+        };
+        assert_eq!(
+            polarity_of(&coordinated.first),
+            Some(Polarity::Negative),
+            "first conjunct is negated"
+        );
+        assert_eq!(
+            polarity_of(&coordinated.rest[0].modifier),
+            Some(Polarity::Negative),
+            "second conjunct is negated"
+        );
+    }
+
+    #[test]
+    fn and_or_is_a_structured_conjunction_not_an_opaque_noun() {
+        // `and/or` in modifier position lands on the shared conjunction value,
+        // not on an opaque noun: the coordinated slot's continuation records
+        // `AndOr`, and the group carries exactly the two color conjuncts.
+        let parsed = parse("a white and/or blue creature");
+        let modifier = first_modifier(&parsed);
+        let NominalModifier::Coordinated(coordinated) = &modifier else {
+            panic!("expected a coordinated modifier, got {modifier:#?}");
+        };
+        assert_eq!(
+            coordinated.rest[0].conjunction,
+            Some(crate::syntax::PredicateConjunction::AndOr)
+        );
+        assert_eq!(coordinated.rest.len(), 1);
+    }
+
+    #[test]
+    fn coordinated_indefinite_article_follows_the_first_conjunct() {
+        // The a/an of the whole phrase is fixed by the first conjunct's onset:
+        // vowel-initial `artifact` takes `an`, and a leading `non-` conjunct
+        // takes `a` (consonant onset) regardless of the negated base.
+        for source in [
+            "an artifact and creature card",
+            "a nonartifact and creature card",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
     fn rules_bundle_words_carry_the_bundle_category() {
         // The attributive adjective and the head noun both land on
         // `RulesBundle` catalog atoms, so the render side can derive the `non-`
@@ -360,7 +533,9 @@ mod tests {
         match modifier {
             NominalModifier::Adjective { polarity, .. }
             | NominalModifier::Noun { polarity, .. } => Some(*polarity),
-            NominalModifier::Quantity(_) | NominalModifier::PowerToughness(_) => None,
+            NominalModifier::Quantity(_)
+            | NominalModifier::PowerToughness(_)
+            | NominalModifier::Coordinated(_) => None,
         }
     }
 

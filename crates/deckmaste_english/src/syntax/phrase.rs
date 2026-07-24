@@ -6,6 +6,7 @@ use super::ability::QuotedAbility;
 use super::clause::Clause;
 use super::clause::IndependentClause;
 use super::clause::InfinitiveClause;
+use super::clause::PredicateConjunction;
 use super::clause::RelativeClause;
 use crate::Numeral;
 use crate::catalog::CatalogAtom;
@@ -360,7 +361,12 @@ pub struct CoordinatedNounPhrase {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NounPhraseCoordination {
-    pub conjunction: NounPhraseConjunction,
+    /// The connective introducing this member: `None` on the asyndetic
+    /// comma-separated interior members of an Oxford head list (`enchantment,`
+    /// in `artifact, enchantment, or land`); `Some` on a bare `and`/`or`/`plus`
+    /// member and on the final Oxford member.
+    pub conjunction: Option<NounPhraseConjunction>,
+    pub comma: bool,
     pub phrase: NounPhrase,
 }
 
@@ -417,6 +423,38 @@ pub enum NominalModifier {
     },
     Quantity(Quantity),
     PowerToughness(PowerToughness),
+    /// A coordinated group of attributive modifiers filling a single modifier
+    /// slot: `white and blue` (Ashiok, Nightmare Muse), `artifact, creature,
+    /// and land` (Warp World), `white and/or blue` (Amphibious Kavu). It is
+    /// one outer [`NominalModifier`] node — coordination is a structural
+    /// fact about modifiers generally, not a per-mechanism list — so its
+    /// conjuncts are ordinary [`Self::Adjective`]/[`Self::Noun`] modifiers,
+    /// each keeping its own [`Polarity`]. The group binds tighter than the
+    /// rest of the modifier stack: in `white and blue Bird creature token`
+    /// only `white and blue` is coordinated, with `Bird` and `creature`
+    /// following as separate modifiers.
+    Coordinated(CoordinatedModifier),
+}
+
+/// A coordinated list of attributive modifiers. The first conjunct and each
+/// continuation is an [`Self::Adjective`]/[`Self::Noun`] modifier; the
+/// coordination is recorded (comma and optional conjunction per member) so the
+/// renderer replays the exact surface list. Mirrors the exception-rider list
+/// idiom.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoordinatedModifier {
+    pub first: Box<NominalModifier>,
+    pub rest: Vec<ModifierCoordination>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModifierCoordination {
+    /// The connective introducing this member: `None` on the asyndetic
+    /// comma-separated members of an Oxford list (`artifact,` in `artifact,
+    /// creature, and land`); `Some` on the final `and`/`or`/`and/or` member.
+    pub conjunction: Option<PredicateConjunction>,
+    pub comma: bool,
+    pub modifier: NominalModifier,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

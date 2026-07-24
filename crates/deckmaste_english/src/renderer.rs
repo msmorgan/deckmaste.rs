@@ -1227,13 +1227,18 @@ impl<'identity> Renderer<'identity> {
             NounPhrase::Coordinated(coordinated) => {
                 let mut rendered = self.noun_phrase(&coordinated.first)?;
                 for coordination in &coordinated.rest {
+                    if coordination.comma {
+                        rendered.push(',');
+                    }
                     rendered.push(' ');
-                    rendered.push_str(match coordination.conjunction {
-                        NounPhraseConjunction::And => "and",
-                        NounPhraseConjunction::Or => "or",
-                        NounPhraseConjunction::Plus => "plus",
-                    });
-                    rendered.push(' ');
+                    if let Some(conjunction) = coordination.conjunction {
+                        rendered.push_str(match conjunction {
+                            NounPhraseConjunction::And => "and",
+                            NounPhraseConjunction::Or => "or",
+                            NounPhraseConjunction::Plus => "plus",
+                        });
+                        rendered.push(' ');
+                    }
                     rendered.push_str(&self.noun_phrase(&coordination.phrase)?);
                 }
                 Ok(rendered)
@@ -1282,24 +1287,9 @@ impl<'identity> Renderer<'identity> {
             parts.push(self.determiner(determiner)?);
         }
         for modifier in &phrase.modifiers {
-            parts.push(match modifier {
-                NominalModifier::Adjective { polarity, phrase } => {
-                    let (head, trailing) = self.nominal_modifier_adjective(phrase)?;
-                    trailing_modifier_complements.extend(trailing);
-                    apply_polarity(*polarity, head, adjective_is_rules_bundle(&phrase.head))
-                }
-                NominalModifier::Noun { polarity, noun } => apply_polarity(
-                    *polarity,
-                    self.render_noun(noun)?,
-                    noun_is_rules_bundle(noun),
-                ),
-                NominalModifier::Quantity(quantity) => render_quantity(*quantity),
-                NominalModifier::PowerToughness(value) => format!(
-                    "{}/{}",
-                    render_signed_scalar(value.power),
-                    render_signed_scalar(value.toughness),
-                ),
-            });
+            let (rendered, trailing) = self.render_nominal_modifier(modifier)?;
+            trailing_modifier_complements.extend(trailing);
+            parts.push(rendered);
         }
         parts.push(self.render_noun(&phrase.head)?);
         for complement in &phrase.complements {
@@ -1319,28 +1309,92 @@ impl<'identity> Renderer<'identity> {
         Ok(join_words(parts))
     }
 
+    /// Renders one modifier slot to its surface, returning any trailing
+    /// complements to hoist past the head (an adjective modifier's postnominal
+    /// comparison). A [`NominalModifier::Coordinated`] slot recurses over its
+    /// conjuncts, replaying the exact comma/conjunction surface between them.
+    fn render_nominal_modifier(
+        &self,
+        modifier: &NominalModifier,
+    ) -> Result<(String, Vec<String>), RenderError> {
+        match modifier {
+            NominalModifier::Adjective { polarity, phrase } => {
+                let (head, trailing) = self.nominal_modifier_adjective(phrase)?;
+                Ok((
+                    apply_polarity(*polarity, head, adjective_is_rules_bundle(&phrase.head)),
+                    trailing,
+                ))
+            }
+            NominalModifier::Noun { polarity, noun } => Ok((
+                apply_polarity(
+                    *polarity,
+                    self.render_noun(noun)?,
+                    noun_is_rules_bundle(noun),
+                ),
+                Vec::new(),
+            )),
+            NominalModifier::Quantity(quantity) => Ok((render_quantity(*quantity), Vec::new())),
+            NominalModifier::PowerToughness(value) => Ok((
+                format!(
+                    "{}/{}",
+                    render_signed_scalar(value.power),
+                    render_signed_scalar(value.toughness),
+                ),
+                Vec::new(),
+            )),
+            NominalModifier::Coordinated(coordinated) => {
+                let (first, mut trailing) = self.render_nominal_modifier(&coordinated.first)?;
+                let mut rendered = first;
+                for coordination in &coordinated.rest {
+                    if coordination.comma {
+                        rendered.push(',');
+                    }
+                    rendered.push(' ');
+                    if let Some(conjunction) = coordination.conjunction {
+                        rendered.push_str(render_predicate_conjunction(conjunction));
+                        rendered.push(' ');
+                    }
+                    let (member, member_trailing) =
+                        self.render_nominal_modifier(&coordination.modifier)?;
+                    rendered.push_str(&member);
+                    trailing.extend(member_trailing);
+                }
+                Ok((rendered, trailing))
+            }
+        }
+    }
+
     fn nominal_initial_sound(&self, phrase: &NominalPhrase) -> Result<InitialSound, RenderError> {
         if let Some(first) = phrase.modifiers.first() {
-            return match first {
-                // A negated modifier's surface starts with `non`, so its initial
-                // sound is a consonant regardless of the base it negates.
-                NominalModifier::Adjective { polarity, .. }
-                | NominalModifier::Noun { polarity, .. }
-                    if polarity.is_negative() =>
-                {
-                    Ok(InitialSound::Consonant)
-                }
-                NominalModifier::Adjective { phrase, .. } => {
-                    self.adjective_initial_sound(&phrase.head)
-                }
-                NominalModifier::Noun { noun, .. } => self.noun_initial_sound(noun),
-                NominalModifier::Quantity(quantity) => {
-                    Ok(spelling_initial_sound(&render_quantity(*quantity)))
-                }
-                NominalModifier::PowerToughness(_) => Ok(InitialSound::Consonant),
-            };
+            return self.modifier_initial_sound(first);
         }
         self.noun_initial_sound(&phrase.head)
+    }
+
+    fn modifier_initial_sound(
+        &self,
+        modifier: &NominalModifier,
+    ) -> Result<InitialSound, RenderError> {
+        match modifier {
+            // A negated modifier's surface starts with `non`, so its initial
+            // sound is a consonant regardless of the base it negates.
+            NominalModifier::Adjective { polarity, .. }
+            | NominalModifier::Noun { polarity, .. }
+                if polarity.is_negative() =>
+            {
+                Ok(InitialSound::Consonant)
+            }
+            NominalModifier::Adjective { phrase, .. } => self.adjective_initial_sound(&phrase.head),
+            NominalModifier::Noun { noun, .. } => self.noun_initial_sound(noun),
+            NominalModifier::Quantity(quantity) => {
+                Ok(spelling_initial_sound(&render_quantity(*quantity)))
+            }
+            NominalModifier::PowerToughness(_) => Ok(InitialSound::Consonant),
+            // A coordinated slot's leading surface is its first conjunct's.
+            NominalModifier::Coordinated(coordinated) => {
+                self.modifier_initial_sound(&coordinated.first)
+            }
+        }
     }
 
     fn noun_initial_sound(&self, noun: &NounInstance) -> Result<InitialSound, RenderError> {
@@ -1896,6 +1950,7 @@ fn render_predicate_conjunction(conjunction: PredicateConjunction) -> &'static s
         PredicateConjunction::And => "and",
         PredicateConjunction::Or => "or",
         PredicateConjunction::Then => "then",
+        PredicateConjunction::AndOr => "and/or",
     }
 }
 

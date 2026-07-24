@@ -394,6 +394,12 @@ pub enum PredicateConjunction {
     And,
     Or,
     Then,
+    /// The disjunctive-or-conjunctive connective spelled `and/or`, lexed as a
+    /// single word token. It joins coordinated nominal modifiers (`white and/or
+    /// blue`, Amphibious Kavu); it is never a valid clause, predicate-object,
+    /// or noun-phrase connective, so every coordination outside the
+    /// modifier list rejects it.
+    AndOr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

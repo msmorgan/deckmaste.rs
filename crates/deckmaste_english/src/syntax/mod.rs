@@ -508,14 +508,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     });
                 }
                 for modifier in &nominal.modifiers {
-                    match modifier {
-                        NominalModifier::Adjective { phrase, .. } => {
-                            self.adjective_phrase(phrase, RecoveryRole::NominalComplement, context);
-                        }
-                        NominalModifier::Noun { .. }
-                        | NominalModifier::Quantity(_)
-                        | NominalModifier::PowerToughness(_) => {}
-                    }
+                    self.nominal_modifier(modifier, context);
                 }
                 for complement in &nominal.complements {
                     match complement {
@@ -566,6 +559,27 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 }
                 ArithmeticValue::Half { value, .. } => self.noun_phrase(value, context),
             },
+        }
+    }
+
+    fn nominal_modifier(
+        &mut self,
+        modifier: &'syntax NominalModifier,
+        context: Option<RecoveryRole>,
+    ) {
+        match modifier {
+            NominalModifier::Adjective { phrase, .. } => {
+                self.adjective_phrase(phrase, RecoveryRole::NominalComplement, context);
+            }
+            NominalModifier::Coordinated(coordinated) => {
+                self.nominal_modifier(&coordinated.first, context);
+                for coordination in &coordinated.rest {
+                    self.nominal_modifier(&coordination.modifier, context);
+                }
+            }
+            NominalModifier::Noun { .. }
+            | NominalModifier::Quantity(_)
+            | NominalModifier::PowerToughness(_) => {}
         }
     }
 

@@ -4694,7 +4694,7 @@ mod tests {
         assert!(matches!(
             object.rest.as_slice(),
             [crate::syntax::NounPhraseCoordination {
-                conjunction: crate::syntax::NounPhraseConjunction::Plus,
+                conjunction: Some(crate::syntax::NounPhraseConjunction::Plus),
                 ..
             }]
         ));

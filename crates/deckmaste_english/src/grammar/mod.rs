@@ -186,6 +186,23 @@ pub(crate) enum Nonterminal {
     Noun,
     Nominal,
     NounPhrase,
+    /// A single coordinable attributive modifier — an adjective phrase, a noun,
+    /// or a `non-` negated modifier — the atom of a coordinated modifier list.
+    ModifierConjunct,
+    /// An open, comma-separated run of [`Self::ModifierConjunct`] atoms with no
+    /// closing conjunction yet (`artifact, creature`). Reached only by the list
+    /// and coordination-closing rules, never by the nominal prepend, so a bare
+    /// comma run never becomes a modifier on its own.
+    ModifierList,
+    /// A closed coordinated modifier list (`white and blue`, `artifact,
+    /// creature, and land`), consumed by the nominal prepend rule as one
+    /// modifier slot.
+    CoordinatedModifier,
+    /// An open, comma-separated run of noun phrases with no closing conjunction
+    /// yet (`artifact, enchantment`). Reached only by the list-extension and
+    /// Oxford-close rules, never as a standalone noun phrase, so a bare comma
+    /// run of noun phrases never coordinates on its own.
+    NounPhraseList,
     /// The concrete-color argument of the `devotion` value nominal: a single
     /// color word or a two-color `and` pair. Reached only through the devotion
     /// production, so its bare-color rules never leak into ordinary phrases.
@@ -515,6 +532,14 @@ pub(crate) enum Features {
     /// `except` marker. Fieldless: the rider carries no agreement of its own —
     /// each conjunct is an independently agreeing finite clause.
     ExceptionRider,
+    /// A modifier conjunct, list, or closed coordinated modifier. Carries the
+    /// first conjunct's initial sound so the nominal prepend can set the a/an
+    /// of the whole phrase (`an artifact, creature, and land card`, `a
+    /// white and blue creature`); a leading `non-` conjunct fixes it to a
+    /// consonant.
+    CoordinatedModifier {
+        initial_sound: InitialSound,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -993,6 +1018,33 @@ enum RuleTag {
     Sentence,
     NounOpaque,
     FrequencyPhrase,
+    /// A coordinable modifier atom built from an adjective phrase.
+    ModifierConjunctAdjective,
+    /// A coordinable modifier atom built from a bare noun.
+    ModifierConjunctNoun,
+    /// A coordinable modifier atom built from a `non-` negated modifier.
+    ModifierConjunctNegated,
+    /// The single-atom base of an open comma-separated modifier run.
+    ModifierListSingle,
+    /// An asyndetic comma continuation of a modifier run (`artifact,
+    /// creature`).
+    ModifierListComma,
+    /// A coordinated modifier closed by a bare conjunction (`white and blue`,
+    /// `artifact, creature and land`) — covers the simple two-way pair and the
+    /// non-Oxford list.
+    CoordinatedModifierConjoined,
+    /// A coordinated modifier closed by an Oxford `, and`/`, or`/`, and/or`
+    /// member (`artifact, creature, and land`).
+    CoordinatedModifierOxford,
+    /// The nominal prepend of a coordinated modifier as one modifier slot.
+    NominalCoordinatedModifier,
+    /// The single-phrase base of an open noun-phrase run.
+    NounPhraseListSingle,
+    /// An asyndetic comma continuation of a noun-phrase run (`artifact,
+    /// enchantment`) — the interior members of an Oxford head list.
+    NounPhraseListComma,
+    /// The final Oxford member closing a noun-phrase head list (`…, or land`).
+    NounPhraseCoordinationOxford,
 }
 
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
@@ -1034,6 +1086,10 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         if opacity_profile != OpacityProfile::Exact {
             opacity::add_rules(&mut builder);
         }
+        // Coordination inside the nominal is appended last of all so existing
+        // rules keep their `RuleId`s and existing forests keep their alternative
+        // indices, even under the opacity profiles.
+        builder.add_coordination_rules();
         Self {
             source,
             catalogs,
@@ -2198,6 +2254,8 @@ impl EnglishGrammar<'_, '_> {
             PredicateConjunction::Or
         } else if surface.eq_ignore_ascii_case("then") {
             PredicateConjunction::Then
+        } else if surface.eq_ignore_ascii_case("and/or") {
+            PredicateConjunction::AndOr
         } else {
             return Vec::new();
         };
@@ -3034,6 +3092,134 @@ impl RuleBuilder {
     fn add_clause_rules(&mut self) {
         clause::add_rules(self);
     }
+
+    /// General coordination inside the nominal, appended last so every existing
+    /// rule keeps its `RuleId` and every existing parse forest keeps its
+    /// alternative indices. Two independent shapes:
+    ///
+    /// * **Modifier coordination** — a coordinated run of attributive modifiers
+    ///   filling one modifier slot (`white and blue`, `artifact, creature, and
+    ///   land`). The list is gathered on the dedicated `ModifierList`/
+    ///   `CoordinatedModifier` nonterminals so a bare comma run never becomes a
+    ///   standalone modifier, and only the closed form prepends to a nominal.
+    /// * **Head-list coordination** — comma/Oxford extensions of the existing
+    ///   binary noun-phrase coordination (`target artifact, enchantment, or
+    ///   land`), so a shared-determiner list of heads joins one construction.
+    fn add_coordination_rules(&mut self) {
+        use EnglishLexicalSlot as L;
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        // A coordinable modifier atom: an adjective phrase, a bare noun, or a
+        // `non-` negated modifier (polarity composes per conjunct).
+        self.add(
+            RuleTag::ModifierConjunctAdjective,
+            N::ModifierConjunct,
+            [n(N::AdjectivePhrase)],
+        );
+        self.add(
+            RuleTag::ModifierConjunctNoun,
+            N::ModifierConjunct,
+            [n(N::Noun)],
+        );
+        self.add(
+            RuleTag::ModifierConjunctNegated,
+            N::ModifierConjunct,
+            [l(L::NegatedModifier)],
+        );
+
+        // The open comma-separated run, gathered left to right.
+        self.add(
+            RuleTag::ModifierListSingle,
+            N::ModifierList,
+            [n(N::ModifierConjunct)],
+        );
+        self.add(
+            RuleTag::ModifierListComma,
+            N::ModifierList,
+            [
+                n(N::ModifierList),
+                l(L::Punctuation(Punctuation::Comma)),
+                n(N::ModifierConjunct),
+            ],
+        );
+
+        // Closing the run with a conjunction. The bare-conjunction close covers
+        // both the simple two-way pair (`white and blue`) and the non-Oxford
+        // list (`artifact, creature and land`); the Oxford close adds the comma
+        // before the final conjunction (`artifact, creature, and land`).
+        self.add_with_cost(
+            RuleTag::CoordinatedModifierConjoined,
+            N::CoordinatedModifier,
+            [
+                n(N::ModifierList),
+                l(L::Conjunction),
+                n(N::ModifierConjunct),
+            ],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
+        self.add_with_cost(
+            RuleTag::CoordinatedModifierOxford,
+            N::CoordinatedModifier,
+            [
+                n(N::ModifierList),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Conjunction),
+                n(N::ModifierConjunct),
+            ],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
+
+        // The coordinated run fills one modifier slot on the nominal, binding
+        // tighter than the rest of the modifier stack.
+        self.add(
+            RuleTag::NominalCoordinatedModifier,
+            N::Nominal,
+            [n(N::CoordinatedModifier), n(N::Nominal)],
+        );
+
+        // Head-list coordination: comma/Oxford extension of the existing binary
+        // noun-phrase coordination. The open run is gathered on the dedicated
+        // `NounPhraseList` nonterminal so a bare comma run never coordinates on
+        // its own; only the Oxford close (`, and`/`, or` + a final member)
+        // produces a coordinated noun phrase. Two-way `A and B` and un-comma'd
+        // `A and B or C` chains already ride the existing binary rule.
+        self.add(
+            RuleTag::NounPhraseListSingle,
+            N::NounPhraseList,
+            [n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::NounPhraseListComma,
+            N::NounPhraseList,
+            [
+                n(N::NounPhraseList),
+                l(L::Punctuation(Punctuation::Comma)),
+                n(N::NounPhrase),
+            ],
+        );
+        self.add_with_cost(
+            RuleTag::NounPhraseCoordinationOxford,
+            N::NounPhrase,
+            [
+                n(N::NounPhraseList),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Conjunction),
+                n(N::NounPhrase),
+            ],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
+    }
 }
 
 fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Features, MeaningKey>> {
@@ -3394,7 +3580,15 @@ fn reduce(
         | RuleTag::NominalDevotion
         | RuleTag::DevotionColorSingle
         | RuleTag::DevotionColorPair
-        | RuleTag::NominalTimesClause => reduce_nominal(tag, children)?,
+        | RuleTag::NominalTimesClause
+        | RuleTag::ModifierConjunctAdjective
+        | RuleTag::ModifierConjunctNoun
+        | RuleTag::ModifierConjunctNegated
+        | RuleTag::ModifierListSingle
+        | RuleTag::ModifierListComma
+        | RuleTag::CoordinatedModifierConjoined
+        | RuleTag::CoordinatedModifierOxford
+        | RuleTag::NominalCoordinatedModifier => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -3408,6 +3602,9 @@ fn reduce(
         | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
+        | RuleTag::NounPhraseListSingle
+        | RuleTag::NounPhraseListComma
+        | RuleTag::NounPhraseCoordinationOxford
         | RuleTag::NounPhraseMinus
         | RuleTag::NounPhraseHalf
         | RuleTag::NounPhraseHalfRoundedUp
@@ -4006,6 +4203,83 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 adjunct: None,
             })
         }
+        RuleTag::ModifierConjunctAdjective => {
+            // Only plain attributive adjectives coordinate as modifiers: a
+            // comparative or a card-orientation adjective is not an atom of a
+            // color/type/supertype list.
+            let Features::Adjective {
+                initial_sound,
+                comparison: AdjectiveComparisonState::NotComparative,
+                card_orientation: false,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            Some(Features::CoordinatedModifier {
+                initial_sound: *initial_sound,
+            })
+        }
+        RuleTag::ModifierConjunctNoun => {
+            let Features::Noun { initial_sound, .. } = children.first()?.features else {
+                return None;
+            };
+            Some(Features::CoordinatedModifier {
+                initial_sound: *initial_sound,
+            })
+        }
+        RuleTag::ModifierConjunctNegated => {
+            // A `non-` conjunct always renders `non…`, a consonant onset.
+            Some(Features::CoordinatedModifier {
+                initial_sound: InitialSound::Consonant,
+            })
+        }
+        RuleTag::ModifierListSingle => {
+            let Features::CoordinatedModifier { .. } = children.first()?.features else {
+                return None;
+            };
+            Some(children.first()?.features.clone())
+        }
+        RuleTag::ModifierListComma => {
+            // The list keeps its first conjunct's onset regardless of what a
+            // comma continuation appends.
+            let Features::CoordinatedModifier { .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::CoordinatedModifier { .. } = children.get(2)?.features else {
+                return None;
+            };
+            Some(children.first()?.features.clone())
+        }
+        RuleTag::CoordinatedModifierConjoined | RuleTag::CoordinatedModifierOxford => {
+            let Features::CoordinatedModifier { .. } = children.first()?.features else {
+                return None;
+            };
+            let conjunction_index =
+                if tag == RuleTag::CoordinatedModifierConjoined { 1 } else { 2 };
+            // `and`/`or`/`and/or` close a modifier list; `then` never does.
+            let Features::Conjunction(conjunction) = children.get(conjunction_index)?.features
+            else {
+                return None;
+            };
+            if matches!(conjunction, crate::syntax::PredicateConjunction::Then) {
+                return None;
+            }
+            let Features::CoordinatedModifier { .. } = children.last()?.features else {
+                return None;
+            };
+            Some(children.first()?.features.clone())
+        }
+        RuleTag::NominalCoordinatedModifier => {
+            let Features::CoordinatedModifier { initial_sound } = children.first()?.features else {
+                return None;
+            };
+            nominal_with_prefix(
+                children.get(1)?,
+                *initial_sound,
+                false,
+                AdjectiveComparisonState::NotComparative,
+            )
+        }
         _ => None,
     }
 }
@@ -4111,8 +4385,25 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 adjunct: None,
             })
         }
-        RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
-            reduce_noun_phrase_coordination(tag, children)
+        RuleTag::NounPhraseCoordination
+        | RuleTag::NounPhraseAdditiveCoordination
+        | RuleTag::NounPhraseCoordinationOxford => reduce_noun_phrase_coordination(tag, children),
+        RuleTag::NounPhraseListSingle => {
+            let Features::NounPhrase { .. } = children.first()?.features else {
+                return None;
+            };
+            Some(children.first()?.features.clone())
+        }
+        RuleTag::NounPhraseListComma => {
+            // The run keeps its first member's agreement; the closing rule
+            // recomputes the coordinated agreement from the final conjunction.
+            let Features::NounPhrase { .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::NounPhrase { .. } = children.get(2)?.features else {
+                return None;
+            };
+            Some(children.first()?.features.clone())
         }
         RuleTag::NounPhraseMinus => {
             // Both operands must be noun-phrase values; the result is a
@@ -4164,23 +4455,29 @@ fn reduce_noun_phrase_coordination(
     else {
         return None;
     };
+    // The Oxford close reads its conjunction after the comma (`, or`), so its
+    // conjunction and next member sit one slot later than the binary rule.
+    let (conjunction_index, next_index) =
+        if tag == RuleTag::NounPhraseCoordinationOxford { (2, 3) } else { (1, 2) };
     let conjunction = if tag == RuleTag::NounPhraseAdditiveCoordination {
         crate::syntax::NounPhraseConjunction::Plus
     } else {
-        let Features::Conjunction(conjunction) = children.get(1)?.features else {
+        let Features::Conjunction(conjunction) = children.get(conjunction_index)?.features else {
             return None;
         };
         match conjunction {
             crate::syntax::PredicateConjunction::And => crate::syntax::NounPhraseConjunction::And,
             crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
-            crate::syntax::PredicateConjunction::Then => return None,
+            // `then`/`and/or` never join noun phrases.
+            crate::syntax::PredicateConjunction::Then
+            | crate::syntax::PredicateConjunction::AndOr => return None,
         }
     };
     let Features::NounPhrase {
         agreement: next_agreement,
         adjunct: next_adjunct,
         ..
-    } = children.get(2)?.features
+    } = children.get(next_index)?.features
     else {
         return None;
     };
@@ -4460,6 +4757,7 @@ enum Lowered {
     ComparisonComplement(ComparisonComplement),
     Noun(NounInstance),
     NominalModifier(NominalModifier),
+    CoordinatedModifier(crate::syntax::CoordinatedModifier),
     Nominal(NominalPhrase),
     DevotionColors(crate::syntax::DevotionColors),
     PossessiveNominal(NominalPhrase),
@@ -4613,6 +4911,10 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
     })
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the rule-tag dispatch is intentionally one flat match over every tag"
+)]
 fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::QuantityExact
@@ -4674,7 +4976,15 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalDevotion
         | RuleTag::DevotionColorSingle
         | RuleTag::DevotionColorPair
-        | RuleTag::NominalTimesClause => lower_nominal(tag, children),
+        | RuleTag::NominalTimesClause
+        | RuleTag::ModifierConjunctAdjective
+        | RuleTag::ModifierConjunctNoun
+        | RuleTag::ModifierConjunctNegated
+        | RuleTag::ModifierListSingle
+        | RuleTag::ModifierListComma
+        | RuleTag::CoordinatedModifierConjoined
+        | RuleTag::CoordinatedModifierOxford
+        | RuleTag::NominalCoordinatedModifier => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -4688,6 +4998,9 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
+        | RuleTag::NounPhraseListSingle
+        | RuleTag::NounPhraseListComma
+        | RuleTag::NounPhraseCoordinationOxford
         | RuleTag::NounPhraseMinus
         | RuleTag::NounPhraseHalf
         | RuleTag::NounPhraseHalfRoundedUp
@@ -5188,6 +5501,85 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 complements: vec![NominalComplement::EventClause(Box::new(clause))],
             }))
         }
+        RuleTag::ModifierConjunctAdjective => {
+            let Lowered::AdjectivePhrase(phrase) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::NominalModifier(NominalModifier::Adjective {
+                polarity: Polarity::Positive,
+                phrase,
+            }))
+        }
+        RuleTag::ModifierConjunctNoun => {
+            let Lowered::Noun(noun) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::NominalModifier(NominalModifier::Noun {
+                polarity: Polarity::Positive,
+                noun,
+            }))
+        }
+        RuleTag::ModifierConjunctNegated => {
+            // The `non-` lexeme already lowers to a negated `NominalModifier`.
+            let Lowered::NominalModifier(modifier) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::NominalModifier(modifier))
+        }
+        RuleTag::ModifierListSingle => {
+            let Lowered::NominalModifier(first) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::CoordinatedModifier(
+                crate::syntax::CoordinatedModifier {
+                    first: Box::new(first),
+                    rest: Vec::new(),
+                },
+            ))
+        }
+        RuleTag::ModifierListComma
+        | RuleTag::CoordinatedModifierConjoined
+        | RuleTag::CoordinatedModifierOxford => {
+            let Lowered::CoordinatedModifier(mut coordinated) = take(children, 0)? else {
+                return None;
+            };
+            let (conjunction, comma, modifier_index) = match tag {
+                RuleTag::ModifierListComma => (None, true, 2),
+                RuleTag::CoordinatedModifierConjoined => (Some(1), false, 2),
+                RuleTag::CoordinatedModifierOxford => (Some(2), true, 3),
+                _ => return None,
+            };
+            let conjunction = match conjunction {
+                Some(index) => {
+                    let Lowered::Conjunction(conjunction) = take(children, index)? else {
+                        return None;
+                    };
+                    Some(conjunction)
+                }
+                None => None,
+            };
+            let Lowered::NominalModifier(modifier) = take(children, modifier_index)? else {
+                return None;
+            };
+            coordinated.rest.push(crate::syntax::ModifierCoordination {
+                conjunction,
+                comma,
+                modifier,
+            });
+            Some(Lowered::CoordinatedModifier(coordinated))
+        }
+        RuleTag::NominalCoordinatedModifier => {
+            let Lowered::CoordinatedModifier(coordinated) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
+                return None;
+            };
+            nominal
+                .modifiers
+                .insert(0, NominalModifier::Coordinated(coordinated));
+            Some(Lowered::Nominal(nominal))
+        }
         _ => None,
     }
 }
@@ -5296,27 +5688,58 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                     crate::syntax::PredicateConjunction::Or => {
                         crate::syntax::NounPhraseConjunction::Or
                     }
-                    crate::syntax::PredicateConjunction::Then => return None,
+                    // `then`/`and/or` never join noun phrases.
+                    crate::syntax::PredicateConjunction::Then
+                    | crate::syntax::PredicateConjunction::AndOr => return None,
                 }
             };
             let Lowered::NounPhrase(next) = take(children, 2)? else {
                 return None;
             };
             let coordination = crate::syntax::NounPhraseCoordination {
-                conjunction,
+                conjunction: Some(conjunction),
+                comma: false,
                 phrase: next,
             };
-            let coordinated = match first {
-                NounPhrase::Coordinated(mut coordinated) => {
-                    coordinated.rest.push(coordination);
-                    coordinated
-                }
-                first => crate::syntax::CoordinatedNounPhrase {
-                    first: Box::new(first),
-                    rest: vec![coordination],
-                },
+            Some(Lowered::NounPhrase(NounPhrase::Coordinated(
+                push_noun_phrase_coordination(first, coordination),
+            )))
+        }
+        RuleTag::NounPhraseListSingle => take(children, 0),
+        RuleTag::NounPhraseListComma | RuleTag::NounPhraseCoordinationOxford => {
+            let Lowered::NounPhrase(first) = take(children, 0)? else {
+                return None;
             };
-            Some(Lowered::NounPhrase(NounPhrase::Coordinated(coordinated)))
+            let (conjunction, next_index) = if tag == RuleTag::NounPhraseCoordinationOxford {
+                let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                    return None;
+                };
+                let conjunction = match conjunction {
+                    crate::syntax::PredicateConjunction::And => {
+                        crate::syntax::NounPhraseConjunction::And
+                    }
+                    crate::syntax::PredicateConjunction::Or => {
+                        crate::syntax::NounPhraseConjunction::Or
+                    }
+                    // `then`/`and/or` never join noun phrases.
+                    crate::syntax::PredicateConjunction::Then
+                    | crate::syntax::PredicateConjunction::AndOr => return None,
+                };
+                (Some(conjunction), 3)
+            } else {
+                (None, 2)
+            };
+            let Lowered::NounPhrase(next) = take(children, next_index)? else {
+                return None;
+            };
+            let coordination = crate::syntax::NounPhraseCoordination {
+                conjunction,
+                comma: true,
+                phrase: next,
+            };
+            Some(Lowered::NounPhrase(NounPhrase::Coordinated(
+                push_noun_phrase_coordination(first, coordination),
+            )))
         }
         RuleTag::NounPhraseMinus
         | RuleTag::NounPhraseHalf
@@ -5390,4 +5813,23 @@ fn lower_arithmetic_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
 fn take(children: &mut [Lowered], index: usize) -> Option<Lowered> {
     let child = children.get_mut(index)?;
     Some(std::mem::replace(child, Lowered::Ignored))
+}
+
+/// Appends a coordination member to a noun-phrase coordination, extending an
+/// existing flat list in place or opening a fresh one — the shared tail of the
+/// binary, comma, and Oxford coordination rules.
+fn push_noun_phrase_coordination(
+    first: NounPhrase,
+    coordination: crate::syntax::NounPhraseCoordination,
+) -> crate::syntax::CoordinatedNounPhrase {
+    match first {
+        NounPhrase::Coordinated(mut coordinated) => {
+            coordinated.rest.push(coordination);
+            coordinated
+        }
+        first => crate::syntax::CoordinatedNounPhrase {
+            first: Box::new(first),
+            rest: vec![coordination],
+        },
+    }
 }
