@@ -2066,6 +2066,9 @@ impl EnglishGrammar<'_, '_> {
             if let Some(end) = self.words_match(tokens, start, &["as", "long", "as"]) {
                 return Some((end, crate::syntax::Subordinator::AsLongAs));
             }
+            if let Some(end) = self.words_match(tokens, start, &["as", "though"]) {
+                return Some((end, crate::syntax::Subordinator::AsThough));
+            }
             return Some((start + 1, crate::syntax::Subordinator::As));
         }
         let subordinator = if surface.eq_ignore_ascii_case("if") {

@@ -410,6 +410,12 @@ pub enum Subordinator {
     /// It is carried as a distinct subordinator so the binding is recorded in
     /// the AST rather than inferred from the surface word.
     Where,
+    /// The counterfactual connective `as though`, which trails a finite
+    /// clause stating the respect in which the matrix event is to be treated
+    /// differently (`you may cast this spell as though it had flash`). Like
+    /// `as long as` it is carried as a single two-word subordinator lexeme
+    /// and replayed verbatim by the renderer.
+    AsThough,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

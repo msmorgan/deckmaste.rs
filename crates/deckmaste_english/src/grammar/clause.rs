@@ -3905,6 +3905,66 @@ mod tests {
     }
 
     #[test]
+    fn as_though_binds_a_trailing_past_indicative_clause() {
+        // Mechanism A: `as though` is a thin lexeme/spelling addition onto the
+        // existing subordinator-agnostic trailing-clause attachment; no new
+        // production. Past-indicative bodies (`had`, `didn't have`) need no
+        // subjunctive licensing.
+        for source in [
+            "You may cast this spell as though it had flash.",
+            "You may cast spells as though they had flash.",
+            "This creature can attack this turn as though it didn't have defender.",
+        ] {
+            let parsed = parse_self(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn as_though_clause_attachment_shape() {
+        let source = "You may cast this spell as though it had flash.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+            attachments,
+            ..
+        })) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a trailing as-though attachment");
+        };
+        let [attachment] = attachments.as_slice() else {
+            panic!("expected exactly one trailing attachment");
+        };
+        assert_eq!(attachment.position, AttachmentPosition::AfterMatrix);
+        assert!(!attachment.comma);
+        assert!(matches!(
+            &attachment.kind,
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                Subordinator::AsThough,
+                SubordinateBody::Finite(_),
+            ))
+        ));
+    }
+
+    #[test]
+    fn as_though_does_not_double_or_leak_into_bare_as() {
+        // No doubling / no `though`-less over-fire on a malformed doubled
+        // subordinator.
+        assert!(
+            parse_nonterminal(
+                "This creature can attack as though though it didn't have defender.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn where_body_prefers_possessive_self_reference_over_a_vocab_noun() {
         // Regression for `Fang, Roku's Companion`: the where-body `X is Fang's
         // power` must read `Fang's` as the face's own possessive self-reference,
@@ -5702,7 +5762,10 @@ mod tests {
 
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
-            .with_catalog(CatalogKind::KeywordAbility, ["Flying", "Haste"])
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                ["Flying", "Haste", "Flash", "Defender", "Hexproof"],
+            )
             .with_catalog(CatalogKind::CreatureType, ["Goblin"])
             .with_catalog(CatalogKind::LandType, ["Plains"])
             .with_catalog(CatalogKind::CardType, ["Creature", "Land", "Sorcery"])
