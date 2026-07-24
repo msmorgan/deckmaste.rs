@@ -80,6 +80,7 @@ berserk	adjective
 betrayal	noun_count
 betrayer	noun_count
 bewitching	adjective
+bidder	noun_count
 blackjack	noun_count
 blade	noun_count
 blaze	noun_count
@@ -232,6 +233,7 @@ courage	noun_count
 crash	verb
 credit	noun_count
 crescent	noun_count
+crew	verb
 crime	noun_count
 croak	verb
 cross	noun_count
@@ -341,6 +343,7 @@ duty	noun_count
 earth	noun_count
 ecliptic	noun_count
 effect	noun_count
+either	noun_count
 elevator	noun_count
 elixir	noun_count
 emblem	noun_count
@@ -353,12 +356,14 @@ enthralling	adjective
 entity	noun_count
 eon	noun_count
 equal	adjective
+escape	verb
 eternity	noun_count
 etherium	noun_count
 even	adjective
 even	adverb
 evenly	adverb
 everflame	noun_count
+everything	noun_mass
 evidence	noun_count
 exactly	adverb
 excess	noun_count
@@ -366,6 +371,7 @@ exchange	noun_count
 execution	noun_count
 executioner	noun_count
 exile	noun_count
+expansion	noun_count
 expend	verb
 experience	noun_count
 experience	verb
@@ -376,6 +382,7 @@ eyeball	noun_count
 face	noun_count
 face	verb
 faith	noun_count
+fame	noun_count
 fancy	noun_count
 fang	noun_count
 fate	noun_count
@@ -600,6 +607,7 @@ legal	adjective
 legion	noun_count
 lethal	adjective
 lethality	noun_count
+level	noun_count
 ley	noun_count
 library	noun_count
 life	noun_count
@@ -639,6 +647,7 @@ manifest	noun_count
 manifestation	noun_count
 mannequin	noun_count
 mantle	noun_count
+many	noun_count
 mark	noun_count
 mark	verb
 mask	noun_count
@@ -674,6 +683,7 @@ monstrosity	noun_count
 monstrous	adjective
 moon	noun_count
 move	verb
+much	noun_count
 mug	noun_count
 mug	verb
 mulligan	noun_count
@@ -806,6 +816,7 @@ pridemate	noun_count
 prime	adjective
 primo	adjective
 prince	noun_count
+print	verb
 prismatic	adjective
 prisoner	noun_count
 process	noun_count
@@ -835,6 +846,7 @@ pupa	noun_count
 quality	noun_count
 quest	noun_count
 quill	noun_count
+rad	noun_count
 rage	noun_count
 rager	noun_count
 raise	verb
@@ -1184,7 +1196,9 @@ visions	noun_count
 visit	verb
 vitality	noun_count
 voice	noun_count
+void	noun_count
 vote	noun_count
+voter	noun_count
 voyage	noun_count
 voyage	verb
 voyager	noun_count

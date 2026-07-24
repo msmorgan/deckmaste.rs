@@ -35,6 +35,13 @@ pub enum Pronoun {
     It(Gender),
     They,
     EachOther,
+    /// Reflexive `itself`. Object case only, like [`Self::EachOther`].
+    Itself,
+    /// Reflexive `himself`. Object case only, like [`Self::EachOther`].
+    Himself,
+    /// Absolute possessive `yours` (`turns other than yours`). Object case
+    /// only, like [`Self::EachOther`].
+    YoursAbsolute,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -857,6 +864,14 @@ vocabulary! {
             .with_past("beheld")
             .with_past_participle("beheld")
     ));
+    Bid("bid")
+        .verb(VerbForm::Irregular(
+            IrregularVerbDef::EMPTY
+                .with_past("bid")
+                .with_present_participle("bidding")
+                .with_past_participle("bid")
+        ))
+        .noun(NounDeclension::Regular, Countability::Count);
     Bison("Bison").invariant_catalog_noun();
     Blight("blight").verb(VerbForm::Regular);
     Block("block")
@@ -982,6 +997,7 @@ vocabulary! {
     Explore("explore").verb(VerbForm::Regular);
     Fateseal("fateseal").verb(VerbForm::Regular);
     Fewer("fewer").comparison(AdjectiveComparison::OrComparative(ComparativeWord::Fewer));
+    Fewest("fewest").adjective().noun(NounDeclension::Regular, Countability::CountOrMass);
     Fight("fight").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("fought")
@@ -1076,13 +1092,16 @@ vocabulary! {
     Monstrosity("monstrosity").noun(NounDeclension::Regular, Countability::Count);
     Monstrous("monstrous").adjective();
     Moonfolk("Moonfolk").invariant_catalog_noun();
+    Most("most").adjective().noun(NounDeclension::Regular, Countability::CountOrMass);
     Mouse("Mouse").irregular_catalog_noun("Mice");
     Move("move").verb(VerbForm::Regular);
     Name("name").verb(VerbForm::Regular);
     Myr("Myr").invariant_catalog_noun();
+    Nearest("nearest").adjective().noun(NounDeclension::Regular, Countability::CountOrMass);
     Night("night").noun(NounDeclension::Regular, Countability::Count);
     Number("number").noun(NounDeclension::Regular, Countability::Count);
     Odd("odd").adjective();
+    One("one").noun(NounDeclension::Regular, Countability::Count);
     Open("open").verb(VerbForm::Regular);
     Opponent("opponent").noun(NounDeclension::Regular, Countability::Count);
     Only("only").adverb();
@@ -1172,6 +1191,11 @@ vocabulary! {
     Spell("spell").noun(NounDeclension::Regular, Countability::Count);
     Squid("Squid").invariant_catalog_noun();
     Starfish("Starfish").invariant_catalog_noun();
+    Stand("stand").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("stood")
+            .with_past_participle("stood")
+    ));
     Support("support")
         .noun(NounDeclension::Regular, Countability::Mass)
         .verb(VerbForm::Regular);
@@ -1417,7 +1441,13 @@ impl Vocabulary {
             (Pronoun::They, PronounCase::Subject) => Some("they"),
             (Pronoun::They, PronounCase::Object) => Some("them"),
             (Pronoun::EachOther, PronounCase::Object) => Some("each other"),
-            (Pronoun::EachOther, PronounCase::Subject) => None,
+            (Pronoun::Itself, PronounCase::Object) => Some("itself"),
+            (Pronoun::Himself, PronounCase::Object) => Some("himself"),
+            (Pronoun::YoursAbsolute, PronounCase::Object) => Some("yours"),
+            (
+                Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute,
+                PronounCase::Subject,
+            ) => None,
         }
     }
 
@@ -1429,7 +1459,9 @@ impl Vocabulary {
             Pronoun::It(Gender::Feminine) => Some("her"),
             Pronoun::It(Gender::Neuter) => Some("its"),
             Pronoun::They => Some("their"),
-            Pronoun::EachOther => None,
+            Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute => {
+                None
+            }
         }
     }
 
@@ -1729,7 +1761,7 @@ pub(crate) const VERB_SLOTS: [VerbSlot; 12] = [
     VerbSlot::PastParticiple,
 ];
 
-const PRONOUN_FORMS: [(&str, PronounInstance); 11] = [
+const PRONOUN_FORMS: [(&str, PronounInstance); 14] = [
     (
         "you",
         PronounInstance {
@@ -1804,6 +1836,27 @@ const PRONOUN_FORMS: [(&str, PronounInstance); 11] = [
         "each other",
         PronounInstance {
             pronoun: Pronoun::EachOther,
+            case: PronounCase::Object,
+        },
+    ),
+    (
+        "itself",
+        PronounInstance {
+            pronoun: Pronoun::Itself,
+            case: PronounCase::Object,
+        },
+    ),
+    (
+        "himself",
+        PronounInstance {
+            pronoun: Pronoun::Himself,
+            case: PronounCase::Object,
+        },
+    ),
+    (
+        "yours",
+        PronounInstance {
+            pronoun: Pronoun::YoursAbsolute,
             case: PronounCase::Object,
         },
     ),

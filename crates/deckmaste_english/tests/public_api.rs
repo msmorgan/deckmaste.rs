@@ -860,3 +860,373 @@ fn a_cost_flavor_header_with_a_non_member_label_is_unaffected() {
         "the ability-level flavor slot must stay empty for a cost header\nAST:\n{ast}"
     );
 }
+
+// --- R33: the lexical-sweep round --------------------------------------------
+
+/// The card-type atoms the lexical-sweep witnesses name.
+fn r33_catalogs() -> Catalogs {
+    Catalogs::default().with_catalog(
+        CatalogKind::CardType,
+        [
+            "Creature",
+            "Land",
+            "Artifact",
+            "Enchantment",
+            "Planeswalker",
+        ],
+    )
+}
+
+#[test]
+fn one_is_a_dispreferenced_fused_head_noun() {
+    // Touch of Darkness shape: sentence-initial `One` coordinated with `more`
+    // has no following head noun, so `one` fills the fused head itself — the
+    // sibling of `other`'s fused head, dispreferenced the same way
+    // (`is_fused_head_noun`) so it never outranks the ordinary numeral reading.
+    let source = "One or more target creatures become black until end of turn.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Touch of Darkness", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("head:Singular(Word(One,)"),
+        "expected `One` to head the fused-head nominal\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn number_literal_one_still_wins_over_the_noun_reading() {
+    // The gate: `one` is scanned as a count noun only to license the fused
+    // head above. In an ordinary quantity position the numeral reading — equal
+    // in every other structural cost — must still win the tiebreak, never a
+    // `Noun::Word(One)`.
+    let source = "Return up to one target creature card from your graveyard to the battlefield.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Badlands Revival", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("NumberLiteral{value:1,"),
+        "expected `one` as a number literal\nAST:\n{ast}"
+    );
+    assert!(
+        !compact(&ast).contains("Word(One,)"),
+        "`one` must not reduce as a fused-head noun in quantity position\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn itself_reflexive_pronoun_round_trips() {
+    // Asmoranomardicadaistinaculdacar shape: a creature-subject reflexive
+    // object, the sibling of `each_other` at the same object-case pronoun
+    // slot — no new grammar, just a new pronoun identity.
+    let source = "Target creature deals 6 damage to itself.";
+    let (rendered, ast) = parse_face(
+        source,
+        &r33_catalogs(),
+        "Asmoranomardicadaistinaculdacar",
+        false,
+    );
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("pronoun:Itself,"),
+        "expected the reflexive pronoun `itself`\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn himself_reflexive_pronoun_round_trips() {
+    // Sarkhan the Mad shape: the same object-case reflexive identity, standing
+    // in for a legendary planeswalker subject.
+    let source = "Sarkhan deals damage to himself equal to that card's mana value.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Sarkhan the Mad", true);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("pronoun:Himself,"),
+        "expected the reflexive pronoun `himself`\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn yours_absolute_pronoun_round_trips() {
+    // Geyser Drake shape: the absolute possessive `yours`, a third object-case
+    // identity at the same existing pronoun slot.
+    let source = "During turns other than yours, spells you cast cost {1} less to cast.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Geyser Drake", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("pronoun:YoursAbsolute,"),
+        "expected the absolute possessive pronoun `yours`\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn fewest_is_a_fused_head_superlative_noun() {
+    // Balance shape: `the fewest` has no following head noun, so the
+    // superlative itself heads the nominal (plain noun sense, no dispreference
+    // needed — `fewest` has no competing reading).
+    let source = "Each player chooses a number of lands they control equal to the number of \
+        lands controlled by the player who controls the fewest, then sacrifices the rest.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Balance", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Fewest,"),
+        "expected `fewest` to head the fused-head nominal\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn most_is_an_attributive_superlative_adjective() {
+    // No Witnesses shape: `the most creatures` modifies a following plural
+    // head noun, exercising the adjective sense of the same `most` entry.
+    let source = "Each player who controls the most creatures investigates.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "No Witnesses", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Most,"),
+        "expected `most` as the superlative modifier\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn nearest_is_an_attributive_superlative_adjective() {
+    // Mystic Barrier shape: `the nearest opponent`, the same attributive
+    // superlative pattern as `most`.
+    let source = "Each player may attack only the nearest opponent in the last chosen direction \
+        and planeswalkers controlled by that opponent.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Mystic Barrier", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Nearest,"),
+        "expected `nearest` as the superlative modifier\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn bid_bidding_and_bidder_forms_round_trip() {
+    // Illicit Auction shape: the irregular verb `bid` (bid/bidding/bid), its
+    // gerund-as-noun `the bidding` (the existing nominalization rule, no
+    // separate vocabulary entry), and the regular noun `bidder` all combine in
+    // one fully structured auction sequence.
+    let source = "Each player may bid life for control of target creature. \
+        You start the bidding with a bid of 0. \
+        In turn order, each player may top the high bid. \
+        The bidding ends if the high bid stands. \
+        The high bidder loses life equal to the high bid and gains control of the creature.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Illicit Auction", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+}
+
+#[test]
+fn crew_ordinary_verb_coexists_with_the_crew_keyword_action() {
+    // Canyon Vaulter shape: `crews` as an ordinary third-person verb in
+    // running prose, distinct from (and non-conflicting with) the catalog-
+    // driven `Crew N` keyword-action cost line.
+    let source =
+        "Whenever this creature crews an artifact, that artifact gains flying until end of turn.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Canyon Vaulter", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"crew\""),
+        "expected `crew` as an ordinary verb\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn escape_verb_round_trips() {
+    // Chainweb Aracnir shape: `escapes` as an ordinary present-tense verb,
+    // distinct from the unrelated `Escape—<cost>` keyword-cost header line
+    // (a separate, unspaced-em-dash frame this round does not touch).
+    let source = "This creature escapes with three +1/+1 counters on it.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Chainweb Aracnir", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"escape\""),
+        "expected `escape` as an ordinary verb\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn everything_mass_noun_round_trips() {
+    // Hexdrinker shape (`Protection from everything`) is a bare verbless
+    // level-body line, licensed only inside the class-level frame this round
+    // does not touch; the same `everything`-as-bare-object-of-`from` shape
+    // exercised as an ordinary clause instead.
+    let source = "Enchanted creature has protection from everything.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"everything\""),
+        "expected `everything` as a mass noun\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn void_voter_and_fame_nouns_round_trip() {
+    // Dauthi Voidwalker (`void` as a noun-modifier in the productive `<word>
+    // counter` pattern), Elrond of the White Council (`voter` as a bare
+    // subject noun), and Seize the Spotlight (`fame` as a bare object noun).
+    let void = "If a card would be put into an opponent's graveyard from anywhere, instead \
+        exile it with a void counter on it.";
+    let (rendered, ast) = parse_face(void, &Catalogs::default(), "Dauthi Voidwalker", false);
+    assert_eq!(rendered, void);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"void\""),
+        "expected `void` as a noun modifier\nAST:\n{ast}"
+    );
+
+    let voter = "For each fellowship vote, the voter chooses a creature they control.";
+    let (rendered, ast) = parse_face(voter, &r33_catalogs(), "Elrond of the White Council", true);
+    assert_eq!(rendered, voter);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"voter\""),
+        "expected `voter` as a bare noun\nAST:\n{ast}"
+    );
+
+    let fame = "Each opponent chooses fame or fortune.";
+    let (rendered, ast) = parse_face(fame, &Catalogs::default(), "Seize the Spotlight", false);
+    assert_eq!(rendered, fame);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"fame\""),
+        "expected `fame` as a bare noun\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn either_is_a_fused_head_pronoun_noun() {
+    // Worms of the Earth shape: `does either` has no following head noun, so
+    // `either` fills the fused head itself.
+    let source = "If a player does either, destroy this enchantment.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Worms of the Earth", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"either\""),
+        "expected `either` as a fused-head noun\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn much_and_many_are_fused_head_nouns_with_a_partitive_complement() {
+    // Mana Reflection (`as much of that mana`) and Vorinclex, Monstrous Raider
+    // (`that many of each of those kinds of counters`): both fill a partitive
+    // `of`-complement head the dedicated `Quantity::ThatMuch`/`ThatMany`
+    // determiner shapes don't reach — that shape only covers a simple
+    // determined noun as the partitive whole, not a nested partitive.
+    let much = "If you tap a permanent for mana, it produces twice as much of that mana instead.";
+    let (rendered, ast) = parse_face(much, &Catalogs::default(), "Mana Reflection", false);
+    assert_eq!(rendered, much);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"much\""),
+        "expected `much` as a fused-head noun\nAST:\n{ast}"
+    );
+
+    let many = "If you would put one or more counters on a permanent or player, put twice that \
+        many of each of those kinds of counters on that permanent or player instead.";
+    let (rendered, ast) = parse_face(
+        many,
+        &Catalogs::default(),
+        "Vorinclex, Monstrous Raider",
+        true,
+    );
+    assert_eq!(rendered, many);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"many\""),
+        "expected `many` as a fused-head noun\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn print_and_expansion_nouns_round_trip() {
+    // Apocalypse Chime shape: `printed` (the regular verb `print`'s past
+    // participle) and `expansion` (a regular noun) complete the surrounding
+    // reduced-relative and prepositional-phrase shapes. `originally` stays
+    // out of vocabulary this round (its adverb sense regressed elsewhere — see
+    // the residue notes), so it fills the reduced relative's subject slot as
+    // licensed opacity rather than as an adverb; this is a real, measured,
+    // already-landed improvement over the prior full-clause failure.
+    let source = "Destroy all nontoken permanents with a name originally printed in the \
+        Homelands expansion. They can't be regenerated.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Apocalypse Chime", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"print\""),
+        "expected `print` as the reduced-relative verb\nAST:\n{ast}"
+    );
+    assert!(
+        compact(&ast).contains("Regular(\"expansion\""),
+        "expected `expansion` as a bare noun\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn level_and_rad_nouns_round_trip() {
+    // The Class-card `level counter` idiom and Mariposa Military Base's `rad
+    // counter`: both are the same productive `<word> counter(s)` noun-
+    // modifier pattern as `void` above.
+    let level = "{1}: Put a level counter on this.";
+    let (rendered, ast) = parse_face(level, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, level);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"level\""),
+        "expected `level` as a noun modifier\nAST:\n{ast}"
+    );
+
+    let rad = "You may have this land enter tapped. If you do, you get two rad counters.";
+    let (rendered, ast) = parse_face(rad, &r33_catalogs(), "Mariposa Military Base", false);
+    assert_eq!(rendered, rad);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Regular(\"rad\""),
+        "expected `rad` as a noun modifier\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn between_preposition_licenses_a_coordinated_number_range() {
+    // By Invitation Only shape: `between 0 and 13` is the primary corpus
+    // motivation for the new `Preposition::Between` variant — a plain
+    // addition to the closed preposition set feeding the existing generic
+    // `PrepositionalPhrase` production, not a new chart rule.
+    let source = "Choose a number between 0 and 13.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "By Invitation Only", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("preposition:Between,"),
+        "expected the new `between` preposition\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn between_preposition_licenses_the_difference_between_shape() {
+    // Jaws of Defeat shape (the `difference between X and Y` idiom): a second,
+    // independent corpus motivation for `Preposition::Between`, guarding the
+    // new enum variant's exhaustive wiring (scanner, renderer, and the
+    // `PrepositionalPhrase` production) against a narrower reading that only
+    // happened to fit the number-range case above.
+    let source = "That player loses life equal to the difference between its power and its \
+        toughness.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("preposition:Between,"),
+        "expected the new `between` preposition\nAST:\n{ast}"
+    );
+}

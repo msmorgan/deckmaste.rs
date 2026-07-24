@@ -2042,6 +2042,7 @@ fn render_preposition(preposition: Preposition) -> &'static str {
         Preposition::As => "as",
         Preposition::At => "at",
         Preposition::Before => "before",
+        Preposition::Between => "between",
         Preposition::By => "by",
         Preposition::During => "during",
         Preposition::For => "for",

@@ -275,15 +275,14 @@ fn cardinalize_ordinal(input: &str) -> Option<String> {
 }
 
 fn parse_ordinal_candidate(input: &str) -> Option<i32> {
-    match input {
-        "last" => Some(-1),
-        _ => {
-            let (ordinal, negative) = input
-                .strip_suffix(" to last")
-                .map_or((input, false), |ordinal| (ordinal, true));
-            let cardinal = cardinalize_ordinal(ordinal)?;
-            signed_magnitude(parse_cardinal_magnitude(&cardinal)?, negative)
-        }
+    if input == "last" {
+        Some(-1)
+    } else {
+        let (ordinal, negative) = input
+            .strip_suffix(" to last")
+            .map_or((input, false), |ordinal| (ordinal, true));
+        let cardinal = cardinalize_ordinal(ordinal)?;
+        signed_magnitude(parse_cardinal_magnitude(&cardinal)?, negative)
     }
 }
 

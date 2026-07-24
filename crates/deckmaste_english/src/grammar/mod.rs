@@ -2678,6 +2678,8 @@ impl EnglishGrammar<'_, '_> {
             Preposition::At
         } else if surface.eq_ignore_ascii_case("before") {
             Preposition::Before
+        } else if surface.eq_ignore_ascii_case("between") {
+            Preposition::Between
         } else if surface.eq_ignore_ascii_case("by") {
             Preposition::By
         } else if surface.eq_ignore_ascii_case("during") {
@@ -3355,6 +3357,13 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
                 // reading — equal in every structural cost — always wins in
                 // modifier position, and the noun reading surfaces only as the
                 // fused head, where no adjective reading completes.
+                //
+                // `one` is the same shape against the number-literal reading:
+                // it is scanned as a count noun so the anaphoric fused head
+                // (`a different one of those creatures`, `each one`) can head a
+                // nominal, but dispreferenced so a competing `NumberLiteral`
+                // quantity reading (`one card`, `one or more counters`) always
+                // wins wherever both complete.
                 local_cost: ParseCost {
                     reading_dispreference: u32::from(is_fused_head_noun(&noun)),
                     ..ParseCost::default()
@@ -3517,7 +3526,7 @@ fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features
             person: Person::Third,
             number: Number::Plural,
         }),
-        Pronoun::EachOther => None,
+        Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute => None,
     };
     Features::NounPhrase {
         agreement,
@@ -3547,17 +3556,19 @@ fn noun_form(noun: &NounInstance) -> NounForm {
     }
 }
 
-/// Whether this noun is a dual adjective/noun lexeme scanned as a noun purely
-/// to license an anaphoric fused head (`the other`/`the others`). Its noun
-/// reading is dispreferenced so the attributive-adjective reading wins wherever
-/// both compete; see [`lexical_word_matches`].
+/// Whether this noun is a dual-reading lexeme scanned as a noun purely to
+/// license an anaphoric fused head (`the other`/`the others`, `a different one
+/// of those creatures`, `each one`). Its noun reading is dispreferenced so the
+/// competing reading — the attributive adjective for `other`, the
+/// `NumberLiteral` quantity for `one` — wins wherever both complete; see
+/// [`lexical_word_matches`].
 fn is_fused_head_noun(noun: &NounInstance) -> bool {
     let inner = match noun {
         NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
             noun
         }
     };
-    matches!(inner, Noun::Word(Vocab::Other))
+    matches!(inner, Noun::Word(Vocab::Other | Vocab::One))
 }
 
 fn noun_adjunct_kind(noun: &NounInstance) -> Option<BareNominalAdjunct> {
