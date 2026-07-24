@@ -1086,7 +1086,9 @@ vocabulary! {
     Open("open").verb(VerbForm::Regular);
     Opponent("opponent").noun(NounDeclension::Regular, Countability::Count);
     Only("only").adverb();
-    Other("other").comparison(AdjectiveComparison::ThanOnly);
+    Other("other")
+        .comparison(AdjectiveComparison::ThanOnly)
+        .noun(NounDeclension::Regular, Countability::Count);
     Own("own").verb(VerbForm::Regular);
     Owner("owner").noun(NounDeclension::Regular, Countability::Count);
     Ox("Ox").irregular_catalog_noun("Oxen");

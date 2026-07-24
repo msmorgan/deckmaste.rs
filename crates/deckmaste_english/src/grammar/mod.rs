@@ -2053,6 +2053,15 @@ impl EnglishGrammar<'_, '_> {
             crate::syntax::Subordinator::Before
         } else if surface.eq_ignore_ascii_case("after") {
             crate::syntax::Subordinator::After
+        } else if surface.eq_ignore_ascii_case("until") {
+            // The clausal `until <event clause>` complement that bounds an
+            // iterated action (`reveal cards … until you reveal a creature
+            // card`). Also lexed as `Preposition::Until` for the durational
+            // adjunct `until end of turn`; the two readings are disjoint by
+            // what follows — only a finite `Clause` completes the subordinate
+            // rule, only a noun phrase completes the prepositional one — so no
+            // clean parse gains a competing alternative.
+            crate::syntax::Subordinator::Until
         } else if surface.eq_ignore_ascii_case("where") {
             crate::syntax::Subordinator::Where
         } else {
@@ -3331,14 +3340,27 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
                 return Vec::new();
             };
             let adjunct = noun_adjunct_kind(&noun);
-            single(
-                Features::Noun {
+            vec![LexicalMatch {
+                end,
+                features: Features::Noun {
                     form,
                     initial_sound,
                     adjunct,
                 },
-                MeaningKey::Noun(noun),
-            )
+                // `other` is scanned as a count noun only so the anaphoric
+                // fused head `the other`/`the others` (the sibling of `the
+                // rest`) can head a nominal. Everywhere else `other` is an
+                // attributive adjective (`each other creature`, `all other
+                // permanents`); dispreference the noun reading so the adjective
+                // reading — equal in every structural cost — always wins in
+                // modifier position, and the noun reading surfaces only as the
+                // fused head, where no adjective reading completes.
+                local_cost: ParseCost {
+                    reading_dispreference: u32::from(is_fused_head_noun(&noun)),
+                    ..ParseCost::default()
+                },
+                meaning: MeaningKey::Noun(noun),
+            }]
         }
         WordMatch::Verb(verb) => verb
             .verb
@@ -3523,6 +3545,19 @@ fn noun_form(noun: &NounInstance) -> NounForm {
         NounInstance::Plural(_) => NounForm::Plural,
         NounInstance::Mass(_) => NounForm::Mass,
     }
+}
+
+/// Whether this noun is a dual adjective/noun lexeme scanned as a noun purely
+/// to license an anaphoric fused head (`the other`/`the others`). Its noun
+/// reading is dispreferenced so the attributive-adjective reading wins wherever
+/// both compete; see [`lexical_word_matches`].
+fn is_fused_head_noun(noun: &NounInstance) -> bool {
+    let inner = match noun {
+        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
+            noun
+        }
+    };
+    matches!(inner, Noun::Word(Vocab::Other))
 }
 
 fn noun_adjunct_kind(noun: &NounInstance) -> Option<BareNominalAdjunct> {

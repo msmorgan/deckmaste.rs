@@ -413,3 +413,138 @@ fn cost_noun_phrases_coordinate_with_and_or() {
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
     assert!(ast.contains("AndOr"), "AST:\n{ast}");
 }
+
+// --- R30: the library-iteration cluster -------------------------------------
+
+/// Card-type and creature-type atoms the library-iteration witnesses name.
+fn library_catalogs() -> Catalogs {
+    Catalogs::default()
+        .with_catalog(CatalogKind::CardType, ["Creature", "Land"])
+        .with_catalog(CatalogKind::CreatureType, ["Creature"])
+}
+
+/// The pretty-printed AST with all whitespace stripped, so structural markers
+/// match regardless of the debug formatter's indentation.
+fn compact(ast: &str) -> String {
+    ast.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+#[test]
+fn reveal_until_binds_an_iterated_action_with_a_clausal_until_complement() {
+    // Ajani, Valiant Protector shape: the reveal loop bounded by a finite
+    // `until you reveal a <kind> card` event clause. `until` scans as a
+    // subordinator so the existing `<clause> <subordinator> <clause>` rule
+    // attaches the complement.
+    let source = "Reveal cards from the top of your library until you reveal a creature card.";
+    let (rendered, ast) = parse_face(
+        source,
+        &library_catalogs(),
+        "Ajani, Valiant Protector",
+        true,
+    );
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Subordinate(Until,Finite("),
+        "expected a finite `until` subordinate clause\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn repeat_header_rides_the_clausal_until() {
+    // Dance with Calamity / Eureka shape: `Repeat this process until <clause>`
+    // reuses the same clausal-`until` complement — no repeat-specific rule.
+    let source = "Repeat this process until the tie is broken.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Timesifter", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Subordinate(Until,Finite("),
+        "expected a finite `until` subordinate clause\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn until_end_of_turn_stays_a_durational_preposition() {
+    // The gate: adding the `until` subordinator must not hijack the durational
+    // adjunct `until end of turn`, which stays a prepositional phrase — the two
+    // readings are disjoint by what follows (a clause vs. a noun phrase).
+    let source = "Target creature gets +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &library_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("preposition:Until,"),
+        "expected the durational preposition\nAST:\n{ast}"
+    );
+    assert!(
+        !compact(&ast).contains("Subordinate(Until,"),
+        "durational `until end of turn` must not parse as a subordinate clause\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn the_other_is_an_anaphoric_fused_head_nominal() {
+    // Sea Gate Oracle / Sleight of Hand shape: one verb distributes over two
+    // coordinated object+destination pairs, the second object being the
+    // anaphoric fused head `the other` (the sibling of `the rest`).
+    let source = "Put one of them into your hand and the other on the bottom of your library.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Sea Gate Oracle", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("head:Singular(Word(Other,)"),
+        "expected `other` to head the fused-head nominal\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn the_others_plural_fused_head_nominal_round_trips() {
+    // The plural anaphor `the others` declines regularly off the same head.
+    let source = "Return the others to the battlefield.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("head:Plural(Word(Other,)"),
+        "expected `others` to head the fused-head nominal\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn attributive_other_stays_an_adjective_not_a_noun_modifier() {
+    // The gate: `other` is scanned as a count noun only to license the fused
+    // head, and its noun reading is dispreferenced. In modifier position the
+    // attributive-adjective reading — equal in every structural cost — must
+    // still win, never a `NominalModifier::Noun`.
+    let source = "All other creatures get +1/+1.";
+    let (rendered, ast) = parse_face(source, &library_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast)
+            .contains("Adjective{polarity:Positive,phrase:AdjectivePhrase{head:Word(Other,)"),
+        "expected `other` as an adjective modifier\nAST:\n{ast}"
+    );
+    assert!(
+        !compact(&ast).contains("Noun{polarity:Positive,noun:Singular(Word(Other,)"),
+        "`other` must not reduce as a noun modifier\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn top_of_library_peek_and_play_are_supported() {
+    // Xanathar / Case of the Locked Hothouse shape (the in-scope conjuncts):
+    // `you may look at the top card of their library any time` and `you may
+    // play the top card of their library` already parse — a regression guard,
+    // no new machinery.
+    let peek = "You may look at the top card of their library any time.";
+    let (rendered, ast) = parse_face(peek, &Catalogs::default(), "Xanathar, Guild Kingpin", true);
+    assert_eq!(rendered, peek);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+
+    let play = "You may play the top card of their library.";
+    let (rendered, ast) = parse_face(play, &Catalogs::default(), "Xanathar, Guild Kingpin", true);
+    assert_eq!(rendered, play);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+}
