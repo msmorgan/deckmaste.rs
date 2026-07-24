@@ -1528,6 +1528,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         features: Features::Number { is_one: value == 1 },
                         meaning: MeaningKey::Number(NumberKey { value, notation }),
                         local_cost: ParseCost {
+                            reading_dispreference: u32::from(notation == Numeral::Ordinal),
                             precedence: u32::from(notation == Numeral::Roman && surface == "X"),
                             ..ParseCost::default()
                         },
@@ -1571,6 +1572,26 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Adjective => {
                 let mut matches = self.word_matches(tokens, start, LexicalSlot::Adjective);
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Adjective));
+                let gated = matches!(
+                    tokens.get(start),
+                    Some(token) if token.kind == TokenKind::Word
+                );
+                if gated && let Some(surface) = self.token_text(tokens, start) {
+                    let capitalized = surface
+                        .as_bytes()
+                        .first()
+                        .is_some_and(u8::is_ascii_uppercase);
+                    let sentence_initial = Self::is_sentence_initial(tokens, start);
+                    if (!capitalized || sentence_initial)
+                        && let Ok(value) = Numeral::Ordinal.parse(surface)
+                        && value > 0
+                    {
+                        matches.extend(lexical_word_matches(
+                            crate::word::WordMatch::Adjective(Adjective::Ordinal(value)),
+                            start + 1,
+                        ));
+                    }
+                }
                 matches
             }
             EnglishLexicalSlot::ColorWord => self
@@ -2646,7 +2667,7 @@ impl EnglishGrammar<'_, '_> {
                 let Ok(second_value) = second_notation.parse(second_surface) else {
                     continue;
                 };
-                matches.push(quantity_match(
+                let mut candidate = quantity_match(
                     end,
                     QuantityKey::Or(
                         NumberKey {
@@ -2658,7 +2679,11 @@ impl EnglishGrammar<'_, '_> {
                             notation: second_notation,
                         },
                     ),
-                ));
+                );
+                if first_notation == Numeral::Ordinal || second_notation == Numeral::Ordinal {
+                    candidate.local_cost.reading_dispreference += 1;
+                }
+                matches.push(candidate);
             }
         }
         matches

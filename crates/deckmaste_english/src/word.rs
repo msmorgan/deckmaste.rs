@@ -462,6 +462,7 @@ pub enum Adjective {
     CardOrientation(CardOrientation),
     Participle(Tense, Verb),
     Catalog(CatalogAtom),
+    Ordinal(i32),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1421,6 +1422,7 @@ impl Vocabulary {
                 self.render_verb_identity(verb, VerbSlot::PastParticiple)
             }
             Adjective::Catalog(atom) => Some(atom.render_adjective()),
+            Adjective::Ordinal(value) => Some(crate::numeral::Numeral::Ordinal.format(*value)),
         }
     }
 

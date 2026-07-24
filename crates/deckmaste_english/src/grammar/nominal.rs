@@ -1291,6 +1291,276 @@ mod tests {
         *quantity
     }
 
+    #[test]
+    fn jace_ordinal_coordination_recovers() {
+        // Jace Reawakened's During-PP object shape, parsed directly as a
+        // noun phrase: a plural head with an Oxford-coordinated run of
+        // ordinal adjectives, not a `CoordinatedNounPhrase`/`Opaque` misparse.
+        let parsed = parse("your first, second, or third turns of the game");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
+        };
+        assert_eq!(
+            nominal.determiner,
+            Some(Determiner::Possessive(Possessor::Pronoun(Pronoun::You)))
+        );
+        let [NominalModifier::Coordinated(coordinated)] = nominal.modifiers.as_slice() else {
+            panic!(
+                "expected a single coordinated modifier, got {:#?}",
+                nominal.modifiers
+            );
+        };
+        assert!(
+            matches!(
+                coordinated.first.as_ref(),
+                NominalModifier::Adjective {
+                    polarity: Polarity::Positive,
+                    phrase: AdjectivePhrase {
+                        head: Adjective::Ordinal(1),
+                        ..
+                    },
+                }
+            ),
+            "expected first conjunct Ordinal(1), got {:#?}",
+            coordinated.first
+        );
+        let [second, third] = coordinated.rest.as_slice() else {
+            panic!("expected two continuations, got {:#?}", coordinated.rest);
+        };
+        assert!(second.comma, "second conjunct is comma-joined");
+        assert_eq!(second.conjunction, None);
+        assert!(matches!(
+            &second.modifier,
+            NominalModifier::Adjective {
+                polarity: Polarity::Positive,
+                phrase: AdjectivePhrase {
+                    head: Adjective::Ordinal(2),
+                    ..
+                },
+            }
+        ));
+        assert!(third.comma);
+        assert_eq!(
+            third.conjunction,
+            Some(crate::syntax::PredicateConjunction::Or)
+        );
+        assert!(matches!(
+            &third.modifier,
+            NominalModifier::Adjective {
+                polarity: Polarity::Positive,
+                phrase: AdjectivePhrase {
+                    head: Adjective::Ordinal(3),
+                    ..
+                },
+            }
+        ));
+        assert_eq!(nominal.head, NounInstance::Plural(Noun::Word(Vocab::Turn)));
+        let [NominalComplement::Prepositional(of)] = nominal.complements.as_slice() else {
+            panic!(
+                "expected a single `of` complement, got {:#?}",
+                nominal.complements
+            );
+        };
+        assert_eq!(of.preposition, crate::syntax::Preposition::Of);
+    }
+
+    #[test]
+    fn ordinal_singular_head_recovers() {
+        // Starting Town's copular complement: same coordinated-modifier
+        // shape, but a singular head noun (`turn`) rather than plural.
+        let parsed = parse("your first, second, or third turn of the game");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
+        };
+        assert!(matches!(
+            nominal.modifiers.as_slice(),
+            [NominalModifier::Coordinated(_)]
+        ));
+        assert_eq!(
+            nominal.head,
+            NounInstance::Singular(Noun::Word(Vocab::Turn))
+        );
+    }
+
+    #[test]
+    fn binary_ordinal_recovers() {
+        // Lady Octopus / Rose Room Treasurer: a two-way (no Oxford comma)
+        // ordinal coordination riding `CoordinatedModifierConjoined`.
+        let parsed = parse("your first or second card");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
+        };
+        let [NominalModifier::Coordinated(coordinated)] = nominal.modifiers.as_slice() else {
+            panic!(
+                "expected a single coordinated modifier, got {:#?}",
+                nominal.modifiers
+            );
+        };
+        assert!(matches!(
+            coordinated.first.as_ref(),
+            NominalModifier::Adjective {
+                phrase: AdjectivePhrase {
+                    head: Adjective::Ordinal(1),
+                    ..
+                },
+                ..
+            }
+        ));
+        let [only] = coordinated.rest.as_slice() else {
+            panic!("expected one continuation, got {:#?}", coordinated.rest);
+        };
+        assert!(!only.comma, "binary `or` coordination has no comma");
+        assert_eq!(
+            only.conjunction,
+            Some(crate::syntax::PredicateConjunction::Or)
+        );
+        assert!(matches!(
+            &only.modifier,
+            NominalModifier::Adjective {
+                phrase: AdjectivePhrase {
+                    head: Adjective::Ordinal(2),
+                    ..
+                },
+                ..
+            }
+        ));
+        assert_eq!(
+            nominal.head,
+            NounInstance::Singular(Noun::Word(Vocab::Card))
+        );
+    }
+
+    #[test]
+    fn bare_single_ordinal_attributive() {
+        // "your first turn" — a single bare ordinal rides the ordinary
+        // `NominalModifier::Adjective` path, not `Coordinated`.
+        let parsed = parse("your first turn");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
+        };
+        let [NominalModifier::Adjective { phrase, .. }] = nominal.modifiers.as_slice() else {
+            panic!(
+                "expected a single adjective modifier, got {:#?}",
+                nominal.modifiers
+            );
+        };
+        assert_eq!(phrase.head, Adjective::Ordinal(1));
+        assert_eq!(
+            nominal.head,
+            NounInstance::Singular(Noun::Word(Vocab::Turn))
+        );
+    }
+
+    #[test]
+    fn ordinal_adjective_initial_sound() {
+        // Guards the `adjective_initial_sound` fallthrough (renderer.rs):
+        // the indefinite article picked for an ordinal-headed nominal must
+        // match the ordinal's *spelled* initial sound, not the parsed word's.
+        for source in ["an eighth copy", "a first copy"] {
+            let parsed = parse(source);
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn ordinal_coordination_round_trips_byte_exactly() {
+        for source in [
+            "your first, second, or third turns of the game",
+            "your first, second, or third turn of the game",
+            "your first or second card",
+            "your first turn",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn first_strike_keyword_not_displaced_by_ordinal() {
+        // The catalog keyword-ability atom "first strike" must keep winning
+        // over an ordinal-adjective + bare-noun misreading of "first"
+        // "strike": the completed keyword-ability reading wins structurally
+        // (zero opacity), with no dispreference needed on the ordinal edge.
+        let catalogs = Catalogs::default().with_catalog(
+            CatalogKind::KeywordAbility,
+            ["Flying", "First strike", "Protection"],
+        );
+        let report = crate::parse::parse_with_identity(
+            "Flying, first strike, protection from red",
+            &catalogs,
+            "Test Card",
+            false,
+        );
+        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a keyword list, got {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        assert_eq!(list.abilities.len(), 3);
+        assert_eq!(list.abilities[1].ability.canonical(), "First strike");
+    }
+
+    #[test]
+    fn ordinal_adjective_does_not_disturb_numeral_reading() {
+        // A quantity/numeral shape that must stay a `NumberLiteral` (not
+        // reparsed as an ordinal adjective): the `Exact` quantity determiner
+        // on a plural head.
+        let parsed = parse("two cards");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
+        };
+        assert!(
+            matches!(
+                nominal.determiner,
+                Some(Determiner::Quantity(crate::syntax::Quantity::Exact(number)))
+                    if number.value == 2
+            ),
+            "expected an Exact(2) quantity determiner, got {:?}",
+            nominal.determiner
+        );
+        assert!(
+            nominal.modifiers.iter().all(|modifier| !matches!(
+                modifier,
+                NominalModifier::Adjective {
+                    phrase: AdjectivePhrase {
+                        head: Adjective::Ordinal(_),
+                        ..
+                    },
+                    ..
+                }
+            )),
+            "no ordinal adjective modifier should appear: {:#?}",
+            nominal.modifiers
+        );
+    }
+
+    #[test]
+    fn ordinal_attributive_does_not_overfire() {
+        // A plain adjective + noun run that is not an ordinal run must not
+        // spuriously coordinate into `NominalModifier::Coordinated`.
+        let parsed = parse("a white creature");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
+        };
+        assert!(
+            !nominal
+                .modifiers
+                .iter()
+                .any(|modifier| matches!(modifier, NominalModifier::Coordinated(_))),
+            "a single plain adjective must not coordinate: {:#?}",
+            nominal.modifiers
+        );
+    }
+
     fn parse(source: &str) -> ParsedNonterminal {
         parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))

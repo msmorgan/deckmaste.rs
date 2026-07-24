@@ -2069,7 +2069,8 @@ fn adjective_is_rules_bundle(adjective: &Adjective) -> bool {
         Adjective::Word(_)
         | Adjective::Color(_)
         | Adjective::CardOrientation(_)
-        | Adjective::Participle(..) => false,
+        | Adjective::Participle(..)
+        | Adjective::Ordinal(_) => false,
     }
 }
 
