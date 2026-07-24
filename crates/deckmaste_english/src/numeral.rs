@@ -276,7 +276,6 @@ fn cardinalize_ordinal(input: &str) -> Option<String> {
 
 fn parse_ordinal_candidate(input: &str) -> Option<i32> {
     match input {
-        "never" => Some(0),
         "last" => Some(-1),
         _ => {
             let (ordinal, negative) = input
@@ -314,7 +313,7 @@ fn parse_roman_candidate(input: &str) -> Option<i32> {
 
 fn format_ordinal(value: i32) -> String {
     if value == 0 {
-        return "never".to_owned();
+        return "zeroth".to_owned();
     }
     if value == -1 {
         return "last".to_owned();
@@ -502,7 +501,13 @@ mod tests {
 
     #[test]
     fn ordinal_parsing_rejects_noncanonical_forms() {
-        for input in ["zeroth", "first to last", "negative first", "twenty-oneth"] {
+        for input in [
+            "never",
+            "zeroth to last",
+            "first to last",
+            "negative first",
+            "twenty-oneth",
+        ] {
             assert_eq!(Numeral::Ordinal.parse(input), Err(ParseNumeralError));
         }
     }
@@ -583,10 +588,11 @@ mod tests {
     }
 
     #[test]
-    fn positive_ordinals_transform_the_final_word() {
+    fn nonnegative_ordinals_transform_the_final_word() {
         assert_formats(
             Numeral::Ordinal,
             &[
+                (0, "zeroth"),
                 (1, "first"),
                 (2, "second"),
                 (3, "third"),
@@ -613,11 +619,10 @@ mod tests {
     }
 
     #[test]
-    fn nonpositive_ordinals_are_sequence_relative() {
+    fn negative_ordinals_are_sequence_relative() {
         assert_formats(
             Numeral::Ordinal,
             &[
-                (0, "never"),
                 (-1, "last"),
                 (-2, "second to last"),
                 (-21, "twenty-first to last"),
