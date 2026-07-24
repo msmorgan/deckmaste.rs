@@ -3147,6 +3147,122 @@ mod tests {
     }
 
     #[test]
+    fn number_of_times_takes_a_finite_event_clause() {
+        use crate::syntax::NominalComplement;
+        use crate::syntax::NounPhrase;
+        // `the number of times <clause>`: the clause-taking variant of `the
+        // number of <nominal>`, reusing the finite-clause machinery. Covers an
+        // active perfect, a passive, and a transitive-with-adjunct body.
+        for source in [
+            "Draw cards equal to the number of times this spell was kicked.",
+            "Draw cards equal to the number of times you chose a mode for that spell.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+
+        // The clause is carried structurally as the `times` head's complement.
+        let value = parse_nonterminal(
+            "the number of times you drew a card",
+            &fixture_catalogs(),
+            Nonterminal::NounPhrase,
+        )
+        .expect("number-of-times value must parse");
+        let Some(NounPhrase::Nominal(number)) = value.noun_phrase() else {
+            panic!("expected a nominal");
+        };
+        let [NominalComplement::Prepositional(of)] = number.complements.as_slice() else {
+            panic!("expected an `of` complement: {number:#?}");
+        };
+        let crate::syntax::Phrase::NounPhrase(object) = of.object.as_ref() else {
+            panic!("`of` object should be a noun phrase");
+        };
+        let NounPhrase::Nominal(times) = object.as_ref() else {
+            panic!("`of` object should be a `times` nominal");
+        };
+        assert!(matches!(
+            times.complements.as_slice(),
+            [NominalComplement::EventClause(_)]
+        ));
+    }
+
+    #[test]
+    fn arithmetic_value_expressions_round_trip_in_where_definitions() {
+        // The subtraction and halving value expressions in a `where X is
+        // <value>` definition, in both operand orders and with the `rounded
+        // up`/`rounded down` rider on `half`. Additive `plus` and `twice`
+        // already parse (coordination / copular adverb) and are not reshaped.
+        for source in [
+            "Target creature gets +X/+0 until end of turn, where X is 3 minus the number of lands you control.",
+            "Target creature gets +X/+0 until end of turn, where X is the number of lands you control minus 4.",
+            "Target creature gets +X/+0 until end of turn, where X is half the number of lands you control.",
+            "Target creature gets +X/+0 until end of turn, where X is half the number of lands you control, rounded up.",
+            "Target creature gets +X/+0 until end of turn, where X is half the number of lands you control, rounded down.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn half_value_carries_its_rounding_rider_structurally() {
+        use crate::syntax::ArithmeticValue;
+        use crate::syntax::NounPhrase;
+        use crate::syntax::Rounding;
+        let source = "Target creature gets +X/+0 until end of turn, where X is half your life total, rounded up.";
+        let parsed = parse_self(source);
+        // The rounded half value round-trips inside its where-definition host.
+        let rendered = render_sentence_as(parsed.sentence().unwrap(), "Nissa Revane", true);
+        assert_eq!(rendered, source);
+        // Direct structural check via a standalone value parse.
+        let value = parse_nonterminal(
+            "half the number of Forests you control, rounded down",
+            &fixture_catalogs(),
+            Nonterminal::NounPhrase,
+        )
+        .expect("half value must parse");
+        assert!(matches!(
+            value.noun_phrase(),
+            Some(NounPhrase::Arithmetic(ArithmeticValue::Half {
+                rounding: Some(Rounding::Down),
+                ..
+            }))
+        ));
+    }
+
+    #[test]
+    fn devotion_value_nominal_unblocks_its_hosting_clauses() {
+        // The `devotion to <color>` value nominal [CR#700.5] appears across the
+        // recovery contexts it was blocking: the Theros god `as long as`
+        // condition (single color and two-color pair), the `equal to <value>`
+        // comparison, and a `where X is <value>` definition.
+        for source in [
+            "As long as your devotion to green is less than five, Nissa isn't a creature.",
+            "As long as your devotion to white and black is less than seven, Nissa isn't a creature.",
+            "Each opponent loses life equal to your devotion to black.",
+            "Nissa gets +0/+X until end of turn, where X is your devotion to green.",
+        ] {
+            let parsed = parse_self(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence_as(parsed.sentence().unwrap(), "Nissa Revane", true),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
     fn trailing_where_clause_binds_a_variable_definition() {
         // A trailing `, where X is <value>` clause attaches to the independent
         // clause it follows as a `where` subordinate whose finite body is a

@@ -996,6 +996,7 @@ vocabulary! {
     Graveborn("Graveborn").invariant_catalog_noun();
     Graveyard("graveyard").noun(NounDeclension::Regular, Countability::Count);
     Greater("greater").comparison(AdjectiveComparison::OrComparative(ComparativeWord::Greater));
+    Greatest("greatest").adjective().noun(NounDeclension::Regular, Countability::CountOrMass);
     Hand("hand").noun(NounDeclension::Regular, Countability::Count);
     Harness("harness").verb(VerbForm::Regular);
     Have("have").verb(VerbForm::Irregular(
@@ -1008,6 +1009,7 @@ vocabulary! {
     Heal("heal").verb(VerbForm::Regular);
     Heist("heist").verb(VerbForm::Regular);
     Hero("Hero").irregular_catalog_noun("Heroes");
+    Highest("highest").adjective().noun(NounDeclension::Regular, Countability::CountOrMass);
     Hour("hour")
         .noun(NounDeclension::Regular, Countability::Count)
         .initial_sound(InitialSound::Vowel);
@@ -1021,6 +1023,7 @@ vocabulary! {
     Kithkin("Kithkin").invariant_catalog_noun();
     Kor("Kor").invariant_catalog_noun();
     Learn("learn").verb(VerbForm::Regular);
+    Least("least").adjective().noun(NounDeclension::Regular, Countability::CountOrMass);
     Leave("leave").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("left")
@@ -1037,6 +1040,7 @@ vocabulary! {
             .with_past("lost")
             .with_past_participle("lost")
     ));
+    Lowest("lowest").adjective().noun(NounDeclension::Regular, Countability::CountOrMass);
     Mana("mana").noun(NounDeclension::Regular, Countability::Mass);
     Meld("meld").verb(VerbForm::Regular);
     Merfolk("Merfolk").invariant_catalog_noun();
@@ -1421,6 +1425,9 @@ impl Vocabulary {
 }
 
 impl ColorWord {
+    /// The five colors, in the fixed order rules text lists them.
+    pub const ALL: [Self; 5] = [Self::White, Self::Blue, Self::Black, Self::Red, Self::Green];
+
     #[must_use]
     pub const fn spelling(self) -> &'static str {
         match self {
@@ -1430,6 +1437,15 @@ impl ColorWord {
             Self::Red => "red",
             Self::Green => "green",
         }
+    }
+
+    /// The color a lowercase surface names, or `None`. Case-sensitive: color
+    /// words are always lowercase in the value-nominal argument position.
+    #[must_use]
+    pub fn from_surface(surface: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|color| color.spelling() == surface)
     }
 }
 

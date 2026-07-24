@@ -1214,6 +1214,29 @@ impl<'identity> Renderer<'identity> {
                 }
                 Ok(rendered)
             }
+            NounPhrase::Arithmetic(value) => self.arithmetic_value(value),
+        }
+    }
+
+    fn arithmetic_value(
+        &self,
+        value: &crate::syntax::ArithmeticValue,
+    ) -> Result<String, RenderError> {
+        match value {
+            crate::syntax::ArithmeticValue::Minus { left, right } => Ok(format!(
+                "{} minus {}",
+                self.noun_phrase(left)?,
+                self.noun_phrase(right)?
+            )),
+            crate::syntax::ArithmeticValue::Half { value, rounding } => {
+                let mut rendered = format!("half {}", self.noun_phrase(value)?);
+                match rounding {
+                    Some(crate::syntax::Rounding::Up) => rendered.push_str(", rounded up"),
+                    Some(crate::syntax::Rounding::Down) => rendered.push_str(", rounded down"),
+                    None => {}
+                }
+                Ok(rendered)
+            }
         }
     }
 
@@ -1264,6 +1287,8 @@ impl<'identity> Renderer<'identity> {
                 NominalComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
                 NominalComplement::Relative(relative) => self.relative_clause(relative)?,
                 NominalComplement::Quantity(quantity) => render_quantity(*quantity),
+                NominalComplement::Devotion(colors) => render_devotion_colors(*colors),
+                NominalComplement::EventClause(clause) => self.independent_clause(clause)?,
             });
         }
         parts.extend(trailing_modifier_complements);
@@ -1718,6 +1743,17 @@ fn coordinated_object_is_closed_quote(coordinated: &CoordinatedPredicateObject) 
 
 fn phrase_is_closed_quote(phrase: &Phrase) -> bool {
     matches!(phrase, Phrase::QuotedAbility(quoted) if quoted.closed)
+}
+
+/// Renders the `to <color>` argument of a `devotion` value nominal [CR#700.5]
+/// from the carried color identities — a single color or an `and`-joined pair.
+fn render_devotion_colors(colors: crate::syntax::DevotionColors) -> String {
+    match colors {
+        crate::syntax::DevotionColors::Color(color) => format!("to {}", color.spelling()),
+        crate::syntax::DevotionColors::Pair(first, second) => {
+            format!("to {} and {}", first.spelling(), second.spelling())
+        }
+    }
 }
 
 fn render_quantity(quantity: Quantity) -> String {

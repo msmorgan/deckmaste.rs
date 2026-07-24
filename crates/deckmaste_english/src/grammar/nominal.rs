@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::catalog::Bundle;
     use crate::catalog::CatalogKind;
     use crate::catalog::Catalogs;
+    use crate::catalog::RulesNominal;
     use crate::chart::Grammar;
     use crate::forest::ForestSymbol;
     use crate::identity::SelfReference;
@@ -318,7 +318,7 @@ mod tests {
         // the hyphen, not a stray default.
         for (noun, expected) in [
             (
-                NounInstance::Singular(Noun::Catalog(Bundle::Outlaw.atom())),
+                NounInstance::Singular(Noun::Catalog(RulesNominal::Outlaw.atom())),
                 "non-outlaw card",
             ),
             (
@@ -456,6 +456,100 @@ mod tests {
             "a color other than black",
         ] {
             let parsed = parse(source);
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn devotion_value_nominal_round_trips_with_its_color_argument() {
+        // Family: the rules-defined `devotion` value nominal [CR#700.5] with its
+        // mandatory `to <color>` argument. A single color and a two-color pair
+        // ride the dedicated production; the generic `a/each/that color` shapes
+        // ride the ordinary count-noun + prepositional path.
+        for source in [
+            "your devotion to green",
+            "your devotion to black",
+            "your devotion to white and black",
+            "your devotion to red and green",
+            "your devotion to a color",
+            "your devotion to each color",
+            "your devotion to that color",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn devotion_carries_its_color_argument_structurally() {
+        use crate::syntax::DevotionColors;
+        use crate::word::ColorWord;
+        let single = parse("your devotion to green");
+        let Some(NounPhrase::Nominal(nominal)) = single.noun_phrase() else {
+            panic!("expected a devotion nominal");
+        };
+        assert!(matches!(
+            &nominal.head,
+            NounInstance::Singular(Noun::Catalog(atom)) if atom.canonical() == "devotion"
+        ));
+        assert!(matches!(
+            nominal.complements.as_slice(),
+            [NominalComplement::Devotion(DevotionColors::Color(
+                ColorWord::Green
+            ))]
+        ));
+
+        let pair = parse("your devotion to white and black");
+        let Some(NounPhrase::Nominal(pair)) = pair.noun_phrase() else {
+            panic!("expected a devotion pair nominal");
+        };
+        assert!(matches!(
+            pair.complements.as_slice(),
+            [NominalComplement::Devotion(DevotionColors::Pair(
+                ColorWord::White,
+                ColorWord::Black
+            ))]
+        ));
+
+        // `devotion counter` keeps devotion as a plain count-noun modifier.
+        let counter = parse("a devotion counter");
+        let Some(NounPhrase::Nominal(counter)) = counter.noun_phrase() else {
+            panic!("expected a devotion counter nominal");
+        };
+        assert!(matches!(
+            counter.modifiers.as_slice(),
+            [NominalModifier::Noun {
+                noun: NounInstance::Singular(Noun::Catalog(atom)),
+                ..
+            }] if atom.canonical() == "devotion"
+        ));
+    }
+
+    #[test]
+    fn superlative_property_nominals_round_trip_with_a_group_complement() {
+        // Family: `the greatest/highest/lowest/least <property> among/of
+        // <group>`. Superlatives are plain adjectives modifying an existing
+        // property nominal (power/toughness/mana value/life total), with the
+        // `among`/`of` group as an ordinary prepositional complement.
+        for source in [
+            "the greatest power among creatures you control",
+            "the greatest mana value among permanents you control",
+            "the least toughness among creatures you control",
+            "the highest life total among all players",
+            "the lowest life total among your opponents",
+            "the greatest mana value of a commander you own",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             assert_eq!(
                 render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
                 source,

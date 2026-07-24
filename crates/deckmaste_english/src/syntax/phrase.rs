@@ -4,6 +4,7 @@ use super::ability::Ability;
 use super::ability::Cost;
 use super::ability::QuotedAbility;
 use super::clause::Clause;
+use super::clause::IndependentClause;
 use super::clause::InfinitiveClause;
 use super::clause::RelativeClause;
 use crate::Numeral;
@@ -288,13 +289,52 @@ pub enum NounCardinality {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NounPhrase {
     Nominal(NominalPhrase),
-    Pronoun { pronoun: Pronoun, case: PronounCase },
+    Pronoun {
+        pronoun: Pronoun,
+        case: PronounCase,
+    },
     Possessive(Possessor),
     Demonstrative(Demonstrative),
     Quantity(Quantity),
     ThisCard(ThisCardForm),
     Partitive(PartitiveNounPhrase),
     Coordinated(CoordinatedNounPhrase),
+    /// An arithmetic value expression combining value operands into a new
+    /// numeric value: `<value> minus <value>` or `half <value>`. Additive
+    /// `<value> plus <value>` rides the ordinary [`Self::Coordinated`] path
+    /// (conjunction [`NounPhraseConjunction::Plus`]); `twice <value>` rides the
+    /// copular precomplement-adverb path — both already parse.
+    Arithmetic(ArithmeticValue),
+}
+
+/// An arithmetic combination of value operands, carried structurally so the
+/// renderer replays the operator rather than deriving it. Operands are
+/// themselves noun-phrase values (a nominal such as `the number of lands you
+/// control`, or a bare number).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArithmeticValue {
+    /// `<value> minus <value>` — subtraction, in either operand order
+    /// (`3 minus the number of cards in their hand`, `its toughness minus 1`).
+    Minus {
+        left: Box<NounPhrase>,
+        right: Box<NounPhrase>,
+    },
+    /// `half <value>` with an optional `, rounded up` / `, rounded down` rider
+    /// (`half your life total`, `half the number of Forests you control,
+    /// rounded down`).
+    Half {
+        value: Box<NounPhrase>,
+        rounding: Option<Rounding>,
+    },
+}
+
+/// The rounding rider on a `half` value expression. Magic rounds a fractional
+/// result up or down as the surface directs; the direction is carried so the
+/// renderer replays it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Rounding {
+    Up,
+    Down,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -412,6 +452,30 @@ pub enum NominalComplement {
     Infinitive(InfinitiveClause),
     Relative(RelativeClause),
     Quantity(Quantity),
+    /// The mandatory `to <color>` argument of the rules-defined `devotion`
+    /// value nominal [CR#700.5]. Only the concrete-color shapes ride this
+    /// complement — a single color word (`devotion to green`) or a two-color
+    /// pair (`devotion to white and black`). The generic `devotion to a/each/
+    /// that color` shapes are ordinary `color`-headed nominals and ride the
+    /// [`NominalComplement::Prepositional`] path instead.
+    Devotion(DevotionColors),
+    /// A bare finite clause counting occurrences of an event — the complement
+    /// of `times` in the measured value `the number of times <clause>`
+    /// (Riku of Many Paths, Temporal Firestorm). It is a reduced adjunct
+    /// relative — no marker, no gap — so only the clause is carried; the
+    /// renderer replays it directly after `times`.
+    EventClause(Box<IndependentClause>),
+}
+
+/// The concrete-color argument of a `devotion` value nominal [CR#700.5]. The
+/// color identities are carried structurally so the renderer replays the exact
+/// words rather than deriving them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DevotionColors {
+    /// A single color: `devotion to green`.
+    Color(ColorWord),
+    /// A two-color pair joined by `and`: `devotion to white and black`.
+    Pair(ColorWord, ColorWord),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

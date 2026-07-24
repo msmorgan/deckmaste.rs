@@ -531,7 +531,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         NominalComplement::Relative(relative) => {
                             self.relative_clause(relative, context);
                         }
-                        NominalComplement::Quantity(_) => {}
+                        NominalComplement::EventClause(clause) => {
+                            self.independent_clause(clause, context);
+                        }
+                        NominalComplement::Quantity(_) | NominalComplement::Devotion(_) => {}
                     }
                 }
             }
@@ -550,6 +553,13 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.noun_phrase(&coordination.phrase, context);
                 }
             }
+            NounPhrase::Arithmetic(value) => match value {
+                ArithmeticValue::Minus { left, right } => {
+                    self.noun_phrase(left, context);
+                    self.noun_phrase(right, context);
+                }
+                ArithmeticValue::Half { value, .. } => self.noun_phrase(value, context),
+            },
         }
     }
 

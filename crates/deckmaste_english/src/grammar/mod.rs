@@ -180,6 +180,10 @@ pub(crate) enum Nonterminal {
     Noun,
     Nominal,
     NounPhrase,
+    /// The concrete-color argument of the `devotion` value nominal: a single
+    /// color word or a two-color `and` pair. Reached only through the devotion
+    /// production, so its bare-color rules never leak into ordinary phrases.
+    DevotionColors,
     FrequencyPhrase,
     PossessiveNounPhrase,
     PrepositionalPhrase,
@@ -213,6 +217,18 @@ pub(crate) enum EnglishLexicalSlot {
     PossessiveNoun,
     Verb(VerbSlot),
     Adjective,
+    /// A single color word (`white`/`blue`/`black`/`red`/`green`) in the
+    /// devotion value nominal's argument. Distinct from [`Self::Adjective`] so
+    /// the bare-color devotion production sees only colors.
+    ColorWord,
+    /// The `devotion` value nominal head [CR#700.5], matched as a lowercase
+    /// whole word from the hand-curated rules-nominal table. Gates the
+    /// bare-color argument production to exactly this word.
+    DevotionValue,
+    /// The plural noun `times` heading the `number of times <clause>` measured
+    /// value. Distinct from the ordinary noun slot so the finite-clause
+    /// complement attaches to exactly this word.
+    TimesNoun,
     /// A single-token `non-` negation whose residue resolves as a modifier base
     /// (`nonland`, `nonblack`, `non-Human`, `nonattacking`). Scanned as
     /// sub-word morphology, not a chart production, because the prefix is
@@ -263,6 +279,12 @@ pub(crate) enum EnglishLexicalSlot {
     RatherThan,
     Conjunction,
     Plus,
+    /// The word `minus` heading a subtraction value expression.
+    Minus,
+    /// The word `half` heading a halving value expression.
+    Half,
+    /// The word `rounded` heading a `rounded up`/`rounded down` rider.
+    Rounded,
     Existential,
     Copula,
     SubjectAuxiliary,
@@ -719,6 +741,9 @@ pub(crate) enum LiteralKey {
     Than,
     OrEqualTo,
     Plus,
+    Minus,
+    Half,
+    Rounded,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -845,6 +870,10 @@ enum RuleTag {
     NominalRelative,
     NominalPostpositiveAdjective,
     NominalComparison,
+    NominalDevotion,
+    DevotionColorSingle,
+    DevotionColorPair,
+    NominalTimesClause,
     NounPhraseNominal,
     NounPhraseSubjectPronoun,
     NounPhraseObjectPronoun,
@@ -858,6 +887,10 @@ enum RuleTag {
     NounPhraseEachPartitive,
     NounPhraseCoordination,
     NounPhraseAdditiveCoordination,
+    NounPhraseMinus,
+    NounPhraseHalf,
+    NounPhraseHalfRoundedUp,
+    NounPhraseHalfRoundedDown,
     PrepositionalPhrase,
     PrepositionalObject,
     Verb,
@@ -1401,6 +1434,50 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Adjective));
                 matches
             }
+            EnglishLexicalSlot::ColorWord => self
+                .token_text(tokens, start)
+                .and_then(crate::word::ColorWord::from_surface)
+                .map(|color| LexicalMatch {
+                    end: start + 1,
+                    features: Features::None,
+                    meaning: MeaningKey::Adjective(Adjective::Color(color)),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::DevotionValue => self
+                .token_text(tokens, start)
+                .and_then(|surface| {
+                    crate::catalog::rules_value_noun_prefix(surface)
+                        .filter(|&(length, _)| length == surface.len())
+                        .map(|(_, atom)| atom)
+                })
+                .map(|atom| LexicalMatch {
+                    end: start + 1,
+                    features: Features::Noun {
+                        form: NounForm::Singular,
+                        initial_sound: InitialSound::Consonant,
+                        adjunct: None,
+                    },
+                    meaning: MeaningKey::Catalog(atom),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::TimesNoun => self
+                .one_token_match(tokens, start, "times")
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::Noun {
+                        form: NounForm::Plural,
+                        initial_sound: InitialSound::Consonant,
+                        adjunct: None,
+                    },
+                    meaning: MeaningKey::Noun(NounInstance::Plural(Noun::Word(Vocab::Time))),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::NegatedModifier => self.scan_negated_modifier(tokens, start),
             EnglishLexicalSlot::Adverb => self.word_matches(tokens, start, LexicalSlot::Adverb),
             EnglishLexicalSlot::VerbParticle(particle) => self
@@ -1529,6 +1606,21 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Not => self
                 .one_token_match(tokens, start, "not")
                 .map(|end| literal_match(end, LiteralKey::Not))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::Minus => self
+                .one_token_match(tokens, start, "minus")
+                .map(|end| literal_match(end, LiteralKey::Minus))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::Half => self
+                .one_token_match(tokens, start, "half")
+                .map(|end| literal_match(end, LiteralKey::Half))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::Rounded => self
+                .one_token_match(tokens, start, "rounded")
+                .map(|end| literal_match(end, LiteralKey::Rounded))
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::To => self
@@ -2732,6 +2824,37 @@ impl RuleBuilder {
             [n(N::Nominal), n(N::ComparisonComplement)],
         );
 
+        // The `devotion` value nominal with its mandatory concrete-color
+        // argument: `devotion to <color>` or `devotion to <color> and <color>`.
+        // Gated by the dedicated `DevotionValue` head so the bare-color
+        // `DevotionColors` rules stay out of ordinary phrases; the generic
+        // `devotion to a/each/that color` shapes take the count-noun +
+        // prepositional path instead.
+        self.add(
+            RuleTag::NominalDevotion,
+            N::Nominal,
+            [l(L::DevotionValue), l(L::To), n(N::DevotionColors)],
+        );
+        self.add(
+            RuleTag::DevotionColorSingle,
+            N::DevotionColors,
+            [l(L::ColorWord)],
+        );
+        self.add(
+            RuleTag::DevotionColorPair,
+            N::DevotionColors,
+            [l(L::ColorWord), l(L::Conjunction), l(L::ColorWord)],
+        );
+
+        // `the number of times <clause>`: the plural `times` head takes a bare
+        // finite clause as a reduced adjunct-relative complement. Gated by the
+        // dedicated `TimesNoun` head so no other noun admits a bare clause.
+        self.add(
+            RuleTag::NominalTimesClause,
+            N::Nominal,
+            [l(L::TimesNoun), n(N::Clause)],
+        );
+
         self.add(RuleTag::NounPhraseNominal, N::NounPhrase, [n(N::Nominal)]);
         self.add(
             RuleTag::NounPhraseSubjectPronoun,
@@ -2792,6 +2915,46 @@ impl RuleBuilder {
                 precedence: 1,
                 ..ParseCost::default()
             },
+        );
+        // Arithmetic value expressions. `plus` rides the additive coordination
+        // above and `twice` the copular precomplement adverb, so only the
+        // subtraction and halving operators are added here as structured value
+        // nodes.
+        self.add_with_cost(
+            RuleTag::NounPhraseMinus,
+            N::NounPhrase,
+            [n(N::NounPhrase), l(L::Minus), n(N::NounPhrase)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
+        self.add(
+            RuleTag::NounPhraseHalf,
+            N::NounPhrase,
+            [l(L::Half), n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::NounPhraseHalfRoundedUp,
+            N::NounPhrase,
+            [
+                l(L::Half),
+                n(N::NounPhrase),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Rounded),
+                l(L::Up),
+            ],
+        );
+        self.add(
+            RuleTag::NounPhraseHalfRoundedDown,
+            N::NounPhrase,
+            [
+                l(L::Half),
+                n(N::NounPhrase),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Rounded),
+                l(L::Down),
+            ],
         );
 
         self.add(
@@ -3180,7 +3343,11 @@ fn reduce(
         | RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative
         | RuleTag::NominalPostpositiveAdjective
-        | RuleTag::NominalComparison => reduce_nominal(tag, children)?,
+        | RuleTag::NominalComparison
+        | RuleTag::NominalDevotion
+        | RuleTag::DevotionColorSingle
+        | RuleTag::DevotionColorPair
+        | RuleTag::NominalTimesClause => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -3194,6 +3361,10 @@ fn reduce(
         | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
+        | RuleTag::NounPhraseMinus
+        | RuleTag::NounPhraseHalf
+        | RuleTag::NounPhraseHalfRoundedUp
+        | RuleTag::NounPhraseHalfRoundedDown
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
         RuleTag::Verb
@@ -3397,6 +3568,19 @@ fn reduce_quantity_or_determiner(
             })
         }
         _ => None,
+    }
+}
+
+/// Features for an arithmetic value expression: a third-person singular numeric
+/// value with no pronoun case or bare-nominal adjunct.
+const fn arithmetic_value_features() -> Features {
+    Features::NounPhrase {
+        agreement: Some(Agreement {
+            person: Person::Third,
+            number: Number::Singular,
+        }),
+        pronoun_case: None,
+        adjunct: None,
     }
 }
 
@@ -3720,6 +3904,53 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 adjunct: *adjunct,
             })
         }
+        RuleTag::DevotionColorSingle => {
+            // The single-color argument: the child is a bare color word.
+            matches!(children.first()?.features, Features::None).then_some(Features::None)
+        }
+        RuleTag::DevotionColorPair => {
+            // The two-color argument is joined by `and`, never `or`.
+            matches!(
+                children.get(1)?.features,
+                Features::Conjunction(crate::syntax::PredicateConjunction::And)
+            )
+            .then_some(Features::None)
+        }
+        RuleTag::NominalDevotion => {
+            // `devotion to <color>` is a singular measured value that a
+            // possessive determiner (`your`) then wraps.
+            let Features::Noun { .. } = children.first()?.features else {
+                return None;
+            };
+            Some(Features::Nominal {
+                form: NounForm::Singular,
+                initial_sound: InitialSound::Consonant,
+                determined: false,
+                leading_opacity: false,
+                attachment: NominalAttachmentPhase::Prepositional,
+                comparison: AdjectiveComparisonState::NotComparative,
+                adjunct: None,
+            })
+        }
+        RuleTag::NominalTimesClause => {
+            // `times <clause>`: a plural `times` head with a finite clause as a
+            // reduced adjunct-relative complement.
+            let Features::Noun { .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::Clause { finite: true, .. } = children.get(1)?.features else {
+                return None;
+            };
+            Some(Features::Nominal {
+                form: NounForm::Plural,
+                initial_sound: InitialSound::Consonant,
+                determined: false,
+                leading_opacity: false,
+                attachment: NominalAttachmentPhase::Relative,
+                comparison: AdjectiveComparisonState::NotComparative,
+                adjunct: None,
+            })
+        }
         _ => None,
     }
 }
@@ -3827,6 +4058,25 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
         }
         RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
             reduce_noun_phrase_coordination(tag, children)
+        }
+        RuleTag::NounPhraseMinus => {
+            // Both operands must be noun-phrase values; the result is a
+            // singular numeric value.
+            let Features::NounPhrase { .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::NounPhrase { .. } = children.get(2)?.features else {
+                return None;
+            };
+            Some(arithmetic_value_features())
+        }
+        RuleTag::NounPhraseHalf
+        | RuleTag::NounPhraseHalfRoundedUp
+        | RuleTag::NounPhraseHalfRoundedDown => {
+            let Features::NounPhrase { .. } = children.get(1)?.features else {
+                return None;
+            };
+            Some(arithmetic_value_features())
         }
         RuleTag::PrepositionalPhrase => {
             let Features::Preposition(preposition) = children.first()?.features else {
@@ -4156,6 +4406,7 @@ enum Lowered {
     Noun(NounInstance),
     NominalModifier(NominalModifier),
     Nominal(NominalPhrase),
+    DevotionColors(crate::syntax::DevotionColors),
     PossessiveNominal(NominalPhrase),
     NounPhrase(NounPhrase),
     Catalog(crate::catalog::CatalogAtom),
@@ -4363,7 +4614,11 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative
         | RuleTag::NominalPostpositiveAdjective
-        | RuleTag::NominalComparison => lower_nominal(tag, children),
+        | RuleTag::NominalComparison
+        | RuleTag::NominalDevotion
+        | RuleTag::DevotionColorSingle
+        | RuleTag::DevotionColorPair
+        | RuleTag::NominalTimesClause => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -4377,6 +4632,10 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
+        | RuleTag::NounPhraseMinus
+        | RuleTag::NounPhraseHalf
+        | RuleTag::NounPhraseHalfRoundedUp
+        | RuleTag::NounPhraseHalfRoundedDown
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => lower_phrase(tag, children),
         RuleTag::Verb
@@ -4818,10 +5077,61 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 ));
             Some(Lowered::Nominal(nominal))
         }
+        RuleTag::DevotionColorSingle => {
+            let Lowered::Adjective(Adjective::Color(color)) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::DevotionColors(
+                crate::syntax::DevotionColors::Color(color),
+            ))
+        }
+        RuleTag::DevotionColorPair => {
+            let Lowered::Adjective(Adjective::Color(first)) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Adjective(Adjective::Color(second)) = take(children, 2)? else {
+                return None;
+            };
+            Some(Lowered::DevotionColors(
+                crate::syntax::DevotionColors::Pair(first, second),
+            ))
+        }
+        RuleTag::NominalDevotion => {
+            let Lowered::Catalog(atom) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::DevotionColors(colors) = take(children, 2)? else {
+                return None;
+            };
+            Some(Lowered::Nominal(NominalPhrase {
+                determiner: None,
+                modifiers: Vec::new(),
+                head: NounInstance::Singular(Noun::Catalog(atom)),
+                complements: vec![NominalComplement::Devotion(colors)],
+            }))
+        }
+        RuleTag::NominalTimesClause => {
+            let Lowered::Noun(head) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Clause(Clause::Independent(clause)) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::Nominal(NominalPhrase {
+                determiner: None,
+                modifiers: Vec::new(),
+                head,
+                complements: vec![NominalComplement::EventClause(Box::new(clause))],
+            }))
+        }
         _ => None,
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "lowering noun phrases is intentionally long"
+)]
 fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::NounPhraseNominal => {
@@ -4944,6 +5254,10 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             };
             Some(Lowered::NounPhrase(NounPhrase::Coordinated(coordinated)))
         }
+        RuleTag::NounPhraseMinus
+        | RuleTag::NounPhraseHalf
+        | RuleTag::NounPhraseHalfRoundedUp
+        | RuleTag::NounPhraseHalfRoundedDown => lower_arithmetic_phrase(tag, children),
         RuleTag::PrepositionalObject => {
             let phrase = match take(children, 0)? {
                 Lowered::NounPhrase(object) => Phrase::NounPhrase(Box::new(object)),
@@ -4972,6 +5286,41 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         }
         _ => None,
     }
+}
+
+fn lower_arithmetic_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
+    let value = match tag {
+        RuleTag::NounPhraseMinus => {
+            let Lowered::NounPhrase(left) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::NounPhrase(right) = take(children, 2)? else {
+                return None;
+            };
+            crate::syntax::ArithmeticValue::Minus {
+                left: Box::new(left),
+                right: Box::new(right),
+            }
+        }
+        RuleTag::NounPhraseHalf
+        | RuleTag::NounPhraseHalfRoundedUp
+        | RuleTag::NounPhraseHalfRoundedDown => {
+            let Lowered::NounPhrase(value) = take(children, 1)? else {
+                return None;
+            };
+            let rounding = match tag {
+                RuleTag::NounPhraseHalfRoundedUp => Some(crate::syntax::Rounding::Up),
+                RuleTag::NounPhraseHalfRoundedDown => Some(crate::syntax::Rounding::Down),
+                _ => None,
+            };
+            crate::syntax::ArithmeticValue::Half {
+                value: Box::new(value),
+                rounding,
+            }
+        }
+        _ => return None,
+    };
+    Some(Lowered::NounPhrase(NounPhrase::Arithmetic(value)))
 }
 
 fn take(children: &mut [Lowered], index: usize) -> Option<Lowered> {

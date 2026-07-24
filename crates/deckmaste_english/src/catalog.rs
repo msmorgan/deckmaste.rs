@@ -40,11 +40,12 @@ pub enum CatalogKind {
     SpellType,
     Supertype,
     CardType,
-    /// A rules collective shorthand (`historic`, `modified`, `party`,
-    /// `outlaw`) whose membership the Comprehensive Rules enumerate. Unlike the
-    /// Scryfall-derived kinds this one is never populated externally through
-    /// [`Catalogs::with_catalog`]; its atoms come from the hand-curated
-    /// [`Bundle`] table.
+    /// A hand-curated rules-defined word whose membership or meaning the
+    /// Comprehensive Rules fix: the collective shorthands (`historic`,
+    /// `modified`, `party`, `outlaw`) and the measured value nominal
+    /// (`devotion`). Unlike the Scryfall-derived kinds this one is never
+    /// populated externally through [`Catalogs::with_catalog`]; its atoms come
+    /// from the hand-curated [`RulesNominal`] table.
     RulesBundle,
 }
 
@@ -160,9 +161,9 @@ impl CatalogAtom {
             || matches!(self.kind.case_policy(), CasePolicy::Lowercase)
     }
 
-    /// Whether this atom is a rules collective shorthand (see [`Bundle`]). Such
-    /// words hyphenate under `non-` as a category — the render side derives the
-    /// glyph from this instead of a per-word flag.
+    /// Whether this atom is a hand-curated rules-defined word (see
+    /// [`RulesNominal`]). Such words hyphenate under `non-` as a category — the
+    /// render side derives the glyph from this instead of a per-word flag.
     #[must_use]
     pub(crate) fn is_rules_bundle(&self) -> bool {
         matches!(self.kind, CatalogKind::RulesBundle)
@@ -555,16 +556,22 @@ impl Catalogs {
     }
 }
 
-/// A rules collective shorthand: a bundle word whose membership the
-/// Comprehensive Rules enumerate. This is the single, hand-curated source for
-/// the four such words the parser recognizes; each entry fixes the shorthand's
-/// spelling, the grammatical slots it fills on the supported corpus, and the CR
-/// rule that defines the bundle. The words share [`CatalogKind::RulesBundle`]
-/// (lowercase, no external population) and reach the AST through the ordinary
-/// [`Adjective::Catalog`] and [`Noun::Catalog`] paths, so no bundle-specific
-/// syntax is needed.
+/// A hand-curated rules-defined word whose membership or meaning the
+/// Comprehensive Rules fix. This is the single source for the such words the
+/// parser recognizes; each entry fixes the word's spelling, the grammatical
+/// slots it fills on the supported corpus, and the CR rule that defines it. The
+/// words share [`CatalogKind::RulesBundle`] (lowercase, no external population)
+/// and reach the AST through the ordinary [`Adjective::Catalog`] and
+/// [`Noun::Catalog`] paths.
+///
+/// Two kinds live here. The *collective shorthands* (`historic`, `modified`,
+/// `party`, `outlaw`) name sets of objects and need no dedicated syntax. The
+/// *value nominal* `devotion` is different in kind — a measured value with a
+/// mandatory `to <color>` argument — and additionally fills the value-noun slot
+/// ([`Self::fills_value_noun`]) the grammar reads to gate its bare-color
+/// production.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum Bundle {
+pub(crate) enum RulesNominal {
     /// `historic` — an object with the legendary supertype, the artifact card
     /// type, or the Saga subtype [CR#700.6]. Attributive adjective only
     /// (`historic spell`, `historic permanent`); never a head noun and never
@@ -584,13 +591,29 @@ pub(crate) enum Bundle {
     /// `outlaw` — an object with the Assassin, Mercenary, Pirate, Rogue, and/or
     /// Warlock creature types [CR#700.12]. Both a count noun (`outlaws you
     /// control`, `an outlaw`) and an attributive adjective (`outlaw creature`,
-    /// `outlaw spell`). Its `non-` form is the sole attested bundle witness and
+    /// `outlaw spell`). Its `non-` form is the sole attested witness and
     /// hyphenates (`non-outlaw`, Shoot the Sheriff).
     Outlaw,
+    /// `devotion` — a measured value equal to the number of mana symbols of the
+    /// named color(s) among the mana costs of permanents a player controls
+    /// [CR#700.5]. The value nominal takes a mandatory `to <color>` argument; a
+    /// dedicated grammar production supplies the bare-color and color-pair
+    /// arguments (`devotion to green`, `devotion to white and black`), while
+    /// the generic `devotion to a/each/that color` rides the ordinary
+    /// prepositional path. Also fills the count-noun slot for its unrelated
+    /// counter-kind sense (`devotion counter`, Pious Kitsune); never
+    /// attributive.
+    Devotion,
 }
 
-impl Bundle {
-    const ALL: [Self; 4] = [Self::Historic, Self::Modified, Self::Party, Self::Outlaw];
+impl RulesNominal {
+    const ALL: [Self; 5] = [
+        Self::Historic,
+        Self::Modified,
+        Self::Party,
+        Self::Outlaw,
+        Self::Devotion,
+    ];
 
     const fn spelling(self) -> &'static str {
         match self {
@@ -598,17 +621,25 @@ impl Bundle {
             Self::Modified => "modified",
             Self::Party => "party",
             Self::Outlaw => "outlaw",
+            Self::Devotion => "devotion",
         }
     }
 
-    /// Whether this shorthand fills the attributive/predicative adjective slot.
+    /// Whether this word fills the attributive/predicative adjective slot.
     const fn fills_adjective(self) -> bool {
         matches!(self, Self::Historic | Self::Modified | Self::Outlaw)
     }
 
-    /// Whether this shorthand fills the count-noun slot.
+    /// Whether this word fills the count-noun slot.
     const fn fills_count_noun(self) -> bool {
-        matches!(self, Self::Party | Self::Outlaw)
+        matches!(self, Self::Party | Self::Outlaw | Self::Devotion)
+    }
+
+    /// Whether this word is a rules-defined value nominal taking a mandatory
+    /// `to <color>` argument. The grammar reads this to gate its bare-color
+    /// devotion production so no other word reaches it.
+    const fn fills_value_noun(self) -> bool {
+        matches!(self, Self::Devotion)
     }
 
     pub(crate) fn atom(self) -> CatalogAtom {
@@ -622,13 +653,28 @@ impl Bundle {
     }
 }
 
-/// Scans the fixed [`Bundle`] table for matches in the requested slot. Bundle
-/// words are lowercase (matched exactly, like every [`CasePolicy::Lowercase`]
-/// atom; a sentence-initial capital is handled by the grammar's lowercased
-/// retry) and reach the AST as [`Adjective::Catalog`] / [`Noun::Catalog`].
+/// The value-noun atom (currently `devotion`) beginning at the head of `text`,
+/// matched as a lowercase whole word, with the matched length. The grammar's
+/// value-noun lexical slot calls this to gate the bare-color devotion
+/// production to exactly the rules-defined value nominals.
+pub(crate) fn rules_value_noun_prefix(text: &str) -> Option<(usize, CatalogAtom)> {
+    RulesNominal::ALL.into_iter().find_map(|word| {
+        word.fills_value_noun()
+            .then(|| {
+                lowercase_word_prefix(text, word.spelling()).map(|length| (length, word.atom()))
+            })
+            .flatten()
+    })
+}
+
+/// Scans the fixed [`RulesNominal`] table for matches in the requested slot.
+/// These words are lowercase (matched exactly, like every
+/// [`CasePolicy::Lowercase`] atom; a sentence-initial capital is handled by the
+/// grammar's lowercased retry) and reach the AST as [`Adjective::Catalog`] /
+/// [`Noun::Catalog`].
 fn bundle_matches(text: &str, slot: CatalogSlot) -> Vec<CatalogMatch> {
     let mut matches = Vec::new();
-    for bundle in Bundle::ALL {
+    for bundle in RulesNominal::ALL {
         match slot {
             CatalogSlot::Adjective if bundle.fills_adjective() => {
                 if let Some(length) = lowercase_word_prefix(text, bundle.spelling()) {
