@@ -17,6 +17,8 @@ use crate::identity::SelfReference;
 use crate::surface::Punctuation;
 use crate::surface::Token;
 use crate::surface::TokenKind;
+use crate::surface::collapse_full_names;
+use crate::surface::lex;
 use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::ActivatedAbility;
@@ -108,6 +110,46 @@ pub(crate) fn parse_oracle_text(
     self_reference: &SelfReference,
 ) -> AbilityParse {
     Parser::new(source, catalogs, self_reference).parse(tokens)
+}
+
+/// Parses the interior text of a quoted ability (`"…"`) — `source` is the run
+/// between the two double quotes — into a [`QuotedAbility`]. A quoted ability
+/// may fill any object/coordination slot the grammar already licenses it in;
+/// the chart recognizes the `"…"` span as one lexical unit and defers to this
+/// helper at lowering, re-lexing the fragment rather than threading tokens
+/// through the forest. The fragment is self-contained — the resulting `Ability`
+/// owns its content — and re-collapses the face's full-name self-reference
+/// exactly as the top-level parse does, so a quoted ability that names the card
+/// resolves identically whether it reaches here or the ability-layer
+/// `parse_quoted_sentence`. `closed` is always true: the caller only reaches
+/// this with both delimiters present.
+pub(crate) fn parse_quoted_ability_fragment(
+    source: &str,
+    catalogs: &Catalogs,
+    self_reference: &SelfReference,
+) -> QuotedAbility {
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let terminal_period = tokens_end_with_period(&tokens);
+    let mut parser = Parser::new(source, catalogs, self_reference);
+    let initial_uppercase = parser.tokens_start_uppercase(&tokens);
+    QuotedAbility {
+        ability: Box::new(parser.parse_ability(&tokens)),
+        initial_uppercase,
+        closed: true,
+        terminal_period,
+    }
+}
+
+/// Whether a token run ends with a sentence-terminal period — the interior of a
+/// quoted ability that closes its enclosing sentence keeps that period inside
+/// the quote (`"…."`), which the parser records on [`QuotedAbility`] rather
+/// than re-deriving from the period-stripped interior.
+fn tokens_end_with_period(tokens: &[Token]) -> bool {
+    matches!(
+        tokens.last().map(|token| token.kind),
+        Some(TokenKind::Punctuation(Punctuation::Period))
+    )
 }
 
 struct Parser<'source, 'catalogs, 'sr> {
@@ -949,10 +991,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
         let quoted_tokens = &tokens[open + 1..close];
         let initial_uppercase = self.tokens_start_uppercase(quoted_tokens);
+        let terminal_period = tokens_end_with_period(quoted_tokens);
         let quoted = QuotedAbility {
             ability: Box::new(self.parse_ability(quoted_tokens)),
             initial_uppercase,
             closed: true,
+            terminal_period,
         };
         let prefix = &tokens[..open];
         let clause = if prefix

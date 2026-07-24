@@ -191,9 +191,14 @@ impl<'identity> Renderer<'identity> {
     /// Renders an ability nested inside a quoted or embedded ability, tracking
     /// the enclosing depth so period derivation can tell top-level keyword
     /// lines from the same words appearing as nested prose.
-    fn nested_ability(&self, ability: &Ability, capitalize: bool) -> Result<String, RenderError> {
+    fn nested_ability(
+        &self,
+        ability: &Ability,
+        capitalize: bool,
+        suppress_final_period: bool,
+    ) -> Result<String, RenderError> {
         self.nesting.set(self.nesting.get() + 1);
-        let rendered = self.ability(ability, capitalize);
+        let rendered = self.ability(ability, capitalize, suppress_final_period);
         self.nesting.set(self.nesting.get() - 1);
         rendered
     }
@@ -202,13 +207,22 @@ impl<'identity> Renderer<'identity> {
         oracle_text
             .abilities
             .iter()
-            .map(|ability| self.ability(ability, true))
+            .map(|ability| self.ability(ability, true, false))
             .collect::<Result<Vec<_>, _>>()
             .map(|abilities| abilities.join("\n"))
     }
 
-    fn ability(&self, ability: &Ability, capitalize: bool) -> Result<String, RenderError> {
-        let body = self.ability_kind(&ability.kind, capitalize)?;
+    /// Renders one ability. `suppress_final_period` withholds the derived
+    /// terminal period of the ability's final sentence — set only for a quoted
+    /// ability that does not close its enclosing sentence, so the period lives
+    /// outside the quote (`has "…" and "…."`).
+    fn ability(
+        &self,
+        ability: &Ability,
+        capitalize: bool,
+        suppress_final_period: bool,
+    ) -> Result<String, RenderError> {
+        let body = self.ability_kind(&ability.kind, capitalize, suppress_final_period)?;
         let rendered = if let Some(ability_word) = &ability.ability_word {
             format!("{} — {}", ability_word.spelling(), capitalize_first(body))
         } else {
@@ -217,12 +231,21 @@ impl<'identity> Renderer<'identity> {
         Ok(if capitalize { capitalize_first(rendered) } else { rendered })
     }
 
-    fn ability_kind(&self, kind: &AbilityKind, capitalize: bool) -> Result<String, RenderError> {
+    fn ability_kind(
+        &self,
+        kind: &AbilityKind,
+        capitalize: bool,
+        suppress_final_period: bool,
+    ) -> Result<String, RenderError> {
         match kind {
             AbilityKind::Activated(activated) => Ok(format!(
                 "{}: {}",
                 self.cost(&activated.cost)?,
-                self.paragraph(&activated.effect, activated.effect_initial_uppercase,)?
+                self.paragraph_with_suffix(
+                    &activated.effect,
+                    activated.effect_initial_uppercase,
+                    suppress_final_period,
+                )?
             )),
             AbilityKind::ClassLevel(level) => Ok(format!(
                 "{}: Level {}",
@@ -236,18 +259,20 @@ impl<'identity> Renderer<'identity> {
                     &triggered.event,
                     triggered.intervening_condition.as_ref(),
                 )?,
-                self.paragraph(&triggered.effect, false)?
+                self.paragraph_with_suffix(&triggered.effect, false, suppress_final_period)?
             )),
             AbilityKind::Loyalty(loyalty) => Ok(format!(
                 "[{}]: {}",
                 render_loyalty_cost(loyalty.cost),
-                self.paragraph(&loyalty.effect, true)?
+                self.paragraph_with_suffix(&loyalty.effect, true, suppress_final_period)?
             )),
             AbilityKind::Chapter(chapter) => self.chapter_ability(chapter),
             AbilityKind::RollRow(row) => self.roll_row_ability(row),
             AbilityKind::Modal(modal) => self.modal_ability(modal),
             AbilityKind::Keyword(keyword) => self.keyword_ability_list(keyword),
-            AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph, capitalize),
+            AbilityKind::Paragraph(paragraph) => {
+                self.paragraph_with_suffix(paragraph, capitalize, suppress_final_period)
+            }
         }
     }
 
@@ -415,7 +440,7 @@ impl<'identity> Renderer<'identity> {
                 format!(
                     "{}{}",
                     keyword_argument_separator(*separator),
-                    self.nested_ability(ability, true)?
+                    self.nested_ability(ability, true, false)?
                 )
             }
             KeywordArgument::CountedCost { count, symbols } => {
@@ -923,7 +948,7 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(value.power),
                 render_signed_scalar(value.toughness),
             )),
-            PredicateObject::EmbeddedAbility(ability) => self.nested_ability(ability, true),
+            PredicateObject::EmbeddedAbility(ability) => self.nested_ability(ability, true, false),
             PredicateObject::QuotedAbility(quoted) => self.quoted_ability(quoted),
             PredicateObject::Coordinated(coordinated) => {
                 let mut rendered = self.predicate_object(&coordinated.first)?;
@@ -1396,16 +1421,23 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(power_toughness.power),
                 render_signed_scalar(power_toughness.toughness)
             )),
-            Phrase::EmbeddedAbility(ability) => self.nested_ability(ability, true),
+            Phrase::EmbeddedAbility(ability) => self.nested_ability(ability, true, false),
             Phrase::QuotedAbility(quoted) => self.quoted_ability(quoted),
             Phrase::Recovered(recovery) => Ok(recovery.spelling().to_owned()),
         }
     }
 
     fn quoted_ability(&self, quoted: &QuotedAbility) -> Result<String, RenderError> {
+        // The interior's derived terminal period is withheld unless this quote
+        // closes its enclosing sentence — the period sits inside the quote only
+        // when the surface put it there (`gains "…."` vs `has "…" and "…."`).
         let mut rendered = format!(
             "\"{}",
-            self.nested_ability(&quoted.ability, quoted.initial_uppercase)?
+            self.nested_ability(
+                &quoted.ability,
+                quoted.initial_uppercase,
+                !quoted.terminal_period,
+            )?
         );
         if quoted.closed {
             rendered.push('"');

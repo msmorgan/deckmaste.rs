@@ -123,6 +123,41 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::AbilityItem)],
     );
+    // A quoted ability fills the same grant-verb object slot as a keyword
+    // ability (`… has "…"`), and coordinates as a two-conjunct object list
+    // (`… has "A" and "B"`) exactly as symbol alternatives do. One general
+    // production admits the quoted-ability conjunct wherever the grammar
+    // already licenses a quoted-ability object; the surrounding predicate,
+    // clause, and prepositional coordination is the existing machinery.
+    builder.add(
+        RuleTag::VerbPhraseQuotedAbility,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), l(L::QuotedAbility)],
+    );
+    builder.add(
+        RuleTag::VerbPhraseQuotedAbilityCoordination,
+        N::VerbPhrase,
+        [
+            n(N::VerbPhrase),
+            l(L::QuotedAbility),
+            l(L::Conjunction),
+            l(L::QuotedAbility),
+        ],
+    );
+    // A keyword-ability object coordinated with a quoted ability
+    // (`… has flying and "…"`) — the mixed conjunct the noun-phrase coordination
+    // that already handles `… has flying and haste` cannot form, since a quoted
+    // ability is not a noun phrase.
+    builder.add(
+        RuleTag::VerbPhraseAbilityQuotedCoordination,
+        N::VerbPhrase,
+        [
+            n(N::VerbPhrase),
+            l(L::AbilityItem),
+            l(L::Conjunction),
+            l(L::QuotedAbility),
+        ],
+    );
     builder.add(
         RuleTag::VerbPhraseOracleSymbol,
         N::VerbPhrase,
@@ -443,6 +478,9 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseQuotedAbility
+        | RuleTag::VerbPhraseQuotedAbilityCoordination
+        | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhraseOracleSymbolCoordination
@@ -534,6 +572,9 @@ pub(super) fn accepts_predicate_prefix(
             | RuleTag::VerbPhraseInfinitive
             | RuleTag::VerbPhraseParticle
             | RuleTag::VerbPhraseAbility
+            | RuleTag::VerbPhraseQuotedAbility
+            | RuleTag::VerbPhraseQuotedAbilityCoordination
+            | RuleTag::VerbPhraseAbilityQuotedCoordination
             | RuleTag::VerbPhraseOracleSymbol
             | RuleTag::VerbPhraseSymbolSequence
             | RuleTag::VerbPhraseOracleSymbolCoordination
@@ -575,7 +616,10 @@ pub(super) fn accepts_predicate_prefix(
         RuleTag::VerbPhraseInfinitive => {
             frame.licenses_complement(PredicateComplementKind::Infinitive)
         }
-        RuleTag::VerbPhraseAbility => {
+        RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseQuotedAbility
+        | RuleTag::VerbPhraseQuotedAbilityCoordination
+        | RuleTag::VerbPhraseAbilityQuotedCoordination => {
             *object == PredicateObjectState::None
                 && frame.licenses_complement(PredicateComplementKind::Ability)
         }
@@ -750,6 +794,16 @@ fn reduce_predicate(
             };
             extend_predicate(children.first()?, PredicateAttachment::ScalarComplement)
         }
+        RuleTag::VerbPhraseQuotedAbilityCoordination
+        | RuleTag::VerbPhraseAbilityQuotedCoordination => {
+            let Features::Conjunction(
+                crate::syntax::PredicateConjunction::And | crate::syntax::PredicateConjunction::Or,
+            ) = children.get(2)?.features
+            else {
+                return None;
+            };
+            extend_predicate(children.first()?, PredicateAttachment::QuotedObject)
+        }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
@@ -757,6 +811,7 @@ fn reduce_predicate(
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseQuotedAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhrasePowerToughness
@@ -782,6 +837,7 @@ fn reduce_predicate(
                     PredicateAttachment::Particle(*particle)
                 }
                 RuleTag::VerbPhraseAbility => PredicateAttachment::AbilityComplement,
+                RuleTag::VerbPhraseQuotedAbility => PredicateAttachment::QuotedObject,
                 RuleTag::VerbPhraseOracleSymbol | RuleTag::VerbPhraseSymbolSequence => {
                     PredicateAttachment::ScalarComplement
                 }
@@ -857,7 +913,7 @@ fn extend_predicate(
             frame.licenses_complement(PredicateComplementKind::Infinitive)
         }
         PredicateAttachment::Particle(particle) => frame.licenses_particle(particle),
-        PredicateAttachment::AbilityComplement => {
+        PredicateAttachment::AbilityComplement | PredicateAttachment::QuotedObject => {
             frame.licenses_complement(PredicateComplementKind::Ability)
         }
         PredicateAttachment::ScalarComplement | PredicateAttachment::ScalarOrAbilityArgument => {
@@ -887,6 +943,7 @@ fn extend_predicate(
         PredicateAttachment::DirectObject
         | PredicateAttachment::IndirectObject
         | PredicateAttachment::AbilityComplement
+        | PredicateAttachment::QuotedObject
         | PredicateAttachment::ScalarComplement
         | PredicateAttachment::StatisticComplement
         | PredicateAttachment::ScalarOrAbilityArgument => {
@@ -921,6 +978,7 @@ fn extend_predicate(
         ) => object,
         (
             PredicateAttachment::DirectObject
+            | PredicateAttachment::QuotedObject
             | PredicateAttachment::ScalarComplement
             | PredicateAttachment::StatisticComplement
             | PredicateAttachment::ScalarOrAbilityArgument,
@@ -969,6 +1027,12 @@ enum PredicateAttachment {
     InfinitiveComplement,
     Particle(VerbParticle),
     AbilityComplement,
+    /// A quoted (or coordinated quoted) ability object. Licensed by the same
+    /// frames that admit a keyword-ability complement (the grant verbs), but it
+    /// is a complete direct object — unlike a bare keyword ability it never
+    /// takes a following scalar argument — so it settles the object slot to
+    /// `Direct`.
+    QuotedObject,
     ScalarComplement,
     StatisticComplement,
     ScalarOrAbilityArgument,
@@ -1644,6 +1708,9 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseQuotedAbility
+        | RuleTag::VerbPhraseQuotedAbilityCoordination
+        | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhraseOracleSymbolCoordination
@@ -1773,6 +1840,9 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseQuotedAbility
+        | RuleTag::VerbPhraseQuotedAbilityCoordination
+        | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhraseOracleSymbolCoordination
@@ -1794,6 +1864,10 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one arm per predicate-dependent rule tag is intentionally verbose"
+)]
 fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     let Lowered::VerbPhrase(mut predicate) = take(children, 0)? else {
         return None;
@@ -1864,6 +1938,53 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 return None;
             };
             VerbDependent::PredicateComplement(Phrase::CatalogAtom(atom))
+        }
+        RuleTag::VerbPhraseQuotedAbility => {
+            let Lowered::Phrase(phrase @ Phrase::QuotedAbility(_)) = take(children, 1)? else {
+                return None;
+            };
+            VerbDependent::PredicateComplement(phrase)
+        }
+        RuleTag::VerbPhraseQuotedAbilityCoordination => {
+            let Lowered::Phrase(Phrase::QuotedAbility(first)) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                return None;
+            };
+            let Lowered::Phrase(Phrase::QuotedAbility(next)) = take(children, 3)? else {
+                return None;
+            };
+            VerbDependent::CoordinatedObject(CoordinatedPredicateObject {
+                first: Box::new(PredicateObject::QuotedAbility(first)),
+                rest: vec![PredicateObjectCoordination {
+                    conjunction,
+                    comma: false,
+                    object: PredicateObject::QuotedAbility(next),
+                }],
+            })
+        }
+        RuleTag::VerbPhraseAbilityQuotedCoordination => {
+            let Lowered::Catalog(atom) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                return None;
+            };
+            let Lowered::Phrase(Phrase::QuotedAbility(next)) = take(children, 3)? else {
+                return None;
+            };
+            VerbDependent::CoordinatedObject(CoordinatedPredicateObject {
+                first: Box::new(PredicateObject::Ability(AbilityObject {
+                    ability: atom,
+                    argument: None,
+                })),
+                rest: vec![PredicateObjectCoordination {
+                    conjunction,
+                    comma: false,
+                    object: PredicateObject::QuotedAbility(next),
+                }],
+            })
         }
         RuleTag::VerbPhraseOracleSymbol => {
             let Lowered::OracleSymbol(symbol) = take(children, 1)? else {
@@ -4607,6 +4728,155 @@ mod tests {
             );
             assert_eq!(rendered, source, "{source}");
         }
+    }
+
+    // ---- Quoted abilities in coordinated hosts ----
+
+    /// A quoted ability fills a grant verb's object inside a coordinated
+    /// predicate (`… gets +N/+N and has "…"`), reached through the existing
+    /// clause coordination that already handles `get +1/+1 and have haste`.
+    #[test]
+    fn quoted_ability_is_a_coordinated_grant_predicate_object() {
+        let source = "Enchanted creature gets +2/+2 and has \"{T}: Draw a card.\"";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected coordinated predicates: {:#?}", parsed.sentence());
+        };
+        let [
+            ClauseCoordination {
+                member: CoordinatedClauseMember::SharedPredicate(Predicate::Transitive(shared)),
+                ..
+            },
+        ] = coordination.rest.as_slice()
+        else {
+            panic!("expected one shared-predicate conjunct: {coordination:#?}");
+        };
+        assert!(
+            matches!(&shared.object, PredicateObject::QuotedAbility(quoted) if quoted.terminal_period),
+            "the shared predicate's object is the closed, sentence-final quote: {:#?}",
+            shared.object
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    /// Two quoted abilities coordinate as one object (`has "A" and "B."`); only
+    /// the sentence-final conjunct keeps its terminal period inside the quote.
+    #[test]
+    fn two_quoted_abilities_are_a_coordinated_object() {
+        let source = "Enchanted creature has \"When this creature dies, draw a card\" and \"{T}: Draw a card.\"";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause: {:#?}", parsed.sentence());
+        };
+        let PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest }) =
+            &predicate.object
+        else {
+            panic!("expected a coordinated object: {:#?}", predicate.object);
+        };
+        assert!(
+            matches!(first.as_ref(), PredicateObject::QuotedAbility(quoted) if !quoted.terminal_period),
+            "the non-final conjunct drops its interior period: {first:#?}"
+        );
+        assert!(
+            matches!(rest.as_slice(), [PredicateObjectCoordination {
+                conjunction: crate::syntax::PredicateConjunction::And,
+                object: PredicateObject::QuotedAbility(quoted),
+                ..
+            }] if quoted.terminal_period),
+            "the final conjunct keeps its interior period: {rest:#?}"
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    /// A keyword ability and a quoted ability coordinate as one object
+    /// (`has flying and "…"`) — the mixed conjunct the noun-phrase coordination
+    /// cannot form.
+    #[test]
+    fn keyword_and_quoted_ability_are_a_coordinated_object() {
+        let source = "Enchanted creature has flying and \"{T}: Draw a card.\"";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause: {:#?}", parsed.sentence());
+        };
+        let PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest }) =
+            &predicate.object
+        else {
+            panic!("expected a coordinated object: {:#?}", predicate.object);
+        };
+        assert!(
+            matches!(first.as_ref(), PredicateObject::Ability(ability) if ability.argument.is_none()),
+            "the first conjunct is the keyword-ability object: {first:#?}"
+        );
+        assert!(
+            matches!(
+                rest.as_slice(),
+                [PredicateObjectCoordination {
+                    object: PredicateObject::QuotedAbility(_),
+                    ..
+                }]
+            ),
+            "the second conjunct is the quoted ability: {rest:#?}"
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    /// The interior's terminal period is a positional distinction carried on
+    /// the node, not derived from the interior alone: a quote before a
+    /// trailing adjunct drops it (`gains "…" until end of turn.`); the same
+    /// quote in sentence-final position keeps it (`gains "…."`). Both
+    /// round-trip.
+    #[test]
+    fn quoted_ability_interior_period_tracks_sentence_final_position() {
+        let non_final = "This creature gains \"{T}: Draw a card\" until end of turn.";
+        let parsed = parse(non_final);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause: {:#?}", parsed.sentence());
+        };
+        assert!(
+            matches!(&predicate.object, PredicateObject::QuotedAbility(quoted) if !quoted.terminal_period),
+            "a quote before a trailing adjunct drops its interior period: {:#?}",
+            predicate.object
+        );
+        assert!(
+            !predicate.elements.is_empty(),
+            "the trailing adjunct survives"
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), non_final);
+
+        let sentence_final = "This creature gains \"{T}: Draw a card.\"";
+        let parsed = parse(sentence_final);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause: {:#?}", parsed.sentence());
+        };
+        assert!(
+            matches!(&predicate.object, PredicateObject::QuotedAbility(quoted) if quoted.terminal_period),
+            "a sentence-final quote keeps its interior period: {:#?}",
+            predicate.object
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), sentence_final);
+    }
+
+    /// Residue: a three-member Oxford-comma object list ending in a quoted
+    /// ability (`has flying, haste, and "…"`) is the general comma-coordination
+    /// gap, not covered this round — it stays recovering rather than parsing
+    /// wrong.
+    #[test]
+    fn three_way_oxford_comma_quoted_object_list_recovers() {
+        let source = "Enchanted creature has flying, haste, and \"{T}: Draw a card.\"";
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "the three-way Oxford-comma quoted object list must not parse"
+        );
     }
 
     fn parse(source: &str) -> ParsedNonterminal {

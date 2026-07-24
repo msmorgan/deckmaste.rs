@@ -252,6 +252,11 @@ pub(crate) enum EnglishLexicalSlot {
     Preposition,
     OracleSymbol,
     SymbolSequence,
+    /// A quoted ability (`"…"`) filling an object or coordinated-conjunct slot.
+    /// Scanned as one lexical unit spanning both delimiters; the interior
+    /// parses recursively as an [`Ability`](crate::syntax::Ability) at
+    /// lowering.
+    QuotedAbility,
     PowerToughness,
     Punctuation(Punctuation),
     Subordinator,
@@ -733,6 +738,11 @@ pub(crate) enum MeaningKey {
     Catalog(crate::catalog::CatalogAtom),
     OracleSymbol(OracleSymbol),
     SymbolSequence(Vec<OracleSymbol>),
+    /// The source span of a quoted ability's interior (between the delimiters).
+    /// Carried as a `Span` — `Hash`, unlike the parsed `Ability` — and reparsed
+    /// at lowering by
+    /// [`parse_quoted_ability_fragment`](ability::parse_quoted_ability_fragment).
+    QuotedAbility(Span),
     PowerToughness(PowerToughness),
     Punctuation(Punctuation),
     Conjunction(crate::syntax::PredicateConjunction),
@@ -864,6 +874,9 @@ enum RuleTag {
     VerbPhraseFrequency,
     FrequencyPhraseAdverb,
     VerbPhraseAbility,
+    VerbPhraseQuotedAbility,
+    VerbPhraseQuotedAbilityCoordination,
+    VerbPhraseAbilityQuotedCoordination,
     VerbPhraseOracleSymbol,
     VerbPhraseSymbolSequence,
     VerbPhraseOracleSymbolCoordination,
@@ -1586,6 +1599,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
             }
             EnglishLexicalSlot::Preposition => self.scan_preposition(tokens, start),
             EnglishLexicalSlot::Existential => self.scan_existential(tokens, start),
+            EnglishLexicalSlot::QuotedAbility => Self::scan_quoted_ability(tokens, start),
             slot @ (EnglishLexicalSlot::PossessiveNoun
             | EnglishLexicalSlot::OracleSymbol
             | EnglishLexicalSlot::SymbolSequence
@@ -2253,6 +2267,45 @@ impl EnglishGrammar<'_, '_> {
             })
         })
         .collect()
+    }
+
+    /// Scans a quoted ability (`"…"`) as one lexical unit. Matches only when a
+    /// double quote opens at `start` and a later double quote closes it with a
+    /// non-empty interior; the match spans both delimiters and carries the
+    /// interior's source span, reparsed to an
+    /// [`Ability`](crate::syntax::Ability) at lowering. Earley prediction
+    /// restricts the scan to positions where a grant/coordination rule
+    /// expects an object, so the interior tokens never invite a scan of
+    /// their own.
+    fn scan_quoted_ability(
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        if tokens.get(start).map(|token| token.kind)
+            != Some(TokenKind::Punctuation(Punctuation::DoubleQuote))
+        {
+            return Vec::new();
+        }
+        let Some(close) = tokens[start + 1..]
+            .iter()
+            .position(|token| token.kind == TokenKind::Punctuation(Punctuation::DoubleQuote))
+            .map(|offset| start + 1 + offset)
+        else {
+            return Vec::new();
+        };
+        // The interior must hold at least one token — an empty `""` is never a
+        // quoted ability.
+        if close == start + 1 {
+            return Vec::new();
+        }
+        let interior_start = tokens[start + 1].span.start;
+        let interior_end = tokens[close - 1].span.end;
+        vec![LexicalMatch {
+            end: close + 1,
+            features: Features::None,
+            meaning: MeaningKey::QuotedAbility(Span::new(interior_start, interior_end)),
+            local_cost: ParseCost::default(),
+        }]
     }
 
     fn scan_frequency(
@@ -3156,6 +3209,9 @@ fn reduce(
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseQuotedAbility
+        | RuleTag::VerbPhraseQuotedAbilityCoordination
+        | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhraseOracleSymbolCoordination
@@ -4216,6 +4272,16 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Catalog(atom) => Lowered::Catalog(atom.clone()),
         MeaningKey::OracleSymbol(symbol) => Lowered::OracleSymbol(symbol.clone()),
         MeaningKey::SymbolSequence(symbols) => Lowered::SymbolSequence(symbols.clone()),
+        MeaningKey::QuotedAbility(span) => {
+            let interior = span.text(grammar.source)?;
+            Lowered::Phrase(Phrase::QuotedAbility(Box::new(
+                ability::parse_quoted_ability_fragment(
+                    interior,
+                    grammar.catalogs,
+                    &grammar.self_reference,
+                ),
+            )))
+        }
         MeaningKey::PowerToughness(power_toughness) => Lowered::PowerToughness(*power_toughness),
         MeaningKey::Conjunction(conjunction) => Lowered::Conjunction(*conjunction),
         MeaningKey::Subordinator(subordinator) => Lowered::Subordinator(*subordinator),
@@ -4326,6 +4392,9 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseQuotedAbility
+        | RuleTag::VerbPhraseQuotedAbilityCoordination
+        | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
         | RuleTag::VerbPhraseOracleSymbolCoordination
