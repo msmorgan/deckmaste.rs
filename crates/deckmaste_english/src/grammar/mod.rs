@@ -492,6 +492,12 @@ pub(crate) enum Features {
         phase: PredicateAttachmentPhase,
         frame: PredicateFrame,
         bare: bool,
+        /// Set only by a `PastSubjunctive` `Be` auxiliary heading this verb
+        /// phrase; threaded unchanged by reduces. Licensing gate: only
+        /// `RuleTag::ClauseSubordinateAfter`/`…Comma` may accept a
+        /// subjunctive body, and only under `Subordinator::AsThough` — see
+        /// `Features::Subordinator` and the reduce arm in `clause.rs`.
+        subjunctive: bool,
     },
     InfinitiveClause,
     GerundClause,
@@ -502,6 +508,7 @@ pub(crate) enum Features {
         has_direct_object: bool,
         host_addressee_subject: bool,
         host_modal: bool,
+        subjunctive: bool,
     },
     Clause {
         agreement: Option<Agreement>,
@@ -509,9 +516,15 @@ pub(crate) enum Features {
         finite: bool,
         host_addressee_subject: bool,
         host_modal: bool,
+        subjunctive: bool,
     },
     Sentence,
     Preposition(Preposition),
+    /// A subordinating conjunction lexeme, carried so `RuleTag::
+    /// ClauseSubordinateAfter`/`…Comma` can identify `Subordinator::AsThough`
+    /// specifically — the only subordinator permitted to host a
+    /// subjunctive body.
+    Subordinator(crate::syntax::Subordinator),
     PrepositionalObject {
         gerund: bool,
     },
@@ -2038,7 +2051,7 @@ impl EnglishGrammar<'_, '_> {
         self.subordinator_at(tokens, start)
             .map(|(end, subordinator)| LexicalMatch {
                 end,
-                features: Features::None,
+                features: Features::Subordinator(subordinator),
                 meaning: MeaningKey::Subordinator(subordinator),
                 local_cost: ParseCost::default(),
             })
@@ -3439,10 +3452,23 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
             noun_phrase_features(pronoun.pronoun, Some(pronoun.case)),
             MeaningKey::Pronoun(pronoun),
         ),
-        WordMatch::Auxiliary(auxiliary) => single(
-            Features::Auxiliary(auxiliary),
-            MeaningKey::Auxiliary(auxiliary),
-        ),
+        WordMatch::Auxiliary(auxiliary) => vec![LexicalMatch {
+            end,
+            features: Features::Auxiliary(auxiliary),
+            meaning: MeaningKey::Auxiliary(auxiliary),
+            local_cost: ParseCost {
+                // `were`/`weren't` are ambiguous between indicative
+                // Past{Third,Plural} and the subjunctive: prefer the
+                // indicative reading whenever both are available (e.g. `they
+                // were untapped`), leaving subjunctive as the only surviving
+                // reading where no indicative subject agrees (`it were`).
+                reading_dispreference: u32::from(matches!(
+                    auxiliary.inflection,
+                    crate::word::AuxiliaryInflection::PastSubjunctive
+                )),
+                ..ParseCost::default()
+            },
+        }],
     }
 }
 
@@ -3575,6 +3601,7 @@ const fn copula_agreement(auxiliary: AuxiliaryInstance) -> Option<Agreement> {
         AuxiliaryInflection::Present { person, number }
         | AuxiliaryInflection::Past { person, number } => Some(Agreement { person, number }),
         AuxiliaryInflection::Base
+        | AuxiliaryInflection::PastSubjunctive
         | AuxiliaryInflection::PresentParticiple
         | AuxiliaryInflection::PastParticiple => None,
     }

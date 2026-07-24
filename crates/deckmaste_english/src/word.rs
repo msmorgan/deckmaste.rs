@@ -490,8 +490,18 @@ pub enum Auxiliary {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AuxiliaryInflection {
     Base,
-    Present { person: Person, number: Number },
-    Past { person: Person, number: Number },
+    Present {
+        person: Person,
+        number: Number,
+    },
+    Past {
+        person: Person,
+        number: Number,
+    },
+    /// The past-subjunctive `were`, carried with no person/number: licensed
+    /// only under `as though` (see the `Features::Subordinator`/`subjunctive`
+    /// licensing gate in `grammar`). Never agrees like `Past`.
+    PastSubjunctive,
     PresentParticiple,
     PastParticiple,
 }
@@ -1879,7 +1889,7 @@ fn auxiliary_instances() -> impl Iterator<Item = AuxiliaryInstance> {
         Auxiliary::Be,
         Auxiliary::Have,
     ];
-    const INFLECTIONS: [AuxiliaryInflection; 11] = [
+    const INFLECTIONS: [AuxiliaryInflection; 12] = [
         AuxiliaryInflection::Base,
         AuxiliaryInflection::Present {
             person: Person::Second,
@@ -1913,6 +1923,7 @@ fn auxiliary_instances() -> impl Iterator<Item = AuxiliaryInstance> {
             person: Person::Third,
             number: Number::Plural,
         },
+        AuxiliaryInflection::PastSubjunctive,
         AuxiliaryInflection::PresentParticiple,
         AuxiliaryInflection::PastParticiple,
     ];
@@ -1973,7 +1984,7 @@ const fn render_auxiliary(instance: AuxiliaryInstance) -> Option<&'static str> {
                     number: N::Singular,
                 },
             ) => Some("wasn't"),
-            (A::Be, I::Past { .. }) => Some("weren't"),
+            (A::Be, I::Past { .. } | I::PastSubjunctive) => Some("weren't"),
             (
                 A::Have,
                 I::Present {
@@ -2034,7 +2045,7 @@ const fn render_auxiliary(instance: AuxiliaryInstance) -> Option<&'static str> {
                 number: N::Singular,
             },
         ) => Some("was"),
-        (A::Be, I::Past { .. }) => Some("were"),
+        (A::Be, I::Past { .. } | I::PastSubjunctive) => Some("were"),
         (A::Be, I::PresentParticiple) => Some("being"),
         (A::Be, I::PastParticiple) => Some("been"),
         (

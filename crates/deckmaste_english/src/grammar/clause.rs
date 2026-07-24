@@ -829,6 +829,7 @@ fn reduce_predicate(
                 phase: PredicateAttachmentPhase::Object,
                 frame: *frame,
                 bare: true,
+                subjunctive: false,
             })
         }
         RuleTag::VerbPhraseAuxiliaryProform => {
@@ -845,6 +846,10 @@ fn reduce_predicate(
                 phase: PredicateAttachmentPhase::Object,
                 frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
                 bare: false,
+                subjunctive: matches!(
+                    auxiliary.inflection,
+                    crate::word::AuxiliaryInflection::PastSubjunctive
+                ),
             })
         }
         RuleTag::VerbPhraseAuxiliary => {
@@ -859,6 +864,7 @@ fn reduce_predicate(
                 selected_preposition,
                 phase,
                 frame,
+                subjunctive: child_subjunctive,
                 ..
             } = children.get(1)?.features
             else {
@@ -871,6 +877,11 @@ fn reduce_predicate(
             if passive && object.has_direct_object() {
                 return None;
             }
+            let subjunctive = *child_subjunctive
+                || matches!(
+                    auxiliary.inflection,
+                    crate::word::AuxiliaryInflection::PastSubjunctive
+                );
             Some(Features::VerbPhrase {
                 form,
                 passive,
@@ -880,6 +891,7 @@ fn reduce_predicate(
                 phase: *phase,
                 frame: *frame,
                 bare: false,
+                subjunctive,
             })
         }
         RuleTag::VerbPhraseDirectObject | RuleTag::VerbPhraseIndirectObject => {
@@ -1085,6 +1097,7 @@ fn reduce_predicate(
                 phase: PredicateAttachmentPhase::Tail,
                 frame: *frame,
                 bare: false,
+                subjunctive: false,
             })
         }
         _ => None,
@@ -1103,6 +1116,7 @@ fn extend_predicate(
         selected_preposition,
         phase,
         frame,
+        subjunctive,
         ..
     } = predicate.features
     else {
@@ -1228,6 +1242,7 @@ fn extend_predicate(
         phase: next_phase,
         frame: *frame,
         bare: false,
+        subjunctive: *subjunctive,
     })
 }
 
@@ -1309,6 +1324,7 @@ fn reduce_simple_clause(
                 indirect_object,
                 selected_preposition,
                 frame,
+                subjunctive,
                 ..
             } = children.get(1)?.features
             else {
@@ -1336,6 +1352,7 @@ fn reduce_simple_clause(
                 object.has_direct_object(),
                 host_addressee_subject,
                 host_modal,
+                *subjunctive,
             ))
         }
         RuleTag::SimpleClauseContractedSubject => {
@@ -1354,6 +1371,7 @@ fn reduce_simple_clause(
                 indirect_object,
                 selected_preposition,
                 frame,
+                subjunctive,
                 ..
             } = children.get(1)?.features
             else {
@@ -1388,6 +1406,7 @@ fn reduce_simple_clause(
                 object.has_direct_object(),
                 host_addressee_subject,
                 host_modal,
+                *subjunctive,
             ))
         }
         RuleTag::SimpleClauseSubjectless => {
@@ -1398,6 +1417,7 @@ fn reduce_simple_clause(
                 indirect_object,
                 selected_preposition,
                 frame,
+                subjunctive,
                 ..
             } = children.first()?.features
             else {
@@ -1420,6 +1440,7 @@ fn reduce_simple_clause(
                     object.has_direct_object(),
                     false,
                     false,
+                    *subjunctive,
                 )),
                 PredicateForm::Finite(agreement) => Some(simple_clause_reduction(
                     *agreement,
@@ -1428,6 +1449,7 @@ fn reduce_simple_clause(
                     object.has_direct_object(),
                     false,
                     agreement.is_none(),
+                    *subjunctive,
                 )),
                 PredicateForm::Infinitive => Some(simple_clause_reduction(
                     None,
@@ -1436,6 +1458,7 @@ fn reduce_simple_clause(
                     object.has_direct_object(),
                     false,
                     false,
+                    *subjunctive,
                 )),
                 PredicateForm::PresentParticiple | PredicateForm::PastParticiple => None,
             }
@@ -1447,6 +1470,7 @@ fn reduce_simple_clause(
                 standalone,
                 host_addressee_subject,
                 host_modal,
+                subjunctive,
                 ..
             } = children.first()?.features
             else {
@@ -1458,6 +1482,7 @@ fn reduce_simple_clause(
                 finite: *has_subject,
                 host_addressee_subject: *host_addressee_subject,
                 host_modal: *host_modal,
+                subjunctive: *subjunctive,
             })
         }
         RuleTag::ClauseElliptical => Some(Features::Clause {
@@ -1466,6 +1491,7 @@ fn reduce_simple_clause(
             finite: false,
             host_addressee_subject: false,
             host_modal: false,
+            subjunctive: false,
         }),
         RuleTag::ClauseExistential => {
             let Features::Existential {
@@ -1490,6 +1516,7 @@ fn reduce_simple_clause(
                 finite: true,
                 host_addressee_subject: false,
                 host_modal: false,
+                subjunctive: false,
             })
         }
         RuleTag::CopularRemainderNoun
@@ -1726,6 +1753,7 @@ fn reduce_copular_clause(
         finite: true,
         host_addressee_subject: false,
         host_modal: false,
+        subjunctive: false,
     })
 }
 
@@ -1741,6 +1769,7 @@ fn simple_clause_reduction(
     has_direct_object: bool,
     host_addressee_subject: bool,
     host_modal: bool,
+    subjunctive: bool,
 ) -> Reduced {
     Features::SimpleClause {
         agreement,
@@ -1749,6 +1778,7 @@ fn simple_clause_reduction(
         has_direct_object,
         host_addressee_subject,
         host_modal,
+        subjunctive,
     }
 }
 
@@ -1770,6 +1800,7 @@ fn reduce_composed_clause(
                 finite,
                 host_addressee_subject: first_host_addressee_subject,
                 host_modal: first_host_modal,
+                subjunctive: first_subjunctive,
             } = children.first()?.features
             else {
                 return None;
@@ -1779,11 +1810,18 @@ fn reduce_composed_clause(
                 agreement: next_agreement,
                 has_subject,
                 standalone,
+                subjunctive: next_subjunctive,
                 ..
             } = last.features
             else {
                 return None;
             };
+            // A subjunctive-flagged clause never surfaces as a coordinated
+            // member (only `ClauseSubordinateAfter`/`…Comma` under
+            // `as though` may consume one).
+            if *first_subjunctive || *next_subjunctive {
+                return None;
+            }
             let host_adopts_imperative = *first_host_addressee_subject || *first_host_modal;
             // A finite, subject-bearing first clause may still host a bare
             // (subjectless, standalone) imperative continuation asyndetically —
@@ -1823,10 +1861,14 @@ fn reduce_composed_clause(
                 finite: *finite,
                 host_addressee_subject: *first_host_addressee_subject,
                 host_modal: *first_host_modal,
+                subjunctive: false,
             })
         }
         RuleTag::ClauseSubordinateBefore => {
-            conditional_reduction(children.get(1)?, children.get(3)?)
+            let Features::Subordinator(subordinator) = children.first()?.features else {
+                return None;
+            };
+            conditional_reduction(*subordinator, children.get(1)?, children.get(3)?)
         }
         RuleTag::ClauseAdverbBefore => fronted_attachment_reduction(children.get(1)?),
         RuleTag::ClausePrepositionalBefore => {
@@ -1843,23 +1885,34 @@ fn reduce_composed_clause(
                 finite,
                 host_addressee_subject,
                 host_modal,
+                subjunctive,
             } = consequence.features
             else {
                 return None;
             };
+            if *subjunctive {
+                return None;
+            }
             Some(Features::Clause {
                 agreement: *agreement,
                 standalone: true,
                 finite: *finite,
                 host_addressee_subject: *host_addressee_subject,
                 host_modal: *host_modal,
+                subjunctive: false,
             })
         }
         RuleTag::ClauseSubordinateAfter => {
-            conditional_reduction(children.get(2)?, children.first()?)
+            let Features::Subordinator(subordinator) = children.get(1)?.features else {
+                return None;
+            };
+            conditional_reduction(*subordinator, children.get(2)?, children.first()?)
         }
         RuleTag::ClauseSubordinateAfterComma => {
-            conditional_reduction(children.get(3)?, children.first()?)
+            let Features::Subordinator(subordinator) = children.get(2)?.features else {
+                return None;
+            };
+            conditional_reduction(*subordinator, children.get(3)?, children.first()?)
         }
         RuleTag::ClauseSubordinateAfterInfinitive => {
             let Features::Clause {
@@ -1868,10 +1921,14 @@ fn reduce_composed_clause(
                 finite,
                 host_addressee_subject,
                 host_modal,
+                subjunctive,
             } = children.first()?.features
             else {
                 return None;
             };
+            if *subjunctive {
+                return None;
+            }
             let Features::VerbPhrase {
                 form: PredicateForm::Infinitive,
                 ..
@@ -1885,6 +1942,7 @@ fn reduce_composed_clause(
                 finite: *finite,
                 host_addressee_subject: *host_addressee_subject,
                 host_modal: *host_modal,
+                subjunctive: false,
             })
         }
         RuleTag::ExceptionRiderSingle => {
@@ -1917,10 +1975,14 @@ fn reduce_composed_clause(
                 finite,
                 host_addressee_subject,
                 host_modal,
+                subjunctive,
             } = children.first()?.features
             else {
                 return None;
             };
+            if *subjunctive {
+                return None;
+            }
             if !matches!(children.get(2)?.features, Features::ExceptionRider) {
                 return None;
             }
@@ -1930,11 +1992,14 @@ fn reduce_composed_clause(
                 finite: *finite,
                 host_addressee_subject: *host_addressee_subject,
                 host_modal: *host_modal,
+                subjunctive: false,
             })
         }
         RuleTag::Sentence => {
             let Features::Clause {
-                standalone: true, ..
+                standalone: true,
+                subjunctive: false,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -1952,47 +2017,69 @@ fn fronted_attachment_reduction(matrix: &Child<'_, EnglishGrammar<'_, '_>>) -> O
         finite,
         host_addressee_subject,
         host_modal,
+        subjunctive,
     } = matrix.features
     else {
         return None;
     };
+    if *subjunctive {
+        return None;
+    }
     Some(Features::Clause {
         agreement: *agreement,
         standalone: true,
         finite: *finite,
         host_addressee_subject: *host_addressee_subject,
         host_modal: *host_modal,
+        subjunctive: false,
     })
 }
 
 fn conditional_reduction(
+    subordinator: crate::syntax::Subordinator,
     condition: &Child<'_, EnglishGrammar<'_, '_>>,
     consequence: &Child<'_, EnglishGrammar<'_, '_>>,
 ) -> Option<Reduced> {
     let Features::Clause {
         standalone: true,
         finite: true,
+        subjunctive: condition_subjunctive,
         ..
     } = condition.features
     else {
         return None;
     };
+    // Licensing gate: a past-subjunctive condition clause (`it were ...`) is
+    // only ever well-formed under `as though` — every other subordinator
+    // (`until`, `as long as`, `where`, ...) must reject it outright. See
+    // `Features::Subordinator`/`AuxiliaryInflection::PastSubjunctive`.
+    if *condition_subjunctive && !matches!(subordinator, crate::syntax::Subordinator::AsThough) {
+        return None;
+    }
     let Features::Clause {
         agreement,
         standalone: true,
         finite,
         host_addressee_subject,
         host_modal,
+        subjunctive: consequence_subjunctive,
     } = consequence.features
     else {
         return None;
     };
+    // The matrix clause itself is never subjunctive in this construction.
+    if *consequence_subjunctive {
+        return None;
+    }
     Some(Features::Clause {
         agreement: *agreement,
         standalone: true,
         finite: *finite,
         host_addressee_subject: *host_addressee_subject,
         host_modal: *host_modal,
+        // The composed clause is not itself subjunctive: the flag is
+        // consumed by this gate, never propagated further.
+        subjunctive: false,
     })
 }
 
@@ -2069,6 +2156,7 @@ fn auxiliary_form(auxiliary: AuxiliaryInstance, child: PredicateForm) -> Option<
         | AuxiliaryInflection::Past { person, number } => {
             Some(PredicateForm::Finite(Some(Agreement { person, number })))
         }
+        AuxiliaryInflection::PastSubjunctive => Some(PredicateForm::Finite(None)),
         AuxiliaryInflection::PresentParticiple => Some(PredicateForm::PresentParticiple),
         AuxiliaryInflection::PastParticiple => Some(PredicateForm::PastParticiple),
     }
@@ -3965,6 +4053,85 @@ mod tests {
     }
 
     #[test]
+    fn as_though_licenses_a_past_subjunctive_body() {
+        // Mechanism B: `were`/`weren't` under `as though` license the
+        // otherwise-ungrammatical past-subjunctive body (`it were`, `it
+        // weren't`), gated to this subordinator only.
+        // NOTE: the mana purpose-tail sub-family (`it were mana of any
+        // color`) is NOT covered here — it needs a bare-NP complement after
+        // a `PastSubjunctive` `Be`, which routes through the *copular*
+        // pathway (`Features::Copula`/`copula_agreement`), deliberately left
+        // returning `None` for `PastSubjunctive` (see `copula_agreement`) so
+        // the agreement bypass can't leak through the copular clause
+        // reduction, which requires an exact `Agreement` match rather than
+        // the `Option<Agreement>`-as-"no constraint" idiom used elsewhere.
+        // Extending that is characterized, not attempted, this stage.
+        let source =
+            "You may have this creature assign its combat damage as though it weren't blocked.";
+        let parsed = parse_self(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn as_though_were_reading_is_dispreferenced_to_indicative_plural() {
+        // The extra `PastSubjunctive` lexical reading for `were` must not
+        // clobber the ordinary indicative plural reading where one is
+        // available (`they were untapped`); only a singular subject with no
+        // indicative reading (`it were`) forces the subjunctive reading.
+        let source = "This creature can attack as though they were untapped.";
+        let parsed = parse_self(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn bare_subjunctive_clause_does_not_parse() {
+        // N1: a bare subjunctive main clause is not a sentence — the
+        // recognition-level gate at `RuleTag::Sentence` requires
+        // `subjunctive: false`.
+        assert!(
+            parse_nonterminal(
+                "This creature were blocked.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn subjunctive_under_a_different_subordinator_does_not_parse() {
+        // N2: the licensing gate in `conditional_reduction` checks the
+        // specific subordinator lexeme, not just "some subordinator".
+        assert!(
+            parse_nonterminal(
+                "As long as it were blocked, this creature gets +1/+1.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn subjunctive_under_until_does_not_parse() {
+        // N4: same gate, `until` rather than `as long as`.
+        assert!(
+            parse_nonterminal(
+                "Target creature gets +1/+1 until it were blocked.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn where_body_prefers_possessive_self_reference_over_a_vocab_noun() {
         // Regression for `Fang, Roku's Companion`: the where-body `X is Fang's
         // power` must read `Fang's` as the face's own possessive self-reference,
@@ -5086,6 +5253,7 @@ mod tests {
             phase,
             frame: PredicateFrame::OPEN,
             bare: object == PredicateObjectState::None,
+            subjunctive: false,
         };
         let open = predicate(PredicateObjectState::None, PredicateAttachmentPhase::Object);
         let occupied = predicate(
