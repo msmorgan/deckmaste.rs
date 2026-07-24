@@ -39,6 +39,15 @@ the nominal rules were consolidated into `mod.rs`, still declared as a plain
 whichever submodule inherits the nominal rules (or an honestly-named tests
 module), so the filename stops promising grammar it doesn't contain.
 
+## Lint-allow narrowing
+
+`grammar/mod.rs` opens with a module-wide `#![allow(dead_code, …)]`
+("staged for later milestones") — at 6k lines it also silences genuinely
+dead code (an orphaned scanner or Key variant would never warn). The split
+is the natural moment to narrow it: keep the allow only on the staged
+submodule(s), or per-item. (`catalog.rs` carries the same pattern
+crate-wide; out of this ticket's file set — note only.)
+
 ## Gates
 
 Standard constraints apply, plus: exact `#[test]`-count parity before vs

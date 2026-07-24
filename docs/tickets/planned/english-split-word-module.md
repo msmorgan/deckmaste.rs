@@ -1,8 +1,10 @@
 ---
-needs: []
+needs: [english-structural-recovery-zero]
 ---
 Split `crates/deckmaste_english/src/word.rs` into focused grammatical modules
-after the chart-parser replacement has landed.
+after the chart-parser replacement has landed. (Gated 2026-07-24 on the
+recovery campaign: rounds add senses to `word.rs` regularly, and a file split
+mid-campaign buys conflicts for nothing.)
 
 ## Why
 
