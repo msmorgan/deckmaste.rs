@@ -179,6 +179,11 @@ pub(crate) struct PredicateFrame {
     bare_nominal_adjuncts: &'static [BareNominalAdjunct],
     pub(crate) particles: &'static [VerbParticle],
     proform: bool,
+    /// Whether the verb takes a causative bare-infinitive complement after its
+    /// object (`have <object> <bare VP>`). Set only for the causative `have`;
+    /// every other frame leaves it off, so the `VerbPhrase = VerbPhrase
+    /// VerbPhrase` production reduces to nothing outside this construction.
+    causative_complement: bool,
 }
 
 impl PredicateFrame {
@@ -196,6 +201,7 @@ impl PredicateFrame {
         bare_nominal_adjuncts: &[BareNominalAdjunct::Temporal, BareNominalAdjunct::Manner],
         particles: &[],
         proform: false,
+        causative_complement: false,
     };
 
     const fn with_direct_object(mut self, requirement: ArgumentRequirement) -> Self {
@@ -233,6 +239,11 @@ impl PredicateFrame {
         self
     }
 
+    const fn with_causative_complement(mut self) -> Self {
+        self.causative_complement = true;
+        self
+    }
+
     pub(crate) const fn direct_object(self) -> ArgumentRequirement {
         self.direct_object
     }
@@ -247,6 +258,10 @@ impl PredicateFrame {
 
     pub(crate) const fn is_proform(self) -> bool {
         self.proform
+    }
+
+    pub(crate) const fn causative_complement(self) -> bool {
+        self.causative_complement
     }
 
     pub(crate) const fn licenses_complement(self, kind: PredicateComplementKind) -> bool {
@@ -290,6 +305,15 @@ const INTRANSITIVE_PREDICATE_FRAME: PredicateFrame =
 const INTRANSITIVE_PREDICATE_FRAMES: &[PredicateFrame] = &[INTRANSITIVE_PREDICATE_FRAME];
 const REQUIRED_OBJECT_PREDICATE_FRAMES: &[PredicateFrame] =
     &[PredicateFrame::OPEN.with_direct_object(ArgumentRequirement::Required)];
+/// `have` as a grant/possession verb (required object) plus its causative
+/// reading, which additionally takes a bare-infinitive complement after the
+/// object (`have this creature enter as a copy of …`).
+const HAVE_PREDICATE_FRAMES: &[PredicateFrame] = &[
+    PredicateFrame::OPEN.with_direct_object(ArgumentRequirement::Required),
+    PredicateFrame::OPEN
+        .with_direct_object(ArgumentRequirement::Required)
+        .with_causative_complement(),
+];
 pub(crate) const PROFORM_PREDICATE_FRAMES: &[PredicateFrame] = &[
     INTRANSITIVE_PREDICATE_FRAME.with_proform(),
     PredicateFrame::OPEN.with_proform(),
@@ -1005,7 +1029,7 @@ vocabulary! {
             .with_past("had")
             .with_present_participle("having")
             .with_past_participle("had")
-    )).predicate_frames(REQUIRED_OBJECT_PREDICATE_FRAMES);
+    )).predicate_frames(HAVE_PREDICATE_FRAMES);
     Heal("heal").verb(VerbForm::Regular);
     Heist("heist").verb(VerbForm::Regular);
     Hero("Hero").irregular_catalog_noun("Heroes");

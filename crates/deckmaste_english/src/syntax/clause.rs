@@ -129,6 +129,10 @@ pub enum CopularComplement {
     NounPhrase(NounPhrase),
     Adjective(AdjectivePhrase),
     Prepositional(PrepositionalPhrase),
+    /// A power/toughness statistic predicated of the subject (`it's 7/7`). The
+    /// value is the same `N/N` token that heads a stat-setting object, carried
+    /// here so a copular clause can assert a permanent's power and toughness.
+    PowerToughness(PowerToughness),
     CatalogAtom(CatalogAtom),
 }
 
@@ -300,6 +304,28 @@ pub struct ClauseAttachment {
 pub enum ClauseAttachmentKind {
     Dependent(DependentClause),
     Adjunct(PredicateAdjunct),
+    /// A trailing `except <clause>[, <clause>]…` rider. The conjuncts are the
+    /// modifications or exceptions a copy effect applies to the copying process
+    /// [CR#707.9]; each is an ordinary finite independent clause parsed by the
+    /// existing clause productions.
+    Exception(ExceptionRider),
+}
+
+/// A coordinated list of exception clauses trailing a host clause under a
+/// leading `except`. The first conjunct and each continuation is an
+/// independent finite clause; the coordination is recorded (comma and optional
+/// conjunction per member) so the renderer replays the exact surface list.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExceptionRider {
+    pub first: Box<IndependentClause>,
+    pub rest: Vec<ExceptionConjunct>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExceptionConjunct {
+    pub conjunction: Option<PredicateConjunction>,
+    pub comma: bool,
+    pub clause: IndependentClause,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

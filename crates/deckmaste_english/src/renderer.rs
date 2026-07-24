@@ -26,6 +26,7 @@ use crate::syntax::Demonstrative;
 use crate::syntax::DependentClause;
 use crate::syntax::Determiner;
 use crate::syntax::EllipticalClause;
+use crate::syntax::ExceptionRider;
 use crate::syntax::ExistentialClause;
 use crate::syntax::ExistentialForm;
 use crate::syntax::FrequencyBound;
@@ -758,7 +759,25 @@ impl<'identity> Renderer<'identity> {
         match attachment {
             ClauseAttachmentKind::Dependent(clause) => self.dependent_clause(clause),
             ClauseAttachmentKind::Adjunct(adjunct) => self.predicate_adjunct(adjunct),
+            ClauseAttachmentKind::Exception(rider) => self.exception_rider(rider),
         }
+    }
+
+    fn exception_rider(&self, rider: &ExceptionRider) -> Result<String, RenderError> {
+        let mut rendered = String::from("except ");
+        rendered.push_str(&self.independent_clause(&rider.first)?);
+        for conjunct in &rider.rest {
+            if conjunct.comma {
+                rendered.push(',');
+            }
+            rendered.push(' ');
+            if let Some(conjunction) = conjunct.conjunction {
+                rendered.push_str(render_predicate_conjunction(conjunction));
+                rendered.push(' ');
+            }
+            rendered.push_str(&self.independent_clause(&conjunct.clause)?);
+        }
+        Ok(rendered)
     }
 
     fn subject_with_predicate_head(
@@ -1026,6 +1045,11 @@ impl<'identity> Renderer<'identity> {
             CopularComplement::NounPhrase(phrase) => self.noun_phrase(phrase),
             CopularComplement::Adjective(phrase) => self.adjective_phrase(phrase),
             CopularComplement::Prepositional(phrase) => self.prepositional_phrase(phrase),
+            CopularComplement::PowerToughness(value) => Ok(format!(
+                "{}/{}",
+                render_signed_scalar(value.power),
+                render_signed_scalar(value.toughness),
+            )),
             CopularComplement::CatalogAtom(atom) => Ok(render_catalog_atom(atom)),
         }
     }
@@ -1681,6 +1705,10 @@ fn complex_ends_with_closed_quote(clause: &ComplexClause) -> bool {
         Some(attachment) => match &attachment.kind {
             ClauseAttachmentKind::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
             ClauseAttachmentKind::Dependent(_) => false,
+            ClauseAttachmentKind::Exception(rider) => match rider.rest.last() {
+                Some(conjunct) => independent_clause_ends_with_closed_quote(&conjunct.clause),
+                None => independent_clause_ends_with_closed_quote(&rider.first),
+            },
         },
         None => independent_clause_ends_with_closed_quote(&clause.matrix),
     }

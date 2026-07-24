@@ -161,6 +161,12 @@ struct CopularRemainder {
     distributive_each: bool,
     precomplement_adverbs: Vec<Vocab>,
     complement: CopularComplement,
+    /// Trailing prepositional adjuncts of the copular predication (`it's
+    /// legendary *in addition to its other types*`). The `become`/`is`
+    /// intransitive path already carries these as verb-phrase adjuncts; a
+    /// copular clause records them here and the renderer replays them after the
+    /// complement.
+    adjuncts: Vec<crate::syntax::PredicateAdjunct>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -195,6 +201,12 @@ pub(crate) enum Nonterminal {
     InfinitiveClause,
     GerundClause,
     CopularRemainder,
+    /// A coordinated list of exception clauses under a leading `except` marker,
+    /// trailing a copy (or other) host clause. Reached only through the
+    /// [`ClauseExcepted`](RuleTag::ClauseExcepted) attachment, so its
+    /// finite-clause coordination never competes with the general clause
+    /// coordination.
+    ExceptionRider,
     SimpleClause,
     Clause,
     Sentence,
@@ -288,6 +300,10 @@ pub(crate) enum EnglishLexicalSlot {
     Existential,
     Copula,
     SubjectAuxiliary,
+    /// The word `except` heading an exception rider. A dedicated slot (not a
+    /// generic subordinator) so the rider's finite-clause coordination is
+    /// reached only through the exception productions.
+    Except,
     Opaque(OpacitySlot),
 }
 
@@ -495,6 +511,10 @@ pub(crate) enum Features {
         agreement: Agreement,
         auxiliary: AuxiliaryInstance,
     },
+    /// A coordinated list of exception clauses gathered under a leading
+    /// `except` marker. Fieldless: the rider carries no agreement of its own —
+    /// each conjunct is an independently agreeing finite clause.
+    ExceptionRider,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -744,6 +764,7 @@ pub(crate) enum LiteralKey {
     Minus,
     Half,
     Rounded,
+    Except,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -938,6 +959,8 @@ enum RuleTag {
     CopularRemainderNoun,
     CopularRemainderAdjective,
     CopularRemainderPrepositional,
+    CopularRemainderPowerToughness,
+    CopularRemainderPrepositionalAdjunct,
     CopularRemainderAdverb,
     CopularRemainderDistributiveEach,
     ClauseCopular,
@@ -949,6 +972,24 @@ enum RuleTag {
     RelativeContractedCopularNoun,
     RelativeContractedCopularAdjective,
     RelativeContractedCopularPrepositional,
+    /// The causative `have <object> <bare-infinitive VP>` construction
+    /// (`have this creature enter as a copy of …`). The head verb's object is
+    /// the causee; the bare verb phrase is its infinitival complement.
+    VerbPhraseCausative,
+    /// A single-conjunct exception rider (`except it isn't legendary`): the
+    /// `except` marker plus one finite clause.
+    ExceptionRiderSingle,
+    /// A two-conjunct exception rider joined by a bare conjunction
+    /// (`except A and B`).
+    ExceptionRiderConjoined,
+    /// An asyndetic exception-rider continuation (`…, A, B`) — a comma-joined
+    /// clause with no conjunction, used for the interior members of an Oxford
+    /// list.
+    ExceptionRiderComma,
+    /// The final Oxford member of an exception rider (`…, and C`).
+    ExceptionRiderOxford,
+    /// The trailing `, except <rider>` attachment on a host clause.
+    ClauseExcepted,
     Sentence,
     NounOpaque,
     FrequencyPhrase,
@@ -1700,7 +1741,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::Subordinator
             | EnglishLexicalSlot::RatherThan
             | EnglishLexicalSlot::Conjunction
-            | EnglishLexicalSlot::Plus) => self.scan_clause_lexical(slot, tokens, start),
+            | EnglishLexicalSlot::Plus
+            | EnglishLexicalSlot::Except) => self.scan_clause_lexical(slot, tokens, start),
             EnglishLexicalSlot::Opaque(slot) if self.opacity_profile != OpacityProfile::Exact => {
                 let already_known = self.has_known_word(tokens, start);
                 if already_known {
@@ -1813,6 +1855,11 @@ impl EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Plus => self
                 .one_token_match(tokens, start, "plus")
                 .map(|end| literal_match(end, LiteralKey::Plus))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::Except => self
+                .one_token_match(tokens, start, "except")
+                .map(|end| literal_match(end, LiteralKey::Except))
                 .into_iter()
                 .collect(),
             _ => Vec::new(),
@@ -3411,6 +3458,8 @@ fn reduce(
         | RuleTag::CopularRemainderNoun
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderPowerToughness
+        | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
@@ -3422,6 +3471,12 @@ fn reduce(
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
+        | RuleTag::ClauseExcepted
+        | RuleTag::ExceptionRiderSingle
+        | RuleTag::ExceptionRiderConjoined
+        | RuleTag::ExceptionRiderComma
+        | RuleTag::ExceptionRiderOxford
+        | RuleTag::VerbPhraseCausative
         | RuleTag::Sentence => clause::reduce_clause(tag, children)?,
         RuleTag::NounOpaque => opacity::reduce_opacity(tag, children)?,
     };
@@ -4437,6 +4492,7 @@ enum Lowered {
     Subordinator(crate::syntax::Subordinator),
     RelativeMarker(RelativeMarker),
     Existential(ExistentialForm),
+    ExceptionRider(crate::syntax::ExceptionRider),
     Ignored,
 }
 
@@ -4682,6 +4738,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::CopularRemainderNoun
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderPowerToughness
+        | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
@@ -4693,6 +4751,12 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
+        | RuleTag::ClauseExcepted
+        | RuleTag::ExceptionRiderSingle
+        | RuleTag::ExceptionRiderConjoined
+        | RuleTag::ExceptionRiderComma
+        | RuleTag::ExceptionRiderOxford
+        | RuleTag::VerbPhraseCausative
         | RuleTag::Sentence => clause::lower_clause(tag, children),
         RuleTag::NounOpaque => opacity::lower_opacity(tag, children),
     }

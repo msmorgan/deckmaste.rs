@@ -175,3 +175,86 @@ fn a_the_headed_nickname_keeps_its_capital_the() {
         "AST:\n{ast}"
     );
 }
+
+// --- Copy-effect exception riders [CR#707.9] -------------------------------
+
+/// A legendary identity (nickname `Nissa`, full name `Nissa Revane`) plus the
+/// catalog terms the exception conjuncts below name.
+fn copy_catalogs() -> Catalogs {
+    Catalogs::new(
+        ["Flying"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    )
+    .with_catalog(CatalogKind::CreatureType, ["Illusion"])
+    .with_catalog(CatalogKind::CardType, ["Creature", "Permanent"])
+    .with_catalog(CatalogKind::Supertype, ["Legendary", "Snow"])
+}
+
+const NISSA: &str = "Nissa Revane";
+
+#[test]
+fn single_conjunct_exception_rider_round_trips() {
+    // An enter-as-copy host with one power/toughness copular exception conjunct.
+    let source = "You may have this creature enter as a copy of any creature on \
+                  the battlefield, except it's 7/7.";
+    let (rendered, ast) = parse_face(source, &copy_catalogs(), NISSA, true);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        ast.contains("Exception(") && ast.contains("PowerToughness("),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn multi_conjunct_oxford_exception_rider_round_trips() {
+    // Sakashima-shaped: a name literal, a `legendary in addition to its other
+    // types` copular conjunct, and a quoted ability, joined as an Oxford list on
+    // an enter-as-copy host whose causee is the face's own name.
+    let source = "You may have Nissa Revane enter as a copy of any creature on \
+                  the battlefield, except its name is Nissa Revane, it's legendary \
+                  in addition to its other types, and it has \"{2}{U}{U}: Return \
+                  Nissa Revane to its owner's hand at the beginning of the next \
+                  end step.\"";
+    let (rendered, ast) = parse_face(source, &copy_catalogs(), NISSA, true);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        ast.contains("Exception(")
+            && ast.contains("ExceptionConjunct")
+            && ast.contains("ThisCard(")
+            && ast.contains("QuotedAbility("),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn quoted_ability_exception_on_a_token_copy_round_trips() {
+    // A token-copy host with a single quoted-ability exception conjunct.
+    let source = "Create a token that's a copy of target permanent, except the \
+                  token has \"When this token enters, if it's a creature, it \
+                  fights up to one target creature you don't control.\"";
+    let (rendered, ast) = parse_face(source, &copy_catalogs(), NISSA, true);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        ast.contains("Exception(") && ast.contains("QuotedAbility("),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn name_exception_on_a_becomes_copy_carries_a_self_reference() {
+    // A becomes-copy host whose exception names the copy as the face itself; the
+    // name literal is the existing self-reference structure, not a new payload.
+    let source = "This creature becomes a copy of target creature, except its \
+                  name is Nissa Revane and it isn't legendary.";
+    let (rendered, ast) = parse_face(source, &copy_catalogs(), NISSA, true);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        ast.contains("Exception(") && ast.contains("ThisCard(") && ast.contains("FullName"),
+        "AST:\n{ast}"
+    );
+}

@@ -15,6 +15,8 @@ use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::DependentAttachment;
 use crate::syntax::DependentClause;
 use crate::syntax::EllipticalClause;
+use crate::syntax::ExceptionConjunct;
+use crate::syntax::ExceptionRider;
 use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::Modal;
@@ -458,6 +460,92 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [n(N::Clause), l(L::Punctuation(Punctuation::Period))],
     );
     builder.add(RuleTag::Sentence, N::Sentence, [n(N::Clause)]);
+
+    // The productions below are appended after every pre-existing rule so their
+    // rule indices are the highest in the grammar. The forest's equal-cost
+    // tiebreak prefers the lowest rule index, so a new production that competes
+    // with an existing analysis for the same span (a copular prepositional
+    // adjunct against a noun-internal complement) loses the tie, leaving every
+    // already-clean parse untouched.
+
+    // `it's 7/7` — a power/toughness copular complement.
+    builder.add(
+        RuleTag::CopularRemainderPowerToughness,
+        N::CopularRemainder,
+        [l(L::PowerToughness)],
+    );
+    // A trailing prepositional adjunct on a copular predication (`it's legendary
+    // in addition to its other types`). The intransitive `become`/`be` path
+    // already admits this adjunct through the verb phrase; recording it on the
+    // copular remainder closes the same gap for the copular clause. It is a
+    // last resort (high precedence): whenever the preposition can attach to a
+    // verb, adjective, or noun instead — a passive (`it's put into exile`), an
+    // adjective standard (`its power is equal to X`), or a noun complement (`an
+    // Illusion in addition to …`) — that analysis wins. A genuine copular
+    // adjunct on a bare supertype/color adjective has no such competitor and is
+    // the only complete parse, so it wins despite the cost.
+    builder.add_with_cost(
+        RuleTag::CopularRemainderPrepositionalAdjunct,
+        N::CopularRemainder,
+        [n(N::CopularRemainder), n(N::PrepositionalPhrase)],
+        ParseCost {
+            precedence: 8,
+            ..ParseCost::default()
+        },
+    );
+    // The causative `have <object> <bare-infinitive VP>` construction. The first
+    // verb phrase is a causative verb (`have`) that has already taken its object
+    // (the causee); the second is a complete bare-infinitive verb phrase. The
+    // `causative_complement` frame flag, set only on `have`, keeps every other
+    // `VerbPhrase VerbPhrase` adjacency from reducing.
+    builder.add(
+        RuleTag::VerbPhraseCausative,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), n(N::VerbPhrase)],
+    );
+    // The exception rider: a leading `except` marker heading a coordinated list
+    // of finite clauses. Coordination lives on the dedicated `ExceptionRider`
+    // nonterminal so a copular or possessive-subject conjunct (`it's legendary`,
+    // `its name is X`) — which the general clause coordination cannot form as a
+    // non-first member — joins an Oxford list here.
+    builder.add(
+        RuleTag::ExceptionRiderSingle,
+        N::ExceptionRider,
+        [l(L::Except), n(N::Clause)],
+    );
+    builder.add(
+        RuleTag::ExceptionRiderConjoined,
+        N::ExceptionRider,
+        [n(N::ExceptionRider), l(L::Conjunction), n(N::Clause)],
+    );
+    builder.add(
+        RuleTag::ExceptionRiderComma,
+        N::ExceptionRider,
+        [
+            n(N::ExceptionRider),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::Clause),
+        ],
+    );
+    builder.add(
+        RuleTag::ExceptionRiderOxford,
+        N::ExceptionRider,
+        [
+            n(N::ExceptionRider),
+            l(L::Punctuation(Punctuation::Comma)),
+            l(L::Conjunction),
+            n(N::Clause),
+        ],
+    );
+    builder.add(
+        RuleTag::ClauseExcepted,
+        N::Clause,
+        [
+            n(N::Clause),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::ExceptionRider),
+        ],
+    );
 }
 
 pub(super) fn reduce_clause(
@@ -486,6 +574,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseOracleSymbolCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
+        | RuleTag::VerbPhraseCausative
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo => reduce_predicate(tag, children),
         RuleTag::GerundClauseBase => {
@@ -529,6 +618,8 @@ pub(super) fn reduce_clause(
         | RuleTag::CopularRemainderNoun
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderPowerToughness
+        | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
@@ -550,6 +641,11 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
+        | RuleTag::ExceptionRiderSingle
+        | RuleTag::ExceptionRiderConjoined
+        | RuleTag::ExceptionRiderComma
+        | RuleTag::ExceptionRiderOxford
+        | RuleTag::ClauseExcepted
         | RuleTag::Sentence => reduce_composed_clause(tag, children),
         _ => None,
     }
@@ -580,6 +676,7 @@ pub(super) fn accepts_predicate_prefix(
             | RuleTag::VerbPhraseOracleSymbolCoordination
             | RuleTag::VerbPhrasePowerToughness
             | RuleTag::VerbPhraseQuantity
+            | RuleTag::VerbPhraseCausative
     );
     if !predicate_rule {
         return true;
@@ -595,6 +692,16 @@ pub(super) fn accepts_predicate_prefix(
         return false;
     };
     match tag {
+        // Only predict the bare-infinitive complement after a causative head
+        // (`have`) that has already taken its direct-object causee. Without this
+        // gate the `VerbPhrase = VerbPhrase VerbPhrase` production predicts a
+        // second verb phrase after every verb phrase, perturbing the parse
+        // forest of unrelated clauses.
+        RuleTag::VerbPhraseCausative => {
+            frame.causative_complement()
+                && *object == PredicateObjectState::Direct
+                && *phase == PredicateAttachmentPhase::Object
+        }
         RuleTag::VerbPhraseDirectObject => {
             let nominal_adjunct = frame.licenses_bare_nominal_adjunct(BareNominalAdjunct::Temporal)
                 || frame.licenses_bare_nominal_adjunct(BareNominalAdjunct::Manner);
@@ -871,6 +978,69 @@ fn reduce_predicate(
                 return None;
             }
             Some(Features::InfinitiveClause)
+        }
+        RuleTag::VerbPhraseCausative => {
+            let Features::VerbPhrase {
+                form: head_form,
+                passive: false,
+                object: PredicateObjectState::Direct,
+                indirect_object,
+                selected_preposition,
+                phase: PredicateAttachmentPhase::Object,
+                frame,
+                ..
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if !frame.causative_complement() || *head_form != PredicateForm::Infinitive {
+                return None;
+            }
+            if !predicate_arguments_complete(
+                *frame,
+                false,
+                PredicateObjectState::Direct,
+                *indirect_object,
+                *selected_preposition,
+            ) {
+                return None;
+            }
+            // The causative complement is a complete bare-infinitive verb phrase.
+            let Features::VerbPhrase {
+                form: PredicateForm::Infinitive,
+                passive: complement_passive,
+                object: complement_object,
+                indirect_object: complement_indirect_object,
+                selected_preposition: complement_selected_preposition,
+                frame: complement_frame,
+                bare: complement_bare,
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            if *complement_bare && complement_frame.is_proform() {
+                return None;
+            }
+            if !predicate_arguments_complete(
+                *complement_frame,
+                *complement_passive,
+                *complement_object,
+                *complement_indirect_object,
+                *complement_selected_preposition,
+            ) {
+                return None;
+            }
+            Some(Features::VerbPhrase {
+                form: *head_form,
+                passive: false,
+                object: PredicateObjectState::Direct,
+                indirect_object: *indirect_object,
+                selected_preposition: *selected_preposition,
+                phase: PredicateAttachmentPhase::Tail,
+                frame: *frame,
+                bare: false,
+            })
         }
         _ => None,
     }
@@ -1254,6 +1424,8 @@ fn reduce_simple_clause(
         RuleTag::CopularRemainderNoun
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderPowerToughness
+        | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
         | RuleTag::CopularRemainderDistributiveEach => Some(Features::None),
         tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
@@ -1567,6 +1739,47 @@ fn reduce_composed_clause(
                 finite: *finite,
             })
         }
+        RuleTag::ExceptionRiderSingle => {
+            let Features::Clause {
+                standalone: true, ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            Some(Features::ExceptionRider)
+        }
+        RuleTag::ExceptionRiderConjoined
+        | RuleTag::ExceptionRiderComma
+        | RuleTag::ExceptionRiderOxford => {
+            if !matches!(children.first()?.features, Features::ExceptionRider) {
+                return None;
+            }
+            let Features::Clause {
+                standalone: true, ..
+            } = children.last()?.features
+            else {
+                return None;
+            };
+            Some(Features::ExceptionRider)
+        }
+        RuleTag::ClauseExcepted => {
+            let Features::Clause {
+                agreement,
+                standalone: true,
+                finite,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if !matches!(children.get(2)?.features, Features::ExceptionRider) {
+                return None;
+            }
+            Some(Features::Clause {
+                agreement: *agreement,
+                standalone: true,
+                finite: *finite,
+            })
+        }
         RuleTag::Sentence => {
             let Features::Clause {
                 standalone: true, ..
@@ -1716,6 +1929,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseOracleSymbolCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
+        | RuleTag::VerbPhraseCausative
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo => lower_predicate(tag, children),
         RuleTag::GerundClauseBase => {
@@ -1763,6 +1977,8 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::CopularRemainderNoun
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderPowerToughness
+        | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
@@ -1784,6 +2000,11 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
+        | RuleTag::ExceptionRiderSingle
+        | RuleTag::ExceptionRiderConjoined
+        | RuleTag::ExceptionRiderComma
+        | RuleTag::ExceptionRiderOxford
+        | RuleTag::ClauseExcepted
         | RuleTag::Sentence => lower_composed_clause(tag, children),
         _ => None,
     }
@@ -1829,6 +2050,22 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             predicate.auxiliaries.insert(0, auxiliary);
+            Some(Lowered::VerbPhrase(predicate))
+        }
+        RuleTag::VerbPhraseCausative => {
+            let Lowered::VerbPhrase(mut predicate) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::VerbPhrase(complement) = take(children, 1)? else {
+                return None;
+            };
+            predicate
+                .dependents
+                .push(VerbDependent::Infinitive(InfinitiveClause {
+                    negated: false,
+                    marker: InfinitiveMarker::Bare,
+                    predicate: Box::new(complement),
+                }));
             Some(Lowered::VerbPhrase(predicate))
         }
         RuleTag::VerbPhraseDirectObject
@@ -2106,6 +2343,8 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
         tag @ (RuleTag::CopularRemainderNoun
         | RuleTag::CopularRemainderAdjective
         | RuleTag::CopularRemainderPrepositional
+        | RuleTag::CopularRemainderPowerToughness
+        | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
         | RuleTag::CopularRemainderDistributiveEach) => lower_copular_remainder(tag, children),
         tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
@@ -2278,6 +2517,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::NounPhrase(complement),
+                adjuncts: Vec::new(),
             }
         }
         RuleTag::CopularRemainderAdjective => {
@@ -2288,6 +2528,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Adjective(complement),
+                adjuncts: Vec::new(),
             }
         }
         RuleTag::CopularRemainderPrepositional => {
@@ -2298,7 +2539,31 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Prepositional(complement),
+                adjuncts: Vec::new(),
             }
+        }
+        RuleTag::CopularRemainderPowerToughness => {
+            let Lowered::PowerToughness(power_toughness) = take(children, 0)? else {
+                return None;
+            };
+            CopularRemainder {
+                distributive_each: false,
+                precomplement_adverbs: Vec::new(),
+                complement: CopularComplement::PowerToughness(power_toughness),
+                adjuncts: Vec::new(),
+            }
+        }
+        RuleTag::CopularRemainderPrepositionalAdjunct => {
+            let Lowered::CopularRemainder(mut remainder) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::PrepositionalPhrase(adjunct) = take(children, 1)? else {
+                return None;
+            };
+            remainder
+                .adjuncts
+                .push(PredicateAdjunct::Prepositional(adjunct));
+            remainder
         }
         RuleTag::CopularRemainderAdverb => {
             let Lowered::Adverb(adverb) = take(children, 0)? else {
@@ -2329,6 +2594,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 distributive_each: true,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Adjective(adjective),
+                adjuncts: Vec::new(),
             }
         }
         _ => return None,
@@ -2380,12 +2646,16 @@ fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowere
                 distributive_each: remainder.distributive_each,
                 precomplement_adverbs: remainder.precomplement_adverbs,
                 complement: remainder.complement,
-                adjuncts: Vec::new(),
+                adjuncts: remainder.adjuncts,
             },
         ),
     )))
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one arm per composed-clause rule tag is intentionally verbose"
+)]
 fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::ClauseCoordination
@@ -2512,6 +2782,64 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 }),
                 consequence,
             )
+        }
+        RuleTag::ExceptionRiderSingle => {
+            let Lowered::Clause(Clause::Independent(first)) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::ExceptionRider(ExceptionRider {
+                first: Box::new(first),
+                rest: Vec::new(),
+            }))
+        }
+        RuleTag::ExceptionRiderConjoined
+        | RuleTag::ExceptionRiderComma
+        | RuleTag::ExceptionRiderOxford => {
+            let Lowered::ExceptionRider(mut rider) = take(children, 0)? else {
+                return None;
+            };
+            let (conjunction, clause_index, comma) = match tag {
+                RuleTag::ExceptionRiderConjoined => (Some(1), 2, false),
+                RuleTag::ExceptionRiderComma => (None, 2, true),
+                RuleTag::ExceptionRiderOxford => (Some(2), 3, true),
+                _ => return None,
+            };
+            let conjunction = match conjunction {
+                Some(index) => {
+                    let Lowered::Conjunction(conjunction) = take(children, index)? else {
+                        return None;
+                    };
+                    Some(conjunction)
+                }
+                None => None,
+            };
+            let Lowered::Clause(Clause::Independent(clause)) = take(children, clause_index)? else {
+                return None;
+            };
+            rider.rest.push(ExceptionConjunct {
+                conjunction,
+                comma,
+                clause,
+            });
+            Some(Lowered::ExceptionRider(rider))
+        }
+        RuleTag::ClauseExcepted => {
+            let Lowered::Clause(Clause::Independent(matrix)) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::ExceptionRider(rider) = take(children, 2)? else {
+                return None;
+            };
+            Some(Lowered::Clause(Clause::Independent(
+                with_clause_attachment(
+                    matrix,
+                    ClauseAttachment {
+                        position: AttachmentPosition::AfterMatrix,
+                        comma: true,
+                        kind: ClauseAttachmentKind::Exception(rider),
+                    },
+                ),
+            )))
         }
         RuleTag::Sentence => {
             let Lowered::Clause(Clause::Independent(clause)) = take(children, 0)? else {

@@ -269,6 +269,12 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         ClauseAttachmentKind::Adjunct(adjunct) => {
                             self.predicate_adjunct(adjunct, context);
                         }
+                        ClauseAttachmentKind::Exception(rider) => {
+                            self.independent_clause(&rider.first, context);
+                            for conjunct in &rider.rest {
+                                self.independent_clause(&conjunct.clause, context);
+                            }
+                        }
                     }
                 }
             }
@@ -458,7 +464,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
             CopularComplement::Prepositional(preposition) => {
                 self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
             }
-            CopularComplement::CatalogAtom(_) => {}
+            CopularComplement::PowerToughness(_) | CopularComplement::CatalogAtom(_) => {}
         }
     }
 
