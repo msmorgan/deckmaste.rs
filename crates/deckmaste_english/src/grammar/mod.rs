@@ -207,6 +207,19 @@ pub(crate) enum Nonterminal {
     /// Oxford-close rules, never as a standalone noun phrase, so a bare comma
     /// run of noun phrases never coordinates on its own.
     NounPhraseList,
+    /// One member of a mana-amount list: a lone oracle symbol (`{G}`) or a
+    /// contiguous symbol group (`{C}{U}`). Reached only through the mana-list
+    /// productions.
+    ManaAmount,
+    /// An open, comma-separated run of [`Self::ManaAmount`] atoms with no
+    /// closing conjunction yet (`{W}, {B}`). Reached only by the
+    /// list-extension and Oxford-close rules, so a bare comma run never
+    /// becomes a mana amount on its own.
+    ManaAmountList,
+    /// A closed coordinated mana-amount run (`{R} or {G}`, `{W}, {B}, or
+    /// {G}`, `{W}{W}, …, and {G}{G}`), consumed only by the verb-phrase
+    /// attachment, so a bare single amount can never reach that attachment.
+    CoordinatedManaAmount,
     /// The concrete-color argument of the `devotion` value nominal: a single
     /// color word or a two-color `and` pair. Reached only through the devotion
     /// production, so its bare-color rules never leak into ordinary phrases.
@@ -1016,7 +1029,13 @@ enum RuleTag {
     VerbPhraseAbilityQuotedCoordination,
     VerbPhraseOracleSymbol,
     VerbPhraseSymbolSequence,
-    VerbPhraseOracleSymbolCoordination,
+    ManaAmountSymbol,
+    ManaAmountSequence,
+    ManaAmountListSingle,
+    ManaAmountListComma,
+    ManaAmountCoordination,
+    ManaAmountCoordinationOxford,
+    VerbPhraseManaAmountCoordination,
     VerbPhrasePowerToughness,
     VerbPhraseQuantity,
     InfinitiveTo,
@@ -3880,7 +3899,13 @@ fn reduce(
         | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseOracleSymbolCoordination
+        | RuleTag::VerbPhraseManaAmountCoordination
+        | RuleTag::ManaAmountSymbol
+        | RuleTag::ManaAmountSequence
+        | RuleTag::ManaAmountListSingle
+        | RuleTag::ManaAmountListComma
+        | RuleTag::ManaAmountCoordination
+        | RuleTag::ManaAmountCoordinationOxford
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
@@ -5121,6 +5146,8 @@ enum Lowered {
     SubjectAuxiliary(ContractedSubjectAuxiliary),
     OracleSymbol(OracleSymbol),
     SymbolSequence(Vec<OracleSymbol>),
+    /// Uniform payload for all six mana-list rules.
+    ManaAmount(crate::syntax::PredicateObject),
     PowerToughness(PowerToughness),
     Pronoun(PronounInstance),
     ThisCard(ThisCardForm),
@@ -5378,7 +5405,13 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseOracleSymbolCoordination
+        | RuleTag::VerbPhraseManaAmountCoordination
+        | RuleTag::ManaAmountSymbol
+        | RuleTag::ManaAmountSequence
+        | RuleTag::ManaAmountListSingle
+        | RuleTag::ManaAmountListComma
+        | RuleTag::ManaAmountCoordination
+        | RuleTag::ManaAmountCoordinationOxford
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo

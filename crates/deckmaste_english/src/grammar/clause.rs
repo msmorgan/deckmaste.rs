@@ -170,15 +170,57 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::SymbolSequence)],
     );
+    // Mana-amount coordination: a symbol-typed mirror of the generic
+    // noun-phrase list machinery (`N::NounPhraseList` +
+    // `NounPhraseCoordinationOxford`), never riding `NounPhrase` itself so no
+    // symbol is ever licensed as a nominal. `ManaAmount` is a lone oracle
+    // symbol or a contiguous symbol group; `ManaAmountList` is an open,
+    // comma-separated run reached only by the list-extension and Oxford-close
+    // rules; `CoordinatedManaAmount` is the closed run consumed only by the
+    // verb-phrase attachment.
     builder.add(
-        RuleTag::VerbPhraseOracleSymbolCoordination,
-        N::VerbPhrase,
+        RuleTag::ManaAmountSymbol,
+        N::ManaAmount,
+        [l(L::OracleSymbol)],
+    );
+    builder.add(
+        RuleTag::ManaAmountSequence,
+        N::ManaAmount,
+        [l(L::SymbolSequence)],
+    );
+    builder.add(
+        RuleTag::ManaAmountListSingle,
+        N::ManaAmountList,
+        [n(N::ManaAmount)],
+    );
+    builder.add(
+        RuleTag::ManaAmountListComma,
+        N::ManaAmountList,
         [
-            n(N::VerbPhrase),
-            l(L::OracleSymbol),
-            l(L::Conjunction),
-            l(L::OracleSymbol),
+            n(N::ManaAmountList),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::ManaAmount),
         ],
+    );
+    builder.add(
+        RuleTag::ManaAmountCoordination,
+        N::CoordinatedManaAmount,
+        [n(N::ManaAmount), l(L::Conjunction), n(N::ManaAmount)],
+    );
+    builder.add(
+        RuleTag::ManaAmountCoordinationOxford,
+        N::CoordinatedManaAmount,
+        [
+            n(N::ManaAmountList),
+            l(L::Punctuation(Punctuation::Comma)),
+            l(L::Conjunction),
+            n(N::ManaAmount),
+        ],
+    );
+    builder.add(
+        RuleTag::VerbPhraseManaAmountCoordination,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), n(N::CoordinatedManaAmount)],
     );
     builder.add(
         RuleTag::VerbPhrasePowerToughness,
@@ -580,13 +622,28 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseOracleSymbolCoordination
+        | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo => reduce_predicate(tag, children),
+        RuleTag::ManaAmountSymbol
+        | RuleTag::ManaAmountSequence
+        | RuleTag::ManaAmountListSingle
+        | RuleTag::ManaAmountListComma => Some(Features::None),
+        RuleTag::ManaAmountCoordination | RuleTag::ManaAmountCoordinationOxford => {
+            let conjunction_index =
+                if tag == RuleTag::ManaAmountCoordinationOxford { 2 } else { 1 };
+            let Features::Conjunction(
+                crate::syntax::PredicateConjunction::And | crate::syntax::PredicateConjunction::Or,
+            ) = children.get(conjunction_index)?.features
+            else {
+                return None;
+            };
+            Some(Features::None)
+        }
         RuleTag::GerundClauseBase => {
             let Features::VerbPhrase {
                 form: PredicateForm::PresentParticiple,
@@ -689,7 +746,7 @@ pub(super) fn accepts_predicate_prefix(
             | RuleTag::VerbPhraseAbilityQuotedCoordination
             | RuleTag::VerbPhraseOracleSymbol
             | RuleTag::VerbPhraseSymbolSequence
-            | RuleTag::VerbPhraseOracleSymbolCoordination
+            | RuleTag::VerbPhraseManaAmountCoordination
             | RuleTag::VerbPhrasePowerToughness
             | RuleTag::VerbPhraseQuantity
             | RuleTag::VerbPhraseCausative
@@ -748,7 +805,7 @@ pub(super) fn accepts_predicate_prefix(
         }
         RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseOracleSymbolCoordination => {
+        | RuleTag::VerbPhraseManaAmountCoordination => {
             *object == PredicateObjectState::None
                 && frame.licenses_complement(PredicateComplementKind::Scalar)
         }
@@ -944,13 +1001,7 @@ fn reduce_predicate(
             };
             extend_predicate(children.first()?, attachment)
         }
-        RuleTag::VerbPhraseOracleSymbolCoordination => {
-            let Features::Conjunction(
-                crate::syntax::PredicateConjunction::And | crate::syntax::PredicateConjunction::Or,
-            ) = children.get(2)?.features
-            else {
-                return None;
-            };
+        RuleTag::VerbPhraseManaAmountCoordination => {
             extend_predicate(children.first()?, PredicateAttachment::ScalarComplement)
         }
         RuleTag::VerbPhraseQuotedAbilityCoordination
@@ -2201,13 +2252,19 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseOracleSymbolCoordination
+        | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo => lower_predicate(tag, children),
+        RuleTag::ManaAmountSymbol
+        | RuleTag::ManaAmountSequence
+        | RuleTag::ManaAmountListSingle
+        | RuleTag::ManaAmountListComma
+        | RuleTag::ManaAmountCoordination
+        | RuleTag::ManaAmountCoordinationOxford => lower_mana_amount(tag, children),
         RuleTag::GerundClauseBase => {
             let Lowered::VerbPhrase(predicate) = take(children, 0)? else {
                 return None;
@@ -2363,7 +2420,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseAbilityQuotedCoordination
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseOracleSymbolCoordination
+        | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
         | RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate_dependent(tag, children),
@@ -2483,7 +2540,7 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
             VerbDependent::CoordinatedObject(CoordinatedPredicateObject {
                 first: Box::new(PredicateObject::QuotedAbility(first)),
                 rest: vec![PredicateObjectCoordination {
-                    conjunction,
+                    conjunction: Some(conjunction),
                     comma: false,
                     object: PredicateObject::QuotedAbility(next),
                 }],
@@ -2505,7 +2562,7 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                     argument: None,
                 })),
                 rest: vec![PredicateObjectCoordination {
-                    conjunction,
+                    conjunction: Some(conjunction),
                     comma: false,
                     object: PredicateObject::QuotedAbility(next),
                 }],
@@ -2523,24 +2580,12 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
             };
             VerbDependent::Scalar(Phrase::SymbolSequence(symbols))
         }
-        RuleTag::VerbPhraseOracleSymbolCoordination => {
-            let Lowered::OracleSymbol(first) = take(children, 1)? else {
+        RuleTag::VerbPhraseManaAmountCoordination => {
+            let Lowered::ManaAmount(PredicateObject::Coordinated(coordinated)) = take(children, 1)?
+            else {
                 return None;
             };
-            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
-                return None;
-            };
-            let Lowered::OracleSymbol(next) = take(children, 3)? else {
-                return None;
-            };
-            VerbDependent::CoordinatedObject(CoordinatedPredicateObject {
-                first: Box::new(PredicateObject::OracleSymbol(first)),
-                rest: vec![PredicateObjectCoordination {
-                    conjunction,
-                    comma: false,
-                    object: PredicateObject::OracleSymbol(next),
-                }],
-            })
+            VerbDependent::CoordinatedObject(coordinated)
         }
         RuleTag::VerbPhrasePowerToughness => {
             let Lowered::PowerToughness(power_toughness) = take(children, 1)? else {
@@ -2558,6 +2603,113 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
     };
     predicate.dependents.push(dependent);
     Some(Lowered::VerbPhrase(predicate))
+}
+
+/// Lower the six `ManaAmount*` rules. Mirrors the noun-phrase list lowering
+/// (`mod.rs`, `NounPhraseListSingle` / `NounPhraseListComma` /
+/// `NounPhraseCoordinationOxford`) but stays typed to
+/// [`PredicateObject`] so no symbol is ever wrapped as a `NounPhrase`.
+fn lower_mana_amount(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
+    fn member(lowered: Lowered) -> Option<PredicateObject> {
+        let Lowered::ManaAmount(object) = lowered else {
+            return None;
+        };
+        Some(object)
+    }
+
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "mirrors the by-value take() idiom used throughout this module"
+    )]
+    fn mana_conjunction(lowered: Lowered) -> Option<crate::syntax::PredicateConjunction> {
+        let Lowered::Conjunction(conjunction) = lowered else {
+            return None;
+        };
+        match conjunction {
+            crate::syntax::PredicateConjunction::And | crate::syntax::PredicateConjunction::Or => {
+                Some(conjunction)
+            }
+            // `then`/`and-or` never join predicate objects.
+            crate::syntax::PredicateConjunction::Then
+            | crate::syntax::PredicateConjunction::AndOr => None,
+        }
+    }
+
+    match tag {
+        RuleTag::ManaAmountSymbol => {
+            let Lowered::OracleSymbol(symbol) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::ManaAmount(PredicateObject::OracleSymbol(symbol)))
+        }
+        RuleTag::ManaAmountSequence => {
+            let Lowered::SymbolSequence(symbols) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::ManaAmount(PredicateObject::SymbolSequence(
+                symbols,
+            )))
+        }
+        RuleTag::ManaAmountListSingle => take(children, 0),
+        RuleTag::ManaAmountListComma => {
+            let first = member(take(children, 0)?)?;
+            let next = member(take(children, 2)?)?;
+            let coordination = PredicateObjectCoordination {
+                conjunction: None,
+                comma: true,
+                object: next,
+            };
+            Some(Lowered::ManaAmount(PredicateObject::Coordinated(
+                push_mana_coordination(first, coordination),
+            )))
+        }
+        RuleTag::ManaAmountCoordination => {
+            let first = member(take(children, 0)?)?;
+            let conjunction = mana_conjunction(take(children, 1)?)?;
+            let next = member(take(children, 2)?)?;
+            let coordination = PredicateObjectCoordination {
+                conjunction: Some(conjunction),
+                comma: false,
+                object: next,
+            };
+            Some(Lowered::ManaAmount(PredicateObject::Coordinated(
+                push_mana_coordination(first, coordination),
+            )))
+        }
+        RuleTag::ManaAmountCoordinationOxford => {
+            let first = member(take(children, 0)?)?;
+            let conjunction = mana_conjunction(take(children, 2)?)?;
+            let next = member(take(children, 3)?)?;
+            let coordination = PredicateObjectCoordination {
+                conjunction: Some(conjunction),
+                comma: true,
+                object: next,
+            };
+            Some(Lowered::ManaAmount(PredicateObject::Coordinated(
+                push_mana_coordination(first, coordination),
+            )))
+        }
+        _ => None,
+    }
+}
+
+/// Mirrors `push_noun_phrase_coordination` (`mod.rs`): fold a new coordination
+/// member onto an already-coordinated first object, or start a fresh
+/// coordinated run.
+fn push_mana_coordination(
+    first: PredicateObject,
+    coordination: PredicateObjectCoordination,
+) -> CoordinatedPredicateObject {
+    match first {
+        PredicateObject::Coordinated(mut coordinated) => {
+            coordinated.rest.push(coordination);
+            coordinated
+        }
+        first => CoordinatedPredicateObject {
+            first: Box::new(first),
+            rest: vec![coordination],
+        },
+    }
 }
 
 #[allow(clippy::too_many_lines, reason = "lowering has many grammar variants")]
@@ -6030,12 +6182,174 @@ mod tests {
             PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest })
                 if matches!(first.as_ref(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{R}")
                     && matches!(rest.as_slice(), [PredicateObjectCoordination {
-                        conjunction: crate::syntax::PredicateConjunction::Or,
+                        conjunction: Some(crate::syntax::PredicateConjunction::Or),
                         comma: false,
                         object: PredicateObject::OracleSymbol(symbol),
                     }] if symbol.as_str() == "{G}")
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn mana_amount_oxford_list_is_three_scalar_members() {
+        let source = "Add {W}, {B}, or {G}.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative: {:#?}", parsed.sentence());
+        };
+        assert!(matches!(
+            &predicate.object,
+            PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest })
+                if matches!(first.as_ref(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{W}")
+                    && matches!(rest.as_slice(), [
+                        PredicateObjectCoordination {
+                            conjunction: None,
+                            comma: true,
+                            object: PredicateObject::OracleSymbol(b),
+                        },
+                        PredicateObjectCoordination {
+                            conjunction: Some(crate::syntax::PredicateConjunction::Or),
+                            comma: true,
+                            object: PredicateObject::OracleSymbol(g),
+                        },
+                    ] if b.as_str() == "{B}" && g.as_str() == "{G}")
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    #[allow(
+        clippy::items_after_statements,
+        reason = "the helper is local to this one assertion"
+    )]
+    fn filter_land_mana_list_members_are_symbol_groups() {
+        let source = "Add {U}{U}, {U}{R}, or {R}{R}.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative: {:#?}", parsed.sentence());
+        };
+        let PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest }) =
+            &predicate.object
+        else {
+            panic!("expected a coordinated object: {:#?}", predicate.object);
+        };
+        fn joined(object: &PredicateObject) -> String {
+            let PredicateObject::SymbolSequence(symbols) = object else {
+                panic!("expected a symbol sequence: {object:#?}");
+            };
+            symbols
+                .iter()
+                .map(crate::syntax::OracleSymbol::as_str)
+                .collect::<String>()
+        }
+        assert_eq!(joined(first), "{U}{U}");
+        let [
+            PredicateObjectCoordination { object: second, .. },
+            PredicateObjectCoordination { object: third, .. },
+        ] = rest.as_slice()
+        else {
+            panic!("expected exactly three members: {rest:#?}");
+        };
+        assert_eq!(joined(second), "{U}{R}");
+        assert_eq!(joined(third), "{R}{R}");
+        let PredicateObject::SymbolSequence(symbols) = first.as_ref() else {
+            panic!("expected a symbol sequence: {first:#?}");
+        };
+        assert_eq!(symbols.len(), 2);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn mixed_symbol_group_alternative_is_one_member() {
+        let source = "Add {U} or {C}{U}.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative: {:#?}", parsed.sentence());
+        };
+        let PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest }) =
+            &predicate.object
+        else {
+            panic!("expected a coordinated object: {:#?}", predicate.object);
+        };
+        assert!(
+            matches!(first.as_ref(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{U}")
+        );
+        assert_eq!(rest.len(), 1, "expected exactly one member: {rest:#?}");
+        let PredicateObject::SymbolSequence(symbols) = &rest[0].object else {
+            panic!("expected a symbol sequence: {:#?}", rest[0].object);
+        };
+        assert_eq!(
+            symbols
+                .iter()
+                .map(crate::syntax::OracleSymbol::as_str)
+                .collect::<String>(),
+            "{C}{U}"
+        );
+        assert_eq!(symbols.len(), 2);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn mana_amount_and_list_is_five_members() {
+        let source = "Add {W}{W}, {U}{U}, {B}{B}, {R}{R}, and {G}{G}.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative: {:#?}", parsed.sentence());
+        };
+        let PredicateObject::Coordinated(CoordinatedPredicateObject { first: _, rest }) =
+            &predicate.object
+        else {
+            panic!("expected a coordinated object: {:#?}", predicate.object);
+        };
+        assert_eq!(rest.len(), 4, "expected five members total: {rest:#?}");
+        for interior in &rest[..3] {
+            assert_eq!(interior.conjunction, None);
+            assert!(interior.comma);
+        }
+        assert_eq!(
+            rest[3].conjunction,
+            Some(crate::syntax::PredicateConjunction::And)
+        );
+        assert!(rest[3].comma);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn mana_amount_list_rejects_noun_phrase_alternative() {
+        let source = "Add {W} or one mana of the chosen color.";
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+        assert!(parsed.is_err(), "{source} must remain unresolved");
+    }
+
+    #[test]
+    fn mana_amount_list_rejects_then_conjunction() {
+        let source =
+            "Add {B}, then add an additional {B} for each charge counter removed this way.";
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+        assert!(parsed.is_err(), "{source} must remain unresolved");
+    }
+
+    #[test]
+    fn mana_amount_list_rejects_and_or() {
+        let source = "Add {W} and/or {U}.";
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+        assert!(parsed.is_err(), "{source} must remain unresolved");
     }
 
     #[test]
@@ -6333,7 +6647,7 @@ mod tests {
         );
         assert!(
             matches!(rest.as_slice(), [PredicateObjectCoordination {
-                conjunction: crate::syntax::PredicateConjunction::And,
+                conjunction: Some(crate::syntax::PredicateConjunction::And),
                 object: PredicateObject::QuotedAbility(quoted),
                 ..
             }] if quoted.terminal_period),

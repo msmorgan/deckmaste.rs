@@ -180,7 +180,11 @@ pub struct CoordinatedPredicateObject {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PredicateObjectCoordination {
-    pub conjunction: PredicateConjunction,
+    /// `None` on the asyndetic comma-separated interior members of an Oxford
+    /// list; `Some` on a bare `and`/`or` member and on the final Oxford
+    /// member. Mirrors
+    /// [`NounPhraseCoordination`](super::phrase::NounPhraseCoordination).
+    pub conjunction: Option<PredicateConjunction>,
     pub comma: bool,
     pub object: PredicateObject,
 }

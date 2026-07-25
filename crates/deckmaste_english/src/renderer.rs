@@ -1013,8 +1013,10 @@ impl<'identity> Renderer<'identity> {
                         rendered.push(',');
                     }
                     rendered.push(' ');
-                    rendered.push_str(render_predicate_conjunction(coordination.conjunction));
-                    rendered.push(' ');
+                    if let Some(conjunction) = coordination.conjunction {
+                        rendered.push_str(render_predicate_conjunction(conjunction));
+                        rendered.push(' ');
+                    }
                     rendered.push_str(&self.predicate_object(&coordination.object)?);
                 }
                 Ok(rendered)
@@ -3434,5 +3436,98 @@ mod tests {
             VerbSlot::PresentParticiple => AuxiliaryInflection::PresentParticiple,
             VerbSlot::PastParticiple => AuxiliaryInflection::PastParticiple,
         }
+    }
+
+    fn oracle_symbol_object(surface: &str) -> PredicateObject {
+        PredicateObject::OracleSymbol(OracleSymbol::new(surface).unwrap())
+    }
+
+    #[test]
+    fn renders_oxford_mana_list() {
+        let object = PredicateObject::Coordinated(CoordinatedPredicateObject {
+            first: Box::new(oracle_symbol_object("{W}")),
+            rest: vec![
+                PredicateObjectCoordination {
+                    conjunction: None,
+                    comma: true,
+                    object: oracle_symbol_object("{B}"),
+                },
+                PredicateObjectCoordination {
+                    conjunction: Some(PredicateConjunction::Or),
+                    comma: true,
+                    object: oracle_symbol_object("{G}"),
+                },
+            ],
+        });
+        let renderer = Renderer::new("Test Card", false);
+        assert_eq!(
+            renderer.predicate_object(&object).unwrap(),
+            "{W}, {B}, or {G}"
+        );
+    }
+
+    #[test]
+    fn renders_and_mana_list() {
+        let object = PredicateObject::Coordinated(CoordinatedPredicateObject {
+            first: Box::new(oracle_symbol_object("{W}")),
+            rest: vec![
+                PredicateObjectCoordination {
+                    conjunction: None,
+                    comma: true,
+                    object: oracle_symbol_object("{U}"),
+                },
+                PredicateObjectCoordination {
+                    conjunction: None,
+                    comma: true,
+                    object: oracle_symbol_object("{B}"),
+                },
+                PredicateObjectCoordination {
+                    conjunction: None,
+                    comma: true,
+                    object: oracle_symbol_object("{R}"),
+                },
+                PredicateObjectCoordination {
+                    conjunction: Some(PredicateConjunction::And),
+                    comma: true,
+                    object: oracle_symbol_object("{G}"),
+                },
+            ],
+        });
+        let renderer = Renderer::new("Test Card", false);
+        assert_eq!(
+            renderer.predicate_object(&object).unwrap(),
+            "{W}, {U}, {B}, {R}, and {G}"
+        );
+    }
+
+    #[test]
+    fn renders_binary_mana_alternatives() {
+        let object = PredicateObject::Coordinated(CoordinatedPredicateObject {
+            first: Box::new(oracle_symbol_object("{R}")),
+            rest: vec![PredicateObjectCoordination {
+                conjunction: Some(PredicateConjunction::Or),
+                comma: false,
+                object: oracle_symbol_object("{G}"),
+            }],
+        });
+        let renderer = Renderer::new("Test Card", false);
+        assert_eq!(renderer.predicate_object(&object).unwrap(), "{R} or {G}");
+    }
+
+    #[test]
+    fn renders_mixed_symbol_group_alternative() {
+        let object = PredicateObject::Coordinated(CoordinatedPredicateObject {
+            first: Box::new(oracle_symbol_object("{U}")),
+            rest: vec![PredicateObjectCoordination {
+                conjunction: Some(PredicateConjunction::Or),
+                comma: false,
+                object: PredicateObject::SymbolSequence(vec![
+                    OracleSymbol::new("{C}").unwrap(),
+                    OracleSymbol::new("{U}").unwrap(),
+                ]),
+            }],
+        });
+        let renderer = Renderer::new("Test Card", false);
+        assert_eq!(renderer.predicate_object(&object).unwrap(), "{U} or {C}{U}");
     }
 }
