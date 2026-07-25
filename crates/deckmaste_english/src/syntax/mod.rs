@@ -623,7 +623,8 @@ impl<'syntax> RecoveryWalker<'syntax> {
             }
             NominalModifier::Noun { .. }
             | NominalModifier::Quantity(_)
-            | NominalModifier::PowerToughness(_) => {}
+            | NominalModifier::PowerToughness(_)
+            | NominalModifier::CombatStepName { .. } => {}
         }
     }
 

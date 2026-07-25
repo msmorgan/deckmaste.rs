@@ -282,6 +282,20 @@ pub(crate) enum EnglishLexicalSlot {
     /// value. Distinct from the ordinary noun slot so the finite-clause
     /// complement attaches to exactly this word.
     TimesNoun,
+    /// The literal word `declare` heading the `declare attackers`/`declare
+    /// blockers` combat-step formative [CR#508.1,509.1]. Recognized only as
+    /// this exact literal token — never the ordinary `Verb` slot — so the
+    /// production built from it is structurally incapable of matching any
+    /// other span (the `restrict`-round `Verb(Imperative)` regression this
+    /// slot replaces; see `declarestep-forest-dump.txt`).
+    CombatStepDeclare,
+    /// The literal word `attackers`/`blockers` in the combat-step formative.
+    /// Recognized only as one of those two exact surfaces — never the
+    /// ordinary `Noun` slot.
+    CombatStepParticipants,
+    /// The literal word `step` heading the combat-step nominal. Recognized
+    /// only as this exact literal token.
+    CombatStepHead,
     /// A single-token `non-` negation whose residue resolves as a modifier base
     /// (`nonland`, `nonblack`, `non-Human`, `nonattacking`). Scanned as
     /// sub-word morphology, not a chart production, because the prefix is
@@ -508,6 +522,16 @@ pub(crate) enum Features {
         form: NounForm,
         initial_sound: InitialSound,
         determined: bool,
+        /// Whether this nominal carries any modifier at all (adjective, noun
+        /// modifier, quantity, power/toughness, or negated modifier) — set
+        /// `true` only by `nominal_with_prefix`, the shared helper behind
+        /// every modifier-adding rule. A nominal that is both `!determined`
+        /// and `!modified` is completely bare, and per the `NounPhraseNominal`
+        /// gate below must not surface its `adjunct` licensing: bare residue
+        /// of a split compound (e.g. the bare `step` left over when `draw
+        /// step` mis-brackets) must never itself qualify as a bare temporal
+        /// adjunct head [declarestep-plan-C.md §2].
+        modified: bool,
         leading_opacity: bool,
         attachment: NominalAttachmentPhase,
         comparison: AdjectiveComparisonState,
@@ -871,6 +895,7 @@ pub(crate) enum LiteralKey {
     Half,
     Rounded,
     Except,
+    CombatStepDeclare,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -989,6 +1014,10 @@ enum RuleTag {
     NominalNoun,
     NominalAdjective,
     NominalNounModifier,
+    /// The fixed `declare attackers`/`declare blockers` combat-step name
+    /// [CR#508.1,509.1], built from three literal-token slots so the
+    /// production is structurally incapable of matching any other span.
+    NominalCombatStepName,
     NominalNegatedModifier,
     NominalQuantityModifier,
     NominalPowerToughnessModifier,
@@ -1721,6 +1750,43 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::CombatStepDeclare => self
+                .one_token_match(tokens, start, "declare")
+                .map(|end| literal_match(end, LiteralKey::CombatStepDeclare))
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::CombatStepParticipants => {
+                let matches_surface = self.token_text(tokens, start).is_some_and(|surface| {
+                    surface.eq_ignore_ascii_case("attackers")
+                        || surface.eq_ignore_ascii_case("blockers")
+                });
+                if !matches_surface {
+                    return Vec::new();
+                }
+                self.word_matches(tokens, start, LexicalSlot::Noun(NounUsage::Count))
+                    .into_iter()
+                    .filter(|lexical_match| {
+                        matches!(
+                            lexical_match.meaning,
+                            MeaningKey::Noun(NounInstance::Plural(_))
+                        )
+                    })
+                    .collect()
+            }
+            EnglishLexicalSlot::CombatStepHead => {
+                if self.one_token_match(tokens, start, "step").is_none() {
+                    return Vec::new();
+                }
+                self.word_matches(tokens, start, LexicalSlot::Noun(NounUsage::Count))
+                    .into_iter()
+                    .filter(|lexical_match| {
+                        matches!(
+                            lexical_match.meaning,
+                            MeaningKey::Noun(NounInstance::Singular(_))
+                        )
+                    })
+                    .collect()
+            }
             EnglishLexicalSlot::NegatedModifier => self.scan_negated_modifier(tokens, start),
             EnglishLexicalSlot::Adverb => self.word_matches(tokens, start, LexicalSlot::Adverb),
             EnglishLexicalSlot::SentenceAdverbial => {
@@ -3039,6 +3105,20 @@ impl RuleBuilder {
                 ..ParseCost::default()
             },
         );
+        // `declare attackers`/`declare blockers` — every child is a
+        // literal-token slot, so this production can only ever match those
+        // two exact three-word sequences. Plain `add`, no cost: cost cannot
+        // fix a recognition-breadth problem (the `restrict`-round
+        // regression), so none is used here on purpose.
+        self.add(
+            RuleTag::NominalCombatStepName,
+            N::Nominal,
+            [
+                l(L::CombatStepDeclare),
+                l(L::CombatStepParticipants),
+                l(L::CombatStepHead),
+            ],
+        );
         self.add_with_cost(
             RuleTag::NominalNegatedModifier,
             N::Nominal,
@@ -3857,6 +3937,7 @@ fn reduce(
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
+        | RuleTag::NominalCombatStepName
         | RuleTag::NominalNegatedModifier
         | RuleTag::NominalQuantityModifier
         | RuleTag::NominalPowerToughnessModifier
@@ -4235,6 +4316,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: false,
+                modified: false,
                 leading_opacity: false,
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
@@ -4251,6 +4333,26 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 return None;
             };
             nominal_with_prefix(children.get(1)?, *initial_sound, false, *comparison)
+        }
+        RuleTag::NominalCombatStepName => {
+            // Mirrors `NominalNoun`'s Noun→Nominal base case (this rule
+            // *creates* a nominal from terminals, not `NominalNounModifier`,
+            // which prepends onto an existing one). `initial_sound` is
+            // overridden to `Consonant`: the phrase's true leftmost token is
+            // `declare`, not the vowel-initial `attackers`.
+            let Features::Noun { form, adjunct, .. } = children.get(2)?.features else {
+                return None;
+            };
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: InitialSound::Consonant,
+                determined: false,
+                modified: false,
+                leading_opacity: false,
+                attachment: NominalAttachmentPhase::Open,
+                comparison: AdjectiveComparisonState::NotComparative,
+                adjunct: *adjunct,
+            })
         }
         RuleTag::NominalNounModifier => {
             let Features::Noun { initial_sound, .. } = children.first()?.features else {
@@ -4293,6 +4395,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                modified,
                 attachment,
                 comparison,
                 adjunct,
@@ -4311,6 +4414,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: true,
+                modified: *modified,
                 leading_opacity: false,
                 attachment: *attachment,
                 comparison: *comparison,
@@ -4322,6 +4426,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                modified,
                 leading_opacity,
                 attachment,
                 comparison,
@@ -4347,6 +4452,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
+                modified: *modified,
                 leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
@@ -4358,6 +4464,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                modified,
                 leading_opacity,
                 attachment,
                 comparison,
@@ -4379,6 +4486,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
+                modified: *modified,
                 leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
@@ -4390,6 +4498,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                modified,
                 leading_opacity,
                 attachment,
                 comparison,
@@ -4421,6 +4530,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
+                modified: *modified,
                 leading_opacity: *leading_opacity,
                 attachment: if tag == RuleTag::NominalRelative {
                     NominalAttachmentPhase::Relative
@@ -4436,6 +4546,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                modified,
                 leading_opacity,
                 attachment,
                 comparison,
@@ -4454,6 +4565,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
+                modified: *modified,
                 leading_opacity: *leading_opacity,
                 attachment: *attachment,
                 comparison: *comparison,
@@ -4478,6 +4590,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                modified,
                 leading_opacity,
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
@@ -4490,6 +4603,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
+                modified: *modified,
                 leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::PostpositiveAdjective,
                 comparison: AdjectiveComparisonState::NotComparative,
@@ -4501,6 +4615,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 determined,
+                modified,
                 leading_opacity,
                 attachment: NominalAttachmentPhase::Open | NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::Pending(_),
@@ -4513,6 +4628,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
+                modified: *modified,
                 leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::Comparison,
                 comparison: AdjectiveComparisonState::Complete,
@@ -4541,6 +4657,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: NounForm::Singular,
                 initial_sound: InitialSound::Consonant,
                 determined: false,
+                modified: false,
                 leading_opacity: false,
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::NotComparative,
@@ -4560,6 +4677,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: NounForm::Plural,
                 initial_sound: InitialSound::Consonant,
                 determined: false,
+                modified: false,
                 leading_opacity: false,
                 attachment: NominalAttachmentPhase::Relative,
                 comparison: AdjectiveComparisonState::NotComparative,
@@ -4677,7 +4795,14 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
 fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
         RuleTag::NounPhraseNominal => {
-            let Features::Nominal { form, adjunct, .. } = children.first()?.features else {
+            let Features::Nominal {
+                form,
+                determined,
+                modified,
+                adjunct,
+                ..
+            } = children.first()?.features
+            else {
                 return None;
             };
             let agreement = Some(Agreement {
@@ -4687,10 +4812,16 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                     NounForm::Singular | NounForm::Mass => Number::Singular,
                 },
             });
+            // A completely bare nominal (no determiner, no modifier) must not
+            // surface its bare-temporal/manner-adjunct licensing: it is
+            // always the bare residue of a compound head (`step` left over
+            // from `draw step`), never a legitimate standalone adjunct
+            // [declarestep-plan-C.md §2].
+            let adjunct = if *determined || *modified { *adjunct } else { None };
             Some(Features::NounPhrase {
                 agreement,
                 pronoun_case: None,
-                adjunct: *adjunct,
+                adjunct,
             })
         }
         RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
@@ -4934,6 +5065,10 @@ fn nominal_with_prefix(
         form: *form,
         initial_sound,
         determined: *determined,
+        // The one site that sets this: adding any modifier (adjective, noun
+        // modifier, quantity, power/toughness, negated modifier) through
+        // this shared helper makes the nominal non-bare.
+        modified: true,
         leading_opacity,
         attachment: *attachment,
         comparison,
@@ -5369,6 +5504,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
+        | RuleTag::NominalCombatStepName
         | RuleTag::NominalNegatedModifier
         | RuleTag::NominalQuantityModifier
         | RuleTag::NominalPowerToughnessModifier
@@ -5713,6 +5849,29 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             Some(Lowered::Nominal(NominalPhrase {
                 determiner: None,
                 modifiers: Vec::new(),
+                head,
+                complements: Vec::new(),
+            }))
+        }
+        RuleTag::NominalCombatStepName => {
+            let Lowered::Noun(participants) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::Noun(head) = take(children, 2)? else {
+                return None;
+            };
+            // Redundant by design (§2.4): the literal-token slots are the
+            // defense. If this guard ever fires, the slots have a bug — it
+            // is not the safety mechanism.
+            if !matches!(participants, NounInstance::Plural(Noun::Word(_))) {
+                return None;
+            }
+            if !matches!(head, NounInstance::Singular(Noun::Word(_))) {
+                return None;
+            }
+            Some(Lowered::Nominal(NominalPhrase {
+                determiner: None,
+                modifiers: vec![NominalModifier::CombatStepName { participants }],
                 head,
                 complements: Vec::new(),
             }))

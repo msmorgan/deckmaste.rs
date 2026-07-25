@@ -1273,6 +1273,10 @@ vocabulary! {
     Team("team").noun(NounDeclension::Regular, Countability::Count);
     Thalakos("Thalakos").invariant_catalog_noun();
     Then("then").adverb();
+    Step("step")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .verb(VerbForm::Regular)
+        .bare_nominal_adjunct(BareNominalAdjunct::Temporal);
     Time("time")
         .noun(NounDeclension::Regular, Countability::CountOrMass)
         .verb(VerbForm::Regular)

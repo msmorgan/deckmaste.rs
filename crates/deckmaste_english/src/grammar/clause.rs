@@ -7541,4 +7541,552 @@ mod tests {
         .render(name, is_legendary)
         .expect("parsed sentence must render")
     }
+
+    #[test]
+    fn combat_step_restrictions_parse_and_render_structurally() {
+        for source in [
+            "Cast this spell only during the declare blockers step.",
+            "Activate only during the declare blockers step.",
+            "Cast this spell only during your declare attackers step.",
+            "Cast this spell only during the declare blockers step on an opponent's turn.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn restriction_run_admits_an_if_clause_member_true_witness() {
+        // The 14-duplicate flagship, with the real `declare attackers step`
+        // nominal (Stage B, landed this round).
+        let source = "Cast this spell only during the declare attackers step and only if you've been attacked this step.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a complex clause");
+        };
+        assert_eq!(complex.attachments.len(), 1);
+        let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+            panic!(
+                "expected a Restriction attachment: {:#?}",
+                complex.attachments[0]
+            );
+        };
+        let [PredicateAdjunct::Prepositional(during)] = run.first.as_slice() else {
+            panic!(
+                "expected a single Prepositional first member: {:#?}",
+                run.first
+            );
+        };
+        let crate::syntax::Phrase::NounPhrase(object) = during.object.as_ref() else {
+            panic!("expected a noun-phrase PP object: {during:#?}");
+        };
+        let crate::syntax::NounPhrase::Nominal(nominal) = object.as_ref() else {
+            panic!("expected a nominal PP object: {during:#?}");
+        };
+        assert!(
+            matches!(
+                nominal.modifiers.as_slice(),
+                [NominalModifier::CombatStepName { .. }]
+            ),
+            "{nominal:#?}"
+        );
+        assert_eq!(run.rest.len(), 1);
+        assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
+        assert!(!run.rest[0].comma);
+        let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].adjuncts.as_slice() else {
+            panic!(
+                "expected a single Dependent member: {:#?}",
+                run.rest[0].adjuncts
+            );
+        };
+        let DependentClause::Subordinate(Subordinator::If, SubordinateBody::Finite(if_body)) =
+            dependent.as_ref()
+        else {
+            panic!("expected a finite `if` subordinate clause: {dependent:#?}");
+        };
+        // The tree-shape assertion that would have caught the Slice-B
+        // finding: `you've` must parse as a genuine contracted
+        // subject+auxiliary pronoun (never an `Opaque("you've")` noun
+        // subject), heading a passive `been attacked` with `this step` as a
+        // bare temporal adjunct (never the direct object).
+        // "been attacked" surfaces as an Intransitive clause carrying the
+        // Have+Be auxiliary chain and a PastParticiple verb slot (there is no
+        // dedicated agentless-passive variant distinct from this shape).
+        let (subject, predicate_head, predicate_elements): (
+            &Subject,
+            &crate::syntax::PredicateHead,
+            &[PredicateElement],
+        ) = match if_body.as_ref() {
+            IndependentClause::Intransitive(subject, predicate) => {
+                (subject, &predicate.head, predicate.elements.as_slice())
+            }
+            IndependentClause::Passive(subject, predicate) => {
+                (subject, &predicate.head, predicate.elements.as_slice())
+            }
+            other => panic!("expected a `you've been attacked` clause: {other:#?}"),
+        };
+        assert_eq!(
+            subject.0,
+            crate::syntax::NounPhrase::Pronoun {
+                pronoun: crate::word::Pronoun::You,
+                case: crate::word::PronounCase::Subject,
+            },
+            "{subject:#?}"
+        );
+        assert!(
+            predicate_head.first_auxiliary_contracted_with_subject,
+            "{predicate_head:#?}"
+        );
+        let auxiliaries: Vec<crate::word::Auxiliary> = predicate_head
+            .auxiliaries
+            .iter()
+            .map(|instance| instance.auxiliary)
+            .collect();
+        assert_eq!(
+            auxiliaries,
+            vec![crate::word::Auxiliary::Have, crate::word::Auxiliary::Be],
+            "{predicate_head:#?}"
+        );
+        assert_eq!(predicate_head.verb.slot, VerbSlot::PastParticiple);
+        assert!(
+            matches!(predicate_head.verb.verb, crate::word::Verb::Word(_)),
+            "{predicate_head:#?}"
+        );
+        let temporal_adjuncts: Vec<&NounPhrase> = predicate_elements
+            .iter()
+            .filter_map(|element| match element {
+                PredicateElement::Adjunct(PredicateAdjunct::Temporal(np)) => Some(np),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            temporal_adjuncts.len(),
+            1,
+            "expected `this step` as a Temporal adjunct, not an object: {predicate_elements:#?}"
+        );
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    }
+
+    #[test]
+    fn step_is_a_bare_temporal_adjunct() {
+        for source in [
+            "You have been attacked this step.",
+            "This creature has been attacked this step.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn contracted_youve_round_trips_contracted() {
+        let source = "You've been attacked this step.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "must render as `You've`, never `You have`"
+        );
+    }
+
+    #[test]
+    fn youve_is_never_an_opaque_noun() {
+        let source = "Cast this spell only during the declare attackers step and only if you've been attacked this step.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let debug = format!("{:#?}", parsed.sentence().unwrap());
+        assert!(
+            !debug.contains("OpaqueLexeme(\n            \"you've\""),
+            "you've must never lower as an OpaqueLexeme: {debug}"
+        );
+    }
+
+    #[test]
+    fn declarestep_slice_b_unchanged_behavior_negatives() {
+        for source in [
+            "You have been attacked this turn.",
+            "You have attacked this step.",
+            "Skip your draw step.",
+            "Activate only during the declare blockers step.",
+            "Cast this spell only during the declare blockers step.",
+            "Activate only during your upkeep.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn oxford_restriction_run_carries_member_boundaries_true_witness() {
+        // Grizzled Wolverine, with the real `declare blockers step` nominal.
+        let source = "Activate only during the declare blockers step, only if at least one creature is blocking this creature, and only once each turn.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a complex clause");
+        };
+        let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+            panic!(
+                "expected a Restriction attachment: {:#?}",
+                complex.attachments[0]
+            );
+        };
+        assert_eq!(run.rest.len(), 2);
+        assert_eq!(run.rest[0].conjunction, None);
+        assert!(run.rest[0].comma);
+        assert_eq!(run.rest[1].conjunction, Some(PredicateConjunction::And));
+        assert!(run.rest[1].comma);
+    }
+
+    #[test]
+    fn combat_step_name_does_not_capture_target_nominals() {
+        // The `restrict`-round regression guard, stated as a shape claim: the
+        // reverted design recognized any `Verb(Imperative) Noun(Either)
+        // Nominal` sequence, which matched `target`/`creature`/`card with
+        // …` in this exact sentence and hijacked the whole 13-token phrase
+        // (`declarestep-forest-dump.txt`: `child0 = Verb(Word(Target),
+        // Imperative)`, `child1 = Noun(Singular(Catalog(CreatureType)))`,
+        // `child2` swallowing the entire comparison remainder). This
+        // round's three literal-token slots (`CombatStepDeclare` /
+        // `CombatStepParticipants` / `CombatStepHead`) are structurally
+        // incapable of matching any token but `declare`/`attackers`or
+        // `blockers`/`step`, so the comparison stays inside the
+        // prepositional object where it belongs.
+        let source = "target creature card with mana value less than or equal to Nissa's power";
+        let parsed = parse_nonterminal_with_self_reference(
+            source,
+            &fixture_catalogs(),
+            Nonterminal::NounPhrase,
+            &SelfReference::new("Nissa Revane", true),
+        )
+        .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    }
+
+    #[test]
+    fn declare_step_nominal_is_unambiguous() {
+        let source = "the declare attackers step";
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        assert!(
+            parsed.root_tied_alternatives().len() <= 1,
+            "{source} has a real forest tie: {:?}",
+            parsed.root_tied_alternatives()
+        );
+    }
+
+    /// Every witness below asserts point (c) of the plan-C verification
+    /// protocol on the *complete* AST: the clause's predicate elements
+    /// contain no `PredicateAdjunct::Temporal` that was not written as a
+    /// temporal adjunct in the source. This is the assertion whose absence
+    /// let slice B land a corpus-wide `<modifier> step`-compound split
+    /// (`declarestep-plan-C.md` §5).
+    fn no_stray_temporal_adjunct(elements: &[PredicateElement]) -> bool {
+        !elements.iter().any(|element| {
+            matches!(
+                element,
+                PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))
+            )
+        })
+    }
+
+    /// Extracts the predicate elements from whichever finite/imperative
+    /// clause shape the sentence actually parsed as (transitive,
+    /// intransitive, or passive; imperative wraps any of those in a bare
+    /// `Predicate` with no subject). Point (c) of the plan-C verification
+    /// protocol reads these elements regardless of clause shape.
+    fn clause_elements(clause: &IndependentClause) -> &[PredicateElement] {
+        fn predicate_elements(predicate: &Predicate) -> &[PredicateElement] {
+            match predicate {
+                Predicate::Transitive(predicate) => predicate.elements.as_slice(),
+                Predicate::Intransitive(predicate) => predicate.elements.as_slice(),
+                Predicate::Passive(predicate) => predicate.elements.as_slice(),
+                other => panic!("expected a transitive/intransitive/passive predicate: {other:#?}"),
+            }
+        }
+        match clause {
+            IndependentClause::Imperative(predicate) => predicate_elements(predicate),
+            IndependentClause::Transitive(_, predicate) => predicate.elements.as_slice(),
+            IndependentClause::Intransitive(_, predicate) => predicate.elements.as_slice(),
+            IndependentClause::Passive(_, predicate) => predicate.elements.as_slice(),
+            other => panic!("expected a clause with predicate elements: {other:#?}"),
+        }
+    }
+
+    fn intransitive_or_passive(
+        clause: &IndependentClause,
+    ) -> (&Subject, &crate::syntax::PredicateHead, &[PredicateElement]) {
+        match clause {
+            IndependentClause::Intransitive(subject, predicate) => {
+                (subject, &predicate.head, predicate.elements.as_slice())
+            }
+            IndependentClause::Passive(subject, predicate) => {
+                (subject, &predicate.head, predicate.elements.as_slice())
+            }
+            other => panic!("expected an intransitive or passive clause: {other:#?}"),
+        }
+    }
+
+    #[test]
+    fn cleanup_step_compound_is_not_split() {
+        // Ancient Adamantoise: `cleanup` is a genuine, pre-existing opaque
+        // lexeme (no vocabulary entry) — it must stay in MODIFIER position on
+        // head `steps`, never split out as a bare temporal adjunct.
+        let source = "Damage isn't removed from this creature during cleanup steps.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+            panic!("expected an independent clause");
+        };
+        let (_, _, elements) = intransitive_or_passive(clause);
+        assert!(
+            no_stray_temporal_adjunct(elements),
+            "no PredicateAdjunct::Temporal may appear here: {elements:#?}"
+        );
+        // "removed from this creature during cleanup steps": the `during`
+        // PP attaches as a complement of `this creature`, inside the `from`
+        // PP adjunct — not directly at clause scope.
+        let from_pp = elements
+            .iter()
+            .find_map(|element| match element {
+                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(pp))
+                    if pp.preposition == Preposition::From =>
+                {
+                    Some(pp)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected a `from` PP adjunct: {elements:#?}"));
+        let crate::syntax::Phrase::NounPhrase(from_object) = from_pp.object.as_ref() else {
+            panic!("expected a noun-phrase PP object: {from_pp:#?}");
+        };
+        let crate::syntax::NounPhrase::Nominal(from_nominal) = from_object.as_ref() else {
+            panic!("expected a nominal PP object: {from_pp:#?}");
+        };
+        let during_pp = from_nominal
+            .complements
+            .iter()
+            .find_map(|complement| match complement {
+                crate::syntax::NominalComplement::Prepositional(pp)
+                    if pp.preposition == Preposition::During =>
+                {
+                    Some(pp)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected a `during` PP complement: {from_nominal:#?}"));
+        let crate::syntax::Phrase::NounPhrase(object) = during_pp.object.as_ref() else {
+            panic!("expected a noun-phrase PP object: {during_pp:#?}");
+        };
+        let crate::syntax::NounPhrase::Nominal(nominal) = object.as_ref() else {
+            panic!("expected a nominal PP object: {during_pp:#?}");
+        };
+        assert!(
+            matches!(
+                &nominal.head,
+                NounInstance::Plural(Noun::Word(word)) if word.spelling() == "step"
+            ),
+            "expected head `steps`: {nominal:#?}"
+        );
+        assert!(
+            matches!(
+                nominal.modifiers.as_slice(),
+                [NominalModifier::Noun {
+                    noun: NounInstance::Singular(Noun::Opaque(opaque)),
+                    ..
+                }] if opaque.spelling() == "cleanup"
+            ),
+            "`cleanup` must sit as an opaque MODIFIER of head `step`, never a split-out head: {nominal:#?}"
+        );
+        // The census-legitimate debt: exactly one opaque word, in modifier
+        // position (the noun-opacity walker only counts nominal HEAD
+        // opacity, so this correctly contributes to the census while never
+        // surfacing as a stray adjunct).
+        assert_eq!(parsed.opacity_mode(), OpacityMode::OpaqueNouns);
+    }
+
+    #[test]
+    fn next_cleanup_step_is_one_nominal() {
+        let source = "Exile them at the beginning of the next cleanup step.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+            panic!("expected an independent clause");
+        };
+        let elements = clause_elements(clause);
+        assert!(
+            no_stray_temporal_adjunct(elements),
+            "no PredicateAdjunct::Temporal may appear here: {elements:#?}"
+        );
+        let debug = format!("{elements:#?}");
+        assert!(
+            debug.contains("\"next\""),
+            "expected the `next` adjective on the `beginning of …` object: {debug}"
+        );
+        assert!(
+            debug.contains("\"cleanup\""),
+            "expected `cleanup` as a modifier inside the same nominal: {debug}"
+        );
+    }
+
+    #[test]
+    fn known_noun_step_compounds_are_not_split() {
+        // The zero-opacity regression guard: this is the test whose absence
+        // let slice B land — `draw`/`end` are fully known nouns, so the
+        // slice-B misparse was invisible on the opacity axis and
+        // byte-identical on roundtrip.
+        for source in [
+            "Exile them at the beginning of the next draw step.",
+            "Exile them at the beginning of the next end step.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+            let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+                panic!("expected an independent clause: {source}");
+            };
+            let elements = clause_elements(clause);
+            assert!(
+                no_stray_temporal_adjunct(elements),
+                "no PredicateAdjunct::Temporal may appear here ({source}): {elements:#?}"
+            );
+            let debug = format!("{elements:#?}");
+            assert!(
+                debug.contains("\"next\""),
+                "expected the compound modifier attached, not split ({source}): {debug}"
+            );
+        }
+    }
+
+    #[test]
+    fn this_step_is_still_a_temporal_adjunct() {
+        // Slice B's win, preserved: `this step` is determined, so it keeps
+        // its bare-temporal-adjunct licensing under the slice-C gate.
+        let source = "Cast this spell only during the declare attackers step and only if you've been attacked this step.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a complex clause");
+        };
+        let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+            panic!(
+                "expected a Restriction attachment: {:#?}",
+                complex.attachments[0]
+            );
+        };
+        let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].adjuncts.as_slice() else {
+            panic!(
+                "expected a single Dependent member: {:#?}",
+                run.rest[0].adjuncts
+            );
+        };
+        let DependentClause::Subordinate(Subordinator::If, SubordinateBody::Finite(if_body)) =
+            dependent.as_ref()
+        else {
+            panic!("expected a finite `if` subordinate clause: {dependent:#?}");
+        };
+        let (subject, predicate_head, predicate_elements) = intransitive_or_passive(if_body);
+        assert_eq!(
+            subject.0,
+            crate::syntax::NounPhrase::Pronoun {
+                pronoun: crate::word::Pronoun::You,
+                case: crate::word::PronounCase::Subject,
+            },
+            "{subject:#?}"
+        );
+        assert!(predicate_head.first_auxiliary_contracted_with_subject);
+        let temporal_adjuncts: Vec<&NounPhrase> = predicate_elements
+            .iter()
+            .filter_map(|element| match element {
+                PredicateElement::Adjunct(PredicateAdjunct::Temporal(np)) => Some(np),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            temporal_adjuncts.len(),
+            1,
+            "expected `this step` as a Temporal adjunct: {predicate_elements:#?}"
+        );
+    }
+
+    #[test]
+    fn bare_nominals_are_not_temporal_adjuncts() {
+        // Negative: a completely bare `step` nominal never appears as a
+        // Temporal adjunct in any of the witnesses above.
+        for source in [
+            "Damage isn't removed from this creature during cleanup steps.",
+            "Exile them at the beginning of the next cleanup step.",
+            "Exile them at the beginning of the next draw step.",
+            "Exile them at the beginning of the next end step.",
+        ] {
+            let parsed = parse(source);
+            let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+                panic!("expected an independent clause: {source}");
+            };
+            let elements = clause_elements(clause);
+            assert!(
+                no_stray_temporal_adjunct(elements),
+                "a bare `step` nominal must never surface as a Temporal adjunct ({source}): {elements:#?}"
+            );
+        }
+    }
+
+    /// `No spells were cast last turn.` — `last turn` is undetermined but
+    /// modified (the adjective `last`), which is precisely and only what the
+    /// `determined || modified` gate's `|| modified` disjunct restores
+    /// (`declarestepC-stateD-suite.txt`: without it, this is the single
+    /// casualty of the `determined`-only gate). Kept alongside the existing
+    /// `passive_temporal_adjunct_is_not_a_direct_object`, which covers the
+    /// same shape and is this slice's named first gate.
+    #[test]
+    fn modified_undetermined_temporal_adjunct_survives() {
+        let source = "No spells were cast last turn.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+            panic!("expected an independent clause");
+        };
+        let (_, _, elements) = intransitive_or_passive(clause);
+        let temporal_adjuncts: Vec<&NounPhrase> = elements
+            .iter()
+            .filter_map(|element| match element {
+                PredicateElement::Adjunct(PredicateAdjunct::Temporal(np)) => Some(np),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            temporal_adjuncts.len(),
+            1,
+            "expected `last turn` as a Temporal adjunct: {elements:#?}"
+        );
+    }
 }

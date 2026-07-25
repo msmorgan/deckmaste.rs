@@ -1418,6 +1418,10 @@ impl<'identity> Renderer<'identity> {
                 ),
                 Vec::new(),
             )),
+            NominalModifier::CombatStepName { participants } => Ok((
+                format!("declare {}", self.render_noun(participants)?),
+                Vec::new(),
+            )),
             NominalModifier::Quantity(quantity) => Ok((render_quantity(*quantity), Vec::new())),
             NominalModifier::PowerToughness(value) => Ok((
                 format!(
@@ -1471,6 +1475,8 @@ impl<'identity> Renderer<'identity> {
             }
             NominalModifier::Adjective { phrase, .. } => self.adjective_initial_sound(&phrase.head),
             NominalModifier::Noun { noun, .. } => self.noun_initial_sound(noun),
+            // Always literally `declare …` — a fixed consonant onset.
+            NominalModifier::CombatStepName { .. } => Ok(InitialSound::Consonant),
             NominalModifier::Quantity(quantity) => {
                 Ok(spelling_initial_sound(&render_quantity(*quantity)))
             }

@@ -424,6 +424,15 @@ pub enum NominalModifier {
     },
     Quantity(Quantity),
     PowerToughness(PowerToughness),
+    /// The `declare attackers` / `declare blockers` formative of a combat step
+    /// name [CR#508.1,509.1]. The `declare` formative is invariant and belongs
+    /// to the shape itself, exactly as `non-` belongs to the negated-modifier
+    /// shape; `participants` carries the varying lexeme so the renderer
+    /// reproduces the name from structure and the vocabulary, never from a
+    /// string table.
+    CombatStepName {
+        participants: NounInstance,
+    },
     /// A coordinated group of attributive modifiers filling a single modifier
     /// slot: `white and blue` (Ashiok, Nightmare Muse), `artifact, creature,
     /// and land` (Warp World), `white and/or blue` (Amphibious Kavu). It is

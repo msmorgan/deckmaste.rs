@@ -91,6 +91,67 @@ mod tests {
     }
 
     #[test]
+    fn combat_step_names_are_step_nominals() {
+        for source in [
+            "the declare attackers step",
+            "the declare blockers step",
+            "your declare attackers step",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect(source)),
+                source,
+                "{source}"
+            );
+            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                panic!("expected a nominal for {source}");
+            };
+            assert!(
+                matches!(
+                    nominal.modifiers.as_slice(),
+                    [NominalModifier::CombatStepName { participants }]
+                        if matches!(participants, NounInstance::Plural(Noun::Word(_)))
+                ),
+                "{source}: {nominal:#?}"
+            );
+            assert!(matches!(
+                &nominal.head,
+                NounInstance::Singular(Noun::Word(word)) if word.spelling() == "step"
+            ));
+        }
+    }
+
+    #[test]
+    fn combat_step_name_requires_all_three_words() {
+        for source in [
+            "the declare",
+            "declare",
+            "declare attackers",
+            "declare creatures step",
+        ] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase).is_err(),
+                "{source} must not parse as a combat-step nominal"
+            );
+        }
+        // `the attack step` is an ordinary noun-modifier compound (unrelated
+        // to `declare attackers`/`declare blockers`) — it parses, but never
+        // through the `CombatStepName` shape.
+        let parsed = parse("the attack step");
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal for `the attack step`");
+        };
+        assert!(
+            !matches!(
+                nominal.modifiers.as_slice(),
+                [NominalModifier::CombatStepName { .. }]
+            ),
+            "{nominal:#?}"
+        );
+    }
+
+    #[test]
     fn combat_damage_negative_armor_keeps_combat_as_a_noun_modifier() {
         // Negative armor: `combat` in noun-modifier position must stay a noun
         // modifier of `damage`, unaffected by turn-structure work.
@@ -536,6 +597,7 @@ mod tests {
             | NominalModifier::Noun { polarity, .. } => Some(*polarity),
             NominalModifier::Quantity(_)
             | NominalModifier::PowerToughness(_)
+            | NominalModifier::CombatStepName { .. }
             | NominalModifier::Coordinated(_) => None,
         }
     }
