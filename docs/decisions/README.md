@@ -29,3 +29,5 @@ requires explicit review rather than an opportunistic refactor.
   state-based actions are swappable rules over explicit scopes.
 - [English clauses are structural](english-clauses-are-structural.md) — Parse
   dependency, valency, voice, modality, and attachment before Magic lowering.
+- [English productions ship their inverse](english-productions-ship-their-inverse.md) —
+  A grammar slice lands only with its exact renderer inverse.
