@@ -86,6 +86,7 @@ use crate::syntax::ScalarValue;
 use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
 use crate::syntax::SignedScalar;
+use crate::syntax::StationThresholdAbility;
 use crate::syntax::Subject;
 use crate::syntax::SubordinateBody;
 use crate::syntax::Subordinator;
@@ -279,6 +280,7 @@ impl<'identity> Renderer<'identity> {
             AbilityKind::Chapter(chapter) => self.chapter_ability(chapter),
             AbilityKind::RollRow(row) => self.roll_row_ability(row),
             AbilityKind::LevelBand(band) => self.level_band_ability(band),
+            AbilityKind::StationThreshold(threshold) => self.station_threshold_ability(threshold),
             AbilityKind::Modal(modal) => self.modal_ability(modal),
             AbilityKind::Keyword(keyword) => self.keyword_ability_list(keyword),
             AbilityKind::Paragraph(paragraph) => {
@@ -334,6 +336,30 @@ impl<'identity> Renderer<'identity> {
             rendered.push_str(&self.ability(ability, true, false)?);
         }
         Ok(rendered)
+    }
+
+    /// Renders a station card's threshold striation in oracle layout: the
+    /// `N+` key, a spaced ` | `, then the contained ability inline — the
+    /// exact inverse of [`station_threshold_frame`]. `self.ability(inner,
+    /// true, false)` is the same call the top-level list and the level band
+    /// make, so the contained ability renders byte-for-byte as it would
+    /// standing alone, which is what holds roundtrip at zero. No
+    /// `render_station_*` free function is needed: there is no range enum,
+    /// only a bare [`NumberLiteral`] [CR#721.2].
+    ///
+    /// [`station_threshold_frame`]: crate::grammar
+    fn station_threshold_ability(
+        &self,
+        threshold: &StationThresholdAbility,
+    ) -> Result<String, RenderError> {
+        Ok(format!(
+            "{}+ | {}",
+            threshold
+                .threshold
+                .numeral
+                .format(threshold.threshold.value),
+            self.ability(&threshold.ability, true, false)?,
+        ))
     }
 
     fn modal_ability(&self, modal: &ModalAbility) -> Result<String, RenderError> {
@@ -3244,6 +3270,22 @@ mod tests {
     }
 
     #[test]
+    fn station_threshold_abilities_render_inline_after_their_key() {
+        for source in [
+            "Station\n8+ | Flying",
+            "Station\n12+ | Whenever you attack, draw a card.",
+        ] {
+            let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+        // The separator and key shape asserted literally, independent of parsing.
+        let ast =
+            crate::parse_with_catalogs("Station\n8+ | Flying", &fixture_catalogs()).into_ast();
+        let rendered = source_free(&ast, "Test Card", false);
+        assert!(rendered.contains("8+ | Flying"), "rendered:\n{rendered}");
+    }
+
+    #[test]
     fn a_modal_choice_ability_still_renders_its_bullets() {
         // Mirror of the chapter case: a genuine modal choice keeps its `• ` bullet
         // modes; the inline chapter layout must not strip them.
@@ -3258,7 +3300,7 @@ mod tests {
 
     fn fixture_catalogs() -> Catalogs {
         Catalogs::new(
-            ["Flying", "Deathtouch", "Haste"],
+            ["Flying", "Deathtouch", "Haste", "Station"],
             std::iter::empty::<&str>(),
             std::iter::empty::<&str>(),
         )

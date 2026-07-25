@@ -1233,6 +1233,26 @@ fn a_leveler_face_round_trips_through_its_level_bands() {
 }
 
 #[test]
+fn a_station_face_round_trips_through_its_threshold_rows() {
+    // Hearthhull, the Worldseed's reminder-stripped body: an activated
+    // threshold row, a three-keyword threshold row, and a trailing [CR#721.4]
+    // always-on sibling ability. The whole-sentence bracket read's absence
+    // assertion proves no threshold row lowers as a `RollRow` or recovers.
+    let source = "Station\n2+ | {1}, {T}, Sacrifice a land: Draw two cards. You may play an \
+        additional land this turn.\n8+ | Flying, vigilance, haste\nWhenever you sacrifice a \
+        land, each opponent loses 2 life.";
+    let catalogs = Catalogs::new(
+        ["Station", "Flying", "Vigilance", "Haste"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    );
+    let (rendered, ast) = parse_face(source, &catalogs, "Hearthhull, the Worldseed", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(!ast.contains("RollRow"), "AST:\n{ast}");
+}
+
+#[test]
 fn between_preposition_licenses_the_difference_between_shape() {
     // Jaws of Defeat shape (the `difference between X and Y` idiom): a second,
     // independent corpus motivation for `Preposition::Between`, guarding the

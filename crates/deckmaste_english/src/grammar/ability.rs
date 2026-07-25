@@ -71,6 +71,7 @@ use crate::syntax::RollRange;
 use crate::syntax::RollRowAbility;
 use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
+use crate::syntax::StationThresholdAbility;
 use crate::syntax::SubordinateBody;
 use crate::syntax::Subordinator;
 use crate::syntax::TriggerEvent;
@@ -185,6 +186,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
     fn parse(mut self, tokens: &[Token]) -> AbilityParse {
         let lines = split_top_level_lines(tokens);
+        // [CR#702.184b]: a card printed with the station ability is a station
+        // card, and only a station card's `N+ | …` rows are station symbols —
+        // a die-roll table prints the same key shape.
+        let station_card = lines.iter().any(|line| self.is_station_keyword_line(line));
         let mut abilities = Vec::new();
         let mut line = 0;
         while line < lines.len() {
@@ -203,23 +208,28 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 continue;
             }
 
-            if let Some(range) = self.level_band_header(current) {
-                if let Some(stats) = lines
+            if let Some(range) = self.level_band_header(current)
+                && let Some(stats) = lines
                     .get(line + 1)
                     .and_then(|stat_line| self.bare_power_toughness(stat_line))
+            {
+                let mut band_end = line + 2;
+                while band_end < lines.len()
+                    && !lines[band_end].is_empty()
+                    && self.level_band_header(lines[band_end]).is_none()
                 {
-                    let mut band_end = line + 2;
-                    while band_end < lines.len()
-                        && !lines[band_end].is_empty()
-                        && self.level_band_header(lines[band_end]).is_none()
-                    {
-                        band_end += 1;
-                    }
-                    let body = lines[line + 2..band_end].to_vec();
-                    abilities.push(self.parse_level_band(range, stats, &body));
-                    line = band_end;
-                    continue;
+                    band_end += 1;
                 }
+                let body = lines[line + 2..band_end].to_vec();
+                abilities.push(self.parse_level_band(range, stats, &body));
+                line = band_end;
+                continue;
+            }
+
+            if station_card && let Some((threshold, body)) = self.station_threshold_frame(current) {
+                abilities.push(self.parse_station_threshold(threshold, body));
+                line += 1;
+                continue;
             }
 
             let mut mode_end = line + 1;
@@ -469,6 +479,84 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 range,
                 stats,
                 abilities,
+            }),
+        }
+    }
+
+    /// Whether this line is the bare `Station` keyword ability [CR#702.184a] —
+    /// the marker that makes the face a station card [CR#702.184b] and
+    /// licenses its `N+ | …` rows as station symbols rather than die-roll
+    /// keys. The whole line must be the single catalog-matched keyword:
+    /// reminder text is stripped upstream, so `Station (Tap another creature
+    /// you control: …)` arrives here as one token, while a sentence merely
+    /// naming a card called `… Station` never matches.
+    fn is_station_keyword_line(&self, tokens: &[Token]) -> bool {
+        let [keyword] = tokens else { return false };
+        if keyword.kind != TokenKind::Word {
+            return false;
+        }
+        let Some(text) = self.source.get(keyword.span.start..keyword.span.end) else {
+            return false;
+        };
+        self.catalogs
+            .matches(text, CatalogSlot::AbilityItem)
+            .into_iter()
+            .any(|catalog_match| {
+                catalog_match.length == text.len()
+                    && matches!(
+                        catalog_match.value,
+                        CatalogValue::Atom(ref atom) if atom.canonical() == "Station"
+                    )
+            })
+    }
+
+    /// Splits a station threshold row (`8+ | Flying, trample`) into its
+    /// charge-counter threshold and the body after the spaced ` | `. The key
+    /// shape is closed to a single number and a plus sign [CR#721.2] —
+    /// narrower than [`Self::roll_range`], which also admits single values,
+    /// inclusive spans, and `or less`. The separator must be exactly ` | ` so
+    /// the renderer reproduces it verbatim, the same requirement
+    /// [`Self::roll_row_frame`] enforces.
+    fn station_threshold_frame<'a>(
+        &self,
+        tokens: &'a [Token],
+    ) -> Option<(NumberLiteral, &'a [Token])> {
+        let pipe = tokens
+            .iter()
+            .position(|token| token.kind == TokenKind::Punctuation(Punctuation::Other('|')))?;
+        if pipe == 0 || pipe + 1 >= tokens.len() {
+            return None;
+        }
+        let before_end = tokens[pipe - 1].span.end;
+        let after_start = tokens[pipe + 1].span.start;
+        if self.source.get(before_end..after_start) != Some(" | ") {
+            return None;
+        }
+        let [value, plus] = &tokens[..pipe] else {
+            return None;
+        };
+        if value.kind != TokenKind::Integer
+            || plus.kind != TokenKind::Punctuation(Punctuation::Plus)
+        {
+            return None;
+        }
+        let threshold = self.arabic_literal(value)?;
+        Some((threshold, &tokens[pipe + 1..]))
+    }
+
+    /// Assembles one station threshold. The body is parsed as a whole
+    /// [`Ability`] — that is what lets a striation carry a keyword list, an
+    /// activated ability, or a triggered ability with no new machinery — and
+    /// the `Ability` is constructed directly (like [`Self::parse_level_band`]
+    /// and [`Self::parse_modal`]) because the row key carries no
+    /// ability-word or flavor-word prefix of its own.
+    fn parse_station_threshold(&mut self, threshold: NumberLiteral, body: &[Token]) -> Ability {
+        Ability {
+            ability_word: None,
+            flavor_header: None,
+            kind: AbilityKind::StationThreshold(StationThresholdAbility {
+                threshold,
+                ability: Box::new(self.parse_ability(body)),
             }),
         }
     }
@@ -3337,6 +3425,190 @@ mod tests {
         band
     }
 
+    fn station_threshold(report: &ParseReport, index: usize) -> &StationThresholdAbility {
+        let AbilityKind::StationThreshold(row) = &report.ast.abilities[index].kind else {
+            panic!(
+                "expected a station threshold: {:#?}",
+                report.ast.abilities[index]
+            );
+        };
+        row
+    }
+
+    #[test]
+    fn a_station_threshold_lowers_its_keyword_list_body() {
+        let source = "Station\n8+ | Flying, trample";
+        let report = parse(source);
+        assert_eq!(report.ast.abilities.len(), 2);
+        let row = station_threshold(&report, 1);
+        assert_eq!(row.threshold, arabic(8));
+        let AbilityKind::Keyword(list) = &row.ability.kind else {
+            panic!("expected a keyword list body: {:#?}", row.ability.kind);
+        };
+        assert_eq!(list.abilities.len(), 2);
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn a_station_threshold_lowers_its_activated_body() {
+        let source =
+            "Station\n12+ | {3}{W}, {T}: Create a Treasure token. Activate only as a sorcery.";
+        let report = parse(source);
+        let row = station_threshold(&report, 1);
+        assert_eq!(row.threshold, arabic(12));
+        let AbilityKind::Activated(activated) = &row.ability.kind else {
+            panic!("expected an activated body: {:#?}", row.ability.kind);
+        };
+        let symbol_components = activated
+            .cost
+            .components
+            .iter()
+            .filter(|component| matches!(component, CostComponent::Symbols(_)))
+            .count();
+        assert_eq!(symbol_components, 2);
+        let debug = format!("{report:#?}");
+        assert!(!debug.contains("Recovered"), "AST:\n{debug}");
+    }
+
+    #[test]
+    fn a_station_threshold_lowers_its_triggered_body() {
+        let source = "Station\n10+ | Whenever you attack, draw a card.";
+        let report = parse(source);
+        let row = station_threshold(&report, 1);
+        assert_eq!(row.threshold, arabic(10));
+        assert!(matches!(row.ability.kind, AbilityKind::Triggered(_)));
+    }
+
+    #[test]
+    fn a_station_threshold_lowers_its_static_body() {
+        let source = "Station\n2+ | Other creatures you control get +1/+1.";
+        let report = parse(source);
+        let row = station_threshold(&report, 1);
+        assert_eq!(row.threshold, arabic(2));
+        let AbilityKind::Paragraph(paragraph) = &row.ability.kind else {
+            panic!("expected a paragraph body: {:#?}", row.ability.kind);
+        };
+        assert!(matches!(
+            paragraph.sentences[0].body,
+            SentenceBody::Independent(_)
+        ));
+    }
+
+    #[test]
+    fn two_station_thresholds_stay_separate_line_local_abilities() {
+        let source = "Station\n1+ | Whenever an opponent discards a card, they lose 3 life.\n8+ | Flying, deathtouch\nWhenever this permanent attacks, draw a card.";
+        let report = parse(source);
+        assert_eq!(report.ast.abilities.len(), 4);
+        assert!(matches!(
+            report.ast.abilities[0].kind,
+            AbilityKind::Keyword(_)
+        ));
+        assert!(matches!(
+            report.ast.abilities[1].kind,
+            AbilityKind::StationThreshold(_)
+        ));
+        assert!(matches!(
+            report.ast.abilities[2].kind,
+            AbilityKind::StationThreshold(_)
+        ));
+        assert!(matches!(
+            report.ast.abilities[3].kind,
+            AbilityKind::Triggered(_)
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn a_roll_table_plus_row_is_not_a_station_threshold() {
+        let source = "Roll a d20.\n1—14 | Draw a card.\n15+ | Draw two cards.";
+        let report = parse(source);
+        for ability in &report.ast.abilities {
+            assert!(!matches!(ability.kind, AbilityKind::StationThreshold(_)));
+        }
+        let AbilityKind::RollRow(first) = &report.ast.abilities[1].kind else {
+            panic!(
+                "expected a roll-row ability, got {:#?}",
+                report.ast.abilities[1].kind
+            );
+        };
+        assert_eq!(
+            first.range,
+            RollRange::Inclusive {
+                low: arabic(1),
+                high: arabic(14)
+            }
+        );
+        let AbilityKind::RollRow(second) = &report.ast.abilities[2].kind else {
+            panic!(
+                "expected a roll-row ability, got {:#?}",
+                report.ast.abilities[2].kind
+            );
+        };
+        assert_eq!(second.range, RollRange::OrMore(arabic(15)));
+    }
+
+    #[test]
+    fn a_station_card_does_not_claim_a_non_plus_pipe_row() {
+        let source = "Station\n20 | Draw a card.";
+        let report = parse(source);
+        let AbilityKind::RollRow(row) = &report.ast.abilities[1].kind else {
+            panic!(
+                "expected a roll-row ability, got {:#?}",
+                report.ast.abilities[1].kind
+            );
+        };
+        assert_eq!(row.range, RollRange::Single(arabic(20)));
+        for ability in &report.ast.abilities {
+            assert!(!matches!(ability.kind, AbilityKind::StationThreshold(_)));
+        }
+    }
+
+    #[test]
+    fn a_plus_pipe_row_without_a_station_keyword_is_not_a_station_threshold() {
+        let source = "15+ | Draw a card.";
+        let report = parse(source);
+        assert!(matches!(
+            report.ast.abilities[0].kind,
+            AbilityKind::RollRow(_)
+        ));
+        for ability in &report.ast.abilities {
+            assert!(!matches!(ability.kind, AbilityKind::StationThreshold(_)));
+        }
+    }
+
+    #[test]
+    fn a_card_named_station_does_not_license_station_thresholds() {
+        let source = "When Infinite Guideline Station enters, draw a card.\n15+ | Draw two cards.";
+        let report = parse_with_identity(
+            source,
+            &fixture_catalogs(),
+            "Infinite Guideline Station",
+            false,
+        );
+        for ability in &report.ast.abilities {
+            assert!(!matches!(ability.kind, AbilityKind::StationThreshold(_)));
+        }
+    }
+
+    #[test]
+    fn an_ordinary_activated_ability_keeps_its_cost_frame() {
+        let source = "Station\n{3}{W}, {T}: Create a Treasure token.";
+        let report = parse(source);
+        let AbilityKind::Activated(activated) = &report.ast.abilities[1].kind else {
+            panic!(
+                "expected an activated ability, got {:#?}",
+                report.ast.abilities[1].kind
+            );
+        };
+        let symbol_components = activated
+            .cost
+            .components
+            .iter()
+            .filter(|component| matches!(component, CostComponent::Symbols(_)))
+            .count();
+        assert_eq!(symbol_components, 2);
+    }
+
     #[test]
     fn hyphen_level_band_lowers_to_a_level_band_ability() {
         let source = "LEVEL 1-3\n4/4";
@@ -4051,6 +4323,8 @@ mod tests {
                     "Tiered",
                     "Level up",
                     "Trample",
+                    "Station",
+                    "Deathtouch",
                 ],
             )
             .with_catalog(

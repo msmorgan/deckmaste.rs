@@ -88,6 +88,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.ability(ability, context);
                 }
             }
+            AbilityKind::StationThreshold(threshold) => {
+                self.ability(&threshold.ability, context);
+            }
             AbilityKind::Triggered(triggered) => {
                 self.trigger_event(&triggered.event, context);
                 if let Some(condition) = &triggered.intervening_condition {

@@ -47,6 +47,7 @@ pub enum AbilityKind {
     Chapter(ChapterAbility),
     RollRow(RollRowAbility),
     LevelBand(LevelBandAbility),
+    StationThreshold(StationThresholdAbility),
     Triggered(TriggeredAbility),
     Loyalty(LoyaltyAbility),
     Modal(ModalAbility),
@@ -149,6 +150,35 @@ pub enum LevelRange {
     },
     /// `LEVEL N3+` — active while level counters ≥ N3 [CR#711.2b].
     AtLeast(super::phrase::NumberLiteral),
+}
+
+/// A station card's threshold striation [CR#721.2]: the station symbol that
+/// opens a text-box striation, together with the single ability printed
+/// inside it — `8+ | Flying, trample`. The symbol is itself a keyword
+/// ability [CR#702.184b] and represents a static ability: "as long as this
+/// permanent has N or more charge counters on it, it has [abilities]"
+/// [CR#721.2a].
+///
+/// Unlike a leveler band ([`LevelBandAbility`], [CR#711.2]) the striation is
+/// **line-local**: the ` | ` separator delimits it, and any line after it
+/// that no station symbol precedes is ordinary always-on text [CR#721.4].
+/// Unlike a die-roll row ([`RollRowAbility`]) the body is a whole
+/// [`Ability`], not a [`Paragraph`] — a striation routinely holds a keyword
+/// list, an activated ability, or a triggered ability, none of which a
+/// paragraph can carry. The threshold key is a bare number because
+/// [CR#721.2] admits exactly one shape, `N+`; there is no range or at-most
+/// form to carry.
+///
+/// A station row is recognized only on a face that carries the `Station`
+/// keyword ability [CR#702.184b], which is what keeps a die-roll table's
+/// `15+ | …` row from reaching this frame. [CR#721.1] notes a station card
+/// only *usually* prints that keyword; one printed without it would lower as
+/// an ordinary die-roll row instead.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StationThresholdAbility {
+    pub threshold: super::phrase::NumberLiteral,
+    /// Boxed so the variant stays small, mirroring `QuotedAbility::ability`.
+    pub ability: Box<Ability>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
