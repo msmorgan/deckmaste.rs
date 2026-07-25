@@ -1009,6 +1009,9 @@ impl<'identity> Renderer<'identity> {
         auxiliary_start: usize,
     ) -> Result<String, RenderError> {
         let mut parts = vec![self.predicate_head_from(&predicate.head, auxiliary_start)?];
+        if let Some(retained_object) = &predicate.retained_object {
+            parts.push(self.predicate_object(retained_object)?);
+        }
         self.extend_predicate_elements(&mut parts, &predicate.elements)?;
         Ok(join_words(parts))
     }
@@ -1885,9 +1888,7 @@ fn independent_clause_ends_with_closed_quote(clause: &IndependentClause) -> bool
         IndependentClause::Intransitive(_, predicate) => {
             last_element_is_closed_quote(&predicate.elements)
         }
-        IndependentClause::Passive(_, predicate) => {
-            last_element_is_closed_quote(&predicate.elements)
-        }
+        IndependentClause::Passive(_, predicate) => passive_ends_with_closed_quote(predicate),
         IndependentClause::Copular(_, predicate) => copular_ends_with_closed_quote(predicate),
         IndependentClause::Imperative(predicate) => predicate_ends_with_closed_quote(predicate),
         IndependentClause::Deontic(_, _, Some(predicate)) => {
@@ -1905,7 +1906,7 @@ fn predicate_ends_with_closed_quote(predicate: &Predicate) -> bool {
     match predicate {
         Predicate::Transitive(predicate) => transitive_ends_with_closed_quote(predicate),
         Predicate::Intransitive(predicate) => last_element_is_closed_quote(&predicate.elements),
-        Predicate::Passive(predicate) => last_element_is_closed_quote(&predicate.elements),
+        Predicate::Passive(predicate) => passive_ends_with_closed_quote(predicate),
         Predicate::Copular(predicate) => copular_ends_with_closed_quote(predicate),
         Predicate::Proform(_) => false,
     }
@@ -1917,6 +1918,21 @@ fn predicate_ends_with_closed_quote(predicate: &Predicate) -> bool {
 fn transitive_ends_with_closed_quote(predicate: &TransitivePredicate) -> bool {
     if predicate.elements.is_empty() {
         predicate_object_is_closed_quote(&predicate.object)
+    } else {
+        last_element_is_closed_quote(&predicate.elements)
+    }
+}
+
+/// A passive predicate ends with its final element, or — when it has none —
+/// with its retained object, mirroring
+/// [`transitive_ends_with_closed_quote`]'s object fallback; ordinary passives
+/// (no retained object, no elements) never end in a closed quote here.
+fn passive_ends_with_closed_quote(predicate: &crate::syntax::PassivePredicate) -> bool {
+    if predicate.elements.is_empty() {
+        predicate
+            .retained_object
+            .as_ref()
+            .is_some_and(predicate_object_is_closed_quote)
     } else {
         last_element_is_closed_quote(&predicate.elements)
     }

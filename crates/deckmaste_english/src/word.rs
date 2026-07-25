@@ -191,6 +191,12 @@ pub(crate) struct PredicateFrame {
     /// every other frame leaves it off, so the `VerbPhrase = VerbPhrase
     /// VerbPhrase` production reduces to nothing outside this construction.
     causative_complement: bool,
+    /// Whether the passive of this frame promotes the RECIPIENT (indirect
+    /// object) rather than the theme, RETAINING the direct object
+    /// post-verbally: `X was dealt damage`. Set only on a passive-only frame;
+    /// `predicate_arguments_complete` rejects it outright in the active, so
+    /// no double-object active reading is ever licensed.
+    recipient_passive: bool,
 }
 
 impl PredicateFrame {
@@ -209,6 +215,7 @@ impl PredicateFrame {
         particles: &[],
         proform: false,
         causative_complement: false,
+        recipient_passive: false,
     };
 
     const fn with_direct_object(mut self, requirement: ArgumentRequirement) -> Self {
@@ -251,6 +258,11 @@ impl PredicateFrame {
         self
     }
 
+    const fn with_recipient_passive(mut self) -> Self {
+        self.recipient_passive = true;
+        self
+    }
+
     pub(crate) const fn direct_object(self) -> ArgumentRequirement {
         self.direct_object
     }
@@ -269,6 +281,10 @@ impl PredicateFrame {
 
     pub(crate) const fn causative_complement(self) -> bool {
         self.causative_complement
+    }
+
+    pub(crate) const fn is_recipient_passive(self) -> bool {
+        self.recipient_passive
     }
 
     pub(crate) const fn licenses_complement(self, kind: PredicateComplementKind) -> bool {
@@ -330,6 +346,21 @@ const ASK_PREDICATE_FRAMES: &[PredicateFrame] = &[
     PredicateFrame::OPEN
         .with_direct_object(ArgumentRequirement::Required)
         .with_indirect_object(ArgumentRequirement::Required),
+];
+/// `deal` is ditransitive in the rules idiom: the theme is the direct object
+/// and the recipient surfaces in a `to` phrase in the active voice. Its
+/// passive promotes the RECIPIENT and retains the theme (`an opponent was
+/// dealt damage this turn`), which no other frame in this grammar does. The
+/// retained-object frame is passive-only — the canonical-template domain has
+/// no double-object active (`deals target player 2 damage`) — so the active
+/// `deals N damage to X` reading remains exactly `PredicateFrame::OPEN` and
+/// its trees are unchanged by construction, not by cost.
+const RECIPIENT_PASSIVE_PREDICATE_FRAMES: &[PredicateFrame] = &[
+    PredicateFrame::OPEN,
+    PredicateFrame::OPEN
+        .with_direct_object(ArgumentRequirement::Required)
+        .with_indirect_object(ArgumentRequirement::Required)
+        .with_recipient_passive(),
 ];
 const ATTACK_PREDICATE_FRAMES: &[PredicateFrame] =
     &[INTRANSITIVE_PREDICATE_FRAME, PredicateFrame::OPEN];
@@ -993,7 +1024,7 @@ vocabulary! {
         IrregularVerbDef::EMPTY
             .with_past("dealt")
             .with_past_participle("dealt")
-    ));
+    )).predicate_frames(RECIPIENT_PASSIVE_PREDICATE_FRAMES);
     Deck("deck").noun(NounDeclension::Regular, Countability::Count);
     Defend("defend").verb(VerbForm::Regular);
     Destroy("destroy").verb(VerbForm::Regular);

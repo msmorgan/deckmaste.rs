@@ -272,6 +272,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
             IndependentClause::Passive(subject, predicate) => {
                 self.subject(subject, context);
                 Self::predicate_head(&predicate.head, context);
+                if let Some(retained_object) = &predicate.retained_object {
+                    self.predicate_object(retained_object, context);
+                }
                 self.predicate_elements(&predicate.elements, context);
             }
             IndependentClause::Imperative(predicate) => self.predicate(predicate, context),
@@ -385,6 +388,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
             }
             Predicate::Passive(predicate) => {
                 Self::predicate_head(&predicate.head, context);
+                if let Some(retained_object) = &predicate.retained_object {
+                    self.predicate_object(retained_object, context);
+                }
                 self.predicate_elements(&predicate.elements, context);
             }
             Predicate::Proform(_) => {}

@@ -870,6 +870,7 @@ pub(super) fn accepts_predicate_prefix(
         indirect_object,
         phase,
         frame,
+        passive,
         ..
     } = features
     else {
@@ -896,7 +897,12 @@ pub(super) fn accepts_predicate_prefix(
             }
         }
         RuleTag::VerbPhraseIndirectObject => {
-            *phase == PredicateAttachmentPhase::Object
+            // An indirect object is a literal dependent NP; under a
+            // recipient-passive frame the recipient is the promoted subject,
+            // never a further explicit indirect object, so the passive never
+            // predicts this rule regardless of frame.
+            !*passive
+                && *phase == PredicateAttachmentPhase::Object
                 && *object == PredicateObjectState::None
                 && !*indirect_object
                 && frame.indirect_object().accepts()
@@ -1052,7 +1058,17 @@ fn reduce_predicate(
             let passive = *child_passive
                 || (auxiliary.auxiliary == Auxiliary::Be
                     && *child_form == PredicateForm::PastParticiple);
-            if passive && object.has_direct_object() {
+            // A direct object survives passivization only under a
+            // recipient-passive frame (the retained theme); every other frame
+            // keeps the blanket ban. An indirect-object DEPENDENT (a literal
+            // NP, as opposed to the frame-level promotion) is never valid
+            // under any passive: the recipient-passive's indirect-object
+            // requirement is satisfied by the promotion itself, never by a
+            // further explicit indirect object.
+            if passive
+                && (*indirect_object
+                    || (object.has_direct_object() && !frame.is_recipient_passive()))
+            {
                 return None;
             }
             let subjunctive = *child_subjunctive
@@ -1327,7 +1343,14 @@ fn extend_predicate(
     if !licensed {
         return None;
     }
+    // A recipient-passive frame retains its theme post-verbally, so a direct
+    // object may attach under it in the passive; every other frame keeps the
+    // blanket ban (an ordinary passive's promoted subject IS the theme, so a
+    // further direct object is never a coherent reading).
+    let direct_object_attaches_under_passive =
+        matches!(attachment, PredicateAttachment::DirectObject) && frame.is_recipient_passive();
     if *passive
+        && !direct_object_attaches_under_passive
         && !matches!(
             attachment,
             PredicateAttachment::Adjunct
@@ -1447,10 +1470,23 @@ fn predicate_arguments_complete(
     indirect_object: bool,
     selected_preposition: bool,
 ) -> bool {
+    // A recipient-passive frame exists only to license the passive; it must
+    // never be selectable in the active, or `deals 2 damage to X` would gain a
+    // spurious double-object reading.
+    if frame.is_recipient_passive() && !passive {
+        return false;
+    }
+    let recipient_passive = passive && frame.is_recipient_passive();
     frame
         .direct_object()
-        .is_satisfied_by(passive || object.has_direct_object())
-        && frame.indirect_object().is_satisfied_by(indirect_object)
+        // Ordinary passivization promotes the direct object; recipient
+        // passivization does not — the theme must still be present, retained.
+        .is_satisfied_by((passive && !recipient_passive) || object.has_direct_object())
+        && frame
+            .indirect_object()
+            // The recipient is the promoted subject, so the indirect-object
+            // requirement is satisfied by the promotion itself.
+            .is_satisfied_by(indirect_object || recipient_passive)
         && frame
             .selected_preposition()
             .is_satisfied_by(selected_preposition)
@@ -1461,6 +1497,9 @@ fn predicate_object_gap_complete(
     indirect_object: bool,
     selected_preposition: bool,
 ) -> bool {
+    if frame.is_recipient_passive() {
+        return false;
+    }
     frame.direct_object().accepts()
         && frame.indirect_object().is_satisfied_by(indirect_object)
         && frame
@@ -4066,12 +4105,27 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
         && pre_object_elements.is_empty()
         && elements.is_empty();
     let predicate = if passive {
-        if object.is_some() {
-            return None;
-        }
+        let retained_object = match object {
+            None => None,
+            Some(object) => {
+                if !phrase.frame.is_recipient_passive() {
+                    return None;
+                }
+                // Surface order is head → retained object → elements. Any
+                // element that landed BEFORE the object would be lost by the
+                // flattening below, so refuse rather than render a reordered
+                // face. No corpus witness exists; if one appears, model the
+                // position explicitly.
+                if !pre_object_elements.is_empty() {
+                    return None;
+                }
+                Some(object)
+            }
+        };
         pre_object_elements.append(&mut elements);
         Predicate::Passive(PassivePredicate {
             head,
+            retained_object,
             elements: pre_object_elements,
         })
     } else if let Some(object) = object {
@@ -7156,6 +7210,122 @@ mod tests {
             "{:#?}",
             parsed.sentence()
         );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn recipient_passive_retains_the_theme_object() {
+        let source = "Activate only if an opponent was dealt damage this turn.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a subordinate `if`");
+        };
+        let [
+            ClauseAttachment {
+                kind: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(_, body)),
+                ..
+            },
+        ] = complex.attachments.as_slice()
+        else {
+            panic!("expected a single subordinate `if` attachment");
+        };
+        let SubordinateBody::Finite(clause) = body else {
+            panic!("expected a finite subordinate clause");
+        };
+        let IndependentClause::Passive(_, predicate) = clause.as_ref() else {
+            panic!("expected a passive clause under the subordinate `if`");
+        };
+        assert!(matches!(
+            &predicate.retained_object,
+            Some(PredicateObject::NounPhrase(NounPhrase::Nominal(damage)))
+                if matches!(damage.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+        ));
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn recipient_passive_temporal_adjunct_is_not_a_retained_object() {
+        // The §4.1 hazard: `this turn` must never be read as the retained
+        // theme even though the recipient-passive frame requires a direct
+        // object. It must land as a `Temporal` adjunct alongside the real
+        // theme, never displace it.
+        let source = "Skarrgan Firebird was dealt damage this turn.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Passive(_, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a passive clause");
+        };
+        assert!(matches!(
+            &predicate.retained_object,
+            Some(PredicateObject::NounPhrase(NounPhrase::Nominal(damage)))
+                if matches!(damage.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+        ));
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn recipient_passive_frame_is_rejected_in_the_active_voice() {
+        // Synthetic: no corpus witness. Pins §2.2's passive-only bail — the
+        // recipient-passive frame must never license a double-object active.
+        let result = parse_nonterminal(
+            "You deal them 2 damage.",
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+        );
+        assert!(result.is_err(), "double-object active must stay unresolved");
+    }
+
+    #[test]
+    fn ordinary_passive_has_no_retained_object() {
+        let source = "Prevented damage is dealt to that creature's controller instead.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Passive(_, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a passive clause");
+        };
+        assert!(predicate.retained_object.is_none());
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn subject_gap_relative_carries_a_recipient_passive() {
+        let source = "Destroy target creature that was dealt damage this turn.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(matrix))) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive imperative");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &matrix.object else {
+            panic!("expected a nominal object");
+        };
+        assert!(matches!(
+            object.complements.as_slice(),
+            [NominalComplement::Relative(RelativeClause {
+                marker: RelativeMarker::That,
+                gap: RelativeGap::Subject,
+                body: RelativeBody::SubjectGap(Predicate::Passive(passive)),
+            })] if passive.retained_object.is_some()
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn present_tense_recipient_passive_parses() {
+        let source = "If a player is dealt damage this way, scry 1.";
+        let parsed = parse(source);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 

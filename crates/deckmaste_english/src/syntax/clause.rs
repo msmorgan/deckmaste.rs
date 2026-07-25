@@ -100,6 +100,12 @@ pub struct IntransitivePredicate {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PassivePredicate {
     pub head: PredicateHead,
+    /// The theme retained post-verbally under recipient passivization: the
+    /// `damage` of `an opponent was dealt damage this turn`. `None` for every
+    /// ordinary passive, where the promoted subject IS the theme. Licensed
+    /// only by a frame whose `is_recipient_passive()` holds, so the field can
+    /// never be populated by a verb that does not lexically take a recipient.
+    pub retained_object: Option<PredicateObject>,
     pub elements: Vec<PredicateElement>,
 }
 
