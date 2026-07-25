@@ -460,6 +460,10 @@ pub struct ModifierCoordination {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdjectivePhrase {
+    /// A numeral degree measure premodifying the head (`2 greater`). A
+    /// premodifier, never a complement: `complements` renders post-head.
+    /// Carries its own notation so `two greater` never renders `2 greater`.
+    pub degree: Option<NumberLiteral>,
     pub head: Adjective,
     pub complements: Vec<AdjectiveComplement>,
 }

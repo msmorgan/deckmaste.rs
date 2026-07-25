@@ -55,6 +55,7 @@ use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
 use crate::syntax::NounPhrase;
 use crate::syntax::NounPhraseConjunction;
+use crate::syntax::NumberLiteral;
 use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
 use crate::syntax::Paragraph;
@@ -1493,7 +1494,10 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn adjective_phrase(&self, phrase: &AdjectivePhrase) -> Result<String, RenderError> {
-        let mut parts = vec![self.adjective_head(&phrase.head)?];
+        let mut parts = adjective_degree(phrase.degree.as_ref())
+            .into_iter()
+            .collect::<Vec<_>>();
+        parts.push(self.adjective_head(&phrase.head)?);
         for complement in &phrase.complements {
             parts.push(self.adjective_complement(complement)?);
         }
@@ -1525,7 +1529,10 @@ impl<'identity> Renderer<'identity> {
         &self,
         phrase: &AdjectivePhrase,
     ) -> Result<(String, Vec<String>), RenderError> {
-        let mut immediate = vec![self.adjective_head(&phrase.head)?];
+        let mut immediate = adjective_degree(phrase.degree.as_ref())
+            .into_iter()
+            .collect::<Vec<_>>();
+        immediate.push(self.adjective_head(&phrase.head)?);
         let mut trailing = Vec::new();
         for complement in &phrase.complements {
             let rendered = self.adjective_complement(complement)?;
@@ -2125,6 +2132,10 @@ fn capitalize_first(text: String) -> String {
     first.to_uppercase().chain(characters).collect()
 }
 
+fn adjective_degree(degree: Option<&NumberLiteral>) -> Option<String> {
+    degree.map(|number| number.numeral.format(number.value))
+}
+
 fn join_words(parts: Vec<String>) -> String {
     parts
         .into_iter()
@@ -2135,6 +2146,7 @@ fn join_words(parts: Vec<String>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::Renderer;
     use crate::Numeral;
     use crate::catalog::CatalogKind;
     use crate::catalog::CatalogSlot;
@@ -2589,6 +2601,7 @@ mod tests {
                 vec![
                     VerbDependent::Scalar(Phrase::OracleSymbol(OracleSymbol::new("{1}").unwrap())),
                     VerbDependent::Adverbial(Phrase::AdjectivePhrase(Box::new(AdjectivePhrase {
+                        degree: None,
                         head: Adjective::Word(Vocab::Less),
                         complements: vec![],
                     }))),
@@ -2675,6 +2688,7 @@ mod tests {
                     NominalModifier::Adjective {
                         polarity: Polarity::Positive,
                         phrase: AdjectivePhrase {
+                            degree: None,
                             head: Adjective::Word(Vocab::Other),
                             complements: vec![],
                         },
@@ -2892,6 +2906,7 @@ mod tests {
                 THIRD_SINGULAR_PRESENT,
                 vec![VerbDependent::PredicateComplement(Phrase::AdjectivePhrase(
                     Box::new(AdjectivePhrase {
+                        degree: None,
                         head: Adjective::Word(Vocab::Equal),
                         complements: vec![AdjectiveComplement::Prepositional(
                             PrepositionalPhrase {
@@ -3258,6 +3273,58 @@ mod tests {
             value,
             numeral: Numeral::Cardinal,
         }
+    }
+
+    fn degcmp_arabic(value: i32) -> NumberLiteral {
+        NumberLiteral {
+            value,
+            numeral: Numeral::Arabic(false),
+        }
+    }
+
+    #[test]
+    fn adjective_phrase_renders_a_degree_measure_before_the_head() {
+        // RB1: predicative path, notation-fidelity pin (design point 3).
+        let renderer = Renderer::new("Test Card", false);
+        let greater = || Adjective::Word(Vocab::Greater);
+        let arabic_phrase = AdjectivePhrase {
+            degree: Some(degcmp_arabic(2)),
+            head: greater(),
+            complements: vec![],
+        };
+        assert_eq!(
+            renderer.adjective_phrase(&arabic_phrase).unwrap(),
+            "2 greater"
+        );
+        let cardinal_phrase = AdjectivePhrase {
+            degree: Some(cardinal(2)),
+            head: greater(),
+            complements: vec![],
+        };
+        assert_eq!(
+            renderer.adjective_phrase(&cardinal_phrase).unwrap(),
+            "two greater"
+        );
+    }
+
+    #[test]
+    fn nominal_modifier_adjective_renders_a_degree_measure() {
+        // RB2: attributive path — unreachable from parsing (§2), but the
+        // renderer must not silently drop the field.
+        let renderer = Renderer::new("Test Card", false);
+        let phrase = AdjectivePhrase {
+            degree: Some(degcmp_arabic(2)),
+            head: Adjective::Word(Vocab::Greater),
+            complements: vec![AdjectiveComplement::PostnominalComparison(
+                ComparisonComplement {
+                    marker: ComparisonMarker::Than,
+                    standard: Box::new(Phrase::NumberLiteral(cardinal(1))),
+                },
+            )],
+        };
+        let (immediate, trailing) = renderer.nominal_modifier_adjective(&phrase).unwrap();
+        assert_eq!(immediate, "2 greater");
+        assert_eq!(trailing, vec!["than one".to_string()]);
     }
 
     fn strict_predicate(phrase: VerbPhrase) -> Predicate {

@@ -77,6 +77,7 @@ use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
 use crate::syntax::VerbParticle;
 use crate::word::Adjective;
+use crate::word::AdjectiveComparisonClass;
 use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
@@ -426,8 +427,18 @@ pub(crate) enum NominalAttachmentPhase {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum AdjectiveComparisonState {
     NotComparative,
-    Pending,
+    /// Awaiting a `… than X` complement. The class records which vocabulary
+    /// comparison produced it: only `OrComparative` (`less`/`fewer`/`greater`/
+    /// `more`) admits a numeral degree measure; `ThanOnly` (`other`) must not
+    /// — round `copsubj` Stage B fired on `three other creatures` because this
+    /// distinction was erased here.
+    Pending(AdjectiveComparisonClass),
     Complete,
+    /// Completed by a numeral degree premodifier (`2 greater`). A distinct
+    /// completion class, not `Complete`: it is **predicative only**, and every
+    /// attributive/coordinating consumer below rejects it. Keeping it a
+    /// separate variant makes the compiler force that audit at each match.
+    Measured,
 }
 
 /// What a scanned copula constrains. `Indicative` carries the exact
@@ -891,6 +902,7 @@ impl NegatedModifierKey {
             NegatedBase::Adjective(adjective) => NominalModifier::Adjective {
                 polarity,
                 phrase: AdjectivePhrase {
+                    degree: None,
                     head: adjective.clone(),
                     complements: Vec::new(),
                 },
@@ -940,6 +952,7 @@ enum RuleTag {
     AdjectivePhraseFaceUp,
     AdjectivePhraseFaceDown,
     AdjectivePhraseComparison,
+    AdjectivePhraseDegreeMeasure,
     ComparisonStandard,
     ComparisonThan,
     ComparisonThanOrEqualTo,
@@ -2937,6 +2950,16 @@ impl RuleBuilder {
             N::AdjectivePhrase,
             [n(N::Adjective), n(N::ComparisonComplement)],
         );
+        // `2 greater` / `two greater`: a numeral degree premodifier on an
+        // `OrComparative` adjective. Predicative only — see
+        // `AdjectiveComparisonState::Measured`.
+        for notation in [Numeral::Cardinal, Numeral::Arabic(false)] {
+            self.add(
+                RuleTag::AdjectivePhraseDegreeMeasure,
+                N::AdjectivePhrase,
+                [l(L::Number(notation)), n(N::Adjective)],
+            );
+        }
         self.add(RuleTag::Noun, N::Noun, [l(L::Noun(NounUsage::Either))]);
         self.add(
             RuleTag::PossessiveNounBase,
@@ -3693,10 +3716,13 @@ fn adjective_initial_sound(adjective: &Adjective) -> Option<InitialSound> {
 fn adjective_comparison_state(adjective: &Adjective) -> AdjectiveComparisonState {
     match adjective {
         // Comparison capability is vocabulary metadata (`Vocab::comparison`),
-        // not a spelling match: every comparison-capable adjective
-        // (`less`/`fewer`/`greater`/`more`/`other`) awaits a `… than X`
-        // complement.
-        Adjective::Word(word) if word.comparison().is_some() => AdjectiveComparisonState::Pending,
+        // not a spelling match; the class it carries decides which completions
+        // are legal (see `AdjectiveComparisonState`).
+        Adjective::Word(word) => word
+            .comparison()
+            .map_or(AdjectiveComparisonState::NotComparative, |comparison| {
+                AdjectiveComparisonState::Pending(comparison.class())
+            }),
         _ => AdjectiveComparisonState::NotComparative,
     }
 }
@@ -3773,6 +3799,7 @@ fn reduce(
         | RuleTag::AdjectivePhraseFaceUp
         | RuleTag::AdjectivePhraseFaceDown
         | RuleTag::AdjectivePhraseComparison
+        | RuleTag::AdjectivePhraseDegreeMeasure
         | RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
         | RuleTag::ComparisonThanOrEqualTo
@@ -4095,7 +4122,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
         RuleTag::AdjectivePhraseComparison => {
             let Features::Adjective {
                 initial_sound,
-                comparison: AdjectiveComparisonState::Pending,
+                comparison: AdjectiveComparisonState::Pending(_),
                 card_orientation,
             } = children.first()?.features
             else {
@@ -4105,6 +4132,31 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 initial_sound: *initial_sound,
                 comparison: AdjectiveComparisonState::Complete,
                 card_orientation: *card_orientation,
+            })
+        }
+        RuleTag::AdjectivePhraseDegreeMeasure => {
+            let Features::Number { .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::Adjective {
+                initial_sound,
+                // Only the `N or <word>` comparison class takes a degree
+                // measure; `other` (`ThanOnly`) must not — see
+                // `AdjectiveComparisonState`.
+                comparison:
+                    AdjectiveComparisonState::Pending(AdjectiveComparisonClass::OrComparative),
+                card_orientation: false,
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            Some(Features::Adjective {
+                // Inert: `Measured` never reaches an article-bearing position
+                // (`nominal_with_prefix` rejects it), so this is carried, not
+                // used.
+                initial_sound: *initial_sound,
+                comparison: AdjectiveComparisonState::Measured,
+                card_orientation: false,
             })
         }
         RuleTag::ComparisonStandard
@@ -4352,6 +4404,12 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
         RuleTag::NominalPostpositiveAdjective => {
             let Features::Adjective {
                 card_orientation: false,
+                // Everything but `Measured`: a degree phrase must not land
+                // postnominally (`creature 2 greater`).
+                comparison:
+                    AdjectiveComparisonState::NotComparative
+                    | AdjectiveComparisonState::Complete
+                    | AdjectiveComparisonState::Pending(_),
                 ..
             } = children.get(1)?.features
             else {
@@ -4386,7 +4444,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 determined,
                 leading_opacity,
                 attachment: NominalAttachmentPhase::Open | NominalAttachmentPhase::Prepositional,
-                comparison: AdjectiveComparisonState::Pending,
+                comparison: AdjectiveComparisonState::Pending(_),
                 adjunct,
             } = children.first()?.features
             else {
@@ -4800,10 +4858,15 @@ fn nominal_with_prefix(
         return None;
     }
     let comparison = match (prefix_comparison, *comparison) {
-        (AdjectiveComparisonState::Pending, AdjectiveComparisonState::NotComparative) => {
-            AdjectiveComparisonState::Pending
+        // `Measured` is predicative-only: reject it attributively in either
+        // position.
+        (AdjectiveComparisonState::Measured, _) | (_, AdjectiveComparisonState::Measured) => {
+            return None;
         }
-        (AdjectiveComparisonState::Pending, _) => return None,
+        (AdjectiveComparisonState::Pending(class), AdjectiveComparisonState::NotComparative) => {
+            AdjectiveComparisonState::Pending(class)
+        }
+        (AdjectiveComparisonState::Pending(_), _) => return None,
         (AdjectiveComparisonState::NotComparative | AdjectiveComparisonState::Complete, state) => {
             state
         }
@@ -5233,6 +5296,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::AdjectivePhraseFaceUp
         | RuleTag::AdjectivePhraseFaceDown
         | RuleTag::AdjectivePhraseComparison
+        | RuleTag::AdjectivePhraseDegreeMeasure
         | RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
         | RuleTag::ComparisonThanOrEqualTo
@@ -5503,6 +5567,7 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 _ => return None,
             };
             Some(Lowered::AdjectivePhrase(AdjectivePhrase {
+                degree: None,
                 head: Adjective::CardOrientation(orientation),
                 complements: Vec::new(),
             }))
@@ -5512,6 +5577,7 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             Some(Lowered::AdjectivePhrase(AdjectivePhrase {
+                degree: None,
                 head,
                 complements: Vec::new(),
             }))
@@ -5524,8 +5590,22 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             Some(Lowered::AdjectivePhrase(AdjectivePhrase {
+                degree: None,
                 head,
                 complements: vec![crate::syntax::AdjectiveComplement::Comparison(comparison)],
+            }))
+        }
+        RuleTag::AdjectivePhraseDegreeMeasure => {
+            let Lowered::Number(number) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Adjective(head) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::AdjectivePhrase(AdjectivePhrase {
+                degree: Some(number.literal()),
+                head,
+                complements: Vec::new(),
             }))
         }
         RuleTag::ComparisonStandard => {
@@ -5730,14 +5810,16 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 else {
                     return None;
                 };
-                (adjective_comparison_state(&adjective.head) == AdjectiveComparisonState::Pending
-                    && !adjective.complements.iter().any(|complement| {
-                        matches!(
-                            complement,
-                            crate::syntax::AdjectiveComplement::Comparison(_)
-                                | crate::syntax::AdjectiveComplement::PostnominalComparison(_)
-                        )
-                    }))
+                (matches!(
+                    adjective_comparison_state(&adjective.head),
+                    AdjectiveComparisonState::Pending(_)
+                ) && !adjective.complements.iter().any(|complement| {
+                    matches!(
+                        complement,
+                        crate::syntax::AdjectiveComplement::Comparison(_)
+                            | crate::syntax::AdjectiveComplement::PostnominalComparison(_)
+                    )
+                }))
                 .then_some(adjective)
             })?;
             adjective

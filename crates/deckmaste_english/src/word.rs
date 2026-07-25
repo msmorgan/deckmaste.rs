@@ -553,6 +553,23 @@ pub(crate) enum AdjectiveComparison {
     ThanOnly,
 }
 
+/// Which comparison class produced a comparison-pending adjective. Derived
+/// from the per-`Vocab` comparison metadata, never from a spelling match.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum AdjectiveComparisonClass {
+    OrComparative,
+    ThanOnly,
+}
+
+impl AdjectiveComparison {
+    pub(crate) const fn class(self) -> AdjectiveComparisonClass {
+        match self {
+            Self::OrComparative(_) => AdjectiveComparisonClass::OrComparative,
+            Self::ThanOnly => AdjectiveComparisonClass::ThanOnly,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct VocabDefinition {
     spelling: &'static str,

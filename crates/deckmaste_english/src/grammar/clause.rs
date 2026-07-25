@@ -4397,6 +4397,173 @@ mod tests {
         }
     }
 
+    // --- round `degcmp`: degree-measured comparative (`its power were 2 greater`)
+    // ---
+
+    #[test]
+    fn as_though_licenses_a_degree_measured_comparative() {
+        // PB1 (Hotshot Mechanic).
+        let source = "This creature crews Vehicles as though its power were 2 greater.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn as_though_degree_measure_under_a_coordinated_matrix() {
+        // PB2 (Cloudspire Captain).
+        let source =
+            "This creature saddles Mounts and crews Vehicles as though its power were 2 greater.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn as_though_degree_measure_in_an_embedded_rules_face() {
+        // PB3 (the 13-row embedded-rules shape, e.g. Back on Track).
+        let source =
+            "This token saddles Mounts and crews Vehicles as though its power were 2 greater.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn degree_measured_comparative_structural_shape() {
+        // PB4: tree pin.
+        use crate::Numeral;
+        use crate::syntax::CopularComplement;
+        use crate::syntax::NumberLiteral;
+        use crate::word::Auxiliary;
+        use crate::word::AuxiliaryInflection;
+        use crate::word::Vocab;
+        let source = "This creature crews Vehicles as though its power were 2 greater.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause: {:#?}", parsed.sentence());
+        };
+        let [attachment] = complex.attachments.as_slice() else {
+            panic!("expected exactly one trailing attachment: {complex:#?}");
+        };
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            crate::syntax::Subordinator::AsThough,
+            SubordinateBody::Finite(body),
+        )) = &attachment.kind
+        else {
+            panic!("expected an as-though finite attachment: {attachment:#?}");
+        };
+        let IndependentClause::Copular(_, predicate) = body.as_ref() else {
+            panic!("expected a copular as-though body: {body:#?}");
+        };
+        assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
+        assert_eq!(
+            predicate.copula.auxiliary.inflection,
+            AuxiliaryInflection::PastSubjunctive
+        );
+        let CopularComplement::Adjective(adjective) = &predicate.complement else {
+            panic!("expected an adjective complement: {predicate:#?}");
+        };
+        assert_eq!(
+            adjective.degree,
+            Some(NumberLiteral {
+                value: 2,
+                numeral: Numeral::Arabic(false),
+            })
+        );
+        assert_eq!(adjective.head, crate::word::Adjective::Word(Vocab::Greater));
+        assert!(adjective.complements.is_empty());
+    }
+
+    #[test]
+    fn numeral_before_a_than_only_adjective_is_not_a_degree_phrase() {
+        // NB1: the round-`copsubj` regression, tree-verified (Eleshnorn, the
+        // Gargantuan Sacrifice three other creatures host).
+        let source = "Sacrifice three other creatures.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        let rendered = render_sentence(parsed.sentence().unwrap());
+        assert_eq!(rendered, source, "{source}");
+        assert!(rendered.contains("three"), "{rendered}");
+        assert!(!rendered.contains(" 3 "), "{rendered}");
+
+        let SentenceBody::Independent(IndependentClause::Imperative(predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected an imperative body: {:#?}", parsed.sentence());
+        };
+        let object = match predicate {
+            crate::syntax::Predicate::Transitive(predicate) => &predicate.object,
+            other => panic!("expected a transitive predicate: {other:#?}"),
+        };
+        let crate::syntax::PredicateObject::NounPhrase(crate::syntax::NounPhrase::Nominal(nominal)) =
+            object
+        else {
+            panic!("expected a nominal object: {object:#?}");
+        };
+        let [crate::syntax::NominalModifier::Adjective { phrase, .. }] =
+            nominal.modifiers.as_slice()
+        else {
+            panic!("expected a single adjective modifier: {nominal:#?}");
+        };
+        assert!(
+            phrase.degree.is_none(),
+            "the `other` modifier must not carry a degree measure: {phrase:#?}"
+        );
+    }
+
+    #[test]
+    fn numeral_before_an_or_comparative_stays_attributive() {
+        // NB2: the shapes an `OrComparative`-only guard would still swallow.
+        // These are already resolved at baseline (attributive quantity +
+        // adjective modifier, an existing pathway unrelated to
+        // `AdjectiveComparisonState`); this round must not divert them
+        // through the new degree-measure production. `degree_leaks` walks
+        // the debug tree text as a coarse but exhaustive fidelity check: a
+        // `degree: Some` anywhere would mean the new rule mis-fired.
+        for source in [
+            "Repeat this process two more times.",
+            "You can cast only one more spell this turn.",
+            "If life was paid, this planeswalker enters with two fewer loyalty counters.",
+        ] {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence)
+                .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+            let tree = format!("{:#?}", parsed.sentence());
+            assert!(
+                !tree.contains("degree: Some"),
+                "{source} must not carry a degree measure: {tree}"
+            );
+        }
+    }
+
+    #[test]
+    fn elenda_at_least_n_greater_stays_unresolved() {
+        // NB3: corpus-level pin — out of scope (§8), must stay unresolved.
+        let source = "Elenda gets an additional +5/+5 as long as your life total is at least 10 greater than your starting life total.";
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+        assert!(parsed.is_err(), "{source} must remain unresolved");
+    }
+
     #[test]
     fn where_body_prefers_possessive_self_reference_over_a_vocab_noun() {
         // Regression for `Fang, Roku's Companion`: the where-body `X is Fang's
@@ -5411,6 +5578,7 @@ mod tests {
             predicate.elements.as_slice(),
             [PredicateElement::Complement(PredicateComplement::Adjective(
                 AdjectivePhrase {
+                    degree: None,
                     head: Adjective::CardOrientation(crate::word::CardOrientation::FaceDown),
                     complements,
                 }
@@ -6200,9 +6368,13 @@ mod tests {
                 CatalogKind::KeywordAbility,
                 ["Flying", "Haste", "Flash", "Defender", "Hexproof"],
             )
-            .with_catalog(CatalogKind::CreatureType, ["Goblin"])
+            .with_catalog(CatalogKind::CreatureType, ["Goblin", "Mount"])
             .with_catalog(CatalogKind::LandType, ["Plains"])
-            .with_catalog(CatalogKind::CardType, ["Creature", "Land", "Sorcery"])
+            .with_catalog(
+                CatalogKind::CardType,
+                ["Creature", "Land", "Sorcery", "Planeswalker"],
+            )
+            .with_catalog(CatalogKind::ArtifactType, ["Vehicle"])
     }
 
     fn finite(sentence: &Sentence) -> (&Subject, &crate::syntax::PredicateHead) {

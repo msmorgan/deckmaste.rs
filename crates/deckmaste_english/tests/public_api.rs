@@ -522,8 +522,9 @@ fn attributive_other_stays_an_adjective_not_a_noun_modifier() {
     assert_eq!(rendered, source);
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
     assert!(
-        compact(&ast)
-            .contains("Adjective{polarity:Positive,phrase:AdjectivePhrase{head:Word(Other,)"),
+        compact(&ast).contains(
+            "Adjective{polarity:Positive,phrase:AdjectivePhrase{degree:None,head:Word(Other,)"
+        ),
         "expected `other` as an adjective modifier\nAST:\n{ast}"
     );
     assert!(

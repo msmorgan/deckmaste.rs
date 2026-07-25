@@ -447,6 +447,7 @@ mod tests {
         let solid_modifier = NominalModifier::Adjective {
             polarity: Polarity::Negative,
             phrase: AdjectivePhrase {
+                degree: None,
                 head: Adjective::Color(ColorWord::Black),
                 complements: vec![],
             },
@@ -776,8 +777,13 @@ mod tests {
             let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
                 panic!("expected a nominal phrase for {source:?}");
             };
-            let [NominalComplement::Adjective(AdjectivePhrase { head, complements })] =
-                nominal.complements.as_slice()
+            let [
+                NominalComplement::Adjective(AdjectivePhrase {
+                    head,
+                    complements,
+                    degree: None,
+                }),
+            ] = nominal.complements.as_slice()
             else {
                 panic!("expected one postpositive adjective for {source:?}: {nominal:#?}");
             };
