@@ -786,6 +786,7 @@ impl<'identity> Renderer<'identity> {
             ClauseAttachmentKind::Dependent(clause) => self.dependent_clause(clause),
             ClauseAttachmentKind::Adjunct(adjunct) => self.predicate_adjunct(adjunct),
             ClauseAttachmentKind::Exception(rider) => self.exception_rider(rider),
+            ClauseAttachmentKind::Restriction(run) => self.restriction_run(run),
             ClauseAttachmentKind::Appositive(clause) => {
                 // The spaced ` — ` is fixed for this attachment: the enclosing
                 // clause loop contributes the leading space, and this arm emits
@@ -813,6 +814,39 @@ impl<'identity> Renderer<'identity> {
                 rendered.push(' ');
             }
             rendered.push_str(&self.independent_clause(&conjunct.clause)?);
+        }
+        Ok(rendered)
+    }
+
+    fn restriction_run(&self, run: &crate::syntax::RestrictionRun) -> Result<String, RenderError> {
+        let mut rendered = String::from("only ");
+        rendered.push_str(&self.restriction_member(&run.first)?);
+        for member in &run.rest {
+            if member.comma {
+                rendered.push(',');
+            }
+            if member.conjunction.is_some() {
+                rendered.push(' ');
+                rendered.push_str(render_predicate_conjunction(
+                    member.conjunction.expect("checked Some above"),
+                ));
+            }
+            rendered.push_str(" only ");
+            rendered.push_str(&self.restriction_member(&member.adjuncts)?);
+        }
+        Ok(rendered)
+    }
+
+    /// Renders a restriction member's adjunct sequence, space-joined — the
+    /// same spacing the flat `elements` list already uses between adjacent
+    /// adjuncts (e.g. the `once` adverb followed by the `each turn` temporal).
+    fn restriction_member(&self, adjuncts: &[PredicateAdjunct]) -> Result<String, RenderError> {
+        let mut rendered = String::new();
+        for (index, adjunct) in adjuncts.iter().enumerate() {
+            if index > 0 {
+                rendered.push(' ');
+            }
+            rendered.push_str(&self.predicate_adjunct(adjunct)?);
         }
         Ok(rendered)
     }
@@ -1840,6 +1874,13 @@ fn complex_ends_with_closed_quote(clause: &ComplexClause) -> bool {
             ClauseAttachmentKind::Exception(rider) => match rider.rest.last() {
                 Some(conjunct) => independent_clause_ends_with_closed_quote(&conjunct.clause),
                 None => independent_clause_ends_with_closed_quote(&rider.first),
+            },
+            ClauseAttachmentKind::Restriction(run) => match run.rest.last() {
+                Some(member) => member
+                    .adjuncts
+                    .last()
+                    .is_some_and(adjunct_ends_with_closed_quote),
+                None => run.first.last().is_some_and(adjunct_ends_with_closed_quote),
             },
             ClauseAttachmentKind::Appositive(clause) => {
                 independent_clause_ends_with_closed_quote(clause)

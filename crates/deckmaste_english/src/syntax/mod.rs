@@ -294,6 +294,16 @@ impl<'syntax> RecoveryWalker<'syntax> {
                                 self.independent_clause(&conjunct.clause, context);
                             }
                         }
+                        ClauseAttachmentKind::Restriction(run) => {
+                            for adjunct in &run.first {
+                                self.predicate_adjunct(adjunct, context);
+                            }
+                            for member in &run.rest {
+                                for adjunct in &member.adjuncts {
+                                    self.predicate_adjunct(adjunct, context);
+                                }
+                            }
+                        }
                         ClauseAttachmentKind::Appositive(clause) => {
                             self.independent_clause(clause, context);
                         }

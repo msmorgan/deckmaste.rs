@@ -32,6 +32,8 @@ use crate::syntax::PredicateObjectCoordination;
 use crate::syntax::ProPredicate;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeMarker;
+use crate::syntax::RestrictionCoordination;
+use crate::syntax::RestrictionRun;
 use crate::syntax::SentenceBody;
 use crate::syntax::SubordinateBody;
 
@@ -597,6 +599,89 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
             n(N::ExceptionRider),
         ],
     );
+
+    // A trailing run of two or more coordinated `only …` timing restrictions.
+    // The member nonterminal admits exactly the shapes attested in the
+    // corpus (verified by probe, `restrict-members.txt`): a prepositional
+    // restriction (`only as a sorcery`, `only during your turn`), an `if`
+    // restriction (`only if <clause>` — the first live construction of
+    // `PredicateAdjunct::Dependent`), and the flat `once`/`once each turn`
+    // frequency pair, which the existing grammar already lowers as a bare
+    // adverb optionally followed by a `Temporal` noun phrase rather than as
+    // one combined nonterminal (`restrict-probe2b.txt`) — hence the member
+    // carries a small `Vec<PredicateAdjunct>`, not a single adjunct.
+    builder.add(
+        RuleTag::ClauseRestrictionMember,
+        N::RestrictionMember,
+        [l(L::Adverb), n(N::PrepositionalPhrase)],
+    );
+    builder.add(
+        RuleTag::ClauseRestrictionMember,
+        N::RestrictionMember,
+        [l(L::Adverb), l(L::Subordinator), n(N::Clause)],
+    );
+    builder.add(
+        RuleTag::ClauseRestrictionMember,
+        N::RestrictionMember,
+        [l(L::Adverb), l(L::Adverb)],
+    );
+    builder.add(
+        RuleTag::ClauseRestrictionMember,
+        N::RestrictionMember,
+        [l(L::Adverb), l(L::Adverb), n(N::NounPhrase)],
+    );
+    // The run itself: a two-member base joined by a bare `and` (the only
+    // licensed two-member spelling — a two-member Oxford comma is not
+    // attested and must keep failing, §6 test 11), then asyndetic-comma and
+    // Oxford-comma growth, mirroring `ExceptionRider`'s fold shape. Finally,
+    // the closed run attaches `AfterMatrix` onto a complete host clause. All
+    // five productions share this tag; `reduce_clause`/`lower_clause`
+    // disambiguate by arity and child type.
+    builder.add(
+        RuleTag::ClauseRestrictionRun,
+        N::RestrictionRun,
+        [
+            n(N::RestrictionMember),
+            l(L::Conjunction),
+            n(N::RestrictionMember),
+        ],
+    );
+    // The comma-joined two-member base — the first interior pair of a
+    // 3+-member Oxford run (`only X, only Y, and only Z`), which has no bare
+    // `and` between its first two members.
+    builder.add(
+        RuleTag::ClauseRestrictionRun,
+        N::RestrictionRun,
+        [
+            n(N::RestrictionMember),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::RestrictionMember),
+        ],
+    );
+    builder.add(
+        RuleTag::ClauseRestrictionRun,
+        N::RestrictionRun,
+        [
+            n(N::RestrictionRun),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::RestrictionMember),
+        ],
+    );
+    builder.add(
+        RuleTag::ClauseRestrictionRun,
+        N::RestrictionRun,
+        [
+            n(N::RestrictionRun),
+            l(L::Punctuation(Punctuation::Comma)),
+            l(L::Conjunction),
+            n(N::RestrictionMember),
+        ],
+    );
+    builder.add(
+        RuleTag::ClauseRestrictionRun,
+        N::Clause,
+        [n(N::Clause), n(N::RestrictionRun)],
+    );
 }
 
 pub(super) fn reduce_clause(
@@ -718,6 +803,8 @@ pub(super) fn reduce_clause(
         | RuleTag::ExceptionRiderComma
         | RuleTag::ExceptionRiderOxford
         | RuleTag::ClauseExcepted
+        | RuleTag::ClauseRestrictionMember
+        | RuleTag::ClauseRestrictionRun
         | RuleTag::Sentence => reduce_composed_clause(tag, children),
         _ => None,
     }
@@ -2065,6 +2152,74 @@ fn reduce_composed_clause(
                 subjunctive: false,
             })
         }
+        RuleTag::ClauseRestrictionMember => {
+            if children.len() == 3 {
+                // `[only, Subordinator, Clause]` — the `if`-clause member.
+                if let Features::Clause {
+                    standalone: true, ..
+                } = children.get(2)?.features
+                {
+                    return Some(Features::RestrictionMember);
+                }
+            }
+            // `[only, Prepositional]`, `[only, Adverb]`, `[only, Adverb,
+            // NounPhrase]` — no cross-child feature agreement needed; the
+            // grammatical shape alone licenses these.
+            Some(Features::RestrictionMember)
+        }
+        RuleTag::ClauseRestrictionRun => {
+            match children.len() {
+                2 => {
+                    // The `[Clause, RestrictionRun]` attachment.
+                    let Features::Clause {
+                        agreement,
+                        standalone: true,
+                        finite,
+                        host_addressee_subject,
+                        host_modal,
+                        subjunctive,
+                    } = children.first()?.features
+                    else {
+                        return None;
+                    };
+                    if *subjunctive {
+                        return None;
+                    }
+                    if !matches!(children.get(1)?.features, Features::RestrictionRun) {
+                        return None;
+                    }
+                    Some(Features::Clause {
+                        agreement: *agreement,
+                        standalone: true,
+                        finite: *finite,
+                        host_addressee_subject: *host_addressee_subject,
+                        host_modal: *host_modal,
+                        subjunctive: false,
+                    })
+                }
+                3 => {
+                    // `[Member, Conjunction, Member]` (base pair) or
+                    // `[Run, Comma, Member]` (asyndetic growth).
+                    let first_ok = matches!(
+                        children.first()?.features,
+                        Features::RestrictionMember | Features::RestrictionRun
+                    );
+                    let last_ok = matches!(children.last()?.features, Features::RestrictionMember);
+                    if first_ok && last_ok { Some(Features::RestrictionRun) } else { None }
+                }
+                4 => {
+                    // `[Run, Comma, Conjunction, Member]` (Oxford growth).
+                    if !matches!(children.first()?.features, Features::RestrictionRun) {
+                        return None;
+                    }
+                    if !matches!(children.last()?.features, Features::RestrictionMember) {
+                        return None;
+                    }
+                    Some(Features::RestrictionRun)
+                }
+                _ => None,
+            }
+        }
         RuleTag::Sentence => {
             let Features::Clause {
                 standalone: true,
@@ -2343,6 +2498,8 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ExceptionRiderComma
         | RuleTag::ExceptionRiderOxford
         | RuleTag::ClauseExcepted
+        | RuleTag::ClauseRestrictionMember
+        | RuleTag::ClauseRestrictionRun
         | RuleTag::Sentence => lower_composed_clause(tag, children),
         _ => None,
     }
@@ -3322,6 +3479,143 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 ),
             )))
         }
+        RuleTag::ClauseRestrictionMember => {
+            let Lowered::Adverb(only) = take(children, 0)? else {
+                return None;
+            };
+            // A bare `only only` (nesting) is unrepresentable: the member
+            // payload is never itself the `only` adverb.
+            if only != crate::word::Vocab::Only {
+                return None;
+            }
+            let adjuncts = match (children.len(), take(children, 1)?) {
+                (2, Lowered::PrepositionalPhrase(preposition)) => {
+                    vec![PredicateAdjunct::Prepositional(preposition)]
+                }
+                (2, Lowered::Adverb(word)) => {
+                    if word.spelling() != "once" {
+                        return None;
+                    }
+                    vec![PredicateAdjunct::Adverb(word)]
+                }
+                (3, Lowered::Subordinator(subordinator)) => {
+                    if subordinator != crate::syntax::Subordinator::If {
+                        return None;
+                    }
+                    let Lowered::Clause(Clause::Independent(condition)) = take(children, 2)? else {
+                        return None;
+                    };
+                    vec![PredicateAdjunct::Dependent(Box::new(
+                        DependentClause::Subordinate(
+                            crate::syntax::Subordinator::If,
+                            SubordinateBody::Finite(Box::new(condition)),
+                        ),
+                    ))]
+                }
+                (3, Lowered::Adverb(word)) => {
+                    if word.spelling() != "once" {
+                        return None;
+                    }
+                    let Lowered::NounPhrase(temporal) = take(children, 2)? else {
+                        return None;
+                    };
+                    vec![
+                        PredicateAdjunct::Adverb(word),
+                        PredicateAdjunct::Temporal(temporal),
+                    ]
+                }
+                _ => return None,
+            };
+            Some(Lowered::RestrictionMember(adjuncts))
+        }
+        RuleTag::ClauseRestrictionRun => match children.len() {
+            2 => {
+                let Lowered::Clause(Clause::Independent(matrix)) = take(children, 0)? else {
+                    return None;
+                };
+                let Lowered::RestrictionRun(run) = take(children, 1)? else {
+                    return None;
+                };
+                Some(Lowered::Clause(Clause::Independent(
+                    with_clause_attachment(
+                        matrix,
+                        ClauseAttachment {
+                            position: AttachmentPosition::AfterMatrix,
+                            comma: false,
+                            kind: ClauseAttachmentKind::Restriction(run),
+                        },
+                    ),
+                )))
+            }
+            3 => match (take(children, 0)?, take(children, 1)?) {
+                (Lowered::RestrictionMember(first), Lowered::Conjunction(conjunction)) => {
+                    // Restrictions are cumulative [CR#601.3,602.5]: only a
+                    // bare `and` joins members. `or`/`then`/`and-or` must keep
+                    // failing.
+                    if conjunction != crate::syntax::PredicateConjunction::And {
+                        return None;
+                    }
+                    let Lowered::RestrictionMember(next) = take(children, 2)? else {
+                        return None;
+                    };
+                    Some(Lowered::RestrictionRun(RestrictionRun {
+                        first,
+                        rest: vec![RestrictionCoordination {
+                            conjunction: Some(conjunction),
+                            comma: false,
+                            adjuncts: next,
+                        }],
+                    }))
+                }
+                (Lowered::RestrictionMember(first), Lowered::Ignored) => {
+                    // The comma-joined two-member base.
+                    let Lowered::RestrictionMember(next) = take(children, 2)? else {
+                        return None;
+                    };
+                    Some(Lowered::RestrictionRun(RestrictionRun {
+                        first,
+                        rest: vec![RestrictionCoordination {
+                            conjunction: None,
+                            comma: true,
+                            adjuncts: next,
+                        }],
+                    }))
+                }
+                (Lowered::RestrictionRun(mut run), Lowered::Ignored) => {
+                    let Lowered::RestrictionMember(next) = take(children, 2)? else {
+                        return None;
+                    };
+                    run.rest.push(RestrictionCoordination {
+                        conjunction: None,
+                        comma: true,
+                        adjuncts: next,
+                    });
+                    Some(Lowered::RestrictionRun(run))
+                }
+                _ => None,
+            },
+            4 => {
+                let Lowered::RestrictionRun(mut run) = take(children, 0)? else {
+                    return None;
+                };
+                let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                    return None;
+                };
+                if conjunction != crate::syntax::PredicateConjunction::And {
+                    return None;
+                }
+                let Lowered::RestrictionMember(next) = take(children, 3)? else {
+                    return None;
+                };
+                run.rest.push(RestrictionCoordination {
+                    conjunction: Some(conjunction),
+                    comma: true,
+                    adjuncts: next,
+                });
+                Some(Lowered::RestrictionRun(run))
+            }
+            _ => None,
+        },
         RuleTag::Sentence => {
             let Lowered::Clause(Clause::Independent(clause)) = take(children, 0)? else {
                 return None;
@@ -3870,6 +4164,7 @@ mod tests {
     use crate::syntax::NounPhrase;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
+    use crate::syntax::PredicateConjunction;
     use crate::syntax::PredicateObject;
     use crate::syntax::RelativeBody;
     use crate::syntax::RelativeMarker;
@@ -4869,6 +5164,312 @@ mod tests {
         ] {
             let parsed = parse(source);
             assert_eq!(render_sentence(parsed.sentence().expect(source)), source);
+        }
+        // §4.2: the base parse of the first sentence is `elements:
+        // [Adverb(Only), Prepositional(During)]` plus an `AfterMatrix` comma
+        // `Dependent(Subordinate(Before, …))` attachment — never a
+        // `Restriction` run (the `and` is absorbed by the subordinate
+        // clause's own adjective coordination, §4.1's hazard).
+        let parsed = parse("Activate only during your turn, before attackers are declared.");
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a complex clause");
+        };
+        let IndependentClause::Imperative(Predicate::Intransitive(predicate)) =
+            complex.matrix.as_ref()
+        else {
+            panic!("expected an imperative intransitive matrix");
+        };
+        assert!(
+            matches!(
+                predicate.elements.as_slice(),
+                [
+                    PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
+                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(_)),
+                ]
+            ),
+            "{:#?}",
+            predicate.elements
+        );
+        assert_eq!(complex.attachments.len(), 1);
+        assert!(
+            matches!(
+                &complex.attachments[0].kind,
+                ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    Subordinator::Before,
+                    _
+                ))
+            ),
+            "{:#?}",
+            complex.attachments[0]
+        );
+    }
+
+    #[test]
+    fn coordinated_only_restrictions_form_one_restriction_attachment() {
+        let source = "Activate only as a sorcery and only once each turn.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a complex clause");
+        };
+        let IndependentClause::Imperative(Predicate::Intransitive(predicate)) =
+            complex.matrix.as_ref()
+        else {
+            panic!("expected an imperative intransitive matrix");
+        };
+        assert!(
+            predicate.elements.is_empty(),
+            "matrix elements must be empty: {:#?}",
+            predicate.elements
+        );
+        assert_eq!(complex.attachments.len(), 1);
+        let attachment = &complex.attachments[0];
+        assert!(!attachment.comma);
+        let ClauseAttachmentKind::Restriction(run) = &attachment.kind else {
+            panic!("expected a Restriction attachment: {attachment:#?}");
+        };
+        assert!(matches!(
+            run.first.as_slice(),
+            [PredicateAdjunct::Prepositional(_)]
+        ));
+        assert_eq!(run.rest.len(), 1);
+        assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
+        assert!(!run.rest[0].comma);
+        assert!(matches!(
+            run.rest[0].adjuncts.as_slice(),
+            [PredicateAdjunct::Adverb(_), PredicateAdjunct::Temporal(_),]
+        ));
+    }
+
+    #[test]
+    fn restriction_run_admits_an_if_clause_member() {
+        // The flagship shape (`Prepositional` first member coordinated with
+        // an `only if` member — what Revision 1's design could not
+        // represent), substituted per §6 test 2's Stage-B-aborted
+        // contingency: Stage B (the `declare attackers/blockers step`
+        // nominal) did not land this round (regression in
+        // `comparison_inside_preposition_stays_with_its_object` — see the
+        // mechanic report), so the 14-dup flagship
+        // (`Cast this spell only during the declare attackers step and only
+        // if you've been attacked this step.`) stays in residue and this
+        // test uses an equivalent Stage-A-only witness instead.
+        let source =
+            "Cast this spell only during your turn and only if you've been attacked this step.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a complex clause");
+        };
+        assert_eq!(complex.attachments.len(), 1);
+        let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+            panic!(
+                "expected a Restriction attachment: {:#?}",
+                complex.attachments[0]
+            );
+        };
+        assert!(matches!(
+            run.first.as_slice(),
+            [PredicateAdjunct::Prepositional(_)]
+        ));
+        assert_eq!(run.rest.len(), 1);
+        assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
+        assert!(!run.rest[0].comma);
+        assert!(matches!(
+            run.rest[0].adjuncts.as_slice(),
+            [PredicateAdjunct::Dependent(dependent)]
+                if matches!(dependent.as_ref(), DependentClause::Subordinate(Subordinator::If, _))
+        ));
+    }
+
+    #[test]
+    fn oxford_restriction_run_carries_member_boundaries() {
+        // Grizzled Wolverine's three-way Oxford run, substituted per §6 test
+        // 3's Stage-B-aborted contingency (see note on the previous test):
+        // the row stays in residue this round.
+        let source =
+            "Activate only during your turn, only if you control a Swamp, and only once each turn.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a complex clause");
+        };
+        let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+            panic!(
+                "expected a Restriction attachment: {:#?}",
+                complex.attachments[0]
+            );
+        };
+        assert_eq!(run.rest.len(), 2);
+        assert_eq!(run.rest[0].conjunction, None);
+        assert!(run.rest[0].comma);
+        assert_eq!(run.rest[1].conjunction, Some(PredicateConjunction::And));
+        assert!(run.rest[1].comma);
+    }
+
+    #[test]
+    fn restriction_runs_host_on_every_matrix() {
+        for source in [
+            "Activate only as a sorcery and only once each turn.",
+            "Activate only during your turn and only if an opponent lost life this turn.",
+            "Activate only once and only if you control a snow Mountain.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+            let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+                &parsed.sentence().unwrap().body
+            else {
+                panic!("expected a complex clause for {source}");
+            };
+            assert!(
+                matches!(
+                    complex.attachments.last().unwrap().kind,
+                    ClauseAttachmentKind::Restriction(_)
+                ),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn single_only_restriction_keeps_its_flat_elements() {
+        for source in [
+            "Activate only as a sorcery.",
+            "Activate only once each turn.",
+        ] {
+            let parsed = parse(source);
+            let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
+                predicate,
+            ))) = &parsed.sentence().unwrap().body
+            else {
+                panic!("expected an imperative intransitive for {source}");
+            };
+            assert!(
+                predicate.elements.iter().all(|element| !matches!(
+                    element,
+                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(_))
+                        | PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))
+                ) || matches!(
+                    element,
+                    PredicateElement::Adjunct(_)
+                )),
+                "{source}: {:#?}",
+                predicate.elements
+            );
+            assert!(
+                matches!(
+                    predicate.elements.first(),
+                    Some(PredicateElement::Adjunct(PredicateAdjunct::Adverb(
+                        Vocab::Only
+                    )))
+                ),
+                "{source}: {:#?}",
+                predicate.elements
+            );
+        }
+    }
+
+    #[test]
+    fn single_only_if_restriction_keeps_its_dependent_attachment() {
+        let source = "Activate only if you control a Swamp.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a complex clause");
+        };
+        let IndependentClause::Imperative(Predicate::Intransitive(predicate)) =
+            complex.matrix.as_ref()
+        else {
+            panic!("expected an imperative intransitive matrix");
+        };
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [PredicateElement::Adjunct(PredicateAdjunct::Adverb(
+                Vocab::Only
+            ))]
+        ));
+        assert_eq!(complex.attachments.len(), 1);
+        assert!(!complex.attachments[0].comma);
+        assert!(matches!(
+            &complex.attachments[0].kind,
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::If, _))
+        ));
+    }
+
+    #[test]
+    fn juxtaposed_only_restrictions_stay_uncoordinated() {
+        let source = "Activate only as a sorcery only once each turn.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
+            predicate,
+        ))) = &parsed.sentence().unwrap().body
+        else {
+            panic!("expected an imperative intransitive, no attachment");
+        };
+        // `only as a sorcery only once each turn` stays five flat elements
+        // (`Only`, `Prepositional(As …)`, `Only`, `Adverb(once)`,
+        // `Temporal(each turn)`) — no coordinator, so no `Restriction` run.
+        assert_eq!(predicate.elements.len(), 5, "{:#?}", predicate.elements);
+    }
+
+    #[test]
+    fn restriction_run_rejects_unlicensed_members_and_conjunctions() {
+        for source in [
+            "Activate only as a sorcery and once each turn.",
+            "Activate and only once each turn.",
+            "Draw a card and only once each turn.",
+            "Activate only as a sorcery or only once each turn.",
+            "Activate only as a sorcery, and only once each turn.",
+        ] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+                "{source} must not parse"
+            );
+        }
+    }
+
+    #[test]
+    fn clause_level_trailing_restriction_conjunct_is_not_licensed() {
+        assert!(
+            parse_nonterminal(
+                "Only your opponents may activate this ability and only as a sorcery.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+            )
+            .is_err()
+        );
+        let source = "Only your opponents may activate this ability.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn restriction_runs_are_unambiguous() {
+        for source in [
+            "Activate only as a sorcery and only once each turn.",
+            "Activate only during your turn, only if you control a Swamp, and only once each turn.",
+        ] {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence)
+                .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+            assert!(
+                parsed.root_tied_alternatives().len() <= 1,
+                "{source} has a real forest tie: {:?}",
+                parsed.root_tied_alternatives()
+            );
         }
     }
 
@@ -6876,7 +7477,7 @@ mod tests {
                 ["Flying", "Haste", "Flash", "Defender", "Hexproof"],
             )
             .with_catalog(CatalogKind::CreatureType, ["Goblin", "Mount"])
-            .with_catalog(CatalogKind::LandType, ["Plains"])
+            .with_catalog(CatalogKind::LandType, ["Plains", "Swamp", "Mountain"])
             .with_catalog(
                 CatalogKind::CardType,
                 ["Creature", "Land", "Sorcery", "Planeswalker"],

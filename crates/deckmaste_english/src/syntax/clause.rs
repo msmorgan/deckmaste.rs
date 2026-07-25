@@ -336,6 +336,44 @@ pub enum ClauseAttachmentKind {
     /// renderer reproduces the ` — ` separator, so the attachment's own `comma`
     /// flag is unused.
     Appositive(Box<IndependentClause>),
+    /// A trailing run of two or more coordinated `only …` timing restrictions
+    /// (`only as a sorcery and only once each turn`). Each member repeats
+    /// `only`, which the shape carries rather than storing an adverb per
+    /// member; the members are independent gates on the action
+    /// [CR#601.3,602.5]. A one-member run never derives — a lone `only X`
+    /// keeps its existing split residence (the `only` adverb in the matrix
+    /// predicate's `elements`, an `if`-clause as its own `Dependent`
+    /// attachment). The attachment's own `comma` flag is always `false`; every
+    /// separator inside the run is carried by [`RestrictionCoordination`].
+    Restriction(RestrictionRun),
+}
+
+/// A coordinated run of `only …` restriction members trailing a host clause.
+/// Mirrors [`ExceptionRider`]'s topology.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RestrictionRun {
+    /// A member's payload: one adjunct for a `Prepositional`/`Dependent`
+    /// member (`only as a sorcery`, `only if …`), **two** for the flat
+    /// `Adverb + Temporal` pair the existing grammar already uses for `once
+    /// each turn` (`Activate only once each turn.` lowers to two sibling
+    /// elements today — verified by probe, not assumed — so a coordinated
+    /// `only once each turn` member must carry both to round-trip). Never
+    /// empty.
+    pub first: Vec<PredicateAdjunct>,
+    /// Never empty: the run exists only when a coordinator joins two or more
+    /// members. Mirrors [`ExceptionRider::rest`].
+    pub rest: Vec<RestrictionCoordination>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RestrictionCoordination {
+    /// `None` on the asyndetic comma-separated interior members of an Oxford
+    /// list; `Some(PredicateConjunction::And)` on a bare `and` member and on
+    /// the final Oxford member. Mirrors [`ExceptionConjunct`].
+    pub conjunction: Option<PredicateConjunction>,
+    pub comma: bool,
+    /// See [`RestrictionRun::first`] for why this is a (non-empty) list.
+    pub adjuncts: Vec<PredicateAdjunct>,
 }
 
 /// A coordinated list of exception clauses trailing a host clause under a

@@ -241,6 +241,13 @@ pub(crate) enum Nonterminal {
     /// finite-clause coordination never competes with the general clause
     /// coordination.
     ExceptionRider,
+    /// One `only <adjunct>` restriction-run member. Internal to the run; never
+    /// attaches to a clause on its own.
+    RestrictionMember,
+    /// A coordinated run of two or more [`Self::RestrictionMember`]s, reached
+    /// only through the [`ClauseRestrictionRun`](RuleTag::ClauseRestrictionRun)
+    /// attachment.
+    RestrictionRun,
     SimpleClause,
     Clause,
     Sentence,
@@ -592,6 +599,11 @@ pub(crate) enum Features {
     /// `except` marker. Fieldless: the rider carries no agreement of its own —
     /// each conjunct is an independently agreeing finite clause.
     ExceptionRider,
+    /// One `only …` restriction-run member. Fieldless, mirroring
+    /// `ExceptionRider`.
+    RestrictionMember,
+    /// A coordinated run of two or more restriction-run members. Fieldless.
+    RestrictionRun,
     /// A modifier conjunct, list, or closed coordinated modifier. Carries the
     /// first conjunct's initial sound so the nominal prepend can set the a/an
     /// of the whole phrase (`an artifact, creature, and land card`, `a
@@ -1093,6 +1105,15 @@ enum RuleTag {
     ExceptionRiderOxford,
     /// The trailing `, except <rider>` attachment on a host clause.
     ClauseExcepted,
+    /// One `only <adjunct>` restriction-run member, or a `only <adjunct> and
+    /// only <adjunct>` two-member run, or a comma/Oxford growth of an
+    /// existing run, or the trailing attachment of a complete run onto a host
+    /// clause. All these `RestrictionRun`-building and -attaching shapes share
+    /// this tag; see `grammar/clause.rs` for the disambiguating arities.
+    ClauseRestrictionRun,
+    /// The `["only", <adjunct-or-if-clause>]` production building one
+    /// restriction-run member.
+    ClauseRestrictionMember,
     Sentence,
     NounOpaque,
     FrequencyPhrase,
@@ -3946,6 +3967,8 @@ fn reduce(
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
         | RuleTag::ClauseExcepted
+        | RuleTag::ClauseRestrictionRun
+        | RuleTag::ClauseRestrictionMember
         | RuleTag::ExceptionRiderSingle
         | RuleTag::ExceptionRiderConjoined
         | RuleTag::ExceptionRiderComma
@@ -5169,6 +5192,10 @@ enum Lowered {
     RelativeMarker(RelativeMarker),
     Existential(ExistentialForm),
     ExceptionRider(crate::syntax::ExceptionRider),
+    /// One restriction-run member's adjunct sequence (one adjunct for most
+    /// members, two for the flat `once each turn` adverb+temporal pair).
+    RestrictionMember(Vec<crate::syntax::PredicateAdjunct>),
+    RestrictionRun(crate::syntax::RestrictionRun),
     Ignored,
 }
 
@@ -5452,6 +5479,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
         | RuleTag::ClauseExcepted
+        | RuleTag::ClauseRestrictionRun
+        | RuleTag::ClauseRestrictionMember
         | RuleTag::ExceptionRiderSingle
         | RuleTag::ExceptionRiderConjoined
         | RuleTag::ExceptionRiderComma
