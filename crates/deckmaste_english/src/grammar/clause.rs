@@ -7889,6 +7889,26 @@ mod tests {
     }
 
     #[test]
+    fn the_tie_is_broken_is_not_a_predicate_nominal() {
+        // Timesifter: before Edit D, `broken` was unknown to the lexicon, so
+        // `the tie is broken` parsed as a copular predicate-nominal with an
+        // opaque head instead of a passive verb phrase. `break`/`broken` is
+        // now a declared irregular verb, closing that reading.
+        let source = "The tied players repeat this process until the tie is broken.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let debug = format!("{:#?}", parsed.sentence().unwrap());
+        assert!(
+            !debug.contains("OpaqueLexeme"),
+            "broken must never lower as an OpaqueLexeme: {debug}"
+        );
+        assert!(
+            debug.contains("Passive"),
+            "the until-complement must be a passive verb phrase, not a copular predicate-nominal: {debug}"
+        );
+    }
+
+    #[test]
     fn youve_is_never_an_opaque_noun() {
         let source = "Cast this spell only during the declare attackers step and only if you've been attacked this step.";
         let parsed = parse(source);

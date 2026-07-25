@@ -2175,6 +2175,15 @@ impl EnglishGrammar<'_, '_> {
             || self.subordinator_at(tokens, start).is_some()
             || self.one_token_match(tokens, start, "plus").is_some()
             || self.one_token_match(tokens, start, "who").is_some()
+            // The opacity gate's invariant is "never opacify a word the lexicon
+            // already knows". The literal lexemes were omitted: `except` is
+            // scanned into `LiteralKey::Except` for the exception riders and
+            // `not` is a clause negator, yet either could still be swallowed as
+            // an opaque *noun* and then capture real nouns as its modifiers
+            // (`their owners' hands except`, `all nonland permanents not`),
+            // completing a sentence that must stay recovered.
+            || self.one_token_match(tokens, start, "except").is_some()
+            || self.one_token_match(tokens, start, "not").is_some()
             || !self
                 .catalog_matches(tokens, start, CatalogSlot::Noun(NounUsage::Either))
                 .is_empty()
@@ -2427,13 +2436,28 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = token.span.text(self.source) else {
             return Vec::new();
         };
-        let Some(stem) = surface.strip_suffix("'s") else {
-            return Vec::new();
+        // One possessive, two spellings. `owner's` is a single word token because
+        // the tokenizer glues an apostrophe into a word when a letter follows it;
+        // the plural `owners'` ends the word there and leaves the genitive marker
+        // as its own bare apostrophe token (`word_end` in `surface.rs`). The
+        // s-apostrophe arm therefore consumes two tokens and takes the whole
+        // surface as the stem.
+        let (stem, end, plural_only) = match surface.strip_suffix("'s") {
+            Some(stem) => (stem, start + 1, false),
+            None if self.bare_genitive_apostrophe(tokens, start) => (surface, start + 2, true),
+            None => return Vec::new(),
+        };
+        // Without this filter a singular noun whose lemma ends in `s` would match
+        // the bare-apostrophe arm and then render back as `…'s`, breaking
+        // round-trip. The bare marker is licensed only by a plural `NounInstance`.
+        let word_filter = |word: &WordMatch| {
+            !plural_only || matches!(word, WordMatch::Noun(NounInstance::Plural(_)))
         };
         let mut matches = Vocabulary::new()
             .matches(stem, LexicalSlot::Noun(NounUsage::Either))
             .into_iter()
-            .flat_map(|word| lexical_word_matches(word, start + 1))
+            .filter(word_filter)
+            .flat_map(|word| lexical_word_matches(word, end))
             .collect::<Vec<_>>();
         matches.extend(
             self.catalogs
@@ -2441,8 +2465,10 @@ impl EnglishGrammar<'_, '_> {
                 .into_iter()
                 .filter(|catalog_match| catalog_match.length == stem.len())
                 .flat_map(|catalog_match| match catalog_match.value {
-                    CatalogValue::Word(word) => lexical_word_matches(word, start + 1),
-                    CatalogValue::Atom(_) => Vec::new(),
+                    CatalogValue::Word(word) if word_filter(&word) => {
+                        lexical_word_matches(word, end)
+                    }
+                    CatalogValue::Word(_) | CatalogValue::Atom(_) => Vec::new(),
                 }),
         );
         // A possessive vocabulary noun renders its stem lowercase (`fang's`), so
@@ -2462,6 +2488,28 @@ impl EnglishGrammar<'_, '_> {
             }
         }
         matches
+    }
+
+    /// Whether the token after the word at `start` is the bare genitive
+    /// apostrophe of an s-plural possessive (`owners'`). The apostrophe must be
+    /// a punctuation token butted directly against the word — the tokenizer
+    /// never emits it as part of the word, and no space intervenes in the
+    /// canonical templates — and the word must end in `s`, which is the only
+    /// spelling the bare marker attaches to.
+    fn bare_genitive_apostrophe(&self, tokens: &[Token], start: usize) -> bool {
+        let Some(word) = tokens.get(start) else {
+            return false;
+        };
+        let Some(surface) = word.span.text(self.source) else {
+            return false;
+        };
+        if !surface.ends_with('s') {
+            return false;
+        }
+        tokens.get(start + 1).is_some_and(|marker| {
+            marker.kind == TokenKind::Punctuation(Punctuation::Apostrophe)
+                && marker.span.start == word.span.end
+        })
     }
 
     fn magic_match<'grammar>(

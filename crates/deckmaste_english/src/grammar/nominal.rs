@@ -862,6 +862,23 @@ mod tests {
     }
 
     #[test]
+    fn a_known_literal_lexeme_is_never_opacifiable() {
+        // has_known_word's own invariant: a word the lexicon already knows —
+        // including hand-written literal lexemes, not just vocabulary/catalog
+        // slots — must never be reported as unknown (and so must never be
+        // opacified). Pins `except`/`not` alongside the pre-existing `plus`/`who`.
+        let catalogs = fixture_catalogs();
+        for word in ["except", "not", "plus", "who"] {
+            let surface = crate::surface::lex(word);
+            let grammar = EnglishGrammar::new(word, &catalogs, Nonterminal::NounPhrase);
+            assert!(
+                grammar.has_known_word(&surface.tokens, 0),
+                "{word} must be a known word"
+            );
+        }
+    }
+
+    #[test]
     fn self_reference_possessive_is_one_determiner() {
         let parsed = parse_self("Nissa's power");
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
@@ -879,6 +896,131 @@ mod tests {
         assert_eq!(
             render_fragment_as(parsed.noun_phrase().unwrap(), "Nissa Revane", true),
             "Nissa's power"
+        );
+    }
+
+    #[test]
+    fn plural_genitive_is_one_possessive_determiner() {
+        let parsed = parse("their owners' hands");
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(
+            render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+            "their owners' hands"
+        );
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected a nominal for their owners' hands");
+        };
+        assert!(
+            matches!(
+                &nominal.head,
+                NounInstance::Plural(Noun::Word(word)) if word.spelling() == "hand"
+            ),
+            "{nominal:#?}"
+        );
+        let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &nominal.determiner
+        else {
+            panic!(
+                "expected a possessive determiner: {:#?}",
+                nominal.determiner
+            );
+        };
+        let NounPhrase::Nominal(possessor_nominal) = possessor.as_ref() else {
+            panic!("expected a nominal possessor: {possessor:#?}");
+        };
+        assert!(
+            matches!(
+                &possessor_nominal.determiner,
+                Some(Determiner::Possessive(Possessor::Pronoun(Pronoun::They)))
+            ),
+            "{possessor_nominal:#?}"
+        );
+        assert!(
+            matches!(
+                &possessor_nominal.head,
+                NounInstance::Plural(Noun::Word(word)) if word.spelling() == "owner"
+            ),
+            "{possessor_nominal:#?}"
+        );
+        assert!(possessor_nominal.modifiers.is_empty());
+        assert!(possessor_nominal.complements.is_empty());
+    }
+
+    #[test]
+    fn a_bare_plural_noun_is_never_a_possessive() {
+        for source in ["opponents", "creatures you control"] {
+            let parsed = parse(source);
+            let Some(noun_phrase) = parsed.noun_phrase() else {
+                panic!("expected a noun phrase for {source:?}");
+            };
+            assert!(
+                !contains_noun_phrase_possessive(noun_phrase),
+                "{source:?} must not contain a Possessive(NounPhrase) determiner: {noun_phrase:#?}"
+            );
+        }
+    }
+
+    fn contains_noun_phrase_possessive(noun_phrase: &NounPhrase) -> bool {
+        match noun_phrase {
+            NounPhrase::Nominal(nominal) => matches!(
+                &nominal.determiner,
+                Some(Determiner::Possessive(Possessor::NounPhrase(_)))
+            ),
+            NounPhrase::Possessive(Possessor::NounPhrase(_)) => true,
+            _ => false,
+        }
+    }
+
+    #[test]
+    fn except_is_not_an_opaque_noun_head() {
+        // Whelming Wave: before Edit C, `except` could be swallowed as an
+        // opaque noun head with `hands` demoted to a known-noun modifier,
+        // completing a wrong parse. It must now stay honestly recovered.
+        let source = "Return all creatures to their owners' hands except for Krakens, Leviathans, Octopuses, and Serpents.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+        let debug = format!("{ast:#?}");
+        assert!(
+            !debug.contains("OpaqueLexeme(\n    \"except\"") && !debug.contains("\"except\","),
+            "except must never lower as an OpaqueLexeme: {debug}"
+        );
+        assert!(
+            !debug.contains("Opaque"),
+            "no Opaque node may appear at all for this sentence: {debug}"
+        );
+    }
+
+    #[test]
+    fn not_is_not_an_opaque_noun_head() {
+        // Consuming Tide: `not` could be swallowed as an opaque plural noun
+        // head with `nonland`/`permanents` demoted to known-noun modifiers.
+        let source = "Return all nonland permanents not chosen this way to their owners' hands.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+        let debug = format!("{ast:#?}");
+        assert!(
+            !debug.contains("Opaque"),
+            "no Opaque node may appear at all for this sentence: {debug}"
+        );
+    }
+
+    #[test]
+    fn a_singular_noun_ending_in_s_keeps_the_s_genitive() {
+        // `chaos` (Vocab::Chaos) is a Mass noun whose lemma already ends in
+        // `s`. The plural-only filter must refuse the bare-apostrophe arm for
+        // it, since `chaos` never yields a Plural WordMatch: `chaos'` must not
+        // parse as a possessive noun phrase at all.
+        let result = parse_nonterminal(
+            "chaos' effects",
+            &fixture_catalogs(),
+            Nonterminal::NounPhrase,
+        );
+        let refused_possessive = match result {
+            Err(_) => true,
+            Ok(parsed) => {
+                !contains_noun_phrase_possessive(parsed.noun_phrase().expect("noun-phrase root"))
+            }
+        };
+        assert!(
+            refused_possessive,
+            "a singular/mass noun ending in s must not be licensed by the bare-apostrophe arm"
         );
     }
 

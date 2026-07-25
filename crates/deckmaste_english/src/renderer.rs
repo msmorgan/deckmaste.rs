@@ -1577,9 +1577,11 @@ impl<'identity> Renderer<'identity> {
                 .render_possessive_pronoun(*pronoun)
                 .map(str::to_owned)
                 .ok_or(RenderError::MissingLexicalForm("possessive pronoun")),
-            Determiner::Possessive(Possessor::NounPhrase(possessor)) => {
-                Ok(format!("{}'s", self.noun_phrase(possessor)?))
-            }
+            Determiner::Possessive(Possessor::NounPhrase(possessor)) => Ok(format!(
+                "{}{}",
+                self.noun_phrase(possessor)?,
+                possessive_marker(possessor)
+            )),
             _ => determiner.render(),
         }
     }
@@ -1734,6 +1736,20 @@ impl<'identity> Renderer<'identity> {
         } else {
             Ok(rendered.to_owned())
         }
+    }
+}
+
+/// The genitive marker for a noun-phrase possessor: a plural head takes the
+/// bare apostrophe (`owners'`), everything else takes `'s` (`owner's`). Read
+/// from the head's number rather than the rendered spelling so a singular
+/// noun that happens to end in `s` still renders `'s`.
+fn possessive_marker(possessor: &NounPhrase) -> &'static str {
+    match possessor {
+        NounPhrase::Nominal(nominal) => match nominal.head {
+            NounInstance::Plural(_) => "'",
+            NounInstance::Singular(_) | NounInstance::Mass(_) => "'s",
+        },
+        _ => "'s",
     }
 }
 
@@ -2608,6 +2624,28 @@ mod tests {
         let bare = "Put a +1/+1 counter on your Ring-bearer.";
         let ast = crate::parse_with_catalogs(bare, &fixture_catalogs()).into_ast();
         assert_eq!(source_free(&ast, "Test Card", false), bare);
+    }
+
+    #[test]
+    fn a_plural_genitive_round_trips_with_a_bare_apostrophe() {
+        let plural = "Return all creatures to their owners' hands.";
+        let ast = crate::parse_with_catalogs(plural, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), plural);
+
+        // Singular control: still renders `owner's`, not `owners'` or `owner's's`.
+        let singular = "Return target permanent to its owner's hand.";
+        let ast = crate::parse_with_catalogs(singular, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), singular);
+    }
+
+    #[test]
+    fn a_nested_quoted_ability_apostrophe_stays_a_delimiter() {
+        // Reef Worm: the innermost quoted ability's closing `'` follows a
+        // Period token, never a plural word, so it must not be reinterpreted
+        // as a bare genitive apostrophe.
+        let source = "When this creature dies, create a 3/3 blue Fish creature token with \"When this token dies, create a 6/6 blue Whale creature token with 'When this token dies, create a 9/9 blue Kraken creature token.'\"";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), source);
     }
 
     #[test]

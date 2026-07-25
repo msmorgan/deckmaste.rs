@@ -475,6 +475,31 @@ mod tests {
     }
 
     #[test]
+    fn a_plural_genitive_lexes_as_a_word_and_a_bare_apostrophe() {
+        let source = "their owners' hands";
+        let tokens = lex(source).tokens;
+        assert_eq!(
+            tokens.iter().map(|token| token.kind).collect::<Vec<_>>(),
+            vec![
+                TokenKind::Word,
+                TokenKind::Word,
+                TokenKind::Punctuation(Punctuation::Apostrophe),
+                TokenKind::Word
+            ]
+        );
+        let owners = &tokens[1];
+        let marker = &tokens[2];
+        assert_eq!(owners.span.text(source), Some("owners"));
+        assert_eq!(marker.span.start, owners.span.end);
+
+        // `owner's` stays one word.
+        assert_eq!(
+            kinds("their owner's hand"),
+            vec![TokenKind::Word, TokenKind::Word, TokenKind::Word]
+        );
+    }
+
+    #[test]
     fn full_name_collapse_makes_a_multi_token_name_one_atomic_token() {
         // A comma name collapses to one FullSelfReference token spanning the
         // whole name, so the later trigger comma is the only top-level comma

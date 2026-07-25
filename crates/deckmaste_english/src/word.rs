@@ -930,6 +930,11 @@ vocabulary! {
         .verb(VerbForm::Regular)
         .predicate_frames(ATTACK_PREDICATE_FRAMES);
     Bolster("bolster").verb(VerbForm::Regular);
+    Break("break").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("broke")
+            .with_past_participle("broken")
+    ));
     Card("card").noun(NounDeclension::Regular, Countability::Count);
     Cast("cast").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
