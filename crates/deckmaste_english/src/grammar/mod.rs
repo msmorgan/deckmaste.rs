@@ -1109,6 +1109,15 @@ enum RuleTag {
     CopularRemainderDistributiveEach,
     ClauseCopular,
     ClauseContractedCopular,
+    /// A variable's value constraint — a modal clause whose predicate is a
+    /// bare-infinitive copula over a bare numeral (`X can't be 0`). `X` is a
+    /// placeholder whose value its controller chooses [CR#107.3,107.3a]; this
+    /// clause restricts that chosen value. Built from a lexeme-pinned `X`
+    /// subject and a lexeme-pinned numeral complement — four literal slots —
+    /// so the production is structurally incapable of matching a
+    /// `can't be <participle>` passive (a numeral is never a participle),
+    /// which is the categorical discrimination this round is gated on.
+    ClauseVariableValueConstraint,
     RelativeObject,
     RelativeObjectContractedSubject,
     RelativeSubjectContractedAuxiliary,
@@ -4040,6 +4049,7 @@ fn reduce(
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
+        | RuleTag::ClauseVariableValueConstraint
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
@@ -5607,6 +5617,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
+        | RuleTag::ClauseVariableValueConstraint
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary

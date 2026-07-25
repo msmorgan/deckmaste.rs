@@ -381,6 +381,29 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::Clause,
         [l(L::SubjectAuxiliary), n(N::CopularRemainder)],
     );
+    // A variable's value constraint under a modal (`X can't be 0`): four
+    // literal-token slots (no `Noun`, `Verb`, `Adjective`, or `NounPhrase`
+    // nonterminal anywhere in the production), one per numeral notation so
+    // `X can't be 5`, `X can't be fifth`, `X can't be V`, etc. all reach the
+    // same shape.
+    for notation in [
+        Numeral::Cardinal,
+        Numeral::Ordinal,
+        Numeral::Arabic(false),
+        Numeral::Arabic(true),
+        Numeral::Roman,
+    ] {
+        builder.add(
+            RuleTag::ClauseVariableValueConstraint,
+            N::Clause,
+            [
+                l(L::QuantityX),
+                l(L::Auxiliary),
+                l(L::Auxiliary),
+                l(L::Number(notation)),
+            ],
+        );
+    }
     builder.add(
         RuleTag::ClauseElliptical,
         N::Clause,
@@ -787,6 +810,7 @@ pub(super) fn reduce_clause(
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             reduce_simple_clause(tag, children)
         }
+        RuleTag::ClauseVariableValueConstraint => reduce_variable_value_constraint(children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -1913,6 +1937,37 @@ fn reduce_copular_clause(
     })
 }
 
+fn reduce_variable_value_constraint(
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Option<Reduced> {
+    let Features::Quantity(_) = children.first()?.features else {
+        return None;
+    };
+    let Features::Auxiliary(modal) = children.get(1)?.features else {
+        return None;
+    };
+    if !is_modal(modal.auxiliary) {
+        return None;
+    }
+    let Features::Auxiliary(copula) = children.get(2)?.features else {
+        return None;
+    };
+    if copula.auxiliary != Auxiliary::Be || copula.inflection != AuxiliaryInflection::Base {
+        return None;
+    }
+    let Features::Number { .. } = children.get(3)?.features else {
+        return None;
+    };
+    Some(Features::Clause {
+        agreement: None,
+        standalone: true,
+        finite: true,
+        host_addressee_subject: false,
+        host_modal: false,
+        subjunctive: false,
+    })
+}
+
 #[allow(
     clippy::fn_params_excessive_bools,
     reason = "each bool is an independently-computed SimpleClause feature bit; \
@@ -2482,6 +2537,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             lower_simple_clause(tag, children)
         }
+        RuleTag::ClauseVariableValueConstraint => lower_variable_value_constraint(children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -3268,6 +3324,39 @@ fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowere
                 complement: remainder.complement,
                 adjuncts: remainder.adjuncts,
             },
+        ),
+    )))
+}
+
+fn lower_variable_value_constraint(children: &mut [Lowered]) -> Option<Lowered> {
+    let Lowered::Quantity(subject_quantity @ Quantity::X) = take(children, 0)? else {
+        return None;
+    };
+    let Lowered::Auxiliary(modal) = take(children, 1)? else {
+        return None;
+    };
+    let Lowered::Auxiliary(be) = take(children, 2)? else {
+        return None;
+    };
+    let Lowered::Number(number) = take(children, 3)? else {
+        return None;
+    };
+    Some(Lowered::Clause(Clause::Independent(
+        IndependentClause::Deontic(
+            Subject(NounPhrase::Quantity(subject_quantity)),
+            Modal { auxiliary: modal },
+            Some(Predicate::Copular(crate::syntax::CopularPredicate {
+                copula: crate::syntax::Copula {
+                    auxiliary: be,
+                    contracted_with_subject: false,
+                },
+                distributive_each: false,
+                precomplement_adverbs: Vec::new(),
+                complement: CopularComplement::NounPhrase(NounPhrase::Quantity(Quantity::Exact(
+                    number.literal(),
+                ))),
+                adjuncts: Vec::new(),
+            })),
         ),
     )))
 }
@@ -6575,6 +6664,102 @@ mod tests {
             );
         };
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn variable_value_constraint_parses_as_a_modal_copular_clause() {
+        let source = "X can't be 0.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            Subject(NounPhrase::Quantity(Quantity::X)),
+            _,
+            Some(Predicate::Copular(predicate)),
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected a deontic modal copular clause: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
+        assert_eq!(
+            predicate.copula.auxiliary.inflection,
+            AuxiliaryInflection::Base
+        );
+        assert!(predicate.adjuncts.is_empty());
+        assert!(!predicate.distributive_each);
+        assert!(matches!(
+            predicate.complement,
+            CopularComplement::NounPhrase(NounPhrase::Quantity(Quantity::Exact(n))) if n.value == 0
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn variable_value_constraint_composes_under_a_fronted_conditional() {
+        let source = "If you cast this spell this way, X can't be 0.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause { matrix, .. })) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a fronted condition");
+        };
+        assert!(matches!(
+            matrix.as_ref(),
+            IndependentClause::Deontic(
+                Subject(NounPhrase::Quantity(Quantity::X)),
+                _,
+                Some(Predicate::Copular(_)),
+            )
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn modal_participle_complement_stays_passive_under_a_variable_subject() {
+        let source = "X can't be blocked.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(body) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected an independent clause");
+        };
+        assert!(matches!(
+            body,
+            IndependentClause::Deontic(_, _, Some(Predicate::Passive(_)))
+        ));
+        assert!(!matches!(
+            body,
+            IndependentClause::Deontic(_, _, Some(Predicate::Copular(_)))
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn modal_copular_frame_rejects_a_finite_copula() {
+        let source = "X can't is 0.";
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "{source:?} must not parse as a modal bare-copula clause"
+        );
+    }
+
+    /// Clause coordination's right conjunct is `n(N::SimpleClause)`
+    /// (`RuleTag::ClauseCoordination`), and every copular/modal-copular clause
+    /// is an `N::Clause` production with no `SimpleClause` path, so
+    /// `... and X can't be 0` cannot be a right conjunct for the same
+    /// pre-existing reason `... and X is 5 or more` cannot. This is a
+    /// deliberate scope boundary, not a bug — a later round adding
+    /// `Clause`-right clause coordination should see this test fail and
+    /// retire it.
+    #[test]
+    fn variable_value_constraint_does_not_coordinate_as_a_right_conjunct() {
+        let source = "This ability can't be copied and X can't be 0.";
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "{source:?} is expected to stay unresolved (Clause-right clause coordination is a \
+             separate round's work); if this now parses, retire this test"
+        );
     }
 
     #[test]
