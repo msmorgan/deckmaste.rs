@@ -382,6 +382,15 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::Adverb), n(N::Clause)],
     );
     builder.add(
+        RuleTag::ClauseSentenceAdverbialBefore,
+        N::Clause,
+        [
+            l(L::SentenceAdverbial),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::Clause),
+        ],
+    );
+    builder.add(
         RuleTag::ClausePrepositionalBefore,
         N::Clause,
         [
@@ -640,6 +649,7 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseAdverbBefore
+        | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
@@ -1879,6 +1889,7 @@ fn reduce_composed_clause(
             conditional_reduction(*subordinator, children.get(1)?, children.get(3)?)
         }
         RuleTag::ClauseAdverbBefore => fronted_attachment_reduction(children.get(1)?),
+        RuleTag::ClauseSentenceAdverbialBefore => fronted_attachment_reduction(children.get(2)?),
         RuleTag::ClausePrepositionalBefore => {
             let Features::PrepositionalPhrase { .. } = children.first()?.features else {
                 return None;
@@ -2263,6 +2274,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseAdverbBefore
+        | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
@@ -2991,6 +3003,24 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                     ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
                         comma: false,
+                        kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
+                    },
+                ),
+            )))
+        }
+        RuleTag::ClauseSentenceAdverbialBefore => {
+            let Lowered::Adverb(adverb) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Clause(Clause::Independent(matrix)) = take(children, 2)? else {
+                return None;
+            };
+            Some(Lowered::Clause(Clause::Independent(
+                with_clause_attachment(
+                    matrix,
+                    ClauseAttachment {
+                        position: AttachmentPosition::BeforeMatrix,
+                        comma: true,
                         kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
                     },
                 ),
@@ -5154,6 +5184,169 @@ mod tests {
             IndependentClause::Intransitive(_, _)
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn otherwise_fronts_a_following_imperative_clause() {
+        let source = "Otherwise, put it into your hand.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected a clause with a fronted adjunct: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert!(matches!(
+            complex.attachments.as_slice(),
+            [ClauseAttachment {
+                position: AttachmentPosition::BeforeMatrix,
+                comma: true,
+                kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
+            }]
+        ));
+        assert!(matches!(
+            complex.matrix.as_ref(),
+            IndependentClause::Imperative(_)
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn otherwise_fronts_a_finite_clause() {
+        let source = "Otherwise, you draw a card.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected a clause with a fronted adjunct: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert!(matches!(
+            complex.attachments.as_slice(),
+            [ClauseAttachment {
+                position: AttachmentPosition::BeforeMatrix,
+                comma: true,
+                kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
+            }]
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn otherwise_fronts_a_modal_clause() {
+        let source = "Otherwise, you may put it into your graveyard.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!(
+                "expected a clause with a fronted adjunct: {:#?}",
+                parsed.sentence()
+            );
+        };
+        assert!(matches!(
+            complex.attachments.as_slice(),
+            [ClauseAttachment {
+                position: AttachmentPosition::BeforeMatrix,
+                comma: true,
+                kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
+            }]
+        ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn otherwise_fronting_renders_its_comma() {
+        let source = "Otherwise, put it into your hand.";
+        let parsed = parse(source);
+        let rendered = render_sentence(parsed.sentence().unwrap());
+        assert!(
+            rendered.contains("Otherwise, "),
+            "expected rendered sentence to contain the fronting comma: {rendered:?}"
+        );
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a clause with a fronted adjunct");
+        };
+        let [ClauseAttachment { comma, .. }] = complex.attachments.as_slice() else {
+            panic!(
+                "expected exactly one attachment: {:#?}",
+                complex.attachments
+            );
+        };
+        assert!(*comma, "expected comma: true on the otherwise attachment");
+    }
+
+    #[test]
+    fn ordinary_adverbs_do_not_front_a_clause_with_a_comma() {
+        // Load-bearing gate: proves the new production is keyed on the
+        // `sentence_adverbial` metadata flag, not on the `Adverb` slot at
+        // large — `Immediately` is an ordinary adverb and must not front a
+        // clause across a comma.
+        let source = "Immediately, draw a card.";
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+        if let Ok(parsed) = parsed {
+            assert_ne!(
+                parsed.opacity_mode(),
+                OpacityMode::Exact,
+                "{source} must not parse cleanly via a BeforeMatrix adverb attachment"
+            );
+        }
+    }
+
+    #[test]
+    fn otherwise_does_not_fill_ordinary_adverb_slots() {
+        // Proves the deliberate omission of `.adverb()` on `Otherwise` (§2):
+        // it must not fill the ordinary `Adverb` slot, so neither a trailing
+        // nor a comma-less fronted placement parses cleanly.
+        for source in ["Draw a card otherwise.", "Otherwise draw a card."] {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+            if let Ok(parsed) = parsed {
+                assert_ne!(
+                    parsed.opacity_mode(),
+                    OpacityMode::Exact,
+                    "{source} must not parse cleanly"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn otherwise_with_an_unparsable_body_leaves_the_whole_sentence_unresolved() {
+        // Anti-span-split gate: the matrix pattern requires
+        // `Clause::Independent`; a body that fails to reduce yields `None`
+        // for the whole `[adverb, comma, clause]` span, not a partial parse.
+        let source = "Otherwise, it has base power and toughness 1/1 and can't block Detectives.";
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+        assert!(parsed.is_err(), "{source} must remain unresolved");
+    }
+
+    #[test]
+    fn then_fronting_is_unchanged() {
+        let source = "Then that player shuffles.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a clause with a fronted adjunct");
+        };
+        assert!(matches!(
+            complex.attachments.as_slice(),
+            [ClauseAttachment {
+                position: AttachmentPosition::BeforeMatrix,
+                comma: false,
+                kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
+            }]
+        ));
     }
 
     #[test]

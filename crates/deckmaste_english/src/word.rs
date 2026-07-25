@@ -526,6 +526,7 @@ pub enum LexicalSlot {
     Verb(VerbSlot),
     Adjective,
     Adverb,
+    SentenceAdverbial,
     Pronoun(PronounCase),
     Auxiliary,
 }
@@ -536,6 +537,7 @@ pub enum WordMatch {
     Verb(VerbInstance),
     Adjective(Adjective),
     Adverb(Vocab),
+    SentenceAdverbial(Vocab),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
 }
@@ -571,6 +573,10 @@ impl AdjectiveComparison {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "each bool is an independent, orthogonal part-of-speech/capability flag, not encodable state"
+)]
 struct VocabDefinition {
     spelling: &'static str,
     noun: Option<(NounDeclension, Countability)>,
@@ -580,6 +586,7 @@ struct VocabDefinition {
     bare_nominal_adjunct: Option<BareNominalAdjunct>,
     adjective: bool,
     adverb: bool,
+    sentence_adverbial: bool,
     comparison: Option<AdjectiveComparison>,
     initial_sound: Option<InitialSound>,
 }
@@ -595,6 +602,7 @@ impl VocabDefinition {
             bare_nominal_adjunct: None,
             adjective: false,
             adverb: false,
+            sentence_adverbial: false,
             comparison: None,
             initial_sound: None,
         }
@@ -652,6 +660,14 @@ impl VocabDefinition {
 
     const fn adverb(mut self) -> Self {
         self.adverb = true;
+        self
+    }
+
+    /// Closed-class discourse adverbial that may front a clause before a
+    /// comma; deliberately distinct from `adverb()` so it cannot fill
+    /// verb-phrase or copular adverb slots.
+    const fn sentence_adverbial(mut self) -> Self {
+        self.sentence_adverbial = true;
         self
     }
 
@@ -824,6 +840,14 @@ macro_rules! vocabulary {
 
             pub(crate) fn comparison(self) -> Option<AdjectiveComparison> {
                 self.definition().comparison
+            }
+
+            #[allow(
+                dead_code,
+                reason = "mirrors comparison()/adverb() accessor precedent; unused until a semantic-IR consumer (ticket english-semantic-ir) reads it"
+            )]
+            pub(crate) fn sentence_adverbial(self) -> bool {
+                self.definition().sentence_adverbial
             }
 
             fn definition(self) -> VocabDefinition {
@@ -1136,6 +1160,7 @@ vocabulary! {
     Other("other")
         .comparison(AdjectiveComparison::ThanOnly)
         .noun(NounDeclension::Regular, Countability::Count);
+    Otherwise("otherwise").sentence_adverbial();
     Own("own").verb(VerbForm::Regular);
     Owner("owner").noun(NounDeclension::Regular, Countability::Count);
     Ox("Ox").irregular_catalog_noun("Oxen");
@@ -1561,6 +1586,7 @@ enum IndexedWord {
     Participle { vocab: Vocab, tense: Tense },
     Gerund(Vocab),
     Adverb(Vocab),
+    SentenceAdverbial(Vocab),
     Color(ColorWord),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
@@ -1597,6 +1623,9 @@ impl IndexedWord {
                 WordMatch::Adjective(Adjective::Participle(tense, Verb::Word(vocab))),
             ),
             (Self::Adverb(vocab), LexicalSlot::Adverb) => Some(WordMatch::Adverb(vocab)),
+            (Self::SentenceAdverbial(vocab), LexicalSlot::SentenceAdverbial) => {
+                Some(WordMatch::SentenceAdverbial(vocab))
+            }
             (Self::Color(color), LexicalSlot::Adjective) => {
                 Some(WordMatch::Adjective(Adjective::Color(color)))
             }
@@ -1737,6 +1766,13 @@ fn index_vocab(
     }
     if definition.adverb {
         insert_index(index, definition.spelling, IndexedWord::Adverb(vocab));
+    }
+    if definition.sentence_adverbial {
+        insert_index(
+            index,
+            definition.spelling,
+            IndexedWord::SentenceAdverbial(vocab),
+        );
     }
 }
 
@@ -2657,7 +2693,8 @@ mod tests {
                 definition.noun.is_some()
                     || definition.verb.is_some()
                     || definition.adjective
-                    || definition.adverb,
+                    || definition.adverb
+                    || definition.sentence_adverbial,
                 "{vocab:?} has no lexical role"
             );
 
@@ -2723,6 +2760,15 @@ mod tests {
                         .matches(definition.spelling, LexicalSlot::Adverb)
                         .contains(&WordMatch::Adverb(vocab)),
                     "adverb {vocab:?} did not parse"
+                );
+            }
+
+            if definition.sentence_adverbial {
+                assert!(
+                    vocabulary
+                        .matches(definition.spelling, LexicalSlot::SentenceAdverbial)
+                        .contains(&WordMatch::SentenceAdverbial(vocab)),
+                    "sentence adverbial {vocab:?} did not parse"
                 );
             }
         }

@@ -268,6 +268,10 @@ pub(crate) enum EnglishLexicalSlot {
     /// not a token.
     NegatedModifier,
     Adverb,
+    /// An adverb licensed by vocabulary metadata to front a clause before a
+    /// comma; distinct from [`Self::Adverb`] so ordinary adverbs never reach
+    /// the fronting production.
+    SentenceAdverbial,
     VerbParticle(VerbParticle),
     Frequency,
     Pronoun(PronounCase),
@@ -1028,6 +1032,7 @@ enum RuleTag {
     ClauseCoordinationComma,
     ClauseCoordinationAsyndetic,
     ClauseAdverbBefore,
+    ClauseSentenceAdverbialBefore,
     ClausePrepositionalBefore,
     ClauseSubordinateBefore,
     ClauseSubordinateAfterElliptical,
@@ -1678,6 +1683,9 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .collect(),
             EnglishLexicalSlot::NegatedModifier => self.scan_negated_modifier(tokens, start),
             EnglishLexicalSlot::Adverb => self.word_matches(tokens, start, LexicalSlot::Adverb),
+            EnglishLexicalSlot::SentenceAdverbial => {
+                self.word_matches(tokens, start, LexicalSlot::SentenceAdverbial)
+            }
             EnglishLexicalSlot::VerbParticle(particle) => self
                 .one_token_match(
                     tokens,
@@ -3482,7 +3490,9 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
                 MeaningKey::Adjective(adjective),
             )
         }
-        WordMatch::Adverb(adverb) => single(Features::None, MeaningKey::Adverb(adverb)),
+        WordMatch::Adverb(adverb) | WordMatch::SentenceAdverbial(adverb) => {
+            single(Features::None, MeaningKey::Adverb(adverb))
+        }
         WordMatch::Pronoun(pronoun) => single(
             noun_phrase_features(pronoun.pronoun, Some(pronoun.case)),
             MeaningKey::Pronoun(pronoun),
@@ -3886,6 +3896,7 @@ fn reduce(
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseAdverbBefore
+        | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
@@ -5383,6 +5394,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseAdverbBefore
+        | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
         | RuleTag::ClauseSubordinateAfterElliptical
