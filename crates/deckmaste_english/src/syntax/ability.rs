@@ -46,6 +46,7 @@ pub enum AbilityKind {
     ClassLevel(ClassLevelAbility),
     Chapter(ChapterAbility),
     RollRow(RollRowAbility),
+    LevelBand(LevelBandAbility),
     Triggered(TriggeredAbility),
     Loyalty(LoyaltyAbility),
     Modal(ModalAbility),
@@ -111,6 +112,43 @@ pub enum RollRange {
     OrMore(super::phrase::NumberLiteral),
     /// A face value and everything below it: `9 or less | …`.
     OrLess(super::phrase::NumberLiteral),
+}
+
+/// A leveler card's level band [CR#711.2]: the level symbol that opens a text
+/// box striation, together with the power/toughness box and every ability
+/// printed inside that striation. The whole striation is one static ability
+/// ([CR#711.2a,711.2b]), so the band is one node rather than a header
+/// followed by siblings — the striations are the only thing that says which
+/// abilities and which P/T box go with which level symbol [CR#711.3]. The
+/// level-up ability itself sits outside every band and is always active
+/// [CR#711.4], so it stays an ordinary sibling keyword ability.
+///
+/// The band renders across lines — `LEVEL <range>`, the stat line, then one
+/// line per contained ability — the same way a modal ability renders its
+/// bulleted modes. Nothing recovers at the header or the stat line: both are
+/// carried structurally.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LevelBandAbility {
+    pub range: LevelRange,
+    pub stats: PowerToughness,
+    pub abilities: Vec<Ability>,
+}
+
+/// The level symbol's counter range. The two shapes the frame prints are the
+/// two [CR#711.2] spells out; unlike [`RollRange`] there is no single-value
+/// or at-most shape, and the inclusive band's separator is the **ASCII
+/// hyphen** the frame actually prints — a level symbol is not a roll-row key,
+/// so `normalize_roll_row_dashes` never rewrites it and the renderer must not
+/// emit an en dash.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LevelRange {
+    /// `LEVEL N1-N2` — active while N1 ≤ level counters ≤ N2 [CR#711.2a].
+    Band {
+        low: super::phrase::NumberLiteral,
+        high: super::phrase::NumberLiteral,
+    },
+    /// `LEVEL N3+` — active while level counters ≥ N3 [CR#711.2b].
+    AtLeast(super::phrase::NumberLiteral),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

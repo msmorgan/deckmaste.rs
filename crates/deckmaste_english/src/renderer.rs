@@ -43,6 +43,8 @@ use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
 use crate::syntax::KeywordCost;
 use crate::syntax::KeywordListSeparator;
+use crate::syntax::LevelBandAbility;
+use crate::syntax::LevelRange;
 use crate::syntax::LoyaltyCost;
 use crate::syntax::LoyaltyCostSign;
 use crate::syntax::LoyaltyCostValue;
@@ -276,6 +278,7 @@ impl<'identity> Renderer<'identity> {
             )),
             AbilityKind::Chapter(chapter) => self.chapter_ability(chapter),
             AbilityKind::RollRow(row) => self.roll_row_ability(row),
+            AbilityKind::LevelBand(band) => self.level_band_ability(band),
             AbilityKind::Modal(modal) => self.modal_ability(modal),
             AbilityKind::Keyword(keyword) => self.keyword_ability_list(keyword),
             AbilityKind::Paragraph(paragraph) => {
@@ -311,6 +314,26 @@ impl<'identity> Renderer<'identity> {
     fn roll_row_ability(&self, row: &RollRowAbility) -> Result<String, RenderError> {
         let body = self.paragraph(&row.body, true)?;
         Ok(format!("{} | {body}", render_roll_range(row.range)))
+    }
+
+    /// Renders a leveler card's level band in oracle layout: the `LEVEL`
+    /// header, the bare power/toughness stat line, then one line per contained
+    /// ability — the exact inverse of the band frame in [`Parser::parse`]
+    /// (`crate::grammar`). Nothing recovers at the header or the stat line:
+    /// both are carried structurally, so this is the whole-sentence bracket
+    /// read's absence assertion made concrete.
+    fn level_band_ability(&self, band: &LevelBandAbility) -> Result<String, RenderError> {
+        let mut rendered = format!(
+            "LEVEL {}\n{}/{}",
+            render_level_range(band.range),
+            render_signed_scalar(band.stats.power),
+            render_signed_scalar(band.stats.toughness),
+        );
+        for ability in &band.abilities {
+            rendered.push('\n');
+            rendered.push_str(&self.ability(ability, true, false)?);
+        }
+        Ok(rendered)
     }
 
     fn modal_ability(&self, modal: &ModalAbility) -> Result<String, RenderError> {
@@ -1726,6 +1749,22 @@ fn render_roll_range(range: RollRange) -> String {
     }
 }
 
+/// Renders a level band's counter range [CR#711.2a,711.2b]. The separator is
+/// an **ASCII hyphen**, not the en dash [`render_roll_range`] emits for a
+/// die-roll row: a level symbol is not a roll-row key, so
+/// `normalize_roll_row_dashes` never touches it, and emitting anything but
+/// the ASCII hyphen here would make this renderer a non-inverse of the frame.
+fn render_level_range(range: LevelRange) -> String {
+    match range {
+        LevelRange::Band { low, high } => format!(
+            "{}-{}",
+            low.numeral.format(low.value),
+            high.numeral.format(high.value),
+        ),
+        LevelRange::AtLeast(value) => format!("{}+", value.numeral.format(value.value)),
+    }
+}
+
 /// Whether a clause is an Aura's enchant-ability line — the top-level keyword
 /// ability oracle prints without a period. The parser lowers it two ways
 /// depending on the object's shape, both anchored on the `enchant` keyword:
@@ -3136,6 +3175,72 @@ mod tests {
         ] {
             assert_eq!(source_free(&row(range), "Test Card", false), expected);
         }
+    }
+
+    #[test]
+    fn level_band_abilities_render_across_their_striation_lines() {
+        let catalogs = fixture_catalogs();
+        let arabic = |value| NumberLiteral {
+            value,
+            numeral: Numeral::Arabic(false),
+        };
+        let stat = |value: i32| PowerToughness {
+            power: SignedScalar {
+                sign: ScalarSign::None,
+                value: ScalarValue::Integer(value.unsigned_abs()),
+            },
+            toughness: SignedScalar {
+                sign: ScalarSign::None,
+                value: ScalarValue::Integer(value.unsigned_abs()),
+            },
+        };
+
+        // ASCII hyphen band range, empty body: no trailing newline.
+        let band_only = OracleText {
+            abilities: vec![Ability {
+                ability_word: None,
+                flavor_header: None,
+                kind: AbilityKind::LevelBand(LevelBandAbility {
+                    range: LevelRange::Band {
+                        low: arabic(6),
+                        high: arabic(11),
+                    },
+                    stats: stat(6),
+                    abilities: vec![],
+                }),
+            }],
+        };
+        assert_eq!(
+            source_free(&band_only, "Test Card", false),
+            "LEVEL 6-11\n6/6"
+        );
+
+        // At-least range with one contained keyword ability.
+        let band_with_keyword = OracleText {
+            abilities: vec![Ability {
+                ability_word: None,
+                flavor_header: None,
+                kind: AbilityKind::LevelBand(LevelBandAbility {
+                    range: LevelRange::AtLeast(arabic(12)),
+                    stats: stat(9),
+                    abilities: vec![Ability {
+                        ability_word: None,
+                        flavor_header: None,
+                        kind: AbilityKind::Keyword(KeywordAbilityList {
+                            abilities: vec![KeywordAbility {
+                                preceding_separator: None,
+                                ability: keyword_atom(&catalogs, "flying"),
+                                argument: KeywordArgument::Absent,
+                            }],
+                        }),
+                    }],
+                }),
+            }],
+        };
+        assert_eq!(
+            source_free(&band_with_keyword, "Test Card", false),
+            "LEVEL 12+\n9/9\nFlying"
+        );
     }
 
     #[test]

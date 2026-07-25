@@ -42,6 +42,8 @@ use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
 use crate::syntax::KeywordCost;
 use crate::syntax::KeywordListSeparator;
+use crate::syntax::LevelBandAbility;
+use crate::syntax::LevelRange;
 use crate::syntax::LoyaltyAbility;
 use crate::syntax::LoyaltyCost;
 use crate::syntax::LoyaltyCostSign;
@@ -56,6 +58,7 @@ use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
 use crate::syntax::Paragraph;
 use crate::syntax::Phrase;
+use crate::syntax::PowerToughness;
 use crate::syntax::Predicate;
 use crate::syntax::PredicateConjunction;
 use crate::syntax::PredicatedArgument;
@@ -198,6 +201,25 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 abilities.push(self.parse_ability(strip_bullet(current)));
                 line += 1;
                 continue;
+            }
+
+            if let Some(range) = self.level_band_header(current) {
+                if let Some(stats) = lines
+                    .get(line + 1)
+                    .and_then(|stat_line| self.bare_power_toughness(stat_line))
+                {
+                    let mut band_end = line + 2;
+                    while band_end < lines.len()
+                        && !lines[band_end].is_empty()
+                        && self.level_band_header(lines[band_end]).is_none()
+                    {
+                        band_end += 1;
+                    }
+                    let body = lines[line + 2..band_end].to_vec();
+                    abilities.push(self.parse_level_band(range, stats, &body));
+                    line = band_end;
+                    continue;
+                }
             }
 
             let mut mode_end = line + 1;
@@ -384,6 +406,71 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
     fn arabic_literal(&self, token: &Token) -> Option<NumberLiteral> {
         arabic_number_literal(self.token_text(token))
+    }
+
+    /// Recognizes a leveler band header line — `LEVEL N1-N2` or `LEVEL N3+`
+    /// [CR#711.2a,711.2b]. The spelling is matched case-sensitively: the frame
+    /// prints `LEVEL` in caps on every attested face, so requiring the exact
+    /// spelling lets the renderer be an exact inverse without carrying a casing
+    /// field, and keeps prose `Level` (a Class level bar, a rules sentence)
+    /// from ever reaching the band frame.
+    fn level_band_header(&self, tokens: &[Token]) -> Option<LevelRange> {
+        let [head, rest @ ..] = tokens else {
+            return None;
+        };
+        if head.kind != TokenKind::Word || self.token_text(head) != "LEVEL" {
+            return None;
+        }
+        match rest {
+            [value, plus]
+                if value.kind == TokenKind::Integer
+                    && plus.kind == TokenKind::Punctuation(Punctuation::Plus) =>
+            {
+                Some(LevelRange::AtLeast(self.arabic_literal(value)?))
+            }
+            [span] if span.kind == TokenKind::Word => {
+                let (low, high) = self.token_text(span).split_once('-')?;
+                Some(LevelRange::Band {
+                    low: arabic_number_literal(low)?,
+                    high: arabic_number_literal(high)?,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// A band's bare power/toughness stat line: exactly one
+    /// [`TokenKind::PowerToughness`] token and nothing else. The absence of a
+    /// terminal period is what separates this from
+    /// [`Self::parse_power_toughness_body`]'s tiered-mode `3/2.` sentence, and
+    /// the single-element slice pattern enforces it.
+    fn bare_power_toughness(&self, tokens: &[Token]) -> Option<PowerToughness> {
+        let [stat] = tokens else { return None };
+        if stat.kind != TokenKind::PowerToughness {
+            return None;
+        }
+        super::parse_power_toughness(self.token_text(stat))
+    }
+
+    /// Assembles one level band. Constructs the `Ability` directly — like
+    /// [`Self::parse_modal`] and unlike [`Self::parse_ability`] — because a
+    /// band header line carries no ability-word or flavor-word prefix.
+    fn parse_level_band(
+        &mut self,
+        range: LevelRange,
+        stats: PowerToughness,
+        body: &[&[Token]],
+    ) -> Ability {
+        let abilities = body.iter().map(|line| self.parse_ability(line)).collect();
+        Ability {
+            ability_word: None,
+            flavor_header: None,
+            kind: AbilityKind::LevelBand(LevelBandAbility {
+                range,
+                stats,
+                abilities,
+            }),
+        }
     }
 
     /// Splits a saga chapter header (`I — …`, `I, II — …`) into its list of
@@ -1050,9 +1137,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// power/toughness token terminated by a period. It surfaces as a tiered
     /// mode's whole body, where the mode's effect is the base power and
     /// toughness it sets. The terminal period is required — a bare `N/N` with
-    /// no period is a level-band stat line that stays verbatim, not a P/T
-    /// sentence — and the renderer re-derives the period like any other
-    /// sentence. Nothing else stands in the sentence, so no clause frame ever
+    /// no period is instead claimed by the level-band frame in
+    /// [`Parser::parse`] as that band's stat line [CR#711.2], never reaching
+    /// this production — and the renderer re-derives the period like any
+    /// other sentence. The terminal period is what keeps a tiered mode's
+    /// `3/2.` sentence's territory distinct from the level band's bare stat
+    /// line. Nothing else stands in the sentence, so no clause frame ever
     /// competes; this is reached only after the chart declines the bare value.
     fn parse_power_toughness_body(&self, tokens: &[Token]) -> Option<SentenceBody> {
         let body = peel_sentence_ending(tokens);
@@ -3237,6 +3327,172 @@ mod tests {
         row
     }
 
+    fn level_band(report: &ParseReport) -> &LevelBandAbility {
+        let AbilityKind::LevelBand(band) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a level-band ability, got {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        band
+    }
+
+    #[test]
+    fn hyphen_level_band_lowers_to_a_level_band_ability() {
+        let source = "LEVEL 1-3\n4/4";
+        let report = parse(source);
+        let band = level_band(&report);
+        assert_eq!(
+            band.range,
+            LevelRange::Band {
+                low: arabic(1),
+                high: arabic(3)
+            }
+        );
+        assert_eq!(
+            band.stats,
+            PowerToughness {
+                power: SignedScalar {
+                    sign: ScalarSign::None,
+                    value: ScalarValue::Integer(4)
+                },
+                toughness: SignedScalar {
+                    sign: ScalarSign::None,
+                    value: ScalarValue::Integer(4)
+                },
+            }
+        );
+        assert!(band.abilities.is_empty());
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn plus_level_band_lowers_to_a_level_band_ability() {
+        let source = "LEVEL 4+\n6/6\nTrample";
+        let report = parse(source);
+        let band = level_band(&report);
+        assert_eq!(band.range, LevelRange::AtLeast(arabic(4)));
+        assert_eq!(band.abilities.len(), 1);
+        assert!(matches!(band.abilities[0].kind, AbilityKind::Keyword(_)));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn a_level_band_binds_every_line_until_the_next_band() {
+        let source = "Level up {R}\nLEVEL 4-7\n4/4\nFlying\nLEVEL 8+\n8/8\nFlying, trample\n{R}: This creature gets +1/+0 until end of turn.";
+        let report = parse(source);
+        assert_eq!(report.ast.abilities.len(), 3);
+        assert!(matches!(
+            report.ast.abilities[0].kind,
+            AbilityKind::Keyword(_)
+        ));
+        let AbilityKind::LevelBand(first) = &report.ast.abilities[1].kind else {
+            panic!(
+                "expected a level-band ability, got {:#?}",
+                report.ast.abilities[1].kind
+            );
+        };
+        assert_eq!(first.abilities.len(), 1);
+        let AbilityKind::LevelBand(second) = &report.ast.abilities[2].kind else {
+            panic!(
+                "expected a level-band ability, got {:#?}",
+                report.ast.abilities[2].kind
+            );
+        };
+        assert_eq!(second.abilities.len(), 2);
+        assert!(matches!(
+            second.abilities[1].kind,
+            AbilityKind::Activated(_)
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn a_level_header_without_a_stat_line_is_not_a_band() {
+        let source = "LEVEL 1-3";
+        let report = parse(source);
+        assert!(!matches!(
+            report.ast.abilities[0].kind,
+            AbilityKind::LevelBand(_)
+        ));
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a paragraph ability, got {:#?}",
+                report.ast.abilities[0].kind
+            );
+        };
+        assert!(matches!(
+            paragraph.sentences[0].body,
+            SentenceBody::Recovered(_)
+        ));
+    }
+
+    #[test]
+    fn a_bare_stat_line_without_a_level_header_is_not_a_band() {
+        let source = "Flying\n4/4";
+        let report = parse(source);
+        assert_eq!(report.ast.abilities.len(), 2);
+        for ability in &report.ast.abilities {
+            assert!(!matches!(ability.kind, AbilityKind::LevelBand(_)));
+        }
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[1].kind else {
+            panic!(
+                "expected a paragraph ability, got {:#?}",
+                report.ast.abilities[1].kind
+            );
+        };
+        assert!(matches!(
+            paragraph.sentences[0].body,
+            SentenceBody::Recovered(ref text) if text.spelling() == "4/4"
+        ));
+    }
+
+    #[test]
+    fn a_mixed_case_level_line_is_not_a_band() {
+        let source = "Level 1-3\n4/4";
+        let report = parse(source);
+        for ability in &report.ast.abilities {
+            assert!(!matches!(ability.kind, AbilityKind::LevelBand(_)));
+        }
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn a_class_level_bar_is_not_a_level_band() {
+        let source = "{1}{R}: Level 2\nCreatures you control have haste.";
+        let report = parse(source);
+        assert!(matches!(
+            report.ast.abilities[0].kind,
+            AbilityKind::ClassLevel(_)
+        ));
+        for ability in &report.ast.abilities {
+            assert!(!matches!(ability.kind, AbilityKind::LevelBand(_)));
+        }
+    }
+
+    #[test]
+    fn a_period_terminated_stat_line_is_not_a_band_stat() {
+        let source = "LEVEL 1-3\n4/4.";
+        let report = parse(source);
+        for ability in &report.ast.abilities {
+            assert!(!matches!(ability.kind, AbilityKind::LevelBand(_)));
+        }
+    }
+
+    #[test]
+    fn a_roll_row_is_not_a_level_band() {
+        let source = "Roll a d20.\n20 | Draw a card.";
+        let report = parse(source);
+        assert_eq!(report.ast.abilities.len(), 2);
+        let AbilityKind::RollRow(row) = &report.ast.abilities[1].kind else {
+            panic!(
+                "expected a roll-row ability, got {:#?}",
+                report.ast.abilities[1].kind
+            );
+        };
+        assert_eq!(row.range, RollRange::Single(arabic(20)));
+    }
+
     #[test]
     fn single_value_roll_row_lowers_to_a_roll_row_ability() {
         let source = "20 | Search your library for a card.";
@@ -3793,6 +4049,8 @@ mod tests {
                     "Crew",
                     "Morph",
                     "Tiered",
+                    "Level up",
+                    "Trample",
                 ],
             )
             .with_catalog(

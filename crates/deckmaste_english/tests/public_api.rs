@@ -1215,6 +1215,24 @@ fn between_preposition_licenses_a_coordinated_number_range() {
 }
 
 #[test]
+fn a_leveler_face_round_trips_through_its_level_bands() {
+    // Beastbreaker of Bala Ged's reminder-stripped body: two level bands, one
+    // holding no contained ability and one holding a single keyword. The
+    // whole-sentence bracket read's absence assertion — no `Recovered`
+    // anywhere on the face — proves both the header and the stat line are
+    // carried structurally rather than recovering.
+    let source = "Level up {2}{G}\nLEVEL 1-3\n4/4\nLEVEL 4+\n6/6\nTrample";
+    let catalogs = Catalogs::new(
+        ["Level up", "Trample"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    );
+    let (rendered, ast) = parse_face(source, &catalogs, "Beastbreaker of Bala Ged", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+}
+
+#[test]
 fn between_preposition_licenses_the_difference_between_shape() {
     // Jaws of Defeat shape (the `difference between X and Y` idiom): a second,
     // independent corpus motivation for `Preposition::Between`, guarding the
