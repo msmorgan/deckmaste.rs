@@ -430,6 +430,18 @@ pub(crate) enum AdjectiveComparisonState {
     Complete,
 }
 
+/// What a scanned copula constrains. `Indicative` carries the exact
+/// person/number the subject must match — the strictness this pathway has
+/// always had. `PastSubjunctive` carries no agreement at all and is licensed
+/// only where `conditional_reduction` consumes the `subjunctive` flag under
+/// `Subordinator::AsThough`; it is not, and must never become, an agreement
+/// bypass for indicative readings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum CopulaAgreement {
+    Indicative(Agreement),
+    PastSubjunctive,
+}
+
 impl PredicateObjectState {
     const fn has_direct_object(self) -> bool {
         !matches!(self, Self::None)
@@ -542,7 +554,7 @@ pub(crate) enum Features {
     Existential {
         number: Number,
     },
-    Copula(Agreement),
+    Copula(CopulaAgreement),
     SubjectAuxiliary {
         subject: ContractedSubjectKey,
         agreement: Agreement,
@@ -3593,15 +3605,17 @@ fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features
     }
 }
 
-const fn copula_agreement(auxiliary: AuxiliaryInstance) -> Option<Agreement> {
+const fn copula_agreement(auxiliary: AuxiliaryInstance) -> Option<CopulaAgreement> {
     if !matches!(auxiliary.auxiliary, Auxiliary::Be) {
         return None;
     }
     match auxiliary.inflection {
         AuxiliaryInflection::Present { person, number }
-        | AuxiliaryInflection::Past { person, number } => Some(Agreement { person, number }),
+        | AuxiliaryInflection::Past { person, number } => {
+            Some(CopulaAgreement::Indicative(Agreement { person, number }))
+        }
+        AuxiliaryInflection::PastSubjunctive => Some(CopulaAgreement::PastSubjunctive),
         AuxiliaryInflection::Base
-        | AuxiliaryInflection::PastSubjunctive
         | AuxiliaryInflection::PresentParticiple
         | AuxiliaryInflection::PastParticiple => None,
     }

@@ -1714,7 +1714,7 @@ fn reduce_copular_clause(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     let contracted = tag == RuleTag::ClauseContractedCopular;
-    let agreement = if contracted {
+    let (agreement, subjunctive) = if contracted {
         let Features::SubjectAuxiliary {
             agreement,
             auxiliary,
@@ -1726,7 +1726,7 @@ fn reduce_copular_clause(
         if auxiliary.auxiliary != Auxiliary::Be {
             return None;
         }
-        *agreement
+        (*agreement, false)
     } else {
         let Features::NounPhrase {
             agreement: Some(subject_agreement),
@@ -1739,13 +1739,21 @@ fn reduce_copular_clause(
         if *pronoun_case == Some(PronounCase::Object) {
             return None;
         }
-        let Features::Copula(copula_agreement) = children.get(1)?.features else {
+        let Features::Copula(copula) = children.get(1)?.features else {
             return None;
         };
-        if *subject_agreement != *copula_agreement {
-            return None;
+        match copula {
+            CopulaAgreement::Indicative(copula_agreement) => {
+                if *subject_agreement != *copula_agreement {
+                    return None;
+                }
+                (*subject_agreement, false)
+            }
+            // Recognition-level licensing: no agreement constraint, but the
+            // clause is marked subjunctive, so every consumer other than the
+            // `as though` gate (clause.rs:2056) rejects it.
+            CopulaAgreement::PastSubjunctive => (*subject_agreement, true),
         }
-        *subject_agreement
     };
     Some(Features::Clause {
         agreement: Some(agreement),
@@ -1753,7 +1761,7 @@ fn reduce_copular_clause(
         finite: true,
         host_addressee_subject: false,
         host_modal: false,
-        subjunctive: false,
+        subjunctive,
     })
 }
 
@@ -4060,12 +4068,12 @@ mod tests {
         // NOTE: the mana purpose-tail sub-family (`it were mana of any
         // color`) is NOT covered here — it needs a bare-NP complement after
         // a `PastSubjunctive` `Be`, which routes through the *copular*
-        // pathway (`Features::Copula`/`copula_agreement`), deliberately left
-        // returning `None` for `PastSubjunctive` (see `copula_agreement`) so
-        // the agreement bypass can't leak through the copular clause
-        // reduction, which requires an exact `Agreement` match rather than
-        // the `Option<Agreement>`-as-"no constraint" idiom used elsewhere.
-        // Extending that is characterized, not attempted, this stage.
+        // pathway (`Features::Copula`/`copula_agreement`). That pathway is
+        // now licensed too (`CopulaAgreement::PastSubjunctive`, `round
+        // copsubj`): the copula carries no agreement constraint but marks the
+        // clause `subjunctive`, so every consumer other than the `as though`
+        // gate (`clause.rs:2056`) still rejects it. See the `PA*`/`NA*` tests
+        // below for that pathway's coverage.
         let source =
             "You may have this creature assign its combat damage as though it weren't blocked.";
         let parsed = parse_self(source);
@@ -4129,6 +4137,264 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    // --- round `copsubj`: subjunctive copular (`Features::Copula`) ---
+
+    #[test]
+    fn as_though_licenses_a_subjunctive_copula_with_no_tail() {
+        // PA1 (Chromatic Orrery): the minimal no-tail mana-copular row.
+        let source = "You may spend mana as though it were mana of any color.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn as_though_licenses_a_subjunctive_copula_with_a_plural_matrix_subject() {
+        // PA2 (Mycosynth Lattice).
+        let source = "Players may spend mana as though it were mana of any color.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn as_though_licenses_a_subjunctive_copula_under_a_fronted_frame() {
+        // PA3 (False Dawn): a fronted `until end of turn` frame over a
+        // subjunctive-bodied attachment.
+        let source =
+            "Until end of turn, you may spend white mana as though it were mana of any color.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn as_though_mana_copula_purpose_infinitive_attaches_inside_the_complement_nominal() {
+        // PA4: pins the §2.5 attachment ruling empirically (confirmed by
+        // probing `Agatha's Soul Cauldron`, whose purpose tail has the same
+        // shape). The purpose infinitive cannot attach at
+        // `RuleTag::VerbPhraseInfinitive` (the subordinate clause linearly
+        // separates `spend mana` from the tail); the reachable analysis is
+        // `RuleTag::NominalInfinitive`, and it lands as a complement of the
+        // *inner* `any color` nominal (not the outer `mana of any color`
+        // nominal, nor a matrix-verb complement).
+        use crate::syntax::NominalComplement;
+        use crate::syntax::NounPhrase;
+        let source = "You may spend mana as though it were mana of any color to cast that spell.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        assert_eq!(
+            render_sentence(parsed.sentence().unwrap()),
+            source,
+            "{source}"
+        );
+
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause: {:#?}", parsed.sentence());
+        };
+        let [attachment] = complex.attachments.as_slice() else {
+            panic!("expected exactly one trailing attachment: {complex:#?}");
+        };
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            crate::syntax::Subordinator::AsThough,
+            SubordinateBody::Finite(body),
+        )) = &attachment.kind
+        else {
+            panic!("expected an as-though finite attachment: {attachment:#?}");
+        };
+        let IndependentClause::Copular(_, predicate) = body.as_ref() else {
+            panic!("expected a copular as-though body: {body:#?}");
+        };
+        let crate::syntax::CopularComplement::NounPhrase(complement) = &predicate.complement else {
+            panic!("expected a noun-phrase complement: {predicate:#?}");
+        };
+        let NounPhrase::Nominal(mana) = complement else {
+            panic!("expected a nominal complement: {complement:#?}");
+        };
+        let [NominalComplement::Prepositional(of_any_color)] = mana.complements.as_slice() else {
+            panic!("expected `mana` to take one prepositional complement: {mana:#?}");
+        };
+        let crate::syntax::Phrase::NounPhrase(any_color_np) = of_any_color.object.as_ref() else {
+            panic!("expected a noun-phrase object of `of`: {of_any_color:#?}");
+        };
+        let NounPhrase::Nominal(any_color) = any_color_np.as_ref() else {
+            panic!("expected a nominal object of `of`: {any_color_np:#?}");
+        };
+        assert!(
+            matches!(
+                any_color.complements.as_slice(),
+                [NominalComplement::Infinitive(
+                    crate::syntax::InfinitiveClause {
+                        marker: InfinitiveMarker::To,
+                        ..
+                    }
+                )]
+            ),
+            "expected the purpose infinitive on the inner `any color` nominal: {any_color:#?}"
+        );
+    }
+
+    #[test]
+    fn as_though_mana_copula_structural_shape() {
+        // PA5: structural pin of the whole subjunctive-copula pathway.
+        use crate::syntax::CopularComplement;
+        use crate::word::Auxiliary;
+        use crate::word::AuxiliaryInflection;
+        let source = "You may spend mana as though it were mana of any color.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause: {:#?}", parsed.sentence());
+        };
+        let [attachment] = complex.attachments.as_slice() else {
+            panic!("expected exactly one trailing attachment: {complex:#?}");
+        };
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            crate::syntax::Subordinator::AsThough,
+            SubordinateBody::Finite(body),
+        )) = &attachment.kind
+        else {
+            panic!("expected an as-though finite attachment: {attachment:#?}");
+        };
+        let IndependentClause::Copular(_, predicate) = body.as_ref() else {
+            panic!("expected a copular as-though body: {body:#?}");
+        };
+        assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
+        assert_eq!(
+            predicate.copula.auxiliary.inflection,
+            AuxiliaryInflection::PastSubjunctive
+        );
+        assert!(!predicate.copula.contracted_with_subject);
+        assert!(matches!(
+            predicate.complement,
+            CopularComplement::NounPhrase(_)
+        ));
+    }
+
+    #[test]
+    fn as_though_indicative_copula_reading_survives_the_subjunctive_copula_filter() {
+        // NA1 (anti-shadow): `as though they were untapped` and `as though
+        // those cards were in your graveyard` must keep the ordinary
+        // indicative reading of `were`, proving the `reading_dispreference`
+        // survives the copula filter (E2) rather than the subjunctive
+        // reading shadowing it.
+        use crate::word::Auxiliary;
+        use crate::word::AuxiliaryInflection;
+        use crate::word::Number;
+        use crate::word::Person;
+        for source in [
+            "This creature can attack as though they were untapped.",
+            "You may cast spells from your hand as though those cards were in your graveyard.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let SentenceBody::Independent(clause) = &parsed.sentence().expect("root").body else {
+                panic!("expected an independent clause: {source}");
+            };
+            let attachments: &[ClauseAttachment] = match clause {
+                IndependentClause::Complex(complex) => complex.attachments.as_slice(),
+                other => panic!("expected a complex clause: {other:#?}"),
+            };
+            let mut found_copula = false;
+            for attachment in attachments {
+                let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    crate::syntax::Subordinator::AsThough,
+                    SubordinateBody::Finite(body),
+                )) = &attachment.kind
+                else {
+                    continue;
+                };
+                // `were untapped` / `were in your graveyard` reduce as a
+                // passive or prepositional-copular body depending on the
+                // complement shape, not necessarily `IndependentClause::Copular`
+                // — either way the `Be` auxiliary must keep its ordinary
+                // indicative inflection, never `PastSubjunctive`.
+                let auxiliary = match body.as_ref() {
+                    IndependentClause::Copular(_, predicate) => predicate.copula.auxiliary,
+                    IndependentClause::Passive(_, predicate) => *predicate
+                        .head
+                        .auxiliaries
+                        .first()
+                        .expect("passive `be` auxiliary"),
+                    other => panic!("expected a copular or passive as-though body: {other:#?}"),
+                };
+                {
+                    found_copula = true;
+                    assert_eq!(auxiliary.auxiliary, Auxiliary::Be);
+                    assert_eq!(
+                        auxiliary.inflection,
+                        AuxiliaryInflection::Past {
+                            person: Person::Third,
+                            number: Number::Plural,
+                        },
+                        "must not be PastSubjunctive: {auxiliary:#?}"
+                    );
+                }
+            }
+            assert!(found_copula, "expected an as-though copular body: {source}");
+            assert_eq!(
+                render_sentence(parsed.sentence().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn bare_subjunctive_copular_clause_does_not_parse() {
+        // NA2: extends N1 (bare_subjunctive_clause_does_not_parse) to the
+        // copular pathway.
+        assert!(
+            parse_nonterminal(
+                "This creature were red.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn subjunctive_copula_under_a_different_subordinator_does_not_parse() {
+        // NA3: extends N2/N4 to the copular pathway.
+        for source in [
+            "As long as it were mana of any color, you gain 1 life.",
+            "Target creature gets +1/+1 until it were red.",
+        ] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn indicative_copula_agreement_strictness_is_unchanged() {
+        // NA4: the subjunctive branch must not have widened the indicative
+        // equality test in `reduce_copular_clause`.
+        for source in ["Those creatures is red.", "That creature are red."] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+                "{source}"
+            );
+        }
     }
 
     #[test]
