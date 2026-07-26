@@ -450,8 +450,35 @@ impl Catalogs {
         }
 
         let mut actions_by_head_surface: HashMap<String, Vec<KeywordAction>> = HashMap::new();
-        for canonical in &self.sources[CatalogKind::KeywordAction.index()] {
-            let action = resolve_keyword_action(canonical);
+        let generated_actions = self.sources[CatalogKind::KeywordAction.index()]
+            .iter()
+            .cloned();
+        // DURABILITY: `mutate` (and, pending a fix, `exploit` — see below) is
+        // a keyword *ability* [CR#702] whose CR-defined verb usage (`this
+        // creature mutates`) Scryfall's `keyword-actions` catalog will never
+        // enumerate, because the Comprehensive Rules classify it as an
+        // ability, not a keyword action — so it can never appear in the
+        // CR-§701-derived generated catalog above. This hand-curated
+        // supplement (the same shape as `RulesNominal`'s hand-curated table)
+        // is where its ability-derived verb form is added instead. A future
+        // regeneration of `keyword-actions` from the CR or from Scryfall
+        // must NOT be read as license to drop this entry — it is added
+        // here, permanently, independent of any catalog refresh.
+        //
+        // `exploit` was attempted alongside `mutate` (round `kwverbs`) but
+        // reverted: it creates a competing verb reading for the
+        // keyword-ability atom `exploit` as a bare object (`have exploit`)
+        // on coordinated-subject faces (Henry Wu, InGen Geneticist —
+        // `Henry Wu and other Human creatures you control have exploit.`
+        // parses `exploit` as a second coordinated intransitive predicate
+        // instead of the atom filling `have`'s object slot). See ticket
+        // `english-ability-derived-verb-batch` before re-attempting; it
+        // needs a fix for that over-fire, not just a re-add.
+        let hand_curated_ability_derived_actions = ABILITY_DERIVED_KEYWORD_ACTION_VERBS
+            .iter()
+            .map(|lemma| Arc::<str>::from(*lemma));
+        for canonical in generated_actions.chain(hand_curated_ability_derived_actions) {
+            let action = resolve_keyword_action(&canonical);
             for slot in VERB_SLOTS {
                 let Some(surface) = action.render_head(slot) else {
                     continue;
@@ -742,6 +769,16 @@ fn lowercase_word_prefix(text: &str, expected: &str) -> Option<usize> {
     let prefix = text.get(..expected.len())?;
     (prefix == expected && is_word_boundary(text, expected.len())).then_some(expected.len())
 }
+
+/// Ability-derived keyword-action verb forms, hand-curated rather than
+/// catalog-generated. `mutate` is a keyword *ability* [CR#702], not a
+/// keyword action [CR#701] — the Comprehensive Rules define its verb usage
+/// (`this creature mutates`) but Scryfall's `keyword-actions` catalog will
+/// never list it, because it is not a keyword action. See the durability
+/// comment at the merge site in [`Catalogs::rebuild`]. (`exploit` was
+/// attempted here too and reverted for an over-fire on `have exploit`; see
+/// that comment and ticket `english-ability-derived-verb-batch`.)
+const ABILITY_DERIVED_KEYWORD_ACTION_VERBS: [&str; 1] = ["mutate"];
 
 fn resolve_keyword_action(canonical: &Arc<str>) -> KeywordAction {
     let (head_surface, tail) = canonical

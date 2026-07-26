@@ -1269,3 +1269,154 @@ fn between_preposition_licenses_the_difference_between_shape() {
         "expected the new `between` preposition\nAST:\n{ast}"
     );
 }
+
+// --- `kwverbs`: ability-derived keyword-action verbs (`mutate`) -----------
+//
+// `mutate` is a keyword *ability* [CR#702], not a keyword action [CR#701],
+// so Scryfall's `keyword-actions` catalog never lists it. Its CR-defined
+// verb usage (`this creature mutates`) is added as a hand-curated
+// `Verb::KeywordAction` supplement (see the durability comment at the merge
+// site in `crates/deckmaste_english/src/catalog.rs`, `Catalogs::rebuild`).
+//
+// `exploit` was attempted alongside `mutate` in this round's Gate B and
+// dropped: it created a competing verb reading for the keyword-ability atom
+// `exploit` filling a bare object slot on a coordinated-subject face (Henry
+// Wu, InGen Geneticist — see
+// `keyword_ability_object_stays_an_atom_and_verb_stays_out` below, and ticket
+// `english-ability-derived-verb-batch`).
+
+#[test]
+fn mutate_trigger_event_parses() {
+    // Archipelagore shape: `Whenever this creature mutates,` plus the
+    // `has mutated` count-noun collateral, in one sentence.
+    let source = "Whenever this creature mutates, tap up to X target creatures, where X is \
+        the number of times this creature has mutated.";
+    let catalogs = Catalogs::new(
+        ["Mutate"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    );
+    let (rendered, ast) = parse_face(source, &catalogs, "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("KeywordAction"), "AST:\n{ast}");
+}
+
+#[test]
+fn exploit_trigger_event_parses_with_its_object() {
+    // Diver Skaab shape: `When this creature exploits a creature,` — with
+    // `exploit` reverted (Gate B failed the over-fire check below), this
+    // stays an absence assertion: the object must NOT strand as a separate
+    // clause the way a wrong tree would, but `exploits` is not yet a known
+    // verb, so the whole trigger recovers as one span.
+    let source = "When this creature exploits a creature, target creature's owner puts it \
+        on their choice of the top or bottom of their library.";
+    let catalogs = Catalogs::new(
+        ["Exploit"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    );
+    let (rendered, ast) = parse_face(source, &catalogs, "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(
+        !ast.contains("KeywordAction"),
+        "`exploit` is reverted (Gate B failed); it must not render as a verb:\nAST:\n{ast}"
+    );
+    assert!(
+        ast.contains("Recovered("),
+        "the whole `exploits` trigger should still recover as one span:\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn keyword_ability_line_is_not_a_verb_clause() {
+    // Both keyword lines still classify as keyword abilities, not clauses.
+    // `mutate` is now a known verb; `exploit` is not (reverted).
+    let source = "Mutate {5}{U}\nExploit";
+    let catalogs = Catalogs::new(
+        ["Mutate", "Exploit"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    );
+    let (rendered, ast) = parse_face(source, &catalogs, "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(!ast.contains("KeywordAction"), "AST:\n{ast}");
+}
+
+#[test]
+fn keyword_ability_object_stays_an_atom_and_verb_stays_out() {
+    // Henry Wu, InGen Geneticist shape (the round's Gate B failure): `Henry
+    // Wu and other Human creatures you control have exploit.` — on this
+    // coordinated-subject face, a hand-curated `exploit` verb entry flips
+    // `exploit` from the keyword-ability atom filling `have`'s object into a
+    // second, wrongly coordinated intransitive predicate. `exploit` is NOT
+    // in the hand-curated table (see `ABILITY_DERIVED_KEYWORD_ACTION_VERBS`
+    // in `catalog.rs`), so this must stay the atom reading. This test is the
+    // regression guard against silently re-adding `exploit` without first
+    // fixing that over-fire.
+    let source = "Henry Wu and other Human creatures you control have exploit.\nWhenever a \
+        creature you control exploits a non-Human creature, draw a card.";
+    let catalogs = Catalogs::new(
+        ["Exploit"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    )
+    .with_catalog(CatalogKind::CreatureType, ["Human"]);
+    let (rendered, ast) = parse_face(source, &catalogs, "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(
+        !ast.contains("KeywordAction"),
+        "`exploit` must not render as a verb anywhere while it is reverted:\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn champion_is_still_missing_and_guarded() {
+    // `champion` stays OUT (only one corpus witness; see the round's plan).
+    // Mistbind Clique carries *two* recovered spans — the keyword-argument
+    // line `Champion a Faerie` (a separate, still-unrelated gap) and the
+    // `championed` trigger sentence — and both must still recover, because
+    // `champion` is not modeled and the
+    // `copular_complement_head_is_opaque` guard (grammar/ability.rs) stays
+    // load-bearing to keep the trigger from camouflaging as a copular/opaque
+    // noun reading until `champion` lands.
+    let source = "Champion a Faerie\nWhen a Faerie is championed with this creature, tap all \
+        lands target player controls.";
+    let catalogs = Catalogs::new(
+        ["Champion"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    )
+    .with_catalog(CatalogKind::CreatureType, ["Faerie"]);
+    let (rendered, ast) = parse_face(source, &catalogs, "Test Card", false);
+    assert_eq!(rendered, source);
+    assert_eq!(
+        ast.matches("Recovered(").count(),
+        2,
+        "expected both `Champion a Faerie` and the `championed` trigger to still recover:\n\
+         AST:\n{ast}"
+    );
+}
+
+#[test]
+fn mutate_and_exploit_round_trip() {
+    // Render-back equality for `mutate`'s two in-scope verb forms (landed);
+    // `exploit`'s two forms are included as reverted-absence checks (Gate B
+    // failed, see above) so a future re-add is exercised here too.
+    let catalogs = Catalogs::new(
+        ["Mutate", "Exploit"],
+        std::iter::empty::<&str>(),
+        std::iter::empty::<&str>(),
+    );
+    for source in [
+        "Whenever this creature mutates, scry 2.",
+        "Whenever this creature mutates, tap up to X target creatures, where X is the \
+            number of times this creature has mutated.",
+        "When this creature exploits a creature, draw a card.",
+        "The exploited creature's toughness becomes 0 until end of turn.",
+    ] {
+        let (rendered, ast) = parse_face(source, &catalogs, "Test Card", false);
+        assert_eq!(rendered, source, "AST:\n{ast}");
+    }
+}
