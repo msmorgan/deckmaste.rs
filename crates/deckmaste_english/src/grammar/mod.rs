@@ -2146,6 +2146,41 @@ impl EnglishGrammar<'_, '_> {
         }
     }
 
+    /// Literal lexemes the grammar scans as whole `Word` tokens but that no
+    /// vocabulary, catalog, determiner, preposition, conjunction, or
+    /// subordinator scanner would report. `has_known_word` must know every
+    /// one of them: the opacity gate's invariant is "never opacify a word
+    /// the lexicon already knows", and a literal swallowed as an opaque
+    /// noun can head a nominal that captures real nouns as its modifiers
+    /// and completes a sentence that should stay recovered (round
+    /// `pluralposs`, `except`/`not`).
+    ///
+    /// Adding a new literal-scanned slot means adding its surface here. The
+    /// compiler cannot yet force that — see the derivation residue in
+    /// `litaudit-plan.md` §2.
+    // Deviation from plan §1.2 (round litaudit, recorded in
+    // litaudit-mechanic-report.md): the plan's "same class, no witness
+    // today" defensive additions (`both`, `half`, `rounded`, `out`,
+    // `rather`, `there's`, `he's`/`she's`/`they're`/`they've`/`you've`,
+    // `'s`) are NOT measured zero-cost. `out` breaks
+    // `directional_particle_requires_a_licensed_verb_pair`
+    // (grammar/clause.rs), which depends on `out` staying opacifiable as a
+    // noun fallback when paired with an unlicensed verb. `you've` has a
+    // second-order retain effect (litaudit-plan.md §4) that removes two
+    // `lexical noun` dump rows outside the measured 47 (`surveilled`,
+    // `completed`), tripping the round's own hard stop condition ("any
+    // removed row not among the 47"). Since the plan explicitly did not
+    // measure this class before declaring it zero-cost, the mechanic holds
+    // the const to only the measured-exposure literals plus the
+    // already-present hand arms, and tickets the zero-exposure class for a
+    // follow-up round that measures each one individually.
+    const OPACITY_RESERVED_LITERALS: &'static [&'static str] = &[
+        // already present as hand arms before this round
+        "plus", "who", "except", "not",
+        // measured exposure (litaudit-plan.md §1.2) — the hard floor
+        "there", "up", "than", "it's", "that's", "down", "minus", "X",
+    ];
+
     fn has_known_word(&self, tokens: &[Token], start: usize) -> bool {
         if tokens
             .get(start)
@@ -2173,17 +2208,9 @@ impl EnglishGrammar<'_, '_> {
             || !self.scan_preposition(tokens, start).is_empty()
             || !self.scan_conjunction(tokens, start).is_empty()
             || self.subordinator_at(tokens, start).is_some()
-            || self.one_token_match(tokens, start, "plus").is_some()
-            || self.one_token_match(tokens, start, "who").is_some()
-            // The opacity gate's invariant is "never opacify a word the lexicon
-            // already knows". The literal lexemes were omitted: `except` is
-            // scanned into `LiteralKey::Except` for the exception riders and
-            // `not` is a clause negator, yet either could still be swallowed as
-            // an opaque *noun* and then capture real nouns as its modifiers
-            // (`their owners' hands except`, `all nonland permanents not`),
-            // completing a sentence that must stay recovered.
-            || self.one_token_match(tokens, start, "except").is_some()
-            || self.one_token_match(tokens, start, "not").is_some()
+            || Self::OPACITY_RESERVED_LITERALS
+                .iter()
+                .any(|literal| self.one_token_match(tokens, start, literal).is_some())
             || !self
                 .catalog_matches(tokens, start, CatalogSlot::Noun(NounUsage::Either))
                 .is_empty()
@@ -6502,5 +6529,152 @@ fn push_noun_phrase_coordination(
             first: Box::new(first),
             rest: vec![coordination],
         },
+    }
+}
+
+#[cfg(test)]
+mod litaudit_tests {
+    use super::*;
+
+    fn fixture_catalogs() -> Catalogs {
+        Catalogs::default()
+            .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"])
+            .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
+            .with_catalog(CatalogKind::Supertype, ["Basic", "Legendary"])
+    }
+
+    #[test]
+    fn every_reserved_literal_is_a_known_word() {
+        // has_known_word's own invariant: a word the lexicon already knows —
+        // including hand-written literal lexemes, not just vocabulary/catalog
+        // slots — must never be reported as unknown (and so must never be
+        // opacified). Extends pluralposs's
+        // `a_known_literal_lexeme_is_never_opacifiable` (which folds into this
+        // test) to the full `OPACITY_RESERVED_LITERALS` table (round litaudit).
+        let catalogs = fixture_catalogs();
+        for literal in EnglishGrammar::OPACITY_RESERVED_LITERALS {
+            let surface = crate::surface::lex(literal);
+            let grammar = EnglishGrammar::new(literal, &catalogs, Nonterminal::NounPhrase);
+            assert!(
+                grammar.has_known_word(&surface.tokens, 0),
+                "{literal} must be a known word"
+            );
+        }
+    }
+
+    #[test]
+    fn reserved_literals_are_never_opaque_nouns() {
+        // Per-literal parse assertions for the seven reserved literals with
+        // corpus witnesses (litaudit-plan.md §1.2). Whichever of the two
+        // outcomes ((i) re-parse via the literal's real production, or (ii)
+        // the sentence honestly loses its only complete parse) the face lands
+        // in, no `Opaque(OpaqueLexeme(<literal>))` node may survive in the
+        // tree: an `Err` result (outcome (ii): no complete parse) or an `Ok`
+        // result whose debug dump contains no reserved-literal `OpaqueLexeme`
+        // both satisfy the invariant.
+        let catalogs = fixture_catalogs();
+        let witnesses: &[(&str, &str)] = &[
+            (
+                "there",
+                "Exile target creature card from a graveyard that was put there this turn.",
+            ),
+            (
+                "up",
+                "Whenever this creature deals combat damage to a player, return up to that many target permanents that player controls to their owner's hand.",
+            ),
+            (
+                "than",
+                "Damage that would reduce your life total to less than 1 reduces it to 1 instead.",
+            ),
+            (
+                "it's",
+                "Whenever one or more +1/+1 counters are put on another permanent you control, if it's the first time +1/+1 counters have been put on that permanent this turn, put a +1/+1 counter on this creature.",
+            ),
+            (
+                "that's",
+                "Target creature card in your graveyard that's an artifact or that has mana value 3 or less gains escape until end of turn.",
+            ),
+            (
+                "down",
+                "You may return this card from your graveyard to the battlefield face up or face down.",
+            ),
+            (
+                "minus",
+                "If one or more -1/-1 counters would be put on a creature you control, that many -1/-1 counters minus one are put on it instead.",
+            ),
+        ];
+        for (literal, source) in witnesses {
+            match parse_nonterminal(source, &catalogs, Nonterminal::Sentence) {
+                Err(_) => {
+                    // Outcome (ii): the sentence honestly loses its only
+                    // complete parse once the literal can no longer be
+                    // swallowed as an opaque noun. No tree, so no opaque node
+                    // of any kind can survive.
+                }
+                Ok(parsed) => {
+                    let dump = format!("{parsed:#?}");
+                    let needle = format!("OpaqueLexeme(\n        \"{literal}\"");
+                    let needle_inline = format!("OpaqueLexeme(\"{literal}\")");
+                    assert!(
+                        !dump.contains(&needle) && !dump.contains(&needle_inline),
+                        "{literal}: reserved literal survived as an opaque noun: {dump}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_opacity_gate_is_the_predicates_only_caller() {
+        // Pins litaudit-plan.md §4 structurally: has_known_word gates
+        // opacification only, at its two call sites in `scan`'s
+        // `EnglishLexicalSlot::Opaque` arm. This is the executable half; the
+        // source-grep gate (`rg -n 'has_known_word'`) is run by the mechanic
+        // per round and is not itself a test.
+        let catalogs = fixture_catalogs();
+
+        // Call site 1 (`already_known`, :2027): a known-word start yields no
+        // opaque candidates at all.
+        let source = "who";
+        let surface = crate::surface::lex(source);
+        let grammar = EnglishGrammar::with_opacity_profile(
+            source,
+            &catalogs,
+            Nonterminal::NounPhrase,
+            OpacityProfile::Nouns,
+            SelfReference::default(),
+        );
+        let matches = grammar.scan(
+            EnglishLexicalSlot::Opaque(OpacitySlot::Noun(NounForm::Singular)),
+            &surface.tokens,
+            0,
+        );
+        assert!(
+            matches.is_empty(),
+            "a known-word start must never yield an opaque candidate: {matches:?}"
+        );
+
+        // Call site 2 (the `retain`, :2032-2035): an opaque candidate that
+        // would span a known reserved literal is dropped even when the head
+        // token itself is unknown.
+        let source = "gloopmonster minus one";
+        let surface = crate::surface::lex(source);
+        let grammar = EnglishGrammar::with_opacity_profile(
+            source,
+            &catalogs,
+            Nonterminal::NounPhrase,
+            OpacityProfile::Nouns,
+            SelfReference::default(),
+        );
+        let matches = grammar.scan(
+            EnglishLexicalSlot::Opaque(OpacitySlot::Noun(NounForm::Singular)),
+            &surface.tokens,
+            0,
+        );
+        assert!(
+            matches.iter().all(|candidate| !(1..candidate.end)
+                .any(|index| grammar.has_known_word(&surface.tokens, index))),
+            "no surviving opaque candidate may span a known word: {matches:?}"
+        );
     }
 }

@@ -861,22 +861,9 @@ mod tests {
         }
     }
 
-    #[test]
-    fn a_known_literal_lexeme_is_never_opacifiable() {
-        // has_known_word's own invariant: a word the lexicon already knows —
-        // including hand-written literal lexemes, not just vocabulary/catalog
-        // slots — must never be reported as unknown (and so must never be
-        // opacified). Pins `except`/`not` alongside the pre-existing `plus`/`who`.
-        let catalogs = fixture_catalogs();
-        for word in ["except", "not", "plus", "who"] {
-            let surface = crate::surface::lex(word);
-            let grammar = EnglishGrammar::new(word, &catalogs, Nonterminal::NounPhrase);
-            assert!(
-                grammar.has_known_word(&surface.tokens, 0),
-                "{word} must be a known word"
-            );
-        }
-    }
+    // a_known_literal_lexeme_is_never_opacifiable folded into
+    // grammar::mod::litaudit_tests::every_reserved_literal_is_a_known_word
+    // (round litaudit), which covers the full OPACITY_RESERVED_LITERALS table.
 
     #[test]
     fn self_reference_possessive_is_one_determiner() {
