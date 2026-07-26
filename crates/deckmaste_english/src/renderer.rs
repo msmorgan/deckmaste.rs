@@ -1030,6 +1030,7 @@ impl<'identity> Renderer<'identity> {
             match modifier {
                 PreverbModifier::Not => "not",
                 PreverbModifier::Also => "also",
+                PreverbModifier::Next => "next",
             }
             .to_owned()
         }));

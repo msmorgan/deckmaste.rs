@@ -29,6 +29,7 @@ use crate::syntax::PredicateElement;
 use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
 use crate::syntax::PredicateObjectCoordination;
+use crate::syntax::PreverbModifier;
 use crate::syntax::ProPredicate;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeMarker;
@@ -109,6 +110,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         RuleTag::VerbPhraseAdverb,
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::Adverb)],
+    );
+    builder.add(
+        RuleTag::VerbPhrasePreverbAdverb,
+        N::VerbPhrase,
+        [l(L::PreverbAdverb), n(N::VerbPhrase)],
     );
     for particle in [VerbParticle::In, VerbParticle::Out] {
         builder.add(
@@ -722,6 +728,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhrasePreverbAdverb
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
@@ -1155,6 +1162,13 @@ fn reduce_predicate(
                 return None;
             };
             extend_predicate(children.first()?, PredicateAttachment::AdjectiveComplement)
+        }
+        RuleTag::VerbPhrasePreverbAdverb => {
+            // Not an extend_predicate/Adjunct site (§2.4): the preverb
+            // modifier attaches before the verb phrase (child 1, not child 0)
+            // and changes no predicate-phase or object-state licensing, so the
+            // composed features are exactly the inner VerbPhrase's, unchanged.
+            Some(children.get(1)?.features.clone())
         }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
@@ -2493,6 +2507,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhrasePreverbAdverb
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
@@ -2640,6 +2655,23 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             predicate.auxiliaries.insert(0, auxiliary);
+            Some(Lowered::VerbPhrase(predicate))
+        }
+        RuleTag::VerbPhrasePreverbAdverb => {
+            // Not a §2.4 dependent site: children are swapped relative to the
+            // sibling VerbPhraseAdverb (adverb at 0, VerbPhrase at 1), and the
+            // modifier lands on preverb_modifiers rather than becoming a
+            // VerbDependent — routing through PredicateAttachment::Adjunct
+            // would render post-verbally (`cast next …`), a round-trip
+            // failure. The literal matcher already pinned this token to
+            // `next`, so the specific Vocab value need not be inspected here.
+            let Lowered::Adverb(_next) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::VerbPhrase(mut predicate) = take(children, 1)? else {
+                return None;
+            };
+            predicate.preverb_modifiers.push(PreverbModifier::Next);
             Some(Lowered::VerbPhrase(predicate))
         }
         RuleTag::VerbPhraseCausative => {
@@ -4298,6 +4330,7 @@ mod tests {
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::AdjectiveComplement;
+    use crate::syntax::AdjectivePhrase;
     use crate::syntax::Demonstrative;
     use crate::syntax::Determiner;
     use crate::syntax::FrequencyBound;
@@ -8463,5 +8496,144 @@ mod tests {
             1,
             "expected `last turn` as a Temporal adjunct: {elements:#?}"
         );
+    }
+
+    fn parse_clause(source: &str) -> Clause {
+        parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Clause)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
+            .clause()
+            .unwrap_or_else(|| panic!("expected a Clause root for {source:?}"))
+            .clone()
+    }
+
+    fn transitive_predicate_head(clause: &Clause) -> &PredicateHead {
+        let Clause::Independent(IndependentClause::Transitive(_, predicate)) = clause else {
+            panic!("expected an independent transitive clause: {clause:#?}");
+        };
+        &predicate.head
+    }
+
+    /// The trigger-clause shape (Chandra, the Firebrand's "you next cast a
+    /// creature spell this turn"): the preverbal modifier lands on
+    /// `preverb_modifiers`, and the object/adjunct structure is otherwise
+    /// unchanged from the minus-`next` twin (the Glimpse of Nature shape).
+    #[test]
+    fn preverbal_next_attaches_to_the_predicate_head() {
+        let with_next = parse_clause("you next cast a creature spell this turn");
+        let without_next = parse_clause("you cast a creature spell this turn");
+        let with_head = transitive_predicate_head(&with_next);
+        let without_head = transitive_predicate_head(&without_next);
+        assert_eq!(with_head.preverb_modifiers, [PreverbModifier::Next]);
+        assert_eq!(without_head.preverb_modifiers, []);
+        // Everything besides the preverb modifier (verb, object, adjunct) is
+        // unchanged from the minus-`next` twin.
+        assert_eq!(with_head.verb, without_head.verb);
+        let Clause::Independent(IndependentClause::Transitive(_, with_predicate)) = &with_next
+        else {
+            panic!("expected transitive");
+        };
+        let Clause::Independent(IndependentClause::Transitive(_, without_predicate)) =
+            &without_next
+        else {
+            panic!("expected transitive");
+        };
+        assert_eq!(with_predicate.object, without_predicate.object);
+        assert_eq!(with_predicate.elements, without_predicate.elements);
+    }
+
+    /// Renders back to the exact source string, with `next` before the verb —
+    /// not `PredicateAttachment::Adjunct`'s post-verbal position (§2.4's
+    /// round-trip failure mode: `cast next` rather than `next cast`).
+    #[test]
+    fn preverbal_next_round_trips_before_the_verb() {
+        let source = "You next cast a creature spell this turn.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    /// The pinned literal matcher admits only `next`: no other adverb in the
+    /// vocabulary (`only`/`just`/`once`/`twice`/`still`) reduces preverbally,
+    /// and a synthetic `you only cast a spell` has no complete parse.
+    #[test]
+    fn preverb_adverb_slot_admits_only_next() {
+        // Every existing clause fixture's preverb_modifiers stays empty: the
+        // pinned literal matcher (§2.1) only ever recognizes `next`, so no
+        // other adverb reduces preverbally regardless of shape.
+        for source in FIXTURES {
+            let parsed = parse(source);
+            let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+                continue;
+            };
+            let head = match clause {
+                IndependentClause::Transitive(_, predicate) => Some(&predicate.head),
+                IndependentClause::Intransitive(_, predicate) => Some(&predicate.head),
+                IndependentClause::Imperative(predicate) => match predicate {
+                    Predicate::Transitive(p) => Some(&p.head),
+                    Predicate::Intransitive(p) => Some(&p.head),
+                    _ => None,
+                },
+                _ => None,
+            };
+            if let Some(head) = head {
+                assert!(
+                    head.preverb_modifiers.is_empty(),
+                    "unexpected preverb modifier in fixture {source:?}: {head:#?}"
+                );
+            }
+        }
+        // A synthetic `you only cast a spell` — substituting `only` for the
+        // pinned literal — has no complete parse: `only`/`just`/`once`/
+        // `twice`/`still` never reduce through `RuleTag::VerbPhrasePreverbAdverb`.
+        for adverb in ["only", "just", "once", "twice", "still"] {
+            let source = format!("you {adverb} cast a spell");
+            assert!(
+                parse_nonterminal(&source, &fixture_catalogs(), Nonterminal::Clause).is_err(),
+                "expected {source:?} to have no complete parse"
+            );
+        }
+    }
+
+    /// Attributive `next` over a spell nominal (Barl's Cage's "its
+    /// controller's next untap step") keeps `next` as an adjective modifier —
+    /// no `preverb_modifiers`, and no `VerbPhrase` node spanning `next untap`.
+    #[test]
+    fn attributive_next_is_not_a_preverb_modifier() {
+        let source = "its controller's next untap step";
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        let NounPhrase::Nominal(nominal) = parsed
+            .noun_phrase()
+            .unwrap_or_else(|| panic!("expected a NounPhrase root for {source:?}"))
+        else {
+            panic!("expected a nominal NounPhrase for {source:?}");
+        };
+        assert!(
+            nominal.modifiers.iter().any(|modifier| matches!(
+                modifier,
+                NominalModifier::Adjective {
+                    phrase: AdjectivePhrase {
+                        head: Adjective::Word(vocab),
+                        ..
+                    },
+                    ..
+                } if vocab.spelling() == "next"
+            )),
+            "expected `next` as an adjective modifier: {nominal:#?}"
+        );
+    }
+
+    /// `next` before a verb-homograph noun (Fatigue's "their next draw
+    /// step", Exhaustion's "their next untap step") stays a nominal — no
+    /// `VerbPhrase` reduction ever considers `draw`/`untap` a verb here.
+    #[test]
+    fn next_before_a_verb_homograph_noun_does_not_form_a_verb_phrase() {
+        for source in ["their next draw step", "their next untap step"] {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+                .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+            assert!(
+                parsed.noun_phrase().is_some(),
+                "expected a NounPhrase root for {source:?}"
+            );
+        }
     }
 }

@@ -282,6 +282,12 @@ pub(crate) enum EnglishLexicalSlot {
     /// value. Distinct from the ordinary noun slot so the finite-clause
     /// complement attaches to exactly this word.
     TimesNoun,
+    /// The literal word `next` in its preverbal-adverb reading (`when you
+    /// *next* cast an instant or sorcery spell this turn`). Recognized only as
+    /// this exact literal token — never the ordinary [`Self::Adverb`] slot — so
+    /// the preverbal production sees only this word and no other adverb becomes
+    /// placeable between a subject and its finite verb.
+    PreverbAdverb,
     /// The literal word `declare` heading the `declare attackers`/`declare
     /// blockers` combat-step formative [CR#508.1,509.1]. Recognized only as
     /// this exact literal token — never the ordinary `Verb` slot — so the
@@ -1061,6 +1067,7 @@ enum RuleTag {
     VerbPhrasePrepositional,
     VerbPhraseInfinitive,
     VerbPhraseAdverb,
+    VerbPhrasePreverbAdverb,
     VerbPhraseParticle,
     VerbPhraseFrequency,
     FrequencyPhraseAdverb,
@@ -1795,6 +1802,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         )
                     })
                     .collect()
+            }
+            EnglishLexicalSlot::PreverbAdverb => {
+                if self.one_token_match(tokens, start, "next").is_none() {
+                    return Vec::new();
+                }
+                self.word_matches(tokens, start, LexicalSlot::Adverb)
             }
             EnglishLexicalSlot::NegatedModifier => self.scan_negated_modifier(tokens, start),
             EnglishLexicalSlot::Adverb => self.word_matches(tokens, start, LexicalSlot::Adverb),
@@ -4077,6 +4090,7 @@ fn reduce(
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhrasePreverbAdverb
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
@@ -5645,6 +5659,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhrasePreverbAdverb
         | RuleTag::VerbPhraseParticle
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility

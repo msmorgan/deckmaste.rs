@@ -81,6 +81,9 @@ pub struct PredicateHead {
 pub enum PreverbModifier {
     Not,
     Also,
+    /// The literal word `next` in its preverbal-adverb reading (`when you
+    /// *next* cast an instant or sorcery spell this turn`).
+    Next,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
