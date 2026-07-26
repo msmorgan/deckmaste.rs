@@ -1166,17 +1166,41 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // must be peeled first, exactly as `parse_power_toughness_body` and the
         // modal-frame builder do before their own `Nonterminal::Clause`/interior
         // parses.
-        let effect = peel_sentence_ending(effect);
-        let parsed = self.parse_exact(effect, Nonterminal::Clause)?;
-        let Clause::Independent(effect) = parsed.clause()?.clone() else {
-            return None;
-        };
+        // A trigger effect is an independent clause, and often a bare imperative
+        // (`copy that spell`, `sacrifice this creature`). `Nonterminal::Clause`
+        // does not itself consume a terminal period, so the period this staged
+        // fallback still carries is peeled for that attempt; the
+        // `Nonterminal::Sentence` retry consumes the period through its own rule
+        // and therefore takes the UNPEELED slice. The retry exists because a
+        // bare-imperative span selects a root that fails to lower under the
+        // `Clause` goal but not under the `Sentence` goal — the same staging
+        // `parse_cost_component` already uses for imperative activation costs.
+        let effect = self.parse_trigger_effect(effect)?;
         Some(SentenceBody::Triggered(Box::new(TriggeredSentence {
             introducer,
             event,
             intervening_condition,
             effect,
         })))
+    }
+
+    /// Parses a trigger's effect as an independent clause, retrying under
+    /// `Nonterminal::Sentence` when the `Nonterminal::Clause` goal declines.
+    /// Only a bare [`SentenceBody::Independent`] is accepted: a `Choose one`
+    /// header or a verbless power/toughness body is not an effect, and
+    /// accepting one would let a trigger swallow a modal header.
+    fn parse_trigger_effect(&mut self, effect: &[Token]) -> Option<IndependentClause> {
+        let peeled = peel_sentence_ending(effect);
+        if let Some(parsed) = self.parse_exact(peeled, Nonterminal::Clause)
+            && let Some(Clause::Independent(independent)) = parsed.clause()
+        {
+            return Some(independent.clone());
+        }
+        let parsed = self.parse_exact(effect, Nonterminal::Sentence)?;
+        let SentenceBody::Independent(independent) = &parsed.sentence()?.body else {
+            return None;
+        };
+        Some(independent.clone())
     }
 
     /// Parses a trailing dash-body appositive sentence: a complete clause
@@ -4400,6 +4424,166 @@ mod tests {
     }
 
     #[test]
+    fn bare_imperative_trigger_effect_parses() {
+        // The `Nonterminal::Clause` goal declines to lower a bare-imperative
+        // span (§1.2); the `Nonterminal::Sentence` retry in
+        // `parse_trigger_effect` picks up the same span and lowers it.
+        let source = "You may exert this creature as it attacks. When you do, copy that spell.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, second] = paragraph.sentences.as_slice() else {
+            panic!("expected two sentences: {paragraph:#?}");
+        };
+        let SentenceBody::Triggered(triggered) = &second.body else {
+            panic!("expected a triggered sentence body: {:#?}", second.body);
+        };
+        assert!(
+            matches!(triggered.effect, IndependentClause::Imperative(_)),
+            "{:#?}",
+            triggered.effect
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn deontic_trigger_effect_still_parses_through_the_clause_attempt() {
+        // A finite deontic effect (Ahn-Crop Crasher's shape) already lowers
+        // under the `Clause` goal (confirmed at Stage 0), so it must not
+        // reach the `Sentence` retry — the retry is a fallback, not a
+        // reordering. Selection-stat invariance is verified separately via
+        // the harness's `inspect -v` controls (§6.2).
+        let source = "You may exert this creature as it attacks. \
+             When you do, target creature can't block this turn.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, second] = paragraph.sentences.as_slice() else {
+            panic!("expected two sentences: {paragraph:#?}");
+        };
+        let SentenceBody::Triggered(triggered) = &second.body else {
+            panic!("expected a triggered sentence body: {:#?}", second.body);
+        };
+        assert!(
+            matches!(triggered.effect, IndependentClause::Deontic(..)),
+            "{:#?}",
+            triggered.effect
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn trigger_effect_rejects_a_modal_choice_header() {
+        // A `Choose one —` sentence following a trigger comma must not become
+        // a `TriggeredSentence` effect: `parse_trigger_effect` only accepts
+        // `SentenceBody::Independent`, and (upstream of it) the reflexive
+        // `When you do,` here is captured by `ChoiceInstruction`'s own
+        // `trigger_prefix`, never migrating to `SentenceBody::Triggered`.
+        let source = "Draw a card. When you do, choose one —\n• Draw a card.\n• Draw two cards.";
+        let report = parse(source);
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!("expected a modal ability: {:#?}", report.ast.abilities[0]);
+        };
+        assert!(
+            modal
+                .header
+                .sentences
+                .iter()
+                .all(|sentence| !matches!(sentence.body, SentenceBody::Triggered(_))),
+            "a modal header must never be captured as a trigger effect: {:#?}",
+            modal.header
+        );
+    }
+
+    #[test]
+    fn trigger_effect_does_not_swallow_a_following_sentence() {
+        // `parse_trigger_effect` parses one sentence's worth of tokens (its
+        // caller peels one sentence at a time); a second, independent
+        // sentence after the triggered one must remain its own sentence, not
+        // be absorbed into the trigger's effect.
+        let source = "You may exert this creature as it attacks. \
+             When you do, draw a card. Then discard a card.";
+        let report = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, second, third] = paragraph.sentences.as_slice() else {
+            panic!("expected three sentences: {paragraph:#?}");
+        };
+        let SentenceBody::Triggered(triggered) = &second.body else {
+            panic!(
+                "expected the second sentence to be triggered: {:#?}",
+                second.body
+            );
+        };
+        assert!(
+            matches!(triggered.effect, IndependentClause::Imperative(_)),
+            "{:#?}",
+            triggered.effect
+        );
+        assert!(
+            !matches!(third.body, SentenceBody::Triggered(_)),
+            "the third sentence must not be folded into the trigger's effect: {:#?}",
+            third.body
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn imperative_activation_cost_is_unchanged() {
+        // Barl's Cage's shape: `parse_cost_component`'s own staged
+        // `Clause`/`Sentence` retry is untouched by this round's edit to
+        // `parse_triggered_sentence`/`parse_trigger_effect`.
+        let source = "{3}, Sacrifice a creature: Draw a card.";
+        let report = parse(source);
+        let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
+            panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, sacrifice] = ability.cost.components.as_slice() else {
+            panic!("expected two cost components: {:#?}", ability.cost);
+        };
+        assert!(matches!(
+            sacrifice,
+            CostComponent::Clause(clause) if matches!(clause.as_ref(), IndependentClause::Imperative(_))
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn triggered_sentence_with_imperative_effect_round_trips() {
+        // Render-back equality, terminal period included, for two of §5's
+        // bare-imperative shapes.
+        for source in [
+            "You may exert this creature as it attacks. \
+             When you do, return target creature card from your graveyard to the battlefield.",
+            "You may exert this creature as it attacks. \
+             When you do, tap target creature an opponent controls.",
+        ] {
+            let report = parse(source);
+            assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+            let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+                panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
+            };
+            let [_, second] = paragraph.sentences.as_slice() else {
+                panic!("expected two sentences: {paragraph:#?}");
+            };
+            let SentenceBody::Triggered(triggered) = &second.body else {
+                panic!("expected a triggered sentence body: {:#?}", second.body);
+            };
+            assert!(
+                matches!(triggered.effect, IndependentClause::Imperative(_)),
+                "{:#?}",
+                triggered.effect
+            );
+            assert_eq!(render(&report), source);
+        }
+    }
+
+    #[test]
     fn ability_initial_trigger_still_wins_the_ability_frame() {
         // The ability-initial trigger must still be absorbed by
         // `parse_ability_kind`'s own `trigger_frame` call, never reach the new
@@ -4444,11 +4628,16 @@ mod tests {
 
     #[test]
     fn paragraph_initial_trigger_with_a_coordinated_event_still_recovers() {
-        // The §6.1 must-not-move guarantee, taken directly from the named
-        // Merieke Ri Berit witness: a non-initial trigger whose event needs
-        // coordination machinery this round does not touch (`leaves the
-        // battlefield or becomes untapped`) stays `Recovered`, exactly as
-        // before this round.
+        // Merieke Ri Berit witness, corrected by this round's Stage 0 finding
+        // (§1.2/§6.0): this trigger's blocker was never the coordinated event
+        // (`leaves the battlefield or becomes untapped`, which the event
+        // parse already handles) — it was the bare-imperative effect
+        // (`destroy that creature`) failing to lower under the `Clause`
+        // goal. It is measured residue (`midtrigger-positional-stayed.txt`),
+        // not the `midtrigger-initial.txt` must-not-move set, so this round's
+        // `parse_trigger_effect` retry now lowers it: the trigger moves from
+        // `Recovered` to `Triggered` with an `Imperative` effect, and the
+        // coordinated event is carried unchanged.
         let source = "{T}: Gain control of target creature for as long as you control Merieke Ri Berit. \
              When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature.";
         let report = parse(source);
@@ -4458,11 +4647,26 @@ mod tests {
         let [_, second] = activated.effect.sentences.as_slice() else {
             panic!("expected two effect sentences: {:#?}", activated.effect);
         };
+        let SentenceBody::Triggered(triggered) = &second.body else {
+            panic!(
+                "expected the non-initial coordinated-event trigger to now move to Triggered: {:#?}",
+                second.body
+            );
+        };
         assert!(
-            matches!(&second.body, SentenceBody::Recovered(_)),
-            "expected the non-initial coordinated-event trigger to still recover, not move: {:#?}",
-            second.body
+            matches!(
+                triggered.event,
+                TriggerEvent::Clause(IndependentClause::Coordinated(_))
+            ),
+            "{:#?}",
+            triggered.event
         );
+        assert!(
+            matches!(triggered.effect, IndependentClause::Imperative(_)),
+            "{:#?}",
+            triggered.effect
+        );
+        assert_eq!(render(&report), source);
     }
 
     #[test]
