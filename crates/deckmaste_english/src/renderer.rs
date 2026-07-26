@@ -645,6 +645,15 @@ impl<'identity> Renderer<'identity> {
                 ),
                 false,
             ),
+            SentenceBody::Triggered(triggered) => {
+                let frame = self.trigger_frame(
+                    triggered.introducer,
+                    &triggered.event,
+                    triggered.intervening_condition.as_ref(),
+                )?;
+                let effect = self.independent_clause(&triggered.effect)?;
+                (format!("{frame}, {effect}"), capitalize)
+            }
             SentenceBody::Recovered(recovery) => (recovery.spelling().to_owned(), false),
         };
         let mut rendered = if capitalize { capitalize_first(body) } else { body };
@@ -689,6 +698,7 @@ impl<'identity> Renderer<'identity> {
             SentenceBody::Choice(_) | SentenceBody::PowerToughness(_) => return true,
             SentenceBody::Recovered(_) => return false,
             SentenceBody::Independent(clause) => clause,
+            SentenceBody::Triggered(triggered) => &triggered.effect,
         };
         if independent_clause_ends_with_closed_quote(clause)
             || self.clause_ends_with_terminated_self_reference(clause)

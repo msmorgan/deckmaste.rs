@@ -544,7 +544,29 @@ pub enum SentenceBody {
     /// the same statistic the copular and object positions already model, and
     /// the renderer reproduces it with a derived terminal period.
     PowerToughness(PowerToughness),
+    /// A trigger clause heading a sentence that does not open its ability's
+    /// effect paragraph — after an activation-cost colon, a loyalty header, an
+    /// ability-word or Saga-chapter header, or a preceding sentence. An
+    /// ability-initial trigger is absorbed by [`AbilityKind::Triggered`] before
+    /// a paragraph is ever parsed, so this variant is reachable only from the
+    /// non-initial position. Boxed for the same reason
+    /// [`ChoiceInstruction::trigger_prefix`] is: the event clause is large and
+    /// the grammar-lowering enum wrapping [`Sentence`] must not grow.
+    Triggered(Box<TriggeredSentence>),
     Recovered(RecoveredText),
+}
+
+/// A non-initial trigger sentence. Mirrors the fields of [`ChoiceTrigger`] —
+/// and of [`ModalFrame::Triggered`] — and renders through the same trigger
+/// renderer, plus the effect clause the trigger governs. The effect is a single
+/// [`IndependentClause`], not a [`Paragraph`]: a sentence-level trigger governs
+/// exactly the remainder of its own sentence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriggeredSentence {
+    pub introducer: TriggerWord,
+    pub event: TriggerEvent,
+    pub intervening_condition: Option<DependentClause>,
+    pub effect: IndependentClause,
 }
 
 /// The `Choose one` instruction that heads a modal ability. Every surface

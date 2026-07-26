@@ -214,6 +214,13 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 SentenceBody::Independent(clause) => self.independent_clause(clause, context),
                 SentenceBody::Choice(choice) => self.choice_instruction(choice, context),
                 SentenceBody::PowerToughness(_) => {}
+                SentenceBody::Triggered(triggered) => {
+                    self.trigger_event(&triggered.event, context);
+                    if let Some(condition) = &triggered.intervening_condition {
+                        self.dependent_clause(condition, context);
+                    }
+                    self.independent_clause(&triggered.effect, context);
+                }
                 SentenceBody::Recovered(unknown) => {
                     self.push(unknown, RecoveryRole::Clause, context);
                 }

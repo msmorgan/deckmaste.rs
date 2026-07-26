@@ -77,6 +77,7 @@ use crate::syntax::Subordinator;
 use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
 use crate::syntax::TriggeredAbility;
+use crate::syntax::TriggeredSentence;
 use crate::word::ColorWord;
 use crate::word::Verb;
 use crate::word::VerbSlot;
@@ -1125,6 +1126,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 body,
             };
         }
+        if let Some(body) = self.parse_triggered_sentence(tokens) {
+            return Sentence {
+                initial_uppercase,
+                body,
+            };
+        }
 
         self.diagnostics.push(AbilityDiagnostic {
             kind: AbilityDiagnosticKind::NoCompleteParse,
@@ -1142,6 +1149,34 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 tokens.len(),
             )),
         }
+    }
+
+    /// Parses a sentence whose body is a trigger clause plus its effect.
+    /// Reached only as a staged fallback, after the ordinary sentence parse
+    /// has declined, so a `When …, …` sentence that already parses through
+    /// [`Subordinator::When`] keeps its existing tree untouched. Not widened to
+    /// `parse_paragraph` for the effect: a sentence body is one sentence, and a
+    /// multi-sentence effect falls through to `Recovered`, unchanged from
+    /// today's behavior.
+    fn parse_triggered_sentence(&mut self, tokens: &[Token]) -> Option<SentenceBody> {
+        let (introducer, event, intervening_condition, effect) = self.trigger_frame(tokens)?;
+        // `Nonterminal::Clause` (unlike `Nonterminal::Sentence`) does not itself
+        // expect a trailing terminal period, so the period this staged fallback
+        // still carries (the ordinary sentence attempt above already declined)
+        // must be peeled first, exactly as `parse_power_toughness_body` and the
+        // modal-frame builder do before their own `Nonterminal::Clause`/interior
+        // parses.
+        let effect = peel_sentence_ending(effect);
+        let parsed = self.parse_exact(effect, Nonterminal::Clause)?;
+        let Clause::Independent(effect) = parsed.clause()?.clone() else {
+            return None;
+        };
+        Some(SentenceBody::Triggered(Box::new(TriggeredSentence {
+            introducer,
+            event,
+            intervening_condition,
+            effect,
+        })))
     }
 
     /// Parses a trailing dash-body appositive sentence: a complete clause
@@ -4304,6 +4339,146 @@ mod tests {
         ));
         assert!(second.heading.is_some());
         assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn trigger_after_an_activation_cost_parses() {
+        let source = "{T}: Draw a card. When you do, target creature can't block this turn.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Activated(activated) = &report.ast.abilities[0].kind else {
+            panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, second] = activated.effect.sentences.as_slice() else {
+            panic!("expected two effect sentences: {:#?}", activated.effect);
+        };
+        assert!(
+            matches!(&second.body, SentenceBody::Triggered(triggered) if triggered.introducer == TriggerWord::When),
+            "{:#?}",
+            second.body
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn reflexive_when_you_do_trigger_parses_mid_paragraph() {
+        let source = "You may exert this creature as it attacks. \
+             When you do, target creature can't block this turn.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, second] = paragraph.sentences.as_slice() else {
+            panic!("expected two sentences: {paragraph:#?}");
+        };
+        let SentenceBody::Triggered(triggered) = &second.body else {
+            panic!("expected a triggered sentence body: {:#?}", second.body);
+        };
+        assert_eq!(triggered.introducer, TriggerWord::When);
+        assert!(triggered.intervening_condition.is_none());
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn trigger_after_a_loyalty_header_parses() {
+        let source = "[+1]: Draw a card. When you do, target creature can't block this turn.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Loyalty(loyalty) = &report.ast.abilities[0].kind else {
+            panic!("expected loyalty ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, second] = loyalty.effect.sentences.as_slice() else {
+            panic!("expected two effect sentences: {:#?}", loyalty.effect);
+        };
+        assert!(
+            matches!(&second.body, SentenceBody::Triggered(triggered) if triggered.introducer == TriggerWord::When),
+            "{:#?}",
+            second.body
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn ability_initial_trigger_still_wins_the_ability_frame() {
+        // The ability-initial trigger must still be absorbed by
+        // `parse_ability_kind`'s own `trigger_frame` call, never reach the new
+        // per-sentence fallback as a `Paragraph` sentence.
+        let source = "Whenever you cast an instant or sorcery spell, this creature deals 2 damage to each opponent.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        assert!(
+            matches!(&report.ast.abilities[0].kind, AbilityKind::Triggered(_)),
+            "expected AbilityKind::Triggered, not a paragraph sentence: {:#?}",
+            report.ast.abilities[0].kind
+        );
+    }
+
+    #[test]
+    fn modal_choice_trigger_prefix_is_not_stolen_by_the_sentence_fallback() {
+        // Same shape as `choice_instruction_carries_a_reflexive_second_trigger_prefix`,
+        // re-asserted here under the new fallback's name: the reflexive `When you
+        // do,` heading a modal header sentence must stay `ChoiceInstruction`'s own
+        // `trigger_prefix`/`ChoiceTrigger`, never migrate to `SentenceBody::Triggered`.
+        let source = "Draw a card. When you do, choose one —\n• Draw a card.\n• Draw two cards.";
+        let report = parse(source);
+        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+            panic!("expected a modal ability: {:#?}", report.ast.abilities[0]);
+        };
+        let choice = modal_header_choice(&report);
+        let prefix = choice
+            .trigger_prefix
+            .as_ref()
+            .expect("a reflexive trigger prefix is carried by ChoiceInstruction");
+        assert_eq!(prefix.introducer, TriggerWord::When);
+        // No header sentence became a `SentenceBody::Triggered`.
+        assert!(
+            modal
+                .header
+                .sentences
+                .iter()
+                .all(|sentence| !matches!(sentence.body, SentenceBody::Triggered(_)))
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn paragraph_initial_trigger_with_a_coordinated_event_still_recovers() {
+        // The §6.1 must-not-move guarantee, taken directly from the named
+        // Merieke Ri Berit witness: a non-initial trigger whose event needs
+        // coordination machinery this round does not touch (`leaves the
+        // battlefield or becomes untapped`) stays `Recovered`, exactly as
+        // before this round.
+        let source = "{T}: Gain control of target creature for as long as you control Merieke Ri Berit. \
+             When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature.";
+        let report = parse(source);
+        let AbilityKind::Activated(activated) = &report.ast.abilities[0].kind else {
+            panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, second] = activated.effect.sentences.as_slice() else {
+            panic!("expected two effect sentences: {:#?}", activated.effect);
+        };
+        assert!(
+            matches!(&second.body, SentenceBody::Recovered(_)),
+            "expected the non-initial coordinated-event trigger to still recover, not move: {:#?}",
+            second.body
+        );
+    }
+
+    #[test]
+    fn triggered_sentence_round_trips() {
+        // One of each of S1/S3/S6, rendered back byte-exact.
+        for source in [
+            "You may exert this creature as it attacks. \
+             When you do, target creature can't block this turn.",
+            "[+1]: Draw a card. When you do, target creature can't block this turn.",
+            "{T}: Gain control of target creature for as long as you control Merieke Ri Berit. \
+             At the beginning of the next end step, target creature can't block this turn.",
+        ] {
+            let report = parse(source);
+            assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+            assert_eq!(render(&report), source);
+        }
     }
 
     fn fixture_catalogs() -> Catalogs {
