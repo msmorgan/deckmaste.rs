@@ -1062,22 +1062,14 @@ fn reduce_predicate(
                 return None;
             };
             let form = auxiliary_form(*auxiliary, *child_form)?;
-            let passive = *child_passive
-                || (auxiliary.auxiliary == Auxiliary::Be
-                    && *child_form == PredicateForm::PastParticiple);
-            // A direct object survives passivization only under a
-            // recipient-passive frame (the retained theme); every other frame
-            // keeps the blanket ban. An indirect-object DEPENDENT (a literal
-            // NP, as opposed to the frame-level promotion) is never valid
-            // under any passive: the recipient-passive's indirect-object
-            // requirement is satisfied by the promotion itself, never by a
-            // further explicit indirect object.
-            if passive
-                && (*indirect_object
-                    || (object.has_direct_object() && !frame.is_recipient_passive()))
-            {
-                return None;
-            }
+            let passive = fold_auxiliary_passive(
+                *auxiliary,
+                *child_form,
+                *child_passive,
+                *object,
+                *indirect_object,
+                *frame,
+            )?;
             let subjunctive = *child_subjunctive
                 || matches!(
                     auxiliary.inflection,
@@ -1477,6 +1469,40 @@ enum PredicateAttachment {
     ScalarOrAbilityArgument,
 }
 
+/// Folds an auxiliary attaching from outside a verb phrase into that phrase's
+/// passive determination, and applies the retained-object rule. Shared by
+/// [`RuleTag::VerbPhraseAuxiliary`] (the auxiliary sits inside the phrase) and
+/// [`RuleTag::SimpleClauseContractedSubject`] (the auxiliary is contracted onto
+/// the subject and reaches the phrase as a sibling), so the two paths cannot
+/// drift: before this was shared, the contracted path never credited
+/// passivization and no recipient passive could reduce under it.
+///
+/// Returns `None` when the combination is ill-formed — a passive may keep a
+/// direct object only as a recipient passive's retained theme, and never keeps
+/// an explicit indirect object.
+fn fold_auxiliary_passive(
+    auxiliary: AuxiliaryInstance,
+    child_form: PredicateForm,
+    child_passive: bool,
+    object: PredicateObjectState,
+    indirect_object: bool,
+    frame: PredicateFrame,
+) -> Option<bool> {
+    let passive = child_passive
+        || (auxiliary.auxiliary == Auxiliary::Be && child_form == PredicateForm::PastParticiple);
+    // A direct object survives passivization only under a recipient-passive
+    // frame (the retained theme); every other frame keeps the blanket ban. An
+    // indirect-object DEPENDENT (a literal NP, as opposed to the frame-level
+    // promotion) is never valid under any passive: the recipient-passive's
+    // indirect-object requirement is satisfied by the promotion itself, never
+    // by a further explicit indirect object.
+    if passive && (indirect_object || (object.has_direct_object() && !frame.is_recipient_passive()))
+    {
+        return None;
+    }
+    Some(passive)
+}
+
 fn predicate_arguments_complete(
     frame: PredicateFrame,
     passive: bool,
@@ -1591,7 +1617,7 @@ fn reduce_simple_clause(
             };
             let Features::VerbPhrase {
                 form: child_form,
-                passive,
+                passive: child_passive,
                 object,
                 indirect_object,
                 selected_preposition,
@@ -1610,9 +1636,17 @@ fn reduce_simple_clause(
             if predicate_agreement != *subject_agreement {
                 return None;
             }
+            let passive = fold_auxiliary_passive(
+                *auxiliary,
+                *child_form,
+                *child_passive,
+                *object,
+                *indirect_object,
+                *frame,
+            )?;
             if !predicate_arguments_complete(
                 *frame,
-                *passive,
+                passive,
                 *object,
                 *indirect_object,
                 *selected_preposition,
@@ -7358,6 +7392,112 @@ mod tests {
     #[test]
     fn present_tense_recipient_passive_parses() {
         let source = "If a player is dealt damage this way, scry 1.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn contracted_subject_recipient_passive_parses() {
+        // Lich's shape: the `'re` auxiliary is contracted onto the subject
+        // and reaches the verb phrase as a sibling, not a child — the
+        // `fold_auxiliary_passive` helper must fold it in before
+        // `predicate_arguments_complete` runs.
+        let source = "You're dealt damage.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Passive(_, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a passive clause");
+        };
+        assert!(predicate.head.first_auxiliary_contracted_with_subject);
+        assert!(matches!(
+            &predicate.retained_object,
+            Some(PredicateObject::NounPhrase(NounPhrase::Nominal(damage)))
+                if matches!(damage.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+        ));
+    }
+
+    #[test]
+    fn contracted_subject_recipient_passive_round_trips() {
+        // The contraction flag is the round's likeliest round-trip failure:
+        // it must render back as `you're dealt damage`, never
+        // `you are dealt damage`.
+        let source = "You're dealt damage.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn contracted_subject_passive_without_an_object_is_unchanged() {
+        // Flowering Lumberknot's shape: a contracted passive under an OPEN
+        // frame with no object present. `is_satisfied_by(false)` holds
+        // regardless of the folded `passive` flag, so this must keep parsing
+        // exactly as it did before the fold.
+        let source =
+            "This creature can't attack or block unless it's paired with a creature with soulbond.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn contracted_subject_passive_rejects_a_non_recipient_direct_object() {
+        // The tightening the fold introduces (§2.3): a contracted passive
+        // that keeps a direct object under a non-recipient frame must be
+        // rejected, not silently admitted with `passive: false`. Exercised
+        // directly on the helper: a full-sentence synthetic like `it's
+        // destroyed target creature` is contaminated by `'s` also
+        // contracting `has` — `it has destroyed target creature` survives as
+        // an unrelated, legitimate active-voice parse of the same string,
+        // which would make the assertion pass for the wrong reason.
+        let auxiliary = AuxiliaryInstance {
+            auxiliary: Auxiliary::Be,
+            inflection: AuxiliaryInflection::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+            contracted_negation: false,
+        };
+        let frame = Verb::Word(Vocab::Destroy).predicate_frames()[0];
+        assert!(!frame.is_recipient_passive());
+        let result = fold_auxiliary_passive(
+            auxiliary,
+            PredicateForm::PastParticiple,
+            false,
+            PredicateObjectState::Direct,
+            false,
+            frame,
+        );
+        assert_eq!(
+            result, None,
+            "a contracted passive retaining a non-recipient direct object must be rejected"
+        );
+    }
+
+    #[test]
+    fn contracted_subject_passive_rejects_an_explicit_indirect_object() {
+        // The helper's `indirect_object` branch: no explicit indirect object
+        // may survive under any passive, contracted or not.
+        let result = parse_nonterminal(
+            "You're dealt them damage.",
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+        );
+        assert!(
+            result.is_err(),
+            "a contracted passive keeping an explicit indirect object must not parse"
+        );
+    }
+
+    #[test]
+    fn ordinary_auxiliary_passive_is_unchanged() {
+        // Pins Edit A: the ordinary `VerbPhraseAuxiliary` path (Fatal Blow's
+        // recipient-passive `that was dealt damage this turn`, an ordinary
+        // passive with the auxiliary inside the verb phrase) must be
+        // byte-identical after the extraction into `fold_auxiliary_passive`.
+        let source = "Destroy target creature that was dealt damage this turn.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let source = "Prevented damage is dealt to that creature's controller instead.";
         let parsed = parse(source);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
