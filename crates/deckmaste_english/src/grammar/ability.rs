@@ -31,6 +31,7 @@ use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ComplexClause;
+use crate::syntax::CopularComplement;
 use crate::syntax::Cost;
 use crate::syntax::CostComponent;
 use crate::syntax::DependentClause;
@@ -53,6 +54,7 @@ use crate::syntax::ModalFrame;
 use crate::syntax::ModalHeaderSuffix;
 use crate::syntax::Mode;
 use crate::syntax::ModeHeading;
+use crate::syntax::NounPhrase;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
@@ -79,6 +81,8 @@ use crate::syntax::TriggerWord;
 use crate::syntax::TriggeredAbility;
 use crate::syntax::TriggeredSentence;
 use crate::word::ColorWord;
+use crate::word::Noun;
+use crate::word::NounInstance;
 use crate::word::Verb;
 use crate::word::VerbSlot;
 use crate::word::Vocab;
@@ -889,12 +893,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         {
             TriggerEvent::Clause(clause)
         } else {
-            // A coordinated event (`Ashcoat enters or attacks`, `this creature
-            // enters or the creature it haunts dies`) reduces only through the general
-            // clause nonterminal; the simple-clause frame parse above rejects
-            // the conjunction. Admit exactly the coordinated shape here so a
-            // single-clause event keeps its existing simple-clause parse.
-            TriggerEvent::Clause(self.coordinated_event(event_tokens)?)
+            TriggerEvent::Clause(self.clause_event(event_tokens)?)
         };
         let mut effect = tokens.get(comma + 1..)?;
         let intervening_condition = if effect
@@ -918,16 +917,44 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         Some((introducer, event, intervening_condition, effect))
     }
 
-    /// Parses a coordinated trigger event (`this creature enters or dies`,
-    /// `Ashcoat enters or attacks`, `this creature enters or the creature it
-    /// haunts dies`) as a single [`IndependentClause::Coordinated`]. Restricted
-    /// to the coordinated shape so a single-clause event is never re-parsed
-    /// here — it keeps its more specific simple-clause frame parse.
-    fn coordinated_event(&mut self, tokens: &[Token]) -> Option<IndependentClause> {
+    /// Parses a trigger event that the simple-clause frame could not: a
+    /// coordinated event (`this creature enters or dies`), an existential
+    /// (`there are no creatures on the battlefield`), a copular event, or one
+    /// carrying a subordinate rider (`… enters while this creature has a -1/-1
+    /// counter on it`). Any independent clause is admitted, because a trigger
+    /// event is exactly "an independent clause" — the previous restriction to
+    /// [`IndependentClause::Coordinated`] discarded 17 of the 18 `Clause`
+    /// productions. That restriction's original rationale — keeping a
+    /// single-clause event on its more specific simple-clause parse — is still
+    /// honored here: this arm is reached only after the simple-clause attempt
+    /// above has already declined, so ordering (not the variant filter) is
+    /// what protects the simple-clause frame's priority.
+    ///
+    /// The opaque-copular-complement guard below is load-bearing, not
+    /// decorative: a copular reading can swallow a missing keyword-action
+    /// verb as a bare opaque noun complement of `is` (`a Faerie is
+    /// championed with this creature` — `champion` is absent from the
+    /// vocabulary, §1.4) and, once the event fallback stopped requiring
+    /// `Coordinated`, that copular reading became reachable here for the
+    /// first time. It is a wrong tree that round-trips: the rendered text
+    /// matches, but the ability is modeled as an opaque-copula event rather
+    /// than staying unparsed pending the keyword-action lexeme round.
+    /// Rejecting only that shape (an opaque noun heading the copular
+    /// complement) keeps every E3 row on its existing residue while leaving
+    /// unrelated opacity — an opaque proper name in the event's subject, as
+    /// in Merieke Ri Berit's coordinated event — untouched, since that
+    /// opacity is the ordinary, already-licensed self-reference-name path
+    /// and not a missing-lexeme camouflage.
+    fn clause_event(&mut self, tokens: &[Token]) -> Option<IndependentClause> {
         let parsed = self.parse_exact(tokens, Nonterminal::Clause)?;
         match parsed.clause()? {
-            Clause::Independent(clause @ IndependentClause::Coordinated(_)) => Some(clause.clone()),
-            _ => None,
+            Clause::Independent(clause) => {
+                if copular_complement_head_is_opaque(clause) {
+                    return None;
+                }
+                Some(clause.clone())
+            }
+            Clause::Dependent(_) => None,
         }
     }
 
@@ -1974,6 +2001,24 @@ fn split_keyword_items(tokens: &[Token]) -> Vec<(Option<KeywordListSeparator>, &
     }
     chunks.push((preceding, &tokens[start..]));
     chunks
+}
+
+/// Whether an independent clause is a [`IndependentClause::Copular`] whose
+/// complement is a bare nominal headed by [`Noun::Opaque`] — the shape
+/// `clause_event` must reject (see its doc comment).
+fn copular_complement_head_is_opaque(clause: &IndependentClause) -> bool {
+    let IndependentClause::Copular(_, predicate) = clause else {
+        return false;
+    };
+    let CopularComplement::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.complement else {
+        return false;
+    };
+    matches!(
+        nominal.head,
+        NounInstance::Singular(Noun::Opaque(_))
+            | NounInstance::Plural(Noun::Opaque(_))
+            | NounInstance::Mass(Noun::Opaque(_))
+    )
 }
 
 fn find_top_level_punctuation(tokens: &[Token], expected: Punctuation) -> Option<usize> {
@@ -4683,6 +4728,143 @@ mod tests {
             assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
             assert_eq!(render(&report), source);
         }
+    }
+
+    #[test]
+    fn existential_trigger_event_parses() {
+        // Drop of Honey's shape (§1.1/§6.0 C): the event is
+        // `IndependentClause::Existential`, previously discarded by
+        // `coordinated_event`'s filter.
+        let source = "When there are no creatures on the battlefield, sacrifice this creature.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a triggered ability: {:#?}",
+                report.ast.abilities[0]
+            );
+        };
+        assert!(
+            matches!(
+                triggered.event,
+                TriggerEvent::Clause(IndependentClause::Existential(_))
+            ),
+            "{:#?}",
+            triggered.event
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn trigger_event_with_a_while_rider_parses() {
+        // Bristlebane Battler's shape (§1.1/§6.0 B): the event is a `Complex`
+        // clause carrying the `while` rider as an attachment INSIDE the event,
+        // not migrated onto the effect.
+        let source = "Whenever another creature you control enters while this creature has \
+             a -1/-1 counter on it, draw a card.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a triggered ability: {:#?}",
+                report.ast.abilities[0]
+            );
+        };
+        let TriggerEvent::Clause(IndependentClause::Complex(complex)) = &triggered.event else {
+            panic!("expected a Complex clause event: {:#?}", triggered.event);
+        };
+        assert!(
+            complex.attachments.iter().any(|attachment| matches!(
+                attachment.kind,
+                ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    Subordinator::While,
+                    _
+                ))
+            )),
+            "the while rider must attach inside the event: {:#?}",
+            complex.attachments
+        );
+        // The effect is the ordinary bare imperative, not the while rider.
+        assert!(matches!(
+            triggered.effect.sentences[0].body,
+            SentenceBody::Independent(IndependentClause::Imperative(_))
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn coordinated_trigger_event_is_unchanged() {
+        // Merieke Ri Berit's shape: still `IndependentClause::Coordinated`,
+        // the one variant the old filter already admitted.
+        let source = "{T}: Gain control of target creature for as long as you control Merieke Ri Berit. \
+             When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Activated(activated) = &report.ast.abilities[0].kind else {
+            panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [_, second] = activated.effect.sentences.as_slice() else {
+            panic!("expected two effect sentences: {:#?}", activated.effect);
+        };
+        let SentenceBody::Triggered(triggered) = &second.body else {
+            panic!("expected Triggered: {:#?}", second.body);
+        };
+        assert!(matches!(
+            triggered.event,
+            TriggerEvent::Clause(IndependentClause::Coordinated(_))
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn dependent_clause_is_not_a_trigger_event() {
+        // A bare subordinate span between the introducer and the comma is not
+        // an event: `clause_event`'s `Clause::Dependent(_)` arm keeps
+        // rejecting it, and the whole ability recovers rather than admitting a
+        // stray subordinate clause as a trigger.
+        let source = "Whenever while this creature has a -1/-1 counter on it, draw a card.";
+        let report = parse(source);
+        assert!(
+            !report.diagnostics.is_empty(),
+            "a dependent-clause event must not parse cleanly"
+        );
+        assert!(
+            !report
+                .ast
+                .abilities
+                .iter()
+                .any(|ability| matches!(ability.kind, AbilityKind::Triggered(_))),
+            "no ability should have become Triggered: {:#?}",
+            report.ast.abilities
+        );
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn mixed_introducer_trigger_still_recovers() {
+        // The Shrine/Tombstone Stairwell shape (§1.3, §6.3 A-guard): one
+        // triggered ability with two trigger conditions [CR#603.1b]. This
+        // round does not build the coordinated-condition AST (§1.3), so the
+        // mixed-introducer span must still fail structurally rather than
+        // half-parse with the second condition swallowed into the first
+        // event — the round's most dangerous over-fire, since a wrong tree
+        // here would still round-trip.
+        let source = "At the beginning of your upkeep and whenever you cast a black spell, sacrifice a Goblin.";
+        let report = parse(source);
+        assert!(
+            !report.diagnostics.is_empty(),
+            "the mixed-introducer shape must not parse cleanly"
+        );
+        assert!(
+            !report
+                .ast
+                .abilities
+                .iter()
+                .any(|ability| matches!(ability.kind, AbilityKind::Triggered(_))),
+            "no ability should have become Triggered by swallowing the second condition: {:#?}",
+            report.ast.abilities
+        );
+        assert_eq!(render(&report), source);
     }
 
     fn fixture_catalogs() -> Catalogs {
