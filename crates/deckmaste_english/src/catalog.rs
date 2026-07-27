@@ -780,6 +780,22 @@ fn lowercase_word_prefix(text: &str, expected: &str) -> Option<usize> {
 /// that comment and ticket `english-ability-derived-verb-batch`.)
 const ABILITY_DERIVED_KEYWORD_ACTION_VERBS: [&str; 1] = ["mutate"];
 
+/// The closed selector-label set written by
+/// [CR#702.174a,702.174d,702.174e,702.174f,702.174g,702.174h,702.174i].
+const NAMED_KEYWORD_ARGUMENT_LABELS: [&str; 6] = [
+    "a Food",
+    "a card",
+    "a tapped Fish",
+    "an extra turn",
+    "a Treasure",
+    "an Octopus",
+];
+
+/// Whether `text` is exactly one complete rules-defined selector label.
+pub(crate) fn is_named_keyword_argument_label(text: &str) -> bool {
+    NAMED_KEYWORD_ARGUMENT_LABELS.contains(&text)
+}
+
 fn resolve_keyword_action(canonical: &Arc<str>) -> KeywordAction {
     let (head_surface, tail) = canonical
         .split_once(' ')
@@ -873,6 +889,26 @@ mod tests {
         person: Person::Third,
         number: Number::Singular,
     };
+
+    #[test]
+    fn named_keyword_argument_labels_match_exact_whole_strings() {
+        for label in NAMED_KEYWORD_ARGUMENT_LABELS {
+            assert!(is_named_keyword_argument_label(label), "{label:?}");
+        }
+        for nonmember in [
+            "a creature",
+            "each color",
+            "the Trolls",
+            "a food",
+            "a Food.",
+            "a Foo",
+            "Gift a Food",
+            " a Food",
+            "a Food ",
+        ] {
+            assert!(!is_named_keyword_argument_label(nonmember), "{nonmember:?}");
+        }
+    }
 
     #[test]
     fn keyword_ability_identity_is_shared_without_a_fake_part_of_speech() {

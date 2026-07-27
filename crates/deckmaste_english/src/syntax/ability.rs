@@ -410,9 +410,10 @@ pub enum KeywordArgument {
         symbols: Vec<OracleSymbol>,
         stats: PowerToughness,
     },
-    /// A verbatim pairing label after an em dash. The shape's exemplar rule
-    /// gives the argument as `[text]` [CR#702.124i]; the label is carried
-    /// opaquely, like a card name.
+    /// A verbatim selector label. Em-dash pairing labels are licensed by their
+    /// punctuation shape [CR#702.124i]; space-separated labels require exact
+    /// catalog membership. Gift's labels are whole selectors, not noun phrases
+    /// [CR#702.174a,702.174d,702.174e,702.174f,702.174g,702.174h,702.174i].
     Named {
         separator: KeywordArgumentSeparator,
         label: String,

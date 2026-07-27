@@ -10,6 +10,7 @@ use crate::catalog::CatalogAtom;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
 use crate::catalog::Catalogs;
+use crate::catalog::is_named_keyword_argument_label;
 use crate::chart::ChartStats;
 use crate::forest::ForestStats;
 use crate::forest::ParseCost;
@@ -1703,6 +1704,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         body: &[Token],
         in_list: bool,
     ) -> Option<KeywordArgument> {
+        if let Some(named) = self.parse_named_keyword_argument(separator, body) {
+            return Some(named);
+        }
         if separator != KeywordArgumentSeparator::Space {
             if body.is_empty() {
                 return None;
@@ -1712,12 +1716,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             // label, `partner—Friends forever`. Surface alone tells them apart: a
             // sentence carries sentence-terminal or clause punctuation; a label
             // carries none.
-            if keyword_label_is_bare(self.tokens_text(body)) {
-                return Some(KeywordArgument::Named {
-                    separator,
-                    label: self.tokens_text(body).to_owned(),
-                });
-            }
             let ability = self.parse_ability(body);
             return Some(KeywordArgument::Costed(KeywordCost::Sentence {
                 separator,
@@ -1725,6 +1723,21 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             }));
         }
         self.parse_space_argument(body, in_list)
+    }
+
+    fn parse_named_keyword_argument(
+        &self,
+        separator: KeywordArgumentSeparator,
+        body: &[Token],
+    ) -> Option<KeywordArgument> {
+        let label = self.tokens_text(body);
+        ((separator == KeywordArgumentSeparator::Space && is_named_keyword_argument_label(label))
+            || (separator != KeywordArgumentSeparator::Space
+                && em_dash_keyword_label_is_bare(label)))
+        .then(|| KeywordArgument::Named {
+            separator,
+            label: label.to_owned(),
+        })
     }
 
     fn parse_space_argument(&mut self, body: &[Token], in_list: bool) -> Option<KeywordArgument> {
@@ -2195,7 +2208,7 @@ fn opens_like_keyword_argument(tokens: &[Token], source: &str) -> bool {
 /// rather than a sentence cost. A label carries none of the punctuation a
 /// rules sentence does; the distinction is drawn from the surface alone, never
 /// from the keyword.
-fn keyword_label_is_bare(text: &str) -> bool {
+fn em_dash_keyword_label_is_bare(text: &str) -> bool {
     !text.is_empty() && !text.contains(['.', '!', '?', ':'])
 }
 
@@ -4112,6 +4125,8 @@ mod tests {
                     "Suspend",
                     "Prototype",
                     "Partner",
+                    "Gift",
+                    "Champion",
                     "Protection",
                     "Hexproof from",
                     "Affinity",
@@ -4184,6 +4199,88 @@ mod tests {
             shape_argument("Partner—Friends forever"),
             KeywordArgument::Named { ref label, .. } if label == "Friends forever"
         ));
+    }
+
+    #[test]
+    fn named_keyword_argument_labels_parse_and_round_trip() {
+        for label in [
+            "a Food",
+            "a card",
+            "a tapped Fish",
+            "an extra turn",
+            "a Treasure",
+            "an Octopus",
+        ] {
+            let source = format!("Gift {label}");
+            let report = parse_with_catalogs(&source, &shape_catalogs());
+            let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+                panic!(
+                    "expected {source:?} to be a keyword ability, got {:#?}",
+                    report.ast.abilities[0].kind
+                );
+            };
+            assert!(matches!(
+                list.abilities.as_slice(),
+                [KeywordAbility {
+                    ability,
+                    argument: KeywordArgument::Named {
+                        separator: KeywordArgumentSeparator::Space,
+                        label: parsed_label,
+                    },
+                    ..
+                }] if ability.canonical() == "Gift" && parsed_label == label
+            ));
+            assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+            assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
+        }
+    }
+
+    #[test]
+    fn named_keyword_argument_label_license_is_exact_and_keyword_independent() {
+        assert!(matches!(
+            shape_argument("Partner a Food"),
+            KeywordArgument::Named {
+                separator: KeywordArgumentSeparator::Space,
+                ref label,
+            } if label == "a Food"
+        ));
+
+        for source in [
+            "Champion a Faerie",
+            "Gift a creature",
+            "Gift each color",
+            "Gift the Trolls",
+            "Gift a Food.",
+            "Gift a food",
+        ] {
+            let report = parse_with_catalogs(source, &shape_catalogs());
+            assert!(
+                !matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_)),
+                "{source:?} must not be a keyword ability: {:#?}",
+                report.ast
+            );
+            assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
+        }
+
+        let full_name = "Gift the Trolls";
+        let full_name_clause = "Gift the Trolls deals 3 damage to any target.";
+        let report = parse_with_identity(full_name_clause, &shape_catalogs(), full_name, false);
+        assert!(matches!(
+            report.ast.abilities[0].kind,
+            AbilityKind::Paragraph(_)
+        ));
+        assert_eq!(
+            report.ast.render(full_name, false).unwrap(),
+            full_name_clause
+        );
+
+        let foretell = "Whenever you foretell a card, draw a card.";
+        let report = parse_with_catalogs(foretell, &shape_catalogs());
+        assert!(matches!(
+            report.ast.abilities[0].kind,
+            AbilityKind::Triggered(_)
+        ));
+        assert_eq!(report.ast.render("Test Card", false).unwrap(), foretell);
     }
 
     #[test]
