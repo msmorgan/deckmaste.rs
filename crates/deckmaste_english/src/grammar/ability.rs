@@ -1660,13 +1660,24 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if argument_tokens.is_empty() {
             return Some(KeywordArgument::Absent);
         }
-        // A lone sentence-terminal (a granted keyword ability's own closing
-        // period, e.g. inside `"Cascade, cascade."`) is never an argument. Reject
-        // it even inside a comma list, so the ability keeps its terminal on the
-        // paragraph path rather than rendering a spurious space before the period.
-        if matches!(argument_tokens, [token] if is_sentence_terminal(token.kind)) {
+        // A granted keyword ability's own closing sentence terminal is never
+        // part of a symbol argument. Identify the terminal once for both
+        // supported cases, including inside a comma list: a lone terminal
+        // rejects the keyword line, while a symbol run is peeled before
+        // shaping. Other argument shapes retain punctuation they may need to
+        // distinguish a sentence cost from a bare label.
+        let without_terminal = argument_tokens
+            .split_last()
+            .and_then(|(terminal, body)| is_sentence_terminal(terminal.kind).then_some(body));
+        if without_terminal == Some(&[]) {
             return None;
         }
+        let argument_tokens = without_terminal
+            .filter(|tokens| {
+                let (_, body) = split_keyword_argument_separator(tokens, ability_end);
+                symbol_cost(self.tokens_text(body)).is_some()
+            })
+            .unwrap_or(argument_tokens);
         let (separator, body) = split_keyword_argument_separator(argument_tokens, ability_end);
         if let Some(argument) = self.parse_shaped_argument(separator, body, in_list) {
             return Some(argument);
@@ -4172,6 +4183,62 @@ mod tests {
         assert!(matches!(
             shape_argument("Partner—Friends forever"),
             KeywordArgument::Named { ref label, .. } if label == "Friends forever"
+        ));
+    }
+
+    #[test]
+    fn quoted_symbol_keyword_argument_keeps_terminal_outside_typed_cost() {
+        let source = "Target creature gains \"Ward {1}.\"";
+        let report = parse_with_catalogs(source, &shape_catalogs());
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected a paragraph: {:#?}", report.ast);
+        };
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!(
+                "expected a transitive grant clause: {:#?}",
+                paragraph.sentences[0]
+            );
+        };
+        let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
+            panic!("expected a quoted ability object: {:#?}", predicate.object);
+        };
+        let AbilityKind::Keyword(list) = &quoted.ability.kind else {
+            panic!("expected a keyword ability: {:#?}", quoted.ability);
+        };
+        assert!(matches!(
+            list.abilities.as_slice(),
+            [KeywordAbility {
+                argument: KeywordArgument::Costed(KeywordCost::Symbols(symbols)),
+                ..
+            }] if symbols.iter().map(OracleSymbol::as_str).collect::<String>() == "{1}"
+        ));
+        assert!(quoted.terminal_period);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
+    }
+
+    #[test]
+    fn lone_terminal_is_rejected_as_a_keyword_argument_even_in_a_list() {
+        let source = ".";
+        let surface = crate::surface::lex(source);
+        let catalogs = shape_catalogs();
+        let self_reference = crate::identity::SelfReference::default();
+        let mut parser = super::Parser::new(source, &catalogs, &self_reference);
+        assert!(
+            parser
+                .parse_keyword_argument(&surface.tokens, 0, true)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn symbol_keyword_argument_without_terminal_is_unchanged() {
+        assert!(matches!(
+            shape_argument("Ward {1}"),
+            KeywordArgument::Costed(KeywordCost::Symbols(ref symbols))
+                if symbols.iter().map(OracleSymbol::as_str).collect::<String>() == "{1}"
         ));
     }
 

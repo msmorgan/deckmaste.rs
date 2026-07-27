@@ -1718,14 +1718,27 @@ impl<'identity> Renderer<'identity> {
         // The interior's derived terminal period is withheld unless this quote
         // closes its enclosing sentence — the period sits inside the quote only
         // when the surface put it there (`gains "…."` vs `has "…" and "…."`).
-        let mut rendered = format!(
-            "\"{}",
-            self.nested_ability(
-                &quoted.ability,
-                quoted.initial_uppercase,
-                !quoted.terminal_period,
-            )?
-        );
+        let mut interior = self.nested_ability(
+            &quoted.ability,
+            quoted.initial_uppercase,
+            !quoted.terminal_period,
+        )?;
+        // Keyword lines do not derive sentence punctuation themselves. A
+        // quoted keyword ability can nevertheless carry a terminal recorded by
+        // the quote wrapper, after the parser has kept it out of the argument.
+        if quoted.terminal_period
+            && matches!(
+                &quoted.ability.kind,
+                AbilityKind::Keyword(list)
+                    if matches!(
+                        list.abilities.last().map(|ability| &ability.argument),
+                        Some(KeywordArgument::Costed(KeywordCost::Symbols(_)))
+                    )
+            )
+        {
+            interior.push('.');
+        }
+        let mut rendered = format!("\"{interior}");
         if quoted.closed {
             rendered.push('"');
         }
