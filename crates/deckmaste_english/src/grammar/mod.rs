@@ -1089,6 +1089,7 @@ enum RuleTag {
     PossessiveNounBase,
     PossessiveNounDetermined,
     DeterminerPossessiveNoun,
+    PossessiveNounAdjective,
     Adjective,
     AdjectivePhrase,
     AdjectivePhraseFaceUp,
@@ -1343,6 +1344,11 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // so they take the highest `RuleId`s in the grammar; the equal-cost
         // tiebreak then leaves every already-clean parse untouched.
         builder.add_coordination_consumer_rules();
+        // Registered last of the entire grammar so every existing `RuleId`
+        // keeps its numbering; append-last does not stabilize root `NodeId`
+        // or same-rule alternative discovery order, so the full negative
+        // gates in the `opqposs` round remain the check for that.
+        builder.add_possessive_modifier_rules();
         Self {
             source,
             catalogs,
@@ -2174,7 +2180,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
         latest_child: &Self::Features,
     ) -> bool {
         self.tags.get(rule.index()).copied().is_some_and(|tag| {
-            clause::accepts_predicate_prefix(tag, completed_children, latest_child)
+            accepts_possessive_modifier_prefix(tag, completed_children, latest_child)
+                && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
         })
     }
 
@@ -3737,6 +3744,24 @@ impl RuleBuilder {
             },
         );
     }
+
+    /// A premodified possessor: `[AdjP] [PossessiveNounPhrase]`, e.g. `the
+    /// sacrificed creature's`. Registered append-last (see call site) so
+    /// existing `RuleId`s are untouched; same cost as `NominalAdjective`.
+    fn add_possessive_modifier_rules(&mut self) {
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        self.add_with_cost(
+            RuleTag::PossessiveNounAdjective,
+            N::PossessiveNounPhrase,
+            [n(N::AdjectivePhrase), n(N::PossessiveNounPhrase)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
+    }
 }
 
 fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Features, MeaningKey>> {
@@ -4092,6 +4117,34 @@ fn parse_signed_scalar(surface: &str) -> Option<crate::syntax::SignedScalar> {
     Some(crate::syntax::SignedScalar { sign, value })
 }
 
+/// Dot-1 gate for `PossessiveNounAdjective`: the completed child-0 adjective
+/// phrase must be a plain, comparative-pending, or complete adjective, never
+/// a measured or card-orientation one. These are categorical facts available
+/// from child 0, so they are checked here rather than only in `reduce`,
+/// which would otherwise launch avoidable predictions after an inadmissible
+/// prefix. The `determined` gate needs child 1 and stays in `reduce`. Every
+/// other tag/dot is unconstrained here and remains governed by
+/// `clause::accepts_predicate_prefix`.
+fn accepts_possessive_modifier_prefix(
+    tag: RuleTag,
+    completed_children: usize,
+    latest_child: &Features,
+) -> bool {
+    if tag != RuleTag::PossessiveNounAdjective || completed_children != 1 {
+        return true;
+    }
+    matches!(
+        latest_child,
+        Features::Adjective {
+            comparison: AdjectiveComparisonState::NotComparative
+                | AdjectiveComparisonState::Pending(_)
+                | AdjectiveComparisonState::Complete,
+            card_orientation: false,
+            ..
+        }
+    )
+}
+
 #[allow(clippy::too_many_lines, reason = "reduce matches on all rule tags")]
 fn reduce(
     tag: RuleTag,
@@ -4116,7 +4169,8 @@ fn reduce(
         RuleTag::FrequencyPhrase | RuleTag::FrequencyPhraseAdverb => Features::None,
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
-        | RuleTag::DeterminerPossessiveNoun => reduce_possessive_noun_phrase(tag, children)?,
+        | RuleTag::DeterminerPossessiveNoun
+        | RuleTag::PossessiveNounAdjective => reduce_possessive_noun_phrase(tag, children)?,
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
         | RuleTag::AdjectivePhraseFaceUp
@@ -4315,6 +4369,32 @@ fn reduce_possessive_noun_phrase(
             cardinality: Cardinality::Unconstrained,
             article: None,
         }),
+        RuleTag::PossessiveNounAdjective => {
+            let Features::Adjective {
+                initial_sound,
+                comparison:
+                    AdjectiveComparisonState::NotComparative
+                    | AdjectiveComparisonState::Pending(_)
+                    | AdjectiveComparisonState::Complete,
+                card_orientation: false,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            let Features::PossessiveNounPhrase {
+                form,
+                determined: false,
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            Some(Features::PossessiveNounPhrase {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: false,
+            })
+        }
         _ => None,
     }
 }
@@ -5707,7 +5787,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         }
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
-        | RuleTag::DeterminerPossessiveNoun => lower_possessive_noun_phrase(tag, children),
+        | RuleTag::DeterminerPossessiveNoun
+        | RuleTag::PossessiveNounAdjective => lower_possessive_noun_phrase(tag, children),
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
         | RuleTag::AdjectivePhraseFaceUp
@@ -5880,6 +5961,25 @@ fn lower_possessive_noun_phrase(tag: RuleTag, children: &mut [Lowered]) -> Optio
             Some(Lowered::Determiner(Determiner::Possessive(
                 Possessor::NounPhrase(Box::new(NounPhrase::Nominal(possessor))),
             )))
+        }
+        RuleTag::PossessiveNounAdjective => {
+            let Lowered::AdjectivePhrase(adjective) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::PossessiveNominal(mut nominal) = take(children, 1)? else {
+                return None;
+            };
+            if introduces_proper_name(&adjective) {
+                open_name_interior(&mut nominal);
+            }
+            nominal.modifiers.insert(
+                0,
+                NominalModifier::Adjective {
+                    polarity: Polarity::Positive,
+                    phrase: adjective,
+                },
+            );
+            Some(Lowered::PossessiveNominal(nominal))
         }
         _ => None,
     }

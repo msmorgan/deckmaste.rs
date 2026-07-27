@@ -35,6 +35,7 @@ mod tests {
     use crate::word::NounUsage;
     use crate::word::Pronoun;
     use crate::word::PronounCase;
+    use crate::word::Tense;
     use crate::word::Verb;
     use crate::word::VerbInstance;
     use crate::word::VerbSlot;
@@ -1008,6 +1009,163 @@ mod tests {
         assert!(
             refused_possessive,
             "a singular/mass noun ending in s must not be licensed by the bare-apostrophe arm"
+        );
+    }
+
+    #[test]
+    fn premodified_possessive_scopes_modifier_inside_possessor() {
+        // Causal pair: `that creature's toughness` (bare possessor, already
+        // correct) versus this premodified possessor, which round `opqposs`
+        // adds a production for.
+        let source = "the sacrificed creature's power";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
+            panic!("expected a nominal phrase for {source:?}");
+        };
+        assert!(
+            matches!(&outer.head, NounInstance::Singular(Noun::Word(word)) if word.spelling() == "power"),
+            "{outer:#?}"
+        );
+        assert!(outer.modifiers.is_empty(), "{outer:#?}");
+        let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &outer.determiner
+        else {
+            panic!("expected a possessive determiner: {:#?}", outer.determiner);
+        };
+        let NounPhrase::Nominal(possessor) = possessor.as_ref() else {
+            panic!("expected a nominal possessor: {possessor:#?}");
+        };
+        assert!(
+            matches!(&possessor.determiner, Some(Determiner::The)),
+            "{possessor:#?}"
+        );
+        let [
+            NominalModifier::Adjective {
+                polarity: Polarity::Positive,
+                phrase,
+            },
+        ] = possessor.modifiers.as_slice()
+        else {
+            panic!("expected exactly one positive adjective modifier: {possessor:#?}");
+        };
+        assert!(
+            matches!(
+                &phrase.head,
+                Adjective::Participle(Tense::Past, Verb::Word(vocab)) if vocab.spelling() == "sacrifice"
+            ),
+            "{phrase:#?}"
+        );
+        assert!(
+            matches!(
+                &possessor.head,
+                NounInstance::Singular(Noun::Catalog(atom)) if atom.canonical() == "Creature"
+            ),
+            "{possessor:#?}"
+        );
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn adjective_and_participle_possessors_share_one_spine() {
+        for (source, expected_head) in [
+            ("the next turn's upkeep", "next"),
+            ("enchanted creature's controller", "enchant"),
+            ("each other player's speed", "other"),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
+                panic!("expected a nominal phrase for {source:?}");
+            };
+            assert!(outer.modifiers.is_empty(), "{source}: {outer:#?}");
+            let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &outer.determiner
+            else {
+                panic!(
+                    "{source}: expected a possessive determiner: {:#?}",
+                    outer.determiner
+                );
+            };
+            let NounPhrase::Nominal(possessor) = possessor.as_ref() else {
+                panic!("{source}: expected a nominal possessor: {possessor:#?}");
+            };
+            assert_eq!(possessor.modifiers.len(), 1, "{source}: {possessor:#?}");
+            let modifier_spelling = match &possessor.modifiers[0] {
+                NominalModifier::Adjective {
+                    polarity: Polarity::Positive,
+                    phrase,
+                } => match &phrase.head {
+                    Adjective::Word(vocab) => vocab.spelling(),
+                    Adjective::Participle(_, Verb::Word(vocab)) => vocab.spelling(),
+                    other => panic!("{source}: unexpected adjective head {other:?}"),
+                },
+                other => panic!("{source}: expected an adjective modifier, got {other:?}"),
+            };
+            assert_eq!(modifier_spelling, expected_head, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn premodified_possessors_enforce_indefinite_article_agreement() {
+        for source in ["an exiled card's owner", "a sacrificed creature's power"] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().unwrap()),
+                source,
+                "{source}"
+            );
+        }
+        for source in ["a exiled card's owner", "an sacrificed creature's power"] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase).is_err(),
+                "{source:?} must be rejected on indefinite-article agreement"
+            );
+        }
+    }
+
+    #[test]
+    fn premodified_plural_genitive_uses_a_bare_apostrophe() {
+        let source = "the sacrificed creatures' controllers";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
+            panic!("expected a nominal phrase for {source:?}");
+        };
+        let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &outer.determiner
+        else {
+            panic!("expected a possessive determiner: {:#?}", outer.determiner);
+        };
+        let NounPhrase::Nominal(possessor) = possessor.as_ref() else {
+            panic!("expected a nominal possessor: {possessor:#?}");
+        };
+        assert!(
+            matches!(
+                &possessor.head,
+                NounInstance::Plural(Noun::Catalog(atom)) if atom.canonical() == "Creature"
+            ),
+            "{possessor:#?}"
+        );
+        let debug = format!("{parsed:#?}");
+        assert!(!debug.contains("Opaque"), "{debug}");
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn a_possessive_modifier_cannot_precede_a_determined_child() {
+        assert!(
+            parse_nonterminal(
+                "sacrificed the creature's power",
+                &fixture_catalogs(),
+                Nonterminal::NounPhrase,
+            )
+            .is_err(),
+            "a possessive-adjective prepend must not attach after a determiner already \
+             completed the possessor"
         );
     }
 

@@ -2725,6 +2725,20 @@ mod tests {
     }
 
     #[test]
+    fn premodified_possessors_round_trip_both_genitive_markers() {
+        // Whole-AST inverse for round `opqposs`: proves the existing generic
+        // renderer inverse (determiner -> noun_phrase -> possessive_marker)
+        // is total for a premodified possessor, singular and plural.
+        let singular = "This creature deals damage equal to the sacrificed creature's power.";
+        let ast = crate::parse_with_catalogs(singular, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), singular);
+
+        let plural = "Return the sacrificed creatures' power to their owners.";
+        let ast = crate::parse_with_catalogs(plural, &fixture_catalogs()).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), plural);
+    }
+
+    #[test]
     fn a_nested_quoted_ability_apostrophe_stays_a_delimiter() {
         // Reef Worm: the innermost quoted ability's closing `'` follows a
         // Period token, never a plural word, so it must not be reinterpreted
