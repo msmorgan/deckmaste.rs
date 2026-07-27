@@ -1060,7 +1060,9 @@ mod tests {
         };
         assert!(matches!(
             target.determiner,
-            Some(Determiner::Target(Some(crate::syntax::Quantity::UpTo(number))))
+            Some(Determiner::Target(Some(crate::syntax::Quantity::UpTo(
+                crate::syntax::QuantityValue::Literal(number)
+            ))))
                 if number.value == 3
         ));
         assert!(matches!(target.head, NounInstance::Plural(_)));
@@ -1072,7 +1074,7 @@ mod tests {
         assert!(matches!(
             at_least.determiner,
             Some(Determiner::Quantity(crate::syntax::Quantity::OrComparison(
-                number,
+                crate::syntax::QuantityValue::Literal(number),
                 crate::syntax::ComparativeWord::More
             )))
                 if number.value == 1
@@ -1205,7 +1207,9 @@ mod tests {
         assert!(matches!(
             partitive.noun_phrase(),
             Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                head: crate::syntax::PartitiveHead::Quantity(crate::syntax::Quantity::MoreThan(one)),
+                head: crate::syntax::PartitiveHead::Quantity(crate::syntax::Quantity::MoreThan(
+                    crate::syntax::QuantityValue::Literal(one)
+                )),
                 ..
             })) if one.value == 1
         ));
@@ -1397,7 +1401,7 @@ mod tests {
             );
             let bound = characteristic_bound(&parsed);
             assert!(
-                matches!(bound, Quantity::OrComparison(number, seen)
+                matches!(bound, Quantity::OrComparison(crate::syntax::QuantityValue::Literal(number), seen)
                     if number.value == value && seen == word),
                 "{source}: {bound:?}"
             );
@@ -1427,10 +1431,105 @@ mod tests {
             assert!(
                 matches!(
                     &nominal.determiner,
-                    Some(Determiner::Quantity(Quantity::OrComparison(number, seen)))
+                    Some(Determiner::Quantity(Quantity::OrComparison(
+                        crate::syntax::QuantityValue::Literal(number),
+                        seen
+                    )))
                         if number.value == value && *seen == word
                 ),
                 "{source}: {nominal:#?}"
+            );
+        }
+    }
+
+    #[test]
+    fn variable_x_bounds_are_the_variable_not_roman_ten() {
+        use crate::syntax::Quantity;
+        use crate::syntax::QuantityValue;
+        // Causal pairs: the variable `X` against the literal that renders
+        // identically (`up to ten`) and against an ordinary literal bound.
+        // `X` is a placeholder for a number to be determined ([CR#107.3]);
+        // `Numeral::Roman` merely happens to spell ten `X`.
+        for (source, expected) in [
+            (
+                "up to X target creatures",
+                Quantity::UpTo(QuantityValue::Variable),
+            ),
+            (
+                "up to ten target creatures",
+                Quantity::UpTo(QuantityValue::Literal(crate::syntax::NumberLiteral {
+                    value: 10,
+                    numeral: crate::numeral::Numeral::Cardinal,
+                })),
+            ),
+            (
+                "up to three target creatures",
+                Quantity::UpTo(QuantityValue::Literal(crate::syntax::NumberLiteral {
+                    value: 3,
+                    numeral: crate::numeral::Numeral::Cardinal,
+                })),
+            ),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                panic!("expected a quantified nominal for {source:?}");
+            };
+            assert_eq!(
+                nominal.determiner,
+                Some(Determiner::Target(Some(expected))),
+                "{source}: {nominal:#?}"
+            );
+        }
+    }
+
+    #[test]
+    fn variable_x_comparative_bounds_are_the_variable() {
+        use crate::syntax::ComparativeWord;
+        use crate::syntax::Quantity;
+        use crate::syntax::QuantityValue;
+        // `power X or less` -> OrComparison(Variable, Less); mirrored against
+        // an ordinary literal floor and ceiling.
+        for (source, value, word) in [
+            (
+                "creatures with power X or less",
+                QuantityValue::Variable,
+                ComparativeWord::Less,
+            ),
+            (
+                "creatures with power 2 or less",
+                QuantityValue::Literal(crate::syntax::NumberLiteral {
+                    value: 2,
+                    numeral: crate::numeral::Numeral::Arabic(false),
+                }),
+                ComparativeWord::Less,
+            ),
+            (
+                "creatures with power 4 or greater",
+                QuantityValue::Literal(crate::syntax::NumberLiteral {
+                    value: 4,
+                    numeral: crate::numeral::Numeral::Arabic(false),
+                }),
+                ComparativeWord::Greater,
+            ),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            assert_eq!(
+                render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
+                source,
+                "{source}"
+            );
+            let bound = characteristic_bound(&parsed);
+            assert_eq!(
+                bound,
+                Quantity::OrComparison(value, word),
+                "{source}: {bound:?}"
             );
         }
     }

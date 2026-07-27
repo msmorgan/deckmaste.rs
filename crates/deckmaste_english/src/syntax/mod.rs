@@ -783,11 +783,13 @@ mod tests {
             NounCardinality::SingularOrMass
         );
         assert_eq!(
-            Determiner::Target(Some(Quantity::UpTo(one))).noun_cardinality(),
+            Determiner::Target(Some(Quantity::UpTo(QuantityValue::Literal(one))))
+                .noun_cardinality(),
             NounCardinality::SingularCount
         );
         assert_eq!(
-            Determiner::Target(Some(Quantity::UpTo(three))).noun_cardinality(),
+            Determiner::Target(Some(Quantity::UpTo(QuantityValue::Literal(three))))
+                .noun_cardinality(),
             NounCardinality::PluralCount
         );
         assert_eq!(
@@ -799,11 +801,32 @@ mod tests {
             NounCardinality::Unconstrained
         );
         assert_eq!(
-            Determiner::Quantity(Quantity::AtLeast(one)).noun_cardinality(),
+            Determiner::Quantity(Quantity::AtLeast(QuantityValue::Literal(one))).noun_cardinality(),
             NounCardinality::PluralCount
         );
         assert_eq!(
             Determiner::Quantity(Quantity::Exact(three)).noun_cardinality(),
+            NounCardinality::PluralOrMass
+        );
+        assert_eq!(
+            Determiner::Target(Some(Quantity::UpTo(QuantityValue::Variable))).noun_cardinality(),
+            NounCardinality::PluralCount
+        );
+        assert_eq!(
+            Quantity::UpTo(QuantityValue::Variable).noun_cardinality(),
+            NounCardinality::PluralOrMass
+        );
+        assert_eq!(
+            Quantity::UpTo(QuantityValue::Literal(one)).noun_cardinality(),
+            NounCardinality::SingularOrMass
+        );
+        assert_eq!(
+            Quantity::AtLeast(QuantityValue::Variable).noun_cardinality(),
+            NounCardinality::PluralCount
+        );
+        assert_eq!(
+            Quantity::OrComparison(QuantityValue::Variable, ComparativeWord::Less)
+                .noun_cardinality(),
             NounCardinality::PluralOrMass
         );
         assert_eq!(

@@ -668,6 +668,80 @@ impl NumberKey {
     }
 }
 
+/// Reinterprets a number that filled a compound-quantity slot.
+///
+/// The surface `X` is the game's variable ([CR#107.3]), never the Roman
+/// numeral ten. `Numeral::parse` is canonicalising (`canonical`,
+/// numeral.rs:103-111: a parse succeeds only when `format` reproduces the
+/// input), and `Numeral::Roman` is the only notation whose canonical
+/// spelling of any value is `X`, so `(Numeral::Roman, 10)` holds **exactly
+/// when** the scanned surface was `X`.
+const fn quantity_value(number: NumberKey) -> crate::syntax::QuantityValue {
+    if matches!(number.notation, Numeral::Roman) && number.value == 10 {
+        crate::syntax::QuantityValue::Variable
+    } else {
+        crate::syntax::QuantityValue::Literal(number.literal())
+    }
+}
+
+#[cfg(test)]
+mod quantity_value_tests {
+    use super::*;
+
+    /// `X` is the game's variable, and the predicate `(Roman, 10)` identifies
+    /// it exactly: `Numeral::parse` is canonicalising, so a successful parse
+    /// implies `format` reproduces the surface, and Roman is the only
+    /// notation that spells any value `X`.
+    #[test]
+    fn roman_ten_is_the_only_notation_parsing_x() {
+        for notation in [
+            Numeral::Cardinal,
+            Numeral::Ordinal,
+            Numeral::Arabic(false),
+            Numeral::Arabic(true),
+            Numeral::Roman,
+        ] {
+            assert_eq!(
+                notation.parse("X").ok(),
+                if notation == Numeral::Roman { Some(10) } else { None },
+                "{notation:?}",
+            );
+        }
+        assert_eq!(Numeral::Roman.format(10), "X");
+    }
+
+    #[test]
+    fn quantity_value_maps_roman_ten_to_variable_and_everything_else_to_literal() {
+        assert_eq!(
+            quantity_value(NumberKey {
+                value: 10,
+                notation: Numeral::Roman,
+            }),
+            crate::syntax::QuantityValue::Variable,
+        );
+        assert_eq!(
+            quantity_value(NumberKey {
+                value: 10,
+                notation: Numeral::Cardinal,
+            }),
+            crate::syntax::QuantityValue::Literal(crate::syntax::NumberLiteral {
+                value: 10,
+                numeral: Numeral::Cardinal,
+            }),
+        );
+        assert_eq!(
+            quantity_value(NumberKey {
+                value: 3,
+                notation: Numeral::Roman,
+            }),
+            crate::syntax::QuantityValue::Literal(crate::syntax::NumberLiteral {
+                value: 3,
+                numeral: Numeral::Roman,
+            }),
+        );
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum QuantityKey {
     Exact(NumberKey),
@@ -742,12 +816,14 @@ impl QuantityKey {
     const fn syntax(self) -> Quantity {
         match self {
             Self::Exact(number) => Quantity::Exact(number.literal()),
-            Self::AtLeast(number) => Quantity::AtLeast(number.literal()),
-            Self::OrComparison(number, word) => Quantity::OrComparison(number.literal(), word),
+            Self::AtLeast(number) => Quantity::AtLeast(quantity_value(number)),
+            Self::OrComparison(number, word) => {
+                Quantity::OrComparison(quantity_value(number), word)
+            }
             Self::Or(first, second) => Quantity::Or(first.literal(), second.literal()),
-            Self::UpTo(number) => Quantity::UpTo(number.literal()),
-            Self::MoreThan(number) => Quantity::MoreThan(number.literal()),
-            Self::FewerThan(number) => Quantity::FewerThan(number.literal()),
+            Self::UpTo(number) => Quantity::UpTo(quantity_value(number)),
+            Self::MoreThan(number) => Quantity::MoreThan(quantity_value(number)),
+            Self::FewerThan(number) => Quantity::FewerThan(quantity_value(number)),
             Self::X => Quantity::X,
             Self::Both => Quantity::Both,
             Self::ThatMany => Quantity::ThatMany,
@@ -5789,7 +5865,7 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
             let Lowered::Number(number) = take(children, 2)? else {
                 return None;
             };
-            Some(Lowered::Quantity(Quantity::UpTo(number.literal())))
+            Some(Lowered::Quantity(Quantity::UpTo(quantity_value(number))))
         }
         RuleTag::QuantityThatMany => Some(Lowered::Quantity(Quantity::ThatMany)),
         RuleTag::QuantityThatMuch => Some(Lowered::Quantity(Quantity::ThatMuch)),

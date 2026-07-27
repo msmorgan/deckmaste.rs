@@ -150,17 +150,47 @@ impl ComparativeWord {
     }
 }
 
+/// A number position in a quantity that may hold either a literal or the
+/// game's variable `X`. `X` on a card is a placeholder for a number to be
+/// determined ([CR#107.3]) — never the Roman numeral ten, even though
+/// `Numeral::Roman` is the only notation whose canonical spelling of a value
+/// is `X`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum QuantityValue {
+    Literal(NumberLiteral),
+    Variable,
+}
+
+impl QuantityValue {
+    /// Whether this position holds the literal one. `Variable` never does:
+    /// `X` may resolve to any number, so it can never license a bare
+    /// singular head.
+    #[must_use]
+    pub const fn is_one(self) -> bool {
+        matches!(self, Self::Literal(number) if number.value == 1)
+    }
+
+    /// The literal this position holds, if any.
+    #[must_use]
+    pub const fn literal(self) -> Option<NumberLiteral> {
+        match self {
+            Self::Literal(number) => Some(number),
+            Self::Variable => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Quantity {
     Exact(NumberLiteral),
-    AtLeast(NumberLiteral),
+    AtLeast(QuantityValue),
     /// `N or <word>` — a comparative floor (`N or more/greater`) or ceiling
     /// (`N or fewer/less`); the word is carried structurally.
-    OrComparison(NumberLiteral, ComparativeWord),
+    OrComparison(QuantityValue, ComparativeWord),
     Or(NumberLiteral, NumberLiteral),
-    UpTo(NumberLiteral),
-    MoreThan(NumberLiteral),
-    FewerThan(NumberLiteral),
+    UpTo(QuantityValue),
+    MoreThan(QuantityValue),
+    FewerThan(QuantityValue),
     X,
     Both,
     ThatMany,
@@ -171,11 +201,13 @@ impl Quantity {
     #[must_use]
     pub const fn noun_cardinality(self) -> NounCardinality {
         match self {
-            Self::Exact(number)
-            | Self::UpTo(number)
-            | Self::MoreThan(number)
-            | Self::FewerThan(number)
-                if number.value == 1 =>
+            Self::Exact(number) if number.value == 1 => NounCardinality::SingularOrMass,
+            // `up to one creature`, `more than one creature`, `fewer than one
+            // creature` — same licence, now guarded through the value sum.
+            // `Variable` can never satisfy it: `X` may resolve to 0 or to any
+            // number > 1, so an `X`-bounded head is never a bare singular.
+            Self::UpTo(value) | Self::MoreThan(value) | Self::FewerThan(value)
+                if value.is_one() =>
             {
                 NounCardinality::SingularOrMass
             }
@@ -232,12 +264,12 @@ impl Determiner {
             | Self::Target(Some(Quantity::Or(_, _) | Quantity::X | Quantity::Both)) => {
                 NounCardinality::PluralCount
             }
+            Self::Target(Some(Quantity::Exact(number))) if number.value == 1 => {
+                NounCardinality::SingularCount
+            }
             Self::Target(Some(
-                Quantity::Exact(number)
-                | Quantity::UpTo(number)
-                | Quantity::MoreThan(number)
-                | Quantity::FewerThan(number),
-            )) if number.value == 1 => NounCardinality::SingularCount,
+                Quantity::UpTo(value) | Quantity::MoreThan(value) | Quantity::FewerThan(value),
+            )) if value.is_one() => NounCardinality::SingularCount,
             Self::Target(Some(
                 Quantity::Exact(_)
                 | Quantity::AtLeast(_)

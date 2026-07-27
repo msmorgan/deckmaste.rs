@@ -2075,30 +2075,36 @@ fn render_devotion_colors(colors: crate::syntax::DevotionColors) -> String {
     }
 }
 
+/// Inverse of the parse-side `quantity_value`: `Variable` is spelled `X`.
+/// (Per the design contract *Productions ship their inverse*,
+/// docs/decisions/english-productions-ship-their-inverse.md.)
+fn render_quantity_value(value: crate::syntax::QuantityValue) -> String {
+    match value {
+        crate::syntax::QuantityValue::Literal(number) => number.numeral.format(number.value),
+        crate::syntax::QuantityValue::Variable => "X".to_owned(),
+    }
+}
+
 fn render_quantity(quantity: Quantity) -> String {
     match quantity {
         Quantity::Exact(number) => number.numeral.format(number.value),
-        Quantity::AtLeast(number) => {
-            format!("at least {}", number.numeral.format(number.value))
+        Quantity::AtLeast(value) => {
+            format!("at least {}", render_quantity_value(value))
         }
-        Quantity::OrComparison(number, word) => {
-            format!(
-                "{} or {}",
-                number.numeral.format(number.value),
-                word.spelling()
-            )
+        Quantity::OrComparison(value, word) => {
+            format!("{} or {}", render_quantity_value(value), word.spelling())
         }
         Quantity::Or(first, second) => format!(
             "{} or {}",
             first.numeral.format(first.value),
             second.numeral.format(second.value)
         ),
-        Quantity::UpTo(number) => format!("up to {}", number.numeral.format(number.value)),
-        Quantity::MoreThan(number) => {
-            format!("more than {}", number.numeral.format(number.value))
+        Quantity::UpTo(value) => format!("up to {}", render_quantity_value(value)),
+        Quantity::MoreThan(value) => {
+            format!("more than {}", render_quantity_value(value))
         }
-        Quantity::FewerThan(number) => {
-            format!("fewer than {}", number.numeral.format(number.value))
+        Quantity::FewerThan(value) => {
+            format!("fewer than {}", render_quantity_value(value))
         }
         Quantity::X => "X".to_owned(),
         Quantity::Both => "both".to_owned(),
@@ -2291,6 +2297,51 @@ fn capitalize_first(text: String) -> String {
 
 fn adjective_degree(degree: Option<&NumberLiteral>) -> Option<String> {
     degree.map(|number| number.numeral.format(number.value))
+}
+
+#[cfg(test)]
+mod render_quantity_value_tests {
+    use super::render_quantity;
+    use crate::syntax::ComparativeWord;
+    use crate::syntax::Quantity;
+    use crate::syntax::QuantityValue;
+
+    #[test]
+    fn variable_bounds_render_as_x() {
+        assert_eq!(
+            render_quantity(Quantity::UpTo(QuantityValue::Variable)),
+            "up to X"
+        );
+        assert_eq!(
+            render_quantity(Quantity::OrComparison(
+                QuantityValue::Variable,
+                ComparativeWord::Less
+            )),
+            "X or less"
+        );
+        // Inverse completeness for the unwitnessed arms — the inverse must be
+        // total even where the corpus is silent, per *Productions ship their
+        // inverse*.
+        assert_eq!(
+            render_quantity(Quantity::AtLeast(QuantityValue::Variable)),
+            "at least X"
+        );
+        assert_eq!(
+            render_quantity(Quantity::MoreThan(QuantityValue::Variable)),
+            "more than X"
+        );
+        assert_eq!(
+            render_quantity(Quantity::FewerThan(QuantityValue::Variable)),
+            "fewer than X"
+        );
+        assert_eq!(
+            render_quantity(Quantity::OrComparison(
+                QuantityValue::Variable,
+                ComparativeWord::Greater
+            )),
+            "X or greater"
+        );
+    }
 }
 
 fn join_words(parts: Vec<String>) -> String {
