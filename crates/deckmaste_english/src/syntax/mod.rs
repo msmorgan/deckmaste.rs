@@ -354,6 +354,11 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         CoordinatedClauseMember::SharedPredicate(predicate) => {
                             self.predicate(predicate, context);
                         }
+                        CoordinatedClauseMember::SharedDeontic(_, predicate) => {
+                            if let Some(predicate) = predicate {
+                                self.predicate(predicate, context);
+                            }
+                        }
                     }
                 }
             }

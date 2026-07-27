@@ -468,6 +468,11 @@ pub struct ClauseCoordination {
 pub enum CoordinatedClauseMember {
     Independent(Box<IndependentClause>),
     SharedPredicate(Predicate),
+    /// A coordinated member under a shared modal, whose subject is inherited
+    /// from the first coordinated clause. `None` records an elided verb
+    /// phrase under the modal (VP-ellipsis), mirroring
+    /// [`IndependentClause::Deontic`]'s own `None` case.
+    SharedDeontic(Modal, Option<Predicate>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -4067,12 +4067,17 @@ fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered>
         CoordinatedClauseMember::Independent(Box::new(finish_simple_clause(next)?))
     } else {
         let FinishedPredicate {
-            modal, predicate, ..
+            modal,
+            predicate,
+            elided,
         } = finish_predicate(next.predicate)?;
-        if modal.is_some() {
-            return None;
+        match modal {
+            None => CoordinatedClauseMember::SharedPredicate(predicate),
+            Some(modal) => CoordinatedClauseMember::SharedDeontic(
+                modal,
+                if elided { None } else { Some(predicate) },
+            ),
         }
-        CoordinatedClauseMember::SharedPredicate(predicate)
     };
     let coordination = ClauseCoordination {
         conjunction,
@@ -6836,7 +6841,10 @@ mod tests {
         // Anti-span-split gate: the matrix pattern requires
         // `Clause::Independent`; a body that fails to reduce yields `None`
         // for the whole `[adverb, comma, clause]` span, not a partial parse.
-        let source = "Otherwise, it has base power and toughness 1/1 and can't block Detectives.";
+        // (The witness must genuinely fail to reduce as a clause; it no
+        // longer relies on the shared-deontic modal-coordination gap fixed
+        // in Stage A, which now resolves that shape.)
+        let source = "Otherwise, it has base power and toughness 1/1 and can't block except.";
         let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
         assert!(parsed.is_err(), "{source} must remain unresolved");
     }
@@ -10009,5 +10017,221 @@ mod tests {
                 "{source} must keep failing to become a whole recovery"
             );
         }
+    }
+
+    // ---- Stage A: shared-deontic coordinated clause members ----
+
+    #[test]
+    fn shared_deontic_active_modal_coordinates_with_a_transitive_first_conjunct() {
+        let source = "Enchanted creature gets +2/+2 and can't attack.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a coordinated clause: {:#?}", parsed.sentence());
+        };
+        let [
+            ClauseCoordination {
+                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
+                ..
+            },
+        ] = coordination.rest.as_slice()
+        else {
+            panic!("expected one shared-deontic conjunct: {coordination:#?}");
+        };
+        assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
+        assert!(
+            matches!(predicate, Predicate::Intransitive(_)),
+            "`attack` under the modal stays intransitive: {predicate:#?}"
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn shared_deontic_passive_modal_coordinates_with_a_transitive_first_conjunct() {
+        let source = "Enchanted creature gets +1/+0 and can't be blocked.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a coordinated clause: {:#?}", parsed.sentence());
+        };
+        let [
+            ClauseCoordination {
+                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
+                ..
+            },
+        ] = coordination.rest.as_slice()
+        else {
+            panic!("expected one shared-deontic conjunct: {coordination:#?}");
+        };
+        assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
+        assert!(
+            matches!(predicate, Predicate::Passive(_)),
+            "`be blocked` under the modal is passive: {predicate:#?}"
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn shared_deontic_composes_with_a_modal_first_clause() {
+        let source = "This creature can't block and can't be blocked.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a coordinated clause: {:#?}", parsed.sentence());
+        };
+        assert!(
+            matches!(
+                coordination.first.as_ref(),
+                IndependentClause::Deontic(_, _, Some(Predicate::Intransitive(_)))
+            ),
+            "expected a deontic intransitive first clause: {:#?}",
+            coordination.first
+        );
+        let [
+            ClauseCoordination {
+                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
+                ..
+            },
+        ] = coordination.rest.as_slice()
+        else {
+            panic!("expected one shared-deontic conjunct: {coordination:#?}");
+        };
+        assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
+        assert!(
+            matches!(predicate, Predicate::Passive(_)),
+            "`be blocked` under the modal is passive: {predicate:#?}"
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn shared_deontic_passive_composes_with_an_exception_tail() {
+        let source =
+            "Enchanted creature gets +1/+1 and can't be blocked except by creatures with flying.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a coordinated clause: {:#?}", parsed.sentence());
+        };
+        let [
+            ClauseCoordination {
+                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
+                ..
+            },
+        ] = coordination.rest.as_slice()
+        else {
+            panic!("expected one shared-deontic conjunct: {coordination:#?}");
+        };
+        assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
+        let Predicate::Passive(passive) = predicate else {
+            panic!("expected a passive predicate under the modal: {predicate:#?}");
+        };
+        assert!(
+            matches!(
+                passive.elements.as_slice(),
+                [PredicateElement::Adjunct(PredicateAdjunct::Exception(_))]
+            ),
+            "expected a single exception-tail adjunct: {:#?}",
+            passive.elements
+        );
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn shared_deontic_with_vp_ellipsis_preserves_the_first_deontic_ellipsis() {
+        // Gilded-Drake-shaped (the real card's "make an exchange" object is
+        // not in the fixture/regular vocabulary, so this witness swaps in a
+        // supported verb while keeping the exact motivating shape): the first
+        // conjunct ("you don't") is do-support VP-ellipsis — it lowers to
+        // `IndependentClause::Proform`, not `Deontic`, because `do` is never
+        // classified as a modal auxiliary (`is_modal`); the coordinated
+        // member ("can't attack") carries a real modal and predicate. The two
+        // ellipsis sites are independent — fixing the coordinated-member case
+        // must not disturb the pre-existing first-clause ellipsis.
+        let source = "If you don't or can't attack, sacrifice this creature.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause: {:#?}", parsed.sentence());
+        };
+        assert!(matches!(
+            complex.matrix.as_ref(),
+            IndependentClause::Imperative(_)
+        ));
+        let [attachment] = complex.attachments.as_slice() else {
+            panic!("expected one attachment: {:#?}", complex.attachments);
+        };
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::If,
+            SubordinateBody::Finite(if_body),
+        )) = &attachment.kind
+        else {
+            panic!("expected a finite `if` subordinate: {:#?}", attachment.kind);
+        };
+        let IndependentClause::Coordinated(coordination) = if_body.as_ref() else {
+            panic!("expected a coordinated `if` body: {if_body:#?}");
+        };
+        assert!(
+            matches!(
+                coordination.first.as_ref(),
+                IndependentClause::Proform(_, crate::syntax::ProPredicate { auxiliary })
+                    if auxiliary.auxiliary == Auxiliary::Do && auxiliary.contracted_negation
+            ),
+            "expected the first conjunct to keep its do-support VP-ellipsis: {:#?}",
+            coordination.first
+        );
+        let [
+            ClauseCoordination {
+                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
+                ..
+            },
+        ] = coordination.rest.as_slice()
+        else {
+            panic!("expected one shared-deontic conjunct: {coordination:#?}");
+        };
+        assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
+        assert!(matches!(predicate, Predicate::Intransitive(_)));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn shared_deontic_none_renders_as_the_bare_modal() {
+        // Source-free renderer check: `SharedDeontic(modal, None)` must never
+        // synthesize a pro-verb, only the modal auxiliary itself.
+        let member = CoordinatedClauseMember::SharedDeontic(
+            Modal {
+                auxiliary: crate::word::AuxiliaryInstance {
+                    auxiliary: Auxiliary::Can,
+                    inflection: AuxiliaryInflection::Base,
+                    contracted_negation: true,
+                },
+            },
+            None,
+        );
+        let parsed_first = parse("Draw a card.");
+        let SentenceBody::Independent(IndependentClause::Imperative(first_predicate)) =
+            parsed_first.sentence().expect("sentence root").body.clone()
+        else {
+            panic!("expected an imperative first clause");
+        };
+        let coordinated = CoordinatedIndependentClause {
+            first: Box::new(IndependentClause::Imperative(first_predicate)),
+            rest: vec![ClauseCoordination {
+                conjunction: Some(PredicateConjunction::And),
+                comma: false,
+                member,
+            }],
+        };
+        let sentence = Sentence {
+            initial_uppercase: true,
+            body: SentenceBody::Independent(IndependentClause::Coordinated(coordinated)),
+        };
+        let rendered = render_sentence(&sentence);
+        assert_eq!(rendered, "Draw a card and can't.");
     }
 }

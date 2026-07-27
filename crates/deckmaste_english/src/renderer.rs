@@ -862,6 +862,13 @@ impl<'identity> Renderer<'identity> {
                         CoordinatedClauseMember::SharedPredicate(predicate) => {
                             rendered.push_str(&self.predicate(predicate)?);
                         }
+                        CoordinatedClauseMember::SharedDeontic(modal, predicate) => {
+                            rendered.push_str(&self.render_auxiliary(modal.auxiliary)?);
+                            if let Some(predicate) = predicate {
+                                rendered.push(' ');
+                                rendered.push_str(&self.predicate(predicate)?);
+                            }
+                        }
                     }
                 }
                 Ok(rendered)
@@ -2066,6 +2073,10 @@ fn coordinated_ends_with_closed_quote(clause: &CoordinatedIndependentClause) -> 
             CoordinatedClauseMember::SharedPredicate(predicate) => {
                 predicate_ends_with_closed_quote(predicate)
             }
+            CoordinatedClauseMember::SharedDeontic(_, Some(predicate)) => {
+                predicate_ends_with_closed_quote(predicate)
+            }
+            CoordinatedClauseMember::SharedDeontic(_, None) => false,
         },
         None => independent_clause_ends_with_closed_quote(&clause.first),
     }
