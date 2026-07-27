@@ -642,8 +642,19 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.nominal_modifier(&coordination.modifier, context);
                 }
             }
-            NominalModifier::Noun { .. }
-            | NominalModifier::Quantity(_)
+            NominalModifier::Noun { noun, .. } => {
+                if let crate::word::NounInstance::Singular(crate::word::Noun::Opaque(opaque))
+                | crate::word::NounInstance::Plural(crate::word::Noun::Opaque(opaque))
+                | crate::word::NounInstance::Mass(crate::word::Noun::Opaque(opaque)) = noun
+                {
+                    self.lexical_opacity.push(LexicalOpacityRef {
+                        kind: LexicalOpacityKind::Noun,
+                        text: opaque.spelling(),
+                        source_tokens: 1,
+                    });
+                }
+            }
+            NominalModifier::Quantity(_)
             | NominalModifier::PowerToughness(_)
             | NominalModifier::CombatStepName { .. } => {}
         }
@@ -860,7 +871,12 @@ mod tests {
                 paragraph(IndependentClause::Intransitive(
                     Subject(NounPhrase::Nominal(NominalPhrase {
                         determiner: None,
-                        modifiers: vec![],
+                        modifiers: vec![NominalModifier::Noun {
+                            polarity: Polarity::Positive,
+                            noun: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new(
+                                "flimflam",
+                            ))),
+                        }],
                         head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
                         complements: vec![],
                     })),
@@ -950,11 +966,18 @@ mod tests {
         );
         assert_eq!(
             oracle_text.lexical_opacity(),
-            vec![LexicalOpacityRef {
-                kind: LexicalOpacityKind::Noun,
-                text: "blorple",
-                source_tokens: 1,
-            }]
+            vec![
+                LexicalOpacityRef {
+                    kind: LexicalOpacityKind::Noun,
+                    text: "blorple",
+                    source_tokens: 1,
+                },
+                LexicalOpacityRef {
+                    kind: LexicalOpacityKind::Noun,
+                    text: "flimflam",
+                    source_tokens: 1,
+                },
+            ]
         );
     }
 
