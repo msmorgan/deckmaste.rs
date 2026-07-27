@@ -32,6 +32,7 @@ pub struct ParseProvenance {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseSelection {
     pub(crate) span: Span,
+    pub(crate) constituent_spans: Vec<Span>,
     pub(crate) rule: Option<usize>,
     pub(crate) tied_alternatives: Vec<usize>,
     pub(crate) cost: crate::forest::ParseCost,
@@ -42,6 +43,7 @@ pub struct ParseSelection {
 #[derive(Debug)]
 pub struct ParseReport {
     pub(crate) ast: OracleText,
+    pub(crate) ability_spans: Vec<Span>,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) provenance: ParseProvenance,
     pub(crate) source_tokens: usize,
@@ -51,6 +53,12 @@ impl ParseReport {
     #[must_use]
     pub const fn ast(&self) -> &OracleText {
         &self.ast
+    }
+
+    /// Source spans of the top-level abilities represented by [`Self::ast`].
+    #[must_use]
+    pub fn ability_spans(&self) -> &[Span] {
+        &self.ability_spans
     }
 
     #[must_use]
@@ -97,6 +105,12 @@ impl ParseSelection {
     #[must_use]
     pub const fn span(&self) -> Span {
         self.span
+    }
+
+    /// Source spans of every nonterminal in this selected forest derivation.
+    #[must_use]
+    pub fn constituent_spans(&self) -> &[Span] {
+        &self.constituent_spans
     }
 
     #[must_use]
@@ -178,6 +192,7 @@ fn parse_internal(
     }));
     ParseReport {
         ast: parsed.ast,
+        ability_spans: parsed.ability_spans,
         diagnostics,
         provenance: ParseProvenance {
             selections: parsed
@@ -185,6 +200,7 @@ fn parse_internal(
                 .into_iter()
                 .map(|selection| ParseSelection {
                     span: selection.span,
+                    constituent_spans: selection.constituent_spans,
                     rule: selection.rule,
                     tied_alternatives: selection.tied_alternatives,
                     cost: selection.cost,

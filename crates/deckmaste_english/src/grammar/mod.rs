@@ -6389,6 +6389,8 @@ pub(crate) struct ParsedNonterminal {
     pub(crate) chart: EnglishChart,
     root: NodeId,
     best: BestParse,
+    constituent_spans: Vec<Span>,
+    quoted_ability_spans: Vec<Span>,
     syntax: Lowered,
     opacity_mode: OpacityMode,
 }
@@ -6466,6 +6468,14 @@ impl ParsedNonterminal {
 
     pub(crate) fn forest_stats(&self) -> ForestStats {
         self.chart.forest.stats()
+    }
+
+    pub(crate) fn constituent_spans(&self) -> &[Span] {
+        &self.constituent_spans
+    }
+
+    pub(crate) fn quoted_ability_spans(&self) -> &[Span] {
+        &self.quoted_ability_spans
     }
 
     pub(crate) const fn opacity_mode(&self) -> OpacityMode {
@@ -6548,13 +6558,70 @@ fn parse_nonterminal_with_mode(
         .map_err(ParseNonterminalError::Forest)?
         .ok_or(ParseNonterminalError::Lowering)?;
     let syntax = syntax.ok_or(ParseNonterminalError::Lowering)?;
+    let mut constituent_spans = Vec::new();
+    let mut quoted_ability_spans = Vec::new();
+    collect_selected_spans(
+        &chart.forest,
+        root,
+        &best,
+        tokens,
+        &mut constituent_spans,
+        &mut quoted_ability_spans,
+    );
+    quoted_ability_spans.sort_unstable_by_key(|span| (span.start, span.end));
+    quoted_ability_spans.dedup();
     Ok(ParsedNonterminal {
         chart,
         root,
         best,
+        constituent_spans,
+        quoted_ability_spans,
         syntax,
         opacity_mode,
     })
+}
+
+fn collect_selected_spans(
+    forest: &EnglishForest,
+    node: NodeId,
+    best: &BestParse,
+    tokens: &[Token],
+    constituent_spans: &mut Vec<Span>,
+    quoted_ability_spans: &mut Vec<Span>,
+) {
+    let forest_node = forest.node(node);
+    if matches!(forest_node.key.symbol, ForestSymbol::Nonterminal(_))
+        && forest_node.key.start < forest_node.key.end
+        && let (Some(first), Some(last)) = (
+            tokens.get(forest_node.key.start),
+            tokens.get(forest_node.key.end - 1),
+        )
+    {
+        constituent_spans.push(Span::new(first.span.start, last.span.end));
+    }
+    if matches!(
+        forest_node.key.symbol,
+        ForestSymbol::Lexical(EnglishLexicalSlot::QuotedAbility)
+    ) && let Some(MeaningKey::QuotedAbility(span)) = forest_node.key.lexical_value()
+    {
+        quoted_ability_spans.push(*span);
+    }
+    let Some(alternative) = best.alternative(node) else {
+        return;
+    };
+    let Some(alternative) = forest_node.alternatives.get(alternative) else {
+        return;
+    };
+    for child in &alternative.children {
+        collect_selected_spans(
+            forest,
+            *child,
+            best,
+            tokens,
+            constituent_spans,
+            quoted_ability_spans,
+        );
+    }
 }
 
 #[cfg(test)]
@@ -6590,6 +6657,8 @@ mod root_lowering_tests {
             chart,
             root,
             best,
+            constituent_spans: Vec::new(),
+            quoted_ability_spans: Vec::new(),
             syntax,
             opacity_mode: OpacityMode::Exact,
         })

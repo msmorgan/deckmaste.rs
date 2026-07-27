@@ -4,11 +4,13 @@
 use clap::Args;
 use clap::Subcommand;
 
+use self::bracket::BracketArgs;
 use self::inspect::InspectArgs;
 use self::recovery::RecoveryArgs;
 use self::roundtrip::RoundtripArgs;
 use self::unknown_phrases::UnknownPhrasesArgs;
 
+mod bracket;
 mod data;
 mod inspect;
 mod recovery;
@@ -23,6 +25,8 @@ pub struct EnglishArgs {
 
 #[derive(Debug, Subcommand)]
 enum EnglishCommand {
+    /// Display grammatical constituents with angle brackets.
+    Bracket(BracketArgs),
     /// Parse and display one card or card face's Oracle text.
     Inspect(InspectArgs),
     /// Rank unresolved phrase leaves across the Oracle-text snapshot.
@@ -35,6 +39,7 @@ enum EnglishCommand {
 
 pub fn run(args: EnglishArgs) -> anyhow::Result<()> {
     match args.command {
+        EnglishCommand::Bracket(args) => bracket::run(&args),
         EnglishCommand::Inspect(args) => inspect::run(&args),
         EnglishCommand::Unknown(args) => unknown_phrases::run(&args),
         EnglishCommand::Recovery(args) => recovery::run(&args),

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if (($# > 1)); then
+    echo "usage: scripts/dump_english_brackets [OUTPUT_DIR]" >&2
+    exit 2
+fi
+
+if (($# == 1)); then
+    dump_dir=$1
+    mkdir -p "$dump_dir"
+else
+    dump_dir=$(mktemp -d /tmp/deckmaste-english-brackets.XXXXXX)
+fi
+
+all_dump="$dump_dir/all-faces.tsv"
+supported_dump="$dump_dir/supported-faces.tsv"
+manifest="$dump_dir/MANIFEST.txt"
+
+cargo xtask english bracket --all >"$all_dump"
+cargo xtask english bracket --all --supported-only >"$supported_dump"
+
+all_lines=$(wc -l <"$all_dump")
+supported_lines=$(wc -l <"$supported_dump")
+all_sha256=$(sha256sum "$all_dump" | cut -d' ' -f1)
+supported_sha256=$(sha256sum "$supported_dump" | cut -d' ' -f1)
+
+{
+    printf 'all-faces.tsv\t%s lines\t%s\n' "$all_lines" "$all_sha256"
+    printf 'supported-faces.tsv\t%s lines\t%s\n' "$supported_lines" "$supported_sha256"
+} >"$manifest"
+
+printf '%s\n' "$dump_dir"

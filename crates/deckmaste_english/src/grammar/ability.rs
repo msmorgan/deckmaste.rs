@@ -108,6 +108,7 @@ pub(crate) struct AbilityDiagnostic {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AbilitySelection {
     pub(crate) span: Span,
+    pub(crate) constituent_spans: Vec<Span>,
     pub(crate) rule: Option<usize>,
     pub(crate) tied_alternatives: Vec<usize>,
     pub(crate) cost: ParseCost,
@@ -118,6 +119,7 @@ pub(crate) struct AbilitySelection {
 #[derive(Debug, Default)]
 pub(crate) struct AbilityParse {
     pub(crate) ast: OracleText,
+    pub(crate) ability_spans: Vec<Span>,
     pub(crate) diagnostics: Vec<AbilityDiagnostic>,
     pub(crate) selections: Vec<AbilitySelection>,
 }
@@ -201,6 +203,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // a die-roll table prints the same key shape.
         let station_card = lines.iter().any(|line| self.is_station_keyword_line(line));
         let mut abilities = Vec::new();
+        let mut ability_spans = Vec::new();
         let mut line = 0;
         while line < lines.len() {
             let current = lines[line];
@@ -214,6 +217,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     span: tokens_span(current),
                 });
                 abilities.push(self.parse_ability(strip_bullet(current)));
+                ability_spans.push(tokens_span(current));
                 line += 1;
                 continue;
             }
@@ -232,12 +236,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 }
                 let body = lines[line + 2..band_end].to_vec();
                 abilities.push(self.parse_level_band(range, stats, &body));
+                ability_spans.push(lines_span(&lines[line..band_end]));
                 line = band_end;
                 continue;
             }
 
             if station_card && let Some((threshold, body)) = self.station_threshold_frame(current) {
                 abilities.push(self.parse_station_threshold(threshold, body));
+                ability_spans.push(tokens_span(current));
                 line += 1;
                 continue;
             }
@@ -252,15 +258,18 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     .map(|mode| strip_bullet(mode))
                     .collect::<Vec<_>>();
                 abilities.push(self.parse_modal(current, &modes));
+                ability_spans.push(lines_span(&lines[line..mode_end]));
                 line = mode_end;
             } else {
                 abilities.push(self.parse_ability(current));
+                ability_spans.push(tokens_span(current));
                 line += 1;
             }
         }
 
         AbilityParse {
             ast: OracleText { abilities },
+            ability_spans,
             diagnostics: self.diagnostics,
             selections: self.selections,
         }
@@ -288,7 +297,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_ability_kind(&mut self, tokens: &[Token]) -> AbilityKind {
-        if let Some(keywords) = self.parse_keyword_list(tokens) {
+        if let Some(keywords) = self.attempt(|parser| parser.parse_keyword_list(tokens)) {
             return AbilityKind::Keyword(keywords);
         }
         if let Some((cost, effect)) = self.loyalty_frame(tokens) {
@@ -298,7 +307,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             });
         }
         if let Some((conditions, intervening_condition, effect)) =
-            self.triggered_ability_frame(tokens)
+            self.attempt(|parser| parser.triggered_ability_frame(tokens))
         {
             return AbilityKind::Triggered(TriggeredAbility {
                 conditions,
@@ -640,7 +649,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let (frame, header) = if let Some((cost, effect)) = self.loyalty_frame(header) {
             (ModalFrame::Loyalty(cost), effect)
         } else if let Some((introducer, event, intervening_condition, effect)) =
-            self.trigger_frame(header)
+            self.attempt(|parser| parser.trigger_frame(header))
         {
             (
                 ModalFrame::Triggered {
@@ -981,12 +990,17 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let introducer = self.trigger_word(tokens.first()?)?;
         let event_tokens = tokens.get(1..)?;
         let event = if introducer == TriggerWord::At {
-            let event = self.parse_exact(event_tokens, Nonterminal::NounPhrase)?;
-            TriggerEvent::Temporal(event.noun_phrase()?.clone())
-        } else if let Some(clause) = self
-            .parse_exact(event_tokens, Nonterminal::SimpleClause)
-            .and_then(|event| event.simple_clause().cloned())
-            .and_then(finish_simple_clause)
+            let event = self.accept_exact(event_tokens, Nonterminal::NounPhrase, |parsed| {
+                parsed.noun_phrase().cloned()
+            })?;
+            TriggerEvent::Temporal(event)
+        } else if let Some(clause) =
+            self.accept_exact(event_tokens, Nonterminal::SimpleClause, |parsed| {
+                parsed
+                    .simple_clause()
+                    .cloned()
+                    .and_then(finish_simple_clause)
+            })
         {
             TriggerEvent::Clause(clause)
         } else {
@@ -1008,11 +1022,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             .is_some_and(|token| self.token_text(token).eq_ignore_ascii_case("if"))
         {
             let condition_comma = find_top_level_punctuation(effect, Punctuation::Comma)?;
-            let condition =
-                self.parse_exact(effect.get(1..condition_comma)?, Nonterminal::Clause)?;
-            let Clause::Independent(condition) = condition.clause()?.clone() else {
-                return None;
-            };
+            let condition = self.accept_exact(
+                effect.get(1..condition_comma)?,
+                Nonterminal::Clause,
+                |parsed| match parsed.clause()? {
+                    Clause::Independent(condition) => Some(condition.clone()),
+                    Clause::Dependent(_) => None,
+                },
+            )?;
             effect = effect.get(condition_comma + 1..)?;
             Some(DependentClause::Subordinate(
                 Subordinator::If,
@@ -1053,16 +1070,17 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// opacity is the ordinary, already-licensed self-reference-name path
     /// and not a missing-lexeme camouflage.
     fn clause_event(&mut self, tokens: &[Token]) -> Option<IndependentClause> {
-        let parsed = self.parse_exact(tokens, Nonterminal::Clause)?;
-        match parsed.clause()? {
-            Clause::Independent(clause) => {
-                if copular_complement_head_is_opaque(clause) {
-                    return None;
+        self.accept_exact(tokens, Nonterminal::Clause, |parsed| {
+            match parsed.clause()? {
+                Clause::Independent(clause) => {
+                    if copular_complement_head_is_opaque(clause) {
+                        return None;
+                    }
+                    Some(clause.clone())
                 }
-                Some(clause.clone())
+                Clause::Dependent(_) => None,
             }
-            Clause::Dependent(_) => None,
-        }
+        })
     }
 
     fn parse_cost(&mut self, tokens: &[Token]) -> Cost {
@@ -1113,15 +1131,18 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // coordinated); the dependent-clause branch never fires on the supported
         // corpus, so narrowing to `IndependentClause` loses nothing and rejects
         // the shape rather than mistyping it.
-        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Clause)
-            && let Some(Clause::Independent(independent)) = parsed.clause()
-        {
-            return CostComponent::Clause(Box::new(independent.clone()));
+        if let Some(independent) = self.accept_exact(tokens, Nonterminal::Clause, |parsed| {
+            let Clause::Independent(independent) = parsed.clause()? else {
+                return None;
+            };
+            Some(independent.clone())
+        }) {
+            return CostComponent::Clause(Box::new(independent));
         }
-        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::NounPhrase)
-            && let Some(noun_phrase) = parsed.noun_phrase()
-        {
-            return CostComponent::Noun(Box::new(noun_phrase.clone()));
+        if let Some(noun_phrase) = self.accept_exact(tokens, Nonterminal::NounPhrase, |parsed| {
+            parsed.noun_phrase().cloned()
+        }) {
+            return CostComponent::Noun(Box::new(noun_phrase));
         }
         if let Some(or_index) = self.find_top_level_or(tokens) {
             let left_tokens = &tokens[..or_index];
@@ -1204,17 +1225,18 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
     fn parse_sentence(&mut self, tokens: &[Token]) -> Sentence {
         let initial_uppercase = self.tokens_start_uppercase(tokens);
-        if let Some(sentence) = self.parse_quoted_sentence(tokens) {
+        if let Some(sentence) = self.attempt(|parser| parser.parse_quoted_sentence(tokens)) {
             return sentence;
         }
-        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Sentence)
-            && let Some(sentence) = parsed.sentence()
-        {
-            let mut sentence = sentence.clone();
+        if let Some(mut sentence) = self.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
+            parsed.sentence().cloned()
+        }) {
             sentence.initial_uppercase = initial_uppercase;
             return sentence;
         }
-        if let Some(sentence) = self.parse_dash_appositive(tokens, initial_uppercase) {
+        if let Some(sentence) =
+            self.attempt(|parser| parser.parse_dash_appositive(tokens, initial_uppercase))
+        {
             return sentence;
         }
         if let Some(body) = self.parse_power_toughness_body(tokens) {
@@ -1223,7 +1245,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 body,
             };
         }
-        if let Some(body) = self.parse_triggered_sentence(tokens) {
+        if let Some(body) = self.attempt(|parser| parser.parse_triggered_sentence(tokens)) {
             return Sentence {
                 initial_uppercase,
                 body,
@@ -1280,11 +1302,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// can lower through the required [`Clause::Independent`] shape.
     fn parse_trigger_effect(&mut self, effect: &[Token]) -> Option<IndependentClause> {
         let peeled = peel_sentence_ending(effect);
-        let parsed = self.parse_exact(peeled, Nonterminal::Clause)?;
-        let Clause::Independent(independent) = parsed.clause()? else {
-            return None;
-        };
-        Some(independent.clone())
+        self.accept_exact(peeled, Nonterminal::Clause, |parsed| {
+            let Clause::Independent(independent) = parsed.clause()? else {
+                return None;
+            };
+            Some(independent.clone())
+        })
     }
 
     /// Parses a trailing dash-body appositive sentence: a complete clause
@@ -1312,21 +1335,21 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         }
         // The matrix is a complete independent clause; there is no terminal
         // period on this side of the dash, so it parses as a bare clause.
-        let matrix = self.parse_exact(matrix_tokens, Nonterminal::Clause)?;
-        let Clause::Independent(matrix) = matrix.clause()?.clone() else {
-            return None;
-        };
+        let matrix = self.accept_exact(matrix_tokens, Nonterminal::Clause, |parsed| {
+            let Clause::Independent(matrix) = parsed.clause()? else {
+                return None;
+            };
+            Some(matrix.clone())
+        })?;
         // The dash body is parsed as a whole sentence so its terminal period is
         // consumed like any other; it must reduce to an `or`-coordinated
         // independent clause for the appositive to license.
-        let body = self.parse_exact(body_tokens, Nonterminal::Sentence)?;
-        let SentenceBody::Independent(body) = &body.sentence()?.body else {
-            return None;
-        };
-        if !Self::coordinates_with_or(body) {
-            return None;
-        }
-        let body = body.clone();
+        let body = self.accept_exact(body_tokens, Nonterminal::Sentence, |parsed| {
+            let SentenceBody::Independent(body) = &parsed.sentence()?.body else {
+                return None;
+            };
+            Self::coordinates_with_or(body).then(|| body.clone())
+        })?;
         Some(Sentence {
             initial_uppercase,
             body: SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
@@ -1428,7 +1451,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn parse_choice_sentence(&mut self, tokens: &[Token]) -> Sentence {
         let initial_uppercase = self.tokens_start_uppercase(tokens);
         let body = peel_sentence_ending(tokens);
-        if let Some(choice) = self.parse_choice_instruction(body) {
+        if let Some(choice) = self.attempt(|parser| parser.parse_choice_instruction(body)) {
             return Sentence {
                 initial_uppercase,
                 body: SentenceBody::Choice(choice),
@@ -1478,21 +1501,22 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return (None, tokens);
         };
         let event = if introducer == TriggerWord::At {
-            let Some(parsed) = self.parse_exact(event_tokens, Nonterminal::NounPhrase) else {
+            let Some(phrase) = self.accept_exact(event_tokens, Nonterminal::NounPhrase, |parsed| {
+                parsed.noun_phrase().cloned()
+            }) else {
                 return (None, tokens);
             };
-            let Some(phrase) = parsed.noun_phrase() else {
-                return (None, tokens);
-            };
-            TriggerEvent::Temporal(phrase.clone())
+            TriggerEvent::Temporal(phrase)
         } else {
-            let Some(parsed) = self.parse_exact(event_tokens, Nonterminal::Clause) else {
+            let Some(clause) = self.accept_exact(event_tokens, Nonterminal::Clause, |parsed| {
+                let Clause::Independent(clause) = parsed.clause()? else {
+                    return None;
+                };
+                Some(clause.clone())
+            }) else {
                 return (None, tokens);
             };
-            let Some(Clause::Independent(clause)) = parsed.clause() else {
-                return (None, tokens);
-            };
-            TriggerEvent::Clause(clause.clone())
+            TriggerEvent::Clause(clause)
         };
         let Some(rest) = tokens.get(comma + 1..) else {
             return (None, tokens);
@@ -1527,13 +1551,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// other imperative (a follow-up `Create …`) or clause returns `None`, so
     /// the trigger-prefix grammar cannot over-claim a non-choice sentence.
     fn parse_choice_core(&mut self, tokens: &[Token]) -> Option<Predicate> {
-        let parsed = self.parse_exact(tokens, Nonterminal::Sentence)?;
-        let sentence = parsed.sentence()?;
-        let SentenceBody::Independent(IndependentClause::Imperative(predicate)) = &sentence.body
-        else {
-            return None;
-        };
-        predicate_is_choose(predicate).then(|| predicate.clone())
+        self.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
+            let SentenceBody::Independent(IndependentClause::Imperative(predicate)) =
+                &parsed.sentence()?.body
+            else {
+                return None;
+            };
+            predicate_is_choose(predicate).then(|| predicate.clone())
+        })
     }
 
     /// A quoted ability (`"..."`) may fill any grammatical slot the oracle
@@ -1594,10 +1619,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         prefix: &[Token],
         quoted: QuotedAbility,
     ) -> Option<IndependentClause> {
-        let mut clause = self
-            .parse_exact(prefix, Nonterminal::SimpleClause)?
-            .simple_clause()?
-            .clone();
+        let mut clause = self.accept_exact(prefix, Nonterminal::SimpleClause, |parsed| {
+            parsed.simple_clause().cloned()
+        })?;
         if clause.subject.is_none() && clause.predicate.verb.slot == VerbSlot::Infinitive {
             clause.predicate.verb.slot = VerbSlot::Imperative;
         }
@@ -1632,8 +1656,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         {
             return None;
         }
-        let mut clause = if let Some(parsed) = self.parse_exact(prefix, Nonterminal::SimpleClause) {
-            parsed.simple_clause()?.clone()
+        let mut clause = if let Some(clause) =
+            self.accept_exact(prefix, Nonterminal::SimpleClause, |parsed| {
+                parsed.simple_clause().cloned()
+            }) {
+            clause
         } else {
             // A required-object grant verb (`this creature has`) will not parse without an
             // object of its own. Supply a sentinel ability complement so the
@@ -2134,8 +2161,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_counted(&mut self, body: &[Token]) -> Option<KeywordArgument> {
-        let parsed = self.parse_exact(body, Nonterminal::Quantity)?;
-        Some(KeywordArgument::Counted(*parsed.quantity()?))
+        self.accept_exact(body, Nonterminal::Quantity, |parsed| {
+            Some(KeywordArgument::Counted(*parsed.quantity()?))
+        })
     }
 
     fn parse_counted_cost(&self, left: &[Token], right: &[Token]) -> Option<KeywordArgument> {
@@ -2209,12 +2237,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             });
         }
         // Any prepositional phrase, carrying its actual preposition.
-        if let Some(parsed) = self.parse_exact(segment, Nonterminal::PrepositionalPhrase)
-            && let Some(prepositional) = parsed.prepositional_phrase()
+        if let Some(prepositional) =
+            self.accept_exact(segment, Nonterminal::PrepositionalPhrase, |parsed| {
+                parsed.prepositional_phrase().cloned()
+            })
         {
             return Some(PredicatedQuality {
                 preposition: Some(prepositional.preposition),
-                quality: (*prepositional.object).clone(),
+                quality: *prepositional.object,
             });
         }
         // A bare quality with no preposition (`hexproof from blue` → `blue`).
@@ -2231,18 +2261,21 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // noun, so it needs its own exact-parse arm between the color and
         // noun-phrase cases or it falls through to the noun-phrase attempt
         // and fails.
-        if let Some(parsed) = self.parse_exact(segment, Nonterminal::AdjectivePhrase)
-            && let Some(adjective) = parsed.adjective_phrase()
+        if let Some(adjective) =
+            self.accept_exact(segment, Nonterminal::AdjectivePhrase, |parsed| {
+                parsed.adjective_phrase().cloned()
+            })
         {
             return Some(PredicatedQuality {
                 preposition: None,
-                quality: Phrase::AdjectivePhrase(Box::new(adjective.clone())),
+                quality: Phrase::AdjectivePhrase(Box::new(adjective)),
             });
         }
-        let parsed = self.parse_exact(segment, Nonterminal::NounPhrase)?;
-        Some(PredicatedQuality {
-            preposition: None,
-            quality: Phrase::NounPhrase(Box::new(parsed.noun_phrase()?.clone())),
+        self.accept_exact(segment, Nonterminal::NounPhrase, |parsed| {
+            Some(PredicatedQuality {
+                preposition: None,
+                quality: Phrase::NounPhrase(Box::new(parsed.noun_phrase()?.clone())),
+            })
         })
     }
 
@@ -2261,11 +2294,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         }
     }
 
-    fn parse_exact(
+    fn accept_exact<T>(
         &mut self,
         tokens: &[Token],
         nonterminal: Nonterminal,
-    ) -> Option<ParsedNonterminal> {
+        accept: impl FnOnce(&ParsedNonterminal) -> Option<T>,
+    ) -> Option<T> {
         if tokens.is_empty() {
             return None;
         }
@@ -2277,15 +2311,71 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.self_reference,
         )
         .ok()?;
+        let accepted = accept(&parsed)?;
+        let quoted_ability_spans = parsed
+            .quoted_ability_spans()
+            .iter()
+            .map(|quoted| Span::new(span.start + quoted.start, span.start + quoted.end))
+            .collect::<Vec<_>>();
         self.selections.push(AbilitySelection {
             span,
+            constituent_spans: parsed
+                .constituent_spans()
+                .iter()
+                .map(|constituent| {
+                    Span::new(span.start + constituent.start, span.start + constituent.end)
+                })
+                .collect(),
             rule: parsed.root_rule(),
             tied_alternatives: parsed.root_tied_alternatives().to_vec(),
             cost: parsed.cost(),
             chart_stats: parsed.chart_stats(),
             forest_stats: parsed.forest_stats(),
         });
-        Some(parsed)
+        for quoted_ability_span in quoted_ability_spans {
+            self.record_quoted_ability_selections(quoted_ability_span);
+        }
+        Some(accepted)
+    }
+
+    fn record_quoted_ability_selections(&mut self, span: Span) {
+        let Some(fragment) = span.text(self.source) else {
+            return;
+        };
+        let surface = lex(fragment);
+        let tokens = collapse_full_names(fragment, surface.tokens, self.self_reference.full_name());
+        let selections = {
+            let mut parser = Parser::new(fragment, self.catalogs, self.self_reference);
+            parser.parse_ability(&tokens);
+            parser.selections
+        };
+        self.selections
+            .extend(selections.into_iter().map(|selection| {
+                AbilitySelection {
+                    span: offset_span(selection.span, span.start),
+                    constituent_spans: selection
+                        .constituent_spans
+                        .into_iter()
+                        .map(|constituent| offset_span(constituent, span.start))
+                        .collect(),
+                    rule: selection.rule,
+                    tied_alternatives: selection.tied_alternatives,
+                    cost: selection.cost,
+                    chart_stats: selection.chart_stats,
+                    forest_stats: selection.forest_stats,
+                }
+            }));
+    }
+
+    fn attempt<T>(&mut self, parse: impl FnOnce(&mut Self) -> Option<T>) -> Option<T> {
+        let diagnostics = self.diagnostics.len();
+        let selections = self.selections.len();
+        let parsed = parse(self);
+        if parsed.is_none() {
+            self.diagnostics.truncate(diagnostics);
+            self.selections.truncate(selections);
+        }
+        parsed
     }
 
     fn recovered_phrase(&mut self, tokens: &[Token]) -> Phrase {
@@ -2330,6 +2420,15 @@ fn split_top_level_lines(tokens: &[Token]) -> Vec<&[Token]> {
     }
     lines.push(&tokens[start..]);
     lines
+}
+
+fn lines_span(lines: &[&[Token]]) -> Span {
+    let first = lines.iter().find_map(|line| line.first());
+    let last = lines.iter().rev().find_map(|line| line.last());
+    match (first, last) {
+        (Some(first), Some(last)) => Span::new(first.span.start, last.span.end),
+        _ => Span::default(),
+    }
 }
 
 fn split_sentences<'tokens>(source: &str, tokens: &'tokens [Token]) -> Vec<&'tokens [Token]> {
@@ -2485,6 +2584,10 @@ fn tokens_span(tokens: &[Token]) -> Span {
         (Some(first), Some(last)) => Span::new(first.span.start, last.span.end),
         _ => Span::default(),
     }
+}
+
+fn offset_span(span: Span, offset: usize) -> Span {
+    Span::new(offset + span.start, offset + span.end)
 }
 
 /// Parses a plain decimal roll-range bound (`9`, `20`) into a structural

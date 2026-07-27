@@ -54,7 +54,7 @@ pub(super) fn run(args: &InspectArgs) -> Result<()> {
     )
 }
 
-fn find_cards(faces: &[CardFace], query: &str) -> Vec<CardFace> {
+pub(super) fn find_cards(faces: &[CardFace], query: &str) -> Vec<CardFace> {
     let mut standalone = Vec::new();
     let mut whole_card = Vec::new();
     let mut face = Vec::new();

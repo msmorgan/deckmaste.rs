@@ -31,6 +31,65 @@ fn public_parser_returns_a_source_independent_grammar_tree() {
     assert_eq!(ast.render("Test Card", false).unwrap(), "Draw a card.");
 }
 
+#[test]
+fn selected_constituents_expose_the_possessive_determiner() {
+    let source = concat!(
+        "Whenever another creature enters, this creature deals 1 damage ",
+        "to that creature's controller."
+    );
+    let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+    let report = parse_with_identity(source, &catalogs, "Rampaging Ferocidon", false);
+    let constituents = report
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(|selection| selection.constituent_spans())
+        .filter_map(|span| span.text(source))
+        .collect::<Vec<_>>();
+
+    assert!(constituents.contains(&"that creature's"));
+    assert!(constituents.contains(&"creature's"));
+    assert!(constituents.contains(&"controller"));
+}
+
+#[test]
+fn selected_constituents_include_a_chart_lowered_quoted_ability() {
+    let source = concat!(
+        "This creature gains trample and ",
+        "\"Whenever this creature attacks, draw a card.\""
+    );
+    let catalogs = Catalogs::default()
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+        .with_catalog(CatalogKind::KeywordAbility, ["Trample"]);
+    let report = parse_with_identity(source, &catalogs, "Test Card", false);
+    let constituents = report
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(|selection| selection.constituent_spans())
+        .filter_map(|span| span.text(source))
+        .collect::<Vec<_>>();
+
+    assert!(constituents.contains(&"this creature attacks"));
+    assert!(constituents.contains(&"draw a card."));
+}
+
+#[test]
+fn rejected_keyword_list_does_not_leave_constituent_provenance() {
+    let source = "Suspend 3, definitely not a keyword.";
+    let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Suspend"]);
+    let report = parse_with_catalogs(source, &catalogs);
+
+    assert!(
+        report
+            .provenance()
+            .selections()
+            .iter()
+            .all(|selection| selection.span().text(source) != Some("3")),
+        "a rejected keyword-list probe leaked its counted-argument selection"
+    );
+}
+
 /// Parses `source` as the named face and returns its rendered round-trip and a
 /// pretty-printed AST for structural assertions. The parse and render share the
 /// identity, so a recognized self-reference re-emits the face's own name.
