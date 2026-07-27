@@ -136,6 +136,7 @@ enum VerbDependent {
     Adverbial(Phrase),
     Frequency(FrequencyPhrase),
     Particle(VerbParticle),
+    CoinResult(crate::syntax::CoinSide),
     CoordinatedObject(crate::syntax::CoordinatedPredicateObject),
     /// A coordinated predicative-adjective complement (`are green and white`),
     /// finished into a [`PredicateComplement::CoordinatedAdjective`].
@@ -321,6 +322,7 @@ pub(crate) enum EnglishLexicalSlot {
     /// the fronting production.
     SentenceAdverbial,
     VerbParticle(VerbParticle),
+    CoinResult(crate::syntax::CoinSide),
     Frequency,
     Pronoun(PronounCase),
     Auxiliary,
@@ -625,6 +627,7 @@ pub(crate) enum Features {
         nominal_attachment: bool,
     },
     VerbParticle(VerbParticle),
+    CoinResult(crate::syntax::CoinSide),
     RelativeClause {
         gap: RelativeGap,
         antecedent_agreement: Option<Agreement>,
@@ -1005,6 +1008,7 @@ pub(crate) enum MeaningKey {
     Adjective(Adjective),
     Adverb(Vocab),
     VerbParticle(VerbParticle),
+    CoinResult(crate::syntax::CoinSide),
     Frequency(FrequencyKey),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
@@ -1164,6 +1168,12 @@ enum RuleTag {
     VerbPhraseAdverb,
     VerbPhrasePreverbAdverb,
     VerbPhraseParticle,
+    /// The closed `come up heads`/`come up tails` coin-result predicate tail
+    /// [CR#705.1,705.2]. Registered late (after every other rule) alongside
+    /// [`VerbPhraseParticle`], its structural analogue; the pending `Come`
+    /// frame (`PredicateFrame::requires_coin_result`) is what gates
+    /// prediction, not a generic particle license.
+    VerbPhraseCoinResult,
     VerbPhraseFrequency,
     FrequencyPhraseAdverb,
     VerbPhraseAbility,
@@ -1197,6 +1207,12 @@ enum RuleTag {
     ClauseSentenceAdverbialBefore,
     ClausePrepositionalBefore,
     ClauseSubordinateBefore,
+    /// `While <gerund clause>, <clause>.` — the fronted-gerund vote/action
+    /// simultaneity frame [CR#701.38d]. Registered late (after every other
+    /// rule, including the coin-result predicate), gated at dot 1 on exactly
+    /// `Features::Subordinator(While)` so no other subordinator gains this
+    /// shape and no generic fronted-gerund production is introduced.
+    ClauseSubordinateGerundBefore,
     ClauseSubordinateAfterElliptical,
     ClauseSubordinateAfter,
     ClauseSubordinateAfterComma,
@@ -1361,6 +1377,15 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // or same-rule alternative discovery order, so the full negative
         // gates in the `opqposs` round remain the check for that.
         builder.add_possessive_modifier_rules();
+        // Registered after every other rule, including the possessive
+        // modifier: the coin-result predicate's dot-1 gate is categorical
+        // (the pending `Come` frame), so append order only affects tie
+        // stability, not correctness.
+        builder.add_coin_result_rules();
+        // Registered after the coin-result predicate so every prior `RuleId`
+        // stays unchanged; its own dot-1 gate (`Features::Subordinator(While)`)
+        // is categorical, so append order affects only tie stability.
+        builder.add_while_gerund_rules();
         Self {
             source,
             catalogs,
@@ -1951,6 +1976,26 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     end,
                     features: Features::VerbParticle(particle),
                     meaning: MeaningKey::VerbParticle(particle),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            // The closed two-word coin-result surface [CR#705.1,705.2]:
+            // scanned as an exact literal `up heads`/`up tails`, never as a
+            // general noun/adjective lookup for `heads`/`tails`.
+            EnglishLexicalSlot::CoinResult(side) => self
+                .words_match(
+                    tokens,
+                    start,
+                    match side {
+                        crate::syntax::CoinSide::Heads => &["up", "heads"],
+                        crate::syntax::CoinSide::Tails => &["up", "tails"],
+                    },
+                )
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::CoinResult(side),
+                    meaning: MeaningKey::CoinResult(side),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -3774,6 +3819,52 @@ impl RuleBuilder {
             },
         );
     }
+
+    /// Registers the closed `come up heads`/`come up tails` coin-result
+    /// predicate tail [CR#705.1,705.2] after every other rule in the
+    /// grammar, mirroring `VerbPhraseParticle`'s structural placement. Its
+    /// dot-1 gate (`accepts_predicate_prefix`) requires the narrow pending
+    /// `Come` frame before either alternative is even predicted, so no other
+    /// verb phrase can reach this production.
+    fn add_coin_result_rules(&mut self) {
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        for side in [
+            crate::syntax::CoinSide::Heads,
+            crate::syntax::CoinSide::Tails,
+        ] {
+            self.add(
+                RuleTag::VerbPhraseCoinResult,
+                N::VerbPhrase,
+                [n(N::VerbPhrase), l(EnglishLexicalSlot::CoinResult(side))],
+            );
+        }
+    }
+
+    /// Registers the fronted `While <gerund clause>, <clause>.` production
+    /// [CR#701.38d] after every other rule, including the coin-result
+    /// predicate. The dot-1 gate in `accepts_predicate_prefix` requires
+    /// `Features::Subordinator(While)` before `GerundClause` is even
+    /// predicted, so this never cascades into a general fronted-gerund
+    /// shape for other subordinators.
+    fn add_while_gerund_rules(&mut self) {
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        self.add(
+            RuleTag::ClauseSubordinateGerundBefore,
+            N::Clause,
+            [
+                l(EnglishLexicalSlot::Subordinator),
+                n(N::GerundClause),
+                l(EnglishLexicalSlot::Punctuation(Punctuation::Comma)),
+                n(N::Clause),
+            ],
+        );
+    }
 }
 
 fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Features, MeaningKey>> {
@@ -4255,6 +4346,7 @@ fn reduce(
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhrasePreverbAdverb
         | RuleTag::VerbPhraseParticle
+        | RuleTag::VerbPhraseCoinResult
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseQuotedAbility
@@ -4287,6 +4379,7 @@ fn reduce(
         | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
+        | RuleTag::ClauseSubordinateGerundBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
@@ -5609,6 +5702,7 @@ enum Lowered {
     Catalog(crate::catalog::CatalogAtom),
     Adverb(Vocab),
     VerbParticle(VerbParticle),
+    CoinResult(crate::syntax::CoinSide),
     Frequency(FrequencyPhrase),
     Auxiliary(AuxiliaryInstance),
     SubjectAuxiliary(ContractedSubjectAuxiliary),
@@ -5705,6 +5799,7 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
         MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
         MeaningKey::VerbParticle(particle) => Lowered::VerbParticle(*particle),
+        MeaningKey::CoinResult(side) => Lowered::CoinResult(*side),
         MeaningKey::Frequency(frequency) => Lowered::Frequency(frequency.syntax()),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
         MeaningKey::Auxiliary(auxiliary) => Lowered::Auxiliary(*auxiliary),
@@ -5874,6 +5969,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhrasePreverbAdverb
         | RuleTag::VerbPhraseParticle
+        | RuleTag::VerbPhraseCoinResult
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseQuotedAbility
@@ -5906,6 +6002,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
+        | RuleTag::ClauseSubordinateGerundBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma

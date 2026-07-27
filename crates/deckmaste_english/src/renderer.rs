@@ -1123,6 +1123,13 @@ impl<'identity> Renderer<'identity> {
                     VerbParticle::In => "in".to_owned(),
                     VerbParticle::Out => "out".to_owned(),
                 },
+                // The exact inverse of the `up heads`/`up tails` scanner: it
+                // maps the typed value back to its literal surface without
+                // ever inspecting a stored string [CR#705.1,705.2].
+                PredicateElement::CoinResult(side) => match side {
+                    crate::syntax::CoinSide::Heads => "up heads".to_owned(),
+                    crate::syntax::CoinSide::Tails => "up tails".to_owned(),
+                },
             });
         }
         Ok(())
@@ -2079,7 +2086,7 @@ fn predicate_element_is_closed_quote(element: &PredicateElement) -> bool {
     match element {
         PredicateElement::Complement(complement) => complement_is_closed_quote(complement),
         PredicateElement::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
-        PredicateElement::Particle(_) => false,
+        PredicateElement::Particle(_) | PredicateElement::CoinResult(_) => false,
     }
 }
 

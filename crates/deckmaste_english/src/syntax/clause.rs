@@ -232,12 +232,28 @@ pub enum PredicateElement {
     Complement(PredicateComplement),
     Adjunct(PredicateAdjunct),
     Particle(VerbParticle),
+    /// The result tail of the closed `come up heads`/`come up tails`
+    /// coin-result predicate [CR#705.1,705.2]. Only the narrow `Come` frame
+    /// (see `PredicateFrame::requires_coin_result`) ever attaches this
+    /// element; the renderer maps each typed value back to its exact two-word
+    /// surface without inspecting any stored string.
+    CoinResult(CoinSide),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VerbParticle {
     In,
     Out,
+}
+
+/// The designated side of a coin, carried only inside the closed
+/// `come up heads`/`come up tails` result predicate [CR#705.1,705.2]. Not a
+/// general noun or adjective reading of `heads`/`tails` — see
+/// `PredicateElement::CoinResult`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CoinSide {
+    Heads,
+    Tails,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

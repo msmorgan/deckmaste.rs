@@ -493,7 +493,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     }
                 },
                 PredicateElement::Adjunct(adjunct) => self.predicate_adjunct(adjunct, context),
-                PredicateElement::Particle(_) => {}
+                // The closed coin-result tail is a fully typed literal, never
+                // recovered structure or opaque content — same as a particle.
+                PredicateElement::Particle(_) | PredicateElement::CoinResult(_) => {}
             }
         }
     }

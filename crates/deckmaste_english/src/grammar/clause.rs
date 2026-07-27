@@ -754,6 +754,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhrasePreverbAdverb
         | RuleTag::VerbPhraseParticle
+        | RuleTag::VerbPhraseCoinResult
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseQuotedAbility
@@ -850,6 +851,7 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
+        | RuleTag::ClauseSubordinateGerundBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
@@ -874,6 +876,15 @@ pub(super) fn accepts_predicate_prefix(
     if completed_children != 1 {
         return true;
     }
+    // Gate exactly on `Features::Subordinator(While)` before predicting
+    // `GerundClause`: no other subordinator gains this fronted-gerund shape,
+    // so this never cascades into a generic fronted-gerund production.
+    if tag == RuleTag::ClauseSubordinateGerundBefore {
+        return matches!(
+            features,
+            Features::Subordinator(crate::syntax::Subordinator::While)
+        );
+    }
     let predicate_rule = matches!(
         tag,
         RuleTag::VerbPhraseDirectObject
@@ -884,6 +895,7 @@ pub(super) fn accepts_predicate_prefix(
             | RuleTag::VerbPhraseExceptBy
             | RuleTag::VerbPhraseInfinitive
             | RuleTag::VerbPhraseParticle
+            | RuleTag::VerbPhraseCoinResult
             | RuleTag::VerbPhraseAbility
             | RuleTag::VerbPhraseQuotedAbility
             | RuleTag::VerbPhraseQuotedAbilityCoordination
@@ -986,6 +998,10 @@ pub(super) fn accepts_predicate_prefix(
             ) && frame.licenses_complement(PredicateComplementKind::Scalar)
         }
         RuleTag::VerbPhraseParticle => !frame.particles.is_empty(),
+        // Gate on the narrow pending `Come` frame, not a generic particle
+        // license: `VerbPhraseCoinResult` is predicted only when the child's
+        // frame is still awaiting its coin-result tail.
+        RuleTag::VerbPhraseCoinResult => frame.requires_coin_result(),
         _ => true,
     }
 }
@@ -1223,6 +1239,7 @@ fn reduce_predicate(
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhraseParticle
+        | RuleTag::VerbPhraseCoinResult
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseQuotedAbility
@@ -1249,6 +1266,12 @@ fn reduce_predicate(
                         return None;
                     };
                     PredicateAttachment::Particle(*particle)
+                }
+                RuleTag::VerbPhraseCoinResult => {
+                    let Features::CoinResult(side) = children.get(1)?.features else {
+                        return None;
+                    };
+                    PredicateAttachment::CoinResult(*side)
                 }
                 RuleTag::VerbPhraseAbility => PredicateAttachment::AbilityComplement,
                 RuleTag::VerbPhraseQuotedAbility => PredicateAttachment::QuotedObject,
@@ -1354,6 +1377,10 @@ fn reduce_predicate(
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one exhaustive match per predicate-attachment variant is intentionally verbose"
+)]
 fn extend_predicate(
     predicate: &Child<'_, EnglishGrammar<'_, '_>>,
     attachment: PredicateAttachment,
@@ -1399,6 +1426,11 @@ fn extend_predicate(
             frame.licenses_complement(PredicateComplementKind::Infinitive)
         }
         PredicateAttachment::Particle(particle) => frame.licenses_particle(particle),
+        // Licensed exactly by the pending `Come` frame, never by a general
+        // particle table; the `accepts_predicate_prefix` dot-1 gate already
+        // enforces this before the scanner is even predicted, so this
+        // duplicates that categorical gate rather than trusting it alone.
+        PredicateAttachment::CoinResult(_) => frame.requires_coin_result(),
         PredicateAttachment::AbilityComplement | PredicateAttachment::QuotedObject => {
             frame.licenses_complement(PredicateComplementKind::Ability)
         }
@@ -1433,6 +1465,10 @@ fn extend_predicate(
     {
         return None;
     }
+    // `Come` forbids a direct object, so it never passivizes under this
+    // frame; a coin-result tail attaching under `*passive` is unreachable in
+    // practice, and the blanket ban above already rejects it since
+    // `CoinResult` is not in the passive-exempt list.
     // The exception tail requires a passive host; it is not itself a
     // selected complement, so it is licensed only once the frame's ordinary
     // required arguments are already satisfied (checked above via
@@ -1465,7 +1501,8 @@ fn extend_predicate(
         PredicateAttachment::NominalAdjunct(_)
         | PredicateAttachment::AdjectiveComplement
         | PredicateAttachment::InfinitiveComplement
-        | PredicateAttachment::Particle(_) => PredicateAttachmentPhase::Tail,
+        | PredicateAttachment::Particle(_)
+        | PredicateAttachment::CoinResult(_) => PredicateAttachmentPhase::Tail,
     };
     let object = match (attachment, *object) {
         (
@@ -1476,6 +1513,7 @@ fn extend_predicate(
             | PredicateAttachment::Prepositional(_)
             | PredicateAttachment::InfinitiveComplement
             | PredicateAttachment::Particle(_)
+            | PredicateAttachment::CoinResult(_)
             | PredicateAttachment::Exception,
             object,
         ) => object,
@@ -1507,6 +1545,14 @@ fn extend_predicate(
         Some(PrepositionalRole::SelectedComplement) => true,
         Some(PrepositionalRole::Adjunct) | None => *selected_preposition,
     };
+    // A `CoinResult` attachment is what discharges the pending `Come` frame:
+    // the completed predicate carries a frame that no longer rejects
+    // completion checks. Every other attachment leaves the frame unchanged.
+    let frame = if matches!(attachment, PredicateAttachment::CoinResult(_)) {
+        frame.discharge_coin_result()
+    } else {
+        *frame
+    };
     Some(Features::VerbPhrase {
         form: *form,
         passive: *passive,
@@ -1514,7 +1560,7 @@ fn extend_predicate(
         indirect_object,
         selected_preposition,
         phase: next_phase,
-        frame: *frame,
+        frame,
         bare: false,
         subjunctive: *subjunctive,
     })
@@ -1530,6 +1576,11 @@ enum PredicateAttachment {
     Prepositional(Preposition),
     InfinitiveComplement,
     Particle(VerbParticle),
+    /// The closed `come up heads`/`come up tails` result tail. Licensed
+    /// only by the narrow pending `Come` frame
+    /// (`PredicateFrame::requires_coin_result`); the reduction discharges
+    /// that frame so the completed predicate never re-licenses it.
+    CoinResult(crate::syntax::CoinSide),
     /// The closed `except by <PP>` exception tail. Licensed without
     /// consulting the verb frame's selected-preposition table — the `By` PP
     /// is the exceptional restriction's agent-like complement, not a
@@ -1594,6 +1645,11 @@ fn predicate_arguments_complete(
     if frame.is_recipient_passive() && !passive {
         return false;
     }
+    // A frame pending a required `CoinResult` tail is never complete on its
+    // own; only the `VerbPhraseCoinResult` reduction discharges it.
+    if frame.requires_coin_result() {
+        return false;
+    }
     let recipient_passive = passive && frame.is_recipient_passive();
     frame
         .direct_object()
@@ -1616,6 +1672,9 @@ fn predicate_object_gap_complete(
     selected_preposition: bool,
 ) -> bool {
     if frame.is_recipient_passive() {
+        return false;
+    }
+    if frame.requires_coin_result() {
         return false;
     }
     frame.direct_object().accepts()
@@ -2247,6 +2306,21 @@ fn reduce_composed_clause(
             };
             conditional_reduction(*subordinator, children.get(1)?, children.get(3)?)
         }
+        RuleTag::ClauseSubordinateGerundBefore => {
+            // The dot-1 gate already required `Features::Subordinator(While)`
+            // before `GerundClause` was predicted; re-check here rather than
+            // trust it alone, and require a complete gerund and an
+            // independent, non-subjunctive matrix.
+            let Features::Subordinator(crate::syntax::Subordinator::While) =
+                children.first()?.features
+            else {
+                return None;
+            };
+            if !matches!(children.get(1)?.features, Features::GerundClause) {
+                return None;
+            }
+            fronted_attachment_reduction(children.get(3)?)
+        }
         RuleTag::ClauseAdverbBefore => fronted_attachment_reduction(children.get(1)?),
         RuleTag::ClauseSentenceAdverbialBefore => fronted_attachment_reduction(children.get(2)?),
         RuleTag::ClausePrepositionalBefore => {
@@ -2623,6 +2697,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhrasePreverbAdverb
         | RuleTag::VerbPhraseParticle
+        | RuleTag::VerbPhraseCoinResult
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseQuotedAbility
@@ -2714,6 +2789,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
         | RuleTag::ClauseSubordinateBefore
+        | RuleTag::ClauseSubordinateGerundBefore
         | RuleTag::ClauseSubordinateAfterElliptical
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
@@ -2826,6 +2902,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhraseParticle
+        | RuleTag::VerbPhraseCoinResult
         | RuleTag::VerbPhraseFrequency
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseQuotedAbility
@@ -2921,6 +2998,12 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 return None;
             };
             VerbDependent::Particle(particle)
+        }
+        RuleTag::VerbPhraseCoinResult => {
+            let Lowered::CoinResult(side) = take(children, 1)? else {
+                return None;
+            };
+            VerbDependent::CoinResult(side)
         }
         RuleTag::VerbPhraseFrequency => {
             let Lowered::Frequency(frequency) = take(children, 1)? else {
@@ -3610,6 +3693,24 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             )
         }
+        RuleTag::ClauseSubordinateGerundBefore => {
+            let Lowered::Subordinator(subordinator) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::GerundClause(gerund) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::Clause(consequence) = take(children, 3)? else {
+                return None;
+            };
+            conditional_body(
+                subordinator,
+                AttachmentPosition::BeforeMatrix,
+                true,
+                SubordinateBody::Gerund(gerund),
+                consequence,
+            )
+        }
         RuleTag::ClauseAdverbBefore => {
             let Lowered::Adverb(adverb) = take(children, 0)? else {
                 return None;
@@ -4260,6 +4361,9 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
             VerbDependent::Particle(particle) => {
                 target_elements.push(PredicateElement::Particle(particle));
             }
+            VerbDependent::CoinResult(side) => {
+                target_elements.push(PredicateElement::CoinResult(side));
+            }
             VerbDependent::Frequency(frequency) => {
                 target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Frequency(
                     frequency,
@@ -4592,6 +4696,324 @@ mod tests {
                 "{rejected:?} must not parse as a complete sentence"
             );
         }
+    }
+
+    #[test]
+    fn flip_is_a_count_noun_alongside_its_irregular_verb() {
+        // Positive: `the flip` is a nominal condition object inside the
+        // `if`-subordinate of a complex clause.
+        let parsed = parse("If you win the flip, draw a card.");
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+            attachments,
+            ..
+        })) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a fronted condition");
+        };
+        let [attachment] = attachments.as_slice() else {
+            panic!("expected exactly one fronted attachment");
+        };
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::If,
+            SubordinateBody::Finite(condition),
+        )) = &attachment.kind
+        else {
+            panic!(
+                "expected an `if` subordinate frame, got {:?}",
+                attachment.kind
+            );
+        };
+        let IndependentClause::Transitive(_, predicate) = condition.as_ref() else {
+            panic!("expected a transitive condition clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        assert_eq!(nominal.determiner, Some(Determiner::The));
+        assert!(matches!(
+            nominal.head,
+            NounInstance::Singular(Noun::Word(Vocab::Flip))
+        ));
+
+        // Morphology: singular `flip`, plural `flips`, and the irregular verb
+        // `flipped`/`flipping` coexist.
+        assert!(
+            parse_nonterminal("the flips", &fixture_catalogs(), Nonterminal::NounPhrase).is_ok()
+        );
+        assert!(
+            parse_nonterminal(
+                "This creature phases out.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence
+            )
+            .is_ok()
+        );
+
+        // Required negative: `Flip a coin.` remains an imperative transitive
+        // with direct object `a coin`; no noun-headed alternative may win.
+        let flip_coin = parse("Flip a coin.");
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &flip_coin.sentence().expect("sentence root").body
+        else {
+            panic!("expected an imperative transitive clause");
+        };
+        assert!(matches!(predicate.head.verb.verb, Verb::Word(Vocab::Flip)));
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        assert_eq!(
+            nominal.determiner,
+            Some(Determiner::Indefinite(crate::syntax::IndefiniteArticle::A))
+        );
+        assert!(matches!(
+            nominal.head,
+            NounInstance::Singular(Noun::Word(Vocab::Coin))
+        ));
+    }
+
+    #[test]
+    fn ensue_is_a_regular_intransitive_verb() {
+        let parsed = parse("Chaos ensues.");
+        let SentenceBody::Independent(IndependentClause::Intransitive(_, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected an intransitive clause");
+        };
+        assert!(matches!(predicate.head.verb.verb, Verb::Word(Vocab::Ensue)));
+
+        // Reject a direct object after `ensue`.
+        assert!(
+            parse_nonterminal(
+                "Chaos ensues damage.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence
+            )
+            .is_err(),
+            "ensue must not take a direct object"
+        );
+    }
+
+    #[test]
+    fn coin_result_is_a_closed_two_word_predicate_tail() {
+        use crate::syntax::CoinSide;
+        use crate::syntax::PredicateElement;
+
+        // `If the coin comes up heads, ...` has head verb `Come` and
+        // `PredicateElement::CoinResult(Heads)`.
+        let parsed = parse("If the coin comes up heads, draw a card.");
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+            attachments,
+            ..
+        })) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a fronted condition");
+        };
+        let [attachment] = attachments.as_slice() else {
+            panic!("expected exactly one fronted attachment");
+        };
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::If,
+            SubordinateBody::Finite(condition),
+        )) = &attachment.kind
+        else {
+            panic!(
+                "expected an `if` subordinate frame, got {:?}",
+                attachment.kind
+            );
+        };
+        let IndependentClause::Intransitive(_, predicate) = condition.as_ref() else {
+            panic!("expected an intransitive condition clause");
+        };
+        assert!(matches!(predicate.head.verb.verb, Verb::Word(Vocab::Come)));
+        assert_eq!(
+            predicate.elements.as_slice(),
+            [PredicateElement::CoinResult(CoinSide::Heads)]
+        );
+
+        // `coins came up heads` proves the irregular past; `comes up tails`
+        // proves the other side.
+        let past = parse("Coins came up heads.");
+        let SentenceBody::Independent(IndependentClause::Intransitive(_, past_predicate)) =
+            &past.sentence().expect("sentence root").body
+        else {
+            panic!("expected an intransitive clause");
+        };
+        assert!(matches!(
+            past_predicate.head.verb.slot,
+            VerbSlot::Past { .. }
+        ));
+        assert_eq!(
+            past_predicate.elements.as_slice(),
+            [PredicateElement::CoinResult(CoinSide::Heads)]
+        );
+
+        let tails = parse("The coin comes up tails.");
+        let SentenceBody::Independent(IndependentClause::Intransitive(_, tails_predicate)) =
+            &tails.sentence().expect("sentence root").body
+        else {
+            panic!("expected an intransitive clause");
+        };
+        assert_eq!(
+            tails_predicate.elements.as_slice(),
+            [PredicateElement::CoinResult(CoinSide::Tails)]
+        );
+
+        // Reject `comes heads`, `comes up edge`, `phases up heads`, and every
+        // general noun/adjective lookup for `heads`/designated `tails`.
+        for rejected in [
+            "The coin comes heads.",
+            "The coin comes up edge.",
+            "This creature phases up heads.",
+        ] {
+            assert!(
+                parse_nonterminal(rejected, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+                "{rejected:?} must not parse as a complete sentence"
+            );
+        }
+
+        // Existing `This creature phases out.` remains the same particle
+        // tree.
+        let phases_out = parse("This creature phases out.");
+        let SentenceBody::Independent(IndependentClause::Intransitive(_, phase_predicate)) =
+            &phases_out.sentence().expect("sentence root").body
+        else {
+            panic!("expected an intransitive clause");
+        };
+        assert_eq!(
+            phase_predicate.elements.as_slice(),
+            [PredicateElement::Particle(VerbParticle::Out)]
+        );
+
+        // Required negative: `Flip a coin.` remains an imperative transitive
+        // with object `a coin`; no CoinResult reading intrudes.
+        let flip_coin = parse("Flip a coin.");
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            flip_predicate,
+        ))) = &flip_coin.sentence().expect("sentence root").body
+        else {
+            panic!("expected an imperative transitive clause");
+        };
+        assert!(flip_predicate.elements.is_empty());
+
+        // Render/reparse both hand-constructed `CoinResult` values and
+        // compare the structured subtrees.
+        for side in [CoinSide::Heads, CoinSide::Tails] {
+            let source = match side {
+                CoinSide::Heads => "The coin comes up heads.",
+                CoinSide::Tails => "The coin comes up tails.",
+            };
+            let parsed = parse(source);
+            let sentence = parsed.sentence().expect("sentence root");
+            let rendered = render_sentence(sentence);
+            assert_eq!(rendered, source);
+            let reparsed = parse(&rendered);
+            assert_eq!(
+                reparsed.sentence().expect("sentence root").body,
+                sentence.body
+            );
+        }
+    }
+
+    #[test]
+    fn while_fronts_a_gerund_clause_before_the_matrix() {
+        // `While voting, you may vote an additional time.` lowers to a
+        // before-matrix `Subordinator::While` attachment with
+        // `SubordinateBody::Gerund`.
+        let parsed = parse("While voting, you may vote an additional time.");
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+            attachments,
+            ..
+        })) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause with a fronted gerund");
+        };
+        let [attachment] = attachments.as_slice() else {
+            panic!("expected exactly one fronted attachment");
+        };
+        assert_eq!(attachment.position, AttachmentPosition::BeforeMatrix);
+        assert!(attachment.comma);
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::While,
+            SubordinateBody::Gerund(_),
+        )) = &attachment.kind
+        else {
+            panic!("expected a `while` gerund frame, got {:?}", attachment.kind);
+        };
+
+        // The Brago `get an additional vote` variant parses.
+        parse("While voting, you get an additional vote.");
+
+        // Reject a missing comma on the gerund frame.
+        assert!(
+            parse_nonterminal(
+                "While voting you may vote an additional time.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence
+            )
+            .is_err(),
+            "a missing comma must not parse"
+        );
+
+        // A finite (non-gerund) body after `while` still parses, but through
+        // the pre-existing generic `ClauseSubordinateBefore` production, not
+        // the new gerund-only one — confirming the new production didn't
+        // widen `while`'s existing finite-clause reading.
+        let finite = parse("While you vote, you may vote an additional time.");
+        let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+            attachments: finite_attachments,
+            ..
+        })) = &finite.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause");
+        };
+        let [finite_attachment] = finite_attachments.as_slice() else {
+            panic!("expected exactly one attachment");
+        };
+        assert!(matches!(
+            &finite_attachment.kind,
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                Subordinator::While,
+                SubordinateBody::Finite(_)
+            ))
+        ));
+
+        // Existing postposed `This creature attacks while saddled.` keeps
+        // its elliptical tree (already covered by FIXTURES, reconfirmed
+        // here for this stage).
+        assert_eq!(
+            render_sentence(
+                parse("This creature attacks while saddled.")
+                    .sentence()
+                    .unwrap()
+            ),
+            "This creature attacks while saddled."
+        );
+    }
+
+    #[test]
+    fn receive_is_a_regular_verb_with_a_required_object() {
+        let parsed = parse("An opponent received no votes.");
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a transitive clause");
+        };
+        assert!(matches!(
+            predicate.head.verb.verb,
+            Verb::Word(Vocab::Receive)
+        ));
+
+        // Reject an objectless `received.` under the required-object frame.
+        assert!(
+            parse_nonterminal(
+                "An opponent received.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence
+            )
+            .is_err(),
+            "receive requires a direct object"
+        );
     }
 
     #[test]

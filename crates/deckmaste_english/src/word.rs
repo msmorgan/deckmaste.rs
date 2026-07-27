@@ -197,6 +197,16 @@ pub(crate) struct PredicateFrame {
     /// `predicate_arguments_complete` rejects it outright in the active, so
     /// no double-object active reading is ever licensed.
     recipient_passive: bool,
+    /// Whether this frame is pending a required `CoinResult` predicate tail
+    /// (`come up heads`/`come up tails`). Set only on the narrow `Come` frame
+    /// used for the coin-result predicate; `predicate_arguments_complete` and
+    /// `predicate_object_gap_complete` both reject a pending frame outright,
+    /// so `Come` is never selectable OPEN in this round — only the
+    /// `VerbPhraseCoinResult` reduction (which discharges this flag) can
+    /// complete it. This keeps `whichever comes first` and `came under your
+    /// control` (a general `come` frame, not yet added) out of the blast
+    /// radius.
+    requires_coin_result: bool,
 }
 
 impl PredicateFrame {
@@ -216,6 +226,7 @@ impl PredicateFrame {
         proform: false,
         causative_complement: false,
         recipient_passive: false,
+        requires_coin_result: false,
     };
 
     const fn with_direct_object(mut self, requirement: ArgumentRequirement) -> Self {
@@ -258,6 +269,11 @@ impl PredicateFrame {
         self
     }
 
+    const fn with_required_coin_result(mut self) -> Self {
+        self.requires_coin_result = true;
+        self
+    }
+
     const fn with_recipient_passive(mut self) -> Self {
         self.recipient_passive = true;
         self
@@ -285,6 +301,19 @@ impl PredicateFrame {
 
     pub(crate) const fn is_recipient_passive(self) -> bool {
         self.recipient_passive
+    }
+
+    pub(crate) const fn requires_coin_result(self) -> bool {
+        self.requires_coin_result
+    }
+
+    /// Returns a copy of this frame with `requires_coin_result` cleared.
+    /// Called only from the `VerbPhraseCoinResult` reduction, once its typed
+    /// `CoinResult` tail has attached, so the completed predicate's frame
+    /// stops rejecting further completion checks.
+    pub(crate) const fn discharge_coin_result(mut self) -> Self {
+        self.requires_coin_result = false;
+        self
     }
 
     pub(crate) const fn licenses_complement(self, kind: PredicateComplementKind) -> bool {
@@ -328,6 +357,15 @@ const INTRANSITIVE_PREDICATE_FRAME: PredicateFrame =
 const INTRANSITIVE_PREDICATE_FRAMES: &[PredicateFrame] = &[INTRANSITIVE_PREDICATE_FRAME];
 const REQUIRED_OBJECT_PREDICATE_FRAMES: &[PredicateFrame] =
     &[PredicateFrame::OPEN.with_direct_object(ArgumentRequirement::Required)];
+/// The narrow `Come` frame used only by the coin-result predicate
+/// (`come up heads`/`come up tails`): no direct object, and pending until a
+/// `CoinResult` tail attaches and discharges `requires_coin_result`. `Come`
+/// intentionally has no other frame in this round, so `whichever comes
+/// first` and `came under your control` stay unaffected (they fail to
+/// license any frame and remain residue for a future general `come` round).
+const COME_PREDICATE_FRAMES: &[PredicateFrame] = &[PredicateFrame::OPEN
+    .with_direct_object(ArgumentRequirement::Forbidden)
+    .with_required_coin_result()];
 /// `have` as a grant/possession verb (required object) plus its causative
 /// reading, which additionally takes a bare-infinitive complement after the
 /// object (`have this creature enter as a copy of …`).
@@ -1001,6 +1039,11 @@ vocabulary! {
     Cloak("cloak").verb(VerbForm::Regular);
     Coin("coin").noun(NounDeclension::Regular, Countability::Count);
     Collect("collect").verb(VerbForm::Regular);
+    Come("come").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("came")
+            .with_past_participle("come")
+    )).predicate_frames(COME_PREDICATE_FRAMES);
     Color("color").noun(NounDeclension::Regular, Countability::Count);
     Colorless("colorless").adjective();
     Commander("commander").noun(NounDeclension::Regular, Countability::Count);
@@ -1084,6 +1127,9 @@ vocabulary! {
     Equal("equal").verb(VerbForm::Regular).adjective();
     Enchant("enchant").verb(VerbForm::Regular);
     Endure("endure").verb(VerbForm::Regular);
+    Ensue("ensue")
+        .verb(VerbForm::Regular)
+        .predicate_frames(INTRANSITIVE_PREDICATE_FRAMES);
     Enter("enter").verb(VerbForm::Regular);
     Equip("equip").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
@@ -1253,6 +1299,9 @@ vocabulary! {
             .with_present_participle("putting")
             .with_past_participle("put")
     ));
+    Receive("receive")
+        .verb(VerbForm::Regular)
+        .predicate_frames(REQUIRED_OBJECT_PREDICATE_FRAMES);
     Reduce("reduce").verb(VerbForm::Regular);
     Regenerate("regenerate").verb(VerbForm::Regular);
     Remove("remove").verb(VerbForm::Regular);
