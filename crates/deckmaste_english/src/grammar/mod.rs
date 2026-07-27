@@ -163,6 +163,8 @@ struct ContractedSubjectAuxiliary {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CopularRemainder {
+    /// See [`crate::syntax::CopularPredicate::negated`].
+    negated: bool,
     distributive_each: bool,
     precomplement_adverbs: Vec<Vocab>,
     complement: CopularComplement,
@@ -1193,6 +1195,7 @@ enum RuleTag {
     CopularRemainderPowerToughness,
     CopularRemainderPrepositionalAdjunct,
     CopularRemainderAdverb,
+    CopularRemainderNegated,
     CopularRemainderDistributiveEach,
     ClauseCopular,
     ClauseContractedCopular,
@@ -4228,6 +4231,7 @@ fn reduce(
         | RuleTag::CopularRemainderPowerToughness
         | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderNegated
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
@@ -5819,6 +5823,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
         | RuleTag::CopularRemainderDistributiveEach
+        | RuleTag::CopularRemainderNegated
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
         | RuleTag::ClauseVariableValueConstraint

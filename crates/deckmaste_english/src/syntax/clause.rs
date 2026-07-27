@@ -115,6 +115,15 @@ pub struct PassivePredicate {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CopularPredicate {
     pub copula: Copula,
+    /// Whether the predication is negated by a free-standing `not`
+    /// (`it's not your turn`). Negation is normally spelled on the copula
+    /// itself (`isn't` — `AuxiliaryInstance::contracted_negation`), but when
+    /// the subject and auxiliary contract there is no auxiliary token left
+    /// to carry it, so English spells it separately. It is one fact about
+    /// the predication, not an adverb: `precomplement_adverbs` holds `Vocab`
+    /// adverbs (`still`), and `not` has its own structural home elsewhere
+    /// (`PreverbModifier::Not`).
+    pub negated: bool,
     /// The distributive floating quantifier `each` sitting between the copula
     /// and the complement (`Rosie's power and toughness are *each* equal to
     /// …`). It quantifies the coordinated subject but surfaces

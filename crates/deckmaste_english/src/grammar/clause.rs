@@ -362,6 +362,16 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::CopularRemainder,
         [l(L::Adverb), n(N::CopularRemainder)],
     );
+    // The free-standing negation of a contracted copular predication (`it's
+    // *not* your turn`). Negation is normally spelled on the copula itself
+    // (`isn't`), but when the subject and auxiliary contract there is no
+    // auxiliary token left to carry it, so English spells `not` separately.
+    // Mirrors `CopularRemainderAdverb`'s shape.
+    builder.add(
+        RuleTag::CopularRemainderNegated,
+        N::CopularRemainder,
+        [l(L::Not), n(N::CopularRemainder)],
+    );
     // The distributive floating `each` of a characteristic-defining copular
     // (`Rosie's power and toughness are each equal to <measure>`). Requiring the
     // `each` token keeps this frame off the non-`each` singular/plural forms,
@@ -803,6 +813,7 @@ pub(super) fn reduce_clause(
         | RuleTag::CopularRemainderPowerToughness
         | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderNegated
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
@@ -1784,6 +1795,7 @@ fn reduce_simple_clause(
         | RuleTag::CopularRemainderPowerToughness
         | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderNegated
         | RuleTag::CopularRemainderDistributiveEach => Some(Features::None),
         RuleTag::CopularRemainderCoordinatedAdjective => {
             // Only an all-adjective coordinated run predicates as a copular
@@ -2611,6 +2623,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::CopularRemainderPowerToughness
         | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderNegated
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::ClauseCopular
         | RuleTag::ClauseContractedCopular
@@ -3104,6 +3117,7 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
         | RuleTag::CopularRemainderPowerToughness
         | RuleTag::CopularRemainderPrepositionalAdjunct
         | RuleTag::CopularRemainderAdverb
+        | RuleTag::CopularRemainderNegated
         | RuleTag::CopularRemainderDistributiveEach
         | RuleTag::CopularRemainderCoordinatedAdjective) => lower_copular_remainder(tag, children),
         tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
@@ -3259,6 +3273,7 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                 gap: RelativeGap::Subject,
                 body: RelativeBody::SubjectGap(Predicate::Copular(
                     crate::syntax::CopularPredicate {
+                        negated: false,
                         copula: crate::syntax::Copula {
                             auxiliary: subject_auxiliary.auxiliary,
                             contracted_with_subject: true,
@@ -3282,6 +3297,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             CopularRemainder {
+                negated: false,
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::NounPhrase(complement),
@@ -3293,6 +3309,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             CopularRemainder {
+                negated: false,
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Adjective(complement),
@@ -3304,6 +3321,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             CopularRemainder {
+                negated: false,
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::CoordinatedAdjective(
@@ -3317,6 +3335,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             CopularRemainder {
+                negated: false,
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Prepositional(complement),
@@ -3328,6 +3347,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             CopularRemainder {
+                negated: false,
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::PowerToughness(power_toughness),
@@ -3356,6 +3376,18 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             remainder.precomplement_adverbs.insert(0, adverb);
             remainder
         }
+        RuleTag::CopularRemainderNegated => {
+            let Lowered::CopularRemainder(mut remainder) = take(children, 1)? else {
+                return None;
+            };
+            // Double negation is not English and the corpus prints none; one
+            // `not` per predication.
+            if remainder.negated {
+                return None;
+            }
+            remainder.negated = true;
+            remainder
+        }
         RuleTag::CopularRemainderDistributiveEach => {
             // `each` (index 0) is the floating quantifier — carried as a flag,
             // its lexical child discarded. The adjective (`equal`) takes the
@@ -3372,6 +3404,7 @@ fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 .complements
                 .push(crate::syntax::AdjectiveComplement::Prepositional(standard));
             CopularRemainder {
+                negated: false,
                 distributive_each: true,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::Adjective(adjective),
@@ -3423,6 +3456,7 @@ fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowere
         IndependentClause::Copular(
             subject,
             crate::syntax::CopularPredicate {
+                negated: remainder.negated,
                 copula,
                 distributive_each: remainder.distributive_each,
                 precomplement_adverbs: remainder.precomplement_adverbs,
@@ -3451,6 +3485,7 @@ fn lower_variable_value_constraint(children: &mut [Lowered]) -> Option<Lowered> 
             Subject(NounPhrase::Quantity(subject_quantity)),
             Modal { auxiliary: modal },
             Some(Predicate::Copular(crate::syntax::CopularPredicate {
+                negated: false,
                 copula: crate::syntax::Copula {
                     auxiliary: be,
                     contracted_with_subject: false,
@@ -6489,6 +6524,124 @@ mod tests {
             ));
             assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
         }
+    }
+
+    #[test]
+    fn contracted_copular_predications_carry_a_free_standing_negation() {
+        // Causal pairs. Negation is normally spelled on the copula (`isn't`);
+        // when the subject and auxiliary contract there is no auxiliary
+        // token left to carry it, so English spells `not` separately.
+        for (source, negated) in [
+            ("It's not your turn.", true),
+            ("It's your turn.", false),
+            ("It's not historic.", true),
+            ("It's historic.", false),
+            ("It's not a token.", true),
+            ("It's a token.", false),
+            ("That's not historic.", true),
+            ("They're not historic.", true),
+            ("You're not the monarch.", true),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let SentenceBody::Independent(IndependentClause::Copular(_subject, predicate)) =
+                &parsed.sentence().expect("sentence root").body
+            else {
+                panic!("expected a copular clause: {:#?}", parsed.sentence());
+            };
+            assert_eq!(predicate.negated, negated, "{source}");
+            assert!(predicate.copula.contracted_with_subject, "{source}");
+            assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        }
+    }
+
+    #[test]
+    fn negated_copular_predications_compose_with_precomplement_adverbs() {
+        // Both orders parse and carry the same fields — negation and the
+        // adverb are independent flags/lists, not positionally tracked — but
+        // the renderer's fixed linear order (`not` before adverbs, §2.3)
+        // canonicalizes on render, so only the `not`-first source round-trips
+        // to itself byte-for-byte.
+        for (source, round_trips) in [
+            ("It's not still historic.", true),
+            ("It's still not historic.", false),
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let SentenceBody::Independent(IndependentClause::Copular(_subject, predicate)) =
+                &parsed.sentence().expect("sentence root").body
+            else {
+                panic!("expected a copular clause: {:#?}", parsed.sentence());
+            };
+            assert!(predicate.negated, "{source}");
+            assert_eq!(predicate.precomplement_adverbs.len(), 1, "{source}");
+            assert_eq!(predicate.precomplement_adverbs[0].spelling(), "still");
+            let rendered = render_sentence(parsed.sentence().unwrap());
+            if round_trips {
+                assert_eq!(rendered, source);
+            } else {
+                assert_eq!(rendered, "It's not still historic.");
+            }
+        }
+    }
+
+    #[test]
+    fn negated_copular_renderer_inverse_orders_not_before_each() {
+        // Renderer inverse: `not` after the copula, before `each`/adverbs/complement.
+        let source = "They're not each equal to 3.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        let SentenceBody::Independent(IndependentClause::Copular(_subject, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a copular clause: {:#?}", parsed.sentence());
+        };
+        assert!(predicate.negated, "{source}");
+        assert!(predicate.distributive_each, "{source}");
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn double_negation_on_a_copular_predication_does_not_parse() {
+        // Double negation is rejected: `[Not, [Not, remainder]]` must not lower.
+        let catalogs = fixture_catalogs();
+        assert!(
+            parse_nonterminal("it's not not legendary", &catalogs, Nonterminal::Clause).is_err()
+        );
+    }
+
+    #[test]
+    fn negation_spellings_do_not_both_fire_on_one_predication() {
+        let source = "It isn't your turn.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        let SentenceBody::Independent(IndependentClause::Copular(_subject, predicate)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a copular clause: {:#?}", parsed.sentence());
+        };
+        assert!(predicate.copula.auxiliary.contracted_negation, "{source}");
+        assert!(!predicate.copula.contracted_with_subject, "{source}");
+        assert!(!predicate.negated, "{source}");
+    }
+
+    #[test]
+    fn relative_contracted_copular_negation_remains_unresolved() {
+        // The relative family (`RelativeContractedCopular{Noun,Adjective,
+        // Prepositional}`) inlines its complement instead of factoring
+        // through `N::CopularRemainder`, so it does not inherit the new
+        // negation slot. This is deliberate (see the plan's residue ticket),
+        // not accidental: pin that `that's not historic` still fails inside
+        // a relative clause.
+        let catalogs = fixture_catalogs();
+        assert!(
+            parse_nonterminal(
+                "each permanent that's not historic",
+                &catalogs,
+                Nonterminal::NounPhrase,
+            )
+            .is_err()
+        );
     }
 
     #[test]

@@ -1164,6 +1164,9 @@ impl<'identity> Renderer<'identity> {
             parts.push(subject);
             parts.push(self.render_auxiliary(predicate.copula.auxiliary)?);
         }
+        if predicate.negated {
+            parts.push("not".to_owned());
+        }
         if predicate.distributive_each {
             parts.push("each".to_owned());
         }
@@ -3694,6 +3697,7 @@ mod tests {
             };
             assert!(dependents.next().is_none());
             return Predicate::Copular(CopularPredicate {
+                negated: false,
                 copula: Copula {
                     auxiliary: AuxiliaryInstance {
                         auxiliary: Auxiliary::Be,
