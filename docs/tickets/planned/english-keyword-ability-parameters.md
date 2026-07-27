@@ -20,20 +20,23 @@ rows measured against the post-`kwparam` census (clause 3861/70731, unknown
    left in the keyword-parameter space and the only one whose blocker is a
    missing nonterminal rather than a missing argument shape.
 
-2. **Bare quality on a single keyword line — `Hexproof from [quality]`, 7
-   rows** (Garruk's Harbinger, Knight of Grace, Knight of Malice, General
-   Ferrous Rokiric, Sphinx of the Guildpact, Breaker of Creation, Nevinyrral).
-   Fully diagnosed: `parse_keyword_list` picks its atom by
-   `max_by_key(length)`, so the two-word atom `Hexproof from` beats `Hexproof`
-   and swallows the preposition. `parse_predicated` then computes
-   `starts_from_for` over the *remaining* body (`black`), which is false, and
-   the bare-quality path is gated on `in_list` — so it `return None`s and
-   rejects the whole keyword line. The bare-quality arm of
-   `parse_predicated_quality` documents exactly this case
-   (`hexproof from blue` -> `blue`) and is unreachable on a single line. The
-   fix is to license the bare-quality opener when the matched atom itself ends
-   in a predicated preposition, which is a catalog-position fact, not a
-   keyword identity.
+2. ~~**Bare quality on a single keyword line — `Hexproof from [quality]`, 7
+   rows.**~~ **Done in round `kwgrant` (2026-07-27)** by exactly the fix this
+   entry prescribed: `parse_predicated`'s single-line gate now reads
+   `in_list || carries_from`, where `carries_from` is threaded from the
+   matched atom's own catalog surface (`keyword_atom_carries_from`, a
+   whole-word `from` suffix test), never a keyword identity. Six of the seven
+   rows cleared — Garruk's Harbinger, Knight of Grace, Knight of Malice,
+   General Ferrous Rokiric, Sphinx of the Guildpact, Breaker of Creation —
+   plus the previously unlisted Niv-Mizzet, Supreme (a `keyword argument`-role
+   row) and the grant form on Veil of Summer. `monocolored` needed a new
+   `AdjectivePhrase` arm in `parse_predicated_quality`: it is an adjective
+   (`regular-vocabulary.tsv:526`), not a noun, so the pre-existing bare
+   `NounPhrase` attempt alone would have left Rokiric and Sphinx behind.
+   **Nevinyrral, Urborg Tyrant remains** (`Hexproof from artifacts, creatures,
+   and enchantments`): its quality is a single Oxford-coordinated noun phrase,
+   and it still reports `NoCompleteParse` for the whole line. Not root-caused;
+   see `english-keyword-grant-arguments`.
 
 3. **`Champion a [quality]` — 12 rows.** A bare noun-phrase argument with no
    preposition and no cost, so neither `Predicated` (needs `from`/`for` or a
