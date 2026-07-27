@@ -72,6 +72,7 @@ use crate::syntax::PredicateConjunction;
 use crate::syntax::PredicateElement;
 use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
+use crate::syntax::PredicatedArgument;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
@@ -111,6 +112,11 @@ pub enum RenderError {
     MissingLexicalForm(&'static str),
     InvalidIndefiniteArticle,
     CardIdentityRequired,
+    /// A [`NominalComplement::KeywordArgument`] carrying a `KeywordArgument`
+    /// shape the syntax never licenses in nominal-complement position (only
+    /// `Costed(Symbols)` and `Predicated` are licensed there) — `kwgrant`
+    /// round.
+    InvalidKeywordArgumentNominal,
 }
 
 impl fmt::Display for RenderError {
@@ -121,6 +127,8 @@ impl fmt::Display for RenderError {
             Self::CardIdentityRequired => {
                 formatter.write_str("card identity is required to render this determiner")
             }
+            Self::InvalidKeywordArgumentNominal => formatter
+                .write_str("keyword argument shape is not licensed in nominal-complement position"),
         }
     }
 }
@@ -527,6 +535,26 @@ impl<'identity> Renderer<'identity> {
         })
     }
 
+    /// The body of a [`KeywordArgument::Predicated`] argument, with no
+    /// leading separator — shared by [`Self::keyword_argument`] (which
+    /// prepends one space) and the nominal keyword-argument complement
+    /// (`kwgrant` round), whose caller already supplies exactly one space via
+    /// `join_words`.
+    fn predicated_argument(&self, argument: &PredicatedArgument) -> Result<String, RenderError> {
+        let mut rendered = String::new();
+        for (index, quality) in argument.qualities.iter().enumerate() {
+            if index > 0 {
+                rendered.push_str(" and ");
+            }
+            if let Some(preposition) = quality.preposition {
+                rendered.push_str(render_preposition(preposition));
+                rendered.push(' ');
+            }
+            rendered.push_str(&self.phrase(&quality.quality)?);
+        }
+        Ok(rendered)
+    }
+
     fn keyword_argument(&self, argument: &KeywordArgument) -> Result<String, RenderError> {
         Ok(match argument {
             KeywordArgument::Absent => String::new(),
@@ -554,18 +582,7 @@ impl<'identity> Renderer<'identity> {
                 )
             }
             KeywordArgument::Predicated(predicated) => {
-                let mut rendered = String::from(" ");
-                for (index, quality) in predicated.qualities.iter().enumerate() {
-                    if index > 0 {
-                        rendered.push_str(" and ");
-                    }
-                    if let Some(preposition) = quality.preposition {
-                        rendered.push_str(render_preposition(preposition));
-                        rendered.push(' ');
-                    }
-                    rendered.push_str(&self.phrase(&quality.quality)?);
-                }
-                rendered
+                format!(" {}", self.predicated_argument(predicated)?)
             }
             KeywordArgument::Statted { symbols, stats } => format!(
                 " {} — {}/{}",
@@ -1510,6 +1527,15 @@ impl<'identity> Renderer<'identity> {
                 ),
                 NominalComplement::Devotion(colors) => render_devotion_colors(*colors),
                 NominalComplement::EventClause(clause) => self.independent_clause(clause)?,
+                NominalComplement::KeywordArgument(argument) => match argument {
+                    KeywordArgument::Costed(KeywordCost::Symbols(symbols)) => {
+                        render_symbol_sequence(symbols)
+                    }
+                    KeywordArgument::Predicated(predicated) => {
+                        self.predicated_argument(predicated)?
+                    }
+                    _ => return Err(RenderError::InvalidKeywordArgumentNominal),
+                },
             });
         }
         parts.extend(trailing_modifier_complements);

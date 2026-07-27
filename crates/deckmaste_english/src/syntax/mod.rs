@@ -615,6 +615,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         NominalComplement::EventClause(clause) => {
                             self.independent_clause(clause, context);
                         }
+                        NominalComplement::KeywordArgument(argument) => {
+                            self.keyword_argument(argument, context);
+                        }
                         NominalComplement::Quantity(_)
                         | NominalComplement::PowerToughness(_)
                         | NominalComplement::Devotion(_) => {}

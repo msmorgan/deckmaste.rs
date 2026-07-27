@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 use crate::Numeral;
 use crate::Span;
+use crate::catalog::CatalogAtom;
 use crate::catalog::CatalogKind;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
@@ -55,6 +56,8 @@ use crate::syntax::FrequencyPhrase;
 use crate::syntax::GerundClause;
 use crate::syntax::IndefiniteArticle;
 use crate::syntax::InfinitiveMarker;
+use crate::syntax::KeywordArgument;
+use crate::syntax::KeywordCost;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
@@ -65,6 +68,8 @@ use crate::syntax::Phrase;
 use crate::syntax::Polarity;
 use crate::syntax::Possessor;
 use crate::syntax::PowerToughness;
+use crate::syntax::PredicatedArgument;
+use crate::syntax::PredicatedQuality;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
@@ -262,6 +267,21 @@ pub(crate) enum Nonterminal {
     Sentence,
     Paragraph,
     Cost,
+    /// One explicit-`from` quality of a `kwgrant`-round predicated keyword
+    /// argument (`from black`, `from artifacts`) — Stage B.
+    PredicatedQualityFrom,
+    /// A `from`-quality list, one or more [`Self::PredicatedQualityFrom`]
+    /// members joined by `and` (never `or`, the confirmed deferral) — Stage
+    /// B. Reached only through the list-extension/nominal-attachment rules.
+    PredicatedArgumentFrom,
+    /// The single bare (no `from`) first quality of an atom-carried
+    /// predicated keyword line/grant (`monocolored`, `each color`,
+    /// `artifacts, creatures, and enchantments`) — Stage C.
+    PredicatedQualityBare,
+    /// A bare-headed quality list: one [`Self::PredicatedQualityBare`]
+    /// optionally followed by `and`-joined [`Self::PredicatedQualityFrom`]
+    /// repeats — Stage C.
+    PredicatedArgumentBare,
     KeywordAbility,
     KeywordAbilityList,
     ActivatedAbility,
@@ -328,6 +348,28 @@ pub(crate) enum EnglishLexicalSlot {
     Auxiliary,
     AbilityItem,
     AbilityWord,
+    /// A keyword-ability catalog atom in symbol-argument grant position
+    /// (`ward {2}`, `equip {1}`) — every catalog keyword atom scanned as the
+    /// same mass `Noun::Catalog` edge [`CatalogSlot::KeywordAbilityNoun`]
+    /// already uses. An ordinary noun never enters this slot; only a
+    /// catalog-surface property (keyword-atom membership) gates it, never a
+    /// keyword-name list [`kwgrant` round].
+    SymbolArgumentKeywordNoun,
+    /// The exact literal word `from` introducing a Stage B predicated
+    /// keyword quality (`ward` is Stage A; `from black` is Stage B). Never
+    /// the generic [`Self::Preposition`] scan: Stage B admits only `from`,
+    /// not every nominal preposition [`kwgrant` round].
+    FromWord,
+    /// A keyword-ability catalog atom in explicit-`from`-quality grant
+    /// position (`protection from black`) — Stage B. Suppresses a shorter
+    /// atom at this position when a longer catalog atom that itself carries
+    /// the final word `from` (`Hexproof from`) also matches here, so
+    /// `Hexproof` can never win over `Hexproof from` at the same start.
+    ExplicitPredicatedKeywordNoun,
+    /// A keyword-ability catalog atom whose canonical spelling itself ends
+    /// in the standalone word `from` (`Hexproof from`) — Stage C. Only such
+    /// an atom licenses a bare (no explicit `from`) first quality.
+    AtomCarriedPredicatedKeywordNoun,
     Determiner,
     Demonstrative,
     DeterminerTarget,
@@ -652,6 +694,14 @@ pub(crate) enum Features {
     RestrictionMember,
     /// A coordinated run of two or more restriction-run members. Fieldless.
     RestrictionRun,
+    /// One quality of a `kwgrant`-round predicated keyword argument (`from
+    /// black`, `monocolored`). Fieldless: the reduce/lower distinguish shape
+    /// from the child productions, not from this marker, which exists only
+    /// so the rule does not reduce indistinguishably as `Features::None`.
+    PredicatedQuality,
+    /// A coordinated list of one or more [`Self::PredicatedQuality`]
+    /// members. Fieldless, mirroring `PredicatedQuality`.
+    PredicatedArgument,
     /// A modifier conjunct, list, or closed coordinated modifier. Carries the
     /// first conjunct's initial sound so the nominal prepend can set the a/an
     /// of the whole phrase (`an artifact, creature, and land card`, `a
@@ -1127,6 +1177,33 @@ enum RuleTag {
     NominalPrepositional,
     NominalInfinitive,
     NominalQuantityComplement,
+    /// A parameterized keyword ability's symbol-cost argument attached to
+    /// its keyword-noun head in grant position (`ward {2}`) — Stage A of
+    /// the `kwgrant` round.
+    NominalKeywordSymbolArgument,
+    /// `PredicatedQualityFrom -> From ColorWord` / `From NounPhrase` — Stage B.
+    PredicatedQualityFrom,
+    /// `PredicatedArgumentFrom -> PredicatedQualityFrom` — Stage B list base.
+    PredicatedArgumentFromSingle,
+    /// `PredicatedArgumentFrom -> PredicatedArgumentFrom Conjunction
+    /// PredicatedQualityFrom` — Stage B list extension (`and` only, gated by
+    /// `accepts_keyword_grant_prefix`).
+    PredicatedArgumentFromExtend,
+    /// `Nominal -> ExplicitPredicatedKeywordNoun PredicatedArgumentFrom` —
+    /// Stage B grant nominal.
+    NominalKeywordPredicatedArgument,
+    /// `PredicatedQualityBare -> ColorWord | AdjectivePhrase | NounPhrase` —
+    /// Stage C.
+    PredicatedQualityBare,
+    /// `PredicatedArgumentBare -> PredicatedQualityBare` — Stage C list base.
+    PredicatedArgumentBareSingle,
+    /// `PredicatedArgumentBare -> PredicatedArgumentBare Conjunction
+    /// PredicatedQualityFrom` — Stage C list extension (repeated qualities
+    /// keep an explicit `from`; only the first quality is bare).
+    PredicatedArgumentBareExtend,
+    /// `Nominal -> AtomCarriedPredicatedKeywordNoun PredicatedArgumentBare` —
+    /// Stage C grant nominal.
+    NominalKeywordAtomCarriedPredicatedArgument,
     NominalRelative,
     NominalPostpositiveAdjective,
     NominalComparison,
@@ -1386,6 +1463,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // stays unchanged; its own dot-1 gate (`Features::Subordinator(While)`)
         // is categorical, so append order affects only tie stability.
         builder.add_while_gerund_rules();
+        builder.add_keyword_grant_rules();
         Self {
             source,
             catalogs,
@@ -1821,6 +1899,50 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 }
                 matches
             }
+            EnglishLexicalSlot::SymbolArgumentKeywordNoun => {
+                self.catalog_matches(tokens, start, CatalogSlot::KeywordAbilityNoun)
+            }
+            EnglishLexicalSlot::FromWord => self
+                .one_token_match(tokens, start, "from")
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::Preposition(Preposition::From),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::ExplicitPredicatedKeywordNoun => {
+                let matches = self.catalog_matches(tokens, start, CatalogSlot::KeywordAbilityNoun);
+                let carries_from_max_end = matches
+                    .iter()
+                    .filter(|candidate| {
+                        matches!(
+                            &candidate.meaning,
+                            MeaningKey::Noun(NounInstance::Mass(Noun::Catalog(atom)))
+                                if keyword_atom_carries_from(atom)
+                        )
+                    })
+                    .map(|candidate| candidate.end)
+                    .max();
+                matches
+                    .into_iter()
+                    .filter(|candidate| {
+                        carries_from_max_end.map_or(true, |max_end| candidate.end >= max_end)
+                    })
+                    .collect()
+            }
+            EnglishLexicalSlot::AtomCarriedPredicatedKeywordNoun => self
+                .catalog_matches(tokens, start, CatalogSlot::KeywordAbilityNoun)
+                .into_iter()
+                .filter(|candidate| {
+                    matches!(
+                        &candidate.meaning,
+                        MeaningKey::Noun(NounInstance::Mass(Noun::Catalog(atom)))
+                            if keyword_atom_carries_from(atom)
+                    )
+                })
+                .collect(),
             EnglishLexicalSlot::Verb(verb_slot) => {
                 let mut matches = self.word_matches(tokens, start, LexicalSlot::Verb(verb_slot));
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Verb(verb_slot)));
@@ -2238,6 +2360,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
     ) -> bool {
         self.tags.get(rule.index()).copied().is_some_and(|tag| {
             accepts_possessive_modifier_prefix(tag, completed_children, latest_child)
+                && accepts_keyword_grant_prefix(tag, completed_children, latest_child)
                 && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
         })
     }
@@ -3865,6 +3988,121 @@ impl RuleBuilder {
             ],
         );
     }
+
+    /// `kwgrant` round, Stage A: a parameterized keyword ability's symbol-cost
+    /// argument fused onto its keyword-noun head in one production —
+    /// `ward {2}`, `equip {1}`. The lexical head is one of the dedicated
+    /// keyword-noun slots (never the ordinary noun slot), so an ordinary noun
+    /// can never enter this rule; only a catalog-surface property (keyword
+    /// atom membership) gates it.
+    fn add_keyword_grant_rules(&mut self) {
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        self.add(
+            RuleTag::NominalKeywordSymbolArgument,
+            N::Nominal,
+            [
+                l(EnglishLexicalSlot::SymbolArgumentKeywordNoun),
+                l(EnglishLexicalSlot::OracleSymbol),
+            ],
+        );
+        self.add(
+            RuleTag::NominalKeywordSymbolArgument,
+            N::Nominal,
+            [
+                l(EnglishLexicalSlot::SymbolArgumentKeywordNoun),
+                l(EnglishLexicalSlot::SymbolSequence),
+            ],
+        );
+
+        // Stage B: explicit `from` qualities (`protection from black`).
+        self.add(
+            RuleTag::PredicatedQualityFrom,
+            N::PredicatedQualityFrom,
+            [
+                l(EnglishLexicalSlot::FromWord),
+                l(EnglishLexicalSlot::ColorWord),
+            ],
+        );
+        self.add(
+            RuleTag::PredicatedQualityFrom,
+            N::PredicatedQualityFrom,
+            [l(EnglishLexicalSlot::FromWord), n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::PredicatedArgumentFromSingle,
+            N::PredicatedArgumentFrom,
+            [n(N::PredicatedQualityFrom)],
+        );
+        self.add(
+            RuleTag::PredicatedArgumentFromExtend,
+            N::PredicatedArgumentFrom,
+            [
+                n(N::PredicatedArgumentFrom),
+                l(EnglishLexicalSlot::Conjunction),
+                n(N::PredicatedQualityFrom),
+            ],
+        );
+        self.add(
+            RuleTag::NominalKeywordPredicatedArgument,
+            N::Nominal,
+            [
+                l(EnglishLexicalSlot::ExplicitPredicatedKeywordNoun),
+                n(N::PredicatedArgumentFrom),
+            ],
+        );
+
+        // Stage C: the atom itself carries `from` (`Hexproof from black`).
+        self.add(
+            RuleTag::PredicatedQualityBare,
+            N::PredicatedQualityBare,
+            [l(EnglishLexicalSlot::ColorWord)],
+        );
+        self.add(
+            RuleTag::PredicatedQualityBare,
+            N::PredicatedQualityBare,
+            [n(N::AdjectivePhrase)],
+        );
+        self.add(
+            RuleTag::PredicatedQualityBare,
+            N::PredicatedQualityBare,
+            [n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::PredicatedArgumentBareSingle,
+            N::PredicatedArgumentBare,
+            [n(N::PredicatedQualityBare)],
+        );
+        self.add(
+            RuleTag::PredicatedArgumentBareExtend,
+            N::PredicatedArgumentBare,
+            [
+                n(N::PredicatedArgumentBare),
+                l(EnglishLexicalSlot::Conjunction),
+                n(N::PredicatedQualityFrom),
+            ],
+        );
+        self.add(
+            RuleTag::NominalKeywordAtomCarriedPredicatedArgument,
+            N::Nominal,
+            [
+                l(EnglishLexicalSlot::AtomCarriedPredicatedKeywordNoun),
+                n(N::PredicatedArgumentBare),
+            ],
+        );
+    }
+}
+
+/// Whether `atom`'s canonical spelling ends in the standalone word `from`
+/// (`Hexproof from`, not merely a spelling that happens to contain the
+/// substring `from`). A catalog-surface property, checked once here and
+/// reused by `grammar/ability.rs`'s keyword-line parser so the chart scanner
+/// and the keyword-line parser never grow two subtly different definitions
+/// of the atom-carried preposition — `kwgrant` round Stage C.
+pub(crate) fn keyword_atom_carries_from(atom: &CatalogAtom) -> bool {
+    atom.canonical().rsplit(' ').next() == Some("from")
 }
 
 fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Features, MeaningKey>> {
@@ -4228,6 +4466,35 @@ fn parse_signed_scalar(surface: &str) -> Option<crate::syntax::SignedScalar> {
 /// prefix. The `determined` gate needs child 1 and stays in `reduce`. Every
 /// other tag/dot is unconstrained here and remains governed by
 /// `clause::accepts_predicate_prefix`.
+/// Dot-2 gate for the Stage B/C predicated-argument list extensions
+/// (`PredicatedArgumentFromExtend`/`PredicatedArgumentBareExtend`): after the
+/// list and the conjunction complete, only `and` may extend the list before
+/// the next quality is predicted. `or` is the confirmed deferral (five Stage
+/// B rows; `renderer.rs`'s `KeywordArgument::Predicated` hardcodes `" and "`
+/// between qualities, so an `or` cannot round-trip and must never be
+/// normalized to `and`). A categorical fact available from the just-completed
+/// conjunction child, so it is checked here (before the next quality's
+/// prediction) rather than only in `reduce` — the reduce arm duplicates this
+/// as a defensive invariant, per the plan's prefix-gate discipline
+/// [`kwgrant` round].
+fn accepts_keyword_grant_prefix(
+    tag: RuleTag,
+    completed_children: usize,
+    latest_child: &Features,
+) -> bool {
+    if !matches!(
+        tag,
+        RuleTag::PredicatedArgumentFromExtend | RuleTag::PredicatedArgumentBareExtend
+    ) || completed_children != 2
+    {
+        return true;
+    }
+    matches!(
+        latest_child,
+        Features::Conjunction(crate::syntax::PredicateConjunction::And)
+    )
+}
+
 fn accepts_possessive_modifier_prefix(
     tag: RuleTag,
     completed_children: usize,
@@ -4295,6 +4562,15 @@ fn reduce(
         | RuleTag::NominalPrepositional
         | RuleTag::NominalInfinitive
         | RuleTag::NominalQuantityComplement
+        | RuleTag::NominalKeywordSymbolArgument
+        | RuleTag::PredicatedQualityFrom
+        | RuleTag::PredicatedArgumentFromSingle
+        | RuleTag::PredicatedArgumentFromExtend
+        | RuleTag::NominalKeywordPredicatedArgument
+        | RuleTag::PredicatedQualityBare
+        | RuleTag::PredicatedArgumentBareSingle
+        | RuleTag::PredicatedArgumentBareExtend
+        | RuleTag::NominalKeywordAtomCarriedPredicatedArgument
         | RuleTag::NominalPowerToughnessComplement
         | RuleTag::NominalRelative
         | RuleTag::NominalPostpositiveAdjective
@@ -4893,6 +5169,83 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 leading_opacity: *leading_opacity,
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
+                adjunct: *adjunct,
+            })
+        }
+        RuleTag::NominalKeywordSymbolArgument => {
+            let Features::Noun {
+                form: NounForm::Mass,
+                initial_sound,
+                adjunct,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            // The second child is the terminal symbol/symbol-sequence match;
+            // it carries `Features::None` and no reduce-time validation
+            // beyond that shape, per the grammar mechanism section.
+            if !matches!(children.get(1)?.features, Features::None) {
+                return None;
+            }
+            Some(Features::Nominal {
+                form: NounForm::Mass,
+                initial_sound: *initial_sound,
+                determined: false,
+                modified: false,
+                leading_opacity: false,
+                attachment: NominalAttachmentPhase::Open,
+                comparison: AdjectiveComparisonState::NotComparative,
+                adjunct: *adjunct,
+            })
+        }
+        RuleTag::PredicatedQualityFrom | RuleTag::PredicatedQualityBare => {
+            Some(Features::PredicatedQuality)
+        }
+        RuleTag::PredicatedArgumentFromSingle | RuleTag::PredicatedArgumentBareSingle => {
+            if !matches!(children.first()?.features, Features::PredicatedQuality) {
+                return None;
+            }
+            Some(Features::PredicatedArgument)
+        }
+        RuleTag::PredicatedArgumentFromExtend | RuleTag::PredicatedArgumentBareExtend => {
+            if !matches!(children.first()?.features, Features::PredicatedArgument) {
+                return None;
+            }
+            // Defensive invariant, mirroring the `accepts_prefix` gate: only
+            // `and` may extend the list; an `or` must never be normalized
+            // away (the confirmed Stage B deferral).
+            if !matches!(
+                children.get(1)?.features,
+                Features::Conjunction(crate::syntax::PredicateConjunction::And)
+            ) {
+                return None;
+            }
+            if !matches!(children.get(2)?.features, Features::PredicatedQuality) {
+                return None;
+            }
+            Some(Features::PredicatedArgument)
+        }
+        RuleTag::NominalKeywordPredicatedArgument
+        | RuleTag::NominalKeywordAtomCarriedPredicatedArgument => {
+            let Features::Noun {
+                form: NounForm::Mass,
+                initial_sound,
+                adjunct,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if !matches!(children.get(1)?.features, Features::PredicatedArgument) {
+                return None;
+            }
+            Some(Features::Nominal {
+                form: NounForm::Mass,
+                initial_sound: *initial_sound,
+                determined: false,
+                modified: false,
+                leading_opacity: false,
+                attachment: NominalAttachmentPhase::Open,
+                comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
             })
         }
@@ -5577,6 +5930,13 @@ impl ParsedNonterminal {
         }
     }
 
+    pub(crate) fn adjective_phrase(&self) -> Option<&AdjectivePhrase> {
+        match &self.syntax {
+            Lowered::AdjectivePhrase(adjective) => Some(adjective),
+            _ => None,
+        }
+    }
+
     pub(crate) fn root_rule(&self) -> Option<usize> {
         let node = self.chart.forest.node(self.root);
         let alternative = self.best.alternative(self.root)?;
@@ -5708,6 +6068,11 @@ enum Lowered {
     SubjectAuxiliary(ContractedSubjectAuxiliary),
     OracleSymbol(OracleSymbol),
     SymbolSequence(Vec<OracleSymbol>),
+    /// One quality of a `kwgrant`-round predicated keyword argument.
+    PredicatedQuality(crate::syntax::PredicatedQuality),
+    /// A coordinated list of [`Self::PredicatedQuality`] members, in surface
+    /// order.
+    PredicatedArgument(crate::syntax::PredicatedArgument),
     /// Uniform payload for all six mana-list rules.
     ManaAmount(crate::syntax::PredicateObject),
     PowerToughness(PowerToughness),
@@ -5918,6 +6283,15 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalPrepositional
         | RuleTag::NominalInfinitive
         | RuleTag::NominalQuantityComplement
+        | RuleTag::NominalKeywordSymbolArgument
+        | RuleTag::PredicatedQualityFrom
+        | RuleTag::PredicatedArgumentFromSingle
+        | RuleTag::PredicatedArgumentFromExtend
+        | RuleTag::NominalKeywordPredicatedArgument
+        | RuleTag::PredicatedQualityBare
+        | RuleTag::PredicatedArgumentBareSingle
+        | RuleTag::PredicatedArgumentBareExtend
+        | RuleTag::NominalKeywordAtomCarriedPredicatedArgument
         | RuleTag::NominalPowerToughnessComplement
         | RuleTag::NominalRelative
         | RuleTag::NominalPostpositiveAdjective
@@ -6423,6 +6797,82 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 .complements
                 .push(NominalComplement::Quantity(quantity));
             Some(Lowered::Nominal(nominal))
+        }
+        RuleTag::PredicatedQualityFrom => {
+            let quality = match take(children, 1)? {
+                Lowered::Adjective(Adjective::Color(color)) => Phrase::ColorWord(color),
+                Lowered::NounPhrase(noun_phrase) => Phrase::NounPhrase(Box::new(noun_phrase)),
+                _ => return None,
+            };
+            Some(Lowered::PredicatedQuality(PredicatedQuality {
+                preposition: Some(Preposition::From),
+                quality,
+            }))
+        }
+        RuleTag::PredicatedQualityBare => {
+            let quality = match take(children, 0)? {
+                Lowered::Adjective(Adjective::Color(color)) => Phrase::ColorWord(color),
+                Lowered::AdjectivePhrase(adjective) => Phrase::AdjectivePhrase(Box::new(adjective)),
+                Lowered::NounPhrase(noun_phrase) => Phrase::NounPhrase(Box::new(noun_phrase)),
+                _ => return None,
+            };
+            Some(Lowered::PredicatedQuality(PredicatedQuality {
+                preposition: None,
+                quality,
+            }))
+        }
+        RuleTag::PredicatedArgumentFromSingle | RuleTag::PredicatedArgumentBareSingle => {
+            let Lowered::PredicatedQuality(quality) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::PredicatedArgument(PredicatedArgument {
+                qualities: vec![quality],
+            }))
+        }
+        RuleTag::PredicatedArgumentFromExtend | RuleTag::PredicatedArgumentBareExtend => {
+            let Lowered::PredicatedArgument(mut argument) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::PredicatedQuality(quality) = take(children, 2)? else {
+                return None;
+            };
+            argument.qualities.push(quality);
+            Some(Lowered::PredicatedArgument(argument))
+        }
+        RuleTag::NominalKeywordPredicatedArgument
+        | RuleTag::NominalKeywordAtomCarriedPredicatedArgument => {
+            let Lowered::Noun(head) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::PredicatedArgument(argument) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::Nominal(NominalPhrase {
+                determiner: None,
+                modifiers: Vec::new(),
+                head,
+                complements: vec![NominalComplement::KeywordArgument(
+                    KeywordArgument::Predicated(argument),
+                )],
+            }))
+        }
+        RuleTag::NominalKeywordSymbolArgument => {
+            let Lowered::Noun(head) = take(children, 0)? else {
+                return None;
+            };
+            let symbols = match take(children, 1)? {
+                Lowered::OracleSymbol(symbol) => vec![symbol],
+                Lowered::SymbolSequence(symbols) => symbols,
+                _ => return None,
+            };
+            Some(Lowered::Nominal(NominalPhrase {
+                determiner: None,
+                modifiers: Vec::new(),
+                head,
+                complements: vec![NominalComplement::KeywordArgument(KeywordArgument::Costed(
+                    KeywordCost::Symbols(symbols),
+                ))],
+            }))
         }
         RuleTag::NominalPowerToughnessComplement => {
             let Lowered::Nominal(mut nominal) = take(children, 0)? else {

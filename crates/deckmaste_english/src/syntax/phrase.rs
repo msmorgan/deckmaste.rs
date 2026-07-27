@@ -641,6 +641,11 @@ pub enum NominalComplement {
     /// relative — no marker, no gap — so only the clause is carried; the
     /// renderer replays it directly after `times`.
     EventClause(Box<IndependentClause>),
+    /// A parameterized keyword ability's structured argument attached to its
+    /// keyword-noun head in grant position (`ward {2}`, `protection from
+    /// black`) — `kwgrant` round. Only the dedicated keyword-headed nominal
+    /// reductions construct this; an ordinary noun never acquires it.
+    KeywordArgument(super::KeywordArgument),
 }
 
 /// The concrete-color argument of a `devotion` value nominal [CR#700.5]. The

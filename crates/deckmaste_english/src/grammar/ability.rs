@@ -1640,13 +1640,17 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let mut trailing = None;
         for (preceding_separator, chunk) in chunks {
             let (atom, matched_end) = self.longest_ability_item_atom(chunk)?;
+            let carries_from = super::keyword_atom_carries_from(&atom);
             let argument_tokens = &chunk[matched_end..];
             let ability_end = chunk.get(matched_end.checked_sub(1)?)?.span.end;
             let argument = if in_list {
-                self.parse_keyword_argument(argument_tokens, ability_end, in_list)?
+                self.parse_keyword_argument(argument_tokens, ability_end, in_list, carries_from)?
             } else {
-                let (argument, tail) =
-                    self.parse_keyword_argument_with_tail(argument_tokens, ability_end)?;
+                let (argument, tail) = self.parse_keyword_argument_with_tail(
+                    argument_tokens,
+                    ability_end,
+                    carries_from,
+                )?;
                 trailing = tail;
                 argument
             };
@@ -1797,6 +1801,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         &mut self,
         argument_tokens: &[Token],
         ability_end: usize,
+        carries_from: bool,
     ) -> Option<(KeywordArgument, Option<Paragraph>)> {
         let (separator, body) = split_keyword_argument_separator(argument_tokens, ability_end);
         if separator == KeywordArgumentSeparator::EmDash {
@@ -1815,7 +1820,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 }
             }
         }
-        let argument = self.parse_keyword_argument(argument_tokens, ability_end, false)?;
+        let argument =
+            self.parse_keyword_argument(argument_tokens, ability_end, false, carries_from)?;
         Some((argument, None))
     }
 
@@ -1855,6 +1861,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         argument_tokens: &[Token],
         ability_end: usize,
         in_list: bool,
+        carries_from: bool,
     ) -> Option<KeywordArgument> {
         if argument_tokens.is_empty() {
             return Some(KeywordArgument::Absent);
@@ -1878,7 +1885,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             })
             .unwrap_or(argument_tokens);
         let (separator, body) = split_keyword_argument_separator(argument_tokens, ability_end);
-        if let Some(argument) = self.parse_shaped_argument(separator, body, in_list) {
+        if let Some(argument) = self.parse_shaped_argument(separator, body, in_list, carries_from) {
             return Some(argument);
         }
         // No closed shape matched. On a single keyword line, keep the argument
@@ -1901,6 +1908,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         separator: KeywordArgumentSeparator,
         body: &[Token],
         in_list: bool,
+        carries_from: bool,
     ) -> Option<KeywordArgument> {
         if let Some(named) = self.parse_named_keyword_argument(separator, body) {
             return Some(named);
@@ -1924,7 +1932,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 ability: Box::new(ability),
             }));
         }
-        self.parse_space_argument(body, in_list)
+        self.parse_space_argument(body, in_list, carries_from)
     }
 
     fn parse_named_keyword_argument(
@@ -1942,7 +1950,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         })
     }
 
-    fn parse_space_argument(&mut self, body: &[Token], in_list: bool) -> Option<KeywordArgument> {
+    fn parse_space_argument(
+        &mut self,
+        body: &[Token],
+        in_list: bool,
+        carries_from: bool,
+    ) -> Option<KeywordArgument> {
         // An internal em dash pairs a count with a cost (`suspend N—[cost]`) or a
         // cost with power/toughness (`prototype [cost] — [P]/[T]`).
         if let Some(dash) = body
@@ -1965,7 +1978,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if let Some(restricted) = self.parse_restricted_cost(body) {
             return Some(restricted);
         }
-        self.parse_predicated(body, in_list)
+        self.parse_predicated(body, in_list, carries_from)
     }
 
     /// Stage B's restriction-plus-final-symbol-cost shape: a quality
@@ -2097,19 +2110,26 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         Some(KeywordArgument::Statted { symbols, stats })
     }
 
-    fn parse_predicated(&mut self, body: &[Token], in_list: bool) -> Option<KeywordArgument> {
+    fn parse_predicated(
+        &mut self,
+        body: &[Token],
+        in_list: bool,
+        carries_from: bool,
+    ) -> Option<KeywordArgument> {
         // A `from`/`for` argument is the coordinable quality filter and reads on
         // its own line (`protection from red`, `affinity for artifacts`); any
         // other prepositional or bare quality (`hexproof from blue`, where the
         // keyword atom carries the `from`; a `Champion of Freedom` name fragment a
-        // comma split off) reads only inside a keyword list, where the split has
-        // already committed to keyword items.
+        // comma split off) reads only inside a keyword list, or on a single line
+        // whose matched atom itself carries a final `from` (Stage C, `kwgrant`
+        // round) — the closed catalog-surface property `carries_from`, never a
+        // keyword-name list.
         let starts_from_for = body
             .first()
             .is_some_and(|token| predicated_preposition(self.token_text(token)).is_some());
         let segments = if starts_from_for {
             split_coordinated_predicates(body, self.source)
-        } else if in_list {
+        } else if in_list || carries_from {
             vec![body]
         } else {
             return None;
@@ -2152,6 +2172,19 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return Some(PredicatedQuality {
                 preposition: None,
                 quality: Phrase::ColorWord(color),
+            });
+        }
+        // A bare adjective quality (`monocolored`) — `kwgrant` round Stage C.
+        // `monocolored` is an adjective (`regular-vocabulary.tsv:526`), not a
+        // noun, so it needs its own exact-parse arm between the color and
+        // noun-phrase cases or it falls through to the noun-phrase attempt
+        // and fails.
+        if let Some(parsed) = self.parse_exact(segment, Nonterminal::AdjectivePhrase)
+            && let Some(adjective) = parsed.adjective_phrase()
+        {
+            return Some(PredicatedQuality {
+                preposition: None,
+                quality: Phrase::AdjectivePhrase(Box::new(adjective.clone())),
             });
         }
         let parsed = self.parse_exact(segment, Nonterminal::NounPhrase)?;
@@ -2627,6 +2660,9 @@ mod tests {
     use crate::parse::parse_with_catalogs;
     use crate::parse::parse_with_identity;
     use crate::syntax::*;
+    use crate::word::ColorWord;
+    use crate::word::Noun;
+    use crate::word::NounInstance;
 
     #[test]
     fn activated_ability_has_cost_components_and_effect_sentences() {
@@ -5123,7 +5159,7 @@ mod tests {
         let mut parser = super::Parser::new(source, &catalogs, &self_reference);
         assert!(
             parser
-                .parse_keyword_argument(&surface.tokens, 0, true)
+                .parse_keyword_argument(&surface.tokens, 0, true, false)
                 .is_none()
         );
     }
@@ -5833,6 +5869,135 @@ mod tests {
             report.ast.abilities
         );
         assert_eq!(render(&report), source);
+    }
+
+    // `kwgrant` round, Stage C: the atom itself carries `from`
+    // (`Hexproof from black`) — the keyword-line half of the round, gated by
+    // `keyword_atom_carries_from`, never a keyword-name list.
+
+    fn hexproof_from_catalogs() -> Catalogs {
+        fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Hexproof", "Hexproof from"])
+    }
+
+    #[test]
+    fn keyword_grant_atom_carried_bare_color_quality() {
+        let source = "Hexproof from black";
+        let report = parse_with_identity(source, &hexproof_from_catalogs(), FIXTURE_NAME, true);
+        assert!(report.ast.recoveries().is_empty(), "{:#?}", report.ast);
+        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+            panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
+        };
+        let [ability] = keywords.abilities.as_slice() else {
+            panic!("expected exactly one keyword ability");
+        };
+        assert_eq!(ability.ability.canonical(), "Hexproof from");
+        let KeywordArgument::Predicated(argument) = &ability.argument else {
+            panic!("expected a predicated argument: {:#?}", ability.argument);
+        };
+        let [quality] = argument.qualities.as_slice() else {
+            panic!("expected exactly one quality: {:#?}", argument.qualities);
+        };
+        assert_eq!(quality.preposition, None);
+        assert!(matches!(
+            quality.quality,
+            Phrase::ColorWord(ColorWord::Black)
+        ));
+        assert_eq!(report.ast.render(FIXTURE_NAME, true).unwrap(), source);
+    }
+
+    #[test]
+    fn keyword_grant_atom_carried_bare_adjective_quality() {
+        // `monocolored` is an adjective, not a noun — the required
+        // `AdjectivePhrase` fallback arm in `parse_predicated_quality`.
+        let source = "Hexproof from monocolored";
+        let report = parse_with_identity(source, &hexproof_from_catalogs(), FIXTURE_NAME, true);
+        assert!(report.ast.recoveries().is_empty(), "{:#?}", report.ast);
+        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+            panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
+        };
+        let KeywordArgument::Predicated(argument) = &keywords.abilities[0].argument else {
+            panic!(
+                "expected a predicated argument: {:#?}",
+                keywords.abilities[0].argument
+            );
+        };
+        let [quality] = argument.qualities.as_slice() else {
+            panic!("expected exactly one quality: {:#?}", argument.qualities);
+        };
+        assert_eq!(quality.preposition, None);
+        assert!(matches!(quality.quality, Phrase::AdjectivePhrase(_)));
+        assert_eq!(report.ast.render(FIXTURE_NAME, true).unwrap(), source);
+    }
+
+    #[test]
+    fn keyword_grant_shorter_atom_never_beats_atom_carried_from() {
+        // The canonical atom must be `Hexproof from`, never the shorter
+        // `Hexproof`, whenever both are in the catalog and the line carries
+        // a `from`-eligible tail.
+        let source = "Hexproof from black";
+        let report = parse_with_identity(source, &hexproof_from_catalogs(), FIXTURE_NAME, true);
+        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+            panic!("expected a keyword ability");
+        };
+        assert_eq!(keywords.abilities[0].ability.canonical(), "Hexproof from");
+    }
+
+    #[test]
+    fn keyword_grant_bare_quality_without_atom_carried_from_is_recovered() {
+        // Negative gate: a plain `Hexproof` atom (no final `from`) must not
+        // permit a bare single-line quality — `Hexproof black` recovers,
+        // it does not structure.
+        let catalogs = fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Hexproof"]);
+        let report = parse_with_identity("Hexproof black", &catalogs, FIXTURE_NAME, true);
+        assert!(
+            !report.ast.recoveries().is_empty(),
+            "a bare quality on a non-`from`-carrying atom must not structure: {:#?}",
+            report.ast
+        );
+    }
+
+    #[test]
+    fn keyword_grant_atom_carried_repeated_quality_in_grant_position() {
+        let source = "This creature gains hexproof from blue and from black.";
+        let report = parse_with_identity(source, &hexproof_from_catalogs(), FIXTURE_NAME, true);
+        assert!(report.ast.recoveries().is_empty(), "{:#?}", report.ast);
+        assert_eq!(report.ast.render(FIXTURE_NAME, true).unwrap(), source);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!(
+                "expected a paragraph ability: {:#?}",
+                report.ast.abilities[0]
+            );
+        };
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object: {:?}", predicate.object);
+        };
+        let NounInstance::Mass(Noun::Catalog(atom)) = &nominal.head else {
+            panic!("expected a catalog noun head: {:?}", nominal.head);
+        };
+        assert_eq!(atom.canonical(), "Hexproof from");
+        let [NominalComplement::KeywordArgument(KeywordArgument::Predicated(argument))] =
+            nominal.complements.as_slice()
+        else {
+            panic!(
+                "expected exactly one predicated keyword argument complement: {:?}",
+                nominal.complements
+            );
+        };
+        let [first, second] = argument.qualities.as_slice() else {
+            panic!("expected exactly two qualities: {:?}", argument.qualities);
+        };
+        assert_eq!(first.preposition, None);
+        assert!(matches!(first.quality, Phrase::ColorWord(ColorWord::Blue)));
+        assert_eq!(second.preposition, Some(Preposition::From));
+        assert!(matches!(
+            second.quality,
+            Phrase::ColorWord(ColorWord::Black)
+        ));
     }
 
     fn fixture_catalogs() -> Catalogs {

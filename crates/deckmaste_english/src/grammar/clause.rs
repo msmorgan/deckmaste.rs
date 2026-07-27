@@ -4595,13 +4595,17 @@ mod tests {
     use crate::syntax::Determiner;
     use crate::syntax::FrequencyBound;
     use crate::syntax::FrequencyCount;
+    use crate::syntax::KeywordArgument;
+    use crate::syntax::KeywordCost;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalModifier;
     use crate::syntax::NounPhrase;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
+    use crate::syntax::Phrase;
     use crate::syntax::PredicateConjunction;
     use crate::syntax::PredicateObject;
+    use crate::syntax::Preposition;
     use crate::syntax::RelativeBody;
     use crate::syntax::RelativeMarker;
     use crate::syntax::Sentence;
@@ -4611,6 +4615,7 @@ mod tests {
     use crate::word::Adjective;
     use crate::word::Auxiliary;
     use crate::word::AuxiliaryInflection;
+    use crate::word::ColorWord;
     use crate::word::Noun;
     use crate::word::NounInstance;
     use crate::word::Number;
@@ -8633,6 +8638,309 @@ mod tests {
     // — see `coordinated_donated_agreement_does_not_adopt_a_bare_imperative_tail`
     // for the shape the new gate is actually responsible for.
 
+    // `kwgrant` round, Stage A: a parameterized keyword ability's symbol-cost
+    // argument fused onto its keyword-noun head in grant position (`ward
+    // {2}`). Fixture keyword catalog above adds `Ward`, `Equip`,
+    // `Protection`, `Annihilator`, `Double strike` for this and later stages.
+
+    fn keyword_symbol_cost<'a>(
+        nominal: &'a crate::syntax::NominalPhrase,
+    ) -> (&'a str, &'a [crate::syntax::OracleSymbol]) {
+        let NounInstance::Mass(Noun::Catalog(atom)) = &nominal.head else {
+            panic!("expected a catalog noun head, got {:?}", nominal.head);
+        };
+        let [
+            NominalComplement::KeywordArgument(KeywordArgument::Costed(KeywordCost::Symbols(
+                symbols,
+            ))),
+        ] = nominal.complements.as_slice()
+        else {
+            panic!(
+                "expected exactly one symbol-cost keyword argument complement, got {:?}",
+                nominal.complements
+            );
+        };
+        (atom.canonical(), symbols.as_slice())
+    }
+
+    #[test]
+    fn keyword_grant_symbol_cost_after_keyword_nominal() {
+        let source = "Enchanted creature has ward {2}.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        let (canonical, symbols) = keyword_symbol_cost(nominal);
+        assert_eq!(canonical, "Ward");
+        assert_eq!(symbols.len(), 1);
+        assert!(matches!(nominal.head, NounInstance::Mass(Noun::Catalog(_))));
+    }
+
+    #[test]
+    fn keyword_grant_symbol_cost_coordinated_with_bare_keyword() {
+        let source = "Equipped creature has flying and ward {4}.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Coordinated(coordinated)) = &predicate.object
+        else {
+            panic!("expected a coordinated object, got {:?}", predicate.object);
+        };
+        let NounPhrase::Nominal(flying) = coordinated.first.as_ref() else {
+            panic!("expected the first conjunct to be a bare nominal");
+        };
+        assert!(flying.complements.is_empty(), "flying must stay bare");
+        let [second] = coordinated.rest.as_slice() else {
+            panic!("expected exactly one coordinated conjunct");
+        };
+        let NounPhrase::Nominal(ward) = &second.phrase else {
+            panic!("expected a nominal conjunct");
+        };
+        let (canonical, symbols) = keyword_symbol_cost(ward);
+        assert_eq!(canonical, "Ward");
+        assert_eq!(symbols.len(), 1);
+    }
+
+    #[test]
+    fn keyword_grant_symbol_cost_after_buff_and_bare_keyword() {
+        let source = "Equipped creature gets +2/+1 and has ward {2}.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn keyword_grant_incidental_equip_symbol_cost() {
+        let source = "Equipment you control have equip {1}.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        let (canonical, symbols) = keyword_symbol_cost(nominal);
+        assert_eq!(canonical, "Equip");
+        assert_eq!(symbols.len(), 1);
+    }
+
+    #[test]
+    fn keyword_grant_symbol_sequence_cost() {
+        let source = "This creature has ward {2}{U}.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        let (canonical, symbols) = keyword_symbol_cost(nominal);
+        assert_eq!(canonical, "Ward");
+        assert_eq!(symbols.len(), 2);
+    }
+
+    #[test]
+    fn keyword_grant_annihilator_quantity_control_unchanged() {
+        // Negative control (plan §6): `annihilator 2` must remain
+        // `NominalComplement::Quantity`, never reclassified as the new
+        // `KeywordArgument` complement merely because `annihilator` is a
+        // catalog keyword atom. A bare number is not a symbol/predicated
+        // shape, so the new rules structurally cannot fire here — this pins
+        // that down.
+        let source = "This creature has trample and annihilator 2.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Coordinated(coordinated)) = &predicate.object
+        else {
+            panic!("expected a coordinated object");
+        };
+        let [second] = coordinated.rest.as_slice() else {
+            panic!("expected exactly one coordinated conjunct");
+        };
+        let NounPhrase::Nominal(annihilator) = &second.phrase else {
+            panic!("expected a nominal conjunct");
+        };
+        assert!(matches!(
+            annihilator.complements.as_slice(),
+            [NominalComplement::Quantity(_)]
+        ));
+    }
+
+    #[test]
+    fn keyword_grant_ordinary_noun_never_acquires_a_symbol_complement() {
+        // Negative gate (plan §6, orchestrator correction #1): the
+        // symbol-argument head slot is gated on catalog keyword-atom
+        // membership, never on ordinary noun status, so an ordinary noun
+        // must never parse a following symbol cost as a nominal complement.
+        for rejected in ["A creature {2}.", "This creature has armor {2}."] {
+            assert!(
+                parse_nonterminal(rejected, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+                "{rejected:?} must not parse as a complete sentence"
+            );
+        }
+    }
+
+    #[test]
+    fn keyword_grant_ordinary_noun_never_acquires_a_predicated_complement() {
+        // Negative gate (plan §6): `armor` is not a keyword catalog atom, so
+        // it must not acquire a `from`-predicated complement either, even
+        // though Stage B's shared quality carriers are not gated on cost
+        // shape.
+        assert!(
+            parse_nonterminal(
+                "this creature has armor from black",
+                &fixture_catalogs(),
+                Nonterminal::Sentence
+            )
+            .is_err(),
+            "ordinary noun + predicated complement must not parse"
+        );
+    }
+
+    // `kwgrant` round, Stage B: explicit `from` qualities fused onto a
+    // keyword-noun head in grant position (`protection from black`).
+
+    fn keyword_predicated_argument<'a>(
+        nominal: &'a crate::syntax::NominalPhrase,
+    ) -> (&'a str, &'a [crate::syntax::PredicatedQuality]) {
+        let NounInstance::Mass(Noun::Catalog(atom)) = &nominal.head else {
+            panic!("expected a catalog noun head, got {:?}", nominal.head);
+        };
+        let [NominalComplement::KeywordArgument(KeywordArgument::Predicated(argument))] =
+            nominal.complements.as_slice()
+        else {
+            panic!(
+                "expected exactly one predicated keyword argument complement, got {:?}",
+                nominal.complements
+            );
+        };
+        (atom.canonical(), argument.qualities.as_slice())
+    }
+
+    #[test]
+    fn keyword_grant_predicated_single_from_quality() {
+        let source = "Enchanted creature has protection from black.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        let (canonical, qualities) = keyword_predicated_argument(nominal);
+        assert_eq!(canonical, "Protection");
+        let [quality] = qualities else {
+            panic!("expected exactly one quality, got {qualities:?}");
+        };
+        assert_eq!(quality.preposition, Some(Preposition::From));
+        assert!(matches!(
+            quality.quality,
+            Phrase::ColorWord(ColorWord::Black)
+        ));
+    }
+
+    #[test]
+    fn keyword_grant_predicated_coordinated_from_qualities() {
+        let source = "Enchanted creature has protection from black and from red.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        let (canonical, qualities) = keyword_predicated_argument(nominal);
+        assert_eq!(canonical, "Protection");
+        let [first, second] = qualities else {
+            panic!("expected exactly two qualities, got {qualities:?}");
+        };
+        assert_eq!(first.preposition, Some(Preposition::From));
+        assert!(matches!(first.quality, Phrase::ColorWord(ColorWord::Black)));
+        assert_eq!(second.preposition, Some(Preposition::From));
+        assert!(matches!(second.quality, Phrase::ColorWord(ColorWord::Red)));
+    }
+
+    // NOTE: a single, uncoordinated `<keyword> from <NounPhrase>` quality
+    // (no `and from …` repeat) is genuinely ambiguous against the
+    // pre-existing generic `Nominal -> Nominal PrepositionalPhrase`
+    // attachment (`NominalPrepositional`), which can independently complete
+    // the same span (a bare plural/mass `NounPhrase` needs no determiner).
+    // Both trees render byte-identically. Equal-cost ties resolve by
+    // registration order (`rule_order`), and `NominalPrepositional` is
+    // registered long before `add_keyword_grant_rules` (called last, per
+    // plan §4, to preserve earlier `RuleId`s) — so the generic reading wins
+    // this specific shape. A coordinated quality (`from X and from Y`) is
+    // NOT ambiguous this way: the generic single-PP rule cannot consume the
+    // `and from Y` tail at all, so only the new rule completes the sentence.
+    // This is documented, not fixed, this round — see the mechanic report's
+    // residue section; forcing it would require carrying catalog-atom
+    // identity into `Features::Noun`/`Features::Nominal`, a site-wide change
+    // to many unrelated rules, out of proportion for this round.
+
+    #[test]
+    fn keyword_grant_predicated_noun_phrase_quality_is_a_known_ambiguity() {
+        let source = "This creature has protection from artifacts.";
+        let parsed = parse(source);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &parsed.sentence().unwrap().body
+        else {
+            panic!("expected a transitive clause");
+        };
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+            panic!("expected a nominal object, got {:?}", predicate.object);
+        };
+        // Pins the currently-observed (ambiguous, generic) tree so a future
+        // fix's regression is visible here rather than silently reverting.
+        assert!(matches!(
+            nominal.complements.as_slice(),
+            [NominalComplement::Prepositional(_)]
+        ));
+    }
+
+    #[test]
+    fn keyword_grant_predicated_or_coordination_stays_unresolved() {
+        // Negative gate (confirmed deferral, orchestrator brief): the syntax
+        // records no connective, so an `or`-joined predicated argument must
+        // never parse through the new list-extension rule (which admits
+        // `and` only) and must never be normalized to `and`.
+        assert!(
+            parse_nonterminal(
+                "Enchanted creature has protection from black or from red.",
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+            )
+            .is_err(),
+            "an `or`-joined predicated argument must not parse"
+        );
+    }
+
     /// A third-person modal host adopts a bare-imperative chain sharing the
     /// modal, not the addressee (the Cleansing Wildfire shape).
     #[test]
@@ -8664,7 +8972,19 @@ mod tests {
         Catalogs::default()
             .with_catalog(
                 CatalogKind::KeywordAbility,
-                ["Flying", "Haste", "Flash", "Defender", "Hexproof"],
+                [
+                    "Flying",
+                    "Haste",
+                    "Flash",
+                    "Defender",
+                    "Hexproof",
+                    "Hexproof from",
+                    "Ward",
+                    "Equip",
+                    "Protection",
+                    "Annihilator",
+                    "Double strike",
+                ],
             )
             .with_catalog(CatalogKind::CreatureType, ["Goblin", "Mount"])
             .with_catalog(CatalogKind::LandType, ["Plains", "Swamp", "Mountain"])
