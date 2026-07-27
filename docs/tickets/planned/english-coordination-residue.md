@@ -19,6 +19,18 @@ english-structural-recovery-zero`.
   Chaos Mutation) — measured unchanged by the then-coordination round, so the
   blockers are member-internal, not the finite-host gate. (Dominaria's
   Judgment gapped-verb variant is ellipsis machinery, out of scope.)
+- Family E — verb-phrase coordination whose second conjunct is a negated
+  passive modal (`<predicate> and can't be blocked …`). Measured 2026-07-27
+  (round exrider): **62 unresolved rows** carry `and can't be blocked` with no
+  `except`, e.g. Dust Corona `Enchanted creature gets +2/+0 and can't be
+  blocked by creatures with flying.`, and the same gap blocks the four
+  `except by` rows that round could not move (Agility Bobblehead,
+  Infiltrator's Magemark, Treetop Bracers, Cloak of Invisibility). Each
+  conjunct parses alone — the bare passive host, its `by` PP, and (since
+  exrider) its `except by` exception tail are all typed — so the gap is the
+  coordination of a positive predicate with a negated deontic modal
+  predicate, not any member. Both `gets +N/+N and …` and `has <keyword> and
+  …` first conjuncts are attested.
 - Sycorax Commander appositive body (population 3): `then`-coordination
   inside an or-coordinated appositive member plus a `minus one` nominal
   postmodifier — the quantity postmodifier is the costly half. The appositive
