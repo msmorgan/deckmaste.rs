@@ -1881,6 +1881,79 @@ mod tests {
             .with_catalog(CatalogKind::Supertype, ["Basic", "Legendary"])
     }
 
+    #[test]
+    fn indefinite_articles_agree_with_a_power_toughness_modifier() {
+        // Causal pairs: the vowel-onset powers the corpus prints (`X`, `8`)
+        // against the consonant-onset powers it prints (`1`, `0`, `+1`, `9`).
+        // The pair is read aloud — "an ex-ex", "an eight-eight", "a one-one",
+        // "a zero-zero", "a plus-one-plus-one" — so the agreement is with the
+        // pronunciation, not with the character.
+        for source in [
+            "an X/X green Goblin creature token",
+            "an 8/8 blue Goblin creature token",
+            "an X/1 red Goblin creature token",
+            "a 1/1 white Goblin creature token",
+            "a 0/0 green Goblin creature token",
+            "a +1/+1 Goblin creature token",
+            "a 9/9 blue Goblin creature token",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let noun_phrase = parsed.noun_phrase().expect("noun-phrase root");
+            assert_eq!(render_fragment(noun_phrase), source, "{source}");
+            let NounPhrase::Nominal(nominal) = noun_phrase else {
+                panic!("{source}: expected a Nominal noun phrase, got {noun_phrase:?}");
+            };
+            assert!(
+                matches!(nominal.determiner, Some(Determiner::Indefinite(_))),
+                "{source}: expected an indefinite determiner, got {:?}",
+                nominal.determiner
+            );
+            assert!(
+                matches!(
+                    nominal.modifiers.first(),
+                    Some(NominalModifier::PowerToughness(_))
+                ),
+                "{source}: expected the first modifier to be PowerToughness, got {:?}",
+                nominal.modifiers.first()
+            );
+        }
+    }
+
+    #[test]
+    fn a_x_x_and_an_1_1_are_rejected() {
+        // The over-fire check: the corpus prints zero `a X/X` and zero
+        // `an 1/1` witnesses, and the gate must reject both.
+        assert!(
+            parse_nonterminal(
+                "a X/X green Goblin creature token",
+                &fixture_catalogs(),
+                Nonterminal::NounPhrase,
+            )
+            .is_err(),
+            "`a X/X ...` must not parse"
+        );
+        assert!(
+            parse_nonterminal(
+                "an 1/1 white Goblin creature token",
+                &fixture_catalogs(),
+                Nonterminal::NounPhrase,
+            )
+            .is_err(),
+            "`an 1/1 ...` must not parse"
+        );
+        // Zero is read "zero" — a table keyed on "is a digit" dies here.
+        assert!(
+            parse_nonterminal(
+                "an 0/0 green Goblin creature token",
+                &fixture_catalogs(),
+                Nonterminal::NounPhrase,
+            )
+            .is_err(),
+            "`an 0/0 ...` must not parse"
+        );
+    }
+
     fn render_fragment(noun_phrase: &NounPhrase) -> String {
         render_fragment_as(noun_phrase, "Test Card", false)
     }

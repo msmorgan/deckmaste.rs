@@ -12,6 +12,7 @@ use crate::Numeral;
 use crate::catalog::CatalogAtom;
 use crate::word::Adjective;
 use crate::word::ColorWord;
+use crate::word::InitialSound;
 use crate::word::NounInstance;
 use crate::word::Pronoun;
 use crate::word::PronounCase;
@@ -124,6 +125,61 @@ pub struct SignedScalar {
 pub struct PowerToughness {
     pub power: SignedScalar,
     pub toughness: SignedScalar,
+}
+
+/// The sound a number is *read* with, independent of the notation it is
+/// written in: `8` and `eight` are both read "eight" (vowel onset), `0` and
+/// `zero` both "zero" (consonant onset).
+///
+/// Derived from the cardinal spelling — the pronunciation — rather than from a
+/// digit table, so it is total over every value and needs no witness-by-witness
+/// extension. One exception is required, mirroring the vocabulary's
+/// spelling-plus-override idiom (`Vocabulary::initial_sound`,
+/// word.rs:1430-1437): `one` is spelled with a vowel but read /w/, so `1`,
+/// `100` ("one hundred") and `1000` ("one thousand") are consonant onsets.
+fn number_initial_sound(value: u32) -> InitialSound {
+    let Ok(value) = i32::try_from(value) else {
+        return InitialSound::Consonant;
+    };
+    let spelling = crate::numeral::Numeral::Cardinal.format(value);
+    let head = spelling
+        .split([' ', '-', ','])
+        .next()
+        .unwrap_or(spelling.as_str());
+    if head == "one" {
+        return InitialSound::Consonant;
+    }
+    crate::word::surface_initial_sound(head)
+}
+
+impl SignedScalar {
+    /// The sound this scalar is read with. A sign is read `plus`/`minus`, so a
+    /// signed scalar has a consonant onset whatever its value — `a +1/+1
+    /// counter`, never `an`.
+    #[must_use]
+    pub fn initial_sound(self) -> InitialSound {
+        if !matches!(self.sign, ScalarSign::None) {
+            return InitialSound::Consonant;
+        }
+        match self.value {
+            // `X` is read "ex".
+            ScalarValue::X => InitialSound::Vowel,
+            // `*` is read "star". No supported face prints an article before a
+            // `*` power (`a */*` and `an */*` are both 0 occurrences), so this
+            // is a defaulted, unwitnessed choice.
+            ScalarValue::Star => InitialSound::Consonant,
+            ScalarValue::Integer(value) => number_initial_sound(value),
+        }
+    }
+}
+
+impl PowerToughness {
+    /// The sound the pair is read with — its power, the pair's leftmost
+    /// surface.
+    #[must_use]
+    pub fn initial_sound(self) -> InitialSound {
+        self.power.initial_sound()
+    }
 }
 
 /// The comparative word heading an `N or …` quantity floor or ceiling. Every
@@ -648,4 +704,84 @@ pub enum Phrase {
     EmbeddedAbility(Box<Ability>),
     QuotedAbility(Box<QuotedAbility>),
     Recovered(RecoveredText),
+}
+
+#[cfg(test)]
+mod initial_sound_tests {
+    use super::InitialSound;
+    use super::PowerToughness;
+    use super::ScalarSign;
+    use super::ScalarValue;
+    use super::SignedScalar;
+    use super::number_initial_sound;
+
+    fn signed(sign: ScalarSign, value: ScalarValue) -> SignedScalar {
+        SignedScalar { sign, value }
+    }
+
+    #[test]
+    fn number_initial_sound_reads_the_cardinal_spelling() {
+        // The §2.2 verification, table-driven against the §1.1 enumeration:
+        // every power the corpus prints on the `a` side must read Consonant;
+        // every power it prints on the `an` side must read Vowel. This is the
+        // no-over-fire pin.
+        for (value, expected) in [
+            (0, InitialSound::Consonant),   // "zero"
+            (1, InitialSound::Consonant),   // "one" — the exception
+            (2, InitialSound::Consonant),   // "two"
+            (3, InitialSound::Consonant),   // "three"
+            (4, InitialSound::Consonant),   // "four"
+            (5, InitialSound::Consonant),   // "five"
+            (6, InitialSound::Consonant),   // "six"
+            (7, InitialSound::Consonant),   // "seven"
+            (8, InitialSound::Vowel),       // "eight"
+            (9, InitialSound::Consonant),   // "nine"
+            (11, InitialSound::Vowel),      // "eleven"
+            (18, InitialSound::Vowel),      // "eighteen"
+            (21, InitialSound::Consonant),  // "twenty-one"
+            (100, InitialSound::Consonant), // "one hundred"
+            (80, InitialSound::Vowel),      // "eighty"
+        ] {
+            assert_eq!(number_initial_sound(value), expected, "value {value}");
+        }
+    }
+
+    #[test]
+    fn signed_scalar_initial_sound_sign_wins_over_value() {
+        assert_eq!(
+            signed(ScalarSign::Plus, ScalarValue::Integer(8)).initial_sound(),
+            InitialSound::Consonant,
+            "+8 is read \"plus eight\""
+        );
+        assert_eq!(
+            signed(ScalarSign::Minus, ScalarValue::Integer(8)).initial_sound(),
+            InitialSound::Consonant,
+            "-8 is read \"minus eight\""
+        );
+        assert_eq!(
+            signed(ScalarSign::None, ScalarValue::X).initial_sound(),
+            InitialSound::Vowel,
+            "X is read \"ex\""
+        );
+        assert_eq!(
+            signed(ScalarSign::None, ScalarValue::Star).initial_sound(),
+            InitialSound::Consonant,
+            "* is read \"star\" (defaulted, unwitnessed)"
+        );
+    }
+
+    #[test]
+    fn power_toughness_initial_sound_reads_the_power_not_the_toughness() {
+        let x_over_one = PowerToughness {
+            power: signed(ScalarSign::None, ScalarValue::X),
+            toughness: signed(ScalarSign::None, ScalarValue::Integer(1)),
+        };
+        assert_eq!(x_over_one.initial_sound(), InitialSound::Vowel);
+
+        let one_over_x = PowerToughness {
+            power: signed(ScalarSign::None, ScalarValue::Integer(1)),
+            toughness: signed(ScalarSign::None, ScalarValue::X),
+        };
+        assert_eq!(one_over_x.initial_sound(), InitialSound::Consonant);
+    }
 }

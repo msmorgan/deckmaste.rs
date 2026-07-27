@@ -502,6 +502,22 @@ pub enum InitialSound {
     Vowel,
 }
 
+/// The initial sound of a surface string, read off its first character.
+/// Shared by every site that derives an onset from spelling rather than from
+/// a lexical entry's overridden `initial_sound`.
+#[must_use]
+pub fn surface_initial_sound(surface: &str) -> InitialSound {
+    if surface
+        .chars()
+        .next()
+        .is_some_and(|first| matches!(first.to_ascii_lowercase(), 'a' | 'e' | 'i' | 'o' | 'u'))
+    {
+        InitialSound::Vowel
+    } else {
+        InitialSound::Consonant
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Auxiliary {
     Can,

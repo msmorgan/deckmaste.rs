@@ -103,6 +103,7 @@ use crate::word::PronounInstance;
 use crate::word::Verb;
 use crate::word::Vocab;
 use crate::word::Vocabulary;
+use crate::word::surface_initial_sound;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderError {
@@ -1541,9 +1542,9 @@ impl<'identity> Renderer<'identity> {
             // Always literally `declare …` — a fixed consonant onset.
             NominalModifier::CombatStepName { .. } => Ok(InitialSound::Consonant),
             NominalModifier::Quantity(quantity) => {
-                Ok(spelling_initial_sound(&render_quantity(*quantity)))
+                Ok(surface_initial_sound(&render_quantity(*quantity)))
             }
-            NominalModifier::PowerToughness(_) => Ok(InitialSound::Consonant),
+            NominalModifier::PowerToughness(value) => Ok(value.initial_sound()),
             // A coordinated slot's leading surface is its first conjunct's.
             NominalModifier::Coordinated(coordinated) => {
                 self.modifier_initial_sound(&coordinated.first)
@@ -1559,7 +1560,7 @@ impl<'identity> Renderer<'identity> {
         };
         match noun {
             Noun::Word(vocab) => Ok(self.vocabulary.initial_sound(*vocab)),
-            Noun::Catalog(atom) => Ok(spelling_initial_sound(atom.canonical())),
+            Noun::Catalog(atom) => Ok(surface_initial_sound(atom.canonical())),
             Noun::Die(_) => Ok(InitialSound::Consonant),
             Noun::Gerund(verb) => self
                 .vocabulary
@@ -1567,9 +1568,9 @@ impl<'identity> Renderer<'identity> {
                     verb: verb.clone(),
                     slot: crate::word::VerbSlot::PresentParticiple,
                 })
-                .map(|surface| spelling_initial_sound(&surface))
+                .map(|surface| surface_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("gerund")),
-            Noun::Opaque(opaque) => Ok(spelling_initial_sound(opaque.spelling())),
+            Noun::Opaque(opaque) => Ok(surface_initial_sound(opaque.spelling())),
         }
     }
 
@@ -1579,7 +1580,7 @@ impl<'identity> Renderer<'identity> {
             _ => self
                 .vocabulary
                 .render_adjective(adjective)
-                .map(|surface| spelling_initial_sound(&surface))
+                .map(|surface| surface_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("adjective")),
         }
     }
@@ -2277,16 +2278,6 @@ fn apply_polarity(polarity: Polarity, base: String, hyphenated_by_category: bool
     }
 }
 
-fn spelling_initial_sound(surface: &str) -> InitialSound {
-    if surface.chars().next().is_some_and(|character| {
-        matches!(character.to_ascii_lowercase(), 'a' | 'e' | 'i' | 'o' | 'u')
-    }) {
-        InitialSound::Vowel
-    } else {
-        InitialSound::Consonant
-    }
-}
-
 fn capitalize_first(text: String) -> String {
     let mut characters = text.chars();
     let Some(first) = characters.next() else {
@@ -2356,6 +2347,7 @@ fn join_words(parts: Vec<String>) -> String {
 mod tests {
     use super::Renderer;
     use crate::Numeral;
+    use crate::RenderError;
     use crate::catalog::CatalogKind;
     use crate::catalog::CatalogSlot;
     use crate::catalog::CatalogValue;
@@ -3637,6 +3629,44 @@ mod tests {
         let (immediate, trailing) = renderer.nominal_modifier_adjective(&phrase).unwrap();
         assert_eq!(immediate, "2 greater");
         assert_eq!(trailing, vec!["than one".to_string()]);
+    }
+
+    fn power_toughness_nominal(article: IndefiniteArticle, power: ScalarValue) -> NominalPhrase {
+        NominalPhrase {
+            determiner: Some(Determiner::Indefinite(article)),
+            modifiers: vec![NominalModifier::PowerToughness(PowerToughness {
+                power: SignedScalar {
+                    sign: ScalarSign::None,
+                    value: power,
+                },
+                toughness: SignedScalar {
+                    sign: ScalarSign::None,
+                    value: power,
+                },
+            })],
+            head: NounInstance::Singular(Noun::Word(Vocab::Token)),
+            complements: vec![],
+        }
+    }
+
+    #[test]
+    fn indefinite_article_rejects_a_mismatched_power_toughness_onset() {
+        // The renderer hard-gate fixture (§5.5): the gate must stay loud, in
+        // both directions, rather than silently rendering a wrong article.
+        let renderer = Renderer::new("Test Card", false);
+        let a_over_vowel = power_toughness_nominal(IndefiniteArticle::A, ScalarValue::X);
+        assert_eq!(
+            renderer.nominal_phrase(&a_over_vowel),
+            Err(RenderError::InvalidIndefiniteArticle),
+            "`a X/X ...` (vowel onset under `a`) must be rejected"
+        );
+        let an_over_consonant =
+            power_toughness_nominal(IndefiniteArticle::An, ScalarValue::Integer(1));
+        assert_eq!(
+            renderer.nominal_phrase(&an_over_consonant),
+            Err(RenderError::InvalidIndefiniteArticle),
+            "`an 1/1 ...` (consonant onset under `an`) must be rejected"
+        );
     }
 
     fn strict_predicate(phrase: VerbPhrase) -> Predicate {

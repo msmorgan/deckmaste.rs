@@ -103,6 +103,7 @@ use crate::word::Vocab;
 use crate::word::Vocabulary;
 use crate::word::WordMatch;
 use crate::word::comparative_word;
+use crate::word::surface_initial_sound;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct VerbPhrase {
@@ -510,6 +511,9 @@ pub(crate) enum Features {
         is_one: bool,
     },
     Quantity(QuantityFeatures),
+    PowerToughness {
+        initial_sound: InitialSound,
+    },
     Determiner {
         cardinality: Cardinality,
         article: Option<IndefiniteArticleKey>,
@@ -2191,7 +2195,9 @@ impl EnglishGrammar<'_, '_> {
                 .and_then(|(surface, end)| {
                     parse_power_toughness(surface).map(|power_toughness| LexicalMatch {
                         end,
-                        features: Features::None,
+                        features: Features::PowerToughness {
+                            initial_sound: power_toughness.initial_sound(),
+                        },
                         meaning: MeaningKey::PowerToughness(power_toughness),
                         local_cost: ParseCost::default(),
                     })
@@ -4030,18 +4036,6 @@ fn adjective_comparison_state(adjective: &Adjective) -> AdjectiveComparisonState
     }
 }
 
-fn surface_initial_sound(surface: &str) -> InitialSound {
-    if surface
-        .chars()
-        .next()
-        .is_some_and(|first| matches!(first.to_ascii_lowercase(), 'a' | 'e' | 'i' | 'o' | 'u'))
-    {
-        InitialSound::Vowel
-    } else {
-        InitialSound::Consonant
-    }
-}
-
 fn parse_power_toughness(surface: &str) -> Option<PowerToughness> {
     let (power, toughness) = surface.split_once('/')?;
     Some(PowerToughness {
@@ -4540,10 +4534,31 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 AdjectiveComparisonState::NotComparative,
             )
         }
-        RuleTag::NominalQuantityModifier | RuleTag::NominalPowerToughnessModifier => {
+        RuleTag::NominalQuantityModifier => {
+            // The quantity class keeps a fixed consonant onset. The corpus prints no
+            // vowel-onset quantity modifier under an indefinite article in either
+            // direction (`an eight …`, `a eight …`, `a one …`, `an one …`: zero
+            // supported witnesses each), and deriving the sound here would mean
+            // widening `QuantityFeatures`, which sits inside the Earley item key
+            // (`ItemKey::prefix_features`) and is consumed at every quantity
+            // position in the grammar. The divergence from
+            // `Renderer::modifier_initial_sound`'s spelling-derived quantity arm
+            // is known, unreachable on the supported corpus, and left as ticketed
+            // residue.
             nominal_with_prefix(
                 children.get(1)?,
                 InitialSound::Consonant,
+                false,
+                AdjectiveComparisonState::NotComparative,
+            )
+        }
+        RuleTag::NominalPowerToughnessModifier => {
+            let Features::PowerToughness { initial_sound } = children.first()?.features else {
+                return None;
+            };
+            nominal_with_prefix(
+                children.get(1)?,
+                *initial_sound,
                 false,
                 AdjectiveComparisonState::NotComparative,
             )
