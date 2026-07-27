@@ -1514,7 +1514,10 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
                 .is_some_and(u8::is_ascii_uppercase)
         {
             let mut lowercased = suffix.to_owned();
-            lowercased.make_ascii_lowercase();
+            let token_len = token.span.end.saturating_sub(token.span.start);
+            if let Some(initial) = lowercased.get_mut(..token_len) {
+                initial.make_ascii_lowercase();
+            }
             catalog_matches.extend(self.catalogs.matches(&lowercased, slot));
         }
         let collision = self.nickname_lowercasing_collision(tokens, start);
@@ -1775,6 +1778,26 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Verb(verb_slot) => {
                 let mut matches = self.word_matches(tokens, start, LexicalSlot::Verb(verb_slot));
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Verb(verb_slot)));
+                // A multi-word keyword action spells one rules-defined action; the shorter
+                // verb readings that start at the same token — the vocabulary verb, or the
+                // single-word keyword action whose spelling the phrase's head coincides with
+                // — are decompositions of it and must lose **by cost**, not by scan order.
+                // Vocabulary and catalog matches are concatenated with no cross-source dedup
+                // or cost, so an equal-cost tie here would fall to interning order
+                // (`alternative_index`/`NodeId`, invariant-audit §A.1).
+                //
+                // The test is span length, not identity: a verb match covering more than one
+                // token can only be a multi-word catalog action — `word_matches` is
+                // single-token by construction (grammar/mod.rs:1443-1451) and
+                // `CatalogSlot::Verb` reaches only `action_matches`.
+                let longest = matches.iter().map(|item| item.end).max().unwrap_or(start);
+                if longest > start + 1 {
+                    for item in &mut matches {
+                        if item.end < longest {
+                            item.local_cost.precedence += 1;
+                        }
+                    }
+                }
                 matches
             }
             EnglishLexicalSlot::Adjective => {

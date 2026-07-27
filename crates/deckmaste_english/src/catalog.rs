@@ -784,19 +784,20 @@ fn resolve_keyword_action(canonical: &Arc<str>) -> KeywordAction {
     let (head_surface, tail) = canonical
         .split_once(' ')
         .map_or((canonical.as_ref(), ""), |(head, tail)| (head, tail));
-    let lemma = if head_surface.eq_ignore_ascii_case("prepared") {
-        "prepare"
-    } else {
-        head_surface
-    };
-    let head = Vocabulary::irregular_keyword_action_head(lemma).map_or_else(
-        || KeywordActionHead::Regular(Arc::from(lemma.to_ascii_lowercase())),
+    let head = Vocabulary::irregular_keyword_action_head(head_surface).map_or_else(
+        || KeywordActionHead::Regular(Arc::from(head_surface.to_ascii_lowercase())),
         KeywordActionHead::Irregular,
     );
     KeywordAction {
         canonical: Arc::clone(canonical),
         head,
-        tail: Arc::from(tail),
+        // The catalog spells canonicals in title case (`Time Travel`,
+        // `Venture into the Dungeon`); oracle text spells the action in
+        // running-text case. The head is already lowercased through the lemma
+        // above; the tail is lowercased for exactly the same reason. Without
+        // it the rendered form (`time Travel`) is byte-exact-matched
+        // (`action_matches`, catalog.rs:587) against a surface no card prints.
+        tail: Arc::from(tail.to_ascii_lowercase()),
     }
 }
 
@@ -1104,10 +1105,9 @@ mod tests {
         let catalogs = Catalogs::new(
             std::iter::empty::<&str>(),
             [
-                "Collect evidence",
+                "Collect Evidence",
                 "Manifest",
-                "Manifest dread",
-                "Prepared",
+                "Manifest Dread",
                 "Florbulate",
             ],
             std::iter::empty::<&str>(),
@@ -1150,18 +1150,6 @@ mod tests {
                         && action.tail() == "evidence")
         ));
 
-        let prepared = one_word_match(
-            &catalogs,
-            "prepared",
-            CatalogSlot::Verb(VerbSlot::PastParticiple),
-        );
-        assert!(matches!(
-            prepared,
-            WordMatch::Verb(instance)
-                if matches!(&instance.verb, Verb::KeywordAction(action)
-                    if action.head() == "prepare" && action.irregular_head().is_none())
-        ));
-
         let invented = one_word_match(
             &catalogs,
             "florbulate",
@@ -1174,6 +1162,161 @@ mod tests {
                     if action.head() == "florbulate"
                         && action.irregular_head().is_none())
         ));
+    }
+
+    #[test]
+    fn multi_word_keyword_action_canonicals_lowercase_the_whole_render() {
+        // The 9 real multi-word canonicals from `data/gen/catalogs/keyword-actions.txt`
+        // (round `mwcanon`). Each has a capitalized tail in the generated file; the
+        // resolver must lowercase both head and tail so the rendered form matches the
+        // oracle's running-text spelling.
+        const CANONICALS: [&str; 9] = [
+            "Collect Evidence",
+            "Face a Villainous Choice",
+            "Manifest Dread",
+            "Open an Attraction",
+            "Roll to Visit Your Attractions",
+            "Set in Motion",
+            "The Ring Tempts You",
+            "Time Travel",
+            "Venture into the Dungeon",
+        ];
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            CANONICALS,
+            std::iter::empty::<&str>(),
+        );
+
+        for canonical in CANONICALS {
+            let lower = canonical.to_ascii_lowercase();
+            let (head_lower, tail_lower) = lower.split_once(' ').unwrap();
+            let surface = format!("{head_lower}s {tail_lower}"); // third-singular-present head
+            let matches = catalogs.matches(&surface, CatalogSlot::Verb(THIRD_SINGULAR_PRESENT));
+            let CatalogValue::Word(WordMatch::Verb(instance)) = &matches
+                .iter()
+                .find(|m| m.length == surface.len())
+                .expect("full-span match for the running-text surface")
+                .value
+            else {
+                panic!("expected a keyword-action verb for {canonical}");
+            };
+            let Verb::KeywordAction(action) = &instance.verb else {
+                panic!("expected KeywordAction for {canonical}");
+            };
+            assert!(
+                action.head().bytes().all(|b| !b.is_ascii_uppercase()),
+                "{canonical}: head must be fully lowercase, got {:?}",
+                action.head()
+            );
+            assert!(
+                action.tail().bytes().all(|b| !b.is_ascii_uppercase()),
+                "{canonical}: tail must be fully lowercase, got {:?}",
+                action.tail()
+            );
+        }
+
+        // §2.3's exclusion, pinned as intended behaviour: the oracle capitalizes the
+        // proper noun `Ring`, so `The Ring Tempts You` never matches its own oracle
+        // surface under `CasePolicy::Exact`, even though the canonical is now fully
+        // lowercased internally.
+        let oracle_surface_matches = catalogs.matches(
+            "the Ring tempts you",
+            CatalogSlot::Verb(VerbSlot::Imperative),
+        );
+        assert!(
+            !oracle_surface_matches.iter().any(
+                |m| matches!(&m.value, CatalogValue::Word(WordMatch::Verb(instance))
+                    if matches!(&instance.verb, Verb::KeywordAction(action)
+                        if action.canonical() == "The Ring Tempts You"))
+            ),
+            "the capitalized `Ring` must not byte-match the lowercased tail"
+        );
+    }
+
+    #[test]
+    fn single_word_keyword_action_canonicals_keep_an_empty_tail() {
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Scry", "Investigate", "Amass"],
+            std::iter::empty::<&str>(),
+        );
+        for (canonical, surface) in [
+            ("Scry", "scry"),
+            ("Investigate", "investigate"),
+            ("Amass", "amass"),
+        ] {
+            let matched =
+                one_word_match(&catalogs, surface, CatalogSlot::Verb(VerbSlot::Imperative));
+            assert!(matches!(
+                matched,
+                WordMatch::Verb(instance)
+                    if matches!(&instance.verb, Verb::KeywordAction(action)
+                        if action.canonical() == canonical && action.tail().is_empty())
+            ));
+        }
+    }
+
+    #[test]
+    fn narrowed_sentence_initial_retry_does_not_lowercase_a_non_initial_capital() {
+        // Edit 2's defining property: only the sentence-initial token's own bytes are
+        // lowercased for the retry, never the remainder of the suffix. A capitalized
+        // non-initial token inside a multi-word canonical must therefore still fail to
+        // match under `CasePolicy::Exact`.
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Venture Into The Dungeon"],
+            std::iter::empty::<&str>(),
+        );
+        let matches = catalogs.matches(
+            "Venture Into the dungeon",
+            CatalogSlot::Verb(VerbSlot::Imperative),
+        );
+        assert!(
+            matches
+                .iter()
+                .all(|m| m.length < "venture into the dungeon".len()),
+            "a non-initial capitalized token must not be swept into the retry's lowercasing"
+        );
+    }
+
+    #[test]
+    fn manifest_survives_the_arrival_of_manifest_dread() {
+        // The single-word canonical must keep resolving on its own once its multi-word
+        // sibling is present in the same catalog (anti-regression for Edit 1/Edit 3).
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Manifest", "Manifest Dread"],
+            std::iter::empty::<&str>(),
+        );
+        let matched = one_word_match(
+            &catalogs,
+            "manifest",
+            CatalogSlot::Verb(VerbSlot::Imperative),
+        );
+        assert!(matches!(
+            matched,
+            WordMatch::Verb(instance)
+                if matches!(&instance.verb, Verb::KeywordAction(action)
+                    if action.canonical() == "Manifest" && action.tail().is_empty())
+        ));
+    }
+
+    #[test]
+    fn collect_alone_does_not_resolve_to_collect_evidence() {
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Collect Evidence"],
+            std::iter::empty::<&str>(),
+        );
+        let matches = catalogs.matches("collect", CatalogSlot::Verb(VerbSlot::Imperative));
+        assert!(
+            matches.iter().all(
+                |m| !matches!(&m.value, CatalogValue::Word(WordMatch::Verb(instance))
+                if matches!(&instance.verb, Verb::KeywordAction(action)
+                    if action.canonical() == "Collect Evidence"))
+            ),
+            "a bare `collect` must not resolve to the multi-word canonical"
+        );
     }
 
     #[test]
