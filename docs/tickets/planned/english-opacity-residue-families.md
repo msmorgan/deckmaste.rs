@@ -24,3 +24,14 @@ own treatment — none is a `has_known_word` literal omission:
    ticket), not to the `face`/`down`/`up` literals.
 4. **Numeral opacity** — `four` (1 row): the `Number(Numeral)` path
    (numeral.rs), a different mechanism.
+
+5. **Complementizer `whether` read as an opaque noun** — 2 rows, Game of
+   Chaos, `... player decides whether to flip again.` Added 2026-07-27 by
+   round `chance`: the sentence previously failed whole, so opening the family
+   made an existing wrong reading VISIBLE rather than creating it. `whether`
+   is a complementizer, not a noun; it belongs with class 2 above as real
+   machinery work. **No test may assert or preserve the opaque-noun reading.**
+   Round `chance` also made two `Wirefly` rows visible on Wirefly Hive
+   (`... permanents named Wirefly.`) — that is the standing missing-name-
+   nonterminal gap already recorded against `Partner with [name]` in
+   `english-keyword-ability-parameters`, not a new class.
