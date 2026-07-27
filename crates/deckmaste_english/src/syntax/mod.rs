@@ -501,7 +501,8 @@ impl<'syntax> RecoveryWalker<'syntax> {
             PredicateAdjunct::Temporal(noun_phrase) | PredicateAdjunct::Manner(noun_phrase) => {
                 self.noun_phrase(noun_phrase, context);
             }
-            PredicateAdjunct::Prepositional(preposition) => {
+            PredicateAdjunct::Prepositional(preposition)
+            | PredicateAdjunct::Exception(preposition) => {
                 self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
             }
             PredicateAdjunct::Dependent(dependent) => {

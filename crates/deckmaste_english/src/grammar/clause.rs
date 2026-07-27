@@ -721,6 +721,19 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::Clause,
         [n(N::Clause), n(N::RestrictionRun)],
     );
+
+    // Round `exrider`: the closed `except by <PP>` exception tail on a
+    // passive restriction (`can't be blocked ... except by creatures with
+    // flying`) [CR#508.1c,509.1b,702.9b,702.13b,702.36b,702.111b]. Appended
+    // last so every existing alternative's (cost, rule_order) key is
+    // preserved. Default cost: the dot-1/`By` gates in
+    // `accepts_predicate_prefix`/`reduce_predicate` do the licensing, not
+    // parse-cost dispreference.
+    builder.add(
+        RuleTag::VerbPhraseExceptBy,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), l(L::Except), n(N::PrepositionalPhrase)],
+    );
 }
 
 pub(super) fn reduce_clause(
@@ -736,6 +749,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhraseExceptBy
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhrasePreverbAdverb
@@ -867,6 +881,7 @@ pub(super) fn accepts_predicate_prefix(
             | RuleTag::VerbPhraseAdjective
             | RuleTag::VerbPhraseCoordinatedAdjective
             | RuleTag::VerbPhrasePrepositional
+            | RuleTag::VerbPhraseExceptBy
             | RuleTag::VerbPhraseInfinitive
             | RuleTag::VerbPhraseParticle
             | RuleTag::VerbPhraseAbility
@@ -886,6 +901,7 @@ pub(super) fn accepts_predicate_prefix(
     let Features::VerbPhrase {
         object,
         indirect_object,
+        selected_preposition,
         phase,
         frame,
         passive,
@@ -894,7 +910,22 @@ pub(super) fn accepts_predicate_prefix(
     else {
         return false;
     };
+    // The exception tail is a closed terminal phase: once reached, reject
+    // every other predicate-extension tag, not only a second exception tail.
+    if *phase == PredicateAttachmentPhase::ExceptionTail {
+        return false;
+    }
     match tag {
+        RuleTag::VerbPhraseExceptBy => {
+            *passive
+                && predicate_arguments_complete(
+                    *frame,
+                    *passive,
+                    *object,
+                    *indirect_object,
+                    *selected_preposition,
+                )
+        }
         // Only predict the bare-infinitive complement after a causative head
         // (`have`) that has already taken its direct-object causee. Without this
         // gate the `VerbPhrase = VerbPhrase VerbPhrase` production predicts a
@@ -1173,6 +1204,20 @@ fn reduce_predicate(
             // composed features are exactly the inner VerbPhrase's, unchanged.
             Some(children.get(1)?.features.clone())
         }
+        RuleTag::VerbPhraseExceptBy => {
+            // The `By` fact is carried by the third child (the
+            // PrepositionalPhrase), not the first, so it is not dot-1
+            // expressible and is checked here rather than in
+            // `accepts_predicate_prefix`.
+            let Features::PrepositionalPhrase {
+                preposition: Preposition::By,
+                ..
+            } = children.get(2)?.features
+            else {
+                return None;
+            };
+            extend_predicate(children.first()?, PredicateAttachment::Exception)
+        }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
         | RuleTag::VerbPhraseInfinitive
@@ -1335,6 +1380,13 @@ fn extend_predicate(
     };
     let licensed = match attachment {
         PredicateAttachment::Adjunct | PredicateAttachment::Prepositional(_) => true,
+        PredicateAttachment::Exception => predicate_arguments_complete(
+            *frame,
+            *passive,
+            *object,
+            *indirect_object,
+            *selected_preposition,
+        ),
         PredicateAttachment::DirectObject => frame.direct_object().accepts(),
         PredicateAttachment::IndirectObject => frame.indirect_object().accepts(),
         PredicateAttachment::NominalAdjunct(adjunct) => {
@@ -1376,8 +1428,16 @@ fn extend_predicate(
                 | PredicateAttachment::Prepositional(_)
                 | PredicateAttachment::InfinitiveComplement
                 | PredicateAttachment::Particle(_)
+                | PredicateAttachment::Exception
         )
     {
+        return None;
+    }
+    // The exception tail requires a passive host; it is not itself a
+    // selected complement, so it is licensed only once the frame's ordinary
+    // required arguments are already satisfied (checked above via
+    // `predicate_arguments_complete`).
+    if matches!(attachment, PredicateAttachment::Exception) && !*passive {
         return None;
     }
     let next_phase = match attachment {
@@ -1394,6 +1454,7 @@ fn extend_predicate(
             PredicateAttachmentPhase::Object
         }
         PredicateAttachment::Prepositional(_) => PredicateAttachmentPhase::PrepositionalTail,
+        PredicateAttachment::Exception => PredicateAttachmentPhase::ExceptionTail,
         PredicateAttachment::Adjunct => {
             if *object == PredicateObjectState::None {
                 PredicateAttachmentPhase::Object
@@ -1414,7 +1475,8 @@ fn extend_predicate(
             | PredicateAttachment::AdjectiveComplement
             | PredicateAttachment::Prepositional(_)
             | PredicateAttachment::InfinitiveComplement
-            | PredicateAttachment::Particle(_),
+            | PredicateAttachment::Particle(_)
+            | PredicateAttachment::Exception,
             object,
         ) => object,
         (
@@ -1468,6 +1530,11 @@ enum PredicateAttachment {
     Prepositional(Preposition),
     InfinitiveComplement,
     Particle(VerbParticle),
+    /// The closed `except by <PP>` exception tail. Licensed without
+    /// consulting the verb frame's selected-preposition table — the `By` PP
+    /// is the exceptional restriction's agent-like complement, not a
+    /// selected complement of the passive verb.
+    Exception,
     AbilityComplement,
     /// A quoted (or coordinated quoted) ability object. Licensed by the same
     /// frames that admit a keyword-ability complement (the grant verbs), but it
@@ -2551,6 +2618,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhraseExceptBy
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhrasePreverbAdverb
@@ -2735,6 +2803,20 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                     marker: InfinitiveMarker::Bare,
                     predicate: Box::new(complement),
                 }));
+            Some(Lowered::VerbPhrase(predicate))
+        }
+        RuleTag::VerbPhraseExceptBy => {
+            // Handled directly rather than through `lower_predicate_dependent`,
+            // whose ordinary dependent sits at child 1 and whose PP arm
+            // consults the verb frame: here the PP is at child 2 and child 1
+            // is the pinned `except` literal.
+            let Lowered::VerbPhrase(mut predicate) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::PrepositionalPhrase(pp) = take(children, 2)? else {
+                return None;
+            };
+            predicate.dependents.push(VerbDependent::Exception(pp));
             Some(Lowered::VerbPhrase(predicate))
         }
         RuleTag::VerbPhraseDirectObject
@@ -4137,6 +4219,11 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
             }
             VerbDependent::Prepositional(phrase) => {
                 target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                    phrase,
+                )));
+            }
+            VerbDependent::Exception(phrase) => {
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Exception(
                     phrase,
                 )));
             }
@@ -8926,6 +9013,258 @@ mod tests {
             assert!(
                 parsed.noun_phrase().is_some(),
                 "expected a NounPhrase root for {source:?}"
+            );
+        }
+    }
+
+    // Round `exrider`: the `except by <PP>` typed predicate exception
+    // [CR#508.1c,509.1b,702.9b,702.13b,702.36b,702.111b].
+
+    fn exception_catalogs() -> Catalogs {
+        fixture_catalogs()
+            .with_catalog(
+                CatalogKind::CreatureType,
+                [
+                    "Goblin",
+                    "Mount",
+                    "Wall",
+                    "Kraken",
+                    "Leviathan",
+                    "Octopus",
+                    "Serpent",
+                ],
+            )
+            .with_catalog(
+                CatalogKind::CardType,
+                ["Creature", "Land", "Sorcery", "Planeswalker", "Artifact"],
+            )
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                [
+                    "Flying",
+                    "Haste",
+                    "Flash",
+                    "Defender",
+                    "Hexproof",
+                    "Reach",
+                    "Islandwalk",
+                    "Menace",
+                ],
+            )
+    }
+
+    fn parse_exception(source: &str) -> ParsedNonterminal {
+        parse_nonterminal(source, &exception_catalogs(), Nonterminal::Sentence)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
+    }
+
+    fn passive_deontic(sentence: &Sentence) -> &PassivePredicate {
+        let SentenceBody::Independent(independent) = &sentence.body else {
+            panic!("expected an independent clause, got {:?}", sentence.body);
+        };
+        passive_deontic_in(independent)
+    }
+
+    /// Unwraps a fronted/attached `ComplexClause` (Island Sanctuary's `If you
+    /// do, until your next turn, ...`) down to its matrix clause before
+    /// locating the passive deontic predicate.
+    fn passive_deontic_in(clause: &IndependentClause) -> &PassivePredicate {
+        match clause {
+            IndependentClause::Deontic(_, _, Some(Predicate::Passive(predicate))) => predicate,
+            IndependentClause::Complex(complex) => passive_deontic_in(&complex.matrix),
+            other => panic!("expected a deontic passive clause, got {other:?}"),
+        }
+    }
+
+    fn sole_exception_pp(predicate: &PassivePredicate) -> &PrepositionalPhrase {
+        let [PredicateElement::Adjunct(PredicateAdjunct::Exception(pp))] =
+            predicate.elements.as_slice()
+        else {
+            panic!(
+                "expected exactly one Exception adjunct, got {:?}",
+                predicate.elements
+            );
+        };
+        pp
+    }
+
+    #[test]
+    fn except_by_is_typed_predicate_exception() {
+        let source = "This creature can't be blocked except by creatures with flying.";
+        let parsed = parse_exception(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let sentence = parsed.sentence().expect("sentence root");
+        let predicate = passive_deontic(sentence);
+        let pp = sole_exception_pp(predicate);
+        assert_eq!(pp.preposition, Preposition::By);
+        assert_eq!(render_sentence(sentence), source);
+    }
+
+    #[test]
+    fn except_by_follows_temporal_adjunct() {
+        let source = "This creature can't be blocked this turn except by creatures with haste.";
+        let parsed = parse_exception(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        let sentence = parsed.sentence().expect("sentence root");
+        let predicate = passive_deontic(sentence);
+        let [
+            PredicateElement::Adjunct(PredicateAdjunct::Temporal(_)),
+            PredicateElement::Adjunct(PredicateAdjunct::Exception(pp)),
+        ] = predicate.elements.as_slice()
+        else {
+            panic!(
+                "expected [Temporal, Exception] in that order, got {:?}",
+                predicate.elements
+            );
+        };
+        assert_eq!(pp.preposition, Preposition::By);
+        assert_eq!(render_sentence(sentence), source);
+    }
+
+    #[test]
+    fn except_by_reuses_existing_noun_phrase_coordination() {
+        for source in [
+            "This creature can't be blocked except by Walls and/or creatures with flying.",
+            "This creature can't be blocked except by artifact creatures and/or white creatures.",
+            "Krakens, Leviathans, Octopuses, and Serpents you control can't be blocked except by \
+             Krakens, Leviathans, Octopuses, and Serpents.",
+        ] {
+            let parsed = parse_exception(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let sentence = parsed.sentence().expect("sentence root");
+            let predicate = passive_deontic(sentence);
+            let pp = sole_exception_pp(predicate);
+            assert_eq!(pp.preposition, Preposition::By, "{source}");
+            assert_eq!(render_sentence(sentence), source, "{source}");
+        }
+    }
+
+    #[test]
+    fn except_by_survives_complex_hosts() {
+        // Agility Bobblehead and Infiltrator's Magemark are excluded here:
+        // the host pre-check found their hosts carry an independent `and
+        // can't be blocked` VP-coordination gap and so cannot become whole
+        // recoveries this round (residue, not a mover) — see the round
+        // report. These four rows are confirmed movers.
+        for source in [
+            "That creature can't be blocked this combat except by creatures with flying and \
+             creatures in a pile with the chosen label.",
+            "If you do, until your next turn, you can't be attacked except by creatures with \
+             flying and/or islandwalk.",
+            "Each creature you control with menace can't be blocked except by three or more \
+             creatures.",
+            "This creature can't be blocked this turn except by snow creatures.",
+        ] {
+            let parsed = parse_exception(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let sentence = parsed.sentence().expect("sentence root");
+            let predicate = passive_deontic(sentence);
+            assert!(
+                predicate.elements.iter().any(|element| matches!(
+                    element,
+                    PredicateElement::Adjunct(PredicateAdjunct::Exception(_))
+                )),
+                "expected an Exception adjunct for {source}: {:?}",
+                predicate.elements
+            );
+            assert_eq!(render_sentence(sentence), source, "{source}");
+        }
+    }
+
+    #[test]
+    fn exception_adjunct_renders_and_reparses_from_ast() {
+        // Source-free: start from a bare passive `by` PP (never containing
+        // `except`), rewrite the typed adjunct in memory to
+        // `PredicateAdjunct::Exception`, render, reparse, and compare —
+        // a different head (`Attack`) and object (`haste`) from the
+        // `except_by_is_typed_predicate_exception` fixture's `Block`/`flying`.
+        let base = "This creature can't be attacked by creatures with haste.";
+        let mut sentence = parse_exception(base)
+            .sentence()
+            .expect("sentence root")
+            .clone();
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            _,
+            _,
+            Some(Predicate::Passive(predicate)),
+        )) = &mut sentence.body
+        else {
+            panic!("expected a deontic passive clause");
+        };
+        let [PredicateElement::Adjunct(adjunct @ PredicateAdjunct::Prepositional(_))] =
+            predicate.elements.as_mut_slice()
+        else {
+            panic!("expected a single Prepositional adjunct in the base fixture");
+        };
+        let PredicateAdjunct::Prepositional(pp) = adjunct.clone() else {
+            unreachable!()
+        };
+        *adjunct = PredicateAdjunct::Exception(pp.clone());
+        let rendered = render_sentence(&sentence);
+        assert_eq!(
+            rendered,
+            "This creature can't be attacked except by creatures with haste."
+        );
+        let reparsed = parse_exception(&rendered);
+        let reparsed_sentence = reparsed.sentence().expect("sentence root");
+        let reparsed_predicate = passive_deontic(reparsed_sentence);
+        let reparsed_pp = sole_exception_pp(reparsed_predicate);
+        assert_eq!(*reparsed_pp, pp);
+    }
+
+    #[test]
+    fn bare_by_blocking_controls_are_unchanged() {
+        for source in [
+            "This creature can't be blocked by creatures with flying.",
+            "This creature can't be blocked except by creatures with flying.",
+        ] {
+            let parsed = parse_exception(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        }
+        // The bare-`by` control keeps its ordinary Prepositional adjunct —
+        // never Exception — even after the new production is registered.
+        let source = "This creature can't be blocked by creatures with flying.";
+        let parsed = parse_exception(source);
+        let sentence = parsed.sentence().expect("sentence root");
+        let predicate = passive_deontic(sentence);
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                _
+            ))]
+        ));
+        assert_eq!(render_sentence(sentence), source);
+    }
+
+    #[test]
+    fn other_except_classes_are_unchanged() {
+        // Class C (clausal `ExceptionRider`), class D (draw-event `except
+        // NP`), class E (`except that Clause`), and class F (non-`By`
+        // `except` PPs and fronted `Except for`) must all keep their prior
+        // disposition: the new append-last `By`-only production must not
+        // consume any of these.
+        for source in ["Each spell costs {3} more to cast except during its controller's turn."] {
+            let result = parse_nonterminal(source, &exception_catalogs(), Nonterminal::Sentence);
+            assert!(
+                result.is_err() || result.unwrap().opacity_mode() != OpacityMode::Exact,
+                "{source} must not become a whole recovery via the new production"
+            );
+        }
+    }
+
+    #[test]
+    fn except_by_rejects_non_by_and_malformed_tails() {
+        for source in [
+            "This creature can't be blocked except during its controller's turn.",
+            "This creature can't be blocked except creatures with flying.",
+            "This creature can't be blocked except by Walls except by creatures with flying.",
+        ] {
+            let result = parse_nonterminal(source, &exception_catalogs(), Nonterminal::Sentence);
+            let whole =
+                matches!(&result, Ok(parsed) if parsed.opacity_mode() == OpacityMode::Exact);
+            assert!(
+                !whole,
+                "{source} must keep failing to become a whole recovery"
             );
         }
     }

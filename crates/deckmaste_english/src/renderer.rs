@@ -1145,6 +1145,9 @@ impl<'identity> Renderer<'identity> {
                 self.noun_phrase(phrase)
             }
             PredicateAdjunct::Prepositional(phrase) => self.prepositional_phrase(phrase),
+            PredicateAdjunct::Exception(phrase) => {
+                Ok(format!("except {}", self.prepositional_phrase(phrase)?))
+            }
             PredicateAdjunct::Dependent(clause) => self.dependent_clause(clause),
         }
     }
@@ -2049,7 +2052,8 @@ fn complement_is_closed_quote(complement: &PredicateComplement) -> bool {
 
 fn adjunct_ends_with_closed_quote(adjunct: &PredicateAdjunct) -> bool {
     match adjunct {
-        PredicateAdjunct::Prepositional(prepositional) => {
+        PredicateAdjunct::Prepositional(prepositional)
+        | PredicateAdjunct::Exception(prepositional) => {
             phrase_is_closed_quote(&prepositional.object)
         }
         PredicateAdjunct::Adverb(_)

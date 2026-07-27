@@ -140,6 +140,11 @@ enum VerbDependent {
     /// A coordinated predicative-adjective complement (`are green and white`),
     /// finished into a [`PredicateComplement::CoordinatedAdjective`].
     CoordinatedAdjective(crate::syntax::CoordinatedAdjectivePhrase),
+    /// A closed `except by <PP>` exception tail on a passive predicate,
+    /// finished into [`PredicateAdjunct::Exception`]. Distinct from an
+    /// ordinary `Prepositional` dependent so it cannot be mistaken for the
+    /// verb frame's own selected-preposition complement.
+    Exception(PrepositionalPhrase),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -460,6 +465,10 @@ pub(crate) enum PredicateAttachmentPhase {
     Object,
     Tail,
     PrepositionalTail,
+    /// Terminal: an `except by <PP>` exception tail has closed the predicate.
+    /// No further attachment of any kind is licensed once this phase is
+    /// reached.
+    ExceptionTail,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1148,6 +1157,9 @@ enum RuleTag {
     VerbPhraseIndirectObject,
     VerbPhraseAdjective,
     VerbPhrasePrepositional,
+    /// The append-last `except by <PP>` exception tail on a passive
+    /// predicate: `VerbPhrase -> VerbPhrase Except PrepositionalPhrase`.
+    VerbPhraseExceptBy,
     VerbPhraseInfinitive,
     VerbPhraseAdverb,
     VerbPhrasePreverbAdverb,
@@ -4238,6 +4250,7 @@ fn reduce(
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhraseExceptBy
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhrasePreverbAdverb
@@ -5856,6 +5869,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhraseExceptBy
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhrasePreverbAdverb

@@ -247,6 +247,17 @@ pub enum PredicateAdjunct {
     Temporal(NounPhrase),
     Manner(NounPhrase),
     Prepositional(PrepositionalPhrase),
+    /// A closed exception tail on a passive restriction (`can't be blocked
+    /// except by creatures with flying`): distinct from an ordinary
+    /// prepositional adjunct (the exception carveout changes the reading,
+    /// not merely the agent) and from the clausal `ExceptionRider`, which
+    /// requires a comma and a full finite clause complement. The parser
+    /// constructs this variant only for a `By` preposition; the renderer
+    /// does not inspect the stored preposition, it renders literal
+    /// `except ` followed by the ordinary PP rendering, so the admitted
+    /// word class stays render/parse inverse.
+    /// [CR#508.1c,509.1b,702.9b,702.13b,702.36b,702.111b]
+    Exception(PrepositionalPhrase),
     Dependent(Box<DependentClause>),
 }
 
