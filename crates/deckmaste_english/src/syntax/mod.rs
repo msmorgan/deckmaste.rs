@@ -137,6 +137,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 for keyword in &list.abilities {
                     self.keyword_argument(&keyword.argument, context);
                 }
+                if let Some(trailing) = &list.trailing {
+                    self.paragraph(trailing, context);
+                }
             }
             AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph, context),
         }
@@ -155,6 +158,19 @@ impl<'syntax> RecoveryWalker<'syntax> {
         match argument {
             KeywordArgument::Costed(KeywordCost::Sentence { ability, .. }) => {
                 self.ability(ability, inner);
+            }
+            KeywordArgument::Costed(KeywordCost::Components { cost, .. }) => {
+                self.cost(cost, inner);
+            }
+            KeywordArgument::RestrictedCost {
+                restriction, cost, ..
+            } => {
+                self.noun_phrase(restriction, inner);
+                match cost {
+                    KeywordCost::Symbols(_) => {}
+                    KeywordCost::Sentence { ability, .. } => self.ability(ability, inner),
+                    KeywordCost::Components { cost, .. } => self.cost(cost, inner),
+                }
             }
             KeywordArgument::Predicated(predicated) => {
                 for quality in &predicated.qualities {
@@ -907,6 +923,7 @@ mod tests {
                                 text: recovered("argument"),
                             },
                         }],
+                        trailing: None,
                     }),
                 },
                 Ability {

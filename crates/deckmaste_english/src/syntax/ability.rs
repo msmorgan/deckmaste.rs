@@ -353,6 +353,13 @@ pub struct ModeHeading {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeywordAbilityList {
     pub abilities: Vec<KeywordAbility>,
+    /// Ordinary rules sentences printed on the same physical line after the
+    /// terminal carried by the final keyword's cost (`Flashback—{3}{R},
+    /// Remove X loyalty counters from among planeswalkers you control. If you
+    /// cast this spell this way, X can't be 0.`). Not part of the keyword's
+    /// own [`KeywordArgument`], the [`Cost`], or a new top-level [`Ability`],
+    /// because all three would lose the surface's line/space boundary.
+    pub trailing: Option<Paragraph>,
 }
 
 /// A keyword ability: its open-set name (the catalog atom) and the argument the
@@ -386,9 +393,10 @@ pub enum KeywordArgument {
     /// A count. The shape's exemplar rules give the numeric argument as `N`
     /// [CR#702.86a,702.164a].
     Counted(Quantity),
-    /// A cost, symbol-sequence or em-dash sentence (the [`KeywordCost`]
-    /// surfaces). The shape's exemplar rules give the argument as `[cost]`
-    /// [CR#702.21a,702.29a].
+    /// A cost: a symbol-sequence, a tight em-dash structured cost, or (legacy
+    /// surface preservation) a spaced em-dash embedded ability — the
+    /// [`KeywordCost`] surfaces. The shape's exemplar rules give the argument
+    /// as `[cost]` [CR#702.21a,702.29a].
     Costed(KeywordCost),
     /// A count and a symbol cost joined by an unspaced em dash. The shape's
     /// exemplar rule gives the argument as `N—[cost]` [CR#702.62a].
@@ -425,21 +433,56 @@ pub enum KeywordArgument {
         separator: KeywordArgumentSeparator,
         text: RecoveredText,
     },
+    /// A quality restriction (optionally introduced by `onto`/`with`) paired
+    /// with a cost — `craft with artifact {1}{U}`, `splice onto Arcane
+    /// {W}`. One shape, not a sibling per surface family: the restriction
+    /// retains the full noun-phrase tree (including the legitimate headless
+    /// `NounPhrase::Quantity` case, `craft with one or more {5}`), and the
+    /// cost is `Symbols` or (composed with the tight em-dash structured cost)
+    /// `Components` [CR#702.6c,702.6e,702.47a,702.167a].
+    RestrictedCost {
+        preposition: Option<Preposition>,
+        restriction: Box<NounPhrase>,
+        cost: KeywordCost,
+    },
 }
 
-/// The two surfaces a [`KeywordArgument::Costed`] cost takes.
+/// The closed [`KeywordCostTerminal`] carriers a tight em-dash structured
+/// cost may end its cost body in. Stored as an enum, never a raw `char` or a
+/// renderer-derived boolean, so the parser maps the actual terminal token and
+/// the renderer maps it straight back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeywordCostTerminal {
+    Period,
+    Exclamation,
+    Question,
+}
+
+/// The surfaces a [`KeywordArgument::Costed`] cost takes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeywordCost {
     /// A mana/symbol cost written after a space — `ward {2}`, `equip {3}`. The
     /// run is carried as its structured oracle symbols, reproduced by
     /// concatenation.
     Symbols(Vec<OracleSymbol>),
-    /// A non-mana cost written as an em-dash sentence — `cumulative upkeep—Put
-    /// a -1/-1 counter on this creature.` The dash spacing is carried
-    /// structurally so rendering never inspects the surface.
+    /// Legacy surface preservation for the spaced em-dash cost surface
+    /// (`SpacedEmDash`) only — `Exhaust — {2}{G}{G}: Put two +1/+1 counters on
+    /// this creature.` reads as a designation-headed embedded ability, never
+    /// a cost. Not the tight `[cost]` path; see
+    /// [`Components`](Self::Components).
     Sentence {
         separator: KeywordArgumentSeparator,
         ability: Box<Ability>,
+    },
+    /// A non-mana cost written as a tight em-dash sentence —
+    /// `cumulative upkeep—Put a -1/-1 counter on this creature.` The dash
+    /// spacing and the cost's own sentence terminal are both carried
+    /// structurally, so rendering never inspects the surface
+    /// [CR#702.21a,702.138a].
+    Components {
+        separator: KeywordArgumentSeparator,
+        cost: Cost,
+        terminal: Option<KeywordCostTerminal>,
     },
 }
 

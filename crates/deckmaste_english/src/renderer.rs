@@ -42,6 +42,7 @@ use crate::syntax::KeywordAbilityList;
 use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
 use crate::syntax::KeywordCost;
+use crate::syntax::KeywordCostTerminal;
 use crate::syntax::KeywordListSeparator;
 use crate::syntax::LevelBandAbility;
 use crate::syntax::LevelRange;
@@ -283,7 +284,9 @@ impl<'identity> Renderer<'identity> {
             AbilityKind::LevelBand(band) => self.level_band_ability(band),
             AbilityKind::StationThreshold(threshold) => self.station_threshold_ability(threshold),
             AbilityKind::Modal(modal) => self.modal_ability(modal),
-            AbilityKind::Keyword(keyword) => self.keyword_ability_list(keyword),
+            AbilityKind::Keyword(keyword) => {
+                self.keyword_ability_list(keyword, suppress_final_period)
+            }
             AbilityKind::Paragraph(paragraph) => {
                 self.paragraph_with_suffix(paragraph, capitalize, suppress_final_period)
             }
@@ -468,7 +471,11 @@ impl<'identity> Renderer<'identity> {
         Ok(rendered)
     }
 
-    fn keyword_ability_list(&self, list: &KeywordAbilityList) -> Result<String, RenderError> {
+    fn keyword_ability_list(
+        &self,
+        list: &KeywordAbilityList,
+        suppress_final_period: bool,
+    ) -> Result<String, RenderError> {
         let mut rendered = String::new();
         for item in &list.abilities {
             if let Some(separator) = item.preceding_separator {
@@ -480,6 +487,14 @@ impl<'identity> Renderer<'identity> {
             rendered.push_str(item.ability.spelling());
             rendered.push_str(&self.keyword_argument(&item.argument)?);
         }
+        if let Some(trailing) = &list.trailing {
+            rendered.push(' ');
+            rendered.push_str(&self.paragraph_with_suffix(
+                trailing,
+                true,
+                suppress_final_period,
+            )?);
+        }
         Ok(rendered)
     }
 
@@ -487,19 +502,49 @@ impl<'identity> Renderer<'identity> {
     /// it to the keyword. Each shape reproduces its own surface; the
     /// joining and internal dashes are carried structurally, never inferred
     /// from spelling.
+    /// Renders a [`KeywordCost`] alone, without the leading keyword-to-
+    /// argument space a bare [`KeywordArgument::Costed`] needs — shared by
+    /// `Costed` and [`KeywordArgument::RestrictedCost`], whose restriction
+    /// already supplies that leading space.
+    fn keyword_cost(&self, cost: &KeywordCost) -> Result<String, RenderError> {
+        Ok(match cost {
+            KeywordCost::Symbols(symbols) => format!(" {}", render_symbol_sequence(symbols)),
+            KeywordCost::Sentence { separator, ability } => format!(
+                "{}{}",
+                keyword_argument_separator(*separator),
+                self.nested_ability(ability, true, false)?
+            ),
+            KeywordCost::Components {
+                separator,
+                cost,
+                terminal,
+            } => format!(
+                "{}{}{}",
+                keyword_argument_separator(*separator),
+                capitalize_first(self.cost(cost)?),
+                render_keyword_cost_terminal(*terminal)
+            ),
+        })
+    }
+
     fn keyword_argument(&self, argument: &KeywordArgument) -> Result<String, RenderError> {
         Ok(match argument {
             KeywordArgument::Absent => String::new(),
             KeywordArgument::Counted(quantity) => format!(" {}", render_quantity(*quantity)),
-            KeywordArgument::Costed(KeywordCost::Symbols(symbols)) => {
-                format!(" {}", render_symbol_sequence(symbols))
-            }
-            KeywordArgument::Costed(KeywordCost::Sentence { separator, ability }) => {
-                format!(
-                    "{}{}",
-                    keyword_argument_separator(*separator),
-                    self.nested_ability(ability, true, false)?
-                )
+            KeywordArgument::Costed(cost) => self.keyword_cost(cost)?,
+            KeywordArgument::RestrictedCost {
+                preposition,
+                restriction,
+                cost,
+            } => {
+                let mut rendered = String::from(" ");
+                if let Some(preposition) = preposition {
+                    rendered.push_str(render_preposition(*preposition));
+                    rendered.push(' ');
+                }
+                rendered.push_str(&self.noun_phrase(restriction)?);
+                rendered.push_str(&self.keyword_cost(cost)?);
+                rendered
             }
             KeywordArgument::CountedCost { count, symbols } => {
                 format!(
@@ -2227,6 +2272,17 @@ fn keyword_argument_separator(separator: KeywordArgumentSeparator) -> &'static s
     }
 }
 
+/// Renders a [`KeywordCostTerminal`] back to its literal punctuation, or the
+/// empty string when the cost body carried no terminal at all.
+fn render_keyword_cost_terminal(terminal: Option<KeywordCostTerminal>) -> &'static str {
+    match terminal {
+        None => "",
+        Some(KeywordCostTerminal::Period) => ".",
+        Some(KeywordCostTerminal::Exclamation) => "!",
+        Some(KeywordCostTerminal::Question) => "?",
+    }
+}
+
 fn render_preposition(preposition: Preposition) -> &'static str {
     match preposition {
         Preposition::After => "after",
@@ -2442,6 +2498,7 @@ mod tests {
                             argument: KeywordArgument::Absent,
                         },
                     ],
+                    trailing: None,
                 }),
             }],
         };
@@ -3400,6 +3457,7 @@ mod tests {
                                 ability: keyword_atom(&catalogs, "flying"),
                                 argument: KeywordArgument::Absent,
                             }],
+                            trailing: None,
                         }),
                     }],
                 }),
