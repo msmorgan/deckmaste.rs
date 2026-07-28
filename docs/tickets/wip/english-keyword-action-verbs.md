@@ -23,3 +23,14 @@ first top-level comma — any E3 re-derivation should split at the LAST
 top-level comma before the effect), ~5 are the deferred verbs, rest
 miscellaneous (coin flips, clashes, die rolls, `complete a dungeon`,
 `{X} in its mana cost`).
+
+## Completion
+
+The scoped keyword-action-verb family is complete. `mutate` landed through the
+durable ability-derived catalog supplement, and the attempted `exploit` slice
+was correctly reverted after its measured coordinated-subject regression.
+Every remaining named ability-derived verb, including that `exploit` defect,
+is owned by `english-ability-derived-verb-batch`; the contracted-recipient and
+classifier residue named above is likewise owned by its dedicated successor
+work. This tracking ticket therefore has no remaining unowned implementation
+scope.
