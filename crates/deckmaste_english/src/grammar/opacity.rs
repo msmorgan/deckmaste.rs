@@ -41,6 +41,7 @@ pub(super) fn scan_opaque(
             form,
             initial_sound,
             adjunct: None,
+            opaque: true,
             recipient_passive_theme: false,
         },
         meaning: MeaningKey::Opaque(OpaqueKey { slot, span }),
@@ -182,6 +183,24 @@ mod tests {
             "{:#?}",
             object.modifiers
         );
+    }
+
+    #[test]
+    fn known_noun_cannot_be_demoted_to_modify_an_opaque_head() {
+        for source in ["card blorple", "a card blorple"] {
+            assert!(
+                parse_nonterminal(source, &Catalogs::default(), Nonterminal::NounPhrase).is_err(),
+                "known noun modified an opaque head in {source:?}"
+            );
+        }
+
+        let control = parse_nonterminal(
+            "a blorple card",
+            &Catalogs::default(),
+            Nonterminal::NounPhrase,
+        )
+        .expect("an opaque modifier before a known head remains grammatical");
+        assert_eq!(control.opacity_mode(), OpacityMode::OpaqueNouns);
     }
 
     #[test]

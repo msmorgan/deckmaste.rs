@@ -636,6 +636,9 @@ pub(crate) enum Features {
         form: NounForm,
         initial_sound: InitialSound,
         adjunct: Option<BareNominalAdjunct>,
+        /// Whether this lexical noun is licensed opacity rather than known
+        /// vocabulary or a catalog atom.
+        opaque: bool,
         /// True only for the lexical `damage` theme licensed by the dedicated
         /// recipient-passive reduced-relative construction.
         recipient_passive_theme: bool,
@@ -658,6 +661,9 @@ pub(crate) enum Features {
         attachment: NominalAttachmentPhase,
         comparison: AdjectiveComparisonState,
         adjunct: Option<BareNominalAdjunct>,
+        /// Whether the nominal's semantic head is an opaque noun. This remains
+        /// stable as modifiers and complements attach.
+        opaque_head: bool,
         /// Preserves whether the nominal is headed by a set-denoting `all` or
         /// `each` determiner through modifiers and ordinary complements.
         set_exception_host: bool,
@@ -2142,6 +2148,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         form: NounForm::Singular,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
+                        opaque: false,
                         recipient_passive_theme: false,
                     },
                     meaning: MeaningKey::Catalog(atom),
@@ -2157,6 +2164,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         form: NounForm::Plural,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
+                        opaque: false,
                         recipient_passive_theme: false,
                     },
                     meaning: MeaningKey::Noun(NounInstance::Plural(Noun::Word(Vocab::Time))),
@@ -2172,6 +2180,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         form: NounForm::Singular,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
+                        opaque: false,
                         recipient_passive_theme: false,
                     },
                     meaning: MeaningKey::Noun(NounInstance::Singular(Noun::Word(Vocab::Number))),
@@ -4472,6 +4481,7 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
                     form,
                     initial_sound,
                     adjunct,
+                    opaque: false,
                     recipient_passive_theme: matches!(
                         noun,
                         NounInstance::Singular(Noun::Word(Vocab::Damage))
@@ -5387,6 +5397,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 adjunct,
+                opaque,
                 recipient_passive_theme,
             } = child.features
             else {
@@ -5401,6 +5412,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                opaque_head: *opaque,
                 set_exception_host: false,
                 recipient_passive_theme: *recipient_passive_theme,
             })
@@ -5434,14 +5446,26 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                opaque_head: false,
                 set_exception_host: false,
                 recipient_passive_theme: false,
             })
         }
         RuleTag::NominalNounModifier => {
-            let Features::Noun { initial_sound, .. } = children.first()?.features else {
+            let Features::Noun {
+                initial_sound,
+                opaque: modifier_opaque,
+                ..
+            } = children.first()?.features
+            else {
                 return None;
             };
+            let Features::Nominal { opaque_head, .. } = children.get(1)?.features else {
+                return None;
+            };
+            if *opaque_head && !*modifier_opaque {
+                return None;
+            }
             nominal_with_prefix(
                 children.get(1)?,
                 *initial_sound,
@@ -5505,6 +5529,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                opaque_head,
                 recipient_passive_theme,
                 ..
             } = children.get(1)?.features
@@ -5526,6 +5551,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: *attachment,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
@@ -5540,6 +5566,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                opaque_head,
                 set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
@@ -5570,6 +5597,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
@@ -5584,6 +5612,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                opaque_head,
                 set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
@@ -5609,6 +5638,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
@@ -5638,6 +5668,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                opaque_head: false,
                 set_exception_host: false,
                 recipient_passive_theme: false,
             })
@@ -5692,6 +5723,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                opaque_head: false,
                 set_exception_host: false,
                 recipient_passive_theme: false,
             })
@@ -5708,6 +5740,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                opaque_head,
                 set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
@@ -5782,6 +5815,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 },
                 comparison: *comparison,
                 adjunct: *adjunct,
+                opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
@@ -5796,6 +5830,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                opaque_head,
                 set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
@@ -5819,6 +5854,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: *attachment,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
@@ -5846,6 +5882,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct,
+                opaque_head,
                 set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
@@ -5861,6 +5898,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::PostpositiveAdjective,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
@@ -5875,6 +5913,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open | NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::Pending(_),
                 adjunct,
+                opaque_head,
                 set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
@@ -5890,6 +5929,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Comparison,
                 comparison: AdjectiveComparisonState::Complete,
                 adjunct: *adjunct,
+                opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
@@ -5921,6 +5961,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: None,
+                opaque_head: false,
                 set_exception_host: false,
                 recipient_passive_theme: false,
             })
@@ -5943,6 +5984,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Relative,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: None,
+                opaque_head: false,
                 set_exception_host: false,
                 recipient_passive_theme: false,
             })
@@ -6387,6 +6429,7 @@ fn nominal_with_prefix(
         attachment,
         comparison,
         adjunct,
+        opaque_head,
         set_exception_host,
         recipient_passive_theme,
         ..
@@ -6423,6 +6466,7 @@ fn nominal_with_prefix(
         attachment: *attachment,
         comparison,
         adjunct: *adjunct,
+        opaque_head: *opaque_head,
         set_exception_host: *set_exception_host,
         recipient_passive_theme: *recipient_passive_theme,
     })
