@@ -28,3 +28,14 @@ family is prone to the two-arms-drift defect class (raw child feature
 passed where the ordinary arm recomputes). Run a binding Stage-0 probe
 (affirmative vs negated minimal pair through the copular reduce) before
 building anything.
+
+## Completion
+
+The implementation had already landed on the structural-recovery campaign
+line as change `lsyvlyrm`: `CopularRemainderNegated` admits the free-standing
+`not`, `CopularPredicate::negated` records it independently of ordinary
+precomplement adverbs, and the renderer replays it after the contracted copula.
+The round recovered 31 structural spans / 690 source tokens and added causal
+affirmative/negative pairs, composition coverage, renderer-order coverage, and
+double-negation guards. Focused tests remain green after the campaign
+integration; this follow-up closes the stale ticket bookkeeping.
