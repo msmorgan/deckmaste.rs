@@ -6209,13 +6209,20 @@ fn parse_nonterminal_with_profile(
         self_reference.clone(),
     );
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
+    if chart.roots.is_empty() {
+        return Err(ParseNonterminalError::NoCompleteParse(nonterminal));
+    }
+    let forest = &chart.forest;
+    let mut syntax = None;
     let (root, best) = chart
         .forest
-        .best_root(chart.roots.iter().copied())
+        .best_root_matching(chart.roots.iter().copied(), |root, best| {
+            syntax = lower(&grammar, forest, root, best);
+            syntax.is_some()
+        })
         .map_err(ParseNonterminalError::Forest)?
-        .ok_or(ParseNonterminalError::NoCompleteParse(nonterminal))?;
-    let syntax =
-        lower(&grammar, &chart.forest, root, &best).ok_or(ParseNonterminalError::Lowering)?;
+        .ok_or(ParseNonterminalError::Lowering)?;
+    let syntax = syntax.ok_or(ParseNonterminalError::Lowering)?;
     Ok(ParsedNonterminal {
         chart,
         root,
@@ -6223,6 +6230,115 @@ fn parse_nonterminal_with_profile(
         syntax,
         opacity_mode: opacity_profile.mode(),
     })
+}
+
+#[cfg(test)]
+mod root_lowering_tests {
+    use super::*;
+    use crate::syntax::IndependentClause;
+
+    /// The pre-ticket algorithm: choose exactly one root by cost and stable
+    /// node order, then let a lowering decline fail the whole parse.
+    fn parse_single_best_root(
+        source: &str,
+        catalogs: &Catalogs,
+        nonterminal: Nonterminal,
+    ) -> Result<ParsedNonterminal, ParseNonterminalError> {
+        let surface = lex(source);
+        let grammar = EnglishGrammar::with_opacity_profile(
+            source,
+            catalogs,
+            nonterminal,
+            OpacityProfile::Exact,
+            SelfReference::default(),
+        );
+        let chart =
+            parse_chart(&grammar, &surface.tokens).map_err(ParseNonterminalError::Grammar)?;
+        let (root, best) = chart
+            .forest
+            .best_root(chart.roots.iter().copied())
+            .map_err(ParseNonterminalError::Forest)?
+            .ok_or(ParseNonterminalError::NoCompleteParse(nonterminal))?;
+        let syntax =
+            lower(&grammar, &chart.forest, root, &best).ok_or(ParseNonterminalError::Lowering)?;
+        Ok(ParsedNonterminal {
+            chart,
+            root,
+            best,
+            syntax,
+            opacity_mode: OpacityMode::Exact,
+        })
+    }
+
+    fn fixture_catalogs() -> Catalogs {
+        Catalogs::default()
+            .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
+            .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"])
+    }
+
+    #[test]
+    fn lowering_decline_falls_through_to_the_next_ranked_root() {
+        let catalogs = fixture_catalogs();
+        assert!(matches!(
+            parse_single_best_root("copy that spell", &catalogs, Nonterminal::Clause),
+            Err(ParseNonterminalError::Lowering)
+        ));
+
+        let parsed = parse_nonterminal("copy that spell", &catalogs, Nonterminal::Clause)
+            .expect("a lowerable imperative root follows the rejected nominal reading");
+        assert!(matches!(
+            parsed.clause(),
+            Some(Clause::Independent(IndependentClause::Imperative(_)))
+        ));
+    }
+
+    #[test]
+    fn successful_single_root_selections_are_unchanged() {
+        let catalogs = fixture_catalogs();
+        for source in [
+            "you draw a card",
+            "target creature can't block this turn",
+            "it is your turn",
+            "there are no creatures on the battlefield",
+            "damage can't be prevented",
+        ] {
+            let before = parse_single_best_root(source, &catalogs, Nonterminal::Clause)
+                .unwrap_or_else(|error| {
+                    panic!("control failed before retry for {source:?}: {error:?}")
+                });
+            let after =
+                parse_nonterminal(source, &catalogs, Nonterminal::Clause).unwrap_or_else(|error| {
+                    panic!("control failed after retry for {source:?}: {error:?}")
+                });
+            assert_eq!(after.root, before.root, "root changed for {source:?}");
+            assert_eq!(
+                after.root_rule(),
+                before.root_rule(),
+                "rule changed for {source:?}"
+            );
+            assert_eq!(after.cost(), before.cost(), "cost changed for {source:?}");
+            assert_eq!(
+                after.root_tied_alternatives(),
+                before.root_tied_alternatives(),
+                "root tie changed for {source:?}",
+            );
+            assert_eq!(
+                after.chart_stats(),
+                before.chart_stats(),
+                "chart changed for {source:?}"
+            );
+            assert_eq!(
+                after.forest_stats(),
+                before.forest_stats(),
+                "forest changed for {source:?}"
+            );
+            assert_eq!(
+                after.clause(),
+                before.clause(),
+                "syntax changed for {source:?}"
+            );
+        }
+    }
 }
 
 #[derive(Debug)]

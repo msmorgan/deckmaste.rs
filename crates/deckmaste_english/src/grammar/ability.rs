@@ -1027,12 +1027,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         {
             return CostComponent::Clause(Box::new(independent.clone()));
         }
-        if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Sentence)
-            && let Some(sentence) = parsed.sentence()
-            && let SentenceBody::Independent(independent) = &sentence.body
-        {
-            return CostComponent::Clause(Box::new(independent.clone()));
-        }
         if let Some(parsed) = self.parse_exact(tokens, Nonterminal::NounPhrase)
             && let Some(noun_phrase) = parsed.noun_phrase()
         {
@@ -1197,13 +1191,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // parses.
         // A trigger effect is an independent clause, and often a bare imperative
         // (`copy that spell`, `sacrifice this creature`). `Nonterminal::Clause`
-        // does not itself consume a terminal period, so the period this staged
-        // fallback still carries is peeled for that attempt; the
-        // `Nonterminal::Sentence` retry consumes the period through its own rule
-        // and therefore takes the UNPEELED slice. The retry exists because a
-        // bare-imperative span selects a root that fails to lower under the
-        // `Clause` goal but not under the `Sentence` goal — the same staging
-        // `parse_cost_component` already uses for imperative activation costs.
+        // does not itself consume a terminal period, so peel it before parsing.
         let effect = self.parse_trigger_effect(effect)?;
         Some(SentenceBody::Triggered(Box::new(TriggeredSentence {
             introducer,
@@ -1213,20 +1201,13 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         })))
     }
 
-    /// Parses a trigger's effect as an independent clause, retrying under
-    /// `Nonterminal::Sentence` when the `Nonterminal::Clause` goal declines.
-    /// Only a bare [`SentenceBody::Independent`] is accepted: a `Choose one`
-    /// header or a verbless power/toughness body is not an effect, and
-    /// accepting one would let a trigger swallow a modal header.
+    /// Parses a trigger's effect as an independent clause. A `Choose one`
+    /// header or a verbless power/toughness body is not an effect, and neither
+    /// can lower through the required [`Clause::Independent`] shape.
     fn parse_trigger_effect(&mut self, effect: &[Token]) -> Option<IndependentClause> {
         let peeled = peel_sentence_ending(effect);
-        if let Some(parsed) = self.parse_exact(peeled, Nonterminal::Clause)
-            && let Some(Clause::Independent(independent)) = parsed.clause()
-        {
-            return Some(independent.clone());
-        }
-        let parsed = self.parse_exact(effect, Nonterminal::Sentence)?;
-        let SentenceBody::Independent(independent) = &parsed.sentence()?.body else {
+        let parsed = self.parse_exact(peeled, Nonterminal::Clause)?;
+        let Clause::Independent(independent) = parsed.clause()? else {
             return None;
         };
         Some(independent.clone())
@@ -5474,9 +5455,8 @@ mod tests {
 
     #[test]
     fn bare_imperative_trigger_effect_parses() {
-        // The `Nonterminal::Clause` goal declines to lower a bare-imperative
-        // span (§1.2); the `Nonterminal::Sentence` retry in
-        // `parse_trigger_effect` picks up the same span and lowers it.
+        // A bare-imperative span now falls through an unlowerable nominal root
+        // to the lowerable imperative root under the `Clause` goal itself.
         let source = "You may exert this creature as it attacks. When you do, copy that spell.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
@@ -5500,10 +5480,9 @@ mod tests {
     #[test]
     fn deontic_trigger_effect_still_parses_through_the_clause_attempt() {
         // A finite deontic effect (Ahn-Crop Crasher's shape) already lowers
-        // under the `Clause` goal (confirmed at Stage 0), so it must not
-        // reach the `Sentence` retry — the retry is a fallback, not a
-        // reordering. Selection-stat invariance is verified separately via
-        // the harness's `inspect -v` controls (§6.2).
+        // under the original best root, so root-lowering fallback must not
+        // reorder it. Selection-stat invariance is pinned at the grammar
+        // boundary by `successful_single_root_selections_are_unchanged`.
         let source = "You may exert this creature as it attacks. \
              When you do, target creature can't block this turn.";
         let report = parse(source);
@@ -5584,9 +5563,8 @@ mod tests {
 
     #[test]
     fn imperative_activation_cost_is_unchanged() {
-        // Barl's Cage's shape: `parse_cost_component`'s own staged
-        // `Clause`/`Sentence` retry is untouched by this round's edit to
-        // `parse_triggered_sentence`/`parse_trigger_effect`.
+        // Barl's Cage's shape now parses directly under the cost component's
+        // single `Clause` attempt; no `Sentence` retry is required.
         let source = "{3}, Sacrifice a creature: Draw a card.";
         let report = parse(source);
         let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
@@ -5684,7 +5662,7 @@ mod tests {
         // (`destroy that creature`) failing to lower under the `Clause`
         // goal. It is measured residue (`midtrigger-positional-stayed.txt`),
         // not the `midtrigger-initial.txt` must-not-move set, so this round's
-        // `parse_trigger_effect` retry now lowers it: the trigger moves from
+        // the lowerable-root retry now lowers it: the trigger moves from
         // `Recovered` to `Triggered` with an `Imperative` effect, and the
         // coordinated event is carried unchanged.
         let source = "{T}: Gain control of target creature for as long as you control Merieke Ri Berit. \

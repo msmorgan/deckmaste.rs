@@ -262,15 +262,31 @@ where
         stats
     }
 
+    #[cfg(test)]
     pub(crate) fn best_root(
         &self,
         roots: impl IntoIterator<Item = NodeId>,
+    ) -> Result<Option<(NodeId, BestParse)>, ForestError> {
+        self.best_root_matching(roots, |_, _| true)
+    }
+
+    /// Ranks complete roots by the ordinary cost and stable-node tiebreak,
+    /// returning the first root accepted by `matches`.
+    ///
+    /// The packed choices for every root are computed once. This lets a
+    /// consumer reject a root for a property outside the forest's structural
+    /// cost model (notably, inability to lower into the public syntax tree)
+    /// without changing the winner whenever the original best root qualifies.
+    pub(crate) fn best_root_matching(
+        &self,
+        roots: impl IntoIterator<Item = NodeId>,
+        mut matches: impl FnMut(NodeId, &BestParse) -> bool,
     ) -> Result<Option<(NodeId, BestParse)>, ForestError> {
         let mut costs = vec![None; self.nodes.len()];
         let mut alternatives = vec![None; self.nodes.len()];
         let mut tied_alternatives = vec![Vec::new(); self.nodes.len()];
         let mut visiting = vec![false; self.nodes.len()];
-        let mut selected = None;
+        let mut candidates = Vec::new();
         for root in roots {
             let cost = self.best_cost(
                 root,
@@ -279,21 +295,21 @@ where
                 &mut tied_alternatives,
                 &mut visiting,
             )?;
-            let candidate = (cost, root.index(), root);
-            if selected.is_none_or(|current| candidate < current) {
-                selected = Some(candidate);
+            candidates.push((cost, root.index(), root));
+        }
+        candidates.sort_unstable();
+        let mut best = BestParse {
+            cost: ParseCost::default(),
+            alternatives,
+            tied_alternatives,
+        };
+        for (cost, _, root) in candidates {
+            best.cost = cost;
+            if matches(root, &best) {
+                return Ok(Some((root, best)));
             }
         }
-        Ok(selected.map(|(cost, _, root)| {
-            (
-                root,
-                BestParse {
-                    cost,
-                    alternatives,
-                    tied_alternatives,
-                },
-            )
-        }))
+        Ok(None)
     }
 
     fn best_cost(

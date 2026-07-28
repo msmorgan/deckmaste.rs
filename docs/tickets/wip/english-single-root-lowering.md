@@ -23,3 +23,25 @@ with corpus-wide roundtrip and selection-stat gates on a broad control set;
 a changed root selection is by definition a selection-stat change, so the
 gate design must distinguish "previously-failing span now succeeds" (the
 win) from "previously-succeeding span selects differently" (a stop).
+
+## Completion
+
+`ParseForest::best_root_matching` now computes the packed choices once, ranks
+complete roots by the unchanged `(ParseCost, stable NodeId)` ordering, and
+allows the grammar boundary to choose the first root that lowers. The original
+winner is therefore returned unchanged whenever it already lowers; only a
+previous `Lowering` result can advance to another root.
+
+`copy that spell` now lowers directly as an imperative `Clause`. The causal
+test runs the former single-root algorithm beside the new one: it proves the
+old path returns `Lowering`, then proves the fallback produces an imperative.
+A broad successful-control test compares root, root rule, cost, tied
+alternatives, chart and forest statistics, and syntax against the former
+algorithm, pinning the no-reordering half of the contract.
+
+The redundant `Clause` → `Sentence` retries in activation-cost components and
+trigger effects are deleted. Existing trigger and cost tests cover `copy`,
+`return`, `tap`, `destroy`, and `sacrifice` imperative heads through the single
+`Clause` path. The full supported-corpus recovery census is byte-for-byte
+unchanged at 3,477 structural spans / 64,284 source tokens, as expected: the
+removed local retries had already hidden the core defect from corpus totals.
