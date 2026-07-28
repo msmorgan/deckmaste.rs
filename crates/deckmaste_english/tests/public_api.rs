@@ -1,5 +1,6 @@
 use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
+use deckmaste_english::Numeral;
 use deckmaste_english::parse_with_catalogs;
 use deckmaste_english::parse_with_identity;
 use deckmaste_english::syntax::AbilityKind;
@@ -1601,5 +1602,336 @@ fn qfloat_anti_misparse_goblin_game_pronominal_each_unchanged() {
         !compact(&ast).contains("distributive_each:true"),
         "the pronominal `each` subject must not reach the new float tag or \
          `PredicateHead::distributive_each`\nAST:\n{ast}"
+    );
+}
+
+// --- anof: notional plural concord for `any number of` (Stage A) -----------
+
+/// The byte-identical ordinary-nominal shape both the formal-singular and
+/// notional-plural analyses of `any number of <NP>` must lower to
+/// [`anof-brief.md` §1].
+const ANOF_ANY_NUMBER_OF_HEAD: &str = "NominalPhrase{determiner:Some(Any,),modifiers:[],\
+     head:Singular(Word(Number,),),complements:[Prepositional(PrepositionalPhrase{\
+     preposition:Of,";
+
+#[test]
+fn anof_concord_any_number_of_target_players_draw() {
+    let source = "Any number of target players draw a card.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains(ANOF_ANY_NUMBER_OF_HEAD),
+        "expected the ordinary nominal head/complement shape\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_any_number_of_target_creatures_get() {
+    let source = "Any number of target creatures get +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains(ANOF_ANY_NUMBER_OF_HEAD),
+        "expected the ordinary nominal head/complement shape\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_any_number_of_target_creatures_are_red() {
+    let source = "Any number of target creatures are red until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains(ANOF_ANY_NUMBER_OF_HEAD),
+        "expected the ordinary nominal head/complement shape\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_any_number_of_target_players_each_discard() {
+    let source = "Any number of target players each discard a card.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains(ANOF_ANY_NUMBER_OF_HEAD),
+        "expected the ordinary nominal head/complement shape\nAST:\n{ast}"
+    );
+    assert!(
+        compacted.contains("distributive_each:true"),
+        "floated forms must also carry `PredicateHead::distributive_each`\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_any_number_of_target_players_each_mill() {
+    let source = "Any number of target players each mill two cards.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains(ANOF_ANY_NUMBER_OF_HEAD),
+        "expected the ordinary nominal head/complement shape\nAST:\n{ast}"
+    );
+    assert!(
+        compacted.contains("distributive_each:true"),
+        "floated forms must also carry `PredicateHead::distributive_each`\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_singular_predicate_retains_singular_agreement() {
+    // ORCHESTRATOR CORRECTION A2: a singular finite verb must keep the
+    // formal-singular reading. Zero corpus faces exercise this; it is a
+    // synthetic guard on the `precedence: 1` registration cost.
+    let source = "Any number of target creatures gets +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains(ANOF_ANY_NUMBER_OF_HEAD),
+        "expected the ordinary nominal head/complement shape\nAST:\n{ast}"
+    );
+    assert!(
+        !compacted.contains("distributive_each:true"),
+        "a singular predicate must not float `each` or select the notional \
+         reading\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_the_number_of_singular_predicate_unchanged() {
+    let source = "The number of target creatures gets +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+}
+
+#[test]
+fn anof_concord_the_number_of_plural_predicate_does_not_recover() {
+    // `the` is not the closed-class `any` determiner the new production
+    // scans, so this must remain the pre-existing unresolved shape rather
+    // than gain the notional analysis.
+    let source = "The number of target creatures get +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(
+        ast.contains("Recovered"),
+        "`the number of ... get ...` must not gain the new `any`-keyed \
+         production\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_each_of_partitive_singular_agreement_unchanged() {
+    let source = "Each of those creatures gets +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+}
+
+#[test]
+fn anof_concord_one_of_partitive_singular_agreement_unchanged() {
+    let source = "One of those creatures gets +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+}
+
+#[test]
+fn anof_concord_singular_final_noun_phrase_cannot_use_notional_production() {
+    // The final noun phrase is singular (`target creature`), so the new
+    // production's reduce-time plural check must decline; only the ordinary
+    // (unresolved-singular-predicate) parse is possible here.
+    let source = "Any number of target creature gets +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(
+        !compacted.contains("distributive_each:true"),
+        "a singular final noun phrase must not license the notional \
+         production\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_curse_of_surveillance_tree_is_sound() {
+    // Curse of Surveillance: the effect-matrix predicate is `draw`, its
+    // subject is exactly the `any number of target players other than that
+    // player` nominal, and `attached to that player` stays inside the
+    // object-side nominal material. The pre-stage giant-subject/`attach`
+    // matrix tree must be absent.
+    let source = "Enchant player\nAt the beginning of enchanted player's upkeep, any number \
+        of target players other than that player each draw cards equal to the number of \
+        Curses attached to that player.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Curse of Surveillance", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains(ANOF_ANY_NUMBER_OF_HEAD),
+        "expected the ordinary nominal head/complement shape as the subject\nAST:\n{ast}"
+    );
+    assert!(
+        compacted.contains("distributive_each:true"),
+        "expected the floated `each` on the `draw` predicate\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_launch_the_fleet_embedded_recovery_exposed() {
+    // Launch the Fleet: the outer float resolves and the walker reports the
+    // newly visible embedded-rules recovery inside the quote. Do not hide
+    // that recovery to force the census prediction.
+    let source = "Strive — This spell costs {1} more to cast for each target beyond the \
+        first.\nUntil end of turn, any number of target creatures each gain \"Whenever \
+        this creature attacks, create a 1/1 white Soldier creature token that's tapped \
+        and attacking.\"";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Launch the Fleet", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    // The outer `any number of ... each gain` float resolves cleanly; the
+    // quoted granted ability is expected to surface as an embedded-rules
+    // recovery, and that recovery must not be hidden to force the census
+    // prediction.
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains("distributive_each:true"),
+        "expected the outer float to resolve\nAST:\n{ast}"
+    );
+    assert!(
+        ast.contains("Recovered"),
+        "the embedded-rules recovery inside the quote must remain visible\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_concord_opaque_descendant_inside_of_complement_still_recovered() {
+    // Proves the new lowering does not hide census material from the
+    // recovery walker (`syntax/mod.rs:580-630` already traverses nominal
+    // prepositional complements): an opaque one-word leaf nested inside the
+    // `of` complement's own modifier still surfaces as `Opaque`, not silently
+    // swallowed by the new production's lowering.
+    let source = "Any number of target creatures with flying gobbledygook get +2/+2.";
+    let (_rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert!(
+        ast.contains("Opaque"),
+        "an opaque descendant inside the `of` complement must still surface, \
+         not be hidden by the new lowering\nAST:\n{ast}"
+    );
+}
+
+// --- anof: sentence-initial capitalized cardinals (Stage B) ----------------
+
+#[test]
+fn anof_cardinal_two_target_players_exchange_life_totals() {
+    // Soul Conduit shape, stripped of its activation cost.
+    let source = "Two target players exchange life totals.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        !ast.contains("Opaque"),
+        "sentence-initial `Two` must not become an opaque noun leaf\nAST:\n{ast}"
+    );
+    let compacted = compact(&ast);
+    assert!(
+        compacted.contains("Target(Some(Exact(NumberLiteral{value:2,numeral:Cardinal,},),),)"),
+        "expected the quantified-target structure, not an opaque modifier\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_cardinal_lowercase_object_position_unchanged() {
+    let source = "Destroy two target creatures.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(!ast.contains("Opaque"), "AST:\n{ast}");
+}
+
+#[test]
+fn anof_cardinal_numeral_codec_contract_untouched() {
+    // The codec contract is untouched: only the grammar folds case.
+    assert!(Numeral::Cardinal.parse("Two").is_err());
+    assert!(Numeral::Cardinal.parse("two").is_ok());
+}
+
+#[test]
+fn anof_cardinal_ordinal_and_lowercase_roman_keep_strict_behavior() {
+    assert!(Numeral::Ordinal.parse("Second").is_err());
+    assert!(Numeral::Ordinal.parse("second").is_ok());
+    assert!(Numeral::Roman.parse("x").is_err());
+    assert!(Numeral::Roman.parse("X").is_ok());
+}
+
+#[test]
+fn anof_cardinal_faceless_one_retains_noun_reading() {
+    // The full name is pre-collapsed to a single self-reference token before
+    // the new cardinal case-fold retry ever sees a `One` token, so this
+    // reading is untouched by Stage B.
+    let source = "Whenever Faceless One attacks, draw a card.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Faceless One", true);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("ThisCard("), "AST:\n{ast}");
+}
+
+#[test]
+fn anof_cardinal_doubtless_ones_retains_noun_reading() {
+    let source = "Doubtless One's power and toughness are each equal to the number of \
+        Clerics on the battlefield.\nWhenever this creature deals damage, you gain that \
+        much life.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Doubtless One", true);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("ThisCard("), "AST:\n{ast}");
+}
+
+#[test]
+fn anof_cardinal_the_one_ring_retains_noun_reading() {
+    let source = "Whenever The One Ring becomes the target of a spell or ability, \
+        you lose 3 life.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "The One Ring", true);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(ast.contains("ThisCard("), "AST:\n{ast}");
+}
+
+#[test]
+fn anof_cardinal_one_or_more_fused_head_gate_stays_green() {
+    // Named gate from `english-quantifier-float-residue.md` §1: must stay
+    // green, unmodified by Stage B's case-folding retry.
+    let source = "One or more target creatures become black until end of turn.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Touch of Darkness", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("head:Singular(Word(One,)"),
+        "expected `One` to still head the fused-head nominal\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn anof_cardinal_number_literal_one_still_wins_gate_stays_green() {
+    let source = "Return up to one target creature card from your graveyard to the battlefield.";
+    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Badlands Revival", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("NumberLiteral{value:1,"),
+        "expected `one` as a number literal\nAST:\n{ast}"
+    );
+    assert!(
+        !compact(&ast).contains("Word(One,)"),
+        "`one` must not reduce as a fused-head noun in quantity position\nAST:\n{ast}"
     );
 }

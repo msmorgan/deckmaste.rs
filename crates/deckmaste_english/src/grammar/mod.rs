@@ -316,6 +316,11 @@ pub(crate) enum EnglishLexicalSlot {
     /// value. Distinct from the ordinary noun slot so the finite-clause
     /// complement attaches to exactly this word.
     TimesNoun,
+    /// The singular vocabulary noun `Vocab::Number` heading the `any number
+    /// of <plural NounPhrase>` notional-plural production. Distinct from the
+    /// ordinary noun slot so that production's categorical gate lives at scan
+    /// (dot 1), not at reduce [`anof` round].
+    NumberNoun,
     /// The literal word `next` in its preverbal-adverb reading (`when you
     /// *next* cast an instant or sorcery spell this turn`). Recognized only as
     /// this exact literal token — never the ordinary [`Self::Adverb`] slot — so
@@ -395,6 +400,11 @@ pub(crate) enum EnglishLexicalSlot {
     To,
     Of,
     EachDeterminer,
+    /// The closed-class `any` determiner heading the `any number of <plural
+    /// NounPhrase>` notional-plural production. Distinct from the ordinary
+    /// `Determiner` slot so the production's dot-0 item scans nothing but
+    /// `any` [`anof` round].
+    AnyDeterminer,
     Reciprocal,
     ThisCard,
     FullThisCard,
@@ -749,6 +759,48 @@ impl NumberKey {
 /// input), and `Numeral::Roman` is the only notation whose canonical
 /// spelling of any value is `X`, so `(Numeral::Roman, 10)` holds **exactly
 /// when** the scanned surface was `X`.
+/// Parses `surface` as `notation`, exactly as every closed-class lexeme
+/// matches through [`Parser::one_token_match`] with `eq_ignore_ascii_case`
+/// (`grammar/mod.rs:1538-1542`) — except the numeral scanners historically
+/// fed raw surface text straight into `Numeral`'s canonical codec, so
+/// sentence-initial capitalized cardinals (`Two target creatures`) never
+/// matched [`anof` round]. Case-folds only `Numeral::Cardinal`, and only as a
+/// retry after an as-written parse fails, so every other notation and every
+/// already-lowercase cardinal keep today's exact behavior.
+///
+/// `sentence_initial` gates the retry to the one position this stage's own
+/// blast-radius measurement covers. Every other lexical/catalog scan in this
+/// grammar already refuses a capitalized non-sentence-initial token as a
+/// common-word reading for exactly this reason (`word_matches`,
+/// `grammar/mod.rs:1648-1659`; `catalog_matches`, `grammar/mod.rs:1699-1704`):
+/// reading a capitalized token as a lowercase notation corrupts a proper
+/// name carried mid-sentence (`named Prisoner Zero`, `attached to Three
+/// Dog`). Without this gate the round-trip regressed on exactly those two
+/// rows; this restores the existing idiom rather than inventing a new one.
+///
+/// `one` is excluded from the retry because it is also a fused-head count
+/// noun; sentence-initial `One` is deliberately left to that reading — see
+/// `one_is_a_dispreferenced_fused_head_noun`
+/// (`tests/public_api.rs`). Letting `One` compete inside the quantity
+/// scanners resolves the resulting ambiguity to a materially wrong tree
+/// (`english-quantifier-float-residue.md` §1); this exclusion is the fix.
+///
+/// `numeral.rs` is untouched: `Numeral::Cardinal.parse` and `canonical()`
+/// remain strict, single-case codecs. Only the grammar folds case, and only
+/// here.
+fn parse_notation(notation: Numeral, surface: &str, sentence_initial: bool) -> Option<i32> {
+    if let Ok(value) = notation.parse(surface) {
+        return Some(value);
+    }
+    if notation == Numeral::Cardinal && sentence_initial && !surface.eq_ignore_ascii_case("one") {
+        let lowered = surface.to_ascii_lowercase();
+        if lowered != surface {
+            return notation.parse(&lowered).ok();
+        }
+    }
+    None
+}
+
 const fn quantity_value(number: NumberKey) -> crate::syntax::QuantityValue {
     if matches!(number.notation, Numeral::Roman) && number.value == 10 {
         crate::syntax::QuantityValue::Variable
@@ -1227,6 +1279,12 @@ enum RuleTag {
     NounPhraseDemonstrative,
     NounPhrasePartitive,
     NounPhraseEachPartitive,
+    /// `NounPhrase -> AnyDeterminer NumberNoun Of NounPhrase` — notional
+    /// plural concord for `any number of <plural NounPhrase>` [`anof` round].
+    /// Registered as a fallback (`add_with_cost`, `precedence: 1`) alongside
+    /// the ordinary formal-singular nominal path; see the registration site
+    /// for the full rationale.
+    NounPhraseAnyNumberOf,
     NounPhraseCoordination,
     NounPhraseAdditiveCoordination,
     NounPhraseMinus,
@@ -1872,9 +1930,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 let Some(surface) = self.token_text(tokens, start) else {
                     return Vec::new();
                 };
-                notation
-                    .parse(surface)
-                    .ok()
+                parse_notation(notation, surface, Self::is_sentence_initial(tokens, start))
                     .map(|value| LexicalMatch {
                         end: start + 1,
                         features: Features::Number { is_one: value == 1 },
@@ -2050,6 +2106,20 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         adjunct: None,
                     },
                     meaning: MeaningKey::Noun(NounInstance::Plural(Noun::Word(Vocab::Time))),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::NumberNoun => self
+                .one_token_match(tokens, start, "number")
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::Noun {
+                        form: NounForm::Singular,
+                        initial_sound: InitialSound::Consonant,
+                        adjunct: None,
+                    },
+                    meaning: MeaningKey::Noun(NounInstance::Singular(Noun::Word(Vocab::Number))),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -2289,6 +2359,19 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         article: None,
                     },
                     meaning: MeaningKey::Determiner(DeterminerKey::Each),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::AnyDeterminer => self
+                .one_token_match(tokens, start, "any")
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::Determiner {
+                        cardinality: Cardinality::Unconstrained,
+                        article: None,
+                    },
+                    meaning: MeaningKey::Determiner(DeterminerKey::Any),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -3020,12 +3103,12 @@ impl EnglishGrammar<'_, '_> {
         // comparative word (`more`/`greater` above, `fewer`/`less` at or
         // below). The word is resolved from vocabulary comparison metadata —
         // no comparative spelling is matched here.
-        let (surface, end, comparative) =
+        let (surface, number_position, end, comparative) =
             if let Some(number_start) = self.words_match(tokens, start, &["at", "least"]) {
                 let Some(surface) = self.token_text(tokens, number_start) else {
                     return Vec::new();
                 };
-                (surface, number_start + 1, None)
+                (surface, number_start, number_start + 1, None)
             } else {
                 let Some(surface) = self.token_text(tokens, start) else {
                     return Vec::new();
@@ -3039,8 +3122,9 @@ impl EnglishGrammar<'_, '_> {
                 let Some(word) = comparative_word(word_surface) else {
                     return Vec::new();
                 };
-                (surface, after_or + 1, Some(word))
+                (surface, start, after_or + 1, Some(word))
             };
+        let sentence_initial = Self::is_sentence_initial(tokens, number_position);
         [
             Numeral::Cardinal,
             Numeral::Ordinal,
@@ -3050,7 +3134,7 @@ impl EnglishGrammar<'_, '_> {
         ]
         .into_iter()
         .filter_map(|notation| {
-            notation.parse(surface).ok().map(|value| {
+            parse_notation(notation, surface, sentence_initial).map(|value| {
                 let number = NumberKey { value, notation };
                 quantity_match(
                     end,
@@ -3081,6 +3165,7 @@ impl EnglishGrammar<'_, '_> {
             return Vec::new();
         };
         let end = number_start + 1;
+        let sentence_initial = Self::is_sentence_initial(tokens, number_start);
         [
             Numeral::Cardinal,
             Numeral::Ordinal,
@@ -3090,7 +3175,7 @@ impl EnglishGrammar<'_, '_> {
         ]
         .into_iter()
         .filter_map(|notation| {
-            notation.parse(surface).ok().map(|value| {
+            parse_notation(notation, surface, sentence_initial).map(|value| {
                 let number = NumberKey { value, notation };
                 let quantity = match kind {
                     BoundedQuantityKind::MoreThan => QuantityKey::MoreThan(number),
@@ -3178,6 +3263,7 @@ impl EnglishGrammar<'_, '_> {
         let Some(end) = self.one_token_match(tokens, count_start + 1, "times") else {
             return Vec::new();
         };
+        let sentence_initial = Self::is_sentence_initial(tokens, count_start);
         [
             Numeral::Cardinal,
             Numeral::Ordinal,
@@ -3187,7 +3273,7 @@ impl EnglishGrammar<'_, '_> {
         ]
         .into_iter()
         .filter_map(|notation| {
-            notation.parse(surface).ok().map(|value| {
+            parse_notation(notation, surface, sentence_initial).map(|value| {
                 frequency_match(
                     end,
                     FrequencyKey {
@@ -3222,13 +3308,19 @@ impl EnglishGrammar<'_, '_> {
             Numeral::Arabic(true),
             Numeral::Roman,
         ];
+        let first_sentence_initial = Self::is_sentence_initial(tokens, start);
+        let second_sentence_initial = Self::is_sentence_initial(tokens, second_start);
         let mut matches = Vec::new();
         for first_notation in notations {
-            let Ok(first_value) = first_notation.parse(first_surface) else {
+            let Some(first_value) =
+                parse_notation(first_notation, first_surface, first_sentence_initial)
+            else {
                 continue;
             };
             for second_notation in notations {
-                let Ok(second_value) = second_notation.parse(second_surface) else {
+                let Some(second_value) =
+                    parse_notation(second_notation, second_surface, second_sentence_initial)
+                else {
                     continue;
                 };
                 let mut candidate = quantity_match(
@@ -3668,6 +3760,35 @@ impl RuleBuilder {
             RuleTag::NounPhraseEachPartitive,
             N::NounPhrase,
             [l(L::EachDeterminer), l(L::Of), n(N::NounPhrase)],
+        );
+        // `any number of <plural NounPhrase>` — notional plural concord
+        // [`anof` round]. The categorical gate is the dedicated `any` and
+        // `number` lexical slots, which scan nothing but those two literal
+        // words; that gate is already enforced at dot 0/dot 1, before the
+        // recursive `NounPhrase` is even predicted, so no `accepts_prefix`
+        // change is needed. The one remaining condition — the final noun
+        // phrase must be plural — depends on the fourth child and cannot be
+        // hoisted before reduce. Registered with a precedence dispreference:
+        // this is a fallback behind the ordinary formal-singular nominal
+        // analysis of the same surface, not a competing analysis of a
+        // different surface. `precedence` only breaks ties among derivations
+        // that both complete, so the formal-singular reading wins whenever it
+        // completes, and this production is the only parse whenever a plural
+        // predicate makes the singular reading fail to complete. Same idiom
+        // as `NounPhraseCoordination` below.
+        self.add_with_cost(
+            RuleTag::NounPhraseAnyNumberOf,
+            N::NounPhrase,
+            [
+                l(L::AnyDeterminer),
+                l(L::NumberNoun),
+                l(L::Of),
+                n(N::NounPhrase),
+            ],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
         );
         self.add_with_cost(
             RuleTag::NounPhraseCoordination,
@@ -4615,6 +4736,7 @@ fn reduce(
         | RuleTag::NounPhraseDemonstrative
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseEachPartitive
+        | RuleTag::NounPhraseAnyNumberOf
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::NounPhraseListSingle
@@ -5681,6 +5803,46 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 adjunct: None,
             })
         }
+        RuleTag::NounPhraseAnyNumberOf => {
+            // Defensively recheck the specialized lowered children as the
+            // neighbouring arms do. The `any`/`number` slots only ever scan
+            // those two literal words, so this arm's sole remaining
+            // condition is the fourth child's agreement: the notional
+            // plural reading is licensed only when the final noun phrase
+            // is third-person plural [`anof` round].
+            let Features::Determiner { .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::Noun {
+                form: NounForm::Singular,
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            let Features::Preposition(Preposition::Of) = children.get(2)?.features else {
+                return None;
+            };
+            let Features::NounPhrase {
+                agreement:
+                    Some(Agreement {
+                        number: Number::Plural,
+                        ..
+                    }),
+                ..
+            } = children.get(3)?.features
+            else {
+                return None;
+            };
+            Some(Features::NounPhrase {
+                agreement: Some(Agreement {
+                    person: Person::Third,
+                    number: Number::Plural,
+                }),
+                pronoun_case: None,
+                adjunct: None,
+            })
+        }
         RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::NounPhraseCoordinationOxford => reduce_noun_phrase_coordination(tag, children),
@@ -6338,6 +6500,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseDemonstrative
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseEachPartitive
+        | RuleTag::NounPhraseAnyNumberOf
         | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::NounPhraseListSingle
@@ -7180,6 +7343,37 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                     whole: Box::new(whole),
                 },
             )))
+        }
+        RuleTag::NounPhraseAnyNumberOf => {
+            // Lower to the byte-identical ordinary nominal shape: the two
+            // analyses (this notional-plural reduce vs. the formal-singular
+            // `NounPhraseNominal` path) must differ only in parse features,
+            // never in stored or rendered structure [`anof` round].
+            let Lowered::Determiner(determiner @ crate::syntax::Determiner::Any) =
+                take(children, 0)?
+            else {
+                return None;
+            };
+            let Lowered::Noun(head @ NounInstance::Singular(Noun::Word(Vocab::Number))) =
+                take(children, 1)?
+            else {
+                return None;
+            };
+            let Lowered::Preposition(preposition @ Preposition::Of) = take(children, 2)? else {
+                return None;
+            };
+            let Lowered::NounPhrase(whole) = take(children, 3)? else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(NounPhrase::Nominal(NominalPhrase {
+                determiner: Some(determiner),
+                modifiers: Vec::new(),
+                head,
+                complements: vec![NominalComplement::Prepositional(PrepositionalPhrase {
+                    preposition,
+                    object: Box::new(Phrase::NounPhrase(Box::new(whole))),
+                })],
+            })))
         }
         RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
             let Lowered::NounPhrase(first) = take(children, 0)? else {
