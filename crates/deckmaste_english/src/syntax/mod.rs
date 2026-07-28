@@ -647,6 +647,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.noun_phrase(&coordination.phrase, context);
                 }
             }
+            NounPhrase::SetException(exception) => {
+                self.noun_phrase(&exception.included, context);
+                self.noun_phrase(&exception.excluded, context);
+            }
             NounPhrase::Arithmetic(value) => match value {
                 ArithmeticValue::Minus { left, right } => {
                     self.noun_phrase(left, context);

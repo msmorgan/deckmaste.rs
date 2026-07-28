@@ -389,12 +389,24 @@ pub enum NounPhrase {
     ThisCard(ThisCardForm),
     Partitive(PartitiveNounPhrase),
     Coordinated(CoordinatedNounPhrase),
+    /// A trailing set exclusion over a complete noun phrase. The wrapper can
+    /// scope over a coordinated included set while the excluded set remains
+    /// any ordinary noun phrase.
+    SetException(SetExceptionNounPhrase),
     /// An arithmetic value expression combining value operands into a new
     /// numeric value: `<value> minus <value>` or `half <value>`. Additive
     /// `<value> plus <value>` rides the ordinary [`Self::Coordinated`] path
     /// (conjunction [`NounPhraseConjunction::Plus`]); `twice <value>` rides the
     /// copular precomplement-adverb path — both already parse.
     Arithmetic(ArithmeticValue),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetExceptionNounPhrase {
+    pub included: Box<NounPhrase>,
+    pub marker: SetExceptionMarker,
+    pub comma: bool,
+    pub excluded: Box<NounPhrase>,
 }
 
 /// An arithmetic combination of value operands, carried structurally so the
@@ -652,6 +664,12 @@ pub enum NominalComplement {
     /// black`) — `kwgrant` round. Only the dedicated keyword-headed nominal
     /// reductions construct this; an ordinary noun never acquires it.
     KeywordArgument(super::KeywordArgument),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetExceptionMarker {
+    Bare,
+    For,
 }
 
 /// The concrete-color argument of a `devotion` value nominal [CR#700.5]. The

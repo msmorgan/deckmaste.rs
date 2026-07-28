@@ -87,6 +87,7 @@ use crate::syntax::ScalarSign;
 use crate::syntax::ScalarValue;
 use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
+use crate::syntax::SetExceptionMarker;
 use crate::syntax::SignedScalar;
 use crate::syntax::StationThresholdAbility;
 use crate::syntax::Subject;
@@ -1481,6 +1482,18 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push_str(&self.noun_phrase(&coordination.phrase)?);
                 }
+                Ok(rendered)
+            }
+            NounPhrase::SetException(exception) => {
+                let mut rendered = self.noun_phrase(&exception.included)?;
+                if exception.comma {
+                    rendered.push(',');
+                }
+                rendered.push_str(match exception.marker {
+                    SetExceptionMarker::Bare => " except ",
+                    SetExceptionMarker::For => " except for ",
+                });
+                rendered.push_str(&self.noun_phrase(&exception.excluded)?);
                 Ok(rendered)
             }
             NounPhrase::Arithmetic(value) => self.arithmetic_value(value),

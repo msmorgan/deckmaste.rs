@@ -61,3 +61,30 @@ Settled design direction from the exrider plan:
   `except those that …` (Everything Comes to Dust), and the fronted `Except
   for …,` (Akron Legionnaire), which needs a separately justified fronted
   attachment.
+
+## Completion
+
+Set exclusions now lower as a typed `NounPhrase::SetException` wrapper carrying
+the included noun phrase, the bare/`for` marker, optional comma, and excluded
+noun phrase. Keeping the construction at noun-phrase scope lets a coordinated
+included set (`all creatures and planeswalkers`) and an Oxford-list exclusion
+each bind on the correct side of the rider, while the renderer reproduces all
+four surface forms byte exactly.
+
+The append-last productions have a categorical dot-1 gate. Only noun phrases
+headed by set-denoting `all` or `each` may predict `except`; completed exception
+phrases enter a separate closed state that prevents repeated exclusions and
+prevents coordination from rebracketing an excluded list outside the wrapper.
+This also keeps the deferred draw-event `except <NP>` family out of scope.
+
+The normalized full unresolved-dump comparison contains only 17 intended
+removals and no additions. The remaining two members of the diagnosed 19-row
+population still recover for independent pre-existing gaps: Total War needs
+the unsupported adverb `continuously` inside its excluded relative, and
+Mechtitan Core needs the unsupported generic reduced relative `cards exiled
+with this Vehicle` in its host. Structural recovery moves from 3,438 spans /
+63,681 source tokens to 3,421 / 63,445; every non-clause structural role is
+unchanged. Noun opacity remains 964 and flavor-header opacity remains 622.
+
+All 566 library tests and 111 public-API tests pass. The supported corpus
+round-trips 31,685/31,685 clean with zero mismatches or render errors.

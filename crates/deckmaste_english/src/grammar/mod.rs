@@ -78,6 +78,8 @@ use crate::syntax::RelativeClause;
 use crate::syntax::RelativeGap;
 use crate::syntax::RelativeMarker;
 use crate::syntax::Sentence;
+use crate::syntax::SetExceptionMarker;
+use crate::syntax::SetExceptionNounPhrase;
 use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
 use crate::syntax::VerbParticle;
@@ -413,6 +415,8 @@ pub(crate) enum EnglishLexicalSlot {
     Not,
     To,
     Of,
+    /// The exact preposition `for` inside `except for <NounPhrase>`.
+    ForWord,
     EachDeterminer,
     /// The closed-class `any` determiner heading the `any number of <plural
     /// NounPhrase>` notional-plural production. Distinct from the ordinary
@@ -597,6 +601,13 @@ impl PredicateObjectState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum SetExceptionState {
+    Ineligible,
+    Host,
+    Closed,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
@@ -610,6 +621,11 @@ pub(crate) enum Features {
     Determiner {
         cardinality: Cardinality,
         article: Option<IndefiniteArticleKey>,
+        /// True only for the set-denoting `all`/`each` determiner class used
+        /// by nominal set exceptions. In particular, an indefinite `a card`
+        /// must not acquire the deferred draw-event `except the first one`
+        /// reading.
+        set_exception_host: bool,
     },
     Adjective {
         initial_sound: InitialSound,
@@ -642,6 +658,9 @@ pub(crate) enum Features {
         attachment: NominalAttachmentPhase,
         comparison: AdjectiveComparisonState,
         adjunct: Option<BareNominalAdjunct>,
+        /// Preserves whether the nominal is headed by a set-denoting `all` or
+        /// `each` determiner through modifiers and ordinary complements.
+        set_exception_host: bool,
         /// Preserves the lexical `damage` theme flag through ordinary nominal
         /// modifiers while rejecting opaque or complemented lookalikes.
         recipient_passive_theme: bool,
@@ -650,6 +669,7 @@ pub(crate) enum Features {
         agreement: Option<Agreement>,
         pronoun_case: Option<PronounCase>,
         adjunct: Option<BareNominalAdjunct>,
+        set_exception: SetExceptionState,
     },
     PossessiveThisCard {
         agreement: Agreement,
@@ -1300,6 +1320,8 @@ enum RuleTag {
     NominalKeywordAtomCarriedPredicatedArgument,
     NominalRelative,
     NominalReducedRecipientPassive,
+    NounPhraseSetExceptionBare,
+    NounPhraseSetExceptionFor,
     ReducedRecipientPassiveTheme,
     ReducedRecipientPassiveNominalAdjunct,
     NominalPostpositiveAdjective,
@@ -1580,6 +1602,9 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         builder.add_while_gerund_rules();
         builder.add_keyword_grant_rules();
         builder.add_reduced_recipient_passive_rules();
+        // Append-last because this widens `NounPhrase`; its dot-1 host gate is
+        // categorical, while retaining every earlier rule's stable identity.
+        builder.add_set_exception_rules();
         Self {
             source,
             catalogs,
@@ -2275,6 +2300,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     features: Features::Determiner {
                         cardinality: Cardinality::SingularCount,
                         article: None,
+                        set_exception_host: false,
                     },
                     meaning: MeaningKey::Literal(LiteralKey::Target),
                     local_cost: ParseCost::default(),
@@ -2380,6 +2406,16 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::ForWord => self
+                .one_token_match(tokens, start, "for")
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::Preposition(Preposition::For),
+                    meaning: MeaningKey::Preposition(Preposition::For),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::EachDeterminer => self
                 .one_token_match(tokens, start, "each")
                 .map(|end| LexicalMatch {
@@ -2387,6 +2423,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     features: Features::Determiner {
                         cardinality: Cardinality::SingularCount,
                         article: None,
+                        set_exception_host: true,
                     },
                     meaning: MeaningKey::Determiner(DeterminerKey::Each),
                     local_cost: ParseCost::default(),
@@ -2400,6 +2437,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     features: Features::Determiner {
                         cardinality: Cardinality::Unconstrained,
                         article: None,
+                        set_exception_host: false,
                     },
                     meaning: MeaningKey::Determiner(DeterminerKey::Any),
                     local_cost: ParseCost::default(),
@@ -2491,6 +2529,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
         self.tags.get(rule.index()).copied().is_some_and(|tag| {
             accepts_possessive_modifier_prefix(tag, completed_children, latest_child)
                 && accepts_keyword_grant_prefix(tag, completed_children, latest_child)
+                && accepts_set_exception_prefix(tag, completed_children, latest_child)
                 && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
         })
     }
@@ -3110,6 +3149,7 @@ impl EnglishGrammar<'_, '_> {
             features: Features::Determiner {
                 cardinality: key.cardinality(),
                 article: key.article(),
+                set_exception_host: matches!(key, DeterminerKey::All | DeterminerKey::Each),
             },
             meaning: MeaningKey::Determiner(key),
             local_cost,
@@ -3144,6 +3184,7 @@ impl EnglishGrammar<'_, '_> {
                 }),
                 pronoun_case: None,
                 adjunct: None,
+                set_exception: SetExceptionState::Ineligible,
             },
             meaning: MeaningKey::Determiner(DeterminerKey::Demonstrative(match demonstrative {
                 crate::syntax::Demonstrative::This => DemonstrativeKey::This,
@@ -3997,6 +4038,55 @@ impl RuleBuilder {
         );
     }
 
+    /// A noun-phrase-denotation exception (`all creatures except (for)
+    /// Dragons`).
+    /// The completed host is checked at dot 1 before either `except` surface is
+    /// predicted, preventing open noun fragments from launching this recursive
+    /// noun-phrase attachment.
+    fn add_set_exception_rules(&mut self) {
+        use EnglishLexicalSlot as L;
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        self.add(
+            RuleTag::NounPhraseSetExceptionBare,
+            N::NounPhrase,
+            [n(N::NounPhrase), l(L::Except), n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::NounPhraseSetExceptionFor,
+            N::NounPhrase,
+            [
+                n(N::NounPhrase),
+                l(L::Except),
+                l(L::ForWord),
+                n(N::NounPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::NounPhraseSetExceptionBare,
+            N::NounPhrase,
+            [
+                n(N::NounPhrase),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Except),
+                n(N::NounPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::NounPhraseSetExceptionFor,
+            N::NounPhrase,
+            [
+                n(N::NounPhrase),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Except),
+                l(L::ForWord),
+                n(N::NounPhrase),
+            ],
+        );
+    }
+
     /// General coordination inside the nominal, appended last so every existing
     /// rule keeps its `RuleId` and every existing parse forest keeps its
     /// alternative indices. Two independent shapes:
@@ -4530,6 +4620,7 @@ fn this_card_matches(end: usize, form: ThisCardForm) -> Vec<LexicalMatch<Feature
                 }),
                 pronoun_case: None,
                 adjunct: None,
+                set_exception: SetExceptionState::Ineligible,
             },
             meaning: MeaningKey::ThisCard(form),
             local_cost: this_card_cost(form),
@@ -4588,6 +4679,7 @@ fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features
         agreement,
         pronoun_case: case,
         adjunct: None,
+        set_exception: SetExceptionState::Ineligible,
     }
 }
 
@@ -4777,6 +4869,56 @@ fn accepts_possessive_modifier_prefix(
     )
 }
 
+fn noun_phrase_accepts_set_exception(features: &Features) -> bool {
+    matches!(
+        features,
+        Features::NounPhrase {
+            set_exception: SetExceptionState::Host,
+            ..
+        }
+    )
+}
+
+fn noun_phrase_is_closed_set_exception(features: &Features) -> bool {
+    matches!(
+        features,
+        Features::NounPhrase {
+            set_exception: SetExceptionState::Closed,
+            ..
+        }
+    )
+}
+
+/// Dot-1 gate for recursive noun-phrase set exceptions and the neighbouring
+/// coordination rules. Only an `all`/`each` set may predict `except`; a
+/// completed exception cannot grow another exception or become the first
+/// member of an outer coordination.
+fn accepts_set_exception_prefix(
+    tag: RuleTag,
+    completed_children: usize,
+    latest_child: &Features,
+) -> bool {
+    if matches!(
+        tag,
+        RuleTag::NounPhraseSetExceptionBare | RuleTag::NounPhraseSetExceptionFor
+    ) && completed_children == 1
+    {
+        return noun_phrase_accepts_set_exception(latest_child);
+    }
+
+    if matches!(
+        tag,
+        RuleTag::NounPhraseCoordination
+            | RuleTag::NounPhraseAdditiveCoordination
+            | RuleTag::NounPhraseListSingle
+    ) && completed_children == 1
+    {
+        return !noun_phrase_is_closed_set_exception(latest_child);
+    }
+
+    true
+}
+
 #[allow(clippy::too_many_lines, reason = "reduce matches on all rule tags")]
 fn reduce(
     tag: RuleTag,
@@ -4851,6 +4993,8 @@ fn reduce(
         | RuleTag::CoordinatedModifierOxford
         | RuleTag::NominalCoordinatedModifier => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
+        | RuleTag::NounPhraseSetExceptionBare
+        | RuleTag::NounPhraseSetExceptionFor
         | RuleTag::ReducedRecipientPassiveTheme
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -4991,6 +5135,7 @@ fn reduce_possessive_noun_phrase(
             let Features::Determiner {
                 cardinality,
                 article,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -5018,6 +5163,7 @@ fn reduce_possessive_noun_phrase(
         RuleTag::DeterminerPossessiveNoun => Some(Features::Determiner {
             cardinality: Cardinality::Unconstrained,
             article: None,
+            set_exception_host: false,
         }),
         RuleTag::PossessiveNounAdjective => {
             let Features::Adjective {
@@ -5085,6 +5231,7 @@ fn reduce_quantity_or_determiner(
             let Features::Determiner {
                 cardinality,
                 article,
+                set_exception_host,
             } = children.first()?.features
             else {
                 return None;
@@ -5092,11 +5239,13 @@ fn reduce_quantity_or_determiner(
             Some(Features::Determiner {
                 cardinality: *cardinality,
                 article: *article,
+                set_exception_host: *set_exception_host,
             })
         }
         RuleTag::DeterminerTarget => Some(Features::Determiner {
             cardinality: Cardinality::SingularCount,
             article: None,
+            set_exception_host: false,
         }),
         RuleTag::DeterminerQuantifiedTarget => {
             let Features::Quantity(QuantityFeatures { cardinality, .. }) =
@@ -5107,6 +5256,7 @@ fn reduce_quantity_or_determiner(
             Some(Features::Determiner {
                 cardinality: target_cardinality(*cardinality),
                 article: None,
+                set_exception_host: false,
             })
         }
         RuleTag::DeterminerQuantity => {
@@ -5118,6 +5268,7 @@ fn reduce_quantity_or_determiner(
             Some(Features::Determiner {
                 cardinality: *cardinality,
                 article: None,
+                set_exception_host: false,
             })
         }
         RuleTag::DeterminerPossessiveThisCard => {
@@ -5127,6 +5278,7 @@ fn reduce_quantity_or_determiner(
             Some(Features::Determiner {
                 cardinality: Cardinality::Unconstrained,
                 article: None,
+                set_exception_host: false,
             })
         }
         _ => None,
@@ -5143,6 +5295,7 @@ const fn arithmetic_value_features() -> Features {
         }),
         pronoun_case: None,
         adjunct: None,
+        set_exception: SetExceptionState::Ineligible,
     }
 }
 
@@ -5248,6 +5401,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                set_exception_host: false,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -5280,6 +5434,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                set_exception_host: false,
                 recipient_passive_theme: false,
             })
         }
@@ -5337,6 +5492,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             let Features::Determiner {
                 cardinality,
                 article,
+                set_exception_host,
             } = children.first()?.features
             else {
                 return None;
@@ -5370,6 +5526,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: *attachment,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -5383,6 +5540,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -5412,6 +5570,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -5425,6 +5584,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -5449,6 +5609,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -5477,6 +5638,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                set_exception_host: false,
                 recipient_passive_theme: false,
             })
         }
@@ -5530,6 +5692,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                set_exception_host: false,
                 recipient_passive_theme: false,
             })
         }
@@ -5545,6 +5708,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -5618,6 +5782,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 },
                 comparison: *comparison,
                 adjunct: *adjunct,
+                set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -5631,6 +5796,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -5653,6 +5819,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: *attachment,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -5679,6 +5846,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct,
+                set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -5693,6 +5861,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::PostpositiveAdjective,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -5706,6 +5875,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open | NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::Pending(_),
                 adjunct,
+                set_exception_host,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -5720,6 +5890,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Comparison,
                 comparison: AdjectiveComparisonState::Complete,
                 adjunct: *adjunct,
+                set_exception_host: *set_exception_host,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -5750,6 +5921,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: None,
+                set_exception_host: false,
                 recipient_passive_theme: false,
             })
         }
@@ -5771,6 +5943,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Relative,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: None,
+                set_exception_host: false,
                 recipient_passive_theme: false,
             })
         }
@@ -5884,6 +6057,29 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
 
 fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
+        RuleTag::NounPhraseSetExceptionBare | RuleTag::NounPhraseSetExceptionFor => {
+            let host = children.first()?;
+            if !noun_phrase_accepts_set_exception(host.features)
+                || !matches!(children.last()?.features, Features::NounPhrase { .. })
+            {
+                return None;
+            }
+            let Features::NounPhrase {
+                agreement,
+                pronoun_case,
+                adjunct,
+                ..
+            } = host.features
+            else {
+                return None;
+            };
+            Some(Features::NounPhrase {
+                agreement: *agreement,
+                pronoun_case: *pronoun_case,
+                adjunct: *adjunct,
+                set_exception: SetExceptionState::Closed,
+            })
+        }
         RuleTag::NounPhraseNominal | RuleTag::ReducedRecipientPassiveTheme => {
             let Features::Nominal {
                 form,
@@ -5891,6 +6087,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 modified,
                 attachment,
                 adjunct,
+                set_exception_host,
                 recipient_passive_theme,
                 ..
             } = children.first()?.features
@@ -5919,6 +6116,11 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 agreement,
                 pronoun_case: None,
                 adjunct,
+                set_exception: if *set_exception_host {
+                    SetExceptionState::Host
+                } else {
+                    SetExceptionState::Ineligible
+                },
             })
         }
         RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
@@ -5939,6 +6141,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 }),
                 pronoun_case: None,
                 adjunct: None,
+                set_exception: SetExceptionState::Ineligible,
             })
         }
         RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
@@ -5946,6 +6149,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 agreement,
                 pronoun_case,
                 adjunct,
+                set_exception,
             } = children.first()?.features
             else {
                 return None;
@@ -5954,6 +6158,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 agreement: *agreement,
                 pronoun_case: *pronoun_case,
                 adjunct: *adjunct,
+                set_exception: *set_exception,
             })
         }
         RuleTag::NounPhrasePossessiveThisCard => {
@@ -5964,6 +6169,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 agreement: Some(*agreement),
                 pronoun_case: None,
                 adjunct: None,
+                set_exception: SetExceptionState::Ineligible,
             })
         }
         RuleTag::NounPhraseDemonstrative => {
@@ -5986,6 +6192,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 }),
                 pronoun_case: None,
                 adjunct: None,
+                set_exception: SetExceptionState::Ineligible,
             })
         }
         RuleTag::NounPhraseEachPartitive => {
@@ -6001,6 +6208,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 }),
                 pronoun_case: None,
                 adjunct: None,
+                set_exception: SetExceptionState::Ineligible,
             })
         }
         RuleTag::NounPhraseAnyNumberOf => {
@@ -6041,6 +6249,7 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 }),
                 pronoun_case: None,
                 adjunct: None,
+                set_exception: SetExceptionState::Ineligible,
             })
         }
         RuleTag::NounPhraseCoordination
@@ -6108,6 +6317,7 @@ fn reduce_noun_phrase_coordination(
     let Features::NounPhrase {
         agreement: first_agreement,
         adjunct: first_adjunct,
+        set_exception,
         ..
     } = children.first()?.features
     else {
@@ -6157,6 +6367,7 @@ fn reduce_noun_phrase_coordination(
         adjunct: (*first_adjunct == *next_adjunct)
             .then_some(*first_adjunct)
             .flatten(),
+        set_exception: *set_exception,
     })
 }
 
@@ -6176,6 +6387,7 @@ fn nominal_with_prefix(
         attachment,
         comparison,
         adjunct,
+        set_exception_host,
         recipient_passive_theme,
         ..
     } = nominal.features
@@ -6211,6 +6423,7 @@ fn nominal_with_prefix(
         attachment: *attachment,
         comparison,
         adjunct: *adjunct,
+        set_exception_host: *set_exception_host,
         recipient_passive_theme: *recipient_passive_theme,
     })
 }
@@ -6220,6 +6433,7 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
         agreement,
         pronoun_case,
         adjunct,
+        set_exception,
     } = child.features
     else {
         return None;
@@ -6228,6 +6442,7 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
         agreement: *agreement,
         pronoun_case: *pronoun_case,
         adjunct: *adjunct,
+        set_exception: *set_exception,
     })
 }
 
@@ -6809,6 +7024,8 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::CoordinatedModifierOxford
         | RuleTag::NominalCoordinatedModifier => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
+        | RuleTag::NounPhraseSetExceptionBare
+        | RuleTag::NounPhraseSetExceptionFor
         | RuleTag::ReducedRecipientPassiveTheme
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
@@ -7598,6 +7815,29 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
 )]
 fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
+        RuleTag::NounPhraseSetExceptionBare | RuleTag::NounPhraseSetExceptionFor => {
+            let (marker, comma, excluded_index) = match (tag, children.len()) {
+                (RuleTag::NounPhraseSetExceptionBare, 3) => (SetExceptionMarker::Bare, false, 2),
+                (RuleTag::NounPhraseSetExceptionBare, 4) => (SetExceptionMarker::Bare, true, 3),
+                (RuleTag::NounPhraseSetExceptionFor, 4) => (SetExceptionMarker::For, false, 3),
+                (RuleTag::NounPhraseSetExceptionFor, 5) => (SetExceptionMarker::For, true, 4),
+                _ => return None,
+            };
+            let Lowered::NounPhrase(included) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::NounPhrase(excluded) = take(children, excluded_index)? else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(NounPhrase::SetException(
+                SetExceptionNounPhrase {
+                    included: Box::new(included),
+                    marker,
+                    comma,
+                    excluded: Box::new(excluded),
+                },
+            )))
+        }
         RuleTag::NounPhraseNominal | RuleTag::ReducedRecipientPassiveTheme => {
             let Lowered::Nominal(nominal) = take(children, 0)? else {
                 return None;

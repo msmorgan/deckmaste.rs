@@ -27,6 +27,7 @@ mod tests {
     use crate::syntax::PredicateObject;
     use crate::syntax::Sentence;
     use crate::syntax::SentenceBody;
+    use crate::syntax::SetExceptionMarker;
     use crate::syntax::TransitivePredicate;
     use crate::word::Adjective;
     use crate::word::ColorWord;
@@ -342,6 +343,77 @@ mod tests {
                 render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
                 source,
                 "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn noun_phrase_set_exceptions_preserve_scope_marker_and_comma() {
+        for (source, expected_marker, comma, included_coordination, excluded_coordination) in [
+            (
+                "all creatures except artifacts",
+                SetExceptionMarker::Bare,
+                false,
+                false,
+                false,
+            ),
+            (
+                "all creatures except for artifacts, creatures, and lands",
+                SetExceptionMarker::For,
+                false,
+                false,
+                true,
+            ),
+            (
+                "each creature except Goblins",
+                SetExceptionMarker::Bare,
+                false,
+                false,
+                false,
+            ),
+            (
+                "all creatures and lands except for Goblins",
+                SetExceptionMarker::For,
+                false,
+                true,
+                false,
+            ),
+            (
+                "all creatures, except for Goblins",
+                SetExceptionMarker::For,
+                true,
+                false,
+                false,
+            ),
+        ] {
+            let parsed = parse(source);
+            let Some(NounPhrase::SetException(exception)) = parsed.noun_phrase() else {
+                panic!("expected a set-exception noun phrase for {source:?}");
+            };
+            assert_eq!(exception.marker, expected_marker);
+            assert_eq!(exception.comma, comma);
+            assert_eq!(
+                matches!(exception.included.as_ref(), NounPhrase::Coordinated(_)),
+                included_coordination
+            );
+            assert_eq!(
+                matches!(exception.excluded.as_ref(), NounPhrase::Coordinated(_)),
+                excluded_coordination
+            );
+            assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+        }
+    }
+
+    #[test]
+    fn noun_phrase_set_exception_requires_a_set_denoting_host() {
+        for source in [
+            "creatures except artifacts",
+            "a card except the first one",
+            "all creatures except artifacts except lands",
+        ] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase).is_err(),
+                "inadmissible set-exception host parsed: {source:?}"
             );
         }
     }
@@ -962,7 +1034,8 @@ mod tests {
     fn except_is_not_an_opaque_noun_head() {
         // Whelming Wave: before Edit C, `except` could be swallowed as an
         // opaque noun head with `hands` demoted to a known-noun modifier,
-        // completing a wrong parse. It must now stay honestly recovered.
+        // completing a wrong parse. The set-exception production now parses
+        // it structurally, but the literal must still never become opaque.
         let source = "Return all creatures to their owners' hands except for Krakens, Leviathans, Octopuses, and Serpents.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
         let debug = format!("{ast:#?}");
@@ -2034,7 +2107,17 @@ mod tests {
 
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
-            .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"])
+            .with_catalog(
+                CatalogKind::CreatureType,
+                [
+                    "Goblin",
+                    "Human",
+                    "Kraken",
+                    "Leviathan",
+                    "Octopus",
+                    "Serpent",
+                ],
+            )
             .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
             .with_catalog(CatalogKind::Supertype, ["Basic", "Legendary"])
     }
