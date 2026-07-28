@@ -113,7 +113,12 @@ mod tests {
                 matches!(
                     nominal.modifiers.as_slice(),
                     [NominalModifier::CombatStepName { participants }]
-                        if matches!(participants, NounInstance::Plural(Noun::Word(_)))
+                        if matches!(
+                            participants,
+                            NounInstance::Plural(Noun::Agentive(Verb::Word(
+                                Vocab::Attack | Vocab::Block
+                            )))
+                        )
                 ),
                 "{source}: {nominal:#?}"
             );

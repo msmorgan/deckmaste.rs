@@ -69,6 +69,7 @@ pub enum Noun {
     Catalog(CatalogAtom),
     Die(NumberLiteral),
     Gerund(Verb),
+    Agentive(Verb),
     Opaque(OpaqueLexeme),
 }
 
@@ -1433,7 +1434,11 @@ impl Noun {
     pub(crate) fn bare_nominal_adjunct(&self) -> Option<BareNominalAdjunct> {
         match self {
             Self::Word(vocab) => vocab.bare_nominal_adjunct(),
-            Self::Catalog(_) | Self::Die(_) | Self::Gerund(_) | Self::Opaque(_) => None,
+            Self::Catalog(_)
+            | Self::Die(_)
+            | Self::Gerund(_)
+            | Self::Agentive(_)
+            | Self::Opaque(_) => None,
         }
     }
 }
@@ -1547,6 +1552,14 @@ impl Vocabulary {
                     NounSurface::Singular | NounSurface::Mass => present_participle,
                 })
             }
+            Noun::Agentive(verb) => {
+                let singular = self.render_agent_noun(verb)?;
+                match form {
+                    NounSurface::Singular => Some(singular),
+                    NounSurface::Plural => Some(regular_plural(&singular)),
+                    NounSurface::Mass => None,
+                }
+            }
             Noun::Opaque(opaque) => Some(opaque.spelling().to_owned()),
         }
     }
@@ -1639,6 +1652,24 @@ impl Vocabulary {
             Verb::KeywordAction(action) => action.render(slot),
         }
     }
+
+    fn render_agent_noun(self, verb: &Verb) -> Option<String> {
+        // Agent nouns are a lexical-vocabulary derivation, not a catalog
+        // keyword-action derivation. Final `e` takes `-r` (`vote` → `voter`);
+        // otherwise the present-participle stem supplies any declared
+        // consonant doubling (`bid` → `bidding` → `bidder`).
+        let Verb::Word(vocab) = verb else {
+            return None;
+        };
+        let lemma = vocab.spelling();
+        if lemma.ends_with('e') {
+            return Some(format!("{lemma}r"));
+        }
+
+        let present_participle = self.render_verb(*vocab, VerbSlot::PresentParticiple)?;
+        let stem = present_participle.strip_suffix("ing")?;
+        Some(format!("{stem}er"))
+    }
 }
 
 impl ColorWord {
@@ -1686,6 +1717,7 @@ enum NounSurface {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum IndexedWord {
     Noun { vocab: Vocab, form: NounSurface },
+    Agentive { vocab: Vocab, form: NounSurface },
     Verb { vocab: Vocab, slot: VerbSlot },
     Adjective(Vocab),
     Participle { vocab: Vocab, tense: Tense },
@@ -1706,6 +1738,14 @@ impl IndexedWord {
                     NounSurface::Singular => NounInstance::Singular(noun),
                     NounSurface::Plural => NounInstance::Plural(noun),
                     NounSurface::Mass => NounInstance::Mass(noun),
+                }))
+            }
+            (Self::Agentive { vocab, form }, LexicalSlot::Noun(usage)) if usage.accepts(form) => {
+                let noun = Noun::Agentive(Verb::Word(vocab));
+                Some(WordMatch::Noun(match form {
+                    NounSurface::Singular => NounInstance::Singular(noun),
+                    NounSurface::Plural => NounInstance::Plural(noun),
+                    NounSurface::Mass => return None,
                 }))
             }
             (Self::Gerund(vocab), LexicalSlot::Noun(NounUsage::Mass | NounUsage::Either)) => Some(
@@ -1827,6 +1867,18 @@ fn index_vocab(
     }
 
     if definition.verb.is_some() {
+        for form in [NounSurface::Singular, NounSurface::Plural] {
+            let noun = match form {
+                NounSurface::Singular => NounInstance::Singular(Noun::Agentive(Verb::Word(vocab))),
+                NounSurface::Plural => NounInstance::Plural(Noun::Agentive(Verb::Word(vocab))),
+                NounSurface::Mass => unreachable!("agent nouns are count-only"),
+            };
+            let surface = vocabulary
+                .render_noun(&noun)
+                .expect("derived agent noun form must render");
+            insert_index(index, &surface, IndexedWord::Agentive { vocab, form });
+        }
+
         for slot in VERB_SLOTS {
             let surface = vocabulary
                 .render_verb(vocab, slot)
@@ -2645,6 +2697,95 @@ mod tests {
             vocabulary
                 .matches("targeted", LexicalSlot::Noun(NounUsage::Count))
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn agent_nouns_are_productive_count_nouns_with_derived_spelling() {
+        let vocabulary = Vocabulary::new();
+
+        for (singular, plural, verb) in [
+            ("voter", "voters", Vocab::Vote),
+            ("bidder", "bidders", Vocab::Bid),
+            ("attacker", "attackers", Vocab::Attack),
+            ("blocker", "blockers", Vocab::Block),
+            ("chooser", "choosers", Vocab::Choose),
+        ] {
+            let verb = Verb::Word(verb);
+            let singular_noun = NounInstance::Singular(Noun::Agentive(verb.clone()));
+            let plural_noun = NounInstance::Plural(Noun::Agentive(verb));
+            assert_eq!(
+                vocabulary.matches(singular, LexicalSlot::Noun(NounUsage::Count)),
+                vec![WordMatch::Noun(singular_noun.clone())]
+            );
+            assert_eq!(
+                vocabulary.matches(plural, LexicalSlot::Noun(NounUsage::Count)),
+                vec![WordMatch::Noun(plural_noun.clone())]
+            );
+            assert_eq!(
+                vocabulary.render_noun(&singular_noun).as_deref(),
+                Some(singular)
+            );
+            assert_eq!(
+                vocabulary.render_noun(&plural_noun).as_deref(),
+                Some(plural)
+            );
+            assert!(
+                vocabulary
+                    .matches(singular, LexicalSlot::Noun(NounUsage::Mass))
+                    .is_empty()
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_nouns_coexist_with_productive_agent_readings() {
+        let vocabulary = Vocabulary::new();
+
+        let matches = vocabulary.matches("player", LexicalSlot::Noun(NounUsage::Count));
+        assert_eq!(matches.len(), 2);
+        assert!(
+            matches.contains(&WordMatch::Noun(NounInstance::Singular(Noun::Word(
+                Vocab::Player,
+            ))))
+        );
+        assert!(
+            matches.contains(&WordMatch::Noun(NounInstance::Singular(Noun::Agentive(
+                Verb::Word(Vocab::Play),
+            ))))
+        );
+    }
+
+    #[test]
+    fn audited_agent_nouns_no_longer_need_lexical_rows() {
+        let vocabulary = Vocabulary::new();
+
+        for (surface, base) in [
+            ("caller", "call"),
+            ("hunter", "hunt"),
+            ("smasher", "smash"),
+            ("voyager", "voyage"),
+            ("walker", "walk"),
+        ] {
+            let matches = vocabulary.matches(surface, LexicalSlot::Noun(NounUsage::Count));
+            let [WordMatch::Noun(NounInstance::Singular(Noun::Agentive(Verb::Word(verb))))] =
+                matches.as_slice()
+            else {
+                panic!("{surface} must have one derived agent-noun analysis: {matches:#?}");
+            };
+            assert_eq!(verb.spelling(), base);
+        }
+        let counter = vocabulary.matches("counter", LexicalSlot::Noun(NounUsage::Count));
+        assert_eq!(counter.len(), 2);
+        assert!(
+            counter.contains(&WordMatch::Noun(NounInstance::Singular(Noun::Word(
+                Vocab::Counter,
+            ))))
+        );
+        assert!(
+            counter.contains(&WordMatch::Noun(NounInstance::Singular(Noun::Agentive(
+                Verb::Word(Vocab::Count),
+            ))))
         );
     }
 

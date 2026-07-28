@@ -4504,8 +4504,13 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
                 // nominal, but dispreferenced so a competing `NumberLiteral`
                 // quantity reading (`one card`, `one or more counters`) always
                 // wins wherever both complete.
+                // Productive agent nouns are dispreferred against explicit
+                // lexical nouns. Thus technical words such as `player`,
+                // `controller`, and `owner` keep their lexical identity, while
+                // an unclaimed surface such as `voter` is verb-backed.
                 local_cost: ParseCost {
-                    reading_dispreference: u32::from(is_fused_head_noun(&noun)),
+                    reading_dispreference: u32::from(is_fused_head_noun(&noun))
+                        + u32::from(is_derived_agent_noun(&noun)),
                     ..ParseCost::default()
                 },
                 meaning: MeaningKey::Noun(noun),
@@ -4732,6 +4737,15 @@ fn is_fused_head_noun(noun: &NounInstance) -> bool {
     matches!(inner, Noun::Word(Vocab::Other | Vocab::One))
 }
 
+fn is_derived_agent_noun(noun: &NounInstance) -> bool {
+    let inner = match noun {
+        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
+            noun
+        }
+    };
+    matches!(inner, Noun::Agentive(_))
+}
+
 fn noun_adjunct_kind(noun: &NounInstance) -> Option<BareNominalAdjunct> {
     let noun = match noun {
         NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
@@ -4762,7 +4776,7 @@ fn noun_initial_sound(noun: &NounInstance) -> Option<InitialSound> {
         Noun::Word(vocab) => Some(Vocabulary::new().initial_sound(*vocab)),
         Noun::Catalog(atom) => Some(surface_initial_sound(atom.canonical())),
         Noun::Die(_) => Some(InitialSound::Consonant),
-        Noun::Gerund(_) => Vocabulary::new()
+        Noun::Gerund(_) | Noun::Agentive(_) => Vocabulary::new()
             .render_noun(noun)
             .map(|surface| surface_initial_sound(&surface)),
         Noun::Opaque(opaque) => Some(surface_initial_sound(opaque.spelling())),
@@ -7434,7 +7448,12 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
             // Redundant by design (§2.4): the literal-token slots are the
             // defense. If this guard ever fires, the slots have a bug — it
             // is not the safety mechanism.
-            if !matches!(participants, NounInstance::Plural(Noun::Word(_))) {
+            if !matches!(
+                participants,
+                NounInstance::Plural(
+                    Noun::Word(_) | Noun::Agentive(Verb::Word(Vocab::Attack | Vocab::Block))
+                )
+            ) {
                 return None;
             }
             if !matches!(head, NounInstance::Singular(Noun::Word(_))) {

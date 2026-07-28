@@ -34,7 +34,6 @@ assault	noun_count
 assign	verb
 attack	noun_count
 attack	verb
-attacker	noun_count
 avalanche	noun_count
 avenger	noun_count
 awakening	noun_count
@@ -55,7 +54,6 @@ believe	verb
 berserk	adjective
 betrayal	noun_count
 betrayer	noun_count
-bidder	noun_count
 blackjack	noun_count
 blade	noun_count
 blaze	noun_count
@@ -63,7 +61,6 @@ blessing	noun_count
 blight	noun_count
 block	noun_count
 block	verb
-blocker	noun_count
 blocks	noun_count
 bloodline	noun_count
 bloodstain	noun_count
@@ -100,7 +97,6 @@ businessperson	noun_count
 butterfly	noun_count
 cage	noun_count
 call	verb
-caller	noun_count
 cannon	noun_count
 cap	noun_count
 captain	noun_count
@@ -401,7 +397,6 @@ hunger	noun_count
 hunger	verb
 hunt	noun_count
 hunt	verb
-hunter	noun_count
 ice	noun_count
 icy	adjective
 identity	noun_count
@@ -762,7 +757,6 @@ slumber	noun_count
 smaller	adjective
 smash	noun_count
 smash	verb
-smasher	noun_count
 smoke	noun_count
 smoke	verb
 snap	verb
@@ -927,15 +921,12 @@ vitality	noun_count
 voice	noun_count
 void	noun_count
 vote	noun_count
-voter	noun_count
 voyage	noun_count
 voyage	verb
-voyager	noun_count
 wage	noun_count
 wage	verb
 walk	noun_count
 walk	verb
-walker	noun_count
 war	noun_count
 warden	noun_count
 warped	adjective

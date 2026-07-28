@@ -1713,6 +1713,11 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(|surface| surface_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("gerund")),
+            Noun::Agentive(verb) => self
+                .vocabulary
+                .render_noun(&NounInstance::Singular(Noun::Agentive(verb.clone())))
+                .map(|surface| surface_initial_sound(&surface))
+                .ok_or(RenderError::MissingLexicalForm("agent noun")),
             Noun::Opaque(opaque) => Ok(surface_initial_sound(opaque.spelling())),
         }
     }
@@ -2426,7 +2431,9 @@ fn noun_is_rules_bundle(noun: &NounInstance) -> bool {
         noun;
     match noun {
         Noun::Catalog(atom) => atom.is_rules_bundle(),
-        Noun::Word(_) | Noun::Die(_) | Noun::Gerund(_) | Noun::Opaque(_) => false,
+        Noun::Word(_) | Noun::Die(_) | Noun::Gerund(_) | Noun::Agentive(_) | Noun::Opaque(_) => {
+            false
+        }
     }
 }
 

@@ -1012,8 +1012,8 @@ fn nearest_is_an_attributive_superlative_adjective() {
 fn bid_bidding_and_bidder_forms_round_trip() {
     // Illicit Auction shape: the irregular verb `bid` (bid/bidding/bid), its
     // gerund-as-noun `the bidding` (the existing nominalization rule, no
-    // separate vocabulary entry), and the regular noun `bidder` all combine in
-    // one fully structured auction sequence.
+    // separate vocabulary entry), and the derived agent noun `bidder` all
+    // combine in one fully structured auction sequence.
     let source = "Each player may bid life for control of target creature. \
         You start the bidding with a bid of 0. \
         In turn order, each player may top the high bid. \
@@ -1022,6 +1022,26 @@ fn bid_bidding_and_bidder_forms_round_trip() {
     let (rendered, ast) = parse_face(source, &r33_catalogs(), "Illicit Auction", false);
     assert_eq!(rendered, source);
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Agentive(Word(Bid,"),
+        "expected `bidder` to retain its source verb\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn explicit_rules_nouns_win_over_productive_agent_readings() {
+    let source = "Each player draws a card.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source);
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("Word(Player,"),
+        "expected the explicit rules noun `player`\nAST:\n{ast}"
+    );
+    assert!(
+        !compact(&ast).contains("Agentive(Word(Play,"),
+        "the derived reading must not outrank the explicit noun\nAST:\n{ast}"
+    );
 }
 
 #[test]
@@ -1091,8 +1111,8 @@ fn void_voter_and_fame_nouns_round_trip() {
     assert_eq!(rendered, voter);
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
     assert!(
-        compact(&ast).contains("Regular(\"voter\""),
-        "expected `voter` as a bare noun\nAST:\n{ast}"
+        compact(&ast).contains("Agentive(Word(Vote,"),
+        "expected `voter` to retain its source verb\nAST:\n{ast}"
     );
 
     let fame = "Each opponent chooses fame or fortune.";
