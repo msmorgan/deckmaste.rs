@@ -8,6 +8,7 @@ use super::clause::IndependentClause;
 use super::clause::InfinitiveClause;
 use super::clause::PredicateConjunction;
 use super::clause::RelativeClause;
+use super::clause::TransitivePredicate;
 use crate::Numeral;
 use crate::catalog::CatalogAtom;
 use crate::word::Adjective;
@@ -620,6 +621,11 @@ pub enum NominalComplement {
     Prepositional(PrepositionalPhrase),
     Infinitive(InfinitiveClause),
     Relative(RelativeClause),
+    /// A markerless postnominal recipient-passive relative (`a creature dealt
+    /// damage this way`). The surface has no passive auxiliary, so its
+    /// participial predicate is structurally transitive: the antecedent fills
+    /// the promoted recipient role while `object` retains the dealt theme.
+    ReducedRecipientPassive(TransitivePredicate),
     Quantity(Quantity),
     /// The mandatory `to <color>` argument of the rules-defined `devotion`
     /// value nominal [CR#700.5]. Only the concrete-color shapes ride this

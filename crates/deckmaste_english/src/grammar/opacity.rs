@@ -41,6 +41,7 @@ pub(super) fn scan_opaque(
             form,
             initial_sound,
             adjunct: None,
+            recipient_passive_theme: false,
         },
         meaning: MeaningKey::Opaque(OpaqueKey { slot, span }),
         local_cost: ParseCost {

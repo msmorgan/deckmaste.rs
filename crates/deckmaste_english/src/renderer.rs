@@ -1540,6 +1540,9 @@ impl<'identity> Renderer<'identity> {
                 }
                 NominalComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
                 NominalComplement::Relative(relative) => self.relative_clause(relative)?,
+                NominalComplement::ReducedRecipientPassive(predicate) => {
+                    self.transitive_predicate(predicate)?
+                }
                 NominalComplement::Quantity(quantity) => render_quantity(*quantity),
                 NominalComplement::PowerToughness(value) => format!(
                     "{}/{}",

@@ -27,3 +27,27 @@ relative clauses use). The reverted implementation (AST variant, gate,
 renderer, walker) is fully described in
 `recovery-harness/out/dealtdmg-mechanic-report.md` §4 and the design in
 `out/dealtdmg-plan.md` §3 — reuse, do not re-derive.
+
+## Completion
+
+The reduced relative now uses a dedicated `ReducedRecipientPassive`
+nonterminal instead of predicting generic `VerbPhrase` after every nominal.
+Its first lexical scan accepts only past participles whose selected frame is
+recipient-passive, and its retained-theme path accepts only an uncompounded,
+uncomplemented lexical `damage` nominal. Agent PPs and temporal/manner tails
+remain predicate dependents rather than being swallowed by the antecedent or
+theme.
+
+Lowering records the construction as
+`NominalComplement::ReducedRecipientPassive(TransitivePredicate)`, with matching
+renderer and recovery-walker support. A narrow relative-tail feature prevents
+`creature that was dealt damage` from splitting into a complete `that was`
+relative plus a second reduced relative, while still allowing
+`creature you control dealt damage`.
+
+Causal tests cover the S3 markerless construction, an S4 fronted conditional,
+an S9 agent-plus-temporal tail, an already-complemented antecedent, the finite
+S2 ambiguity, missing-frame/missing-object negatives, and an opacity false
+positive. All English tests pass, the supported corpus remains 31,685/31,685
+clean with no render mismatches, structural recovery decreases, and both noun
+and flavor-header opacity cells remain unchanged.

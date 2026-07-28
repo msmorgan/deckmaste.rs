@@ -617,6 +617,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         NominalComplement::Relative(relative) => {
                             self.relative_clause(relative, context);
                         }
+                        NominalComplement::ReducedRecipientPassive(predicate) => {
+                            self.transitive_predicate(predicate, context);
+                        }
                         NominalComplement::EventClause(clause) => {
                             self.independent_clause(clause, context);
                         }

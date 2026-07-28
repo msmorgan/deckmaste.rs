@@ -787,6 +787,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
+        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
@@ -924,6 +925,16 @@ pub(super) fn accepts_predicate_prefix(
                 ..
             } if *pronoun_case != Some(PronounCase::Object)
                 && (a.number == Number::Plural || a.person == Person::Second)
+        );
+    }
+    if tag == RuleTag::ReducedRecipientPassiveNominalAdjunct {
+        return matches!(
+            features,
+            Features::VerbPhrase {
+                object,
+                frame,
+                ..
+            } if frame.is_recipient_passive() && object.has_direct_object()
         );
     }
     let predicate_rule = matches!(
@@ -1106,7 +1117,12 @@ fn reduce_predicate(
     match tag {
         RuleTag::Verb => Some(propagate(children.first()?)),
         RuleTag::VerbPhraseBase => {
-            let Features::Verb { slot, frame } = children.first()?.features else {
+            let Features::Verb {
+                slot,
+                frame,
+                head_is_copular,
+            } = children.first()?.features
+            else {
                 return None;
             };
             let form = predicate_form(*slot);
@@ -1119,6 +1135,7 @@ fn reduce_predicate(
                 phase: PredicateAttachmentPhase::Object,
                 frame: *frame,
                 bare: true,
+                head_is_copular: *head_is_copular,
                 subjunctive: false,
             })
         }
@@ -1136,6 +1153,7 @@ fn reduce_predicate(
                 phase: PredicateAttachmentPhase::Object,
                 frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
                 bare: false,
+                head_is_copular: false,
                 subjunctive: matches!(
                     auxiliary.inflection,
                     crate::word::AuxiliaryInflection::PastSubjunctive
@@ -1154,6 +1172,7 @@ fn reduce_predicate(
                 selected_preposition,
                 phase,
                 frame,
+                head_is_copular,
                 subjunctive: child_subjunctive,
                 ..
             } = children.get(1)?.features
@@ -1183,6 +1202,7 @@ fn reduce_predicate(
                 phase: *phase,
                 frame: *frame,
                 bare: false,
+                head_is_copular: *head_is_copular,
                 subjunctive,
             })
         }
@@ -1225,6 +1245,19 @@ fn reduce_predicate(
                 }
             };
             extend_predicate(children.first()?, attachment)
+        }
+        RuleTag::ReducedRecipientPassiveNominalAdjunct => {
+            let Features::NounPhrase {
+                adjunct: Some(adjunct),
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            extend_predicate(
+                children.first()?,
+                PredicateAttachment::NominalAdjunct(*adjunct),
+            )
         }
         RuleTag::VerbPhraseManaAmountCoordination => {
             extend_predicate(children.first()?, PredicateAttachment::ScalarComplement)
@@ -1359,6 +1392,7 @@ fn reduce_predicate(
                 selected_preposition,
                 phase: PredicateAttachmentPhase::Object,
                 frame,
+                head_is_copular,
                 ..
             } = children.first()?.features
             else {
@@ -1411,6 +1445,7 @@ fn reduce_predicate(
                 phase: PredicateAttachmentPhase::Tail,
                 frame: *frame,
                 bare: false,
+                head_is_copular: *head_is_copular,
                 subjunctive: false,
             })
         }
@@ -1434,6 +1469,7 @@ fn extend_predicate(
         selected_preposition,
         phase,
         frame,
+        head_is_copular,
         subjunctive,
         ..
     } = predicate.features
@@ -1603,6 +1639,7 @@ fn extend_predicate(
         phase: next_phase,
         frame,
         bare: false,
+        head_is_copular: *head_is_copular,
         subjunctive: *subjunctive,
     })
 }
@@ -2075,6 +2112,7 @@ fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Object,
                 antecedent_agreement: None,
+                bare_copular_tail: false,
             })
         }
         RuleTag::RelativeObjectContractedSubject => {
@@ -2112,6 +2150,7 @@ fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Object,
                 antecedent_agreement: None,
+                bare_copular_tail: false,
             })
         }
         RuleTag::RelativeSubjectContractedAuxiliary => {
@@ -2140,6 +2179,7 @@ fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: Some(predicate_agreement),
+                bare_copular_tail: false,
             })
         }
         RuleTag::RelativeSubject => {
@@ -2150,6 +2190,8 @@ fn reduce_simple_clause(
                 indirect_object,
                 selected_preposition,
                 frame,
+                bare,
+                head_is_copular,
                 ..
             } = children.get(1)?.features
             else {
@@ -2167,6 +2209,7 @@ fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: *antecedent_agreement,
+                bare_copular_tail: *bare && *head_is_copular,
             })
         }
         RuleTag::RelativeSubjectDistributiveEach => {
@@ -2181,6 +2224,8 @@ fn reduce_simple_clause(
                 indirect_object,
                 selected_preposition,
                 frame,
+                bare,
+                head_is_copular,
                 ..
             } = children.get(2)?.features
             else {
@@ -2201,6 +2246,7 @@ fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: Some(*agreement),
+                bare_copular_tail: *bare && *head_is_copular,
             })
         }
         RuleTag::RelativeContractedCopularNoun
@@ -2236,6 +2282,7 @@ fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: Some(*agreement),
+                bare_copular_tail: false,
             })
         }
         _ => None,
@@ -2844,6 +2891,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
+        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
@@ -3053,6 +3101,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
+        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate_dependent(tag, children),
         RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
             let negated = tag == RuleTag::InfinitiveNotTo;
@@ -3087,6 +3136,15 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 Some(BareNominalAdjunct::Temporal) => VerbDependent::Temporal(noun_phrase),
                 Some(BareNominalAdjunct::Manner) => VerbDependent::Manner(noun_phrase),
                 None => VerbDependent::DirectObject(noun_phrase),
+            }
+        }
+        RuleTag::ReducedRecipientPassiveNominalAdjunct => {
+            let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
+                return None;
+            };
+            match nominal_adjunct_kind(&noun_phrase)? {
+                BareNominalAdjunct::Temporal => VerbDependent::Temporal(noun_phrase),
+                BareNominalAdjunct::Manner => VerbDependent::Manner(noun_phrase),
             }
         }
         RuleTag::VerbPhraseIndirectObject => {
@@ -4650,6 +4708,26 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
         predicate,
         elided,
     })
+}
+
+pub(super) fn finish_reduced_recipient_passive(
+    phrase: VerbPhrase,
+) -> Option<crate::syntax::TransitivePredicate> {
+    if !phrase.auxiliaries.is_empty()
+        || phrase.verb.slot != VerbSlot::PastParticiple
+        || !phrase.frame.is_recipient_passive()
+    {
+        return None;
+    }
+    let FinishedPredicate {
+        modal: None,
+        predicate: Predicate::Transitive(predicate),
+        elided: false,
+    } = finish_predicate(phrase)?
+    else {
+        return None;
+    };
+    Some(predicate)
 }
 
 const fn proform_inflection(slot: VerbSlot) -> AuxiliaryInflection {
@@ -7797,6 +7875,7 @@ mod tests {
             phase,
             frame: PredicateFrame::OPEN,
             bare: object == PredicateObjectState::None,
+            head_is_copular: false,
             subjunctive: false,
         };
         let open = predicate(PredicateObjectState::None, PredicateAttachmentPhase::Object);
@@ -8244,6 +8323,134 @@ mod tests {
                 body: RelativeBody::SubjectGap(Predicate::Passive(passive)),
             })] if passive.retained_object.is_some()
         ));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn postnominal_participial_phrase_reduces_only_with_a_retained_object() {
+        let source = "A creature dealt damage this way can't block this turn.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            Subject(NounPhrase::Nominal(subject)),
+            _,
+            _,
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a modal clause with a nominal subject");
+        };
+        assert!(matches!(
+            subject.complements.as_slice(),
+            [NominalComplement::ReducedRecipientPassive(predicate)]
+                if predicate.head.auxiliaries.is_empty()
+                    && predicate.head.verb.slot == VerbSlot::PastParticiple
+                    && matches!(
+                        predicate.object,
+                        PredicateObject::NounPhrase(NounPhrase::Nominal(ref damage))
+                            if matches!(
+                                damage.head,
+                                NounInstance::Mass(Noun::Word(Vocab::Damage))
+                            )
+                    )
+        ));
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn reduced_recipient_passive_can_follow_a_completed_relative() {
+        let source = "A creature you control dealt damage this way can't block this turn.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            Subject(NounPhrase::Nominal(subject)),
+            _,
+            _,
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a modal clause with a nominal subject");
+        };
+        assert!(matches!(
+            subject.complements.as_slice(),
+            [
+                NominalComplement::Relative(_),
+                NominalComplement::ReducedRecipientPassive(_),
+            ]
+        ));
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn postnominal_participial_phrase_does_not_fire_without_the_frame_and_object() {
+        for source in ["a creature enchanted this turn", "a creature dealt"] {
+            let surface = crate::surface::lex(source);
+            let parsed = parse_nonterminal_with_profile(
+                source,
+                &fixture_catalogs(),
+                Nonterminal::NounPhrase,
+                &surface.tokens,
+                OpacityProfile::Exact,
+                &SelfReference::default(),
+            );
+            if let Ok(parsed) = parsed {
+                let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                    panic!("expected a nominal noun phrase for {source:?}");
+                };
+                assert!(
+                    !nominal.complements.iter().any(|complement| matches!(
+                        complement,
+                        NominalComplement::ReducedRecipientPassive(_)
+                    )),
+                    "the reduced recipient-passive complement fired for {source:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reduced_recipient_passive_does_not_invent_an_opaque_theme() {
+        let source = "You gain X life, where X is twice the damage dealt to you so far this turn by artifacts.";
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "`far` must not become an opaque retained theme"
+        );
+    }
+
+    #[test]
+    fn fronted_conditional_carries_a_reduced_recipient_passive() {
+        let source = "If a creature dealt damage this way would die this turn, exile it instead.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+    }
+
+    #[test]
+    fn reduced_recipient_passive_keeps_agent_and_temporal_tails() {
+        let source = "A creature dealt damage by this creature this turn can't block.";
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Deontic(
+            Subject(NounPhrase::Nominal(subject)),
+            _,
+            _,
+        )) = &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a modal clause with a nominal subject");
+        };
+        let [NominalComplement::ReducedRecipientPassive(predicate)] =
+            subject.complements.as_slice()
+        else {
+            panic!("expected one reduced recipient-passive complement");
+        };
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [
+                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(PrepositionalPhrase {
+                    preposition: Preposition::By,
+                    ..
+                })),
+                PredicateElement::Adjunct(PredicateAdjunct::Temporal(_)),
+            ]
+        ));
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 

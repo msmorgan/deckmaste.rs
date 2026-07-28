@@ -250,6 +250,16 @@ pub(crate) enum Nonterminal {
     RelativeClause,
     Verb,
     VerbPhrase,
+    /// A bare past-participial predicate whose lexical head carries the
+    /// recipient-passive frame. Kept separate from `VerbPhrase` so a nominal
+    /// attachment predicts only the one licensed participle, never the whole
+    /// clause-level verb-phrase grammar.
+    ReducedRecipientPassive,
+    /// The retained `damage` theme of a reduced recipient passive. It admits
+    /// no postnominal complement, so `damage by …` cannot swallow the
+    /// participle's agent PP inside its object, and opacity can never invent a
+    /// theme from an unrelated post-participial word.
+    ReducedRecipientPassiveTheme,
     ObjectGapVerbPhrase,
     InfinitiveClause,
     GerundClause,
@@ -303,6 +313,10 @@ pub(crate) enum EnglishLexicalSlot {
     Noun(NounUsage),
     PossessiveNoun,
     Verb(VerbSlot),
+    /// A past participle whose lexical frame licenses recipient passivization.
+    /// The scan-time frame filter is the production's first categorical gate;
+    /// generic verb phrases are never predicted from the nominal attachment.
+    ReducedRecipientPassiveParticiple,
     Adjective,
     /// A single color word (`white`/`blue`/`black`/`red`/`green`) in the
     /// devotion value nominal's argument. Distinct from [`Self::Adjective`] so
@@ -535,6 +549,15 @@ pub(crate) enum NominalAttachmentPhase {
     Open,
     Prepositional,
     Relative,
+    /// An otherwise-complete explicit relative ending in a bare copular verb
+    /// (`creature that was`). A following participle belongs to that copula as
+    /// its auxiliary complement, not to a second markerless relative.
+    RelativeBareCopula,
+    /// A closed markerless recipient-passive relative. Any following PP or
+    /// bare temporal/manner nominal belongs to the participial predicate and
+    /// must be consumed before it attaches to the nominal; closing here keeps
+    /// `by …` from being mis-bracketed as a complement of the antecedent noun.
+    ReducedRecipientPassive,
     PostpositiveAdjective,
     Comparison,
 }
@@ -597,6 +620,9 @@ pub(crate) enum Features {
         form: NounForm,
         initial_sound: InitialSound,
         adjunct: Option<BareNominalAdjunct>,
+        /// True only for the lexical `damage` theme licensed by the dedicated
+        /// recipient-passive reduced-relative construction.
+        recipient_passive_theme: bool,
     },
     Nominal {
         form: NounForm,
@@ -616,6 +642,9 @@ pub(crate) enum Features {
         attachment: NominalAttachmentPhase,
         comparison: AdjectiveComparisonState,
         adjunct: Option<BareNominalAdjunct>,
+        /// Preserves the lexical `damage` theme flag through ordinary nominal
+        /// modifiers while rejecting opaque or complemented lookalikes.
+        recipient_passive_theme: bool,
     },
     NounPhrase {
         agreement: Option<Agreement>,
@@ -633,6 +662,7 @@ pub(crate) enum Features {
     Verb {
         slot: VerbSlot,
         frame: PredicateFrame,
+        head_is_copular: bool,
     },
     VerbPhrase {
         form: PredicateForm,
@@ -643,6 +673,9 @@ pub(crate) enum Features {
         phase: PredicateAttachmentPhase,
         frame: PredicateFrame,
         bare: bool,
+        /// Preserves whether the lexical predicate head is `be`; auxiliary
+        /// folding never changes it.
+        head_is_copular: bool,
         /// Set only by a `PastSubjunctive` `Be` auxiliary heading this verb
         /// phrase; threaded unchanged by reduces. Licensing gate: only
         /// `RuleTag::ClauseSubordinateAfter`/`…Comma` may accept a
@@ -688,6 +721,10 @@ pub(crate) enum Features {
     RelativeClause {
         gap: RelativeGap,
         antecedent_agreement: Option<Agreement>,
+        /// True only when an explicit relative currently ends at a bare
+        /// lexical `be` (`that was`), where a following participle must extend
+        /// the same relative rather than attach as a reduced sibling.
+        bare_copular_tail: bool,
     },
     Auxiliary(AuxiliaryInstance),
     Conjunction(crate::syntax::PredicateConjunction),
@@ -1262,6 +1299,9 @@ enum RuleTag {
     /// Stage C grant nominal.
     NominalKeywordAtomCarriedPredicatedArgument,
     NominalRelative,
+    NominalReducedRecipientPassive,
+    ReducedRecipientPassiveTheme,
+    ReducedRecipientPassiveNominalAdjunct,
     NominalPostpositiveAdjective,
     NominalComparison,
     NominalDevotion,
@@ -1539,6 +1579,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // is categorical, so append order affects only tie stability.
         builder.add_while_gerund_rules();
         builder.add_keyword_grant_rules();
+        builder.add_reduced_recipient_passive_rules();
         Self {
             source,
             catalogs,
@@ -2016,31 +2057,17 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     )
                 })
                 .collect(),
-            EnglishLexicalSlot::Verb(verb_slot) => {
-                let mut matches = self.word_matches(tokens, start, LexicalSlot::Verb(verb_slot));
-                matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Verb(verb_slot)));
-                // A multi-word keyword action spells one rules-defined action; the shorter
-                // verb readings that start at the same token — the vocabulary verb, or the
-                // single-word keyword action whose spelling the phrase's head coincides with
-                // — are decompositions of it and must lose **by cost**, not by scan order.
-                // Vocabulary and catalog matches are concatenated with no cross-source dedup
-                // or cost, so an equal-cost tie here would fall to interning order
-                // (`alternative_index`/`NodeId`, invariant-audit §A.1).
-                //
-                // The test is span length, not identity: a verb match covering more than one
-                // token can only be a multi-word catalog action — `word_matches` is
-                // single-token by construction (grammar/mod.rs:1443-1451) and
-                // `CatalogSlot::Verb` reaches only `action_matches`.
-                let longest = matches.iter().map(|item| item.end).max().unwrap_or(start);
-                if longest > start + 1 {
-                    for item in &mut matches {
-                        if item.end < longest {
-                            item.local_cost.precedence += 1;
-                        }
-                    }
-                }
-                matches
-            }
+            EnglishLexicalSlot::Verb(verb_slot) => self.scan_verb(tokens, start, verb_slot),
+            EnglishLexicalSlot::ReducedRecipientPassiveParticiple => self
+                .scan_verb(tokens, start, VerbSlot::PastParticiple)
+                .into_iter()
+                .filter(|candidate| {
+                    matches!(
+                        candidate.features,
+                        Features::Verb { frame, .. } if frame.is_recipient_passive()
+                    )
+                })
+                .collect(),
             EnglishLexicalSlot::Adjective => {
                 let mut matches = self.word_matches(tokens, start, LexicalSlot::Adjective);
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Adjective));
@@ -2090,6 +2117,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         form: NounForm::Singular,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
+                        recipient_passive_theme: false,
                     },
                     meaning: MeaningKey::Catalog(atom),
                     local_cost: ParseCost::default(),
@@ -2104,6 +2132,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         form: NounForm::Plural,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
+                        recipient_passive_theme: false,
                     },
                     meaning: MeaningKey::Noun(NounInstance::Plural(Noun::Word(Vocab::Time))),
                     local_cost: ParseCost::default(),
@@ -2118,6 +2147,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         form: NounForm::Singular,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
+                        recipient_passive_theme: false,
                     },
                     meaning: MeaningKey::Noun(NounInstance::Singular(Noun::Word(Vocab::Number))),
                     local_cost: ParseCost::default(),
@@ -2471,6 +2501,37 @@ impl Grammar for EnglishGrammar<'_, '_> {
 }
 
 impl EnglishGrammar<'_, '_> {
+    fn scan_verb(
+        &self,
+        tokens: &[Token],
+        start: usize,
+        verb_slot: VerbSlot,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let mut matches = self.word_matches(tokens, start, LexicalSlot::Verb(verb_slot));
+        matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Verb(verb_slot)));
+        // A multi-word keyword action spells one rules-defined action; the shorter
+        // verb readings that start at the same token — the vocabulary verb, or the
+        // single-word keyword action whose spelling the phrase's head coincides with
+        // — are decompositions of it and must lose **by cost**, not by scan order.
+        // Vocabulary and catalog matches are concatenated with no cross-source dedup
+        // or cost, so an equal-cost tie here would fall to interning order
+        // (`alternative_index`/`NodeId`, invariant-audit §A.1).
+        //
+        // The test is span length, not identity: a verb match covering more than one
+        // token can only be a multi-word catalog action — `word_matches` is
+        // single-token by construction and `CatalogSlot::Verb` reaches only
+        // `action_matches`.
+        let longest = matches.iter().map(|item| item.end).max().unwrap_or(start);
+        if longest > start + 1 {
+            for item in &mut matches {
+                if item.end < longest {
+                    item.local_cost.precedence += 1;
+                }
+            }
+        }
+        matches
+    }
+
     fn scan_clause_lexical(
         &self,
         slot: EnglishLexicalSlot,
@@ -3880,6 +3941,62 @@ impl RuleBuilder {
         clause::add_rules(self);
     }
 
+    /// The markerless recipient-passive relative (`a creature dealt damage
+    /// this way`). Its dedicated nonterminal starts with a scan-time-gated
+    /// participle and reuses only the predicate extensions the construction
+    /// needs. It never predicts generic `VerbPhrase`, whose registration here
+    /// previously perturbed unrelated `do so` derivations.
+    fn add_reduced_recipient_passive_rules(&mut self) {
+        use EnglishLexicalSlot as L;
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        self.add(
+            RuleTag::VerbPhraseBase,
+            N::ReducedRecipientPassive,
+            [l(L::ReducedRecipientPassiveParticiple)],
+        );
+        self.add(
+            RuleTag::ReducedRecipientPassiveTheme,
+            N::ReducedRecipientPassiveTheme,
+            [n(N::Nominal)],
+        );
+        self.add(
+            RuleTag::VerbPhraseDirectObject,
+            N::ReducedRecipientPassive,
+            [
+                n(N::ReducedRecipientPassive),
+                n(N::ReducedRecipientPassiveTheme),
+            ],
+        );
+        self.add(
+            RuleTag::ReducedRecipientPassiveNominalAdjunct,
+            N::ReducedRecipientPassive,
+            [n(N::ReducedRecipientPassive), n(N::NounPhrase)],
+        );
+        self.add(
+            RuleTag::VerbPhrasePrepositional,
+            N::ReducedRecipientPassive,
+            [n(N::ReducedRecipientPassive), n(N::PrepositionalPhrase)],
+        );
+        self.add(
+            RuleTag::VerbPhraseAdverb,
+            N::ReducedRecipientPassive,
+            [n(N::ReducedRecipientPassive), l(L::Adverb)],
+        );
+        self.add(
+            RuleTag::VerbPhraseFrequency,
+            N::ReducedRecipientPassive,
+            [n(N::ReducedRecipientPassive), n(N::FrequencyPhrase)],
+        );
+        self.add(
+            RuleTag::NominalReducedRecipientPassive,
+            N::Nominal,
+            [n(N::Nominal), n(N::ReducedRecipientPassive)],
+        );
+    }
+
     /// General coordination inside the nominal, appended last so every existing
     /// rule keeps its `RuleId` and every existing parse forest keeps its
     /// alternative indices. Two independent shapes:
@@ -4265,6 +4382,12 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
                     form,
                     initial_sound,
                     adjunct,
+                    recipient_passive_theme: matches!(
+                        noun,
+                        NounInstance::Singular(Noun::Word(Vocab::Damage))
+                            | NounInstance::Plural(Noun::Word(Vocab::Damage))
+                            | NounInstance::Mass(Noun::Word(Vocab::Damage))
+                    ),
                 },
                 // `other` is scanned as a count noun only so the anaphoric
                 // fused head `the other`/`the others` (the sibling of `the
@@ -4298,6 +4421,7 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
                 features: Features::Verb {
                     slot: verb.slot,
                     frame,
+                    head_is_copular: verb.verb == Verb::Word(Vocab::Be),
                 },
                 meaning: MeaningKey::Verb(VerbAnalysis {
                     instance: verb.clone(),
@@ -4711,6 +4835,7 @@ fn reduce(
         | RuleTag::NominalKeywordAtomCarriedPredicatedArgument
         | RuleTag::NominalPowerToughnessComplement
         | RuleTag::NominalRelative
+        | RuleTag::NominalReducedRecipientPassive
         | RuleTag::NominalPostpositiveAdjective
         | RuleTag::NominalComparison
         | RuleTag::NominalDevotion
@@ -4726,6 +4851,7 @@ fn reduce(
         | RuleTag::CoordinatedModifierOxford
         | RuleTag::NominalCoordinatedModifier => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
+        | RuleTag::ReducedRecipientPassiveTheme
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
         | RuleTag::NounPhraseReciprocal
@@ -4778,6 +4904,7 @@ fn reduce(
         | RuleTag::ManaAmountCoordinationOxford
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
+        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
@@ -5107,6 +5234,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form,
                 initial_sound,
                 adjunct,
+                recipient_passive_theme,
             } = child.features
             else {
                 return None;
@@ -5120,6 +5248,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                recipient_passive_theme: *recipient_passive_theme,
             })
         }
         RuleTag::NominalAdjective => {
@@ -5151,6 +5280,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                recipient_passive_theme: false,
             })
         }
         RuleTag::NominalNounModifier => {
@@ -5219,6 +5349,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                recipient_passive_theme,
                 ..
             } = children.get(1)?.features
             else {
@@ -5239,6 +5370,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: *attachment,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                recipient_passive_theme: *recipient_passive_theme,
             })
         }
         RuleTag::NominalPrepositional => {
@@ -5251,6 +5383,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                recipient_passive_theme,
             } = children.first()?.features
             else {
                 return None;
@@ -5264,7 +5397,9 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             };
             if matches!(
                 attachment,
-                NominalAttachmentPhase::PostpositiveAdjective | NominalAttachmentPhase::Comparison
+                NominalAttachmentPhase::ReducedRecipientPassive
+                    | NominalAttachmentPhase::PostpositiveAdjective
+                    | NominalAttachmentPhase::Comparison
             ) {
                 return None;
             }
@@ -5277,6 +5412,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                recipient_passive_theme: *recipient_passive_theme,
             })
         }
         RuleTag::NominalInfinitive => {
@@ -5289,6 +5425,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                recipient_passive_theme,
             } = children.first()?.features
             else {
                 return None;
@@ -5296,7 +5433,8 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             if !matches!(children.get(1)?.features, Features::InfinitiveClause)
                 || matches!(
                     attachment,
-                    NominalAttachmentPhase::PostpositiveAdjective
+                    NominalAttachmentPhase::ReducedRecipientPassive
+                        | NominalAttachmentPhase::PostpositiveAdjective
                         | NominalAttachmentPhase::Comparison
                 )
             {
@@ -5311,6 +5449,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                recipient_passive_theme: *recipient_passive_theme,
             })
         }
         RuleTag::NominalKeywordSymbolArgument => {
@@ -5318,6 +5457,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: NounForm::Mass,
                 initial_sound,
                 adjunct,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -5337,6 +5477,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                recipient_passive_theme: false,
             })
         }
         RuleTag::PredicatedQualityFrom | RuleTag::PredicatedQualityBare => {
@@ -5372,6 +5513,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 form: NounForm::Mass,
                 initial_sound,
                 adjunct,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -5388,9 +5530,12 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                recipient_passive_theme: false,
             })
         }
-        RuleTag::NominalQuantityComplement | RuleTag::NominalRelative => {
+        RuleTag::NominalQuantityComplement
+        | RuleTag::NominalRelative
+        | RuleTag::NominalReducedRecipientPassive => {
             let Features::Nominal {
                 form,
                 initial_sound,
@@ -5400,13 +5545,16 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                recipient_passive_theme,
             } = children.first()?.features
             else {
                 return None;
             };
             if matches!(
                 attachment,
-                NominalAttachmentPhase::PostpositiveAdjective | NominalAttachmentPhase::Comparison
+                NominalAttachmentPhase::ReducedRecipientPassive
+                    | NominalAttachmentPhase::PostpositiveAdjective
+                    | NominalAttachmentPhase::Comparison
             ) {
                 return None;
             }
@@ -5414,6 +5562,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 && let Features::RelativeClause {
                     gap: RelativeGap::Subject,
                     antecedent_agreement: Some(agreement),
+                    ..
                 } = children.get(1)?.features
                 && agreement.number
                     != match form {
@@ -5423,19 +5572,53 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             {
                 return None;
             }
+            if tag == RuleTag::NominalReducedRecipientPassive {
+                if *attachment == NominalAttachmentPhase::RelativeBareCopula {
+                    return None;
+                }
+                let Features::VerbPhrase {
+                    form: PredicateForm::PastParticiple,
+                    passive: false,
+                    object,
+                    indirect_object: false,
+                    frame,
+                    ..
+                } = children.get(1)?.features
+                else {
+                    return None;
+                };
+                if !frame.is_recipient_passive() || !object.has_direct_object() {
+                    return None;
+                }
+            }
             Some(Features::Nominal {
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
                 modified: *modified,
                 leading_opacity: *leading_opacity,
-                attachment: if tag == RuleTag::NominalRelative {
-                    NominalAttachmentPhase::Relative
-                } else {
-                    *attachment
+                attachment: match tag {
+                    RuleTag::NominalRelative => {
+                        if matches!(
+                            children.get(1)?.features,
+                            Features::RelativeClause {
+                                bare_copular_tail: true,
+                                ..
+                            }
+                        ) {
+                            NominalAttachmentPhase::RelativeBareCopula
+                        } else {
+                            NominalAttachmentPhase::Relative
+                        }
+                    }
+                    RuleTag::NominalReducedRecipientPassive => {
+                        NominalAttachmentPhase::ReducedRecipientPassive
+                    }
+                    _ => *attachment,
                 },
                 comparison: *comparison,
                 adjunct: *adjunct,
+                recipient_passive_theme: *recipient_passive_theme,
             })
         }
         RuleTag::NominalPowerToughnessComplement => {
@@ -5448,13 +5631,16 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment,
                 comparison,
                 adjunct,
+                recipient_passive_theme,
             } = children.first()?.features
             else {
                 return None;
             };
             if matches!(
                 attachment,
-                NominalAttachmentPhase::PostpositiveAdjective | NominalAttachmentPhase::Comparison
+                NominalAttachmentPhase::ReducedRecipientPassive
+                    | NominalAttachmentPhase::PostpositiveAdjective
+                    | NominalAttachmentPhase::Comparison
             ) {
                 return None;
             }
@@ -5467,6 +5653,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: *attachment,
                 comparison: *comparison,
                 adjunct: *adjunct,
+                recipient_passive_theme: *recipient_passive_theme,
             })
         }
         RuleTag::NominalPostpositiveAdjective => {
@@ -5492,6 +5679,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct,
+                recipient_passive_theme,
             } = children.first()?.features
             else {
                 return None;
@@ -5505,6 +5693,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::PostpositiveAdjective,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: *adjunct,
+                recipient_passive_theme: *recipient_passive_theme,
             })
         }
         RuleTag::NominalComparison => {
@@ -5517,6 +5706,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Open | NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::Pending(_),
                 adjunct,
+                recipient_passive_theme,
             } = children.first()?.features
             else {
                 return None;
@@ -5530,6 +5720,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Comparison,
                 comparison: AdjectiveComparisonState::Complete,
                 adjunct: *adjunct,
+                recipient_passive_theme: *recipient_passive_theme,
             })
         }
         RuleTag::DevotionColorSingle => {
@@ -5559,6 +5750,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Prepositional,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: None,
+                recipient_passive_theme: false,
             })
         }
         RuleTag::NominalTimesClause => {
@@ -5579,6 +5771,7 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 attachment: NominalAttachmentPhase::Relative,
                 comparison: AdjectiveComparisonState::NotComparative,
                 adjunct: None,
+                recipient_passive_theme: false,
             })
         }
         RuleTag::ModifierConjunctAdjective => {
@@ -5691,17 +5884,24 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
 
 fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
-        RuleTag::NounPhraseNominal => {
+        RuleTag::NounPhraseNominal | RuleTag::ReducedRecipientPassiveTheme => {
             let Features::Nominal {
                 form,
                 determined,
                 modified,
+                attachment,
                 adjunct,
+                recipient_passive_theme,
                 ..
             } = children.first()?.features
             else {
                 return None;
             };
+            if tag == RuleTag::ReducedRecipientPassiveTheme
+                && (*attachment != NominalAttachmentPhase::Open || !*recipient_passive_theme)
+            {
+                return None;
+            }
             let agreement = Some(Agreement {
                 person: Person::Third,
                 number: match form {
@@ -5976,6 +6176,7 @@ fn nominal_with_prefix(
         attachment,
         comparison,
         adjunct,
+        recipient_passive_theme,
         ..
     } = nominal.features
     else {
@@ -6010,6 +6211,7 @@ fn nominal_with_prefix(
         attachment: *attachment,
         comparison,
         adjunct: *adjunct,
+        recipient_passive_theme: *recipient_passive_theme,
     })
 }
 
@@ -6591,6 +6793,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NominalKeywordAtomCarriedPredicatedArgument
         | RuleTag::NominalPowerToughnessComplement
         | RuleTag::NominalRelative
+        | RuleTag::NominalReducedRecipientPassive
         | RuleTag::NominalPostpositiveAdjective
         | RuleTag::NominalComparison
         | RuleTag::NominalDevotion
@@ -6606,6 +6809,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::CoordinatedModifierOxford
         | RuleTag::NominalCoordinatedModifier => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
+        | RuleTag::ReducedRecipientPassiveTheme
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
         | RuleTag::NounPhraseReciprocal
@@ -6658,6 +6862,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ManaAmountCoordinationOxford
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
+        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
@@ -7198,6 +7403,20 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 .push(NominalComplement::Relative(relative));
             Some(Lowered::Nominal(nominal))
         }
+        RuleTag::NominalReducedRecipientPassive => {
+            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
+                return None;
+            };
+            nominal
+                .complements
+                .push(NominalComplement::ReducedRecipientPassive(
+                    clause::finish_reduced_recipient_passive(predicate)?,
+                ));
+            Some(Lowered::Nominal(nominal))
+        }
         RuleTag::NominalPostpositiveAdjective => {
             let Lowered::Nominal(mut nominal) = take(children, 0)? else {
                 return None;
@@ -7379,7 +7598,7 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
 )]
 fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::NounPhraseNominal => {
+        RuleTag::NounPhraseNominal | RuleTag::ReducedRecipientPassiveTheme => {
             let Lowered::Nominal(nominal) = take(children, 0)? else {
                 return None;
             };
