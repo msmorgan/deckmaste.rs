@@ -1,132 +1,103 @@
 ---
 needs: []
 ---
-**Quantifier-float residue — the two stages round `qfloat` did not land, and
-the measured defect in one of them.**
+**Quantifier-float residue — what remains after rounds `qfloat` and `anof`.**
 Campaign-internal residue of `english-structural-recovery-zero`, split out so
 the diagnosis survives in the tree; fold into the live campaign workspace with
 `workflow claim english-quantifier-float-residue --into
 english-structural-recovery-zero`.
 
-Round `qfloat` (2026-07-27) landed **Stage 2 only** — the finite verbal
-quantifier float, 123 spans / 106 faces. The full design is on disk at
-`recovery-harness/out/qfloat-plan.md` and remains valid apart from the Stage 1
-defect recorded below. Counts are unresolved rows measured against the
-post-`qfloat` census (clause 3380 / 63774, structural total 3514 spans / 3143
-faces, noun opacity 974).
+Round `qfloat` (2026-07-27) landed its Stage 2 — the finite verbal quantifier
+float, 123 spans / 106 faces. Round `anof` (2026-07-28) landed **both** stages
+this ticket previously carried as outstanding:
 
-## 1. Stage 1 — the specified fix is UNSOUND as written. Do not re-apply it.
+- **Stage 3 (`any number of` notional plural concord) — LANDED**, 37 clause
+  spans / 596 source tokens, plus one newly exposed embedded-rules span.
+- **Stage 1 (sentence-initial cardinal case) — LANDED as a redesign.** The
+  fix specified in `qfloat-plan.md` §3 was *not* used; see §2 below.
 
-The plan's §3 makes `Numeral::Cardinal` parsing ASCII-case-insensitive so that
-sentence-initial `Two` and `One` stop being mis-analysed. The defect it targets
-is real and is diagnosed to root cause:
+Counts below are unresolved rows against the post-`anof` census: clause
+3342 / 63162, structural total 3477 spans / **3117 faces (9.8375%)**, noun
+opacity 964. The designs are on disk at `recovery-harness/out/qfloat-plan.md`
+(§3, §5) and `recovery-harness/out/anof-brief.md`.
 
-- `numeral.rs:167-168` compares against an all-lowercase `SMALL_CARDINALS`
-  table with `word == input`, an exact comparison, while every other
-  closed-class lexeme matches through `Parser::one_token_match`
-  (`grammar/mod.rs:1538-1542`) using `eq_ignore_ascii_case`.
-- There is a **second** case-sensitive check: `Numeral::parse`
-  (`numeral.rs:91-99`) delegates to `canonical()` (`numeral.rs:102-110`),
-  which filters on `numeral.format(value) == input`. Patching only the table
-  lookup produces a candidate that then fails canonical validation. Any fix
-  must normalize before **both** checks.
+## 1. Stage 3 landed — scope it by predicate shape, not by a verb regex
 
-**This was implemented, measured, and reverted.** It breaks a pre-existing
-anti-misparse gate:
+`any number of <plural NP>` built an ordinary nominal headed by the **singular**
+noun `Number` with the referent in an `of`-complement, so it agreed singular and
+every plural finite verb failed. Fixed with one appended `NounPhrase`
+production, `AnyDeterminer NumberNoun Of NounPhrase`, gated categorically by
+dedicated lexical slots (so the gate sits at scan, not reduce) and registered
+with `precedence: 1` so the formal-singular reading still wins wherever it
+completes. It lowers to the byte-identical ordinary nominal shape; only the
+parse features differ.
 
-- `one_is_a_dispreferenced_fused_head_noun` (`tests/public_api.rs:882`),
-  witness `"One or more target creatures become black until end of turn."`
+**The plan predicted 29 rows and 37 cleared.** Every extra was the same
+construction on a predicate no verb regex covered — `phase out` (Clever
+Concealment, Guardian of Faith, No More), `have base power and toughness` (The
+Bears of Littjara), `become a copy` (Polymorphous Rush), `become 3/3 artifact
+creatures` (Depthshaker Titan), `gain double strike` (Phalanx Formation). This
+is the second consecutive round in this family where a verb-regex inventory
+under-counted; `qfloat`'s Stage 2 did the same. **Scope work in this area by
+the finite-predicate shape.**
 
-Making `One` parse as a cardinal lets it compete inside
-`scan_at_least_quantity`, and the parser resolves the resulting ambiguity to a
-materially wrong tree: `target` becomes the finite verb and `become` is
-demoted to a past-participle adjective inside the object nominal. It renders
-byte-identical, so roundtrip cannot catch it.
+## 2. Stage 1 landed, but NOT as `qfloat-plan.md` §3 specified
 
-That gate is a previous round's deliberate protection, and its sibling
-`number_literal_one_still_wins_over_the_noun_reading` pins the other side of
-the same tiebreak. **A redesign must keep both green.** Measured cost of not
-having Stage 1: **zero recovery** — Stage 1 clears no structural row by
-itself; its only effect is host-tree quality on 16 rows, and Stage 2 cleared
-all 16 without it.
+**Do not re-apply plan §3, and do not make `Numeral::parse` case-insensitive.**
+`numeral.rs` is a strict canonical notation codec — `canonical()` accepts only
+input its own `format` reproduces — and that contract is deliberate and
+property-tested. It was left untouched.
 
-Stage 1's inventory is therefore **not a recovery inventory** but an accuracy
-one, in two parts:
+The real defect was at the grammar layer: every other closed-class lexeme
+matches through `Parser::one_token_match` with `eq_ignore_ascii_case`, while the
+numeral scanners fed raw surface text straight into the canonical codec. The
+landed fix is a `parse_notation` helper in `grammar/mod.rs` routed through all
+five scanner sites (the `Number` lexical slot, at-least, bounded, frequency, and
+or-quantity), which retries a failed cardinal parse against the lowercased
+surface under **two** gates:
 
-- **8 opaque `Two` leaves**, currently live in the census as a direct result
-  of Stage 2 landing without it: Combo Attack, Huddle Up, Invigorated Rampage,
-  Ruthless Disposal, Sick and Tired, Symbiosis, Twigwalker, Windborne Charge.
-  Plus the 2 pre-existing ones, Profane Transfusion and Soul Conduit
-  (`Two target players exchange life totals.`). Each is a genuine one-word
-  lexical gap under an otherwise correct clause — a precision gain over the
-  whole-sentence failures they replaced, not a regression.
-- **A capitalization asymmetry on `one or two`, 8 rows.** Lowercase
-  object-position `one or two target creatures` builds the single quantified
-  nominal `Determiner::Target(Some(Quantity::Or(1, 2)))`. Sentence-initial
-  `One or two target creatures` instead builds
-  `Coordinated(Nominal { determiner: None, head: Singular(Word(One)) }, Or,
-  Nominal { determiner: Target(Some(Exact(2))), head: Plural(Creature) })`.
-  Both render identically. The coordinated reading is the same analysis the
-  grammar deliberately test-locks for `One or more target creatures`, so it is
-  consistent rather than simply wrong — but the two spellings of one
-  construction should not receive different structures. Verified by tree read
-  on `Appeal to Eirdu`.
+- **`one` is excluded.** It is also a fused-head count noun. Letting `One`
+  compete inside the quantity scanners resolves the ambiguity to a materially
+  wrong tree (`target` becomes the finite verb, `become` a past-participle
+  adjective) that renders byte-identical. `one_is_a_dispreferenced_fused_head_noun`
+  and `number_literal_one_still_wins_over_the_noun_reading` both stay green.
+- **The retry is sentence-initial only.** Without this gate the round-trip gate
+  caught two real regressions: `Prisoner Zero` rendered as `Prisoner zero` and
+  `Three Dog` as `three Dog`, because a capitalized cardinal-shaped word inside
+  a proper name carried mid-sentence was matched as a numeral and re-rendered
+  lowercase. `word_matches` and `catalog_matches` already refuse a capitalized
+  non-sentence-initial token as a common-word reading for exactly this reason;
+  the numeral path now uses the same idiom.
 
-## 2. Stage 3 — designed, unattempted, no defect known
+Result: the 10 opaque `Two` leaves are gone (noun opacity 974 → 964) and
+`Secret Tunnel` cleared a whole clause span as well.
 
-Notional plural concord for `any number of <plural NP>`. **23 spans in the
-float family, plus 6 off-regex `any number of ... each mill` rows.**
+**The lesson worth keeping: a corpus blast-radius measurement scoped to
+sentence-initial positions does not license an ungated fix.** The measurement
+was correct about where the *gain* lives; it said nothing about where the
+*retry* could fire. Gate the mechanism to the measured scope.
 
-Diagnosed to root cause: `any number of target creatures` builds an ordinary
-nominal whose head is the **singular** noun `Number` with the referent in an
-`of`-complement, so it agrees singular and every plural finite verb fails.
-`Any number of target creatures gets +2/+2 until end of turn.` parses clean;
-`... get ...` does not. Not a subject-position gap, not capitalization, not
-specific to `target`, and not specific to verbal vs copular predicates —
-verified with a seven-cell probe grid and a tree read.
+## 3. Remaining residue
 
-The plan (§5) specifies one narrow appended production
-`NounPhrase -> AnyDeterminer NumberNoun Of NounPhrase`, deliberately keyed to
-the closed-class `Any` determiner plus the `Vocab::Number` count noun rather
-than a generic `Determiner Noun` prefix. **That narrowness is load-bearing**:
-a generic prefix would be exactly the reduce-dead registration hazard the
-invariant audit warns about. It must not become a `PartitiveHead` variant —
-the syntactic head really is the measure noun; only the concord is wrong.
-
-This stage **registers a production**, so §A of the invariant audit applies in
-full: the categorical gate belongs at dot 1, not at reduce.
-
-Stage 3 was never implemented — the round's mechanic was cut off by an
-environmental connection failure after Stage 2's code was complete. No defect
-is known or suspected.
-
-## 3. Residue Stage 2 left behind
-
-Named and measured, all still unresolved. These are the six rows the `qfloat`
-ledger predicted would remain, each with an independent blocker:
-
-- `Agadeem's Awakening` — `any number of` is an **object** here, and the
-  stripped `Return from ... to ... <object>` plus relative host still fails.
-  A separate imperative/attachment host gap; concord will not reach it.
-- `Smoldering Stagecoach` — coordinated subject plus a `have cascade` host.
-- `Eidolon of Countless Battles` — a double-pump `for each` predicate.
-- `Miasma Demon` — `up to that many ... get ...` quantified host.
-- `Tiamat` — search/list plus relative-clause attachment.
-- `Phantasmal Form` — a `have ..., gain ..., and become ...` predicate run;
-  belongs with `english-predicate-coordination-residue`.
-
-Also recorded, out of scope and unfixed: inside the `any number of` nominal,
-`target` lowers as an ordinary positive `Adjective` modifier rather than the
-`Determiner::Target` that the `up to two target creatures` path builds.
-
-## 4. One thing Stage 2 proved that the row inventory missed
-
-The round was scoped by a regex over a fixed verb list, but the productions
-key on the **finite verb phrase generally**. Five faces outside the scoped
-inventory cleared as the same construction — `Null Chamber` (`each choose`),
-`Mana Clash` (`each flip`), `Parker Luck` and `Keen Duelist` (`each reveal`),
-and `Kozilek, the Broken Reality` (`each manifest`) — and two `embedded rules`
-spans cleared alongside the clause spans.
-
-**Scope future work in this area by the finite-predicate shape, not by a verb
-regex.**
+- **The `one or two` capitalization asymmetry, 8 rows — deliberately not
+  fixed.** Lowercase object-position `one or two target creatures` builds the
+  single quantified nominal `Determiner::Target(Some(Quantity::Or(1, 2)))`;
+  sentence-initial `One or two target creatures` instead builds a coordinated
+  nominal with `One` as a fused head. Both render identically. The coordinated
+  reading is the same analysis the grammar deliberately test-locks for `One or
+  more target creatures`, so it is **consistent rather than wrong** — but the
+  two spellings of one construction should not receive different structures.
+  Fixing it requires resolving the fused-head tiebreak itself, not the case
+  fold; that is the real open problem here.
+- **Six `any number of` rows remain, each with an independent blocker**, none
+  reachable by concord: `Agadeem's Awakening` (object-position `any number of`
+  plus an imperative/attachment host gap), `Smoldering Stagecoach` (coordinated
+  subject + `have cascade`), `Eidolon of Countless Battles` (double-pump `for
+  each`), `Miasma Demon` (`up to that many ... get ...`), `Tiamat` (search/list
+  + relative-clause attachment), `Phantasmal Form` (a `have ..., gain ..., and
+  become ...` predicate run — belongs with
+  `english-predicate-coordination-residue`).
+- **Inside the `any number of` nominal, `target` lowers as an ordinary positive
+  `Adjective` modifier** rather than the `Determiner::Target` that the `up to
+  two target creatures` path builds. Unchanged by `anof`; a nominal-internal
+  category question, not a concord one.
