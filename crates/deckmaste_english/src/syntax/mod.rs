@@ -92,7 +92,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.ability(&threshold.ability, context);
             }
             AbilityKind::Triggered(triggered) => {
-                self.trigger_event(&triggered.event, context);
+                self.trigger_event(&triggered.conditions.first.event, context);
+                for coordination in &triggered.conditions.rest {
+                    self.trigger_event(&coordination.condition.event, context);
+                }
                 if let Some(condition) = &triggered.intervening_condition {
                     self.dependent_clause(condition, context);
                 }

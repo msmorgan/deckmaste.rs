@@ -78,6 +78,9 @@ use crate::syntax::SentenceBody;
 use crate::syntax::StationThresholdAbility;
 use crate::syntax::SubordinateBody;
 use crate::syntax::Subordinator;
+use crate::syntax::TriggerCondition;
+use crate::syntax::TriggerConditionCoordination;
+use crate::syntax::TriggerConditionList;
 use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
 use crate::syntax::TriggeredAbility;
@@ -294,11 +297,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 effect: self.parse_paragraph(effect),
             });
         }
-        if let Some((introducer, event, intervening_condition, effect)) = self.trigger_frame(tokens)
+        if let Some((conditions, intervening_condition, effect)) =
+            self.triggered_ability_frame(tokens)
         {
             return AbilityKind::Triggered(TriggeredAbility {
-                introducer,
-                event,
+                conditions,
                 intervening_condition,
                 effect: self.parse_paragraph(effect),
             });
@@ -877,14 +880,106 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         Option<DependentClause>,
         &'tokens [Token],
     )> {
-        let introducer = match self.token_text(tokens.first()?) {
-            text if text.eq_ignore_ascii_case("when") => TriggerWord::When,
-            text if text.eq_ignore_ascii_case("whenever") => TriggerWord::Whenever,
-            text if text.eq_ignore_ascii_case("at") => TriggerWord::At,
-            _ => return None,
-        };
         let comma = find_top_level_punctuation(tokens, Punctuation::Comma)?;
-        let event_tokens = tokens.get(1..comma)?;
+        let condition = self.parse_trigger_condition(tokens.get(..comma)?)?;
+        let (intervening_condition, effect) = self.trigger_tail(tokens.get(comma + 1..)?)?;
+        Some((
+            condition.introducer,
+            condition.event,
+            intervening_condition,
+            effect,
+        ))
+    }
+
+    /// Parses the ability-initial trigger frame. Mixed-introducer conditions
+    /// are tried as one coordinated list before the established single-frame
+    /// path; a declined coordinated probe rolls back its chart selections so
+    /// ordinary triggers retain exactly their prior provenance.
+    fn triggered_ability_frame<'tokens>(
+        &mut self,
+        tokens: &'tokens [Token],
+    ) -> Option<(
+        TriggerConditionList,
+        Option<DependentClause>,
+        &'tokens [Token],
+    )> {
+        let selection_checkpoint = self.selections.len();
+        if let Some(frame) = self.coordinated_trigger_frame(tokens) {
+            return Some(frame);
+        }
+        self.selections.truncate(selection_checkpoint);
+
+        let (introducer, event, intervening_condition, effect) = self.trigger_frame(tokens)?;
+        Some((
+            TriggerConditionList {
+                first: TriggerCondition { introducer, event },
+                rest: Vec::new(),
+            },
+            intervening_condition,
+            effect,
+        ))
+    }
+
+    fn coordinated_trigger_frame<'tokens>(
+        &mut self,
+        tokens: &'tokens [Token],
+    ) -> Option<(
+        TriggerConditionList,
+        Option<DependentClause>,
+        &'tokens [Token],
+    )> {
+        let comma = find_top_level_punctuation(tokens, Punctuation::Comma)?;
+        let conditions = self.parse_trigger_condition_list(tokens.get(..comma)?)?;
+        let (intervening_condition, effect) = self.trigger_tail(tokens.get(comma + 1..)?)?;
+        Some((conditions, intervening_condition, effect))
+    }
+
+    fn parse_trigger_condition_list(&mut self, tokens: &[Token]) -> Option<TriggerConditionList> {
+        let mut connectors = Vec::new();
+        let mut depth = Nesting::default();
+        for (index, token) in tokens.iter().enumerate() {
+            if depth.is_top_level() {
+                let conjunction = match self.token_text(token) {
+                    text if text.eq_ignore_ascii_case("and") => Some(PredicateConjunction::And),
+                    text if text.eq_ignore_ascii_case("or") => Some(PredicateConjunction::Or),
+                    _ => None,
+                };
+                let next_introducer = tokens
+                    .get(index + 1)
+                    .and_then(|next| self.trigger_word(next));
+                let scalar_at = next_introducer == Some(TriggerWord::At)
+                    && tokens.get(index + 2).is_some_and(|following| {
+                        let text = self.token_text(following);
+                        text.eq_ignore_ascii_case("least") || text.eq_ignore_ascii_case("most")
+                    });
+                if let Some(conjunction) = conjunction
+                    && next_introducer.is_some()
+                    && !scalar_at
+                {
+                    connectors.push((index, conjunction));
+                }
+            }
+            depth.observe(token.kind);
+        }
+        let (first_connector, _) = *connectors.first()?;
+        let first = self.parse_trigger_condition(tokens.get(..first_connector)?)?;
+        let mut rest = Vec::with_capacity(connectors.len());
+        for (connector_index, (connector, conjunction)) in connectors.iter().copied().enumerate() {
+            let end = connectors
+                .get(connector_index + 1)
+                .map_or(tokens.len(), |(next, _)| *next);
+            let condition = self.parse_trigger_condition(tokens.get(connector + 1..end)?)?;
+            rest.push(TriggerConditionCoordination {
+                conjunction,
+                condition,
+            });
+        }
+        Some(TriggerConditionList { first, rest })
+    }
+
+    fn parse_trigger_condition(&mut self, tokens: &[Token]) -> Option<TriggerCondition> {
+        let introducer = self.trigger_word(tokens.first()?)?;
+        let event_tokens = tokens.get(1..)?;
         let event = if introducer == TriggerWord::At {
             let event = self.parse_exact(event_tokens, Nonterminal::NounPhrase)?;
             TriggerEvent::Temporal(event.noun_phrase()?.clone())
@@ -897,7 +992,22 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         } else {
             TriggerEvent::Clause(self.clause_event(event_tokens)?)
         };
-        let mut effect = tokens.get(comma + 1..)?;
+        Some(TriggerCondition { introducer, event })
+    }
+
+    fn trigger_word(&self, token: &Token) -> Option<TriggerWord> {
+        Some(match self.token_text(token) {
+            text if text.eq_ignore_ascii_case("when") => TriggerWord::When,
+            text if text.eq_ignore_ascii_case("whenever") => TriggerWord::Whenever,
+            text if text.eq_ignore_ascii_case("at") => TriggerWord::At,
+            _ => return None,
+        })
+    }
+
+    fn trigger_tail<'tokens>(
+        &mut self,
+        mut effect: &'tokens [Token],
+    ) -> Option<(Option<DependentClause>, &'tokens [Token])> {
         let intervening_condition = if effect
             .first()
             .is_some_and(|token| self.token_text(token).eq_ignore_ascii_case("if"))
@@ -916,7 +1026,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         } else {
             None
         };
-        Some((introducer, event, intervening_condition, effect))
+        Some((intervening_condition, effect))
     }
 
     /// Parses a trigger event that the simple-clause frame could not: a
@@ -2779,7 +2889,7 @@ mod tests {
         let AbilityKind::Triggered(triggered) = &ability.kind else {
             panic!("expected triggered ability");
         };
-        assert_eq!(triggered.introducer, TriggerWord::Whenever);
+        assert_eq!(triggered.conditions.first.introducer, TriggerWord::Whenever);
         assert_eq!(
             render(&report),
             "Landfall — Whenever a land enters under your control, draw a card."
@@ -3430,7 +3540,10 @@ mod tests {
         let AbilityKind::Triggered(keeper_upkeep) = &keeper.ast.abilities[1].kind else {
             panic!("expected Keeper of Keys' second ability to be triggered");
         };
-        assert!(matches!(keeper_upkeep.event, TriggerEvent::Temporal(_)));
+        assert!(matches!(
+            keeper_upkeep.conditions.first.event,
+            TriggerEvent::Temporal(_)
+        ));
         assert!(matches!(
             keeper_upkeep.intervening_condition,
             Some(DependentClause::Subordinate(
@@ -3461,7 +3574,7 @@ mod tests {
             panic!("expected Karmic Justice to be triggered");
         };
         assert!(matches!(
-            justice_trigger.event,
+            justice_trigger.conditions.first.event,
             TriggerEvent::Clause(IndependentClause::Transitive(_, _))
         ));
         assert!(
@@ -5306,7 +5419,7 @@ mod tests {
                 );
             };
             assert!(matches!(
-                triggered.event,
+                triggered.conditions.first.event,
                 TriggerEvent::Clause(IndependentClause::Coordinated(_))
             ));
             assert_eq!(render(&report), source);
@@ -5333,7 +5446,7 @@ mod tests {
             );
         };
         assert!(matches!(
-            triggered.event,
+            triggered.conditions.first.event,
             TriggerEvent::Clause(IndependentClause::Coordinated(_))
         ));
         assert_eq!(
@@ -5728,11 +5841,11 @@ mod tests {
         };
         assert!(
             matches!(
-                triggered.event,
+                triggered.conditions.first.event,
                 TriggerEvent::Clause(IndependentClause::Existential(_))
             ),
             "{:#?}",
-            triggered.event
+            triggered.conditions.first.event
         );
         assert_eq!(render(&report), source);
     }
@@ -5752,8 +5865,13 @@ mod tests {
                 report.ast.abilities[0]
             );
         };
-        let TriggerEvent::Clause(IndependentClause::Complex(complex)) = &triggered.event else {
-            panic!("expected a Complex clause event: {:#?}", triggered.event);
+        let TriggerEvent::Clause(IndependentClause::Complex(complex)) =
+            &triggered.conditions.first.event
+        else {
+            panic!(
+                "expected a Complex clause event: {:#?}",
+                triggered.conditions.first.event
+            );
         };
         assert!(
             complex.attachments.iter().any(|attachment| matches!(
@@ -5823,29 +5941,94 @@ mod tests {
     }
 
     #[test]
-    fn mixed_introducer_trigger_still_recovers() {
-        // The Shrine/Tombstone Stairwell shape (§1.3, §6.3 A-guard): one
-        // triggered ability with two trigger conditions [CR#603.1b]. This
-        // round does not build the coordinated-condition AST (§1.3), so the
-        // mixed-introducer span must still fail structurally rather than
-        // half-parse with the second condition swallowed into the first
-        // event — the round's most dangerous over-fire, since a wrong tree
-        // here would still round-trip.
+    fn mixed_introducer_trigger_conditions_form_one_ability() {
+        // The Shrine/Tombstone Stairwell shape is one triggered ability with
+        // two trigger conditions [CR#603.1b], each retaining its own
+        // introducer and event. In particular, the second condition must not be
+        // swallowed into the first event merely because that wrong tree could
+        // still reproduce the source text.
         let source = "At the beginning of your upkeep and whenever you cast a black spell, sacrifice a Goblin.";
         let report = parse(source);
-        assert!(
-            !report.diagnostics.is_empty(),
-            "the mixed-introducer shape must not parse cleanly"
-        );
-        assert!(
-            !report
-                .ast
-                .abilities
-                .iter()
-                .any(|ability| matches!(ability.kind, AbilityKind::Triggered(_))),
-            "no ability should have become Triggered by swallowing the second condition: {:#?}",
-            report.ast.abilities
-        );
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let [ability] = report.ast.abilities.as_slice() else {
+            panic!("expected one ability: {:#?}", report.ast.abilities);
+        };
+        let AbilityKind::Triggered(triggered) = &ability.kind else {
+            panic!("expected one triggered ability: {ability:#?}");
+        };
+        assert!(matches!(
+            triggered.conditions.first,
+            TriggerCondition {
+                introducer: TriggerWord::At,
+                event: TriggerEvent::Temporal(_),
+            }
+        ));
+        assert!(matches!(
+            triggered.conditions.rest.as_slice(),
+            [TriggerConditionCoordination {
+                conjunction: PredicateConjunction::And,
+                condition: TriggerCondition {
+                    introducer: TriggerWord::Whenever,
+                    event: TriggerEvent::Clause(_),
+                },
+            }]
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn mixed_introducer_conditions_preserve_or_coordination() {
+        let source = "When Nissa attacks or when Nissa blocks, draw a card.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+            panic!("expected triggered ability: {:#?}", report.ast.abilities[0]);
+        };
+        assert!(matches!(
+            triggered.conditions.rest.as_slice(),
+            [TriggerConditionCoordination {
+                conjunction: PredicateConjunction::Or,
+                condition: TriggerCondition {
+                    introducer: TriggerWord::When,
+                    ..
+                },
+            }]
+        ));
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn coordinated_condition_probe_preserves_single_trigger_selections() {
+        // The mixed-condition attempt must be selection-neutral for the
+        // thousands of ordinary ability-initial triggers. These are exactly
+        // the two successful chart spans from the original single-frame path:
+        // one event and one effect, with no partial coordinated probe leaked.
+        let source = "Whenever Nissa attacks, draw a card.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+            panic!("expected triggered ability: {:#?}", report.ast.abilities[0]);
+        };
+        assert!(triggered.conditions.rest.is_empty());
+        let selection_surfaces = report
+            .provenance()
+            .selections()
+            .iter()
+            .map(|selection| selection.span().text(source).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(selection_surfaces, ["Nissa attacks", "draw a card."]);
+        assert_eq!(render(&report), source);
+    }
+
+    #[test]
+    fn coordinated_subject_with_at_least_is_not_a_condition_list() {
+        let source = "Whenever Nissa and at least one other creature attack, draw a card.";
+        let report = parse(source);
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+            panic!("expected triggered ability: {:#?}", report.ast.abilities[0]);
+        };
+        assert!(triggered.conditions.rest.is_empty());
         assert_eq!(render(&report), source);
     }
 

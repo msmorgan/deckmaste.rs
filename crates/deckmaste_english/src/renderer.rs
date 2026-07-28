@@ -95,6 +95,8 @@ use crate::syntax::SubordinateBody;
 use crate::syntax::Subordinator;
 use crate::syntax::ThisCardForm;
 use crate::syntax::TransitivePredicate;
+use crate::syntax::TriggerCondition;
+use crate::syntax::TriggerConditionList;
 use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
 use crate::syntax::VerbParticle;
@@ -284,9 +286,8 @@ impl<'identity> Renderer<'identity> {
             )),
             AbilityKind::Triggered(triggered) => Ok(format!(
                 "{}, {}",
-                self.trigger_frame(
-                    triggered.introducer,
-                    &triggered.event,
+                self.trigger_condition_list_frame(
+                    &triggered.conditions,
                     triggered.intervening_condition.as_ref(),
                 )?,
                 self.paragraph_with_suffix(&triggered.effect, false, suppress_final_period)?
@@ -464,6 +465,27 @@ impl<'identity> Renderer<'identity> {
             TriggerEvent::Temporal(phrase) => self.noun_phrase(phrase)?,
         };
         let mut rendered = format!("{} {event}", render_trigger_word(introducer));
+        if let Some(condition) = intervening_condition {
+            rendered.push_str(", ");
+            rendered.push_str(&self.dependent_clause(condition)?);
+        }
+        Ok(rendered)
+    }
+
+    fn trigger_condition_list_frame(
+        &self,
+        conditions: &TriggerConditionList,
+        intervening_condition: Option<&DependentClause>,
+    ) -> Result<String, RenderError> {
+        let TriggerCondition { introducer, event } = &conditions.first;
+        let mut rendered = self.trigger_frame(*introducer, event, None)?;
+        for coordination in &conditions.rest {
+            rendered.push(' ');
+            rendered.push_str(render_predicate_conjunction(coordination.conjunction));
+            rendered.push(' ');
+            let TriggerCondition { introducer, event } = &coordination.condition;
+            rendered.push_str(&self.trigger_frame(*introducer, event, None)?);
+        }
         if let Some(condition) = intervening_condition {
             rendered.push_str(", ");
             rendered.push_str(&self.dependent_clause(condition)?);
@@ -3241,11 +3263,16 @@ mod tests {
                 ability_word: None,
                 flavor_header: None,
                 kind: AbilityKind::Triggered(TriggeredAbility {
-                    introducer: TriggerWord::Whenever,
-                    event: TriggerEvent::Clause(independent(simple(
-                        Some(Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))),
-                        verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
-                    ))),
+                    conditions: TriggerConditionList {
+                        first: TriggerCondition {
+                            introducer: TriggerWord::Whenever,
+                            event: TriggerEvent::Clause(independent(simple(
+                                Some(Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))),
+                                verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
+                            ))),
+                        },
+                        rest: Vec::new(),
+                    },
                     intervening_condition: None,
                     effect: draw_effect,
                 }),

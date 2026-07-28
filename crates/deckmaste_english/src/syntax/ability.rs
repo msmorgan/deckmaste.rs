@@ -1,6 +1,7 @@
 use super::clause::DependentClause;
 use super::clause::IndependentClause;
 use super::clause::Predicate;
+use super::clause::PredicateConjunction;
 use super::phrase::NounPhrase;
 use super::phrase::NumberLiteral;
 use super::phrase::OracleSymbol;
@@ -235,10 +236,31 @@ pub enum CostComponent {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TriggeredAbility {
-    pub introducer: TriggerWord,
-    pub event: TriggerEvent,
+    pub conditions: TriggerConditionList,
     pub intervening_condition: Option<DependentClause>,
     pub effect: Paragraph,
+}
+
+/// The ordered conditions that can trigger one ability. A single-condition
+/// ability has an empty [`Self::rest`]; a mixed-introducer ability keeps each
+/// introducer paired with its own event instead of folding the later condition
+/// into the first event or splitting the effect into multiple abilities.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriggerConditionList {
+    pub first: TriggerCondition,
+    pub rest: Vec<TriggerConditionCoordination>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriggerConditionCoordination {
+    pub conjunction: PredicateConjunction,
+    pub condition: TriggerCondition,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriggerCondition {
+    pub introducer: TriggerWord,
+    pub event: TriggerEvent,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
