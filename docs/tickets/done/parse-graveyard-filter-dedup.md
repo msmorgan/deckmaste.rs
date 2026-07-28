@@ -26,6 +26,3 @@ graveyard" is unchanged byte-for-byte.
 
 (Surfaced by the code review on `engine-block-legality-query`; the finding is in
 the for-each-pump / graveyard-scaler work, not that feature.)
-
-Completed 2026-07-28: the count parser now delegates to the two effect-parser
-builders; migration tests and a full Wizards regeneration stayed unchanged.
