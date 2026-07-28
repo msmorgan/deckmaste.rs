@@ -457,6 +457,225 @@ pub(crate) enum EnglishLexicalSlot {
     Opaque(OpacitySlot),
 }
 
+impl EnglishLexicalSlot {
+    /// Fixed word surfaces owned by this lexical slot. Sequence-valued slots
+    /// return their words in order; alternative-valued slots return every
+    /// accepted one-token surface. The exhaustive match is intentional: a new
+    /// lexical slot must state whether it owns fixed literal words.
+    const fn literal_surfaces(self) -> &'static [&'static str] {
+        match self {
+            Self::TimesNoun => &["times"],
+            Self::NumberNoun => &["number"],
+            Self::PreverbAdverb => &["next"],
+            Self::CombatStepDeclare => &["declare"],
+            Self::CombatStepParticipants => &["attackers", "blockers"],
+            Self::CombatStepHead => &["step"],
+            Self::VerbParticle(VerbParticle::In) => &["in"],
+            Self::VerbParticle(VerbParticle::Out) => &["out"],
+            Self::CoinResult(crate::syntax::CoinSide::Heads) => &["up", "heads"],
+            Self::CoinResult(crate::syntax::CoinSide::Tails) => &["up", "tails"],
+            Self::FromWord => &["from"],
+            Self::DeterminerTarget => &["target"],
+            Self::QuantityX => &["X"],
+            Self::QuantityBoth => &["both"],
+            Self::QuantityThatMany => &["that", "many"],
+            Self::QuantityThatMuch => &["that", "much"],
+            Self::QuantityBound(BoundedQuantityKind::MoreThan) => &["more", "than"],
+            Self::QuantityBound(BoundedQuantityKind::FewerThan) => &["fewer", "than"],
+            Self::Than => &["than"],
+            Self::OrEqualTo => &["or", "equal", "to"],
+            Self::RelativeMarker => &["who", "that"],
+            Self::Face => &["face"],
+            Self::Up => &["up"],
+            Self::Down => &["down"],
+            Self::Not => &["not"],
+            Self::To => &["to"],
+            Self::Of => &["of"],
+            Self::ForWord => &["for"],
+            Self::EachDeterminer => &["each"],
+            Self::AnyDeterminer => &["any"],
+            Self::Reciprocal => &["each", "other"],
+            Self::RatherThan => &["rather", "than"],
+            Self::Plus => &["plus"],
+            Self::Minus => &["minus"],
+            Self::Half => &["half"],
+            Self::Rounded => &["rounded"],
+            Self::Existential => &["there", "there's"],
+            Self::SubjectAuxiliary => &[
+                "you're", "you've", "he's", "she's", "it's", "that's", "they're", "they've",
+            ],
+            Self::Except => &["except"],
+
+            Self::Number(_)
+            | Self::Noun(_)
+            | Self::PossessiveNoun
+            | Self::Verb(_)
+            | Self::ReducedRecipientPassiveParticiple
+            | Self::Adjective
+            | Self::ColorWord
+            | Self::DevotionValue
+            | Self::NegatedModifier
+            | Self::Adverb
+            | Self::SentenceAdverbial
+            | Self::Frequency
+            | Self::Pronoun(_)
+            | Self::Auxiliary
+            | Self::AbilityItem
+            | Self::AbilityWord
+            | Self::SymbolArgumentKeywordNoun
+            | Self::ExplicitPredicatedKeywordNoun
+            | Self::AtomCarriedPredicatedKeywordNoun
+            | Self::Determiner
+            | Self::Demonstrative
+            | Self::QuantityAtLeast
+            | Self::QuantityOr
+            | Self::ThisCard
+            | Self::FullThisCard
+            | Self::PossessiveThisCard
+            | Self::Preposition
+            | Self::OracleSymbol
+            | Self::SymbolSequence
+            | Self::QuotedAbility
+            | Self::PowerToughness
+            | Self::Punctuation(_)
+            | Self::Subordinator
+            | Self::Conjunction
+            | Self::Copula
+            | Self::Opaque(_) => &[],
+        }
+    }
+
+    /// Every fixed-literal slot, including deliberately opacity-visible slots.
+    /// Scanner arms and the opacity predicate both consume this table.
+    const LITERAL_SLOTS: &'static [Self] = &[
+        Self::TimesNoun,
+        Self::NumberNoun,
+        Self::PreverbAdverb,
+        Self::CombatStepDeclare,
+        Self::CombatStepParticipants,
+        Self::CombatStepHead,
+        Self::VerbParticle(VerbParticle::In),
+        Self::VerbParticle(VerbParticle::Out),
+        Self::CoinResult(crate::syntax::CoinSide::Heads),
+        Self::CoinResult(crate::syntax::CoinSide::Tails),
+        Self::FromWord,
+        Self::DeterminerTarget,
+        Self::QuantityX,
+        Self::QuantityBoth,
+        Self::QuantityThatMany,
+        Self::QuantityThatMuch,
+        Self::QuantityBound(BoundedQuantityKind::MoreThan),
+        Self::QuantityBound(BoundedQuantityKind::FewerThan),
+        Self::Than,
+        Self::OrEqualTo,
+        Self::RelativeMarker,
+        Self::Face,
+        Self::Up,
+        Self::Down,
+        Self::Not,
+        Self::To,
+        Self::Of,
+        Self::ForWord,
+        Self::EachDeterminer,
+        Self::AnyDeterminer,
+        Self::Reciprocal,
+        Self::RatherThan,
+        Self::Plus,
+        Self::Minus,
+        Self::Half,
+        Self::Rounded,
+        Self::Existential,
+        Self::SubjectAuxiliary,
+        Self::Except,
+    ];
+
+    /// Whether one surface from [`Self::literal_surfaces`] participates in the
+    /// opacity known-word invariant. Indexing avoids a second spelling table.
+    const fn reserves_literal_for_opacity(self, surface_index: usize) -> bool {
+        match self {
+            Self::Plus
+            | Self::Except
+            | Self::Not
+            | Self::Up
+            | Self::Than
+            | Self::Down
+            | Self::Minus
+            | Self::QuantityX => true,
+            // Reserve `who` but not determiner-known `that`, and measured
+            // `there` but not the still-unaudited contraction `there's`.
+            Self::RelativeMarker | Self::Existential => surface_index == 0,
+            // `it's` and `that's` are measured. The other contractions remain
+            // opacity-visible until their second-order retain effects are audited.
+            Self::SubjectAuxiliary => matches!(surface_index, 4 | 5),
+            // In particular, `out` must remain opacifiable for an unlicensed
+            // verb-particle pair; `both`, `half`, `rounded`, `rather`, and the
+            // remaining contracted forms are likewise explicit measured-work
+            // opt-outs, not accidental omissions.
+            Self::Number(_)
+            | Self::Noun(_)
+            | Self::PossessiveNoun
+            | Self::Verb(_)
+            | Self::ReducedRecipientPassiveParticiple
+            | Self::Adjective
+            | Self::ColorWord
+            | Self::DevotionValue
+            | Self::TimesNoun
+            | Self::NumberNoun
+            | Self::PreverbAdverb
+            | Self::CombatStepDeclare
+            | Self::CombatStepParticipants
+            | Self::CombatStepHead
+            | Self::NegatedModifier
+            | Self::Adverb
+            | Self::SentenceAdverbial
+            | Self::VerbParticle(_)
+            | Self::CoinResult(_)
+            | Self::Frequency
+            | Self::Pronoun(_)
+            | Self::Auxiliary
+            | Self::AbilityItem
+            | Self::AbilityWord
+            | Self::SymbolArgumentKeywordNoun
+            | Self::FromWord
+            | Self::ExplicitPredicatedKeywordNoun
+            | Self::AtomCarriedPredicatedKeywordNoun
+            | Self::Determiner
+            | Self::Demonstrative
+            | Self::DeterminerTarget
+            | Self::QuantityAtLeast
+            | Self::QuantityOr
+            | Self::QuantityBoth
+            | Self::QuantityThatMany
+            | Self::QuantityThatMuch
+            | Self::QuantityBound(_)
+            | Self::OrEqualTo
+            | Self::Face
+            | Self::To
+            | Self::Of
+            | Self::ForWord
+            | Self::EachDeterminer
+            | Self::AnyDeterminer
+            | Self::Reciprocal
+            | Self::ThisCard
+            | Self::FullThisCard
+            | Self::PossessiveThisCard
+            | Self::Preposition
+            | Self::OracleSymbol
+            | Self::SymbolSequence
+            | Self::QuotedAbility
+            | Self::PowerToughness
+            | Self::Punctuation(_)
+            | Self::Subordinator
+            | Self::RatherThan
+            | Self::Conjunction
+            | Self::Half
+            | Self::Rounded
+            | Self::Copula
+            | Self::Opaque(_) => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum OpacityMode {
     Exact,
@@ -1688,6 +1907,18 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             .then_some(start + 1)
     }
 
+    fn literal_token_match(
+        &self,
+        tokens: &[Token],
+        start: usize,
+        slot: EnglishLexicalSlot,
+    ) -> Option<usize> {
+        let [expected] = slot.literal_surfaces() else {
+            return None;
+        };
+        self.one_token_match(tokens, start, expected)
+    }
+
     fn words_match(&self, tokens: &[Token], start: usize, expected: &[&str]) -> Option<usize> {
         let end = start.checked_add(expected.len())?;
         let actual = tokens.get(start..end)?;
@@ -1701,6 +1932,15 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
                     .is_some_and(|surface| surface.eq_ignore_ascii_case(expected))
             })
             .then_some(end)
+    }
+
+    fn literal_words_match(
+        &self,
+        tokens: &[Token],
+        start: usize,
+        slot: EnglishLexicalSlot,
+    ) -> Option<usize> {
+        self.words_match(tokens, start, slot.literal_surfaces())
     }
 
     fn catalog_end(tokens: &[Token], start: usize, byte_length: usize) -> Option<usize> {
@@ -2047,8 +2287,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::SymbolArgumentKeywordNoun => {
                 self.catalog_matches(tokens, start, CatalogSlot::KeywordAbilityNoun)
             }
-            EnglishLexicalSlot::FromWord => self
-                .one_token_match(tokens, start, "from")
+            slot @ EnglishLexicalSlot::FromWord => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::None,
@@ -2156,8 +2396,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::TimesNoun => self
-                .one_token_match(tokens, start, "times")
+            slot @ EnglishLexicalSlot::TimesNoun => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Noun {
@@ -2172,8 +2412,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::NumberNoun => self
-                .one_token_match(tokens, start, "number")
+            slot @ EnglishLexicalSlot::NumberNoun => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Noun {
@@ -2188,15 +2428,16 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::CombatStepDeclare => self
-                .one_token_match(tokens, start, "declare")
+            slot @ EnglishLexicalSlot::CombatStepDeclare => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::CombatStepDeclare))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::CombatStepParticipants => {
+            slot @ EnglishLexicalSlot::CombatStepParticipants => {
                 let matches_surface = self.token_text(tokens, start).is_some_and(|surface| {
-                    surface.eq_ignore_ascii_case("attackers")
-                        || surface.eq_ignore_ascii_case("blockers")
+                    slot.literal_surfaces()
+                        .iter()
+                        .any(|expected| surface.eq_ignore_ascii_case(expected))
                 });
                 if !matches_surface {
                     return Vec::new();
@@ -2211,8 +2452,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     })
                     .collect()
             }
-            EnglishLexicalSlot::CombatStepHead => {
-                if self.one_token_match(tokens, start, "step").is_none() {
+            slot @ EnglishLexicalSlot::CombatStepHead => {
+                if self.literal_token_match(tokens, start, slot).is_none() {
                     return Vec::new();
                 }
                 self.word_matches(tokens, start, LexicalSlot::Noun(NounUsage::Count))
@@ -2225,8 +2466,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     })
                     .collect()
             }
-            EnglishLexicalSlot::PreverbAdverb => {
-                if self.one_token_match(tokens, start, "next").is_none() {
+            slot @ EnglishLexicalSlot::PreverbAdverb => {
+                if self.literal_token_match(tokens, start, slot).is_none() {
                     return Vec::new();
                 }
                 self.word_matches(tokens, start, LexicalSlot::Adverb)
@@ -2236,15 +2477,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::SentenceAdverbial => {
                 self.word_matches(tokens, start, LexicalSlot::SentenceAdverbial)
             }
-            EnglishLexicalSlot::VerbParticle(particle) => self
-                .one_token_match(
-                    tokens,
-                    start,
-                    match particle {
-                        VerbParticle::In => "in",
-                        VerbParticle::Out => "out",
-                    },
-                )
+            slot @ EnglishLexicalSlot::VerbParticle(particle) => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::VerbParticle(particle),
@@ -2256,15 +2490,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
             // The closed two-word coin-result surface [CR#705.1,705.2]:
             // scanned as an exact literal `up heads`/`up tails`, never as a
             // general noun/adjective lookup for `heads`/`tails`.
-            EnglishLexicalSlot::CoinResult(side) => self
-                .words_match(
-                    tokens,
-                    start,
-                    match side {
-                        crate::syntax::CoinSide::Heads => &["up", "heads"],
-                        crate::syntax::CoinSide::Tails => &["up", "tails"],
-                    },
-                )
+            slot @ EnglishLexicalSlot::CoinResult(side) => self
+                .literal_words_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::CoinResult(side),
@@ -2302,8 +2529,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
             }
             EnglishLexicalSlot::Determiner => self.scan_determiner(tokens, start),
             EnglishLexicalSlot::Demonstrative => self.scan_demonstrative(tokens, start),
-            EnglishLexicalSlot::DeterminerTarget => self
-                .one_token_match(tokens, start, "target")
+            slot @ EnglishLexicalSlot::DeterminerTarget => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Determiner {
@@ -2318,95 +2545,96 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .collect(),
             EnglishLexicalSlot::QuantityAtLeast => self.scan_at_least_quantity(tokens, start),
             EnglishLexicalSlot::QuantityOr => self.scan_or_quantity(tokens, start),
-            EnglishLexicalSlot::QuantityX => self
-                .one_token_match(tokens, start, "X")
+            slot @ EnglishLexicalSlot::QuantityX => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| quantity_match(end, QuantityKey::X))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::QuantityBoth => self
-                .one_token_match(tokens, start, "both")
+            slot @ EnglishLexicalSlot::QuantityBoth => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| quantity_match(end, QuantityKey::Both))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::QuantityThatMany => self
-                .words_match(tokens, start, &["that", "many"])
+            slot @ EnglishLexicalSlot::QuantityThatMany => self
+                .literal_words_match(tokens, start, slot)
                 .map(|end| quantity_match(end, QuantityKey::ThatMany))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::QuantityThatMuch => self
-                .words_match(tokens, start, &["that", "much"])
+            slot @ EnglishLexicalSlot::QuantityThatMuch => self
+                .literal_words_match(tokens, start, slot)
                 .map(|end| quantity_match(end, QuantityKey::ThatMuch))
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::QuantityBound(kind) => {
                 self.scan_bounded_quantity(tokens, start, kind)
             }
-            EnglishLexicalSlot::Than => self
-                .one_token_match(tokens, start, "than")
+            slot @ EnglishLexicalSlot::Than => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Than))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::OrEqualTo => self
-                .words_match(tokens, start, &["or", "equal", "to"])
+            slot @ EnglishLexicalSlot::OrEqualTo => self
+                .literal_words_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::OrEqualTo))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::RelativeMarker => {
-                [("who", RelativeMarker::Who), ("that", RelativeMarker::That)]
-                    .into_iter()
-                    .filter_map(|(surface, marker)| {
-                        self.one_token_match(tokens, start, surface)
-                            .map(|end| LexicalMatch {
-                                end,
-                                features: Features::None,
-                                meaning: MeaningKey::RelativeMarker(marker),
-                                local_cost: ParseCost::default(),
-                            })
-                    })
-                    .collect()
-            }
-            EnglishLexicalSlot::Face => self
-                .one_token_match(tokens, start, "face")
+            slot @ EnglishLexicalSlot::RelativeMarker => slot
+                .literal_surfaces()
+                .iter()
+                .copied()
+                .zip([RelativeMarker::Who, RelativeMarker::That])
+                .filter_map(|(surface, marker)| {
+                    self.one_token_match(tokens, start, surface)
+                        .map(|end| LexicalMatch {
+                            end,
+                            features: Features::None,
+                            meaning: MeaningKey::RelativeMarker(marker),
+                            local_cost: ParseCost::default(),
+                        })
+                })
+                .collect(),
+            slot @ EnglishLexicalSlot::Face => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Face))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Up => self
-                .one_token_match(tokens, start, "up")
+            slot @ EnglishLexicalSlot::Up => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Up))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Down => self
-                .one_token_match(tokens, start, "down")
+            slot @ EnglishLexicalSlot::Down => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Down))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Not => self
-                .one_token_match(tokens, start, "not")
+            slot @ EnglishLexicalSlot::Not => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Not))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Minus => self
-                .one_token_match(tokens, start, "minus")
+            slot @ EnglishLexicalSlot::Minus => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Minus))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Half => self
-                .one_token_match(tokens, start, "half")
+            slot @ EnglishLexicalSlot::Half => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Half))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Rounded => self
-                .one_token_match(tokens, start, "rounded")
+            slot @ EnglishLexicalSlot::Rounded => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Rounded))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::To => self
-                .one_token_match(tokens, start, "to")
+            slot @ EnglishLexicalSlot::To => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::To))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Of => self
-                .one_token_match(tokens, start, "of")
+            slot @ EnglishLexicalSlot::Of => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Preposition(Preposition::Of),
@@ -2415,8 +2643,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::ForWord => self
-                .one_token_match(tokens, start, "for")
+            slot @ EnglishLexicalSlot::ForWord => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Preposition(Preposition::For),
@@ -2425,8 +2653,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::EachDeterminer => self
-                .one_token_match(tokens, start, "each")
+            slot @ EnglishLexicalSlot::EachDeterminer => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Determiner {
@@ -2439,8 +2667,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::AnyDeterminer => self
-                .one_token_match(tokens, start, "any")
+            slot @ EnglishLexicalSlot::AnyDeterminer => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Determiner {
@@ -2453,8 +2681,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Reciprocal => self
-                .words_match(tokens, start, &["each", "other"])
+            slot @ EnglishLexicalSlot::Reciprocal => self
+                .literal_words_match(tokens, start, slot)
                 .map(|end| pronoun_match(end, Pronoun::EachOther, PronounCase::Object))
                 .into_iter()
                 .collect(),
@@ -2638,8 +2866,8 @@ impl EnglishGrammar<'_, '_> {
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Subordinator => self.scan_subordinators(tokens, start),
-            EnglishLexicalSlot::RatherThan => self
-                .words_match(tokens, start, &["rather", "than"])
+            slot @ EnglishLexicalSlot::RatherThan => self
+                .literal_words_match(tokens, start, slot)
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::None,
@@ -2649,54 +2877,19 @@ impl EnglishGrammar<'_, '_> {
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Conjunction => self.scan_conjunction(tokens, start),
-            EnglishLexicalSlot::Plus => self
-                .one_token_match(tokens, start, "plus")
+            slot @ EnglishLexicalSlot::Plus => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Plus))
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Except => self
-                .one_token_match(tokens, start, "except")
+            slot @ EnglishLexicalSlot::Except => self
+                .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Except))
                 .into_iter()
                 .collect(),
             _ => Vec::new(),
         }
     }
-
-    /// Literal lexemes the grammar scans as whole `Word` tokens but that no
-    /// vocabulary, catalog, determiner, preposition, conjunction, or
-    /// subordinator scanner would report. `has_known_word` must know every
-    /// one of them: the opacity gate's invariant is "never opacify a word
-    /// the lexicon already knows", and a literal swallowed as an opaque
-    /// noun can head a nominal that captures real nouns as its modifiers
-    /// and completes a sentence that should stay recovered (round
-    /// `pluralposs`, `except`/`not`).
-    ///
-    /// Adding a new literal-scanned slot means adding its surface here. The
-    /// compiler cannot yet force that — see the derivation residue in
-    /// `litaudit-plan.md` §2.
-    // Deviation from plan §1.2 (round litaudit, recorded in
-    // litaudit-mechanic-report.md): the plan's "same class, no witness
-    // today" defensive additions (`both`, `half`, `rounded`, `out`,
-    // `rather`, `there's`, `he's`/`she's`/`they're`/`they've`/`you've`,
-    // `'s`) are NOT measured zero-cost. `out` breaks
-    // `directional_particle_requires_a_licensed_verb_pair`
-    // (grammar/clause.rs), which depends on `out` staying opacifiable as a
-    // noun fallback when paired with an unlicensed verb. `you've` has a
-    // second-order retain effect (litaudit-plan.md §4) that removes two
-    // `lexical noun` dump rows outside the measured 47 (`surveilled`,
-    // `completed`), tripping the round's own hard stop condition ("any
-    // removed row not among the 47"). Since the plan explicitly did not
-    // measure this class before declaring it zero-cost, the mechanic holds
-    // the const to only the measured-exposure literals plus the
-    // already-present hand arms, and tickets the zero-exposure class for a
-    // follow-up round that measures each one individually.
-    const OPACITY_RESERVED_LITERALS: &'static [&'static str] = &[
-        // already present as hand arms before this round
-        "plus", "who", "except", "not",
-        // measured exposure (litaudit-plan.md §1.2) — the hard floor
-        "there", "up", "than", "it's", "that's", "down", "minus", "X",
-    ];
 
     fn has_known_word(&self, tokens: &[Token], start: usize) -> bool {
         if tokens
@@ -2725,9 +2918,18 @@ impl EnglishGrammar<'_, '_> {
             || !self.scan_preposition(tokens, start).is_empty()
             || !self.scan_conjunction(tokens, start).is_empty()
             || self.subordinator_at(tokens, start).is_some()
-            || Self::OPACITY_RESERVED_LITERALS
+            || EnglishLexicalSlot::LITERAL_SLOTS
                 .iter()
-                .any(|literal| self.one_token_match(tokens, start, literal).is_some())
+                .copied()
+                .any(|slot| {
+                    slot.literal_surfaces()
+                        .iter()
+                        .enumerate()
+                        .any(|(index, literal)| {
+                            slot.reserves_literal_for_opacity(index)
+                                && self.one_token_match(tokens, start, literal).is_some()
+                        })
+                })
             || !self
                 .catalog_matches(tokens, start, CatalogSlot::Noun(NounUsage::Either))
                 .is_empty()
@@ -2817,12 +3019,15 @@ impl EnglishGrammar<'_, '_> {
         tokens: &[Token],
         start: usize,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let [there, contracted] = EnglishLexicalSlot::Existential.literal_surfaces() else {
+            unreachable!("existential literal metadata has a fixed shape");
+        };
         [
-            ((&["there", "is"] as &[&str]), ExistentialForm::Is),
-            ((&["there's"] as &[&str]), ExistentialForm::ContractedIs),
-            ((&["there", "are"] as &[&str]), ExistentialForm::Are),
-            ((&["there", "was"] as &[&str]), ExistentialForm::Was),
-            ((&["there", "were"] as &[&str]), ExistentialForm::Were),
+            ((&[*there, "is"] as &[&str]), ExistentialForm::Is),
+            ((&[*contracted] as &[&str]), ExistentialForm::ContractedIs),
+            ((&[*there, "are"] as &[&str]), ExistentialForm::Are),
+            ((&[*there, "was"] as &[&str]), ExistentialForm::Was),
+            ((&[*there, "were"] as &[&str]), ExistentialForm::Were),
         ]
         .into_iter()
         .filter_map(|(words, form)| {
@@ -2849,86 +3054,91 @@ impl EnglishGrammar<'_, '_> {
         tokens: &[Token],
         start: usize,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let [you_are, you_have, he, she, it, that, they_are, they_have] =
+            EnglishLexicalSlot::SubjectAuxiliary.literal_surfaces()
+        else {
+            unreachable!("subject-auxiliary literal metadata has a fixed shape");
+        };
         [
             (
-                "you're",
+                *you_are,
                 ContractedSubjectKey::Pronoun(Pronoun::You),
                 Auxiliary::Be,
                 Person::Second,
                 Number::Singular,
             ),
             (
-                "you've",
+                *you_have,
                 ContractedSubjectKey::Pronoun(Pronoun::You),
                 Auxiliary::Have,
                 Person::Second,
                 Number::Singular,
             ),
             (
-                "he's",
+                *he,
                 ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Masculine)),
                 Auxiliary::Be,
                 Person::Third,
                 Number::Singular,
             ),
             (
-                "he's",
+                *he,
                 ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Masculine)),
                 Auxiliary::Have,
                 Person::Third,
                 Number::Singular,
             ),
             (
-                "she's",
+                *she,
                 ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Feminine)),
                 Auxiliary::Be,
                 Person::Third,
                 Number::Singular,
             ),
             (
-                "she's",
+                *she,
                 ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Feminine)),
                 Auxiliary::Have,
                 Person::Third,
                 Number::Singular,
             ),
             (
-                "it's",
+                *it,
                 ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Neuter)),
                 Auxiliary::Be,
                 Person::Third,
                 Number::Singular,
             ),
             (
-                "it's",
+                *it,
                 ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Neuter)),
                 Auxiliary::Have,
                 Person::Third,
                 Number::Singular,
             ),
             (
-                "that's",
+                *that,
                 ContractedSubjectKey::Demonstrative(Demonstrative::That),
                 Auxiliary::Be,
                 Person::Third,
                 Number::Singular,
             ),
             (
-                "that's",
+                *that,
                 ContractedSubjectKey::Demonstrative(Demonstrative::That),
                 Auxiliary::Have,
                 Person::Third,
                 Number::Singular,
             ),
             (
-                "they're",
+                *they_are,
                 ContractedSubjectKey::Pronoun(Pronoun::They),
                 Auxiliary::Be,
                 Person::Third,
                 Number::Plural,
             ),
             (
-                "they've",
+                *they_have,
                 ContractedSubjectKey::Pronoun(Pronoun::They),
                 Auxiliary::Have,
                 Person::Third,
@@ -3265,11 +3475,8 @@ impl EnglishGrammar<'_, '_> {
         start: usize,
         kind: BoundedQuantityKind,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        let opening = match kind {
-            BoundedQuantityKind::MoreThan => "more",
-            BoundedQuantityKind::FewerThan => "fewer",
-        };
-        let Some(number_start) = self.words_match(tokens, start, &[opening, "than"]) else {
+        let slot = EnglishLexicalSlot::QuantityBound(kind);
+        let Some(number_start) = self.literal_words_match(tokens, start, slot) else {
             return Vec::new();
         };
         let Some(surface) = self.token_text(tokens, number_start) else {
@@ -8192,20 +8399,57 @@ mod litaudit_tests {
     }
 
     #[test]
-    fn every_reserved_literal_is_a_known_word() {
+    fn every_reserved_literal_surface_is_a_known_word() {
         // has_known_word's own invariant: a word the lexicon already knows —
         // including hand-written literal lexemes, not just vocabulary/catalog
         // slots — must never be reported as unknown (and so must never be
         // opacified). Extends pluralposs's
         // `a_known_literal_lexeme_is_never_opacifiable` (which folds into this
-        // test) to the full `OPACITY_RESERVED_LITERALS` table (round litaudit).
+        // test) to the typed literal-slot table.
         let catalogs = fixture_catalogs();
-        for literal in EnglishGrammar::OPACITY_RESERVED_LITERALS {
-            let surface = crate::surface::lex(literal);
-            let grammar = EnglishGrammar::new(literal, &catalogs, Nonterminal::NounPhrase);
+        for &slot in EnglishLexicalSlot::LITERAL_SLOTS {
             assert!(
-                grammar.has_known_word(&surface.tokens, 0),
-                "{literal} must be a known word"
+                !slot.literal_surfaces().is_empty(),
+                "literal slot has no declared surface: {slot:?}"
+            );
+            for (index, &literal) in slot.literal_surfaces().iter().enumerate() {
+                if !slot.reserves_literal_for_opacity(index) {
+                    continue;
+                }
+                let surface = crate::surface::lex(literal);
+                let grammar = EnglishGrammar::new(literal, &catalogs, Nonterminal::NounPhrase);
+                assert!(
+                    grammar.has_known_word(&surface.tokens, 0),
+                    "{literal} from {slot:?} must be a known word"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn measured_literal_opacity_opt_outs_are_explicit() {
+        let opted_out = [
+            (EnglishLexicalSlot::VerbParticle(VerbParticle::Out), "out"),
+            (EnglishLexicalSlot::QuantityBoth, "both"),
+            (EnglishLexicalSlot::Half, "half"),
+            (EnglishLexicalSlot::Rounded, "rounded"),
+            (EnglishLexicalSlot::RatherThan, "rather"),
+            (EnglishLexicalSlot::Existential, "there's"),
+            (EnglishLexicalSlot::SubjectAuxiliary, "you've"),
+            (EnglishLexicalSlot::SubjectAuxiliary, "he's"),
+            (EnglishLexicalSlot::SubjectAuxiliary, "she's"),
+            (EnglishLexicalSlot::SubjectAuxiliary, "they're"),
+            (EnglishLexicalSlot::SubjectAuxiliary, "they've"),
+        ];
+        for (slot, expected) in opted_out {
+            let index = slot
+                .literal_surfaces()
+                .iter()
+                .position(|surface| *surface == expected)
+                .unwrap_or_else(|| panic!("missing {expected:?} from {slot:?}"));
+            assert!(
+                !slot.reserves_literal_for_opacity(index),
+                "{expected:?} must remain opacity-visible pending its audit"
             );
         }
     }

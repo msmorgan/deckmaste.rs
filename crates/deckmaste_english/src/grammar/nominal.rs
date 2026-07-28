@@ -940,8 +940,8 @@ mod tests {
     }
 
     // a_known_literal_lexeme_is_never_opacifiable folded into
-    // grammar::mod::litaudit_tests::every_reserved_literal_is_a_known_word
-    // (round litaudit), which covers the full OPACITY_RESERVED_LITERALS table.
+    // grammar::mod::litaudit_tests::every_reserved_literal_surface_is_a_known_word
+    // (round litaudit), which covers every opacity-reserved literal surface.
 
     #[test]
     fn self_reference_possessive_is_one_determiner() {
