@@ -118,6 +118,11 @@ struct VerbPhrase {
     verb: VerbInstance,
     frame: PredicateFrame,
     dependents: Vec<VerbDependent>,
+    /// Set only by `lower_simple_clause`'s two distributive-`each` float
+    /// arms, after the completed predicate is taken — never inferred from
+    /// subject shape. Copied into `PredicateHead::distributive_each` by
+    /// `finish_predicate`.
+    distributive_each: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1273,6 +1278,12 @@ enum RuleTag {
     GerundClauseBase,
     GerundClauseSubordinateAfter,
     SimpleClauseSubject,
+    /// The finite verbal quantifier float (`Two target creatures each get
+    /// +2/+2 until end of turn.`): a plural/second-person subject, the
+    /// dedicated `each` lexeme, and a completed finite verb phrase. The
+    /// `each` lexical child is discarded and carried as
+    /// `PredicateHead::distributive_each` — see `finish_predicate`.
+    SimpleClauseSubjectDistributiveEach,
     SimpleClauseContractedSubject,
     SimpleClauseSubjectless,
     ClauseSimple,
@@ -1318,6 +1329,12 @@ enum RuleTag {
     RelativeObjectContractedSubject,
     RelativeSubjectContractedAuxiliary,
     RelativeSubject,
+    /// The relative-clause counterpart of
+    /// [`RuleTag::SimpleClauseSubjectDistributiveEach`]
+    /// (`target creature cards that each have a different mana value`): a
+    /// relative marker, the dedicated `each` lexeme, and a completed finite
+    /// plural verb phrase.
+    RelativeSubjectDistributiveEach,
     RelativeContractedCopularNoun,
     RelativeContractedCopularAdjective,
     RelativeContractedCopularPrepositional,
@@ -4644,6 +4661,7 @@ fn reduce(
         | RuleTag::GerundClauseBase
         | RuleTag::GerundClauseSubordinateAfter
         | RuleTag::SimpleClauseSubject
+        | RuleTag::SimpleClauseSubjectDistributiveEach
         | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
         | RuleTag::ClauseSimple
@@ -4676,6 +4694,7 @@ fn reduce(
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
         | RuleTag::RelativeSubject
+        | RuleTag::RelativeSubjectDistributiveEach
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
@@ -6365,6 +6384,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::GerundClauseBase
         | RuleTag::GerundClauseSubordinateAfter
         | RuleTag::SimpleClauseSubject
+        | RuleTag::SimpleClauseSubjectDistributiveEach
         | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
         | RuleTag::ClauseSimple
@@ -6397,6 +6417,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
         | RuleTag::RelativeSubject
+        | RuleTag::RelativeSubjectDistributiveEach
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional

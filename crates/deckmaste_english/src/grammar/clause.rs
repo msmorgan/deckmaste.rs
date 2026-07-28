@@ -322,6 +322,18 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::SimpleClause,
         [n(N::NounPhrase), n(N::VerbPhrase)],
     );
+    // The finite verbal quantifier float (`Two target creatures each get
+    // +2/+2 ...`). The dot-1 host gate lives in `accepts_predicate_prefix`
+    // (plural/second-person subject, non-object case); the reduce-time gate
+    // in `reduce_simple_clause` rechecks it and additionally requires exact
+    // subject/predicate agreement and complete predicate arguments. Appended
+    // after the ordinary subject production so existing `RuleId`s are
+    // preserved.
+    builder.add(
+        RuleTag::SimpleClauseSubjectDistributiveEach,
+        N::SimpleClause,
+        [n(N::NounPhrase), l(L::EachDeterminer), n(N::VerbPhrase)],
+    );
     builder.add(
         RuleTag::SimpleClauseContractedSubject,
         N::SimpleClause,
@@ -526,6 +538,16 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         RuleTag::RelativeSubject,
         N::RelativeClause,
         [l(L::RelativeMarker), n(N::VerbPhrase)],
+    );
+    // The relative-clause counterpart of the finite verbal quantifier float
+    // (`target creature cards that each have a different mana value`). No
+    // dot-1 gate is possible: `RelativeMarker` carries `Features::None`. The
+    // reduce-time gate in `reduce_simple_clause` requires a complete finite
+    // plural verb phrase.
+    builder.add(
+        RuleTag::RelativeSubjectDistributiveEach,
+        N::RelativeClause,
+        [l(L::RelativeMarker), l(L::EachDeterminer), n(N::VerbPhrase)],
     );
     builder.add(
         RuleTag::RelativeContractedCopularNoun,
@@ -817,6 +839,7 @@ pub(super) fn reduce_clause(
             Some(Features::GerundClause)
         }
         RuleTag::SimpleClauseSubject
+        | RuleTag::SimpleClauseSubjectDistributiveEach
         | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
         | RuleTag::ClauseSimple
@@ -836,6 +859,7 @@ pub(super) fn reduce_clause(
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
         | RuleTag::RelativeSubject
+        | RuleTag::RelativeSubjectDistributiveEach
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
@@ -883,6 +907,23 @@ pub(super) fn accepts_predicate_prefix(
         return matches!(
             features,
             Features::Subordinator(crate::syntax::Subordinator::While)
+        );
+    }
+    // The finite verbal quantifier float's host gate: only a plural subject,
+    // or a second-person subject (the grammar's `you` feature is
+    // second-person singular even for a plural discourse referent, so
+    // `person == Second` is required for `You each ...`), in non-object case
+    // may scan the dedicated `each` lexeme here. `I each` must not be
+    // admitted, so this is not loosened to every non-third-singular subject.
+    if tag == RuleTag::SimpleClauseSubjectDistributiveEach {
+        return matches!(
+            features,
+            Features::NounPhrase {
+                agreement: Some(a),
+                pronoun_case,
+                ..
+            } if *pronoun_case != Some(PronounCase::Object)
+                && (a.number == Number::Plural || a.person == Person::Second)
         );
     }
     let predicate_rule = matches!(
@@ -1743,6 +1784,67 @@ fn reduce_simple_clause(
                 *subjunctive,
             ))
         }
+        RuleTag::SimpleClauseSubjectDistributiveEach => {
+            // Defensive recheck of the dot-1 host gate in
+            // `accepts_predicate_prefix`: plural or second-person subject,
+            // non-object case.
+            let Features::NounPhrase {
+                agreement: Some(subject_agreement),
+                pronoun_case,
+                ..
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            if *pronoun_case == Some(PronounCase::Object) {
+                return None;
+            }
+            if subject_agreement.number != Number::Plural
+                && subject_agreement.person != Person::Second
+            {
+                return None;
+            }
+            // The predicate must be a genuinely finite, agreeing verb phrase
+            // (excludes third-singular `gets` and the agreement-neutral
+            // modal path — the predicate fact this floated `each` needs is
+            // only available here, at reduce).
+            let Features::VerbPhrase {
+                form: PredicateForm::Finite(Some(predicate_agreement)),
+                passive,
+                object,
+                indirect_object,
+                selected_preposition,
+                frame,
+                subjunctive,
+                ..
+            } = children.get(2)?.features
+            else {
+                return None;
+            };
+            if *predicate_agreement != *subject_agreement {
+                return None;
+            }
+            if !predicate_arguments_complete(
+                *frame,
+                *passive,
+                *object,
+                *indirect_object,
+                *selected_preposition,
+            ) {
+                return None;
+            }
+            let host_addressee_subject = *pronoun_case == Some(PronounCase::Subject)
+                && subject_agreement.person == Person::Second;
+            Some(simple_clause_reduction(
+                Some(*subject_agreement),
+                true,
+                true,
+                object.has_direct_object(),
+                host_addressee_subject,
+                false,
+                *subjunctive,
+            ))
+        }
         RuleTag::SimpleClauseContractedSubject => {
             let Features::SubjectAuxiliary {
                 agreement: subject_agreement,
@@ -2065,6 +2167,40 @@ fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: *antecedent_agreement,
+            })
+        }
+        RuleTag::RelativeSubjectDistributiveEach => {
+            // `RelativeMarker` carries `Features::None`, so no dot-1 gate is
+            // possible; require a complete, plural, finite verb phrase here
+            // and publish that agreement so the existing nominal-relative
+            // attachment gate checks the plural antecedent.
+            let Features::VerbPhrase {
+                form: PredicateForm::Finite(Some(agreement)),
+                passive,
+                object,
+                indirect_object,
+                selected_preposition,
+                frame,
+                ..
+            } = children.get(2)?.features
+            else {
+                return None;
+            };
+            if agreement.number != Number::Plural {
+                return None;
+            }
+            if !predicate_arguments_complete(
+                *frame,
+                *passive,
+                *object,
+                *indirect_object,
+                *selected_preposition,
+            ) {
+                return None;
+            }
+            Some(Features::RelativeClause {
+                gap: RelativeGap::Subject,
+                antecedent_agreement: Some(*agreement),
             })
         }
         RuleTag::RelativeContractedCopularNoun
@@ -2755,6 +2891,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             Some(Lowered::GerundClause(matrix))
         }
         RuleTag::SimpleClauseSubject
+        | RuleTag::SimpleClauseSubjectDistributiveEach
         | RuleTag::SimpleClauseContractedSubject
         | RuleTag::SimpleClauseSubjectless
         | RuleTag::ClauseSimple
@@ -2774,6 +2911,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
         | RuleTag::RelativeSubject
+        | RuleTag::RelativeSubjectDistributiveEach
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
@@ -2820,6 +2958,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 verb: instance,
                 frame,
                 dependents: Vec::new(),
+                distributive_each: false,
             }))
         }
         RuleTag::VerbPhraseAuxiliaryProform => {
@@ -2836,6 +2975,7 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 },
                 frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
                 dependents: Vec::new(),
+                distributive_each: false,
             }))
         }
         RuleTag::VerbPhraseAuxiliary => {
@@ -3223,6 +3363,21 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                 predicate,
             }))
         }
+        RuleTag::SimpleClauseSubjectDistributiveEach => {
+            let Lowered::NounPhrase(subject) = take(children, 0)? else {
+                return None;
+            };
+            // `each` (index 1) is the floating quantifier — discarded here
+            // and carried as `PredicateHead::distributive_each` instead.
+            let Lowered::VerbPhrase(mut predicate) = take(children, 2)? else {
+                return None;
+            };
+            predicate.distributive_each = true;
+            Some(Lowered::SimpleClause(SimpleClause {
+                subject: Some(Subject(subject)),
+                predicate,
+            }))
+        }
         RuleTag::SimpleClauseContractedSubject => {
             let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
                 return None;
@@ -3395,6 +3550,33 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                 marker,
                 gap: RelativeGap::Subject,
                 body,
+            }))
+        }
+        RuleTag::RelativeSubjectDistributiveEach => {
+            let Lowered::RelativeMarker(marker) = take(children, 0)? else {
+                return None;
+            };
+            // `each` (index 1) is the floating quantifier — discarded here
+            // and carried as `PredicateHead::distributive_each` instead.
+            let Lowered::VerbPhrase(mut predicate) = take(children, 2)? else {
+                return None;
+            };
+            predicate.distributive_each = true;
+            let FinishedPredicate {
+                modal,
+                predicate,
+                elided: _,
+            } = finish_predicate(predicate)?;
+            // The reduce-time gate requires `Finite(Some(agreement))`, which
+            // a modal auxiliary never produces here — a modal reaching this
+            // arm would mean the gate was bypassed.
+            if modal.is_some() {
+                return None;
+            }
+            Some(Lowered::RelativeClause(RelativeClause {
+                marker,
+                gap: RelativeGap::Subject,
+                body: RelativeBody::SubjectGap(predicate),
             }))
         }
         RuleTag::RelativeContractedCopularNoun
@@ -4389,6 +4571,7 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
         first_auxiliary_contracted_with_subject: phrase.first_auxiliary_contracted_with_subject,
         preverb_modifiers: phrase.preverb_modifiers,
         verb: phrase.verb,
+        distributive_each: phrase.distributive_each,
     };
     // A bare proform under a modal (nothing surviving beside the modal) is
     // VP-ellipsis: "If you can't, …". The synthesized `do` pro-verb is a

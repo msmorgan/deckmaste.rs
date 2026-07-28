@@ -1420,3 +1420,186 @@ fn mutate_and_exploit_round_trip() {
         assert_eq!(rendered, source, "AST:\n{ast}");
     }
 }
+
+// --- qfloat: finite verbal quantifier float (Stage 2) -----------------------
+
+#[test]
+fn qfloat_core_cardinal_subject_each_gets() {
+    let source = "Two target creatures each get +2/+2 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("distributive_each:true"),
+        "expected the floated `each` flag on the predicate head\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_core_pronoun_and_target_each_draw() {
+    let source = "You and target opponent each draw a card.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("distributive_each:true"),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_core_they_each_deal_damage() {
+    let source = "They each deal damage equal to their power to target creature.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("distributive_each:true"),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_core_up_to_n_each_gain_haste() {
+    let source = "Up to two target creatures each gain haste until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("distributive_each:true"),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
+    // Stage 1 (`Two`/`One` cardinal case-insensitivity) is dropped this round,
+    // so the subject is NOT `Determiner::Target(Some(Quantity::Or(1, 2)))` — it
+    // lowers as the pre-existing coordinated fused-head tree, the same
+    // analysis the grammar test-locks for `One or more target creatures`
+    // (`one_is_a_dispreferenced_fused_head_noun`). Assert the float and the
+    // predicate, not `Quantity::Or(1, 2)`.
+    let source = "One or two target creatures each get +2/+1 until end of turn.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    let compacted = compact(&ast);
+    assert!(compacted.contains("distributive_each:true"), "AST:\n{ast}");
+    assert!(
+        compacted.contains("head:Singular(Word(One,"),
+        "expected the pre-existing coordinated fused-head `One` reading\nAST:\n{ast}"
+    );
+    assert!(
+        !compacted.contains("Quantity::Or") && !compacted.contains("Or(1,2)"),
+        "Stage 1 is dropped this round; the subject must not become a single \
+         `Quantity::Or(1, 2)` nominal\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_core_relative_that_each_have() {
+    let source = "Target creature cards that each have a different mana value get +1/+1.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        ast.contains("RelativeClause"),
+        "expected the relative-clause distributive float to attach\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_core_you_each_put() {
+    let source = "You each put the card you revealed into your hand.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("distributive_each:true"),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_core_those_players_each_discard() {
+    let source = "Those players each discard two cards at random.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("distributive_each:true"),
+        "AST:\n{ast}"
+    );
+}
+
+// --- qfloat: named anti-misparse gates --------------------------------------
+
+#[test]
+fn qfloat_anti_misparse_each_sacrifice_stays_verbal() {
+    let source = "You and that player each sacrifice a creature.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("verb:Word(Sacrifice,"),
+        "`sacrifice` must be a transitive finite verb, never a nominal reading \
+         inside the discarded `each` slot\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_anti_misparse_each_discard_stays_verbal() {
+    let source = "Those players each discard a card.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(!ast.contains("Recovered"), "AST:\n{ast}");
+    assert!(
+        compact(&ast).contains("verb:Word(Discard,"),
+        "`discard` must be a transitive finite verb\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_anti_misparse_singular_subject_does_not_admit_the_float() {
+    // The dot-1 host gate in `accepts_predicate_prefix` requires a plural or
+    // second-person subject; `Target creature` is third-person singular, so
+    // `each` cannot be scanned there and the whole sentence stays unparsed by
+    // the target grammar (a full `Recovered` clause), never a wrong tree.
+    for source in [
+        "Target creature each gets +1/+1.",
+        "Target creature each discard a card.",
+    ] {
+        let (_, ast) = parse_face(source, &library_catalogs(), "Test Card", false);
+        assert!(
+            ast.contains("Recovered("),
+            "`{source}` must not complete under the new productions\nAST:\n{ast}"
+        );
+    }
+}
+
+#[test]
+fn qfloat_anti_misparse_singular_antecedent_relative_no_float() {
+    // A singular antecedent's relative `each` (`gets`, third-singular) fails
+    // the plural-agreement reduce gate in `RelativeSubjectDistributiveEach`,
+    // so the whole sentence stays unparsed rather than silently completing on
+    // a mismatched antecedent.
+    let source = "Target creature that each gets +1/+1 dies.";
+    let (_, ast) = parse_face(source, &library_catalogs(), "Test Card", false);
+    assert!(
+        ast.contains("Recovered("),
+        "a singular antecedent must not acquire the relative float\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn qfloat_anti_misparse_goblin_game_pronominal_each_unchanged() {
+    let source =
+        "If two or more players are tied for fewest, each loses half their life, rounded up.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
+    assert_eq!(rendered, source, "AST:\n{ast}");
+    assert!(
+        !compact(&ast).contains("distributive_each:true"),
+        "the pronominal `each` subject must not reach the new float tag or \
+         `PredicateHead::distributive_each`\nAST:\n{ast}"
+    );
+}

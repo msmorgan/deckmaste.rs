@@ -117,6 +117,11 @@ pub enum RenderError {
     /// `Costed(Symbols)` and `Predicated` are licensed there) — `kwgrant`
     /// round.
     InvalidKeywordArgumentNominal,
+    /// A hand-built `PredicateHead` claims both `distributive_each` and
+    /// `first_auxiliary_contracted_with_subject`: the floating-`each`
+    /// grammar can never construct that surface, since `each` intervenes
+    /// between the subject and the first auxiliary — `qfloat` round.
+    InvalidDistributiveEachContraction,
 }
 
 impl fmt::Display for RenderError {
@@ -129,6 +134,9 @@ impl fmt::Display for RenderError {
             }
             Self::InvalidKeywordArgumentNominal => formatter
                 .write_str("keyword argument shape is not licensed in nominal-complement position"),
+            Self::InvalidDistributiveEachContraction => formatter.write_str(
+                "a distributive-each predicate head cannot also contract its first auxiliary",
+            ),
         }
     }
 }
@@ -1101,8 +1109,14 @@ impl<'identity> Renderer<'identity> {
         head: &PredicateHead,
         auxiliary_start: usize,
     ) -> Result<String, RenderError> {
+        if head.distributive_each && head.first_auxiliary_contracted_with_subject {
+            return Err(RenderError::InvalidDistributiveEachContraction);
+        }
         let mut parts =
-            Vec::with_capacity(head.auxiliaries.len() + head.preverb_modifiers.len() + 1);
+            Vec::with_capacity(head.auxiliaries.len() + head.preverb_modifiers.len() + 2);
+        if head.distributive_each {
+            parts.push("each".to_owned());
+        }
         for &auxiliary in &head.auxiliaries[auxiliary_start..] {
             parts.push(self.render_auxiliary(auxiliary)?);
         }
@@ -3838,6 +3852,7 @@ mod tests {
             first_auxiliary_contracted_with_subject: false,
             preverb_modifiers: phrase.preverb_modifiers,
             verb: phrase.verb,
+            distributive_each: false,
         };
         let mut object = None;
         let mut elements = Vec::new();
@@ -4006,5 +4021,35 @@ mod tests {
         });
         let renderer = Renderer::new("Test Card", false);
         assert_eq!(renderer.predicate_object(&object).unwrap(), "{U} or {C}{U}");
+    }
+
+    // --- qfloat: finite verbal quantifier float ------------------------------
+
+    #[test]
+    fn distributive_each_renders_before_the_verb_and_rejects_contraction() {
+        let head = PredicateHead {
+            auxiliaries: vec![],
+            first_auxiliary_contracted_with_subject: false,
+            preverb_modifiers: vec![],
+            verb: VerbInstance {
+                verb: Verb::Word(Vocab::Draw),
+                slot: THIRD_PLURAL_PRESENT,
+            },
+            distributive_each: true,
+        };
+        let renderer = Renderer::new("Test Card", false);
+        assert_eq!(renderer.predicate_head_from(&head, 0).unwrap(), "each draw");
+
+        let contracted = PredicateHead {
+            first_auxiliary_contracted_with_subject: true,
+            ..head
+        };
+        assert_eq!(
+            renderer.predicate_head_from(&contracted, 1),
+            Err(RenderError::InvalidDistributiveEachContraction),
+            "the floating-`each` grammar never constructs a contracted-subject \
+             surface, since `each` intervenes between the subject and the first \
+             auxiliary"
+        );
     }
 }

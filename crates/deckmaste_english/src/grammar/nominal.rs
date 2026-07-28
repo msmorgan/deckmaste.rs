@@ -2135,6 +2135,7 @@ mod tests {
                                         verb: Verb::Word(Vocab::Draw),
                                         slot: VerbSlot::Imperative,
                                     },
+                                    distributive_each: false,
                                 },
                                 pre_object_elements: vec![],
                                 object: PredicateObject::NounPhrase(noun_phrase.clone()),

@@ -75,6 +75,13 @@ pub struct PredicateHead {
     pub first_auxiliary_contracted_with_subject: bool,
     pub preverb_modifiers: Vec<PreverbModifier>,
     pub verb: VerbInstance,
+    /// The finite verbal quantifier float (`Two target creatures each get
+    /// ...`): renders as literal `each` prepended before every auxiliary,
+    /// preverb modifier, and the lexical verb. Never true together with
+    /// `first_auxiliary_contracted_with_subject`: the grammar that sets this
+    /// flag never also contracts a subject auxiliary, since `each`
+    /// intervenes between the subject and the verb phrase.
+    pub distributive_each: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

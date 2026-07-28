@@ -1010,6 +1010,41 @@ mod tests {
     }
 
     #[test]
+    fn distributive_each_predicate_head_still_reports_a_recovered_object() {
+        // The `distributive_each` flag has no recovery-bearing child (the
+        // discarded `each` lexical node never enters the walker), so this
+        // proves the census guard: a flagged predicate's ordinary object is
+        // still traversed and its opaque descendant still reported, per the
+        // qfloat round's walker regression.
+        let mut head = predicate_head(Vocab::Draw);
+        head.distributive_each = true;
+        let ast = paragraph(IndependentClause::Imperative(Predicate::Transitive(
+            TransitivePredicate {
+                head,
+                pre_object_elements: vec![],
+                object: PredicateObject::NounPhrase(NounPhrase::Nominal(NominalPhrase {
+                    determiner: None,
+                    modifiers: vec![],
+                    head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                    complements: vec![],
+                })),
+                elements: vec![],
+            },
+        )));
+        let oracle_text = OracleText {
+            abilities: vec![ast],
+        };
+        assert_eq!(
+            oracle_text.lexical_opacity(),
+            vec![LexicalOpacityRef {
+                kind: LexicalOpacityKind::Noun,
+                text: "blorple",
+                source_tokens: 1,
+            }]
+        );
+    }
+
+    #[test]
     fn recovery_walker_reports_unsupported_predicates_at_sentence_scope() {
         let ast = crate::parse("You frobnitz a card.").into_ast();
 
@@ -1054,6 +1089,7 @@ mod tests {
                 verb: Verb::Word(vocab),
                 slot: VerbSlot::Imperative,
             },
+            distributive_each: false,
         }
     }
 
