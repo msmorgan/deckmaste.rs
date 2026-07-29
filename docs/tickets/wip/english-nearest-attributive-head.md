@@ -13,3 +13,7 @@ head in this ordinary attributive shape. Preserve the fused-head noun reading
 when no head follows, add typed positive and over-fire assertions, preserve
 byte-exact rendering, and report the recovery delta. Standard constraints
 apply.
+
+## Completion
+
+- Preferred attributive `nearest` when a following head completes while preserving the fused-head reading; corpus recovery and round-trip counts are unchanged.

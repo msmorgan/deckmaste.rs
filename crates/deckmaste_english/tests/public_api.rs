@@ -2412,13 +2412,29 @@ fn most_is_an_attributive_superlative_adjective() {
 }
 
 #[test]
-fn nearest_attributive_exposes_existing_fused_head_residue() {
-    // Mystic Barrier shape: `the nearest opponent` should use the same
-    // attributive superlative pattern as `most`; the typed conversion exposes
-    // the current fused-head residue for the follow-up ticket.
+fn nearest_is_an_attributive_superlative_adjective() {
+    // Mystic Barrier shape: `the nearest opponent` uses the same attributive
+    // superlative pattern as `most`.
     let source = "Each player may attack only the nearest opponent in the last chosen direction \
         and planeswalkers controlled by that opponent.";
     let (rendered, ast) = parse_face(source, &r33_catalogs(), "Mystic Barrier", false);
+    assert_eq!(rendered, source);
+    assert_no_recovery(&ast);
+    let inventory = SyntaxInventory::from_ast(&ast);
+    assert!(
+        inventory.has_adjective(|adjective| matches!(adjective, Adjective::Word(Vocab::Nearest)))
+            && !inventory.has_noun(|noun| matches!(
+                noun,
+                NounInstance::Singular(Noun::Word(Vocab::Nearest))
+            )),
+        "expected `nearest` as the superlative modifier\nAST:\n{ast}"
+    );
+}
+
+#[test]
+fn nearest_retains_its_fused_head_noun_reading() {
+    let source = "Choose the nearest.";
+    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Test Card", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     let inventory = SyntaxInventory::from_ast(&ast);
@@ -2427,8 +2443,7 @@ fn nearest_attributive_exposes_existing_fused_head_residue() {
             .has_noun(|noun| matches!(noun, NounInstance::Singular(Noun::Word(Vocab::Nearest))))
             && !inventory
                 .has_adjective(|adjective| matches!(adjective, Adjective::Word(Vocab::Nearest))),
-        "existing residue: `nearest` currently becomes a fused head instead of an adjective\n\
-         AST:\n{ast}"
+        "expected `nearest` to remain a fused nominal head\nAST:\n{ast}"
     );
 }
 

@@ -838,6 +838,10 @@ pub(super) fn lexical_word_matches(
                 // modifier position, and the noun reading surfaces only as the
                 // fused head, where no adjective reading completes.
                 //
+                // `nearest` is likewise a fused superlative head (`choose the
+                // nearest`) or an attributive adjective (`the nearest
+                // opponent`).
+                //
                 // `one` is the same shape against the number-literal reading:
                 // it is scanned as a count noun so the anaphoric fused head
                 // (`a different one of those creatures`, `each one`) can head a
@@ -1069,18 +1073,21 @@ pub(super) fn noun_form(noun: &NounInstance) -> NounForm {
 }
 
 /// Whether this noun is a dual-reading lexeme scanned as a noun purely to
-/// license an anaphoric fused head (`the other`/`the others`, `a different one
-/// of those creatures`, `each one`). Its noun reading is dispreferenced so the
-/// competing reading — the attributive adjective for `other`, the
-/// `NumberLiteral` quantity for `one` — wins wherever both complete; see
-/// [`lexical_word_matches`].
+/// license an anaphoric fused head (`the other`/`the others`, `the nearest`, `a
+/// different one of those creatures`, `each one`). Its noun reading is
+/// dispreferenced so the competing reading — the attributive adjective for
+/// `other`/`nearest`, the `NumberLiteral` quantity for `one` — wins wherever
+/// both complete; see [`lexical_word_matches`].
 pub(super) fn is_fused_head_noun(noun: &NounInstance) -> bool {
     let inner = match noun {
         NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
             noun
         }
     };
-    matches!(inner, Noun::Word(Vocab::Other | Vocab::One))
+    matches!(
+        inner,
+        Noun::Word(Vocab::Nearest | Vocab::One | Vocab::Other)
+    )
 }
 
 pub(super) fn is_derived_agent_noun(noun: &NounInstance) -> bool {
