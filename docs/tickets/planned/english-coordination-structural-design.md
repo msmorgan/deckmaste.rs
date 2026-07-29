@@ -21,6 +21,17 @@ not solve them with surface-string gates or card-specific exceptions.
   `then` chain inside one member plus a `minus one` nominal postmodifier. The
   quantity postmodifier is the costly half; existing appositive structure is
   already demonstrated by Midnight Crusader Shuttle and The Master.
+- Mixed head-list versus common-head selection remains ambiguous. Synthetic
+  control: `Put a +1/+1 counter on an Elf, Orc, or enchantment creature you
+  control.` is best read as `an [[Elf], [Orc], or [enchantment creature]] [you
+  control]`, but the same surface also supports the common-head analysis
+  `an [[Elf], [Orc], or [enchantment] creature] [you control]`. Group-level
+  relatives are now representable; the remaining work is a principled
+  selection rule that preserves real common-head controls such as `Plains,
+  Swamp, or Forest card` and `artifact and/or creature card`.
+- The same unresolved boundary appears with separately modified heads: `a
+  basic land card or Gate card` has a strong shared-article reading, but broad
+  costs intended to select it also displaced established common-head parses.
 
 Any eventual implementation must preserve n-ary coordination, typed member
 attachments, source-free rendering, and the existing anti-overreach gates.

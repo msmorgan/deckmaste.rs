@@ -588,6 +588,9 @@ pub struct CoordinatedNominalPhrase {
     pub determiner: Determiner,
     pub first: Box<NominalPhrase>,
     pub rest: Vec<NominalPhraseCoordination>,
+    /// Postmodifiers whose semantic host is the completed coordination rather
+    /// than its final member (`an Elf or Orc you control`).
+    pub complements: Vec<NominalComplement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]

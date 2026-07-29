@@ -633,6 +633,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 for coordination in &coordinated.rest {
                     self.nominal_phrase(&coordination.phrase, context);
                 }
+                for complement in &coordinated.complements {
+                    self.nominal_complement(complement, context);
+                }
             }
             NounPhrase::Coordinated(coordinated) => {
                 self.noun_phrase(&coordinated.first, context);
@@ -673,34 +676,38 @@ impl<'syntax> RecoveryWalker<'syntax> {
             self.nominal_modifier(modifier, context);
         }
         for complement in &nominal.complements {
-            match complement {
-                NominalComplement::Adjective(adjective) => {
-                    self.adjective_phrase(adjective, RecoveryRole::NominalComplement, context);
-                }
-                NominalComplement::Prepositional(preposition) => {
-                    self.prepositional_phrase(
-                        preposition,
-                        RecoveryRole::NominalComplement,
-                        context,
-                    );
-                }
-                NominalComplement::Infinitive(infinitive) => {
-                    self.predicate(&infinitive.predicate, context);
-                }
-                NominalComplement::Relative(relative) => self.relative_clause(relative, context),
-                NominalComplement::ReducedRecipientPassive(predicate) => {
-                    self.transitive_predicate(predicate, context);
-                }
-                NominalComplement::EventClause(clause) => {
-                    self.independent_clause(clause, context);
-                }
-                NominalComplement::KeywordArgument(argument) => {
-                    self.keyword_argument(argument, context);
-                }
-                NominalComplement::Quantity(_)
-                | NominalComplement::PowerToughness(_)
-                | NominalComplement::Devotion(_) => {}
+            self.nominal_complement(complement, context);
+        }
+    }
+
+    fn nominal_complement(
+        &mut self,
+        complement: &'syntax NominalComplement,
+        context: Option<RecoveryRole>,
+    ) {
+        match complement {
+            NominalComplement::Adjective(adjective) => {
+                self.adjective_phrase(adjective, RecoveryRole::NominalComplement, context);
             }
+            NominalComplement::Prepositional(preposition) => {
+                self.prepositional_phrase(preposition, RecoveryRole::NominalComplement, context);
+            }
+            NominalComplement::Infinitive(infinitive) => {
+                self.predicate(&infinitive.predicate, context);
+            }
+            NominalComplement::Relative(relative) => self.relative_clause(relative, context),
+            NominalComplement::ReducedRecipientPassive(predicate) => {
+                self.transitive_predicate(predicate, context);
+            }
+            NominalComplement::EventClause(clause) => {
+                self.independent_clause(clause, context);
+            }
+            NominalComplement::KeywordArgument(argument) => {
+                self.keyword_argument(argument, context);
+            }
+            NominalComplement::Quantity(_)
+            | NominalComplement::PowerToughness(_)
+            | NominalComplement::Devotion(_) => {}
         }
     }
 
@@ -1088,6 +1095,50 @@ mod tests {
         let oracle_text = OracleText {
             abilities: vec![ast],
         };
+        assert_eq!(
+            oracle_text.lexical_opacity(),
+            vec![LexicalOpacityRef {
+                kind: LexicalOpacityKind::Noun,
+                text: "blorple",
+                source_tokens: 1,
+            }]
+        );
+    }
+
+    #[test]
+    fn recovery_walker_descends_into_shared_group_complements() {
+        let known_nominal = |head| NominalPhrase {
+            determiner: None,
+            modifiers: vec![],
+            head: NounInstance::Singular(Noun::Word(head)),
+            complements: vec![],
+        };
+        let opaque = NounPhrase::Nominal(NominalPhrase {
+            determiner: None,
+            modifiers: vec![],
+            head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+            complements: vec![],
+        });
+        let subject = NounPhrase::CoordinatedNominal(CoordinatedNominalPhrase {
+            determiner: Determiner::Any,
+            first: Box::new(known_nominal(Vocab::Card)),
+            rest: vec![NominalPhraseCoordination {
+                conjunction: Some(NounPhraseConjunction::Or),
+                comma: false,
+                phrase: known_nominal(Vocab::Spell),
+            }],
+            complements: vec![NominalComplement::Prepositional(PrepositionalPhrase {
+                preposition: Preposition::With,
+                object: Box::new(Phrase::NounPhrase(Box::new(opaque))),
+            })],
+        });
+        let oracle_text = OracleText {
+            abilities: vec![paragraph(IndependentClause::Intransitive(
+                Subject(subject),
+                intransitive(Vocab::Draw),
+            ))],
+        };
+
         assert_eq!(
             oracle_text.lexical_opacity(),
             vec![LexicalOpacityRef {

@@ -13,6 +13,7 @@ mod tests {
     use crate::syntax::AdjectivePhrase;
     use crate::syntax::ComparisonMarker;
     use crate::syntax::Determiner;
+    use crate::syntax::IndefiniteArticle;
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalModifier;
@@ -376,6 +377,426 @@ mod tests {
     }
 
     #[test]
+    fn general_determiners_scope_over_modified_nominals() {
+        for (source, expected_determiner) in [
+            ("another target creature or artifact", Determiner::Another),
+            (
+                "up to one other target creature or spell",
+                Determiner::Quantity(crate::syntax::Quantity::UpTo(
+                    crate::syntax::QuantityValue::Literal(crate::syntax::NumberLiteral {
+                        value: 1,
+                        numeral: crate::numeral::Numeral::Cardinal,
+                    }),
+                )),
+            ),
+        ] {
+            let parsed = parse(source);
+            let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+                panic!(
+                    "expected nominal coordination under one determiner: {:#?}",
+                    parsed.noun_phrase()
+                );
+            };
+            assert_eq!(coordinated.determiner, expected_determiner, "{source}");
+            assert!(coordinated.first.determiner.is_none(), "{source}");
+            assert!(
+                coordinated
+                    .rest
+                    .iter()
+                    .all(|member| member.phrase.determiner.is_none()),
+                "{source}"
+            );
+            assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+        }
+    }
+
+    #[test]
+    fn trailing_relative_scopes_over_the_completed_shared_group() {
+        let source = "another target creature or artifact you control";
+        let parsed = parse(source);
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!(
+                "expected one shared-determiner group: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert_eq!(coordinated.determiner, Determiner::Another);
+        assert!(coordinated.first.complements.is_empty());
+        assert!(
+            coordinated
+                .rest
+                .iter()
+                .all(|member| member.phrase.complements.is_empty()),
+            "the relative must not remain on the final member: {coordinated:#?}"
+        );
+        assert!(matches!(
+            coordinated.complements.as_slice(),
+            [NominalComplement::Relative(_)]
+        ));
+        assert!(
+            parsed
+                .constituent_spans()
+                .iter()
+                .any(|span| span.text(source) == Some("target creature or artifact"))
+        );
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn modified_options_share_the_determiner_when_no_common_head_parse_exists() {
+        for (source, determiner) in [
+            (
+                "target spell, activated ability, or triggered ability",
+                Determiner::Target(None),
+            ),
+            (
+                "target instant spell, sorcery spell, or triggered ability",
+                Determiner::Target(None),
+            ),
+            ("each supertype, card type, and subtype", Determiner::Each),
+        ] {
+            let parsed = parse(source);
+            let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+                panic!(
+                    "expected one shared-determiner group: {:#?}",
+                    parsed.noun_phrase()
+                );
+            };
+            assert_eq!(coordinated.determiner, determiner);
+            assert_eq!(coordinated.rest.len(), 2);
+            assert!(coordinated.complements.is_empty());
+            assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+        }
+    }
+
+    #[test]
+    fn parallel_relatives_remain_on_their_own_group_members() {
+        let source = "target permanent you control or suspended card you own";
+        let parsed = parse(source);
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!("expected one target group: {:#?}", parsed.noun_phrase());
+        };
+        assert!(matches!(
+            coordinated.first.complements.as_slice(),
+            [NominalComplement::Relative(_)]
+        ));
+        assert!(matches!(
+            coordinated.rest.as_slice(),
+            [crate::syntax::NominalPhraseCoordination {
+                phrase: NominalPhrase { complements, .. },
+                ..
+            }] if matches!(complements.as_slice(), [NominalComplement::Relative(_)])
+        ));
+        assert!(coordinated.complements.is_empty());
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn one_pp_bearing_closing_member_stays_inside_the_shared_group() {
+        let source = "the type and amount of mana";
+        let parsed = parse(source);
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!("expected one definite group: {:#?}", parsed.noun_phrase());
+        };
+        assert_eq!(coordinated.determiner, Determiner::The);
+        assert!(matches!(
+            coordinated.rest.as_slice(),
+            [crate::syntax::NominalPhraseCoordination {
+                phrase: NominalPhrase { complements, .. },
+                ..
+            }] if matches!(complements.as_slice(), [NominalComplement::Prepositional(_)])
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn restrictive_with_pp_stays_on_the_closing_shared_member() {
+        let source = "target artifact, enchantment, or creature with flying";
+        let parsed = parse(source);
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!("expected one target group: {:#?}", parsed.noun_phrase());
+        };
+        assert!(coordinated.complements.is_empty());
+        assert!(matches!(
+            coordinated.rest.as_slice(),
+            [
+                crate::syntax::NominalPhraseCoordination { .. },
+                crate::syntax::NominalPhraseCoordination {
+                    phrase: NominalPhrase { complements, .. },
+                    ..
+                }
+            ] if matches!(
+                complements.as_slice(),
+                [NominalComplement::Prepositional(crate::syntax::PrepositionalPhrase {
+                    preposition: crate::syntax::Preposition::With,
+                    ..
+                })]
+            )
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn oxford_nominal_list_carries_one_shared_determiner() {
+        let source = "target Goblin, Human, Kraken, Leviathan, Octopus, Serpent, or artifact";
+        let parsed = parse(source);
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!(
+                "expected an Oxford nominal list under one determiner: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert_eq!(coordinated.determiner, Determiner::Target(None));
+        assert!(coordinated.first.determiner.is_none());
+        assert_eq!(coordinated.rest.len(), 6);
+        assert!(
+            coordinated
+                .rest
+                .iter()
+                .all(|member| member.phrase.determiner.is_none())
+        );
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn adversarial_oxford_group_has_an_inner_coordination_constituent() {
+        let source = "an Elf, Orc, or Equipment";
+        let parsed = parse(source);
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!(
+                "expected the article to scope over one nominal coordination: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert_eq!(
+            coordinated.determiner,
+            Determiner::Indefinite(IndefiniteArticle::An)
+        );
+        let [orc, equipment] = coordinated.rest.as_slice() else {
+            panic!("expected three coordinated nominals: {coordinated:#?}");
+        };
+        assert!(orc.phrase.determiner.is_none());
+        assert!(equipment.phrase.determiner.is_none());
+        assert!(
+            parsed
+                .constituent_spans()
+                .iter()
+                .any(|span| { span.text(source) == Some("Elf, Orc, or Equipment") }),
+            "the completed determinerless coordination needs its own span: {:?}",
+            parsed.constituent_spans()
+        );
+        assert!(
+            !parsed
+                .constituent_spans()
+                .iter()
+                .any(|span| span.text(source) == Some("Elf, Orc")),
+            "the open list prefix is not a constituent: {:?}",
+            parsed.constituent_spans()
+        );
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn adjacent_shared_determiner_groups_do_not_flatten() {
+        let source = "target artifact, creature, or planeswalker and target land or battle";
+        let parsed = parse(source);
+        let Some(NounPhrase::Coordinated(outer)) = parsed.noun_phrase() else {
+            panic!(
+                "expected coordination between two target groups: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        let NounPhrase::CoordinatedNominal(left) = outer.first.as_ref() else {
+            panic!("expected the Oxford group on the left: {outer:#?}");
+        };
+        assert_eq!(left.determiner, Determiner::Target(None));
+        assert_eq!(left.rest.len(), 2);
+        let [right] = outer.rest.as_slice() else {
+            panic!("expected exactly one outer conjunct: {outer:#?}");
+        };
+        assert_eq!(
+            right.conjunction,
+            Some(crate::syntax::NounPhraseConjunction::And)
+        );
+        let NounPhrase::CoordinatedNominal(right) = &right.phrase else {
+            panic!("the repeated determiner must begin a second group: {right:#?}");
+        };
+        assert_eq!(right.determiner, Determiner::Target(None));
+        assert_eq!(right.rest.len(), 1);
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn bare_plural_coordinates_as_a_complete_noun_phrase() {
+        let source = "a creature and artifacts";
+        let parsed = parse(source);
+        assert!(
+            matches!(parsed.noun_phrase(), Some(NounPhrase::Coordinated(_))),
+            "a bare plural needs no shared determiner: {:#?}",
+            parsed.noun_phrase()
+        );
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn attached_role_exception_is_typed_in_the_lowering_rewrite() {
+        let first = parse("this creature")
+            .noun_phrase()
+            .expect("fixture noun phrase")
+            .clone();
+        for (source, shared) in [
+            ("tapped creature", true),
+            ("equipped creature", false),
+            ("enchanted creature", false),
+        ] {
+            let next = parse(source)
+                .noun_phrase()
+                .expect("fixture noun phrase")
+                .clone();
+            let lowered = super::super::lowering::push_noun_phrase_coordination(
+                first.clone(),
+                crate::syntax::NounPhraseCoordination {
+                    conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
+                    comma: false,
+                    phrase: next,
+                },
+            );
+            assert_eq!(
+                matches!(lowered, NounPhrase::CoordinatedNominal(_)),
+                shared,
+                "{source}: {lowered:#?}"
+            );
+        }
+    }
+
+    #[test]
+    fn shared_determiner_coordination_stays_inside_its_preposition() {
+        let source = "two counters on up to one target creature or artifact";
+        let parsed = parse(source);
+        let Some(NounPhrase::Nominal(counters)) = parsed.noun_phrase() else {
+            panic!(
+                "the coordination must not attach to the whole counter phrase: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        let [NominalComplement::Prepositional(recipient)] = counters.complements.as_slice() else {
+            panic!("expected one recipient preposition: {counters:#?}");
+        };
+        let crate::syntax::Phrase::NounPhrase(recipient) = recipient.object.as_ref() else {
+            panic!("expected a noun-phrase recipient: {recipient:#?}");
+        };
+        let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
+            panic!("expected shared-determiner recipient heads: {recipient:#?}");
+        };
+        assert!(
+            matches!(
+                recipient.determiner,
+                Determiner::Target(Some(crate::syntax::Quantity::UpTo(_)))
+            ),
+            "expected the quantity and target marker on the shared group: {recipient:#?}"
+        );
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn later_determiner_begins_a_nested_shared_group() {
+        let source = "this creature or another creature or artifact";
+        let parsed = parse(source);
+        let Some(NounPhrase::Coordinated(outer)) = parsed.noun_phrase() else {
+            panic!(
+                "expected an outer coordination: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        let [group] = outer.rest.as_slice() else {
+            panic!("the later determiner must begin one grouped member: {outer:#?}");
+        };
+        let NounPhrase::CoordinatedNominal(group) = &group.phrase else {
+            panic!("expected a nested shared-determiner group: {group:#?}");
+        };
+        assert_eq!(group.determiner, Determiner::Another);
+        assert_eq!(group.rest.len(), 1);
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn shared_determiner_oxford_list_stays_inside_its_preposition() {
+        let source = "two damage to each artifact, creature, and land";
+        let parsed = parse(source);
+        let Some(NounPhrase::Nominal(damage)) = parsed.noun_phrase() else {
+            panic!(
+                "the list must not attach to the whole damage phrase: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        let [NominalComplement::Prepositional(recipient)] = damage.complements.as_slice() else {
+            panic!("expected one recipient preposition: {damage:#?}");
+        };
+        let crate::syntax::Phrase::NounPhrase(recipient) = recipient.object.as_ref() else {
+            panic!("expected a noun-phrase recipient: {recipient:#?}");
+        };
+        let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
+            panic!("expected shared Oxford recipient heads: {recipient:#?}");
+        };
+        assert_eq!(recipient.determiner, Determiner::Each);
+        assert_eq!(recipient.rest.len(), 2);
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn number_constrained_determiner_scopes_over_plural_members() {
+        for source in [
+            "two artifacts and creatures",
+            "all artifacts and creatures",
+            "all artifacts and Equipment",
+            "all creatures and Spacecraft",
+        ] {
+            let parsed = parse(source);
+            let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+                panic!(
+                    "expected invariant nominal coordination under all: {:#?}",
+                    parsed.noun_phrase()
+                );
+            };
+            assert_eq!(coordinated.rest.len(), 1);
+            assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+        }
+    }
+
+    #[test]
+    fn unconstrained_determiner_does_not_claim_a_complete_bare_plural() {
+        let source = "the creature and artifacts";
+        let parsed = parse(source);
+        assert!(
+            matches!(parsed.noun_phrase(), Some(NounPhrase::Coordinated(_))),
+            "number-neutral `the` does not prove shared scope: {:#?}",
+            parsed.noun_phrase()
+        );
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn plural_shared_scope_does_not_reopen_a_relative_closed_member() {
+        let first = parse("all creatures you control")
+            .noun_phrase()
+            .expect("fixture noun phrase")
+            .clone();
+        let next = parse("colors")
+            .noun_phrase()
+            .expect("fixture noun phrase")
+            .clone();
+        let lowered = super::super::lowering::push_noun_phrase_coordination(
+            first,
+            crate::syntax::NounPhraseCoordination {
+                conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
+                comma: false,
+                phrase: next,
+            },
+        );
+        assert!(matches!(lowered, NounPhrase::Coordinated(_)));
+    }
+
+    #[test]
     fn repeated_target_determiners_coordinate_complete_noun_phrases() {
         let source = "target artifact and target land";
         let parsed = parse(source);
@@ -413,6 +834,178 @@ mod tests {
             nominal.modifiers.as_slice(),
             [NominalModifier::Coordinated(_)]
         ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn coordinated_type_modifier_lists_keep_their_common_head() {
+        for source in [
+            "each artifact and/or creature card",
+            "a basic artifact, creature, or land card",
+        ] {
+            let parsed = parse(source);
+            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+                panic!(
+                    "expected one card nominal for {source}: {:#?}",
+                    parsed.noun_phrase()
+                );
+            };
+            assert!(matches!(
+                nominal.head,
+                NounInstance::Singular(Noun::Word(Vocab::Card))
+            ));
+            assert!(
+                nominal
+                    .modifiers
+                    .iter()
+                    .any(|modifier| matches!(modifier, NominalModifier::Coordinated(_))),
+                "expected a coordinated modifier under the common head: {nominal:#?}"
+            );
+            assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+        }
+    }
+
+    #[test]
+    fn coordinated_rules_types_keep_a_following_common_head() {
+        let source = "an instant or sorcery spell";
+        let parsed = parse(source);
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected one spell nominal: {:#?}", parsed.noun_phrase());
+        };
+        assert!(matches!(
+            nominal.modifiers.as_slice(),
+            [NominalModifier::Coordinated(_)]
+        ));
+        assert!(matches!(
+            nominal.head,
+            NounInstance::Singular(Noun::Word(Vocab::Spell))
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn keyword_ability_options_keep_their_counter_common_head() {
+        let source = "a first strike, vigilance, or lifelink counter";
+        let catalogs = fixture_catalogs().with_catalog(
+            CatalogKind::KeywordAbility,
+            ["First strike", "Vigilance", "Lifelink"],
+        );
+        let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        let Some(NounPhrase::Nominal(counter)) = parsed.noun_phrase() else {
+            panic!(
+                "expected one common-head counter: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert!(matches!(
+            counter.modifiers.as_slice(),
+            [NominalModifier::Coordinated(_)]
+        ));
+        assert!(matches!(
+            counter.head,
+            NounInstance::Singular(Noun::Word(Vocab::Counter))
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn participial_modifier_coordination_keeps_its_common_head() {
+        let source = "target attacking or blocking creature";
+        let parsed = parse(source);
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected one creature nominal: {:#?}", parsed.noun_phrase());
+        };
+        assert_eq!(nominal.determiner, Some(Determiner::Target(None)));
+        assert!(matches!(
+            nominal.modifiers.as_slice(),
+            [NominalModifier::Coordinated(_)]
+        ));
+        assert!(matches!(
+            &nominal.head,
+            NounInstance::Singular(Noun::Catalog(atom)) if atom.canonical() == "Creature"
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn productive_agent_nouns_remain_shared_determiner_options() {
+        let source = "target attacker or blocker";
+        let parsed = parse(source);
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!(
+                "expected productive agent nouns in one target group: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert_eq!(coordinated.determiner, Determiner::Target(None));
+        assert!(matches!(
+            coordinated.first.head,
+            NounInstance::Singular(Noun::Agentive(_))
+        ));
+        assert!(matches!(
+            coordinated.rest.as_slice(),
+            [crate::syntax::NominalPhraseCoordination {
+                phrase: NominalPhrase {
+                    head: NounInstance::Singular(Noun::Agentive(_)),
+                    ..
+                },
+                ..
+            }]
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn shared_options_do_not_swallow_the_outer_hosts_following_preposition() {
+        let source = "their choice of the top or bottom of their library";
+        let parsed = parse(source);
+        let Some(NounPhrase::Nominal(choice)) = parsed.noun_phrase() else {
+            panic!("expected one choice nominal: {:#?}", parsed.noun_phrase());
+        };
+        let [
+            NominalComplement::Prepositional(options),
+            NominalComplement::Prepositional(library),
+        ] = choice.complements.as_slice()
+        else {
+            panic!("both `of` phrases must remain on choice: {choice:#?}");
+        };
+        assert_eq!(options.preposition, crate::syntax::Preposition::Of);
+        assert_eq!(library.preposition, crate::syntax::Preposition::Of);
+        let crate::syntax::Phrase::NounPhrase(options) = options.object.as_ref() else {
+            panic!("expected noun-phrase options: {options:#?}");
+        };
+        assert!(matches!(
+            options.as_ref(),
+            NounPhrase::CoordinatedNominal(coordinated)
+                if coordinated.determiner == Determiner::The
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn shared_determiner_does_not_reopen_a_pp_closed_nominal() {
+        let source = "the power to target player or planeswalker";
+        let parsed = parse(source);
+        let Some(NounPhrase::Nominal(power)) = parsed.noun_phrase() else {
+            panic!(
+                "the outer determiner must stay on power: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert_eq!(power.determiner, Some(Determiner::The));
+        let [NominalComplement::Prepositional(recipient)] = power.complements.as_slice() else {
+            panic!("power must retain its recipient PP: {power:#?}");
+        };
+        assert_eq!(recipient.preposition, crate::syntax::Preposition::To);
+        let crate::syntax::Phrase::NounPhrase(recipient) = recipient.object.as_ref() else {
+            panic!("expected a noun-phrase recipient: {recipient:#?}");
+        };
+        let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
+            panic!("target must scope over the recipient coordination: {recipient:#?}");
+        };
+        assert_eq!(recipient.determiner, Determiner::Target(None));
+        assert_eq!(recipient.rest.len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
 
@@ -462,7 +1055,10 @@ mod tests {
             assert_eq!(exception.marker, expected_marker);
             assert_eq!(exception.comma, comma);
             assert_eq!(
-                matches!(exception.included.as_ref(), NounPhrase::Coordinated(_)),
+                matches!(
+                    exception.included.as_ref(),
+                    NounPhrase::Coordinated(_) | NounPhrase::CoordinatedNominal(_)
+                ),
                 included_coordination
             );
             assert_eq!(
@@ -493,12 +1089,13 @@ mod tests {
         // member carries the closing conjunction with its comma — the exact
         // surface the renderer replays.
         let parsed = parse("target artifact, creature, or land");
-        let Some(NounPhrase::Coordinated(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
             panic!(
-                "expected a coordinated noun phrase: {:#?}",
+                "expected nominal coordination under one determiner: {:#?}",
                 parsed.noun_phrase()
             );
         };
+        assert_eq!(coordinated.determiner, Determiner::Target(None));
         let [interior, final_member] = coordinated.rest.as_slice() else {
             panic!("expected two continuations, got {:#?}", coordinated.rest);
         };
@@ -1652,9 +2249,9 @@ mod tests {
                 panic!("expected a temporal nominal");
             };
             assert!(matches!(
-                nominal.complements.as_slice(),
-                [NominalComplement::Prepositional(preposition)]
-                    if preposition.preposition == expected
+                    nominal.complements.as_slice(),
+                    [NominalComplement::Prepositional(preposition)]
+                        if preposition.preposition == expected
             ));
         }
     }
@@ -2181,13 +2778,19 @@ mod tests {
                 [
                     "Goblin",
                     "Human",
+                    "Elf",
                     "Kraken",
                     "Leviathan",
                     "Octopus",
+                    "Orc",
                     "Serpent",
                 ],
             )
-            .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
+            .with_catalog(CatalogKind::ArtifactType, ["Equipment", "Spacecraft"])
+            .with_catalog(
+                CatalogKind::CardType,
+                ["Artifact", "Creature", "Instant", "Land", "Sorcery"],
+            )
             .with_catalog(CatalogKind::Supertype, ["Basic", "Legendary"])
     }
 

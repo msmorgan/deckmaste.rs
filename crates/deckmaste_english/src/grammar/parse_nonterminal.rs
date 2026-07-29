@@ -35,6 +35,7 @@ use super::collapse_full_names;
 use super::lex;
 use super::lowering::Lowered;
 use super::lowering::lower;
+use super::lowering::selected_rule_children;
 use super::parse_chart;
 
 type EnglishChart = ChartResult<Nonterminal, EnglishLexicalSlot, Features, MeaningKey>;
@@ -224,6 +225,22 @@ pub(super) fn parse_nonterminal_with_mode(
         &mut constituent_spans,
         &mut quoted_ability_spans,
     );
+    let mut lowered_coordination_spans = Vec::new();
+    let mut lowered_determiner_spans = Vec::new();
+    collect_lowered_coordination_spans(
+        &grammar,
+        &chart.forest,
+        root,
+        &best,
+        tokens,
+        &mut lowered_coordination_spans,
+        &mut lowered_determiner_spans,
+    );
+    normalize_lowered_coordination_spans(
+        &mut constituent_spans,
+        &mut lowered_coordination_spans,
+        &mut lowered_determiner_spans,
+    );
     quoted_ability_spans.sort_unstable_by_key(|span| (span.start, span.end));
     quoted_ability_spans.dedup();
     Ok(ParsedNonterminal {
@@ -278,6 +295,347 @@ fn collect_selected_spans(
             quoted_ability_spans,
         );
     }
+}
+
+/// A shared determiner recovered while lowering supersedes the parser's
+/// legacy binary attachment, so its nominal coordination needs a provenance
+/// span of its own. Recording that structural edit here keeps the bracket dump
+/// aligned with the returned AST without introducing broad grammar
+/// predictions that perturb unrelated packed-forest ties.
+fn collect_lowered_coordination_spans(
+    grammar: &EnglishGrammar<'_, '_>,
+    forest: &EnglishForest,
+    node: NodeId,
+    best: &BestParse,
+    tokens: &[Token],
+    spans: &mut Vec<Span>,
+    determiner_spans: &mut Vec<Span>,
+) {
+    let Some((tag, children)) = selected_tag_and_children(grammar, forest, node, best) else {
+        return;
+    };
+    for child in &children {
+        collect_lowered_coordination_spans(
+            grammar,
+            forest,
+            *child,
+            best,
+            tokens,
+            spans,
+            determiner_spans,
+        );
+    }
+
+    if tag == super::RuleTag::SharedDeterminerNominal {
+        let (Some(first), Some(last)) = (children.get(1), children.get(3)) else {
+            return;
+        };
+        if let Some(span) = token_range_span(
+            tokens,
+            forest.node(*first).key.start,
+            forest.node(*last).key.end,
+        ) {
+            spans.push(span);
+        }
+        return;
+    }
+
+    let (first_node, next_node, before, after) = match tag {
+        super::RuleTag::NounPhraseCoordination | super::RuleTag::NounPhraseCoordinationOxford => {
+            let next_index = if tag == super::RuleTag::NounPhraseCoordination { 2 } else { 3 };
+            let (Some(first_node), Some(next_node)) = (children.first(), children.get(next_index))
+            else {
+                return;
+            };
+            let Some(Lowered::NounPhrase(before)) = lower(grammar, forest, *first_node, best)
+            else {
+                return;
+            };
+            let Some(Lowered::NounPhrase(after)) = lower(grammar, forest, node, best) else {
+                return;
+            };
+            (*first_node, *next_node, before, after)
+        }
+        super::RuleTag::PrepositionalPhraseCoordinated
+        | super::RuleTag::PrepositionalPhraseRulesObjectCoordinated => {
+            let next_index = if children.len() == 5 { 4 } else { 3 };
+            let (Some(first_node), Some(next_node)) = (children.get(1), children.get(next_index))
+            else {
+                return;
+            };
+            let Some(Lowered::NounPhrase(before)) = lower(grammar, forest, *first_node, best)
+            else {
+                return;
+            };
+            let Some(Lowered::PrepositionalPhrase(after)) = lower(grammar, forest, node, best)
+            else {
+                return;
+            };
+            let super::Phrase::NounPhrase(after) = *after.object else {
+                return;
+            };
+            (*first_node, *next_node, before, *after)
+        }
+        _ => return,
+    };
+    let Some(edit) = find_shared_determiner_edit(&before, &after) else {
+        return;
+    };
+    let Some(origin_node) =
+        find_selected_noun_phrase(grammar, forest, first_node, best, &edit.determined_first)
+    else {
+        return;
+    };
+    let origin_start = forest.node(origin_node).key.start;
+    let Some(determiner_end) = find_selected_determiner_end(
+        grammar,
+        forest,
+        origin_node,
+        best,
+        origin_start,
+        &edit.determiner,
+    ) else {
+        return;
+    };
+    if let Some(span) = token_range_span(tokens, origin_start, determiner_end) {
+        determiner_spans.push(span);
+    }
+    if let Some(span) = token_range_span(tokens, origin_start, forest.node(node).key.end) {
+        spans.push(span);
+    }
+    let relative_start = edit.trailing_relative.as_ref().and_then(|relative| {
+        find_selected_relative(grammar, forest, next_node, best, relative)
+            .map(|relative_node| forest.node(relative_node).key.start)
+    });
+    if let Some(relative_start) = relative_start
+        && let Some(span) =
+            token_range_span(tokens, forest.node(next_node).key.start, relative_start)
+    {
+        spans.push(span);
+    }
+    let core_end = relative_start.unwrap_or(forest.node(node).key.end);
+    if let Some(span) = token_range_span(tokens, determiner_end, core_end) {
+        spans.push(span);
+    }
+}
+
+fn selected_tag_and_children(
+    grammar: &EnglishGrammar<'_, '_>,
+    forest: &EnglishForest,
+    node: NodeId,
+    best: &BestParse,
+) -> Option<(super::RuleTag, Vec<NodeId>)> {
+    let forest_node = forest.node(node);
+    let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
+    let rule = alternative.rule?;
+    let tag = *grammar.tags.get(rule.index())?;
+    let [intermediate] = alternative.children.as_slice() else {
+        return None;
+    };
+    let mut children = Vec::new();
+    selected_rule_children(forest, *intermediate, best, &mut children)?;
+    Some((tag, children))
+}
+
+#[derive(Debug)]
+struct SharedDeterminerEdit {
+    determined_first: NounPhrase,
+    determiner: super::Determiner,
+    trailing_relative: Option<super::RelativeClause>,
+}
+
+/// Finds the one subtree changed by `push_noun_phrase_coordination`. The
+/// comparison is semantic: it follows the final PP object or final outer
+/// conjunct that lowering is allowed to rewrite, never a surface substring.
+fn find_shared_determiner_edit(
+    before: &NounPhrase,
+    after: &NounPhrase,
+) -> Option<SharedDeterminerEdit> {
+    match (before, after) {
+        (NounPhrase::Nominal(original), NounPhrase::CoordinatedNominal(group)) => {
+            let mut first = original.clone();
+            let determiner = first.determiner.take()?;
+            if group.determiner != determiner || group.first.as_ref() != &first {
+                return None;
+            }
+            Some(SharedDeterminerEdit {
+                determined_first: before.clone(),
+                determiner,
+                trailing_relative: first_group_relative(&group.complements),
+            })
+        }
+        (NounPhrase::CoordinatedNominal(original), NounPhrase::CoordinatedNominal(group))
+            if group.determiner == original.determiner
+                && group.first == original.first
+                && group.rest.len() == original.rest.len() + 1
+                && group.rest.starts_with(&original.rest) =>
+        {
+            let mut determined_first = original.first.as_ref().clone();
+            determined_first.determiner = Some(original.determiner.clone());
+            Some(SharedDeterminerEdit {
+                determined_first: NounPhrase::Nominal(determined_first),
+                determiner: original.determiner.clone(),
+                trailing_relative: first_group_relative(&group.complements),
+            })
+        }
+        (NounPhrase::Nominal(before), NounPhrase::Nominal(after))
+            if before.determiner == after.determiner
+                && before.modifiers == after.modifiers
+                && before.head == after.head
+                && before.complements.len() == after.complements.len()
+                && !before.complements.is_empty()
+                && before.complements[..before.complements.len() - 1]
+                    == after.complements[..after.complements.len() - 1] =>
+        {
+            let (
+                super::NominalComplement::Prepositional(before),
+                super::NominalComplement::Prepositional(after),
+            ) = (before.complements.last()?, after.complements.last()?)
+            else {
+                return None;
+            };
+            if before.preposition != after.preposition {
+                return None;
+            }
+            let (super::Phrase::NounPhrase(before), super::Phrase::NounPhrase(after)) =
+                (before.object.as_ref(), after.object.as_ref())
+            else {
+                return None;
+            };
+            find_shared_determiner_edit(before, after)
+        }
+        (NounPhrase::Coordinated(before), NounPhrase::Coordinated(after))
+            if before.first == after.first
+                && before.rest.len() == after.rest.len()
+                && !before.rest.is_empty()
+                && before.rest[..before.rest.len() - 1] == after.rest[..after.rest.len() - 1] =>
+        {
+            let before = before.rest.last()?;
+            let after = after.rest.last()?;
+            if before.conjunction != after.conjunction || before.comma != after.comma {
+                return None;
+            }
+            find_shared_determiner_edit(&before.phrase, &after.phrase)
+        }
+        _ => None,
+    }
+}
+
+fn first_group_relative(complements: &[super::NominalComplement]) -> Option<super::RelativeClause> {
+    match complements.first() {
+        Some(super::NominalComplement::Relative(relative)) => Some(relative.clone()),
+        _ => None,
+    }
+}
+
+fn find_selected_noun_phrase(
+    grammar: &EnglishGrammar<'_, '_>,
+    forest: &EnglishForest,
+    node: NodeId,
+    best: &BestParse,
+    target: &NounPhrase,
+) -> Option<NodeId> {
+    if matches!(
+        lower(grammar, forest, node, best),
+        Some(Lowered::NounPhrase(ref candidate)) if candidate == target
+    ) {
+        return Some(node);
+    }
+    let (_, children) = selected_tag_and_children(grammar, forest, node, best)?;
+    children
+        .into_iter()
+        .find_map(|child| find_selected_noun_phrase(grammar, forest, child, best, target))
+}
+
+fn find_selected_determiner_end(
+    grammar: &EnglishGrammar<'_, '_>,
+    forest: &EnglishForest,
+    node: NodeId,
+    best: &BestParse,
+    origin_start: usize,
+    target: &super::Determiner,
+) -> Option<usize> {
+    let forest_node = forest.node(node);
+    let mut end = (forest_node.key.start == origin_start
+        && matches!(
+            lower(grammar, forest, node, best),
+            Some(Lowered::Determiner(ref candidate)) if candidate == target
+        ))
+    .then_some(forest_node.key.end);
+    if let Some((_, children)) = selected_tag_and_children(grammar, forest, node, best) {
+        for child in children {
+            if let Some(candidate) =
+                find_selected_determiner_end(grammar, forest, child, best, origin_start, target)
+            {
+                end = Some(end.map_or(candidate, |current| current.max(candidate)));
+            }
+        }
+    }
+    end
+}
+
+fn find_selected_relative(
+    grammar: &EnglishGrammar<'_, '_>,
+    forest: &EnglishForest,
+    node: NodeId,
+    best: &BestParse,
+    target: &super::RelativeClause,
+) -> Option<NodeId> {
+    if matches!(
+        lower(grammar, forest, node, best),
+        Some(Lowered::RelativeClause(ref candidate)) if candidate == target
+    ) {
+        return Some(node);
+    }
+    let (_, children) = selected_tag_and_children(grammar, forest, node, best)?;
+    children
+        .into_iter()
+        .find_map(|child| find_selected_relative(grammar, forest, child, best, target))
+}
+
+fn token_range_span(tokens: &[Token], start: usize, end: usize) -> Option<Span> {
+    if start >= end {
+        return None;
+    }
+    Some(Span::new(
+        tokens.get(start)?.span.start,
+        tokens.get(end.checked_sub(1)?)?.span.end,
+    ))
+}
+
+fn normalize_lowered_coordination_spans(
+    selected: &mut Vec<Span>,
+    lowered: &mut Vec<Span>,
+    determiner_spans: &mut Vec<Span>,
+) {
+    lowered.sort_unstable_by_key(|span| (span.start, std::cmp::Reverse(span.end)));
+    lowered.dedup();
+    let mut maximal = Vec::with_capacity(lowered.len());
+    for span in lowered.drain(..) {
+        if maximal
+            .last()
+            .is_some_and(|previous: &Span| previous.start == span.start && previous.end >= span.end)
+        {
+            continue;
+        }
+        maximal.push(span);
+    }
+    determiner_spans.sort_unstable_by_key(|span| (span.start, span.end));
+    determiner_spans.dedup();
+    selected.retain(|selected| {
+        !determiner_spans.contains(selected)
+            && maximal
+                .iter()
+                .all(|lowered| !constituent_spans_cross(*selected, *lowered))
+    });
+    selected.extend(maximal);
+    selected.sort_unstable_by_key(|span| (span.start, span.end));
+    selected.dedup();
+}
+
+fn constituent_spans_cross(left: Span, right: Span) -> bool {
+    left.start < right.start && right.start < left.end && left.end < right.end
+        || right.start < left.start && left.start < right.end && right.end < left.end
 }
 
 #[cfg(test)]

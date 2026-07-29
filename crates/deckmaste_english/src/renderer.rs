@@ -1557,6 +1557,16 @@ impl<'identity> Renderer<'identity> {
                 self.noun_phrase(&partitive.whole)?
             )),
             NounPhrase::CoordinatedNominal(coordinated) => {
+                if let Determiner::Indefinite(article) = coordinated.determiner {
+                    let expected = self.nominal_initial_sound(&coordinated.first)?;
+                    let actual = match article {
+                        IndefiniteArticle::A => InitialSound::Consonant,
+                        IndefiniteArticle::An => InitialSound::Vowel,
+                    };
+                    if actual != expected {
+                        return Err(RenderError::InvalidIndefiniteArticle);
+                    }
+                }
                 let mut rendered = self.determiner(&coordinated.determiner)?;
                 rendered.push(' ');
                 rendered.push_str(&self.nominal_phrase(&coordinated.first)?);
@@ -1575,6 +1585,10 @@ impl<'identity> Renderer<'identity> {
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.nominal_phrase(&coordination.phrase)?);
+                }
+                for complement in &coordinated.complements {
+                    rendered.push(' ');
+                    rendered.push_str(&self.nominal_complement(complement)?);
                 }
                 Ok(rendered)
             }
@@ -1660,37 +1674,39 @@ impl<'identity> Renderer<'identity> {
         }
         parts.push(self.render_noun(&phrase.head)?);
         for complement in &phrase.complements {
-            parts.push(match complement {
-                NominalComplement::Adjective(adjective) => self.adjective_phrase(adjective)?,
-                NominalComplement::Prepositional(preposition) => {
-                    self.prepositional_phrase(preposition)?
-                }
-                NominalComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
-                NominalComplement::Relative(relative) => self.relative_clause(relative)?,
-                NominalComplement::ReducedRecipientPassive(predicate) => {
-                    self.transitive_predicate(predicate)?
-                }
-                NominalComplement::Quantity(quantity) => render_quantity(*quantity),
-                NominalComplement::PowerToughness(value) => format!(
-                    "{}/{}",
-                    render_signed_scalar(value.power),
-                    render_signed_scalar(value.toughness),
-                ),
-                NominalComplement::Devotion(colors) => render_devotion_colors(*colors),
-                NominalComplement::EventClause(clause) => self.independent_clause(clause)?,
-                NominalComplement::KeywordArgument(argument) => match argument {
-                    KeywordArgument::Costed(KeywordCost::Symbols(symbols)) => {
-                        render_symbol_sequence(symbols)
-                    }
-                    KeywordArgument::Predicated(predicated) => {
-                        self.predicated_argument(predicated)?
-                    }
-                    _ => return Err(RenderError::InvalidKeywordArgumentNominal),
-                },
-            });
+            parts.push(self.nominal_complement(complement)?);
         }
         parts.extend(trailing_modifier_complements);
         Ok(join_words(parts))
+    }
+
+    fn nominal_complement(&self, complement: &NominalComplement) -> Result<String, RenderError> {
+        Ok(match complement {
+            NominalComplement::Adjective(adjective) => self.adjective_phrase(adjective)?,
+            NominalComplement::Prepositional(preposition) => {
+                self.prepositional_phrase(preposition)?
+            }
+            NominalComplement::Infinitive(infinitive) => self.infinitive_clause(infinitive)?,
+            NominalComplement::Relative(relative) => self.relative_clause(relative)?,
+            NominalComplement::ReducedRecipientPassive(predicate) => {
+                self.transitive_predicate(predicate)?
+            }
+            NominalComplement::Quantity(quantity) => render_quantity(*quantity),
+            NominalComplement::PowerToughness(value) => format!(
+                "{}/{}",
+                render_signed_scalar(value.power),
+                render_signed_scalar(value.toughness),
+            ),
+            NominalComplement::Devotion(colors) => render_devotion_colors(*colors),
+            NominalComplement::EventClause(clause) => self.independent_clause(clause)?,
+            NominalComplement::KeywordArgument(argument) => match argument {
+                KeywordArgument::Costed(KeywordCost::Symbols(symbols)) => {
+                    render_symbol_sequence(symbols)
+                }
+                KeywordArgument::Predicated(predicated) => self.predicated_argument(predicated)?,
+                _ => return Err(RenderError::InvalidKeywordArgumentNominal),
+            },
+        })
     }
 
     /// Renders one modifier slot to its surface, returning any trailing

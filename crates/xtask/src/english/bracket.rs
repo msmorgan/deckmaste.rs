@@ -297,7 +297,10 @@ fn escape_field(field: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english::CatalogKind;
+    use deckmaste_english::Catalogs;
     use deckmaste_english::Span;
+    use deckmaste_english::parse_with_catalogs;
 
     use super::BracketDelimiters;
     use super::OracleDataArgs;
@@ -306,6 +309,31 @@ mod tests {
     use super::escape_field;
     use super::strip_structural_brackets;
     use crate::english::data::map_supported_faces;
+
+    fn bracket_synthetic(source: &str, catalogs: &Catalogs) -> String {
+        let report = parse_with_catalogs(source, catalogs);
+        assert!(
+            report.ast().recoveries().is_empty(),
+            "synthetic fixture recovered: {report:#?}"
+        );
+        let mut constituents = report
+            .provenance()
+            .selections()
+            .iter()
+            .flat_map(|selection| selection.constituent_spans().iter().copied())
+            .collect::<Vec<_>>();
+        constituents.push(Span::new(0, source.len()));
+        bracket_source(
+            source,
+            Span::new(0, source.len()),
+            &constituents,
+            BracketDelimiters {
+                open: '<',
+                close: '>',
+            },
+        )
+        .expect("synthetic fixture must have laminar provenance")
+    }
 
     #[test]
     fn tsv_fields_escape_record_separators_and_backslashes() {
@@ -372,12 +400,61 @@ mod tests {
             .bracketed;
 
         assert!(
-            damage.contains("<to <target <player> or <planeswalker>> and <<each> <<creature>"),
+            damage.contains("<to <target <<player> or <planeswalker>>> and <<each> <<creature>"),
             "unexpected Bonfire bracket tree: {damage}"
         );
         assert!(
             !damage.contains("<<<target> <player>> or <planeswalker>>"),
             "the first target head must not carry the shared determiner: {damage}"
+        );
+    }
+
+    #[test]
+    fn adversarial_shared_determiner_brackets_preserve_scope() {
+        let catalogs = Catalogs::default()
+            .with_catalog(
+                CatalogKind::CardType,
+                [
+                    "Artifact",
+                    "Battle",
+                    "Creature",
+                    "Enchantment",
+                    "Land",
+                    "Planeswalker",
+                ],
+            )
+            .with_catalog(CatalogKind::CreatureType, ["Elf", "Orc"]);
+
+        let damage = bracket_synthetic(
+            concat!(
+                "Choose target creature. That creature gets +1/+1 and deals 3 damage to ",
+                "target player or planeswalker and 1 damage to each creature that player ",
+                "or that planeswalker controls."
+            ),
+            &catalogs,
+        );
+        assert!(
+            damage.contains("<target <<player> or <planeswalker>>>")
+                && !damage.contains("<<<target> <player>> or <planeswalker>>"),
+            "unexpected shared target scope: {damage}"
+        );
+
+        let exile = bracket_synthetic(
+            "Exile target artifact, creature, or planeswalker and target land or battle.",
+            &catalogs,
+        );
+        assert!(
+            exile.contains("<target <<artifact>, <creature>, or <planeswalker>>>")
+                && exile.contains("<target <<land> or <battle>>>")
+                && !exile.contains("<artifact>, <creature>, or <planeswalker> and <target"),
+            "the two target groups must remain distinct: {exile}"
+        );
+
+        let destroy =
+            bracket_synthetic("Destroy target attacking or blocking creature.", &catalogs);
+        assert!(
+            destroy.contains("<<<attacking> or <blocking>> <creature>>"),
+            "the coordinated participles must share the creature head: {destroy}"
         );
     }
 

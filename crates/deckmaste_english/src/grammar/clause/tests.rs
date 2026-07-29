@@ -1410,6 +1410,62 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
 }
 
 #[test]
+fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() {
+    let source = "That creature gets +1/+1 and deals 3 damage to target player or planeswalker and 1 damage to each creature that player or that planeswalker controls.";
+    let parsed = parse(source);
+    let predicates = predicate_coordination(parsed.sentence().expect("sentence root"));
+    let [_, Predicate::Transitive(deals)] = predicates.conjuncts() else {
+        panic!("expected coordinated `gets` and `deals` predicates: {predicates:#?}");
+    };
+    let PredicateObject::NounPhrase(NounPhrase::Coordinated(damage)) = &deals.object else {
+        panic!("expected two independently quantified damage nominals: {deals:#?}");
+    };
+    let NounPhrase::Nominal(first_damage) = damage.first.as_ref() else {
+        panic!("expected the first damage nominal: {damage:#?}");
+    };
+    let [NominalComplement::Prepositional(first_recipient)] = first_damage.complements.as_slice()
+    else {
+        panic!("the first damage needs one recipient PP: {first_damage:#?}");
+    };
+    let Phrase::NounPhrase(first_recipient) = first_recipient.object.as_ref() else {
+        panic!("expected a noun-phrase first recipient: {first_recipient:#?}");
+    };
+    assert!(matches!(
+        first_recipient.as_ref(),
+        NounPhrase::CoordinatedNominal(targets)
+            if targets.determiner == Determiner::Target(None) && targets.rest.len() == 1
+    ));
+
+    let [second_damage] = damage.rest.as_slice() else {
+        panic!("expected exactly one later damage nominal: {damage:#?}");
+    };
+    assert_eq!(
+        second_damage.conjunction,
+        Some(crate::syntax::NounPhraseConjunction::And)
+    );
+    let NounPhrase::Nominal(second_damage) = &second_damage.phrase else {
+        panic!("expected the second damage nominal: {second_damage:#?}");
+    };
+    let [NominalComplement::Prepositional(second_recipient)] = second_damage.complements.as_slice()
+    else {
+        panic!("the second damage needs one recipient PP: {second_damage:#?}");
+    };
+    let Phrase::NounPhrase(second_recipient) = second_recipient.object.as_ref() else {
+        panic!("expected a noun-phrase second recipient: {second_recipient:#?}");
+    };
+    assert!(matches!(
+        second_recipient.as_ref(),
+        NounPhrase::Nominal(creatures)
+            if creatures.determiner == Some(Determiner::Each)
+                && matches!(
+                    creatures.complements.as_slice(),
+                    [NominalComplement::Relative(_)]
+                )
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
 fn rules_object_gap_skips_a_mass_comparison_head() {
     let source = "the greatest toughness among creatures you control";
     let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
@@ -1623,17 +1679,15 @@ fn rules_object_gap_prefers_the_nearest_preposition_without_stealing_its_subject
     let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
         panic!("expected noun-phrase objects: {objects:#?}");
     };
-    let NounPhrase::Coordinated(objects) = objects.as_ref() else {
-        panic!("expected coordination inside `of`: {objects:#?}");
+    let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
+        panic!("expected shared-determiner coordination inside `of`: {objects:#?}");
     };
     let [creatures] = objects.rest.as_slice() else {
         panic!("expected one creature member: {objects:#?}");
     };
-    let NounPhrase::Nominal(creatures) = &creatures.phrase else {
-        panic!("expected a creature nominal: {creatures:#?}");
-    };
-    let [NominalComplement::Relative(relative)] = creatures.complements.as_slice() else {
-        panic!("creatures must host the relative: {creatures:#?}");
+    assert!(creatures.phrase.complements.is_empty());
+    let [NominalComplement::Relative(relative)] = objects.complements.as_slice() else {
+        panic!("the coordinated objects must host the relative: {objects:#?}");
     };
     let RelativeBody::ObjectGap {
         subject: Subject(NounPhrase::Nominal(subject)),
@@ -1720,23 +1774,91 @@ fn coordinated_member_refuses_unrelated_following_pps() {
     let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
         panic!("expected noun-phrase objects: {objects:#?}");
     };
-    let NounPhrase::Coordinated(objects) = objects.as_ref() else {
-        panic!("expected coordination inside `of`: {objects:#?}");
+    let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
+        panic!("expected shared-determiner coordination inside `of`: {objects:#?}");
     };
     let [last] = objects.rest.as_slice() else {
         panic!("expected one final creature member: {objects:#?}");
     };
-    let NounPhrase::Nominal(creature) = &last.phrase else {
-        panic!("expected a nominal creature member: {last:#?}");
-    };
+    assert!(last.phrase.complements.is_empty());
     assert!(matches!(
-        creature.complements.as_slice(),
+        objects.complements.as_slice(),
         [NominalComplement::Relative(RelativeClause {
             gap: RelativeGap::Object,
             ..
         })]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn binary_comma_and_does_not_masquerade_as_an_oxford_nominal_list() {
+    let source = "Search your library for seven cards, exile them in a face-down pile, and shuffle that pile.";
+    let parsed = parse(source);
+    let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
+    assert_eq!(
+        coordination.conjuncts().len(),
+        3,
+        "the final `shuffle` predicate must remain a clause member: {coordination:#?}"
+    );
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn verb_homograph_does_not_close_a_shared_determiner_group() {
+    let source = "Create a token and copy target spell.";
+    let parsed = parse(source);
+    let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
+    let [_, Predicate::Transitive(copy)] = coordination.conjuncts() else {
+        panic!("`copy` must remain the second predicate: {coordination:#?}");
+    };
+    assert!(matches!(copy.head.verb.verb, Verb::Word(Vocab::Copy)));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn common_head_object_survives_following_finite_clause_coordination() {
+    let source = concat!(
+        "you may cast target instant or sorcery card from a graveyard, and ",
+        "mana of any type can be spent to cast that spell"
+    );
+    let catalogs = fixture_catalogs().with_catalog(
+        CatalogKind::CardType,
+        ["Creature", "Instant", "Land", "Planeswalker", "Sorcery"],
+    );
+    let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Clause)
+        .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+    let Clause::Independent(IndependentClause::Coordinated(coordination)) =
+        parsed.clause().expect("clause root")
+    else {
+        panic!("expected two complete finite clauses");
+    };
+    let IndependentClause::Deontic(_, _, Some(first_predicate)) = coordination.first.as_ref()
+    else {
+        panic!("expected a modal first clause: {coordination:#?}");
+    };
+    let Predicate::Transitive(cast) = first_predicate else {
+        panic!("expected a transitive cast predicate: {first_predicate:#?}");
+    };
+    let PredicateObject::NounPhrase(NounPhrase::Nominal(card)) = &cast.object else {
+        panic!("expected one common-head card object: {cast:#?}");
+    };
+    assert!(matches!(
+        card.modifiers.as_slice(),
+        [NominalModifier::Coordinated(_)]
+    ));
+    assert!(matches!(
+        card.head,
+        NounInstance::Singular(Noun::Word(Vocab::Card))
+    ));
+    assert!(matches!(
+        coordination.rest.as_slice(),
+        [ClauseCoordination {
+            conjunction: Some(PredicateConjunction::And),
+            comma: true,
+            member: CoordinatedClauseMember::Independent(_),
+        }]
+    ));
 }
 
 #[test]
@@ -1761,15 +1883,13 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
     let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
         panic!("expected noun-phrase counter recipients: {objects:#?}");
     };
-    let NounPhrase::Coordinated(objects) = objects.as_ref() else {
-        panic!("expected coordinated counter recipients: {objects:#?}");
+    let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
+        panic!("expected shared-determiner counter recipients: {objects:#?}");
     };
     let [last] = objects.rest.as_slice() else {
         panic!("expected one final permanent member: {objects:#?}");
     };
-    let NounPhrase::Nominal(permanent) = &last.phrase else {
-        panic!("expected a nominal permanent member: {last:#?}");
-    };
+    assert!(last.phrase.complements.is_empty());
     let [
         NominalComplement::Relative(RelativeClause {
             gap: RelativeGap::Object,
@@ -1780,9 +1900,9 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
             body: RelativeBody::SubjectGap(Predicate::Transitive(entered)),
             ..
         }),
-    ] = permanent.complements.as_slice()
+    ] = objects.complements.as_slice()
     else {
-        panic!("the final member must retain both relatives: {permanent:#?}");
+        panic!("the coordinated recipients must retain both relatives: {objects:#?}");
     };
     assert!(matches!(
         entered.elements.as_slice(),

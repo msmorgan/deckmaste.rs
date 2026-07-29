@@ -58,12 +58,14 @@ use super::VerbAnalysis;
 use super::VerbParticle;
 use super::VerbPhrase;
 use super::Vocab;
+use super::Vocabulary;
 use super::ability;
 use super::adjective_comparison_state;
 use super::clause;
 use super::opacity;
 use super::parse_support::EnglishForest;
 use super::quantity_value;
+use crate::word::NounDeclension;
 
 #[allow(
     dead_code,
@@ -1225,6 +1227,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                             complements: Vec::new(),
                         },
                     }],
+                    complements: Vec::new(),
                 },
             )))
         }
@@ -1579,15 +1582,32 @@ pub(super) fn push_noun_phrase_coordination(
         comma,
         phrase: next,
     } = coordination;
+    let mut first = first;
+    if let NounPhrase::Nominal(host) = &mut first
+        && let NounPhrase::Nominal(next_nominal) = &next
+        && push_into_last_prepositional_object(host, conjunction, comma, next_nominal)
+    {
+        return first;
+    }
     match (first, next) {
-        (NounPhrase::CoordinatedNominal(mut coordinated), NounPhrase::Nominal(next))
-            if next.determiner.is_none()
+        (NounPhrase::CoordinatedNominal(mut coordinated), NounPhrase::Nominal(mut next))
+            if coordinated.complements.is_empty()
+                && next.determiner.is_none()
+                && shared_determiner_accepts(&coordinated.determiner, &next)
+                && shared_determiner_group_can_extend(&coordinated, conjunction, comma)
                 && coordination_run_extends(
                     coordinated.rest.iter().map(|member| member.conjunction),
                     conjunction,
                     comma,
                 ) =>
         {
+            let earlier_has_relative = nominal_has_relative(&coordinated.first)
+                || coordinated
+                    .rest
+                    .iter()
+                    .any(|member| nominal_has_relative(&member.phrase));
+            let group_complements =
+                take_trailing_group_complements(earlier_has_relative, &mut next);
             coordinated
                 .rest
                 .push(crate::syntax::NominalPhraseCoordination {
@@ -1595,7 +1615,34 @@ pub(super) fn push_noun_phrase_coordination(
                     comma,
                     phrase: next,
                 });
+            coordinated.complements.extend(group_complements);
             NounPhrase::CoordinatedNominal(coordinated)
+        }
+        (NounPhrase::Nominal(mut first), NounPhrase::Nominal(mut next))
+            if first.determiner.is_some()
+                && shared_determiner_can_open(&first)
+                && shared_determiner_member(conjunction, comma)
+                && first
+                    .determiner
+                    .as_ref()
+                    .is_some_and(|determiner| shared_determiner_accepts(determiner, &next)) =>
+        {
+            let group_complements =
+                take_trailing_group_complements(nominal_has_relative(&first), &mut next);
+            let determiner = first
+                .determiner
+                .take()
+                .expect("the match guard requires one determiner");
+            NounPhrase::CoordinatedNominal(crate::syntax::CoordinatedNominalPhrase {
+                determiner,
+                first: Box::new(first),
+                rest: vec![crate::syntax::NominalPhraseCoordination {
+                    conjunction,
+                    comma,
+                    phrase: next,
+                }],
+                complements: group_complements,
+            })
         }
         (NounPhrase::Coordinated(mut coordinated), next)
             if coordination_run_extends(
@@ -1604,6 +1651,23 @@ pub(super) fn push_noun_phrase_coordination(
                 comma,
             ) =>
         {
+            let next = match next {
+                NounPhrase::Nominal(next) if shared_determiner_member(conjunction, comma) => {
+                    let mut next = Some(next);
+                    if push_into_last_shared_determiner(
+                        &mut coordinated,
+                        conjunction,
+                        comma,
+                        &mut next,
+                    ) {
+                        return NounPhrase::Coordinated(coordinated);
+                    }
+                    NounPhrase::Nominal(
+                        next.expect("an unsuccessful push leaves the member available"),
+                    )
+                }
+                next => next,
+            };
             coordinated
                 .rest
                 .push(crate::syntax::NounPhraseCoordination {
@@ -1622,6 +1686,307 @@ pub(super) fn push_noun_phrase_coordination(
             }],
         }),
     }
+}
+
+/// Repairs the legacy attachment selected for `two counters on target
+/// creature or artifact`: the parser closes `on target creature` before it
+/// sees the bare singular continuation, but that continuation cannot be an
+/// independent noun phrase. Move it under the determiner already inside the
+/// host's final PP instead of coordinating it with the whole host nominal.
+/// The same normalization repeats across an Oxford run.
+fn push_into_last_prepositional_object(
+    host: &mut NominalPhrase,
+    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    comma: bool,
+    next: &NominalPhrase,
+) -> bool {
+    if !shared_determiner_member(conjunction, comma) {
+        return false;
+    }
+    let Some(NominalComplement::Prepositional(preposition)) = host.complements.last_mut() else {
+        return false;
+    };
+    let Phrase::NounPhrase(object) = preposition.object.as_mut() else {
+        return false;
+    };
+    match object.as_mut() {
+        NounPhrase::CoordinatedNominal(coordinated)
+            if coordinated.complements.is_empty()
+                && shared_determiner_accepts(&coordinated.determiner, next)
+                && shared_determiner_group_can_extend(coordinated, conjunction, comma)
+                && coordination_run_extends(
+                    coordinated.rest.iter().map(|member| member.conjunction),
+                    conjunction,
+                    comma,
+                ) =>
+        {
+            let mut next = next.clone();
+            let earlier_has_relative = nominal_has_relative(&coordinated.first)
+                || coordinated
+                    .rest
+                    .iter()
+                    .any(|member| nominal_has_relative(&member.phrase));
+            let group_complements =
+                take_trailing_group_complements(earlier_has_relative, &mut next);
+            coordinated
+                .rest
+                .push(crate::syntax::NominalPhraseCoordination {
+                    conjunction,
+                    comma,
+                    phrase: next,
+                });
+            coordinated.complements.extend(group_complements);
+            true
+        }
+        NounPhrase::Nominal(first)
+            if first.determiner.is_some()
+                && shared_determiner_can_open(first)
+                && first
+                    .determiner
+                    .as_ref()
+                    .is_some_and(|determiner| shared_determiner_accepts(determiner, next)) =>
+        {
+            let mut next = next.clone();
+            let group_complements =
+                take_trailing_group_complements(nominal_has_relative(first), &mut next);
+            let determiner = first
+                .determiner
+                .take()
+                .expect("the match guard requires one determiner");
+            let first = first.clone();
+            **object = NounPhrase::CoordinatedNominal(crate::syntax::CoordinatedNominalPhrase {
+                determiner,
+                first: Box::new(first),
+                rest: vec![crate::syntax::NominalPhraseCoordination {
+                    conjunction,
+                    comma,
+                    phrase: next,
+                }],
+                complements: group_complements,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Extends a shared-determiner group that begins at the final member of an
+/// outer coordination. In `this creature or another creature or artifact`,
+/// the second `or` belongs under `another`; the first remains the connective
+/// between the complete `this ...` selection and that shared group.
+fn push_into_last_shared_determiner(
+    coordinated: &mut crate::syntax::CoordinatedNounPhrase,
+    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    comma: bool,
+    next: &mut Option<NominalPhrase>,
+) -> bool {
+    let Some(candidate) = next.as_ref() else {
+        return false;
+    };
+    let Some(last) = coordinated.rest.last_mut() else {
+        return false;
+    };
+    match &mut last.phrase {
+        NounPhrase::CoordinatedNominal(inner)
+            if inner.complements.is_empty()
+                && shared_determiner_accepts(&inner.determiner, candidate)
+                && shared_determiner_group_can_extend(inner, conjunction, comma)
+                && coordination_run_extends(
+                    inner.rest.iter().map(|member| member.conjunction),
+                    conjunction,
+                    comma,
+                ) =>
+        {
+            let earlier_has_relative = nominal_has_relative(&inner.first)
+                || inner
+                    .rest
+                    .iter()
+                    .any(|member| nominal_has_relative(&member.phrase));
+            let mut next = next
+                .take()
+                .expect("the candidate was borrowed from this option");
+            let group_complements =
+                take_trailing_group_complements(earlier_has_relative, &mut next);
+            inner.rest.push(crate::syntax::NominalPhraseCoordination {
+                conjunction,
+                comma,
+                phrase: next,
+            });
+            inner.complements.extend(group_complements);
+            true
+        }
+        NounPhrase::Nominal(first)
+            if shared_determiner_can_open(first)
+                && first
+                    .determiner
+                    .as_ref()
+                    .is_some_and(|determiner| shared_determiner_accepts(determiner, candidate)) =>
+        {
+            let mut next = next
+                .take()
+                .expect("the candidate was borrowed from this option");
+            let group_complements =
+                take_trailing_group_complements(nominal_has_relative(first), &mut next);
+            let mut first = first.clone();
+            let determiner = first
+                .determiner
+                .take()
+                .expect("the match guard requires one determiner");
+            last.phrase = NounPhrase::CoordinatedNominal(crate::syntax::CoordinatedNominalPhrase {
+                determiner,
+                first: Box::new(first),
+                rest: vec![crate::syntax::NominalPhraseCoordination {
+                    conjunction,
+                    comma,
+                    phrase: next,
+                }],
+                complements: group_complements,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+fn nominal_has_relative(nominal: &NominalPhrase) -> bool {
+    nominal
+        .complements
+        .iter()
+        .any(|complement| matches!(complement, NominalComplement::Relative(_)))
+}
+
+/// With no parallel relative on an earlier member, a trailing relative scopes
+/// over the completed selection (`another target creature or artifact you
+/// control`). Move it and every following complement together so their surface
+/// order remains intact. Parallel relatives remain member-local.
+fn take_trailing_group_complements(
+    earlier_has_relative: bool,
+    next: &mut NominalPhrase,
+) -> Vec<NominalComplement> {
+    if earlier_has_relative {
+        return Vec::new();
+    }
+    let Some(relative_index) = next
+        .complements
+        .iter()
+        .position(|complement| matches!(complement, NominalComplement::Relative(_)))
+    else {
+        return Vec::new();
+    };
+    next.complements.split_off(relative_index)
+}
+
+/// Whether one coordination edge belongs to nominal material rather than an
+/// arithmetic value. An asyndetic member is only licensed after a comma; the
+/// closing member must use a noun-phrase conjunction, never additive `plus`.
+fn shared_determiner_member(
+    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    comma: bool,
+) -> bool {
+    matches!(
+        conjunction,
+        Some(
+            crate::syntax::NounPhraseConjunction::And
+                | crate::syntax::NounPhraseConjunction::Or
+                | crate::syntax::NounPhraseConjunction::AndOr
+        )
+    ) || conjunction.is_none() && comma
+}
+
+/// A determinerless singular count nominal is not a complete English noun
+/// phrase. If the preceding conjunct carries a determiner that licenses the
+/// same form, that determiner scopes over both nominal members. A plural or
+/// mass continuation only supplies the same evidence when the determiner has
+/// an explicit number constraint (`two artifacts and creatures`, `all Auras
+/// and Equipment`); unconstrained `the` and possessives do not claim an
+/// otherwise complete bare phrase. Invariant catalog plurals can arrive via a
+/// singular lexical alternative, so their declension supplies the plural form.
+fn shared_determiner_accepts(determiner: &Determiner, nominal: &NominalPhrase) -> bool {
+    shared_determiner_accepts_morphology(determiner, nominal)
+}
+
+/// A PP or infinitive closes its member after that member has joined the
+/// group. Only an explicit Oxford continuation can prove that a comma-marked,
+/// PP-bearing member was not the end of the list.
+fn shared_determiner_group_can_extend(
+    coordinated: &crate::syntax::CoordinatedNominalPhrase,
+    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    comma: bool,
+) -> bool {
+    coordinated.rest.last().is_none_or(|last| {
+        shared_determiner_can_open(&last.phrase) || last.comma && comma && conjunction.is_some()
+    })
+}
+
+fn shared_determiner_accepts_morphology(determiner: &Determiner, nominal: &NominalPhrase) -> bool {
+    if nominal.determiner.is_some()
+        || matches!(
+            determiner,
+            Determiner::Demonstrative(crate::syntax::Demonstrative::This)
+        ) && nominal.modifiers.iter().any(|modifier| {
+            matches!(
+                modifier,
+                NominalModifier::Adjective {
+                    phrase: AdjectivePhrase {
+                        head: Adjective::Participle(_, Verb::Word(Vocab::Equip | Vocab::Enchant),),
+                        ..
+                    },
+                    ..
+                }
+            )
+        })
+    {
+        return false;
+    }
+    let form = match nominal.head {
+        NounInstance::Singular(_) => NounForm::Singular,
+        NounInstance::Plural(_) => NounForm::Plural,
+        NounInstance::Mass(_) => NounForm::Mass,
+    };
+    let cardinality = determiner.noun_cardinality();
+    if form != NounForm::Singular && cardinality == crate::syntax::NounCardinality::Unconstrained {
+        return false;
+    }
+    super::reduction::cardinality_accepts(cardinality, form)
+        || form == NounForm::Singular
+            && singular_has_invariant_plural(&nominal.head)
+            && super::reduction::cardinality_accepts(cardinality, NounForm::Plural)
+}
+
+/// A PP or infinitive closes its nominal host before a following coordination.
+/// Reopening `the ... power to target player or planeswalker` at `or` would
+/// make `the` scope over `power ... or planeswalker`; the coordination instead
+/// belongs inside the already-attached recipient PP. A relative also closes an
+/// otherwise complete plural or mass member: unlike a bare singular, its next
+/// conjunct is not morphological proof of shared scope (`all permanents they
+/// control that are one or more colors`).
+fn shared_determiner_can_open(nominal: &NominalPhrase) -> bool {
+    let relative_closes_complete_head = !matches!(nominal.head, NounInstance::Singular(_))
+        && nominal
+            .complements
+            .iter()
+            .any(|complement| matches!(complement, NominalComplement::Relative(_)));
+    !relative_closes_complete_head
+        && nominal.complements.iter().all(|complement| {
+            !matches!(
+                complement,
+                NominalComplement::Prepositional(_) | NominalComplement::Infinitive(_)
+            )
+        })
+}
+
+fn singular_has_invariant_plural(head: &NounInstance) -> bool {
+    let NounInstance::Singular(noun) = head else {
+        return false;
+    };
+    let vocab = match noun {
+        Noun::Word(vocab) => Some(*vocab),
+        Noun::Catalog(atom) => atom.vocab,
+        Noun::Die(_) | Noun::Gerund(_) | Noun::Agentive(_) | Noun::Opaque(_) => None,
+    };
+    vocab
+        .and_then(|vocab| Vocabulary::new().noun_definition(vocab))
+        .is_some_and(|definition| definition.declension == NounDeclension::Invariant)
 }
 
 fn coordination_run_extends(

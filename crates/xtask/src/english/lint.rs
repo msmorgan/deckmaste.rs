@@ -139,12 +139,18 @@ fn mixed_conjunction(shape: &Shape, card: &str, found: &mut Vec<Finding>) {
 /// `CoordinatedNominalPhrase` is the shape for nominal material sharing one
 /// determiner, where every member is determinerless by design.
 ///
-/// The defect is not bareness but **inconsistency**: one member carrying a
-/// determiner while a singular sibling has none. English requires a determiner
-/// on a singular count noun, so that sibling is not a complete noun phrase and
-/// the determiner it needs is sitting on the conjunct next to it — `another
-/// target creature or artifact you control` is one selection, not a determined
-/// phrase coordinated with a bare noun.
+/// The defect is not bareness but **directional, number-compatible
+/// inconsistency**: the first member is a determined singular while a later
+/// singular sibling has no determiner. English requires a determiner on a
+/// singular count noun, so that sibling is not a complete noun phrase and the
+/// preceding determiner scopes over it — `another target creature or artifact
+/// you control` is one selection, not a determined phrase coordinated with a
+/// bare noun. A determiner on a *later* member cannot scope backward, and a
+/// plural/mass first head cannot prove that its determiner licenses the later
+/// singular; those are different parse defects rather than shared-determiner
+/// evidence. Likewise, a prepositional or infinitival complement closes the
+/// first nominal before the conjunction, so its determiner cannot scope into a
+/// later member.
 ///
 /// A *uniformly* determinerless list is explicitly not a finding: `choose
 /// Human, Merfolk, or Goblin` coordinates bare type names, and nothing has
@@ -153,7 +159,13 @@ fn mixed_conjunction(shape: &Shape, card: &str, found: &mut Vec<Finding>) {
 /// of this check counted every bare type-name list as a defect.
 ///
 /// Restricted to `Singular` deliberately — bare plurals (`creatures you
-/// control`) and mass nouns (`damage`) are legitimately determinerless.
+/// control`) and mass nouns (`damage`) are legitimately determinerless. The
+/// fused proform `one` is likewise complete without a determiner; an ellipsis
+/// list such as `your hand, one into your graveyard, and one ...` must not be
+/// diagnosed as shared possessive scope. A quantity modifier itself determines
+/// its nominal (`at least one other Warrior`), while lexical opacity prevents
+/// the lint from proving that a bare singular is a common noun rather than a
+/// proper name (`Disenchant, Braingeyser, ...`).
 fn bare_singular_conjunct(shape: &Shape, card: &str, found: &mut Vec<Finding>) {
     shape.walk(&mut |node| {
         if node.type_name() != Some("CoordinatedNounPhrase") {
@@ -166,26 +178,32 @@ fn bare_singular_conjunct(shape: &Shape, card: &str, found: &mut Vec<Finding>) {
             }
         }
 
-        let nominals: Vec<&Shape> = members
-            .into_iter()
-            .map(Shape::unwrapped)
-            .filter(|member| member.type_name() == Some("NominalPhrase"))
-            .collect();
-        let determined = nominals
-            .iter()
-            .any(|member| !matches!(member.field("determiner"), Some(Shape::Absent)));
-        if !determined {
+        let Some(first) = members.first().map(|member| member.unwrapped()) else {
+            return;
+        };
+        if first.type_name() != Some("NominalPhrase")
+            || matches!(first.field("determiner"), Some(Shape::Absent))
+            || first.field("head").and_then(Shape::variant) != Some("Singular")
+            || !determiner_can_scope_forward(first)
+        {
             return;
         }
+        let first_is_this = first
+            .field("determiner")
+            .is_some_and(|determiner| determiner.unwrapped().variant() == Some("This"));
 
         // One finding per coordination, not per member: `target Shade,
         // Skeleton, … or Zombie` is a single stranded determiner, and counting
         // its six bare members six times would misreport how much is wrong.
-        let stranded = nominals
+        let stranded = members
             .iter()
+            .skip(1)
+            .map(|member| member.unwrapped())
             .filter(|member| {
-                matches!(member.field("determiner"), Some(Shape::Absent))
-                    && member.field("head").and_then(Shape::variant) == Some("Singular")
+                member.type_name() == Some("NominalPhrase")
+                    && matches!(member.field("determiner"), Some(Shape::Absent))
+                    && determinerless_singular_requires_determiner(member)
+                    && !(first_is_this && is_attached_role_nominal(member))
             })
             .count();
         if stranded > 0 {
@@ -193,11 +211,61 @@ fn bare_singular_conjunct(shape: &Shape, card: &str, found: &mut Vec<Finding>) {
                 check: "bare-singular-conjunct",
                 card: card.to_string(),
                 detail: format!(
-                    "a determined conjunct sits beside {stranded} determinerless singular one(s)"
+                    "the first determined conjunct precedes {stranded} determinerless singular one(s)"
                 ),
             });
         }
     });
+}
+
+fn determiner_can_scope_forward(nominal: &Shape) -> bool {
+    elements(nominal, "complements")
+        .iter()
+        .all(|complement| !matches!(complement.variant(), Some("Prepositional" | "Infinitive")))
+}
+
+/// `equipped creature` and `enchanted creature` are contextually definite
+/// attachment roles, so `this creature or equipped creature` coordinates two
+/// complete noun phrases; `this` does not scope over the second member. Keep
+/// the gate on the typed participial verb identities rather than spellings so
+/// unrelated participles (`tapped creature`) remain lintable.
+fn is_attached_role_nominal(nominal: &Shape) -> bool {
+    elements(nominal, "modifiers").iter().any(|modifier| {
+        let modifier = modifier.unwrapped();
+        if modifier.variant() != Some("Adjective") {
+            return false;
+        }
+        let Some(head) = modifier
+            .field("phrase")
+            .and_then(|phrase| phrase.field("head"))
+        else {
+            return false;
+        };
+        let [_, verb] = head.elements() else {
+            return false;
+        };
+        matches!(verb.unwrapped().variant(), Some("Equip" | "Enchant"))
+    })
+}
+
+fn determinerless_singular_requires_determiner(nominal: &Shape) -> bool {
+    let Some(head) = nominal.field("head") else {
+        return false;
+    };
+    if head.variant() != Some("Singular") || head.unwrapped().variant() == Some("One") {
+        return false;
+    }
+    if elements(nominal, "modifiers")
+        .iter()
+        .any(|modifier| modifier.variant() == Some("Quantity"))
+    {
+        return false;
+    }
+    let mut contains_opacity = false;
+    nominal.walk(&mut |node| {
+        contains_opacity |= node.variant() == Some("Opaque");
+    });
+    !contains_opacity
 }
 
 /// The matrix verb of a headed predicate, if it is a lexicon word.
@@ -503,15 +571,78 @@ mod tests {
     }
 
     #[derive(Serialize)]
+    enum TestVocab {
+        One,
+        Equip,
+        Enchant,
+        Tap,
+    }
+
+    #[derive(Serialize)]
+    enum TestDeterminer {
+        Target,
+        Possessive,
+        Quantity,
+        Each,
+        This,
+    }
+
+    #[derive(Serialize)]
+    enum TestTense {
+        Past,
+    }
+
+    #[derive(Serialize)]
+    enum TestVerb {
+        Word(TestVocab),
+    }
+
+    #[derive(Serialize)]
+    enum TestAdjective {
+        Participle(TestTense, TestVerb),
+    }
+
+    #[derive(Serialize)]
+    struct TestAdjectivePhrase {
+        head: TestAdjective,
+    }
+
+    #[derive(Serialize)]
+    enum TestNominalModifier {
+        Adjective { phrase: TestAdjectivePhrase },
+    }
+
+    #[derive(Serialize)]
+    enum TestNominalComplement {
+        Prepositional,
+    }
+
+    #[derive(Serialize)]
+    enum TestNoun {
+        Text(&'static str),
+        Word(TestVocab),
+    }
+
+    #[derive(Serialize)]
     enum Head {
-        Singular(&'static str),
-        Plural(&'static str),
+        Singular(TestNoun),
+        Plural(TestNoun),
+    }
+
+    fn singular(text: &'static str) -> Head {
+        Head::Singular(TestNoun::Text(text))
+    }
+
+    fn plural(text: &'static str) -> Head {
+        Head::Plural(TestNoun::Text(text))
     }
 
     #[derive(Serialize)]
     struct NominalPhrase {
-        determiner: Option<&'static str>,
+        determiner: Option<TestDeterminer>,
+        modifiers: Vec<TestNominalModifier>,
         head: Head,
+        complements: Vec<TestNominalComplement>,
     }
 
     #[derive(Serialize)]
@@ -530,8 +661,35 @@ mod tests {
         rest: Vec<NounPhraseCoordination>,
     }
 
-    fn nominal(determiner: Option<&'static str>, head: Head) -> NounPhrase {
-        NounPhrase::Nominal(NominalPhrase { determiner, head })
+    fn nominal(determiner: Option<TestDeterminer>, head: Head) -> NounPhrase {
+        NounPhrase::Nominal(NominalPhrase {
+            determiner,
+            modifiers: Vec::new(),
+            head,
+            complements: Vec::new(),
+        })
+    }
+
+    fn participial_role(verb: TestVocab, head: Head) -> NounPhrase {
+        NounPhrase::Nominal(NominalPhrase {
+            determiner: None,
+            modifiers: vec![TestNominalModifier::Adjective {
+                phrase: TestAdjectivePhrase {
+                    head: TestAdjective::Participle(TestTense::Past, TestVerb::Word(verb)),
+                },
+            }],
+            head,
+            complements: Vec::new(),
+        })
+    }
+
+    fn prepositionally_closed(determiner: TestDeterminer, head: Head) -> NounPhrase {
+        NounPhrase::Nominal(NominalPhrase {
+            determiner: Some(determiner),
+            modifiers: Vec::new(),
+            head,
+            complements: vec![TestNominalComplement::Prepositional],
+        })
     }
 
     fn coordinated(members: Vec<NounPhrase>) -> CoordinatedNounPhrase {
@@ -555,8 +713,8 @@ mod tests {
     fn a_determined_conjunct_beside_a_bare_singular_strands_its_determiner() {
         // `another target creature or artifact you control`
         let found = run_bare(&coordinated(vec![
-            nominal(Some("Target"), Head::Singular("creature")),
-            nominal(None, Head::Singular("artifact")),
+            nominal(Some(TestDeterminer::Target), singular("creature")),
+            nominal(None, singular("artifact")),
         ]));
         assert_eq!(found.len(), 1);
     }
@@ -565,9 +723,9 @@ mod tests {
     fn a_uniformly_bare_list_strands_nothing() {
         // `choose Human, Merfolk, or Goblin` — bare type names throughout.
         let found = run_bare(&coordinated(vec![
-            nominal(None, Head::Singular("Human")),
-            nominal(None, Head::Singular("Merfolk")),
-            nominal(None, Head::Singular("Goblin")),
+            nominal(None, singular("Human")),
+            nominal(None, singular("Merfolk")),
+            nominal(None, singular("Goblin")),
         ]));
         assert!(
             found.is_empty(),
@@ -576,21 +734,87 @@ mod tests {
     }
 
     #[test]
+    fn a_later_determiner_does_not_scope_backward() {
+        // `block, and its activated abilities` is malformed for a different
+        // reason: `its` cannot determine the preceding `block` nominal.
+        let found = run_bare(&coordinated(vec![
+            nominal(None, singular("block")),
+            nominal(Some(TestDeterminer::Possessive), plural("abilities")),
+        ]));
+        assert!(found.is_empty());
+    }
+
+    #[test]
+    fn a_determined_plural_does_not_license_a_later_singular_by_itself() {
+        // `two counters ... or suspended card` proves an attachment defect,
+        // not that `two` determines the singular `card`.
+        let found = run_bare(&coordinated(vec![
+            nominal(Some(TestDeterminer::Quantity), plural("counters")),
+            nominal(None, singular("card")),
+        ]));
+        assert!(found.is_empty());
+    }
+
+    #[test]
+    fn a_closed_first_nominal_does_not_license_a_later_singular() {
+        // Spirit Flare currently selects `its power to target attacking or
+        // blocking creature`; that is an attachment defect, not evidence that
+        // `its` scopes across the coordination.
+        let found = run_bare(&coordinated(vec![
+            prepositionally_closed(TestDeterminer::Possessive, singular("power")),
+            nominal(None, singular("creature")),
+        ]));
+        assert!(found.is_empty());
+    }
+
+    #[test]
     fn a_bare_plural_conjunct_is_legitimate() {
         let found = run_bare(&coordinated(vec![
-            nominal(Some("Target"), Head::Singular("creature")),
-            nominal(None, Head::Plural("lands")),
+            nominal(Some(TestDeterminer::Target), singular("creature")),
+            nominal(None, plural("lands")),
         ]));
         assert!(found.is_empty(), "bare plurals need no determiner");
     }
 
     #[test]
+    fn a_fused_one_is_not_a_bare_count_nominal() {
+        let found = run_bare(&coordinated(vec![
+            nominal(Some(TestDeterminer::Possessive), singular("hand")),
+            nominal(None, Head::Singular(TestNoun::Word(TestVocab::One))),
+        ]));
+        assert!(
+            found.is_empty(),
+            "fused `one` supplies its own quantification"
+        );
+    }
+
+    #[test]
     fn a_uniformly_determined_list_is_not_a_finding() {
         let found = run_bare(&coordinated(vec![
-            nominal(Some("Target"), Head::Singular("creature")),
-            nominal(Some("Each"), Head::Singular("player")),
+            nominal(Some(TestDeterminer::Target), singular("creature")),
+            nominal(Some(TestDeterminer::Each), singular("player")),
         ]));
         assert!(found.is_empty());
+    }
+
+    #[test]
+    fn attached_creature_roles_are_independently_definite_after_this_creature() {
+        for role in [TestVocab::Equip, TestVocab::Enchant] {
+            let found = run_bare(&coordinated(vec![
+                nominal(Some(TestDeterminer::This), singular("creature")),
+                participial_role(role, singular("creature")),
+            ]));
+            assert!(found.is_empty());
+        }
+    }
+
+    #[test]
+    fn an_unrelated_participle_does_not_silence_the_lint() {
+        let found = run_bare(&coordinated(vec![
+            nominal(Some(TestDeterminer::This), singular("creature")),
+            participial_role(TestVocab::Tap, singular("creature")),
+        ]));
+        assert_eq!(found.len(), 1);
     }
 
     #[test]

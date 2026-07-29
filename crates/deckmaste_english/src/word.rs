@@ -534,6 +534,7 @@ vocabulary! {
             .with_present_participle("equipping")
             .with_past_participle("equipped")
     ));
+    Equipment("Equipment").invariant_catalog_noun();
     Even("even").adjective();
     Evidence("evidence").noun(NounDeclension::Regular, Countability::Mass);
     Exchange("exchange").verb(VerbForm::Regular);
@@ -734,6 +735,7 @@ vocabulary! {
     Skip("skip").verb(VerbForm::Regular);
     So("so").adverb();
     Source("source").noun(NounDeclension::Regular, Countability::Count);
+    Spacecraft("Spacecraft").invariant_catalog_noun();
     Spend("spend").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("spent")

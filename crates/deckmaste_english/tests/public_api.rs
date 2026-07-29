@@ -76,6 +76,44 @@ fn selected_constituents_include_a_chart_lowered_quoted_ability() {
 }
 
 #[test]
+fn adversarial_shared_determiner_sentences_round_trip_without_recovery() {
+    let catalogs = Catalogs::default()
+        .with_catalog(
+            CatalogKind::CardType,
+            [
+                "Artifact",
+                "Battle",
+                "Creature",
+                "Enchantment",
+                "Land",
+                "Planeswalker",
+            ],
+        )
+        .with_catalog(CatalogKind::CreatureType, ["Elf", "Orc"]);
+    for source in [
+        concat!(
+            "Choose target creature. That creature gets +1/+1 and deals 3 damage to ",
+            "target player or planeswalker and 1 damage to each creature that player ",
+            "or that planeswalker controls."
+        ),
+        "Exile target artifact, creature, or planeswalker and target land or battle.",
+        "Destroy target attacking or blocking creature.",
+        "Put a +1/+1 counter on an Elf, Orc, or enchantment creature you control.",
+    ] {
+        let report = parse_with_catalogs(source, &catalogs);
+        assert!(
+            report.ast().recoveries().is_empty(),
+            "{source}: {report:#?}"
+        );
+        assert_eq!(
+            report.into_ast().render("Test Card", false).unwrap(),
+            source,
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn rejected_keyword_list_does_not_leave_constituent_provenance() {
     let source = "Suspend 3, definitely not a keyword.";
     let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Suspend"]);
@@ -585,6 +623,9 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 for coordination in &coordinated.rest {
                     self.nominal_phrase(&coordination.phrase);
                 }
+                for complement in &coordinated.complements {
+                    self.nominal_complement(complement);
+                }
             }
             NounPhrase::Coordinated(coordinated) => {
                 self.noun_phrase(&coordinated.first);
@@ -642,24 +683,28 @@ impl<'syntax> SyntaxInventory<'syntax> {
             self.nominal_modifier(modifier);
         }
         for complement in &nominal.complements {
-            match complement {
-                NominalComplement::Adjective(adjective) => self.adjective_phrase(adjective),
-                NominalComplement::Prepositional(preposition) => {
-                    self.prepositional_phrase(preposition);
-                }
-                NominalComplement::Infinitive(infinitive) => {
-                    self.predicate(&infinitive.predicate);
-                }
-                NominalComplement::Relative(relative) => self.relative_clause(relative),
-                NominalComplement::ReducedRecipientPassive(predicate) => {
-                    self.transitive_predicate(predicate);
-                }
-                NominalComplement::Quantity(quantity) => self.quantities.push(*quantity),
-                NominalComplement::PowerToughness(stats) => self.power_toughness.push(*stats),
-                NominalComplement::EventClause(clause) => self.independent_clause(clause),
-                NominalComplement::KeywordArgument(argument) => self.keyword_argument(argument),
-                NominalComplement::Devotion(_) => {}
+            self.nominal_complement(complement);
+        }
+    }
+
+    fn nominal_complement(&mut self, complement: &'syntax NominalComplement) {
+        match complement {
+            NominalComplement::Adjective(adjective) => self.adjective_phrase(adjective),
+            NominalComplement::Prepositional(preposition) => {
+                self.prepositional_phrase(preposition);
             }
+            NominalComplement::Infinitive(infinitive) => {
+                self.predicate(&infinitive.predicate);
+            }
+            NominalComplement::Relative(relative) => self.relative_clause(relative),
+            NominalComplement::ReducedRecipientPassive(predicate) => {
+                self.transitive_predicate(predicate);
+            }
+            NominalComplement::Quantity(quantity) => self.quantities.push(*quantity),
+            NominalComplement::PowerToughness(stats) => self.power_toughness.push(*stats),
+            NominalComplement::EventClause(clause) => self.independent_clause(clause),
+            NominalComplement::KeywordArgument(argument) => self.keyword_argument(argument),
+            NominalComplement::Devotion(_) => {}
         }
     }
 
@@ -1759,8 +1804,8 @@ fn discard_at_random_parses_as_a_cost_clause() {
 
 #[test]
 fn cost_noun_phrases_coordinate_with_and_or() {
-    // Keskit/Mechtitan shape: `and/or` now joins noun phrases (the cost
-    // witnesses attest it); `then` still never does.
+    // Keskit/Mechtitan shape: `and/or` joins the two nominal heads under the
+    // shared quantity (exactly two total); `then` still never does.
     let source = "Sacrifice two artifacts and/or creatures: Draw a card.";
     let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
     assert_eq!(rendered, source);
@@ -1772,13 +1817,18 @@ fn cost_noun_phrases_coordinate_with_and_or() {
                 clause.as_ref(),
                 IndependentClause::Imperative(Predicate::Transitive(TransitivePredicate {
                     kind: Transitive {
-                        object: PredicateObject::NounPhrase(NounPhrase::Coordinated(coordinated)),
+                        object: PredicateObject::NounPhrase(
+                            NounPhrase::CoordinatedNominal(coordinated)
+                        ),
                         ..
                     },
                     ..
                 })) if matches!(
+                    coordinated.determiner,
+                    Determiner::Quantity(Quantity::Exact(NumberLiteral { value: 2, .. }))
+                ) && matches!(
                     coordinated.rest.as_slice(),
-                    [NounPhraseCoordination {
+                    [NominalPhraseCoordination {
                         conjunction: Some(NounPhraseConjunction::AndOr),
                         ..
                     }]
