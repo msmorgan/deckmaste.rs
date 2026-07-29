@@ -2090,8 +2090,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if self.restriction_opens_quantity_that(restriction_tokens) {
             return None;
         }
-        let parsed = self.parse_exact(restriction_tokens, Nonterminal::NounPhrase)?;
-        let restriction = parsed.noun_phrase()?.clone();
+        let restriction =
+            self.accept_exact(restriction_tokens, Nonterminal::NounPhrase, |parsed| {
+                parsed.noun_phrase().cloned()
+            })?;
         Some(KeywordArgument::RestrictedCost {
             preposition,
             restriction: Box::new(restriction),
@@ -2129,8 +2131,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if restriction_tokens.is_empty() {
             return None;
         }
-        let parsed = self.parse_exact(restriction_tokens, Nonterminal::NounPhrase)?;
-        let restriction = parsed.noun_phrase()?.clone();
+        let restriction =
+            self.accept_exact(restriction_tokens, Nonterminal::NounPhrase, |parsed| {
+                parsed.noun_phrase().cloned()
+            })?;
         let KeywordArgument::Costed(cost) =
             self.parse_tight_keyword_cost(KeywordArgumentSeparator::EmDash, right)
         else {
@@ -2300,17 +2304,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         nonterminal: Nonterminal,
         accept: impl FnOnce(&ParsedNonterminal) -> Option<T>,
     ) -> Option<T> {
-        if tokens.is_empty() {
-            return None;
-        }
         let span = tokens_span(tokens);
-        let parsed = parse_nonterminal_with_self_reference(
-            span.text(self.source)?,
-            self.catalogs,
-            nonterminal,
-            self.self_reference,
-        )
-        .ok()?;
+        let parsed = self.parse_exact(tokens, nonterminal)?;
         let accepted = accept(&parsed)?;
         let quoted_ability_spans = parsed
             .quoted_ability_spans()
@@ -2336,6 +2331,23 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.record_quoted_ability_selections(quoted_ability_span);
         }
         Some(accepted)
+    }
+
+    /// Parse a chart nonterminal without recording it as accepted provenance.
+    /// Used only by shape probes whose success makes an enclosing production
+    /// decline; accepted subtrees go through [`Self::accept_exact`] instead.
+    fn parse_exact(&self, tokens: &[Token], nonterminal: Nonterminal) -> Option<ParsedNonterminal> {
+        if tokens.is_empty() {
+            return None;
+        }
+        let span = tokens_span(tokens);
+        parse_nonterminal_with_self_reference(
+            span.text(self.source)?,
+            self.catalogs,
+            nonterminal,
+            self.self_reference,
+        )
+        .ok()
     }
 
     fn record_quoted_ability_selections(&mut self, span: Span) {
