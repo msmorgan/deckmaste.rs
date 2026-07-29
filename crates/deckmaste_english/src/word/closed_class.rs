@@ -1,0 +1,347 @@
+use super::Number;
+use super::Person;
+use super::Vocabulary;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Pronoun {
+    You,
+    It(Gender),
+    They,
+    EachOther,
+    /// Reflexive `itself`. Object case only, like [`Self::EachOther`].
+    Itself,
+    /// Reflexive `himself`. Object case only, like [`Self::EachOther`].
+    Himself,
+    /// Absolute possessive `yours` (`turns other than yours`). Object case
+    /// only, like [`Self::EachOther`].
+    YoursAbsolute,
+}
+
+impl Pronoun {
+    pub(crate) const ALL: [Self; 9] = [
+        Self::You,
+        Self::It(Gender::Neuter),
+        Self::They,
+        Self::It(Gender::Masculine),
+        Self::It(Gender::Feminine),
+        Self::EachOther,
+        Self::Itself,
+        Self::Himself,
+        Self::YoursAbsolute,
+    ];
+
+    const POSSESSIVE_FORMS: &'static [(Self, &'static str)] = &[
+        (Self::You, "your"),
+        (Self::It(Gender::Masculine), "his"),
+        (Self::It(Gender::Feminine), "her"),
+        (Self::It(Gender::Neuter), "its"),
+        (Self::They, "their"),
+    ];
+
+    pub(crate) fn from_possessive_spelling(surface: &str) -> Option<Self> {
+        Self::POSSESSIVE_FORMS
+            .iter()
+            .find_map(|(pronoun, spelling)| {
+                surface.eq_ignore_ascii_case(spelling).then_some(*pronoun)
+            })
+    }
+
+    pub(crate) fn possessive_spelling(self) -> Option<&'static str> {
+        Self::POSSESSIVE_FORMS
+            .iter()
+            .find_map(|(pronoun, spelling)| (*pronoun == self).then_some(*spelling))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Gender {
+    Masculine,
+    Feminine,
+    Neuter,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PronounCase {
+    Subject,
+    Object,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PronounInstance {
+    pub pronoun: Pronoun,
+    pub case: PronounCase,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Auxiliary {
+    Can,
+    Could,
+    Do,
+    May,
+    Might,
+    Must,
+    Shall,
+    Should,
+    Will,
+    Would,
+    Be,
+    Have,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AuxiliaryInflection {
+    Base,
+    Present {
+        person: Person,
+        number: Number,
+    },
+    Past {
+        person: Person,
+        number: Number,
+    },
+    /// The past-subjunctive `were`, carried with no person/number: licensed
+    /// only under `as though` (see the `Features::Subordinator`/`subjunctive`
+    /// licensing gate in `grammar`). Never agrees like `Past`.
+    PastSubjunctive,
+    PresentParticiple,
+    PastParticiple,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AuxiliaryInstance {
+    pub auxiliary: Auxiliary,
+    pub inflection: AuxiliaryInflection,
+    pub contracted_negation: bool,
+}
+
+impl Vocabulary {
+    #[must_use]
+    pub const fn render_auxiliary(self, auxiliary: AuxiliaryInstance) -> Option<&'static str> {
+        render_auxiliary(auxiliary)
+    }
+
+    #[must_use]
+    pub const fn render_pronoun(self, pronoun: PronounInstance) -> Option<&'static str> {
+        match (pronoun.pronoun, pronoun.case) {
+            (Pronoun::You, PronounCase::Subject | PronounCase::Object) => Some("you"),
+            (Pronoun::It(Gender::Masculine), PronounCase::Subject) => Some("he"),
+            (Pronoun::It(Gender::Masculine), PronounCase::Object) => Some("him"),
+            (Pronoun::It(Gender::Feminine), PronounCase::Subject) => Some("she"),
+            (Pronoun::It(Gender::Feminine), PronounCase::Object) => Some("her"),
+            (Pronoun::It(Gender::Neuter), PronounCase::Subject | PronounCase::Object) => Some("it"),
+            (Pronoun::They, PronounCase::Subject) => Some("they"),
+            (Pronoun::They, PronounCase::Object) => Some("them"),
+            (Pronoun::EachOther, PronounCase::Object) => Some("each other"),
+            (Pronoun::Itself, PronounCase::Object) => Some("itself"),
+            (Pronoun::Himself, PronounCase::Object) => Some("himself"),
+            (Pronoun::YoursAbsolute, PronounCase::Object) => Some("yours"),
+            (
+                Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute,
+                PronounCase::Subject,
+            ) => None,
+        }
+    }
+
+    #[must_use]
+    pub fn render_possessive_pronoun(self, pronoun: Pronoun) -> Option<&'static str> {
+        pronoun.possessive_spelling()
+    }
+}
+
+pub(super) fn auxiliary_instances() -> impl Iterator<Item = AuxiliaryInstance> {
+    const AUXILIARIES: [Auxiliary; 12] = [
+        Auxiliary::Can,
+        Auxiliary::Could,
+        Auxiliary::Do,
+        Auxiliary::May,
+        Auxiliary::Might,
+        Auxiliary::Must,
+        Auxiliary::Shall,
+        Auxiliary::Should,
+        Auxiliary::Will,
+        Auxiliary::Would,
+        Auxiliary::Be,
+        Auxiliary::Have,
+    ];
+    const INFLECTIONS: [AuxiliaryInflection; 12] = [
+        AuxiliaryInflection::Base,
+        AuxiliaryInflection::Present {
+            person: Person::Second,
+            number: Number::Singular,
+        },
+        AuxiliaryInflection::Present {
+            person: Person::Second,
+            number: Number::Plural,
+        },
+        AuxiliaryInflection::Present {
+            person: Person::Third,
+            number: Number::Singular,
+        },
+        AuxiliaryInflection::Present {
+            person: Person::Third,
+            number: Number::Plural,
+        },
+        AuxiliaryInflection::Past {
+            person: Person::Second,
+            number: Number::Singular,
+        },
+        AuxiliaryInflection::Past {
+            person: Person::Second,
+            number: Number::Plural,
+        },
+        AuxiliaryInflection::Past {
+            person: Person::Third,
+            number: Number::Singular,
+        },
+        AuxiliaryInflection::Past {
+            person: Person::Third,
+            number: Number::Plural,
+        },
+        AuxiliaryInflection::PastSubjunctive,
+        AuxiliaryInflection::PresentParticiple,
+        AuxiliaryInflection::PastParticiple,
+    ];
+
+    AUXILIARIES.into_iter().flat_map(|auxiliary| {
+        INFLECTIONS.into_iter().flat_map(move |inflection| {
+            [false, true].map(move |contracted_negation| AuxiliaryInstance {
+                auxiliary,
+                inflection,
+                contracted_negation,
+            })
+        })
+    })
+}
+
+pub(super) const fn render_auxiliary(instance: AuxiliaryInstance) -> Option<&'static str> {
+    use Auxiliary as A;
+    use AuxiliaryInflection as I;
+    use Number as N;
+    use Person as P;
+
+    if instance.contracted_negation {
+        return match (instance.auxiliary, instance.inflection) {
+            (A::Can, I::Base) => Some("can't"),
+            (A::Could, I::Base) => Some("couldn't"),
+            (A::Will, I::Base) => Some("won't"),
+            (
+                A::Do,
+                I::Base
+                | I::Present {
+                    person: P::Second, ..
+                }
+                | I::Present {
+                    person: P::Third,
+                    number: N::Plural,
+                },
+            ) => Some("don't"),
+            (
+                A::Do,
+                I::Present {
+                    person: P::Third,
+                    number: N::Singular,
+                },
+            ) => Some("doesn't"),
+            (A::Do, I::Past { .. }) => Some("didn't"),
+            (
+                A::Be,
+                I::Present {
+                    person: P::Third,
+                    number: N::Singular,
+                },
+            ) => Some("isn't"),
+            (A::Be, I::Present { .. }) => Some("aren't"),
+            (
+                A::Be,
+                I::Past {
+                    person: P::Third,
+                    number: N::Singular,
+                },
+            ) => Some("wasn't"),
+            (A::Be, I::Past { .. } | I::PastSubjunctive) => Some("weren't"),
+            (
+                A::Have,
+                I::Present {
+                    person: P::Third,
+                    number: N::Singular,
+                },
+            ) => Some("hasn't"),
+            (A::Have, I::Base | I::Present { .. }) => Some("haven't"),
+            (A::Have, I::Past { .. }) => Some("hadn't"),
+            _ => None,
+        };
+    }
+
+    match (instance.auxiliary, instance.inflection) {
+        (A::Can, I::Base) => Some("can"),
+        (A::Could, I::Base) => Some("could"),
+        (A::May, I::Base) => Some("may"),
+        (A::Might, I::Base) => Some("might"),
+        (A::Must, I::Base) => Some("must"),
+        (A::Shall, I::Base) => Some("shall"),
+        (A::Should, I::Base) => Some("should"),
+        (A::Will, I::Base) => Some("will"),
+        (A::Would, I::Base) => Some("would"),
+        (
+            A::Do,
+            I::Base
+            | I::Present {
+                person: P::Second, ..
+            }
+            | I::Present {
+                person: P::Third,
+                number: N::Plural,
+            },
+        ) => Some("do"),
+        (
+            A::Do,
+            I::Present {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Some("does"),
+        (A::Do, I::Past { .. }) => Some("did"),
+        (A::Do, I::PresentParticiple) => Some("doing"),
+        (A::Do, I::PastParticiple) => Some("done"),
+        (A::Be, I::Base) => Some("be"),
+        (
+            A::Be,
+            I::Present {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Some("is"),
+        (A::Be, I::Present { .. }) => Some("are"),
+        (
+            A::Be,
+            I::Past {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Some("was"),
+        (A::Be, I::Past { .. } | I::PastSubjunctive) => Some("were"),
+        (A::Be, I::PresentParticiple) => Some("being"),
+        (A::Be, I::PastParticiple) => Some("been"),
+        (
+            A::Have,
+            I::Base
+            | I::Present {
+                person: P::Second, ..
+            }
+            | I::Present {
+                person: P::Third,
+                number: N::Plural,
+            },
+        ) => Some("have"),
+        (
+            A::Have,
+            I::Present {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Some("has"),
+        (A::Have, I::Past { .. } | I::PastParticiple) => Some("had"),
+        (A::Have, I::PresentParticiple) => Some("having"),
+        _ => None,
+    }
+}
