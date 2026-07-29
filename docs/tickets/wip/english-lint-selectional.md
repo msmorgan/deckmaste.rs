@@ -34,8 +34,8 @@ substantive result of the whole claim.
 
 An object-gap relative attaches its gap to the host noun. When the verb filling
 that gap requires an object in the rules sense [CR#109.1] and the host is a mass
-noun, the clause cannot belong to that host. Damage is not among the things rule
-109.1 lists — it is what objects *deal* [CR#120.1] — so `… damage … that player
+noun, the clause cannot belong to that host. Damage is not among the things
+[CR#109.1] lists — it is what objects *deal* [CR#120.1] — so `… damage … that player
 controls` is misattached whatever the card means. Both rules were already
 registered in `cr-citations.lock`; no `bless` was needed.
 
@@ -52,6 +52,6 @@ one of the 431 is invisible to round-trip because the tokens render back
 unchanged.
 
 The table is deliberately two verbs (`Control`, `Own`). Widening it is real
-follow-up work, but each new entry needs its own CR basis — `109.1` does not
+follow-up work, but each new entry needs its own CR basis — [CR#109.1] does not
 license a claim about `sacrifice` or `exile`. A small table that never lies
 beats a broad one that needs triage.
