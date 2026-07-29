@@ -1,3 +1,5 @@
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::sync::Arc;
 
 use super::ability::Ability;
@@ -237,7 +239,7 @@ impl QuantityValue {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Quantity {
     Exact(NumberLiteral),
     AtLeast(QuantityValue),
@@ -303,6 +305,29 @@ pub enum Determiner {
     No,
 }
 
+// Grammar lexical meanings are hash-consed. Most determiners are closed,
+// nonrecursive syntax values and hash structurally; noun-phrase possessors are
+// built during lowering rather than scanned, so a shared tag is sufficient for
+// that recursive branch. Hash collisions are permitted, while equal values
+// still necessarily produce equal hashes.
+impl Hash for Determiner {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+        match self {
+            Self::Indefinite(article) => article.hash(state),
+            Self::Demonstrative(demonstrative) => demonstrative.hash(state),
+            Self::Target(quantity) => quantity.hash(state),
+            Self::Quantity(quantity) => quantity.hash(state),
+            Self::Possessive(Possessor::Pronoun(pronoun)) => {
+                0_u8.hash(state);
+                pronoun.hash(state);
+            }
+            Self::Possessive(Possessor::NounPhrase(_)) => 1_u8.hash(state),
+            Self::The | Self::Each | Self::Another | Self::All | Self::Any | Self::No => {}
+        }
+    }
+}
+
 impl Determiner {
     #[must_use]
     pub const fn noun_cardinality(&self) -> NounCardinality {
@@ -312,8 +337,8 @@ impl Determiner {
             }
             // The singular demonstratives determine a singular count noun (`that
             // creature`) or a mass one (`that damage`); only `these`/`those` are
-            // barred from mass. Mirrors `DeterminerKey::cardinality` in the
-            // grammar, which is what the parser enforces.
+            // barred from mass. This is also the parser's cardinality table;
+            // grammar features are keyed directly on this syntax value.
             Self::Demonstrative(Demonstrative::This | Demonstrative::That) => {
                 NounCardinality::SingularOrMass
             }
@@ -346,7 +371,7 @@ impl Determiner {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IndefiniteArticle {
     A,
     An,
@@ -366,7 +391,7 @@ pub enum Possessor {
     NounPhrase(Box<NounPhrase>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NounCardinality {
     SingularCount,
     SingularOrMass,

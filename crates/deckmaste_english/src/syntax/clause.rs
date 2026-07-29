@@ -342,7 +342,7 @@ pub enum PredicateAdjunct {
     Dependent(Box<DependentClause>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FrequencyPhrase {
     pub bound: FrequencyBound,
     pub count: FrequencyCount,
@@ -354,7 +354,7 @@ pub enum FrequencyBound {
     NoMoreThan,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FrequencyCount {
     Once,
     Twice,

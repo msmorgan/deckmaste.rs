@@ -43,7 +43,6 @@ use crate::surface::collapse_full_names;
 use crate::surface::lex;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
-use crate::syntax::ComparativeWord;
 use crate::syntax::ComparisonComplement;
 use crate::syntax::ComparisonMarker;
 use crate::syntax::CopularComplement;
@@ -61,7 +60,9 @@ use crate::syntax::KeywordCost;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
+use crate::syntax::NounCardinality;
 use crate::syntax::NounPhrase;
+use crate::syntax::NumberLiteral;
 use crate::syntax::OpaqueLexeme;
 use crate::syntax::OracleSymbol;
 use crate::syntax::Phrase;
@@ -74,6 +75,7 @@ use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
 use crate::syntax::Quantity;
+use crate::syntax::QuantityValue;
 use crate::syntax::RelativeClause;
 use crate::syntax::RelativeGap;
 use crate::syntax::RelativeMarker;
@@ -688,22 +690,7 @@ pub(crate) enum BoundedQuantityKind {
     FewerThan,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum OpacityProfile {
-    Exact,
-    Nouns,
-}
-
 const OPACITY_STATE_LIMIT: usize = 50_000;
-
-impl OpacityProfile {
-    const fn mode(self) -> OpacityMode {
-        match self {
-            Self::Exact => OpacityMode::Exact,
-            Self::Nouns => OpacityMode::OpaqueNouns,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum OpacitySlot {
@@ -718,18 +705,8 @@ pub(crate) enum NounForm {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum Cardinality {
-    SingularCount,
-    SingularOrMass,
-    PluralCount,
-    Mass,
-    PluralOrMass,
-    Unconstrained,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct QuantityFeatures {
-    cardinality: Cardinality,
+    cardinality: NounCardinality,
     standalone_number: Number,
 }
 
@@ -838,8 +815,8 @@ pub(crate) enum Features {
         initial_sound: InitialSound,
     },
     Determiner {
-        cardinality: Cardinality,
-        article: Option<IndefiniteArticleKey>,
+        cardinality: NounCardinality,
+        article: Option<IndefiniteArticle>,
         /// True only for the set-denoting `all`/`each` determiner class used
         /// by nominal set exceptions. In particular, an indefinite `a card`
         /// must not acquire the deferred draw-event `except the first one`
@@ -1018,29 +995,6 @@ pub(crate) enum Features {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct NumberKey {
-    value: i32,
-    notation: Numeral,
-}
-
-impl NumberKey {
-    const fn literal(self) -> crate::syntax::NumberLiteral {
-        crate::syntax::NumberLiteral {
-            value: self.value,
-            numeral: self.notation,
-        }
-    }
-}
-
-/// Reinterprets a number that filled a compound-quantity slot.
-///
-/// The surface `X` is the game's variable ([CR#107.3]), never the Roman
-/// numeral ten. `Numeral::parse` is canonicalising (`canonical`,
-/// numeral.rs:103-111: a parse succeeds only when `format` reproduces the
-/// input), and `Numeral::Roman` is the only notation whose canonical
-/// spelling of any value is `X`, so `(Numeral::Roman, 10)` holds **exactly
-/// when** the scanned surface was `X`.
 /// Parses `surface` as `notation`, exactly as every closed-class lexeme
 /// matches through [`Parser::one_token_match`] with `eq_ignore_ascii_case`
 /// (`grammar/mod.rs:1538-1542`) — except the numeral scanners historically
@@ -1083,11 +1037,19 @@ fn parse_notation(notation: Numeral, surface: &str, sentence_initial: bool) -> O
     None
 }
 
-const fn quantity_value(number: NumberKey) -> crate::syntax::QuantityValue {
-    if matches!(number.notation, Numeral::Roman) && number.value == 10 {
-        crate::syntax::QuantityValue::Variable
+/// Reinterprets a number that filled a compound-quantity slot.
+///
+/// The surface `X` is the game's variable ([CR#107.3]), never the Roman
+/// numeral ten. `Numeral::parse` is canonicalising (`canonical`,
+/// numeral.rs:103-111: a parse succeeds only when `format` reproduces the
+/// input), and `Numeral::Roman` is the only notation whose canonical
+/// spelling of any value is `X`, so `(Numeral::Roman, 10)` holds **exactly
+/// when** the scanned surface was `X`.
+const fn quantity_value(number: NumberLiteral) -> QuantityValue {
+    if matches!(number.numeral, Numeral::Roman) && number.value == 10 {
+        QuantityValue::Variable
     } else {
-        crate::syntax::QuantityValue::Literal(number.literal())
+        QuantityValue::Literal(number)
     }
 }
 
@@ -1120,16 +1082,16 @@ mod quantity_value_tests {
     #[test]
     fn quantity_value_maps_roman_ten_to_variable_and_everything_else_to_literal() {
         assert_eq!(
-            quantity_value(NumberKey {
+            quantity_value(NumberLiteral {
                 value: 10,
-                notation: Numeral::Roman,
+                numeral: Numeral::Roman,
             }),
             crate::syntax::QuantityValue::Variable,
         );
         assert_eq!(
-            quantity_value(NumberKey {
+            quantity_value(NumberLiteral {
                 value: 10,
-                notation: Numeral::Cardinal,
+                numeral: Numeral::Cardinal,
             }),
             crate::syntax::QuantityValue::Literal(crate::syntax::NumberLiteral {
                 value: 10,
@@ -1137,9 +1099,9 @@ mod quantity_value_tests {
             }),
         );
         assert_eq!(
-            quantity_value(NumberKey {
+            quantity_value(NumberLiteral {
                 value: 3,
-                notation: Numeral::Roman,
+                numeral: Numeral::Roman,
             }),
             crate::syntax::QuantityValue::Literal(crate::syntax::NumberLiteral {
                 value: 3,
@@ -1149,104 +1111,14 @@ mod quantity_value_tests {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum QuantityKey {
-    Exact(NumberKey),
-    AtLeast(NumberKey),
-    OrComparison(NumberKey, ComparativeWord),
-    Or(NumberKey, NumberKey),
-    UpTo(NumberKey),
-    MoreThan(NumberKey),
-    FewerThan(NumberKey),
-    X,
-    Both,
-    ThatMany,
-    ThatMuch,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct FrequencyKey {
-    bound: FrequencyBound,
-    count: FrequencyCountKey,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum FrequencyCountKey {
-    Once,
-    Twice,
-    Times(NumberKey),
-}
-
-impl FrequencyKey {
-    const fn syntax(self) -> FrequencyPhrase {
-        FrequencyPhrase {
-            bound: self.bound,
-            count: match self.count {
-                FrequencyCountKey::Once => FrequencyCount::Once,
-                FrequencyCountKey::Twice => FrequencyCount::Twice,
-                FrequencyCountKey::Times(number) => FrequencyCount::Times(number.literal()),
-            },
-        }
-    }
-}
-
-impl QuantityKey {
-    const fn cardinality(self) -> Cardinality {
-        match self {
-            Self::Exact(number)
-            | Self::UpTo(number)
-            | Self::MoreThan(number)
-            | Self::FewerThan(number)
-                if number.value == 1 =>
-            {
-                Cardinality::SingularOrMass
-            }
-            Self::Or(first, second) if first.value == 1 && second.value == 1 => {
-                Cardinality::SingularOrMass
-            }
-            // Every `N or <word>` bound heads a plural count (`two or more
-            // creatures`) or a mass characteristic (`30 or more life`), never a
-            // bare singular.
-            Self::OrComparison(_, _)
-            | Self::Exact(_)
-            | Self::Or(_, _)
-            | Self::UpTo(_)
-            | Self::MoreThan(_)
-            | Self::FewerThan(_)
-            | Self::X
-            | Self::Both => Cardinality::PluralOrMass,
-            Self::AtLeast(_) | Self::ThatMany => Cardinality::PluralCount,
-            Self::ThatMuch => Cardinality::Mass,
-        }
-    }
-
-    const fn syntax(self) -> Quantity {
-        match self {
-            Self::Exact(number) => Quantity::Exact(number.literal()),
-            Self::AtLeast(number) => Quantity::AtLeast(quantity_value(number)),
-            Self::OrComparison(number, word) => {
-                Quantity::OrComparison(quantity_value(number), word)
-            }
-            Self::Or(first, second) => Quantity::Or(first.literal(), second.literal()),
-            Self::UpTo(number) => Quantity::UpTo(quantity_value(number)),
-            Self::MoreThan(number) => Quantity::MoreThan(quantity_value(number)),
-            Self::FewerThan(number) => Quantity::FewerThan(quantity_value(number)),
-            Self::X => Quantity::X,
-            Self::Both => Quantity::Both,
-            Self::ThatMany => Quantity::ThatMany,
-            Self::ThatMuch => Quantity::ThatMuch,
-        }
-    }
-
+impl Quantity {
     const fn features(self) -> QuantityFeatures {
         QuantityFeatures {
-            cardinality: self.cardinality(),
+            cardinality: self.noun_cardinality(),
             standalone_number: match self {
-                Self::Exact(number)
-                | Self::UpTo(number)
-                | Self::MoreThan(number)
-                | Self::FewerThan(number)
-                    if number.value == 1 =>
+                Self::Exact(number) if number.value == 1 => Number::Singular,
+                Self::UpTo(value) | Self::MoreThan(value) | Self::FewerThan(value)
+                    if value.is_one() =>
                 {
                     Number::Singular
                 }
@@ -1260,113 +1132,13 @@ impl QuantityKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum DeterminerKey {
-    The,
-    Each,
-    Another,
-    Indefinite(IndefiniteArticleKey),
-    Demonstrative(DemonstrativeKey),
-    Target(Option<QuantityKey>),
-    Quantity(QuantityKey),
-    Possessive(Pronoun),
-    All,
-    Any,
-    No,
-}
-
-impl DeterminerKey {
-    const fn cardinality(&self) -> Cardinality {
-        match self {
-            Self::Each | Self::Another | Self::Indefinite(_) | Self::Target(None) => {
-                Cardinality::SingularCount
-            }
-            // The singular demonstratives determine a singular count noun (`that
-            // creature`) or a mass one (`that damage`, `that mana`); only the
-            // plural `these`/`those` are barred from mass.
-            Self::Demonstrative(DemonstrativeKey::This | DemonstrativeKey::That) => {
-                Cardinality::SingularOrMass
-            }
-            Self::Demonstrative(DemonstrativeKey::These | DemonstrativeKey::Those) => {
-                Cardinality::PluralCount
-            }
-            Self::Target(Some(
-                QuantityKey::Exact(number)
-                | QuantityKey::UpTo(number)
-                | QuantityKey::MoreThan(number)
-                | QuantityKey::FewerThan(number),
-            )) if number.value == 1 => Cardinality::SingularCount,
-            Self::Target(Some(
-                QuantityKey::Exact(_)
-                | QuantityKey::AtLeast(_)
-                | QuantityKey::OrComparison(_, _)
-                | QuantityKey::Or(_, _)
-                | QuantityKey::UpTo(_)
-                | QuantityKey::MoreThan(_)
-                | QuantityKey::FewerThan(_)
-                | QuantityKey::X
-                | QuantityKey::Both
-                | QuantityKey::ThatMany,
-            )) => Cardinality::PluralCount,
-            Self::Target(Some(QuantityKey::ThatMuch)) => Cardinality::Mass,
-            Self::Quantity(quantity) => quantity.cardinality(),
-            Self::All => Cardinality::PluralOrMass,
-            Self::The | Self::Possessive(_) | Self::Any | Self::No => Cardinality::Unconstrained,
-        }
-    }
-
-    fn syntax(&self) -> Determiner {
-        match self {
-            Self::The => Determiner::The,
-            Self::Each => Determiner::Each,
-            Self::Another => Determiner::Another,
-            Self::Indefinite(IndefiniteArticleKey::A) => {
-                Determiner::Indefinite(IndefiniteArticle::A)
-            }
-            Self::Indefinite(IndefiniteArticleKey::An) => {
-                Determiner::Indefinite(IndefiniteArticle::An)
-            }
-            Self::Demonstrative(DemonstrativeKey::This) => {
-                Determiner::Demonstrative(Demonstrative::This)
-            }
-            Self::Demonstrative(DemonstrativeKey::That) => {
-                Determiner::Demonstrative(Demonstrative::That)
-            }
-            Self::Demonstrative(DemonstrativeKey::These) => {
-                Determiner::Demonstrative(Demonstrative::These)
-            }
-            Self::Demonstrative(DemonstrativeKey::Those) => {
-                Determiner::Demonstrative(Demonstrative::Those)
-            }
-            Self::Target(quantity) => Determiner::Target(quantity.map(QuantityKey::syntax)),
-            Self::Quantity(quantity) => Determiner::Quantity(quantity.syntax()),
-            Self::Possessive(pronoun) => Determiner::Possessive(Possessor::Pronoun(*pronoun)),
-            Self::All => Determiner::All,
-            Self::Any => Determiner::Any,
-            Self::No => Determiner::No,
-        }
-    }
-
-    const fn article(&self) -> Option<IndefiniteArticleKey> {
+impl Determiner {
+    const fn article(&self) -> Option<IndefiniteArticle> {
         match self {
             Self::Indefinite(article) => Some(*article),
             _ => None,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum IndefiniteArticleKey {
-    A,
-    An,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum DemonstrativeKey {
-    This,
-    That,
-    These,
-    Those,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1390,15 +1162,15 @@ pub(crate) enum LiteralKey {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum MeaningKey {
     Literal(LiteralKey),
-    Number(NumberKey),
-    Quantity(QuantityKey),
-    Determiner(DeterminerKey),
+    Number(NumberLiteral),
+    Quantity(Quantity),
+    Determiner(Determiner),
     Noun(NounInstance),
     Adjective(Adjective),
     Adverb(Vocab),
     VerbParticle(VerbParticle),
     CoinResult(crate::syntax::CoinSide),
-    Frequency(FrequencyKey),
+    Frequency(FrequencyPhrase),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
     Verb(VerbAnalysis),
@@ -1770,7 +1542,7 @@ pub(crate) struct EnglishGrammar<'source, 'catalogs> {
     rules: Vec<Rule<Nonterminal, EnglishLexicalSlot>>,
     tags: Vec<RuleTag>,
     rules_by_lhs: HashMap<Nonterminal, Vec<RuleId>>,
-    opacity_profile: OpacityProfile,
+    opacity_mode: OpacityMode,
     self_reference: SelfReference,
 }
 
@@ -1780,31 +1552,31 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         catalogs: &'catalogs Catalogs,
         start: Nonterminal,
     ) -> Self {
-        Self::with_opacity_profile(
+        Self::with_opacity_mode(
             source,
             catalogs,
             start,
-            OpacityProfile::Exact,
+            OpacityMode::Exact,
             SelfReference::default(),
         )
     }
 
-    fn with_opacity_profile(
+    fn with_opacity_mode(
         source: &'source str,
         catalogs: &'catalogs Catalogs,
         start: Nonterminal,
-        opacity_profile: OpacityProfile,
+        opacity_mode: OpacityMode,
         self_reference: SelfReference,
     ) -> Self {
         let mut builder = RuleBuilder::default();
         builder.add_nominal_rules();
         builder.add_clause_rules();
-        if opacity_profile != OpacityProfile::Exact {
+        if opacity_mode != OpacityMode::Exact {
             opacity::add_rules(&mut builder);
         }
         // Coordination inside the nominal is appended last of all so existing
         // rules keep their `RuleId`s and existing forests keep their alternative
-        // indices, even under the opacity profiles.
+        // indices, even under the opacity modes.
         builder.add_coordination_rules();
         // Coordination *consumers* — new attachment points that read the landed
         // coordination nonterminals — are appended after every coordination rule
@@ -1837,7 +1609,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             rules: builder.rules,
             tags: builder.tags,
             rules_by_lhs: builder.rules_by_lhs,
-            opacity_profile,
+            opacity_mode,
             self_reference,
         }
     }
@@ -2246,7 +2018,10 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     .map(|value| LexicalMatch {
                         end: start + 1,
                         features: Features::Number { is_one: value == 1 },
-                        meaning: MeaningKey::Number(NumberKey { value, notation }),
+                        meaning: MeaningKey::Number(NumberLiteral {
+                            value,
+                            numeral: notation,
+                        }),
                         local_cost: ParseCost {
                             reading_dispreference: u32::from(notation == Numeral::Ordinal),
                             precedence: u32::from(notation == Numeral::Roman && surface == "X"),
@@ -2534,7 +2309,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Determiner {
-                        cardinality: Cardinality::SingularCount,
+                        cardinality: NounCardinality::SingularCount,
                         article: None,
                         set_exception_host: false,
                     },
@@ -2547,22 +2322,22 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::QuantityOr => self.scan_or_quantity(tokens, start),
             slot @ EnglishLexicalSlot::QuantityX => self
                 .literal_token_match(tokens, start, slot)
-                .map(|end| quantity_match(end, QuantityKey::X))
+                .map(|end| quantity_match(end, Quantity::X))
                 .into_iter()
                 .collect(),
             slot @ EnglishLexicalSlot::QuantityBoth => self
                 .literal_token_match(tokens, start, slot)
-                .map(|end| quantity_match(end, QuantityKey::Both))
+                .map(|end| quantity_match(end, Quantity::Both))
                 .into_iter()
                 .collect(),
             slot @ EnglishLexicalSlot::QuantityThatMany => self
                 .literal_words_match(tokens, start, slot)
-                .map(|end| quantity_match(end, QuantityKey::ThatMany))
+                .map(|end| quantity_match(end, Quantity::ThatMany))
                 .into_iter()
                 .collect(),
             slot @ EnglishLexicalSlot::QuantityThatMuch => self
                 .literal_words_match(tokens, start, slot)
-                .map(|end| quantity_match(end, QuantityKey::ThatMuch))
+                .map(|end| quantity_match(end, Quantity::ThatMuch))
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::QuantityBound(kind) => {
@@ -2658,11 +2433,11 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Determiner {
-                        cardinality: Cardinality::SingularCount,
+                        cardinality: NounCardinality::SingularCount,
                         article: None,
                         set_exception_host: true,
                     },
-                    meaning: MeaningKey::Determiner(DeterminerKey::Each),
+                    meaning: MeaningKey::Determiner(Determiner::Each),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -2672,11 +2447,11 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Determiner {
-                        cardinality: Cardinality::Unconstrained,
+                        cardinality: NounCardinality::Unconstrained,
                         article: None,
                         set_exception_host: false,
                     },
-                    meaning: MeaningKey::Determiner(DeterminerKey::Any),
+                    meaning: MeaningKey::Determiner(Determiner::Any),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -2732,7 +2507,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::Conjunction
             | EnglishLexicalSlot::Plus
             | EnglishLexicalSlot::Except) => self.scan_clause_lexical(slot, tokens, start),
-            EnglishLexicalSlot::Opaque(slot) if self.opacity_profile != OpacityProfile::Exact => {
+            EnglishLexicalSlot::Opaque(slot) if self.opacity_mode != OpacityMode::Exact => {
                 let already_known = self.has_known_word(tokens, start);
                 if already_known {
                     Vec::new()
@@ -2772,7 +2547,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
     }
 
     fn state_limit(&self) -> Option<usize> {
-        (self.opacity_profile == OpacityProfile::Nouns).then_some(OPACITY_STATE_LIMIT)
+        (self.opacity_mode == OpacityMode::OpaqueNouns).then_some(OPACITY_STATE_LIMIT)
     }
 }
 
@@ -3313,40 +3088,44 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let key = if surface.eq_ignore_ascii_case("the") {
-            DeterminerKey::The
+        let determiner = if surface.eq_ignore_ascii_case("the") {
+            Determiner::The
         } else if surface.eq_ignore_ascii_case("each") {
-            DeterminerKey::Each
+            Determiner::Each
         } else if surface.eq_ignore_ascii_case("another") {
-            DeterminerKey::Another
+            Determiner::Another
         } else if surface.eq_ignore_ascii_case("a") {
-            DeterminerKey::Indefinite(IndefiniteArticleKey::A)
+            Determiner::Indefinite(IndefiniteArticle::A)
         } else if surface.eq_ignore_ascii_case("an") {
-            DeterminerKey::Indefinite(IndefiniteArticleKey::An)
+            Determiner::Indefinite(IndefiniteArticle::An)
         } else if surface.eq_ignore_ascii_case("this") {
-            DeterminerKey::Demonstrative(DemonstrativeKey::This)
+            Determiner::Demonstrative(Demonstrative::This)
         } else if surface.eq_ignore_ascii_case("that") {
-            DeterminerKey::Demonstrative(DemonstrativeKey::That)
+            Determiner::Demonstrative(Demonstrative::That)
         } else if surface.eq_ignore_ascii_case("these") {
-            DeterminerKey::Demonstrative(DemonstrativeKey::These)
+            Determiner::Demonstrative(Demonstrative::These)
         } else if surface.eq_ignore_ascii_case("those") {
-            DeterminerKey::Demonstrative(DemonstrativeKey::Those)
+            Determiner::Demonstrative(Demonstrative::Those)
         } else if surface.eq_ignore_ascii_case("all") {
-            DeterminerKey::All
+            Determiner::All
         } else if surface.eq_ignore_ascii_case("any") {
-            DeterminerKey::Any
+            Determiner::Any
         } else if surface.eq_ignore_ascii_case("no") {
-            DeterminerKey::No
+            Determiner::No
         } else if surface.eq_ignore_ascii_case("your") {
-            DeterminerKey::Possessive(Pronoun::You)
+            Determiner::Possessive(Possessor::Pronoun(Pronoun::You))
         } else if surface.eq_ignore_ascii_case("his") {
-            DeterminerKey::Possessive(Pronoun::It(crate::word::Gender::Masculine))
+            Determiner::Possessive(Possessor::Pronoun(Pronoun::It(
+                crate::word::Gender::Masculine,
+            )))
         } else if surface.eq_ignore_ascii_case("her") {
-            DeterminerKey::Possessive(Pronoun::It(crate::word::Gender::Feminine))
+            Determiner::Possessive(Possessor::Pronoun(Pronoun::It(
+                crate::word::Gender::Feminine,
+            )))
         } else if surface.eq_ignore_ascii_case("its") {
-            DeterminerKey::Possessive(Pronoun::It(crate::word::Gender::Neuter))
+            Determiner::Possessive(Possessor::Pronoun(Pronoun::It(crate::word::Gender::Neuter)))
         } else if surface.eq_ignore_ascii_case("their") {
-            DeterminerKey::Possessive(Pronoun::They)
+            Determiner::Possessive(Possessor::Pronoun(Pronoun::They))
         } else {
             return Vec::new();
         };
@@ -3354,23 +3133,24 @@ impl EnglishGrammar<'_, '_> {
         // the lowercase `the` determiner leading an opaque noun; that reading
         // lowercases the name's first word. Dispreference it so the nickname,
         // which reproduces the capitalized `The`, wins.
-        let local_cost =
-            if key == DeterminerKey::The && self.nickname_lowercasing_collision(tokens, start) {
-                ParseCost {
-                    reading_dispreference: 3,
-                    ..ParseCost::default()
-                }
-            } else {
-                ParseCost::default()
-            };
+        let local_cost = if determiner == Determiner::The
+            && self.nickname_lowercasing_collision(tokens, start)
+        {
+            ParseCost {
+                reading_dispreference: 3,
+                ..ParseCost::default()
+            }
+        } else {
+            ParseCost::default()
+        };
         vec![LexicalMatch {
             end: start + 1,
             features: Features::Determiner {
-                cardinality: key.cardinality(),
-                article: key.article(),
-                set_exception_host: matches!(key, DeterminerKey::All | DeterminerKey::Each),
+                cardinality: determiner.noun_cardinality(),
+                article: determiner.article(),
+                set_exception_host: determiner == Determiner::All || determiner == Determiner::Each,
             },
-            meaning: MeaningKey::Determiner(key),
+            meaning: MeaningKey::Determiner(determiner),
             local_cost,
         }]
     }
@@ -3405,12 +3185,7 @@ impl EnglishGrammar<'_, '_> {
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
             },
-            meaning: MeaningKey::Determiner(DeterminerKey::Demonstrative(match demonstrative {
-                crate::syntax::Demonstrative::This => DemonstrativeKey::This,
-                crate::syntax::Demonstrative::That => DemonstrativeKey::That,
-                crate::syntax::Demonstrative::These => DemonstrativeKey::These,
-                crate::syntax::Demonstrative::Those => DemonstrativeKey::Those,
-            })),
+            meaning: MeaningKey::Determiner(Determiner::Demonstrative(demonstrative)),
             local_cost: ParseCost::default(),
         }]
     }
@@ -3456,12 +3231,15 @@ impl EnglishGrammar<'_, '_> {
         .into_iter()
         .filter_map(|notation| {
             parse_notation(notation, surface, sentence_initial).map(|value| {
-                let number = NumberKey { value, notation };
+                let number = NumberLiteral {
+                    value,
+                    numeral: notation,
+                };
                 quantity_match(
                     end,
                     match comparative {
-                        Some(word) => QuantityKey::OrComparison(number, word),
-                        None => QuantityKey::AtLeast(number),
+                        Some(word) => Quantity::OrComparison(quantity_value(number), word),
+                        None => Quantity::AtLeast(quantity_value(number)),
                     },
                 )
             })
@@ -3494,10 +3272,13 @@ impl EnglishGrammar<'_, '_> {
         .into_iter()
         .filter_map(|notation| {
             parse_notation(notation, surface, sentence_initial).map(|value| {
-                let number = NumberKey { value, notation };
+                let number = NumberLiteral {
+                    value,
+                    numeral: notation,
+                };
                 let quantity = match kind {
-                    BoundedQuantityKind::MoreThan => QuantityKey::MoreThan(number),
-                    BoundedQuantityKind::FewerThan => QuantityKey::FewerThan(number),
+                    BoundedQuantityKind::MoreThan => Quantity::MoreThan(quantity_value(number)),
+                    BoundedQuantityKind::FewerThan => Quantity::FewerThan(quantity_value(number)),
                 };
                 quantity_match(end, quantity)
             })
@@ -3560,18 +3341,18 @@ impl EnglishGrammar<'_, '_> {
         if let Some(end) = self.one_token_match(tokens, count_start, "once") {
             return vec![frequency_match(
                 end,
-                FrequencyKey {
+                FrequencyPhrase {
                     bound,
-                    count: FrequencyCountKey::Once,
+                    count: FrequencyCount::Once,
                 },
             )];
         }
         if let Some(end) = self.one_token_match(tokens, count_start, "twice") {
             return vec![frequency_match(
                 end,
-                FrequencyKey {
+                FrequencyPhrase {
                     bound,
-                    count: FrequencyCountKey::Twice,
+                    count: FrequencyCount::Twice,
                 },
             )];
         }
@@ -3594,9 +3375,12 @@ impl EnglishGrammar<'_, '_> {
             parse_notation(notation, surface, sentence_initial).map(|value| {
                 frequency_match(
                     end,
-                    FrequencyKey {
+                    FrequencyPhrase {
                         bound,
-                        count: FrequencyCountKey::Times(NumberKey { value, notation }),
+                        count: FrequencyCount::Times(NumberLiteral {
+                            value,
+                            numeral: notation,
+                        }),
                     },
                 )
             })
@@ -3643,14 +3427,14 @@ impl EnglishGrammar<'_, '_> {
                 };
                 let mut candidate = quantity_match(
                     end,
-                    QuantityKey::Or(
-                        NumberKey {
+                    Quantity::Or(
+                        NumberLiteral {
                             value: first_value,
-                            notation: first_notation,
+                            numeral: first_notation,
                         },
-                        NumberKey {
+                        NumberLiteral {
                             value: second_value,
-                            notation: second_notation,
+                            numeral: second_notation,
                         },
                     ),
                 );
@@ -4782,7 +4566,7 @@ fn lexical_word_matches(word: WordMatch, end: usize) -> Vec<LexicalMatch<Feature
     }
 }
 
-fn quantity_match(end: usize, quantity: QuantityKey) -> LexicalMatch<Features, MeaningKey> {
+fn quantity_match(end: usize, quantity: Quantity) -> LexicalMatch<Features, MeaningKey> {
     LexicalMatch {
         end,
         features: Features::Quantity(quantity.features()),
@@ -4791,7 +4575,7 @@ fn quantity_match(end: usize, quantity: QuantityKey) -> LexicalMatch<Features, M
     }
 }
 
-fn frequency_match(end: usize, frequency: FrequencyKey) -> LexicalMatch<Features, MeaningKey> {
+fn frequency_match(end: usize, frequency: FrequencyPhrase) -> LexicalMatch<Features, MeaningKey> {
     LexicalMatch {
         end,
         features: Features::None,
@@ -5392,7 +5176,7 @@ fn reduce_possessive_noun_phrase(
             })
         }
         RuleTag::DeterminerPossessiveNoun => Some(Features::Determiner {
-            cardinality: Cardinality::Unconstrained,
+            cardinality: NounCardinality::Unconstrained,
             article: None,
             set_exception_host: false,
         }),
@@ -5474,7 +5258,7 @@ fn reduce_quantity_or_determiner(
             })
         }
         RuleTag::DeterminerTarget => Some(Features::Determiner {
-            cardinality: Cardinality::SingularCount,
+            cardinality: NounCardinality::SingularCount,
             article: None,
             set_exception_host: false,
         }),
@@ -5507,7 +5291,7 @@ fn reduce_quantity_or_determiner(
                 return None;
             };
             Some(Features::Determiner {
-                cardinality: Cardinality::Unconstrained,
+                cardinality: NounCardinality::Unconstrained,
                 article: None,
                 set_exception_host: false,
             })
@@ -5530,8 +5314,12 @@ const fn arithmetic_value_features() -> Features {
     }
 }
 
-const fn number_cardinality(is_one: bool) -> Cardinality {
-    if is_one { Cardinality::SingularOrMass } else { Cardinality::PluralOrMass }
+const fn number_cardinality(is_one: bool) -> NounCardinality {
+    if is_one {
+        NounCardinality::SingularOrMass
+    } else {
+        NounCardinality::PluralOrMass
+    }
 }
 
 const fn number_quantity_features(is_one: bool) -> QuantityFeatures {
@@ -5541,10 +5329,10 @@ const fn number_quantity_features(is_one: bool) -> QuantityFeatures {
     }
 }
 
-const fn target_cardinality(cardinality: Cardinality) -> Cardinality {
+const fn target_cardinality(cardinality: NounCardinality) -> NounCardinality {
     match cardinality {
-        Cardinality::SingularOrMass => Cardinality::SingularCount,
-        Cardinality::PluralOrMass => Cardinality::PluralCount,
+        NounCardinality::SingularOrMass => NounCardinality::SingularCount,
+        NounCardinality::PluralOrMass => NounCardinality::PluralCount,
         other => other,
     }
 }
@@ -6711,21 +6499,21 @@ fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option
     })
 }
 
-fn cardinality_accepts(cardinality: Cardinality, form: NounForm) -> bool {
+fn cardinality_accepts(cardinality: NounCardinality, form: NounForm) -> bool {
     match cardinality {
-        Cardinality::SingularCount => form == NounForm::Singular,
-        Cardinality::SingularOrMass => matches!(form, NounForm::Singular | NounForm::Mass),
-        Cardinality::PluralCount => form == NounForm::Plural,
-        Cardinality::Mass => form == NounForm::Mass,
-        Cardinality::PluralOrMass => matches!(form, NounForm::Plural | NounForm::Mass),
-        Cardinality::Unconstrained => true,
+        NounCardinality::SingularCount => form == NounForm::Singular,
+        NounCardinality::SingularOrMass => matches!(form, NounForm::Singular | NounForm::Mass),
+        NounCardinality::PluralCount => form == NounForm::Plural,
+        NounCardinality::Mass => form == NounForm::Mass,
+        NounCardinality::PluralOrMass => matches!(form, NounForm::Plural | NounForm::Mass),
+        NounCardinality::Unconstrained => true,
     }
 }
 
-fn article_accepts(article: Option<IndefiniteArticleKey>, sound: InitialSound) -> bool {
+fn article_accepts(article: Option<IndefiniteArticle>, sound: InitialSound) -> bool {
     match article {
-        Some(IndefiniteArticleKey::A) => sound == InitialSound::Consonant,
-        Some(IndefiniteArticleKey::An) => sound == InitialSound::Vowel,
+        Some(IndefiniteArticle::A) => sound == InitialSound::Consonant,
+        Some(IndefiniteArticle::An) => sound == InitialSound::Vowel,
         None => true,
     }
 }
@@ -6854,40 +6642,40 @@ pub(crate) fn parse_nonterminal_with_self_reference(
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let surface = lex(source);
     let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
-    match parse_nonterminal_with_profile(
+    match parse_nonterminal_with_mode(
         source,
         catalogs,
         nonterminal,
         &tokens,
-        OpacityProfile::Exact,
+        OpacityMode::Exact,
         self_reference,
     ) {
         Ok(parsed) => Ok(parsed),
-        Err(ParseNonterminalError::NoCompleteParse(_)) => parse_nonterminal_with_profile(
+        Err(ParseNonterminalError::NoCompleteParse(_)) => parse_nonterminal_with_mode(
             source,
             catalogs,
             nonterminal,
             &tokens,
-            OpacityProfile::Nouns,
+            OpacityMode::OpaqueNouns,
             self_reference,
         ),
         Err(error) => Err(error),
     }
 }
 
-fn parse_nonterminal_with_profile(
+fn parse_nonterminal_with_mode(
     source: &str,
     catalogs: &Catalogs,
     nonterminal: Nonterminal,
     tokens: &[Token],
-    opacity_profile: OpacityProfile,
+    opacity_mode: OpacityMode,
     self_reference: &SelfReference,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
-    let grammar = EnglishGrammar::with_opacity_profile(
+    let grammar = EnglishGrammar::with_opacity_mode(
         source,
         catalogs,
         nonterminal,
-        opacity_profile,
+        opacity_mode,
         self_reference.clone(),
     );
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
@@ -6910,7 +6698,7 @@ fn parse_nonterminal_with_profile(
         root,
         best,
         syntax,
-        opacity_mode: opacity_profile.mode(),
+        opacity_mode,
     })
 }
 
@@ -6927,11 +6715,11 @@ mod root_lowering_tests {
         nonterminal: Nonterminal,
     ) -> Result<ParsedNonterminal, ParseNonterminalError> {
         let surface = lex(source);
-        let grammar = EnglishGrammar::with_opacity_profile(
+        let grammar = EnglishGrammar::with_opacity_mode(
             source,
             catalogs,
             nonterminal,
-            OpacityProfile::Exact,
+            OpacityMode::Exact,
             SelfReference::default(),
         );
         let chart =
@@ -7025,7 +6813,7 @@ mod root_lowering_tests {
 
 #[derive(Debug)]
 enum Lowered {
-    Number(NumberKey),
+    Number(NumberLiteral),
     Quantity(Quantity),
     Determiner(Determiner),
     Adjective(Adjective),
@@ -7137,14 +6925,14 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
     Some(match meaning {
         MeaningKey::Literal(_) | MeaningKey::Punctuation(_) => Lowered::Ignored,
         MeaningKey::Number(number) => Lowered::Number(*number),
-        MeaningKey::Quantity(quantity) => Lowered::Quantity(quantity.syntax()),
-        MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.syntax()),
+        MeaningKey::Quantity(quantity) => Lowered::Quantity(*quantity),
+        MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.clone()),
         MeaningKey::Noun(noun) => Lowered::Noun(noun.clone()),
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
         MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
         MeaningKey::VerbParticle(particle) => Lowered::VerbParticle(*particle),
         MeaningKey::CoinResult(side) => Lowered::CoinResult(*side),
-        MeaningKey::Frequency(frequency) => Lowered::Frequency(frequency.syntax()),
+        MeaningKey::Frequency(frequency) => Lowered::Frequency(*frequency),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
         MeaningKey::Auxiliary(auxiliary) => Lowered::Auxiliary(*auxiliary),
         MeaningKey::SubjectAuxiliary(subject_auxiliary) => {
@@ -7463,7 +7251,7 @@ fn lower_quantity_or_determiner(tag: RuleTag, children: &mut [Lowered]) -> Optio
             let Lowered::Number(number) = take(children, 0)? else {
                 return None;
             };
-            Some(Lowered::Quantity(Quantity::Exact(number.literal())))
+            Some(Lowered::Quantity(Quantity::Exact(number)))
         }
         RuleTag::QuantityAtLeast
         | RuleTag::QuantityOr
@@ -7605,7 +7393,7 @@ fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             Some(Lowered::AdjectivePhrase(AdjectivePhrase {
-                degree: Some(number.literal()),
+                degree: Some(number),
                 head,
                 complements: Vec::new(),
             }))
@@ -8529,11 +8317,11 @@ mod litaudit_tests {
         // opaque candidates at all.
         let source = "who";
         let surface = crate::surface::lex(source);
-        let grammar = EnglishGrammar::with_opacity_profile(
+        let grammar = EnglishGrammar::with_opacity_mode(
             source,
             &catalogs,
             Nonterminal::NounPhrase,
-            OpacityProfile::Nouns,
+            OpacityMode::OpaqueNouns,
             SelfReference::default(),
         );
         let matches = grammar.scan(
@@ -8551,11 +8339,11 @@ mod litaudit_tests {
         // token itself is unknown.
         let source = "gloopmonster minus one";
         let surface = crate::surface::lex(source);
-        let grammar = EnglishGrammar::with_opacity_profile(
+        let grammar = EnglishGrammar::with_opacity_mode(
             source,
             &catalogs,
             Nonterminal::NounPhrase,
-            OpacityProfile::Nouns,
+            OpacityMode::OpaqueNouns,
             SelfReference::default(),
         );
         let matches = grammar.scan(

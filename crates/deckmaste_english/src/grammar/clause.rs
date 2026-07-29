@@ -3906,7 +3906,7 @@ fn lower_variable_value_constraint(children: &mut [Lowered]) -> Option<Lowered> 
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
                 complement: CopularComplement::NounPhrase(NounPhrase::Quantity(Quantity::Exact(
-                    number.literal(),
+                    number,
                 ))),
                 adjuncts: Vec::new(),
             })),
@@ -8814,12 +8814,12 @@ mod tests {
     fn postnominal_participial_phrase_does_not_fire_without_the_frame_and_object() {
         for source in ["a creature enchanted this turn", "a creature dealt"] {
             let surface = crate::surface::lex(source);
-            let parsed = parse_nonterminal_with_profile(
+            let parsed = parse_nonterminal_with_mode(
                 source,
                 &fixture_catalogs(),
                 Nonterminal::NounPhrase,
                 &surface.tokens,
-                OpacityProfile::Exact,
+                OpacityMode::Exact,
                 &SelfReference::default(),
             );
             if let Ok(parsed) = parsed {
