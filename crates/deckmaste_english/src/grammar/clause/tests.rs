@@ -147,11 +147,11 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::If,
         SubordinateBody::Finite(condition),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
         panic!(
             "expected an `if` subordinate frame, got {:?}",
-            attachment.kind
+            attachment.payload
         );
     };
     let IndependentClause::Transitive(_, predicate) = condition.as_ref() else {
@@ -242,11 +242,11 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::If,
         SubordinateBody::Finite(condition),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
         panic!(
             "expected an `if` subordinate frame, got {:?}",
-            attachment.kind
+            attachment.payload
         );
     };
     let IndependentClause::Intransitive(_, predicate) = condition.as_ref() else {
@@ -362,9 +362,12 @@ fn while_fronts_a_gerund_clause_before_the_matrix() {
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::While,
         SubordinateBody::Gerund(_),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
-        panic!("expected a `while` gerund frame, got {:?}", attachment.kind);
+        panic!(
+            "expected a `while` gerund frame, got {:?}",
+            attachment.payload
+        );
     };
 
     // The Brago `get an additional vote` variant parses.
@@ -397,7 +400,7 @@ fn while_fronts_a_gerund_clause_before_the_matrix() {
         panic!("expected exactly one attachment");
     };
     assert!(matches!(
-        &finite_attachment.kind,
+        &finite_attachment.payload,
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
             Subordinator::While,
             SubordinateBody::Finite(_)
@@ -465,11 +468,11 @@ fn the_next_time_frame_fronts_a_subordinate_clause() {
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::TheNextTime,
         SubordinateBody::Finite(condition),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
         panic!(
             "expected a `the next time` subordinate frame, got {:?}",
-            attachment.kind
+            attachment.payload
         );
     };
     assert!(
@@ -619,11 +622,11 @@ fn trailing_where_clause_binds_a_variable_definition() {
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::Where,
         SubordinateBody::Finite(body),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
         panic!(
             "expected a `where` subordinate definition, got {:?}",
-            attachment.kind
+            attachment.payload
         );
     };
     let IndependentClause::Copular(Subject(subject), _) = body.as_ref() else {
@@ -649,7 +652,7 @@ fn where_clause_attaches_to_choose_up_to_x() {
         panic!("expected a complex clause with a trailing where-definition");
     };
     assert!(attachments.iter().any(|attachment| matches!(
-        &attachment.kind,
+        &attachment.payload,
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::Where, _))
     )));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -692,7 +695,7 @@ fn as_though_clause_attachment_shape() {
     assert_eq!(attachment.position, AttachmentPosition::AfterMatrix);
     assert!(!attachment.comma);
     assert!(matches!(
-        &attachment.kind,
+        &attachment.payload,
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
             Subordinator::AsThough,
             SubordinateBody::Finite(_),
@@ -867,7 +870,7 @@ fn as_though_mana_copula_purpose_infinitive_attaches_inside_the_complement_nomin
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         crate::syntax::Subordinator::AsThough,
         SubordinateBody::Finite(body),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
         panic!("expected an as-though finite attachment: {attachment:#?}");
     };
@@ -922,7 +925,7 @@ fn as_though_mana_copula_structural_shape() {
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         crate::syntax::Subordinator::AsThough,
         SubordinateBody::Finite(body),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
         panic!("expected an as-though finite attachment: {attachment:#?}");
     };
@@ -970,7 +973,7 @@ fn as_though_indicative_copula_reading_survives_the_subjunctive_copula_filter() 
             let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                 crate::syntax::Subordinator::AsThough,
                 SubordinateBody::Finite(body),
-            )) = &attachment.kind
+            )) = &attachment.payload
             else {
                 continue;
             };
@@ -1115,7 +1118,7 @@ fn degree_measured_comparative_structural_shape() {
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         crate::syntax::Subordinator::AsThough,
         SubordinateBody::Finite(body),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
         panic!("expected an as-though finite attachment: {attachment:#?}");
     };
@@ -1510,7 +1513,7 @@ fn activation_restriction_clauses_parse_and_render_structurally() {
     assert_eq!(complex.attachments.len(), 1);
     assert!(
         matches!(
-            &complex.attachments[0].kind,
+            &complex.attachments[0].payload,
             ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::Before, _))
         ),
         "{:#?}",
@@ -1540,7 +1543,7 @@ fn coordinated_only_restrictions_form_one_restriction_attachment() {
     assert_eq!(complex.attachments.len(), 1);
     let attachment = &complex.attachments[0];
     assert!(!attachment.comma);
-    let ClauseAttachmentKind::Restriction(run) = &attachment.kind else {
+    let ClauseAttachmentKind::Restriction(run) = &attachment.payload else {
         panic!("expected a Restriction attachment: {attachment:#?}");
     };
     assert!(matches!(
@@ -1578,7 +1581,7 @@ fn restriction_run_admits_an_if_clause_member() {
         panic!("expected a complex clause");
     };
     assert_eq!(complex.attachments.len(), 1);
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
         panic!(
             "expected a Restriction attachment: {:#?}",
             complex.attachments[0]
@@ -1612,7 +1615,7 @@ fn oxford_restriction_run_carries_member_boundaries() {
     else {
         panic!("expected a complex clause");
     };
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
         panic!(
             "expected a Restriction attachment: {:#?}",
             complex.attachments[0]
@@ -1646,7 +1649,7 @@ fn restriction_runs_host_on_every_matrix() {
         };
         assert!(
             matches!(
-                complex.attachments.last().unwrap().kind,
+                complex.attachments.last().unwrap().payload,
                 ClauseAttachmentKind::Restriction(_)
             ),
             "{source}"
@@ -1714,7 +1717,7 @@ fn single_only_if_restriction_keeps_its_dependent_attachment() {
     assert_eq!(complex.attachments.len(), 1);
     assert!(!complex.attachments[0].comma);
     assert!(matches!(
-        &complex.attachments[0].kind,
+        &complex.attachments[0].payload,
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::If, _))
     ));
 }
@@ -2117,7 +2120,7 @@ fn as_clauses_keep_their_surface_attachment_position() {
                 attachments.as_slice(),
                 [ClauseAttachment {
                     position: actual,
-                    kind: ClauseAttachmentKind::Dependent(
+                    payload: ClauseAttachmentKind::Dependent(
                         DependentClause::Subordinate(
                             crate::syntax::Subordinator::As,
                             SubordinateBody::Finite(_),
@@ -2144,7 +2147,7 @@ fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
         ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
             comma: true,
-            kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition)),
+            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition)),
         },
     ] = complex.attachments.as_slice()
     else {
@@ -2190,7 +2193,7 @@ fn this_way_is_a_manner_adjunct_inside_a_condition() {
     let [
         ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
-            kind:
+            payload:
                 ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                     Subordinator::If,
                     SubordinateBody::Finite(condition),
@@ -2235,7 +2238,7 @@ fn then_can_modify_a_following_independent_clause() {
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
             comma: false,
-            kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
+            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
         }]
     ));
     assert!(matches!(
@@ -2263,7 +2266,7 @@ fn otherwise_fronts_a_following_imperative_clause() {
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
             comma: true,
-            kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
+            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
         }]
     ));
     assert!(matches!(
@@ -2291,7 +2294,7 @@ fn otherwise_fronts_a_finite_clause() {
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
             comma: true,
-            kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
+            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
         }]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -2315,7 +2318,7 @@ fn otherwise_fronts_a_modal_clause() {
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
             comma: true,
-            kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
+            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
         }]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -2406,7 +2409,7 @@ fn then_fronting_is_unchanged() {
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
             comma: false,
-            kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
+            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
         }]
     ));
 }
@@ -2423,7 +2426,7 @@ fn for_as_long_as_is_one_finite_subordinator() {
             attachments.as_slice(),
             [ClauseAttachment {
                 position: AttachmentPosition::AfterMatrix,
-                kind: ClauseAttachmentKind::Dependent(
+                payload: ClauseAttachmentKind::Dependent(
                     DependentClause::Subordinate(
                         crate::syntax::Subordinator::ForAsLongAs,
                         SubordinateBody::Finite(_),
@@ -2447,7 +2450,7 @@ fn while_can_introduce_an_elliptical_postposed_clause() {
             attachments.as_slice(),
             [ClauseAttachment {
                 position: AttachmentPosition::AfterMatrix,
-                kind: ClauseAttachmentKind::Dependent(
+                payload: ClauseAttachmentKind::Dependent(
                     DependentClause::Subordinate(
                         crate::syntax::Subordinator::While,
                         SubordinateBody::Elliptical(EllipticalClause::Adjective(_)),
@@ -2471,7 +2474,7 @@ fn unless_introduces_a_finite_postposed_clause() {
             attachments.as_slice(),
             [ClauseAttachment {
                 position: AttachmentPosition::AfterMatrix,
-                kind: ClauseAttachmentKind::Dependent(
+                payload: ClauseAttachmentKind::Dependent(
                     DependentClause::Subordinate(
                         crate::syntax::Subordinator::Unless,
                         SubordinateBody::Finite(_),
@@ -2806,7 +2809,7 @@ fn rather_than_introduces_a_bare_infinitive_clause() {
         [ClauseAttachment {
             position: AttachmentPosition::AfterMatrix,
             comma: false,
-            kind: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                 Subordinator::RatherThan,
                 SubordinateBody::Infinitive(crate::syntax::InfinitiveClause {
                     marker: InfinitiveMarker::Bare,
@@ -2856,7 +2859,7 @@ fn rather_than_can_contrast_gerund_clauses() {
         [DependentAttachment {
             position: AttachmentPosition::AfterMatrix,
             comma: false,
-            clause: DependentClause::Subordinate(
+            payload: DependentClause::Subordinate(
                 Subordinator::RatherThan,
                 SubordinateBody::Gerund(alternative),
             ),
@@ -3492,7 +3495,7 @@ fn recipient_passive_retains_the_theme_object() {
     };
     let [
         ClauseAttachment {
-            kind: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(_, body)),
+            payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(_, body)),
             ..
         },
     ] = complex.attachments.as_slice()
@@ -3883,11 +3886,11 @@ fn multiple_fronted_clause_attachments_keep_surface_order() {
             attachments.as_slice(),
             [
                 ClauseAttachment {
-                    kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(_)),
+                    payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(_)),
                     ..
                 },
                 ClauseAttachment {
-                    kind: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                         Subordinator::If,
                         SubordinateBody::Finite(_),
                     )),
@@ -4735,7 +4738,7 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
         panic!("expected a complex clause");
     };
     assert_eq!(complex.attachments.len(), 1);
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
         panic!(
             "expected a Restriction attachment: {:#?}",
             complex.attachments[0]
@@ -4928,7 +4931,7 @@ fn oxford_restriction_run_carries_member_boundaries_true_witness() {
     else {
         panic!("expected a complex clause");
     };
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
         panic!(
             "expected a Restriction attachment: {:#?}",
             complex.attachments[0]
@@ -5178,7 +5181,7 @@ fn this_step_is_still_a_temporal_adjunct() {
     else {
         panic!("expected a complex clause");
     };
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].kind else {
+    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
         panic!(
             "expected a Restriction attachment: {:#?}",
             complex.attachments[0]
@@ -5836,9 +5839,12 @@ fn shared_deontic_with_vp_ellipsis_preserves_the_first_deontic_ellipsis() {
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::If,
         SubordinateBody::Finite(if_body),
-    )) = &attachment.kind
+    )) = &attachment.payload
     else {
-        panic!("expected a finite `if` subordinate: {:#?}", attachment.kind);
+        panic!(
+            "expected a finite `if` subordinate: {:#?}",
+            attachment.payload
+        );
     };
     let IndependentClause::Predicated(_, PredicateExpression::Coordinated(coordination)) =
         if_body.as_ref()

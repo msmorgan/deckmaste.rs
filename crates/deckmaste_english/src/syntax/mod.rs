@@ -112,13 +112,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     ModalFrame::Activated(cost) => {
                         self.cost(cost, Some(RecoveryRole::ActivationCost));
                     }
-                    ModalFrame::Triggered {
-                        event,
-                        intervening_condition,
-                        ..
-                    } => {
-                        self.trigger_event(event, context);
-                        if let Some(condition) = intervening_condition {
+                    ModalFrame::Triggered(trigger) => {
+                        self.trigger_event(&trigger.event, context);
+                        if let Some(condition) = &trigger.intervening_condition {
                             self.dependent_clause(condition, context);
                         }
                     }
@@ -234,8 +230,8 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 SentenceBody::Choice(choice) => self.choice_instruction(choice, context),
                 SentenceBody::PowerToughness(_) => {}
                 SentenceBody::Triggered(triggered) => {
-                    self.trigger_event(&triggered.event, context);
-                    if let Some(condition) = &triggered.intervening_condition {
+                    self.trigger_event(&triggered.trigger.event, context);
+                    if let Some(condition) = &triggered.trigger.intervening_condition {
                         self.dependent_clause(condition, context);
                     }
                     self.independent_clause(&triggered.effect, context);
@@ -331,7 +327,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
             IndependentClause::Complex(complex) => {
                 self.independent_clause(&complex.matrix, context);
                 for attachment in &complex.attachments {
-                    match &attachment.kind {
+                    match &attachment.payload {
                         ClauseAttachmentKind::Dependent(clause) => {
                             self.dependent_clause(clause, context);
                         }
@@ -403,7 +399,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
     fn gerund_clause(&mut self, clause: &'syntax GerundClause, context: Option<RecoveryRole>) {
         self.predicate(&clause.predicate, context);
         for attachment in &clause.attachments {
-            self.dependent_clause(&attachment.clause, context);
+            self.dependent_clause(&attachment.payload, context);
         }
     }
 
@@ -438,7 +434,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
             Predicate::Attached(predicate) => {
                 self.predicate(&predicate.predicate, context);
                 for attachment in &predicate.attachments {
-                    match &attachment.kind {
+                    match &attachment.payload {
                         ClauseAttachmentKind::Dependent(clause) => {
                             self.dependent_clause(clause, context);
                         }

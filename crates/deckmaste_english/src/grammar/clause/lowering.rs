@@ -137,7 +137,7 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
             matrix.attachments.push(DependentAttachment {
                 position: AttachmentPosition::AfterMatrix,
                 comma: false,
-                clause: DependentClause::Subordinate(
+                payload: DependentClause::Subordinate(
                     crate::syntax::Subordinator::RatherThan,
                     SubordinateBody::Gerund(alternative),
                 ),
@@ -1183,7 +1183,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
                         comma: false,
-                        kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
+                        payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
                     },
                 ),
             )))
@@ -1201,7 +1201,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
                         comma: true,
-                        kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
+                        payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
                     },
                 ),
             )))
@@ -1219,7 +1219,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
                         comma: true,
-                        kind: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(
+                        payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(
                             preposition,
                         )),
                     },
@@ -1345,7 +1345,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     ClauseAttachment {
                         position: AttachmentPosition::AfterMatrix,
                         comma: true,
-                        kind: ClauseAttachmentKind::Exception(rider),
+                        payload: ClauseAttachmentKind::Exception(rider),
                     },
                 ),
             )))
@@ -1413,7 +1413,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                         ClauseAttachment {
                             position: AttachmentPosition::AfterMatrix,
                             comma: false,
-                            kind: ClauseAttachmentKind::Restriction(run),
+                            payload: ClauseAttachmentKind::Restriction(run),
                         },
                     ),
                 )))
@@ -2068,7 +2068,7 @@ pub(super) fn conditional_body(
             ClauseAttachment {
                 position,
                 comma,
-                kind: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                     subordinator,
                     body,
                 )),

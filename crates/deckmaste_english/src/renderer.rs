@@ -385,7 +385,7 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn modal_ability(&self, modal: &ModalAbility) -> Result<String, RenderError> {
-        let header_is_sentence_initial = !matches!(modal.frame, ModalFrame::Triggered { .. });
+        let header_is_sentence_initial = !matches!(modal.frame, ModalFrame::Triggered(_));
         // A ` —` header suffix stands in for the final header sentence's period,
         // so that sentence's derived period is withheld (`Choose one —`); a
         // `None` suffix keeps the normal periods (`Choose one. If you …`).
@@ -410,13 +410,13 @@ impl<'identity> Renderer<'identity> {
                 format!("{}{separator}{header}", self.paragraph(body, true)?)
             }
             ModalFrame::Activated(cost) => format!("{}: {header}", self.cost(cost)?),
-            ModalFrame::Triggered {
-                introducer,
-                event,
-                intervening_condition,
-            } => format!(
+            ModalFrame::Triggered(trigger) => format!(
                 "{}, {header}",
-                self.trigger_frame(*introducer, event, intervening_condition.as_ref())?
+                self.trigger_frame(
+                    trigger.introducer,
+                    &trigger.event,
+                    trigger.intervening_condition.as_ref(),
+                )?
             ),
             ModalFrame::Loyalty(cost) => {
                 format!("[{}]: {header}", render_loyalty_cost(*cost))
@@ -741,9 +741,9 @@ impl<'identity> Renderer<'identity> {
             ),
             SentenceBody::Triggered(triggered) => {
                 let frame = self.trigger_frame(
-                    triggered.introducer,
-                    &triggered.event,
-                    triggered.intervening_condition.as_ref(),
+                    triggered.trigger.introducer,
+                    &triggered.trigger.event,
+                    triggered.trigger.intervening_condition.as_ref(),
                 )?;
                 let effect = self.independent_clause(&triggered.effect)?;
                 (format!("{frame}, {effect}"), capitalize)
@@ -995,7 +995,7 @@ impl<'identity> Renderer<'identity> {
             .iter()
             .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
         {
-            rendered.push_str(&self.clause_attachment(&attachment.kind)?);
+            rendered.push_str(&self.clause_attachment(&attachment.payload)?);
             if attachment.comma {
                 rendered.push(',');
             }
@@ -1010,7 +1010,7 @@ impl<'identity> Renderer<'identity> {
                 rendered.push(',');
             }
             rendered.push(' ');
-            rendered.push_str(&self.clause_attachment(&attachment.kind)?);
+            rendered.push_str(&self.clause_attachment(&attachment.payload)?);
         }
         Ok(rendered)
     }
@@ -1442,7 +1442,7 @@ impl<'identity> Renderer<'identity> {
             .iter()
             .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
         {
-            rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+            rendered.push_str(&self.dependent_clause(&attachment.payload)?);
             if attachment.comma {
                 rendered.push(',');
             }
@@ -1458,7 +1458,7 @@ impl<'identity> Renderer<'identity> {
                 rendered.push(',');
             }
             rendered.push(' ');
-            rendered.push_str(&self.dependent_clause(&attachment.clause)?);
+            rendered.push_str(&self.dependent_clause(&attachment.payload)?);
         }
         Ok(rendered)
     }
@@ -2206,7 +2206,7 @@ fn attached_predicate_ends_with_closed_quote(predicate: &crate::syntax::Attached
         .rev()
         .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
     {
-        Some(attachment) => match &attachment.kind {
+        Some(attachment) => match &attachment.payload {
             ClauseAttachmentKind::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
             ClauseAttachmentKind::Dependent(_)
             | ClauseAttachmentKind::Exception(_)
@@ -2275,7 +2275,7 @@ fn complex_ends_with_closed_quote(clause: &ComplexClause) -> bool {
         .rev()
         .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
     {
-        Some(attachment) => match &attachment.kind {
+        Some(attachment) => match &attachment.payload {
             ClauseAttachmentKind::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
             ClauseAttachmentKind::Dependent(_) => false,
             ClauseAttachmentKind::Exception(rider) => match rider.rest.last() {
@@ -3480,14 +3480,14 @@ mod tests {
                 ability_word: None,
                 flavor_header: None,
                 kind: AbilityKind::Modal(ModalAbility {
-                    frame: ModalFrame::Triggered {
+                    frame: ModalFrame::Triggered(TriggerHeader {
                         introducer: TriggerWord::Whenever,
                         event: TriggerEvent::Clause(independent(simple(
                             Some(Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))),
                             verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
                         ))),
                         intervening_condition: None,
-                    },
+                    }),
                     header: Paragraph {
                         flavor_header: None,
                         // A modal header instruction is a `Choice` body — as the

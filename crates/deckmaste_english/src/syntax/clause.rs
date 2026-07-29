@@ -417,11 +417,13 @@ pub struct ComplexClause {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ClauseAttachment {
+pub struct Attachment<T> {
     pub position: AttachmentPosition,
     pub comma: bool,
-    pub kind: ClauseAttachmentKind,
+    pub payload: T,
 }
+
+pub type ClauseAttachment = Attachment<ClauseAttachmentKind>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClauseAttachmentKind {
@@ -499,12 +501,7 @@ pub struct ExceptionConjunct {
     pub clause: IndependentClause,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DependentAttachment {
-    pub position: AttachmentPosition,
-    pub comma: bool,
-    pub clause: DependentClause,
-}
+pub type DependentAttachment = Attachment<DependentClause>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AttachmentPosition {

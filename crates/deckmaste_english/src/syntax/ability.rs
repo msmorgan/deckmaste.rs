@@ -263,6 +263,16 @@ pub struct TriggerCondition {
     pub event: TriggerEvent,
 }
 
+/// The common header of a single-event trigger embedded in a larger syntax
+/// node. Multi-condition top-level triggered abilities use
+/// [`TriggerConditionList`] instead.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriggerHeader {
+    pub introducer: TriggerWord,
+    pub event: TriggerEvent,
+    pub intervening_condition: Option<DependentClause>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TriggerEvent {
     Clause(IndependentClause),
@@ -342,11 +352,7 @@ pub enum ModalFrame {
         separator: ModalPreambleSeparator,
     },
     Activated(Cost),
-    Triggered {
-        introducer: TriggerWord,
-        event: TriggerEvent,
-        intervening_condition: Option<DependentClause>,
-    },
+    Triggered(TriggerHeader),
     Loyalty(LoyaltyCost),
     /// A saga chapter heading whose effect is a modal choice, e.g. Life of
     /// Toshiro Umezawa's `I, II — Choose one —`. The chapter numbers are
@@ -643,16 +649,13 @@ pub enum SentenceBody {
     Recovered(RecoveredText),
 }
 
-/// A non-initial trigger sentence. Mirrors the fields of [`ChoiceTrigger`] —
-/// and of [`ModalFrame::Triggered`] — and renders through the same trigger
-/// renderer, plus the effect clause the trigger governs. The effect is a single
-/// [`IndependentClause`], not a [`Paragraph`]: a sentence-level trigger governs
-/// exactly the remainder of its own sentence.
+/// A non-initial trigger sentence. Its common trigger fields live in
+/// [`TriggerHeader`], followed by the effect clause the trigger governs. The
+/// effect is a single [`IndependentClause`], not a [`Paragraph`]: a
+/// sentence-level trigger governs exactly the remainder of its own sentence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TriggeredSentence {
-    pub introducer: TriggerWord,
-    pub event: TriggerEvent,
-    pub intervening_condition: Option<DependentClause>,
+    pub trigger: TriggerHeader,
     pub effect: IndependentClause,
 }
 
@@ -675,19 +678,9 @@ pub struct ChoiceInstruction {
     /// Boxed so the choice instruction stays no larger than a bare imperative
     /// header sentence: the trigger clause carries a full event clause, and the
     /// unboxed grammar-lowering enum that wraps [`Sentence`] must not grow.
-    pub trigger_prefix: Option<Box<ChoiceTrigger>>,
+    pub trigger_prefix: Option<Box<TriggerHeader>>,
     pub imperative: Predicate,
     pub at_random: bool,
-}
-
-/// A modal choice instruction's leading trigger clause. Mirrors the fields of
-/// [`ModalFrame::Triggered`] and renders through the same trigger renderer, so
-/// `When you do,` / `Whenever Ashcoat enters or attacks,` reproduce exactly.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ChoiceTrigger {
-    pub introducer: TriggerWord,
-    pub event: TriggerEvent,
-    pub intervening_condition: Option<DependentClause>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

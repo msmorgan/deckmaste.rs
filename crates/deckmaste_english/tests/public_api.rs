@@ -628,7 +628,7 @@ fn trailing_dash_body_licenses_an_or_coordinated_appositive() {
     assert_eq!(rendered, source);
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
     assert!(
-        compact(&ast).contains("kind:Appositive("),
+        compact(&ast).contains("payload:Appositive("),
         "expected a trailing dash-body appositive\nAST:\n{ast}"
     );
 }
@@ -642,7 +642,7 @@ fn dash_appositive_attaches_under_a_coordinated_predicate_matrix() {
     let (rendered, ast) = parse_face(source, &Catalogs::default(), "This Is How It Ends", false);
     assert_eq!(rendered, source);
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
-    assert!(compact(&ast).contains("kind:Appositive("), "AST:\n{ast}");
+    assert!(compact(&ast).contains("payload:Appositive("), "AST:\n{ast}");
 }
 
 #[test]
@@ -831,7 +831,7 @@ fn flavor_word_header_uncovers_a_villainous_choice_appositive() {
     assert!(!ast.contains("Recovered"), "AST:\n{ast}");
     assert!(ast.contains("text: \"Chaos\""), "AST:\n{ast}");
     assert!(
-        compact(&ast).contains("kind:Appositive("),
+        compact(&ast).contains("payload:Appositive("),
         "expected the inner villainous-choice appositive to parse\nAST:\n{ast}"
     );
 }

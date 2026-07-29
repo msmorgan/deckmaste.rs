@@ -19,3 +19,23 @@ designed.
 
 Representation-only throughout: recovery census byte-identical, round-trip
 stays at zero. Standard constraints apply.
+
+## Completion
+
+- Added `TriggerHeader` for the three sites that still share the exact
+  single-event shape: `ModalFrame::Triggered`, `TriggeredSentence`, and
+  `ChoiceInstruction::trigger_prefix`. The ticket premise had drifted since it
+  was written: top-level `TriggeredAbility` now owns a richer
+  `TriggerConditionList`, so it remains deliberately separate rather than
+  losing coordinated trigger conditions to the wrapper abstraction.
+- Replaced the duplicated clause/dependent attachment records with
+  `Attachment<T> { position, comma, payload }`; `ClauseAttachment` and
+  `DependentAttachment` remain public aliases with their distinct payload
+  types.
+- Updated parser lowering, rendering, recovery traversal, unit fixtures, and
+  the three public API debug signatures affected by the field rename. No
+  grammar rule, selection cost, or renderer surface changed.
+- The supported corpus recovery/opacity JSON is byte-for-byte identical to the
+  parent (3,459 structural spans / 63,737 source tokens; 1,413 licensed opacity
+  occurrences / 2,096 source tokens). All 31,685 supported faces round-trip
+  with zero mismatches or render errors.

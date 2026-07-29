@@ -26,7 +26,6 @@ use crate::syntax::ActivatedAbility;
 use crate::syntax::AttachmentPosition;
 use crate::syntax::ChapterAbility;
 use crate::syntax::ChoiceInstruction;
-use crate::syntax::ChoiceTrigger;
 use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
@@ -82,6 +81,7 @@ use crate::syntax::TriggerCondition;
 use crate::syntax::TriggerConditionCoordination;
 use crate::syntax::TriggerConditionList;
 use crate::syntax::TriggerEvent;
+use crate::syntax::TriggerHeader;
 use crate::syntax::TriggerWord;
 use crate::syntax::TriggeredAbility;
 use crate::syntax::TriggeredSentence;
@@ -652,11 +652,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.attempt(|parser| parser.trigger_frame(header))
         {
             (
-                ModalFrame::Triggered {
+                ModalFrame::Triggered(TriggerHeader {
                     introducer,
                     event,
                     intervening_condition,
-                },
+                }),
                 effect,
             )
         } else if let Some(colon) = find_top_level_punctuation(header, Punctuation::Colon) {
@@ -1290,9 +1290,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // does not itself consume a terminal period, so peel it before parsing.
         let effect = self.parse_trigger_effect(effect)?;
         Some(SentenceBody::Triggered(Box::new(TriggeredSentence {
-            introducer,
-            event,
-            intervening_condition,
+            trigger: TriggerHeader {
+                introducer,
+                event,
+                intervening_condition,
+            },
             effect,
         })))
     }
@@ -1357,7 +1359,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 attachments: vec![ClauseAttachment {
                     position: AttachmentPosition::AfterMatrix,
                     comma: false,
-                    kind: ClauseAttachmentKind::Appositive(Box::new(body)),
+                    payload: ClauseAttachmentKind::Appositive(Box::new(body)),
                 }],
             })),
         })
@@ -1487,7 +1489,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn peel_choice_trigger<'tokens>(
         &mut self,
         tokens: &'tokens [Token],
-    ) -> (Option<Box<ChoiceTrigger>>, &'tokens [Token]) {
+    ) -> (Option<Box<TriggerHeader>>, &'tokens [Token]) {
         let Some(first) = tokens.first() else {
             return (None, tokens);
         };
@@ -1522,7 +1524,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return (None, tokens);
         };
         (
-            Some(Box::new(ChoiceTrigger {
+            Some(Box::new(TriggerHeader {
                 introducer,
                 event,
                 intervening_condition: None,
@@ -2862,7 +2864,7 @@ mod tests {
                     attachments.as_slice(),
                     [ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
-                        kind: ClauseAttachmentKind::Dependent(
+                        payload: ClauseAttachmentKind::Dependent(
                             DependentClause::Subordinate(Subordinator::If, _),
                         ),
                         ..
@@ -3065,10 +3067,10 @@ mod tests {
         };
         assert!(matches!(
             modal.frame,
-            ModalFrame::Triggered {
+            ModalFrame::Triggered(TriggerHeader {
                 introducer: TriggerWord::Whenever,
                 ..
-            }
+            })
         ));
     }
 
@@ -3613,7 +3615,7 @@ mod tests {
                     attachments.as_slice(),
                     [ClauseAttachment {
                         position: AttachmentPosition::AfterMatrix,
-                        kind: ClauseAttachmentKind::Dependent(
+                        payload: ClauseAttachmentKind::Dependent(
                             DependentClause::Subordinate(
                                 Subordinator::AsLongAs,
                                 SubordinateBody::Finite(condition),
@@ -3971,15 +3973,12 @@ mod tests {
                 report.ast.abilities[0].kind
             );
         };
-        let ModalFrame::Triggered {
-            introducer, event, ..
-        } = &modal.frame
-        else {
+        let ModalFrame::Triggered(trigger) = &modal.frame else {
             panic!("expected a triggered modal frame: {:#?}", modal.frame);
         };
-        assert_eq!(*introducer, TriggerWord::Whenever);
+        assert_eq!(trigger.introducer, TriggerWord::Whenever);
         assert!(matches!(
-            event,
+            &trigger.event,
             TriggerEvent::Clause(IndependentClause::Predicated(
                 _,
                 PredicateExpression::Coordinated(_)
@@ -4022,7 +4021,7 @@ mod tests {
         let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
             panic!("expected a modal ability");
         };
-        assert!(matches!(modal.frame, ModalFrame::Triggered { .. }));
+        assert!(matches!(modal.frame, ModalFrame::Triggered(_)));
         let choice = modal_header_choice(&report);
         assert!(choice.trigger_prefix.is_none());
         assert!(matches!(
@@ -5643,7 +5642,7 @@ mod tests {
             panic!("expected two effect sentences: {:#?}", activated.effect);
         };
         assert!(
-            matches!(&second.body, SentenceBody::Triggered(triggered) if triggered.introducer == TriggerWord::When),
+            matches!(&second.body, SentenceBody::Triggered(triggered) if triggered.trigger.introducer == TriggerWord::When),
             "{:#?}",
             second.body
         );
@@ -5665,8 +5664,8 @@ mod tests {
         let SentenceBody::Triggered(triggered) = &second.body else {
             panic!("expected a triggered sentence body: {:#?}", second.body);
         };
-        assert_eq!(triggered.introducer, TriggerWord::When);
-        assert!(triggered.intervening_condition.is_none());
+        assert_eq!(triggered.trigger.introducer, TriggerWord::When);
+        assert!(triggered.trigger.intervening_condition.is_none());
         assert_eq!(render(&report), source);
     }
 
@@ -5682,7 +5681,7 @@ mod tests {
             panic!("expected two effect sentences: {:#?}", loyalty.effect);
         };
         assert!(
-            matches!(&second.body, SentenceBody::Triggered(triggered) if triggered.introducer == TriggerWord::When),
+            matches!(&second.body, SentenceBody::Triggered(triggered) if triggered.trigger.introducer == TriggerWord::When),
             "{:#?}",
             second.body
         );
@@ -5866,7 +5865,7 @@ mod tests {
         // Same shape as `choice_instruction_carries_a_reflexive_second_trigger_prefix`,
         // re-asserted here under the new fallback's name: the reflexive `When you
         // do,` heading a modal header sentence must stay `ChoiceInstruction`'s own
-        // `trigger_prefix`/`ChoiceTrigger`, never migrate to `SentenceBody::Triggered`.
+        // `trigger_prefix`/`TriggerHeader`, never migrate to `SentenceBody::Triggered`.
         let source = "Draw a card. When you do, choose one —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
         let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
@@ -5918,14 +5917,14 @@ mod tests {
         };
         assert!(
             matches!(
-                triggered.event,
+                triggered.trigger.event,
                 TriggerEvent::Clause(IndependentClause::Predicated(
                     _,
                     PredicateExpression::Coordinated(_)
                 ))
             ),
             "{:#?}",
-            triggered.event
+            triggered.trigger.event
         );
         assert!(
             matches!(triggered.effect, IndependentClause::Imperative(_)),
@@ -6001,7 +6000,7 @@ mod tests {
         };
         assert!(
             complex.attachments.iter().any(|attachment| matches!(
-                attachment.kind,
+                attachment.payload,
                 ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                     Subordinator::While,
                     _
@@ -6036,7 +6035,7 @@ mod tests {
             panic!("expected Triggered: {:#?}", second.body);
         };
         assert!(matches!(
-            triggered.event,
+            triggered.trigger.event,
             TriggerEvent::Clause(IndependentClause::Predicated(
                 _,
                 PredicateExpression::Coordinated(_)
