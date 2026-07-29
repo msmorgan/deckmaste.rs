@@ -93,15 +93,11 @@ fn count_of(phrase: &str) -> Option<String> {
 }
 
 /// "[<type>] card(s) in your graveyard" / "… in a graveyard" -> the graveyard
-/// count filter, mirroring `effect::graveyard_card_filter`'s shape:
-/// `And([<type>, InZone(Graveyard), Owner(Ref(You))])` for "your", dropping the
-/// `Owner` atom for the owner-agnostic "a graveyard". A bare "card" (no type)
-/// drops the type atom, and a lone remaining atom is spliced unwrapped (the
-/// corpus convention of never nesting a singleton in a one-element `And`). The
-/// type spelling reuses [`crate::parsers::effect::graveyard_card_type`]
-/// (`Type("Creature")`, `Or([Type("Instant"), Type("Sorcery")])`); a subtype or
-/// other unmodeled qualifier ("Lesson card", "noncreature, nonland card")
-/// declines here and the whole "for each" clause stays unparsed.
+/// count filter. The zone/owner/type atom assembly is shared with the effect
+/// parser's graveyard-card filters; only this count-specific suffix stripping
+/// remains local. A subtype or other unmodeled qualifier ("Lesson card",
+/// "noncreature, nonland card") declines here and the whole "for each" clause
+/// stays unparsed.
 fn graveyard_count_filter(phrase: &str) -> Option<String> {
     let (head, owned) = phrase
         .strip_suffix(" in your graveyard")
@@ -113,18 +109,11 @@ fn graveyard_count_filter(phrase: &str) -> Option<String> {
         head.strip_suffix(" card")
             .or_else(|| head.strip_suffix(" cards"))?
     };
-    let mut atoms: Vec<String> = Vec::new();
-    if !subject.is_empty() {
-        atoms.push(crate::parsers::effect::graveyard_card_type(subject)?);
-    }
-    atoms.push("InZone(Graveyard)".to_owned());
     if owned {
-        atoms.push("Owner(Ref(You))".to_owned());
+        crate::parsers::effect::graveyard_card_filter(subject)
+    } else {
+        crate::parsers::effect::any_graveyard_card_filter(subject)
     }
-    Some(match atoms.as_slice() {
-        [one] => one.clone(),
-        many => format!("And([{}])", many.join(", ")),
-    })
 }
 
 #[cfg(test)]

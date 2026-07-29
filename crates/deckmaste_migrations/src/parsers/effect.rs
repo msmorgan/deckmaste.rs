@@ -2053,7 +2053,7 @@ fn status_atom(word: &str) -> Option<String> {
 /// Type(Sorcery)])` for "instant or sorcery") — NOT the battlefield-scoped
 /// macros, since a graveyard card is not a permanent. A bare "card" (no type)
 /// is any card you own there.
-fn graveyard_card_filter(subject: &str) -> Option<String> {
+pub(super) fn graveyard_card_filter(subject: &str) -> Option<String> {
     let mut atoms: Vec<String> = Vec::new();
     if let Some(ty) = graveyard_card_type(subject) {
         atoms.push(ty);
@@ -2079,7 +2079,7 @@ fn graveyard_card_filter(subject: &str) -> Option<String> {
 /// corpus convention of never nesting a singleton filter in an `And` of one
 /// (see [`graveyard_card_filter`]'s doc for the your-graveyard analog, which
 /// always carries at least the `Owner` atom alongside).
-fn any_graveyard_card_filter(subject: &str) -> Option<String> {
+pub(super) fn any_graveyard_card_filter(subject: &str) -> Option<String> {
     match graveyard_card_type(subject) {
         Some(ty) => Some(format!("And([{ty}, InZone(Graveyard)])")),
         None if subject.is_empty() => Some("InZone(Graveyard)".to_owned()),
@@ -2093,10 +2093,8 @@ fn any_graveyard_card_filter(subject: &str) -> Option<String> {
 /// `Or([Type(Instant), Type(Sorcery)])`), or `None` for a bare "card" (no
 /// type qualifier) or an unmodeled phrase. Card-type spelling via
 /// [`filter::type_filter`], so the live matcher reads the printed card type,
-/// not a battlefield-only macro. `pub(super)` so the count parser
-/// ([`crate::parsers::count`]) can reuse it for "for each <type> card in your
-/// graveyard" scalers.
-pub(super) fn graveyard_card_type(subject: &str) -> Option<String> {
+/// not a battlefield-only macro.
+fn graveyard_card_type(subject: &str) -> Option<String> {
     if subject.is_empty() {
         return None;
     }
