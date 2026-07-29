@@ -329,6 +329,18 @@ pub(crate) enum Nonterminal {
     Noun,
     Nominal,
     NounPhrase,
+    /// A nominal whose rightmost complement is an object-gap relative with a
+    /// predicate that requires a rules object. This category is predicted
+    /// only while building the final member of a coordinated PP object, so
+    /// its attachment state does not leak into ordinary noun-phrase keys.
+    RulesObjectNominal,
+    /// A [`Self::RulesObjectNominal`] extended by at least one later relative;
+    /// subsequent PP complements stay in this category. The two-stage shape
+    /// lets the parser consume `permanent ... controls that shares ... with
+    /// it` without treating every PP after `... you control` as nominal.
+    RulesObjectFollowupNominal,
+    /// Noun-phrase promotion for either rules-object nominal category.
+    RulesObjectNounPhrase,
     /// Bare nominal heads coordinated inside one determiner's scope. Dedicated
     /// consumers can inspect this constituent before its ordinary noun-phrase
     /// promotion erases the grammar-only shape feature.
@@ -876,6 +888,10 @@ pub(crate) enum NominalAttachmentPhase {
         nearer_relative_host: bool,
     },
     Relative,
+    /// The current right edge is an object-gap relative whose predicate
+    /// requires a rules object. The next complement replaces this phase; it
+    /// deliberately records no historical `has_*` state.
+    RulesObjectRelative,
     /// An otherwise-complete explicit relative ending in a bare copular verb
     /// (`creature that was`). A following participle belongs to that copula as
     /// its auxiliary complement, not to a second markerless relative.
@@ -1012,6 +1028,9 @@ pub(crate) enum Features {
         slot: VerbSlot,
         frame: PredicateFrame,
         head_is_copular: bool,
+        /// The missing direct object must be an object in the rules sense and
+        /// therefore cannot be supplied by a mass-noun antecedent.
+        object_gap_requires_rules_object: bool,
     },
     VerbPhrase {
         form: PredicateForm,
@@ -1025,6 +1044,9 @@ pub(crate) enum Features {
         /// Preserves whether the lexical predicate head is `be`; auxiliary
         /// folding never changes it.
         head_is_copular: bool,
+        /// Preserves the lexical head's object-gap host constraint through
+        /// auxiliaries and predicate attachments.
+        object_gap_requires_rules_object: bool,
         /// Set only by a `PastSubjunctive` `Be` auxiliary heading this verb
         /// phrase; threaded unchanged by reduces. Licensing gate: only
         /// `RuleTag::ClauseSubordinateAfter`/`…Comma` may accept a
@@ -1067,8 +1089,7 @@ pub(crate) enum Features {
         /// The object was parsed as nominal coordination under one shared
         /// determiner, rather than as coordination of complete noun phrases.
         shared_determiner_object: bool,
-        /// The coordinated object contains a nearer independently determined
-        /// antecedent for a following relative clause.
+        /// The object exposes a nearer nominal attachment site.
         nearer_relative_host: bool,
     },
     VerbParticle(VerbParticle),
@@ -1076,6 +1097,9 @@ pub(crate) enum Features {
     RelativeClause {
         gap: RelativeGap,
         antecedent_agreement: Option<Agreement>,
+        /// For an object gap, whether the matrix verb requires a rules object
+        /// and thus refuses a mass-noun antecedent.
+        object_gap_requires_rules_object: bool,
         /// True only when an explicit relative currently ends at a bare
         /// lexical `be` (`that was`), where a following participle must extend
         /// the same relative rather than attach as a reduced sibling.
@@ -1454,6 +1478,13 @@ enum RuleTag {
     /// Stage C grant nominal.
     NominalKeywordAtomCarriedPredicatedArgument,
     NominalRelative,
+    /// `RulesObjectNominal -> Nominal`, gated to the nominal's current
+    /// constrained-relative attachment phase at reduction time.
+    RulesObjectNominalBase,
+    /// Extends a rules-object nominal with a later ordinary relative.
+    RulesObjectFollowupNominalRelative,
+    /// Keeps a PP following that later relative inside the same nominal.
+    RulesObjectFollowupNominalPrepositional,
     NominalReducedRecipientPassive,
     NounPhraseSetExceptionBare,
     NounPhraseSetExceptionFor,
@@ -1466,6 +1497,7 @@ enum RuleTag {
     DevotionColorPair,
     NominalTimesClause,
     NounPhraseNominal,
+    RulesObjectNounPhrase,
     NounPhraseSubjectPronoun,
     NounPhraseObjectPronoun,
     NounPhraseReciprocal,
@@ -1499,6 +1531,9 @@ enum RuleTag {
     /// A recipient/source preposition whose coordinated object closes with an
     /// independently determined `each <nominal>` conjunct.
     PrepositionalPhraseCoordinated,
+    /// A coordinated PP object whose final member is proven by its dedicated
+    /// nonterminal to contain a constrained object-gap relative.
+    PrepositionalPhraseRulesObjectCoordinated,
     /// A preposition taking nominal material under one shared determiner.
     PrepositionalPhraseSharedDeterminer,
     PrepositionalPhrase,
@@ -1769,6 +1804,10 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // entire grammar. Its dot-1 host gate is categorical, and retaining
         // every earlier RuleId minimizes discovery-order perturbation.
         builder.add_shared_copular_coordination_rules();
+        // This ticket's scoped attachment categories are last of all: they
+        // exist only to retain the final member of coordinated PP objects and
+        // must not renumber the established grammar.
+        builder.add_rules_object_attachment_rules();
         Self {
             source,
             catalogs,
@@ -2702,6 +2741,59 @@ impl Grammar for EnglishGrammar<'_, '_> {
         children: &[Child<'_, Self>],
     ) -> Option<Reduction<Self::Features>> {
         reduce(self.tags.get(rule.index()).copied()?, children)
+    }
+
+    fn intermediate_cost(
+        &self,
+        rule: RuleId,
+        completed_children: &[Self::Features],
+        rule_start: usize,
+        latest_child_start: usize,
+        end: usize,
+    ) -> ParseCost {
+        let Some(tag) = self.tags.get(rule.index()).copied() else {
+            return ParseCost::default();
+        };
+        let attachment_distance = u32::try_from(latest_child_start.saturating_sub(rule_start))
+            .unwrap_or(u32::MAX)
+            .max(1);
+        let attachment_extent = u32::try_from(end.saturating_sub(rule_start))
+            .unwrap_or(u32::MAX)
+            .max(1);
+        match tag {
+            RuleTag::NominalRelative
+                if completed_children.len() == 2
+                    && matches!(
+                        completed_children.get(1),
+                        Some(Features::RelativeClause {
+                            gap: RelativeGap::Object,
+                            object_gap_requires_rules_object: true,
+                            ..
+                        })
+                    ) =>
+            {
+                // Keep the preference on this concrete packed split:
+                // reduction features deliberately merge competing attachment
+                // boundaries.
+                ParseCost {
+                    attachment_count: 1,
+                    attachment_distance,
+                    ..ParseCost::default()
+                }
+            }
+            RuleTag::RulesObjectFollowupNominalRelative
+            | RuleTag::RulesObjectFollowupNominalPrepositional
+                if completed_children.len() == 2 =>
+            {
+                ParseCost {
+                    attachment_count: 1,
+                    attachment_distance,
+                    attachment_extent,
+                    ..ParseCost::default()
+                }
+            }
+            _ => ParseCost::default(),
+        }
     }
 
     fn accepts_prefix(

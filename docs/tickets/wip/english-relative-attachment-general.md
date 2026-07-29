@@ -27,3 +27,10 @@ the recovery census stays at zero — so `uncontrollable-host` is the regression
 gate for this work. It must reach 0; run it with `--require-clean`. Note the
 lint's table is only `Control`/`Own`, so 431 is a floor, not a count of the
 family. Standard constraints apply.
+
+## Completion
+
+Object-gap `control`/`own` relatives now reject mass hosts and prefer the
+nearest licensed attachment; dedicated coordinated PP members remain open
+through later relative and PP modifiers. `uncontrollable-host` is empty, all
+31,685 supported faces round-trip cleanly, and the corpus provenance is laminar.

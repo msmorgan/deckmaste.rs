@@ -1410,6 +1410,388 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
 }
 
 #[test]
+fn rules_object_gap_skips_a_mass_comparison_head() {
+    let source = "the greatest toughness among creatures you control";
+    let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+        .expect("comparison-set nominal should parse");
+    let Some(NounPhrase::Nominal(toughness)) = parsed.noun_phrase() else {
+        panic!("expected a toughness nominal");
+    };
+    let [NominalComplement::Prepositional(set)] = toughness.complements.as_slice() else {
+        panic!("expected one comparison-set PP: {toughness:#?}");
+    };
+    assert_eq!(set.preposition, Preposition::Among);
+    let Phrase::NounPhrase(object) = set.object.as_ref() else {
+        panic!("expected a nominal comparison-set object: {set:#?}");
+    };
+    let NounPhrase::Nominal(object) = object.as_ref() else {
+        panic!("expected a nominal comparison-set object: {object:#?}");
+    };
+    assert!(
+        matches!(
+            object.complements.as_slice(),
+            [NominalComplement::Relative(RelativeClause {
+                marker: RelativeMarker::Zero,
+                gap: RelativeGap::Object,
+                ..
+            })]
+        ),
+        "the comparison-set member must host the relative: {object:#?}"
+    );
+}
+
+#[test]
+fn subject_gap_attachment_remains_governed_by_agreement() {
+    let source = "the toughness among creatures that is equal to 2";
+    let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+        .expect("singular relative should attach to singular toughness");
+    let Some(NounPhrase::Nominal(toughness)) = parsed.noun_phrase() else {
+        panic!("expected a toughness nominal");
+    };
+    assert!(
+        matches!(
+            toughness.complements.as_slice(),
+            [
+                NominalComplement::Prepositional(PrepositionalPhrase {
+                    preposition: Preposition::Among,
+                    ..
+                }),
+                NominalComplement::Relative(RelativeClause {
+                    marker: RelativeMarker::That,
+                    gap: RelativeGap::Subject,
+                    ..
+                }),
+                ..
+            ]
+        ),
+        "agreement must keep the relative on the outer singular head: {toughness:#?}"
+    );
+}
+
+#[test]
+fn rules_object_gap_reaches_the_deepest_nested_pp_host() {
+    let source = "damage to each player equal to the number of lands they control";
+    let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+        .expect("nested damage nominal should parse");
+    let Some(NounPhrase::Nominal(damage)) = parsed.noun_phrase() else {
+        panic!("expected a damage nominal");
+    };
+    assert!(
+        !damage
+            .complements
+            .iter()
+            .any(|complement| matches!(complement, NominalComplement::Relative(_))),
+        "the rules-object gap cannot remain on mass damage: {damage:#?}"
+    );
+    let Some(lands) = damage.complements.iter().find_map(|complement| {
+        let NominalComplement::Prepositional(phrase) = complement else {
+            return None;
+        };
+        let Phrase::NounPhrase(object) = phrase.object.as_ref() else {
+            return None;
+        };
+        let NounPhrase::Nominal(object) = object.as_ref() else {
+            return None;
+        };
+        matches!(object.head, NounInstance::Plural(_)).then_some(object)
+    }) else {
+        panic!("expected a plural lands host below the damage PPs: {damage:#?}");
+    };
+    assert!(matches!(
+        lands.complements.as_slice(),
+        [NominalComplement::Relative(RelativeClause {
+            marker: RelativeMarker::Zero,
+            gap: RelativeGap::Object,
+            ..
+        })]
+    ));
+}
+
+#[test]
+fn rules_object_gap_ranks_valid_hosts_across_nested_pps() {
+    let source = "spells from among cards in exile your opponents own";
+    let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+        .expect("nested ownership nominal should parse");
+    let Some(NounPhrase::Nominal(spells)) = parsed.noun_phrase() else {
+        panic!("expected a spells nominal");
+    };
+    let [NominalComplement::Prepositional(from)] = spells.complements.as_slice() else {
+        panic!("ownership relative must not remain on spells: {spells:#?}");
+    };
+    let Phrase::PrepositionalPhrase(among) = from.object.as_ref() else {
+        panic!("expected nested `from among` PPs: {from:#?}");
+    };
+    let Phrase::NounPhrase(cards) = among.object.as_ref() else {
+        panic!("expected cards inside `among`: {among:#?}");
+    };
+    let NounPhrase::Nominal(cards) = cards.as_ref() else {
+        panic!("expected a cards nominal: {cards:#?}");
+    };
+    assert!(matches!(
+        cards.complements.as_slice(),
+        [
+            NominalComplement::Prepositional(PrepositionalPhrase {
+                preposition: Preposition::In,
+                ..
+            }),
+            NominalComplement::Relative(RelativeClause {
+                marker: RelativeMarker::Zero,
+                gap: RelativeGap::Object,
+                ..
+            })
+        ]
+    ));
+}
+
+#[test]
+fn invalid_mass_pp_object_falls_back_to_the_outer_count_host() {
+    let source = "target creature with flying an opponent controls";
+    let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+        .expect("selectionally constrained outer relative should parse");
+    let Some(NounPhrase::Nominal(creature)) = parsed.noun_phrase() else {
+        panic!("expected a creature nominal");
+    };
+    assert!(matches!(
+        creature.complements.as_slice(),
+        [
+            NominalComplement::Prepositional(PrepositionalPhrase {
+                preposition: Preposition::With,
+                ..
+            }),
+            NominalComplement::Relative(RelativeClause {
+                marker: RelativeMarker::Zero,
+                gap: RelativeGap::Object,
+                ..
+            })
+        ]
+    ));
+}
+
+#[test]
+fn rules_object_gap_keeps_coordinated_members_inside_the_preposition() {
+    let source = "damage to you and creatures you control";
+    let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+        .expect("coordinated recipient nominal should parse");
+    let Some(NounPhrase::Nominal(damage)) = parsed.noun_phrase() else {
+        panic!("expected a damage nominal");
+    };
+    let [NominalComplement::Prepositional(recipient)] = damage.complements.as_slice() else {
+        panic!("damage must retain one coordinated recipient PP: {damage:#?}");
+    };
+    assert_eq!(recipient.preposition, Preposition::To);
+    let Phrase::NounPhrase(recipient) = recipient.object.as_ref() else {
+        panic!("expected a noun-phrase recipient: {recipient:#?}");
+    };
+    let NounPhrase::Coordinated(recipient) = recipient.as_ref() else {
+        panic!("expected recipient coordination inside `to`: {recipient:#?}");
+    };
+    assert!(matches!(
+        recipient.first.as_ref(),
+        NounPhrase::Pronoun {
+            pronoun: crate::word::Pronoun::You,
+            ..
+        }
+    ));
+    let [creatures] = recipient.rest.as_slice() else {
+        panic!("expected one coordinated creature member: {recipient:#?}");
+    };
+    let NounPhrase::Nominal(creatures) = &creatures.phrase else {
+        panic!("expected a nominal creature member: {creatures:#?}");
+    };
+    assert!(matches!(
+        creatures.complements.as_slice(),
+        [NominalComplement::Relative(RelativeClause {
+            marker: RelativeMarker::Zero,
+            gap: RelativeGap::Object,
+            ..
+        })]
+    ));
+}
+
+#[test]
+fn rules_object_gap_prefers_the_nearest_preposition_without_stealing_its_subject() {
+    let source = "control of all artifacts and creatures target opponent controls";
+    let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+        .expect("coordinated control nominal should parse");
+    let Some(NounPhrase::Nominal(control)) = parsed.noun_phrase() else {
+        panic!("expected a control nominal");
+    };
+    let [NominalComplement::Prepositional(objects)] = control.complements.as_slice() else {
+        panic!("control must retain one coordinated `of` PP: {control:#?}");
+    };
+    assert_eq!(objects.preposition, Preposition::Of);
+    let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
+        panic!("expected noun-phrase objects: {objects:#?}");
+    };
+    let NounPhrase::Coordinated(objects) = objects.as_ref() else {
+        panic!("expected coordination inside `of`: {objects:#?}");
+    };
+    let [creatures] = objects.rest.as_slice() else {
+        panic!("expected one creature member: {objects:#?}");
+    };
+    let NounPhrase::Nominal(creatures) = &creatures.phrase else {
+        panic!("expected a creature nominal: {creatures:#?}");
+    };
+    let [NominalComplement::Relative(relative)] = creatures.complements.as_slice() else {
+        panic!("creatures must host the relative: {creatures:#?}");
+    };
+    let RelativeBody::ObjectGap {
+        subject: Subject(NounPhrase::Nominal(subject)),
+        ..
+    } = &relative.body
+    else {
+        panic!("expected an object-gap relative with a nominal subject: {relative:#?}");
+    };
+    assert_eq!(subject.determiner, Some(Determiner::Target(None)));
+    assert!(matches!(
+        subject.head,
+        NounInstance::Singular(Noun::Word(Vocab::Opponent))
+    ));
+}
+
+#[test]
+fn coordinated_member_consumes_following_modifiers_before_the_pp_closes() {
+    let source = "control of target nonland permanent you control and target permanent an opponent controls that shares a card type with it";
+    let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+        .expect("multiply modified coordinated control nominal should parse");
+    let Some(NounPhrase::Nominal(control)) = parsed.noun_phrase() else {
+        panic!("expected a control nominal");
+    };
+    let [NominalComplement::Prepositional(objects)] = control.complements.as_slice() else {
+        panic!("control must retain one complete `of` PP: {control:#?}");
+    };
+    let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
+        panic!("expected noun-phrase objects: {objects:#?}");
+    };
+    let NounPhrase::Coordinated(objects) = objects.as_ref() else {
+        panic!("expected coordination inside `of`: {objects:#?}");
+    };
+    let [second] = objects.rest.as_slice() else {
+        panic!("expected one second permanent: {objects:#?}");
+    };
+    let NounPhrase::Nominal(second) = &second.phrase else {
+        panic!("expected a nominal second permanent: {second:#?}");
+    };
+    assert!(matches!(
+        second.complements.as_slice(),
+        [
+            NominalComplement::Relative(RelativeClause {
+                gap: RelativeGap::Object,
+                ..
+            }),
+            NominalComplement::Relative(RelativeClause {
+                gap: RelativeGap::Subject,
+                ..
+            }),
+            NominalComplement::Prepositional(PrepositionalPhrase {
+                preposition: Preposition::With,
+                ..
+            })
+        ]
+    ));
+}
+
+#[test]
+fn coordinated_member_refuses_unrelated_following_pps() {
+    let source = "Gain control of target artifact or creature you control until end of turn.";
+    let parsed = parse(source);
+    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a transitive imperative");
+    };
+    let PredicateObject::NounPhrase(NounPhrase::Nominal(control)) = &predicate.object else {
+        panic!("expected a nominal control object: {predicate:#?}");
+    };
+    let [
+        NominalComplement::Prepositional(objects),
+        NominalComplement::Prepositional(PrepositionalPhrase {
+            preposition: Preposition::Until,
+            ..
+        }),
+        NominalComplement::Prepositional(PrepositionalPhrase {
+            preposition: Preposition::Of,
+            ..
+        }),
+    ] = control.complements.as_slice()
+    else {
+        panic!("the following PPs must remain outside the final member: {control:#?}");
+    };
+    let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
+        panic!("expected noun-phrase objects: {objects:#?}");
+    };
+    let NounPhrase::Coordinated(objects) = objects.as_ref() else {
+        panic!("expected coordination inside `of`: {objects:#?}");
+    };
+    let [last] = objects.rest.as_slice() else {
+        panic!("expected one final creature member: {objects:#?}");
+    };
+    let NounPhrase::Nominal(creature) = &last.phrase else {
+        panic!("expected a nominal creature member: {last:#?}");
+    };
+    assert!(matches!(
+        creature.complements.as_slice(),
+        [NominalComplement::Relative(RelativeClause {
+            gap: RelativeGap::Object,
+            ..
+        })]
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
+    let source = "Put a counter on each creature or permanent you control that entered the battlefield this turn.";
+    let parsed = parse(source);
+    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a transitive imperative");
+    };
+    assert!(
+        predicate.elements.is_empty(),
+        "the temporal adjunct belongs to the later relative: {predicate:#?}"
+    );
+    let PredicateObject::NounPhrase(NounPhrase::Nominal(counter)) = &predicate.object else {
+        panic!("expected a counter nominal: {predicate:#?}");
+    };
+    let [NominalComplement::Prepositional(objects)] = counter.complements.as_slice() else {
+        panic!("counter must retain one complete `on` PP: {counter:#?}");
+    };
+    let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
+        panic!("expected noun-phrase counter recipients: {objects:#?}");
+    };
+    let NounPhrase::Coordinated(objects) = objects.as_ref() else {
+        panic!("expected coordinated counter recipients: {objects:#?}");
+    };
+    let [last] = objects.rest.as_slice() else {
+        panic!("expected one final permanent member: {objects:#?}");
+    };
+    let NounPhrase::Nominal(permanent) = &last.phrase else {
+        panic!("expected a nominal permanent member: {last:#?}");
+    };
+    let [
+        NominalComplement::Relative(RelativeClause {
+            gap: RelativeGap::Object,
+            ..
+        }),
+        NominalComplement::Relative(RelativeClause {
+            gap: RelativeGap::Subject,
+            body: RelativeBody::SubjectGap(Predicate::Transitive(entered)),
+            ..
+        }),
+    ] = permanent.complements.as_slice()
+    else {
+        panic!("the final member must retain both relatives: {permanent:#?}");
+    };
+    assert!(matches!(
+        entered.elements.as_slice(),
+        [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
 fn repeated_damage_themes_coordinate_as_complete_noun_phrases() {
     let source = "This card deals 2 damage to each attacking creature and 1 damage to you and each creature you control.";
     let parsed = parse(source);
@@ -3229,6 +3611,7 @@ fn predicate_prefix_pruning_keeps_possible_nominal_adjuncts() {
         frame: PredicateFrame::OPEN,
         bare: object == PredicateObjectState::None,
         head_is_copular: false,
+        object_gap_requires_rules_object: false,
         subjunctive: false,
     };
     let open = predicate(PredicateObjectState::None, PredicateAttachmentPhase::Object);

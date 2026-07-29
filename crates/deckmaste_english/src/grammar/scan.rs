@@ -871,6 +871,15 @@ pub(super) fn lexical_word_matches(
                     slot: verb.slot,
                     frame,
                     head_is_copular: verb.verb == Verb::Word(Vocab::Be),
+                    // `control` and `own` take objects in the rules sense
+                    // [CR#109.1]. A mass noun such as damage cannot fill that
+                    // object gap [CR#120.1]. Keep this lexical fact on the
+                    // grammar item so attachment can reject an impossible
+                    // antecedent before lowering erases the competing parse.
+                    object_gap_requires_rules_object: matches!(
+                        verb.verb,
+                        Verb::Word(Vocab::Control | Vocab::Own)
+                    ),
                 },
                 meaning: MeaningKey::Verb(VerbAnalysis {
                     instance: verb.clone(),

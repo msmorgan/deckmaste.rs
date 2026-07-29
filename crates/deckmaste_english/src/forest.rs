@@ -8,7 +8,7 @@ use hashbrown::hash_map::Entry;
 
 use crate::chart::RuleId;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub(crate) struct ParseCost {
     pub(crate) opaque_words: u32,
     pub(crate) opaque_lexemes: u32,
@@ -28,7 +28,45 @@ pub(crate) struct ParseCost {
     ///   (a nickname that coincides with a common noun, e.g. `Carnage`, in a
     ///   re-parsed trigger event whose position 0 only looks sentence-initial).
     pub(crate) reading_dispreference: u32,
+    /// Number of licensed, selectionally constrained attachment decisions.
+    /// Unlike every dispreference in this cost, higher wins; distance then
+    /// chooses the nearest boundary among readings with the same count.
+    pub(crate) attachment_count: u32,
+    /// Source-token distance crossed by those attachment decisions. Lower
+    /// wins after `attachment_count`, so a host cannot swallow the beginning
+    /// of its relative clause merely to start later.
+    pub(crate) attachment_distance: u32,
+    /// Source-token extent of a grammar-local open attachment. Higher wins;
+    /// only dedicated constructions set it, after their categorical gates
+    /// have excluded unrelated phrase types.
+    pub(crate) attachment_extent: u32,
     pub(crate) precedence: u32,
+}
+
+impl Ord for ParseCost {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.opaque_words
+            .cmp(&other.opaque_words)
+            .then_with(|| self.opaque_lexemes.cmp(&other.opaque_lexemes))
+            .then_with(|| self.generic_rules.cmp(&other.generic_rules))
+            .then_with(|| {
+                self.reading_dispreference
+                    .cmp(&other.reading_dispreference)
+            })
+            // More licensed decisions are preferred, hence reversed operands.
+            .then_with(|| {
+                other.attachment_count.cmp(&self.attachment_count)
+            })
+            .then_with(|| self.attachment_distance.cmp(&other.attachment_distance))
+            .then_with(|| other.attachment_extent.cmp(&self.attachment_extent))
+            .then_with(|| self.precedence.cmp(&other.precedence))
+    }
+}
+
+impl PartialOrd for ParseCost {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Add for ParseCost {
@@ -48,6 +86,11 @@ impl AddAssign for ParseCost {
         self.reading_dispreference = self
             .reading_dispreference
             .saturating_add(rhs.reading_dispreference);
+        self.attachment_count = self.attachment_count.saturating_add(rhs.attachment_count);
+        self.attachment_distance = self
+            .attachment_distance
+            .saturating_add(rhs.attachment_distance);
+        self.attachment_extent = self.attachment_extent.saturating_add(rhs.attachment_extent);
         self.precedence = self.precedence.saturating_add(rhs.precedence);
     }
 }
@@ -397,6 +440,30 @@ mod tests {
     use super::ParseCost;
     use super::ParseForest;
     use crate::chart::RuleId;
+
+    #[test]
+    fn attachment_preferences_are_lexicographic() {
+        let unlicensed = ParseCost::default();
+        let farther_licensed = ParseCost {
+            attachment_count: 1,
+            attachment_distance: 4,
+            ..ParseCost::default()
+        };
+        let nearer_licensed = ParseCost {
+            attachment_count: 1,
+            attachment_distance: 2,
+            ..ParseCost::default()
+        };
+        let nearer_and_more_complete = ParseCost {
+            attachment_count: 1,
+            attachment_distance: 2,
+            attachment_extent: 5,
+            ..ParseCost::default()
+        };
+        assert!(farther_licensed < unlicensed);
+        assert!(nearer_licensed < farther_licensed);
+        assert!(nearer_and_more_complete < nearer_licensed);
+    }
 
     #[test]
     fn equal_nodes_pack_alternatives_and_choose_the_lower_cost() {

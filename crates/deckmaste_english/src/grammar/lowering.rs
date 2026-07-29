@@ -322,6 +322,9 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::NominalKeywordAtomCarriedPredicatedArgument
         | RuleTag::NominalPowerToughnessComplement
         | RuleTag::NominalRelative
+        | RuleTag::RulesObjectNominalBase
+        | RuleTag::RulesObjectFollowupNominalRelative
+        | RuleTag::RulesObjectFollowupNominalPrepositional
         | RuleTag::NominalReducedRecipientPassive
         | RuleTag::NominalPostpositiveAdjective
         | RuleTag::NominalComparison
@@ -338,6 +341,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::CoordinatedModifierOxford
         | RuleTag::NominalCoordinatedModifier => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
+        | RuleTag::RulesObjectNounPhrase
         | RuleTag::NounPhraseDamageCoordination
         | RuleTag::SharedDeterminerNominal
         | RuleTag::NounPhraseSharedDeterminer
@@ -365,6 +369,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::NounPhraseHalfRoundedUp
         | RuleTag::NounPhraseHalfRoundedDown
         | RuleTag::PrepositionalPhraseCoordinated
+        | RuleTag::PrepositionalPhraseRulesObjectCoordinated
         | RuleTag::PrepositionalPhraseSharedDeterminer
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => lower_phrase(tag, children),
@@ -625,7 +630,7 @@ pub(super) fn detach_keyword_noun(noun: &mut NounInstance) {
 )]
 pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::Adjective | RuleTag::Noun => take(children, 0),
+        RuleTag::Adjective | RuleTag::Noun | RuleTag::RulesObjectNominalBase => take(children, 0),
         RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
             let orientation = match tag {
                 RuleTag::AdjectivePhraseFaceUp => CardOrientation::FaceUp,
@@ -816,7 +821,7 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             nominal.determiner = Some(determiner);
             Some(Lowered::Nominal(nominal))
         }
-        RuleTag::NominalPrepositional => {
+        RuleTag::NominalPrepositional | RuleTag::RulesObjectFollowupNominalPrepositional => {
             let Lowered::Nominal(mut nominal) = take(children, 0)? else {
                 return None;
             };
@@ -942,7 +947,7 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                 .push(NominalComplement::PowerToughness(power_toughness));
             Some(Lowered::Nominal(nominal))
         }
-        RuleTag::NominalRelative => {
+        RuleTag::NominalRelative | RuleTag::RulesObjectFollowupNominalRelative => {
             let Lowered::Nominal(mut nominal) = take(children, 0)? else {
                 return None;
             };
@@ -1246,7 +1251,9 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 },
             )))
         }
-        RuleTag::NounPhraseNominal | RuleTag::ReducedRecipientPassiveTheme => {
+        RuleTag::NounPhraseNominal
+        | RuleTag::RulesObjectNounPhrase
+        | RuleTag::ReducedRecipientPassiveTheme => {
             let Lowered::Nominal(nominal) = take(children, 0)? else {
                 return None;
             };
@@ -1452,16 +1459,17 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             };
             Some(Lowered::Phrase(phrase))
         }
-        RuleTag::PrepositionalPhraseCoordinated => {
-            let Lowered::Preposition(preposition @ (Preposition::To | Preposition::From)) =
-                take(children, 0)?
-            else {
+        RuleTag::PrepositionalPhraseCoordinated
+        | RuleTag::PrepositionalPhraseRulesObjectCoordinated => {
+            let (conjunction_index, next_index, comma) =
+                if children.len() == 5 { (3, 4, true) } else { (2, 3, false) };
+            let Lowered::Preposition(preposition) = take(children, 0)? else {
                 return None;
             };
             let Lowered::NounPhrase(first) = take(children, 1)? else {
                 return None;
             };
-            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+            let Lowered::Conjunction(conjunction) = take(children, conjunction_index)? else {
                 return None;
             };
             let conjunction = match conjunction {
@@ -1474,14 +1482,14 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 }
                 crate::syntax::PredicateConjunction::Then => return None,
             };
-            let Lowered::NounPhrase(next) = take(children, 3)? else {
+            let Lowered::NounPhrase(next) = take(children, next_index)? else {
                 return None;
             };
             let object = push_noun_phrase_coordination(
                 first,
                 crate::syntax::NounPhraseCoordination {
                     conjunction: Some(conjunction),
-                    comma: false,
+                    comma,
                     phrase: next,
                 },
             );

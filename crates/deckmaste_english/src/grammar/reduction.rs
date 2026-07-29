@@ -81,6 +81,9 @@ pub(super) fn reduce(
         | RuleTag::NominalKeywordAtomCarriedPredicatedArgument
         | RuleTag::NominalPowerToughnessComplement
         | RuleTag::NominalRelative
+        | RuleTag::RulesObjectNominalBase
+        | RuleTag::RulesObjectFollowupNominalRelative
+        | RuleTag::RulesObjectFollowupNominalPrepositional
         | RuleTag::NominalReducedRecipientPassive
         | RuleTag::NominalPostpositiveAdjective
         | RuleTag::NominalComparison
@@ -97,6 +100,7 @@ pub(super) fn reduce(
         | RuleTag::CoordinatedModifierOxford
         | RuleTag::NominalCoordinatedModifier => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
+        | RuleTag::RulesObjectNounPhrase
         | RuleTag::NounPhraseDamageCoordination
         | RuleTag::SharedDeterminerNominal
         | RuleTag::NounPhraseSharedDeterminer
@@ -124,6 +128,7 @@ pub(super) fn reduce(
         | RuleTag::NounPhraseHalfRoundedUp
         | RuleTag::NounPhraseHalfRoundedDown
         | RuleTag::PrepositionalPhraseCoordinated
+        | RuleTag::PrepositionalPhraseRulesObjectCoordinated
         | RuleTag::PrepositionalPhraseSharedDeterminer
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
@@ -680,7 +685,7 @@ pub(super) fn reduce_nominal(
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
-        RuleTag::NominalPrepositional => {
+        RuleTag::NominalPrepositional | RuleTag::RulesObjectFollowupNominalPrepositional => {
             let Features::Nominal {
                 form,
                 initial_sound,
@@ -858,8 +863,20 @@ pub(super) fn reduce_nominal(
                 recipient_passive_theme: false,
             })
         }
+        RuleTag::RulesObjectNominalBase => {
+            let nominal = children.first()?;
+            matches!(
+                nominal.features,
+                Features::Nominal {
+                    attachment: NominalAttachmentPhase::RulesObjectRelative,
+                    ..
+                }
+            )
+            .then(|| propagate(nominal))
+        }
         RuleTag::NominalQuantityComplement
         | RuleTag::NominalRelative
+        | RuleTag::RulesObjectFollowupNominalRelative
         | RuleTag::NominalReducedRecipientPassive => {
             let Features::Nominal {
                 form,
@@ -885,7 +902,22 @@ pub(super) fn reduce_nominal(
             ) {
                 return None;
             }
-            if tag == RuleTag::NominalRelative
+            let is_relative = matches!(
+                tag,
+                RuleTag::NominalRelative | RuleTag::RulesObjectFollowupNominalRelative
+            );
+            let rules_object_relative = matches!(
+                children.get(1)?.features,
+                Features::RelativeClause {
+                    gap: RelativeGap::Object,
+                    object_gap_requires_rules_object: true,
+                    ..
+                }
+            );
+            if is_relative && *form == NounForm::Mass && rules_object_relative {
+                return None;
+            }
+            if is_relative
                 && let Features::RelativeClause {
                     gap: RelativeGap::Subject,
                     antecedent_agreement: Some(agreement),
@@ -925,7 +957,7 @@ pub(super) fn reduce_nominal(
                 modified: *modified,
                 leading_opacity: *leading_opacity,
                 attachment: match tag {
-                    RuleTag::NominalRelative => {
+                    RuleTag::NominalRelative | RuleTag::RulesObjectFollowupNominalRelative => {
                         if matches!(
                             children.get(1)?.features,
                             Features::RelativeClause {
@@ -934,6 +966,8 @@ pub(super) fn reduce_nominal(
                             }
                         ) {
                             NominalAttachmentPhase::RelativeBareCopula
+                        } else if rules_object_relative {
+                            NominalAttachmentPhase::RulesObjectRelative
                         } else {
                             NominalAttachmentPhase::Relative
                         }
@@ -1374,7 +1408,9 @@ pub(super) fn reduce_phrase(
                 set_exception: SetExceptionState::Closed,
             })
         }
-        RuleTag::NounPhraseNominal | RuleTag::ReducedRecipientPassiveTheme => {
+        RuleTag::NounPhraseNominal
+        | RuleTag::RulesObjectNounPhrase
+        | RuleTag::ReducedRecipientPassiveTheme => {
             let Features::Nominal {
                 form,
                 determined,
@@ -1585,36 +1621,9 @@ pub(super) fn reduce_phrase(
             };
             Some(arithmetic_value_features())
         }
-        RuleTag::PrepositionalPhraseCoordinated => {
-            let Features::Preposition(preposition @ (Preposition::To | Preposition::From)) =
-                children.first()?.features
-            else {
-                return None;
-            };
-            let Features::NounPhrase { .. } = children.get(1)?.features else {
-                return None;
-            };
-            let Features::Conjunction(
-                crate::syntax::PredicateConjunction::And
-                | crate::syntax::PredicateConjunction::Or
-                | crate::syntax::PredicateConjunction::AndOr,
-            ) = children.get(2)?.features
-            else {
-                return None;
-            };
-            let Features::NounPhrase {
-                set_exception: SetExceptionState::Host,
-                ..
-            } = children.get(3)?.features
-            else {
-                return None;
-            };
-            Some(Features::PrepositionalPhrase {
-                preposition: *preposition,
-                nominal_attachment: true,
-                shared_determiner_object: false,
-                nearer_relative_host: *preposition == Preposition::To,
-            })
+        RuleTag::PrepositionalPhraseCoordinated
+        | RuleTag::PrepositionalPhraseRulesObjectCoordinated => {
+            reduce_coordinated_prepositional_phrase(tag, children)
         }
         RuleTag::PrepositionalPhraseSharedDeterminer => {
             let Features::Preposition(preposition) = children.first()?.features else {
@@ -1649,6 +1658,43 @@ pub(super) fn reduce_phrase(
         }),
         _ => None,
     }
+}
+
+fn reduce_coordinated_prepositional_phrase(
+    tag: RuleTag,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Option<Reduced> {
+    let (conjunction_index, next_index) = if children.len() == 5 { (3, 4) } else { (2, 3) };
+    let Features::Preposition(preposition) = children.first()?.features else {
+        return None;
+    };
+    let Features::NounPhrase { .. } = children.get(1)?.features else {
+        return None;
+    };
+    let Features::Conjunction(
+        crate::syntax::PredicateConjunction::And
+        | crate::syntax::PredicateConjunction::Or
+        | crate::syntax::PredicateConjunction::AndOr,
+    ) = children.get(conjunction_index)?.features
+    else {
+        return None;
+    };
+    let Features::NounPhrase { set_exception, .. } = children.get(next_index)?.features else {
+        return None;
+    };
+    if tag == RuleTag::PrepositionalPhraseCoordinated
+        && (children.len() != 4
+            || !matches!(preposition, Preposition::To | Preposition::From)
+            || *set_exception != SetExceptionState::Host)
+    {
+        return None;
+    }
+    Some(Features::PrepositionalPhrase {
+        preposition: *preposition,
+        nominal_attachment: true,
+        shared_determiner_object: false,
+        nearer_relative_host: *preposition == Preposition::To,
+    })
 }
 
 pub(super) fn reduce_noun_phrase_coordination(

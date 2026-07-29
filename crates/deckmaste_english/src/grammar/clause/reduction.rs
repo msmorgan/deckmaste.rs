@@ -439,6 +439,7 @@ pub(super) fn reduce_predicate(
                 slot,
                 frame,
                 head_is_copular,
+                object_gap_requires_rules_object,
             } = children.first()?.features
             else {
                 return None;
@@ -454,6 +455,7 @@ pub(super) fn reduce_predicate(
                 frame: *frame,
                 bare: true,
                 head_is_copular: *head_is_copular,
+                object_gap_requires_rules_object: *object_gap_requires_rules_object,
                 subjunctive: false,
             })
         }
@@ -472,6 +474,7 @@ pub(super) fn reduce_predicate(
                 frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
                 bare: false,
                 head_is_copular: false,
+                object_gap_requires_rules_object: false,
                 subjunctive: matches!(
                     auxiliary.inflection,
                     crate::word::AuxiliaryInflection::PastSubjunctive
@@ -491,6 +494,7 @@ pub(super) fn reduce_predicate(
                 phase,
                 frame,
                 head_is_copular,
+                object_gap_requires_rules_object,
                 subjunctive: child_subjunctive,
                 ..
             } = children.get(1)?.features
@@ -521,6 +525,7 @@ pub(super) fn reduce_predicate(
                 frame: *frame,
                 bare: false,
                 head_is_copular: *head_is_copular,
+                object_gap_requires_rules_object: *object_gap_requires_rules_object,
                 subjunctive,
             })
         }
@@ -728,6 +733,7 @@ pub(super) fn reduce_predicate(
                 phase: PredicateAttachmentPhase::Object,
                 frame,
                 head_is_copular,
+                object_gap_requires_rules_object,
                 ..
             } = children.first()?.features
             else {
@@ -781,6 +787,7 @@ pub(super) fn reduce_predicate(
                 frame: *frame,
                 bare: false,
                 head_is_copular: *head_is_copular,
+                object_gap_requires_rules_object: *object_gap_requires_rules_object,
                 subjunctive: false,
             })
         }
@@ -805,6 +812,7 @@ pub(super) fn extend_predicate(
         phase,
         frame,
         head_is_copular,
+        object_gap_requires_rules_object,
         subjunctive,
         ..
     } = predicate.features
@@ -975,6 +983,7 @@ pub(super) fn extend_predicate(
         frame,
         bare: false,
         head_is_copular: *head_is_copular,
+        object_gap_requires_rules_object: *object_gap_requires_rules_object,
         subjunctive: *subjunctive,
     })
 }
@@ -1437,6 +1446,7 @@ pub(super) fn reduce_simple_clause(
                 selected_preposition,
                 frame,
                 bare,
+                object_gap_requires_rules_object,
                 ..
             } = children.get(1)?.features
             else {
@@ -1451,6 +1461,7 @@ pub(super) fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Object,
                 antecedent_agreement: None,
+                object_gap_requires_rules_object: *object_gap_requires_rules_object,
                 bare_copular_tail: false,
             })
         }
@@ -1470,6 +1481,7 @@ pub(super) fn reduce_simple_clause(
                 selected_preposition,
                 frame,
                 bare,
+                object_gap_requires_rules_object,
                 ..
             } = children.get(1)?.features
             else {
@@ -1489,6 +1501,7 @@ pub(super) fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Object,
                 antecedent_agreement: None,
+                object_gap_requires_rules_object: *object_gap_requires_rules_object,
                 bare_copular_tail: false,
             })
         }
@@ -1518,6 +1531,7 @@ pub(super) fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: Some(predicate_agreement),
+                object_gap_requires_rules_object: false,
                 bare_copular_tail: false,
             })
         }
@@ -1548,6 +1562,7 @@ pub(super) fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: *antecedent_agreement,
+                object_gap_requires_rules_object: false,
                 bare_copular_tail: *bare && *head_is_copular,
             })
         }
@@ -1585,6 +1600,7 @@ pub(super) fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: Some(*agreement),
+                object_gap_requires_rules_object: false,
                 bare_copular_tail: *bare && *head_is_copular,
             })
         }
@@ -1621,6 +1637,7 @@ pub(super) fn reduce_simple_clause(
             Some(Features::RelativeClause {
                 gap: RelativeGap::Subject,
                 antecedent_agreement: Some(*agreement),
+                object_gap_requires_rules_object: false,
                 bare_copular_tail: false,
             })
         }

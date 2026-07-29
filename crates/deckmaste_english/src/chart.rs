@@ -92,6 +92,20 @@ pub(crate) trait Grammar {
         children: &[Child<'_, Self>],
     ) -> Option<Reduction<Self::Features>>;
 
+    /// Assign a cost to one concrete rule-prefix split. Unlike reduction
+    /// cost, this stays on the packed intermediate alternative, so grammars
+    /// can rank attachment boundaries without splitting chart or forest keys.
+    fn intermediate_cost(
+        &self,
+        _rule: RuleId,
+        _completed_children: &[Self::Features],
+        _rule_start: usize,
+        _latest_child_start: usize,
+        _end: usize,
+    ) -> ParseCost {
+        ParseCost::default()
+    }
+
     fn accepts_prefix(
         &self,
         _rule: RuleId,
@@ -413,6 +427,13 @@ where
         let mut prefix_features = Vec::with_capacity(item.prefix_features.len() + 1);
         prefix_features.extend(item.prefix_features.iter().cloned());
         prefix_features.push(child_features);
+        let intermediate_cost = self.grammar.intermediate_cost(
+            item.rule,
+            &prefix_features,
+            item.origin,
+            item_position,
+            position,
+        );
         let mut advanced = item.clone();
         advanced.dot += 1;
         advanced.prefix_features = prefix_features.into();
@@ -432,7 +453,7 @@ where
             PackedAlternative {
                 rule: None,
                 children,
-                local_cost: ParseCost::default(),
+                local_cost: intermediate_cost,
             },
         );
         enqueue(

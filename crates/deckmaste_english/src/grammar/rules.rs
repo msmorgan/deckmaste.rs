@@ -936,6 +936,78 @@ impl RuleBuilder {
         );
     }
 
+    /// Selectionally constrained relative attachment inside coordinated PP
+    /// objects. The grammar constructor registers these last so the dedicated
+    /// categories cannot renumber or perturb prior rules.
+    pub(super) fn add_rules_object_attachment_rules(&mut self) {
+        use EnglishLexicalSlot as L;
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        self.add(
+            RuleTag::RulesObjectNominalBase,
+            N::RulesObjectNominal,
+            [n(N::Nominal)],
+        );
+        self.add(
+            RuleTag::RulesObjectFollowupNominalRelative,
+            N::RulesObjectFollowupNominal,
+            [n(N::RulesObjectNominal), n(N::RelativeClause)],
+        );
+        self.add(
+            RuleTag::RulesObjectFollowupNominalRelative,
+            N::RulesObjectFollowupNominal,
+            [n(N::RulesObjectFollowupNominal), n(N::RelativeClause)],
+        );
+        self.add(
+            RuleTag::RulesObjectFollowupNominalPrepositional,
+            N::RulesObjectFollowupNominal,
+            [n(N::RulesObjectFollowupNominal), n(N::PrepositionalPhrase)],
+        );
+        self.add(
+            RuleTag::RulesObjectNounPhrase,
+            N::RulesObjectNounPhrase,
+            [n(N::RulesObjectNominal)],
+        );
+        self.add(
+            RuleTag::RulesObjectNounPhrase,
+            N::RulesObjectNounPhrase,
+            [n(N::RulesObjectFollowupNominal)],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseRulesObjectCoordinated,
+            N::PrepositionalPhrase,
+            [
+                l(L::Preposition),
+                n(N::NounPhrase),
+                l(L::Conjunction),
+                n(N::RulesObjectNounPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseRulesObjectCoordinated,
+            N::PrepositionalPhrase,
+            [
+                l(L::Preposition),
+                n(N::SharedDeterminerNominal),
+                l(L::Conjunction),
+                n(N::RulesObjectNounPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseRulesObjectCoordinated,
+            N::PrepositionalPhrase,
+            [
+                l(L::Preposition),
+                n(N::NounPhraseList),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Conjunction),
+                n(N::RulesObjectNounPhrase),
+            ],
+        );
+    }
+
     /// `kwgrant` round, Stage A: a parameterized keyword ability's symbol-cost
     /// argument fused onto its keyword-noun head in one production —
     /// `ward {2}`, `equip {1}`. The lexical head is one of the dedicated
