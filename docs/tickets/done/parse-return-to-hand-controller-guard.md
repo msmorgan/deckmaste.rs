@@ -30,6 +30,3 @@ declines (no controller restriction); the existing "Return a land you control â€
 
 (Surfaced by the code review on `engine-block-legality-query`; the finding is in
 the bounce-followups parse work, not that feature.)
-
-Completed 2026-07-28: the chosen-subject arm now requires the explicit `you
-control` restriction, with the unrestricted determiner form pinned to decline.
