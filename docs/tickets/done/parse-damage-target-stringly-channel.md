@@ -62,7 +62,3 @@ Verify: the existing `damage_target`/`parse_deal_damage` unit tests
 `DealsDamageToEach(...)` for each-shapes, X gated to mass only); `cargo xtask
 generate plugins/wizards` emits burn cards unchanged; `cargo test --workspace`
 green.
-
-Completed 2026-07-28: `DamagePatient` retains reference-vs-distributive shape,
-and `ParsedFilter` retains head and controller metadata. No consumer classifies
-either by inspecting rendered RON or raw suffix spelling.
