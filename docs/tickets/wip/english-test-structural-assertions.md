@@ -19,3 +19,13 @@ campaign keeps adding tests in the string idiom until then; accepted (cheap to
 write, converted mechanically here). Gate: exact test-count parity, and each
 converted assertion must still fail on the structure it guards (spot-verify by
 temporarily disabling one guarded mechanism). Standard constraints apply.
+
+## Completion
+
+- Replaced the targeted debug-substring checks with typed patterns/accessors at
+  exact 586-unit/115-public test-count parity; sensitivity probes failed when
+  their guarded structure was disabled, and the supported-corpus census and
+  round-trip remained unchanged.
+- Split the three false-positive parses exposed by the stronger assertions into
+  `english-exception-rider-quoted-conjunct`, `english-nearest-attributive-head`,
+  and `english-quoted-name-clause`.

@@ -1186,9 +1186,7 @@ fn numeral_before_an_or_comparative_stays_attributive() {
     // These are already resolved at baseline (attributive quantity +
     // adjective modifier, an existing pathway unrelated to
     // `AdjectiveComparisonState`); this round must not divert them
-    // through the new degree-measure production. `degree_leaks` walks
-    // the debug tree text as a coarse but exhaustive fidelity check: a
-    // `degree: Some` anywhere would mean the new rule mis-fired.
+    // through the new degree-measure production.
     for source in [
         "Repeat this process two more times.",
         "You can cast only one more spell this turn.",
@@ -1202,10 +1200,59 @@ fn numeral_before_an_or_comparative_stays_attributive() {
             source,
             "{source}"
         );
-        let tree = format!("{:#?}", parsed.sentence());
+        let sentence = parsed.sentence().expect(source);
+        let nominal = match &sentence.body {
+            SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+                predicate,
+            ))) => predicate.elements.iter().find_map(|element| match element {
+                PredicateElement::Adjunct(PredicateAdjunct::Temporal(NounPhrase::Nominal(
+                    nominal,
+                ))) => Some(nominal),
+                _ => None,
+            }),
+            SentenceBody::Independent(IndependentClause::Deontic(
+                _,
+                _,
+                Some(Predicate::Transitive(predicate)),
+            )) => match &predicate.object {
+                PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) => Some(nominal),
+                _ => None,
+            },
+            SentenceBody::Independent(IndependentClause::Complex(complex)) => {
+                let IndependentClause::Intransitive(_, predicate) = complex.matrix.as_ref() else {
+                    panic!("expected an intransitive matrix: {sentence:#?}");
+                };
+                predicate.elements.iter().find_map(|element| match element {
+                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                        PrepositionalPhrase { object, .. },
+                    )) => match object.as_ref() {
+                        Phrase::NounPhrase(noun) => match noun.as_ref() {
+                            NounPhrase::Nominal(nominal) => Some(nominal),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                })
+            }
+            _ => None,
+        }
+        .unwrap_or_else(|| panic!("expected the quantified comparative nominal: {sentence:#?}"));
+        let comparative = nominal
+            .modifiers
+            .iter()
+            .find_map(|modifier| match modifier {
+                NominalModifier::Adjective { phrase, .. }
+                    if matches!(phrase.head, Adjective::Word(Vocab::More | Vocab::Fewer)) =>
+                {
+                    Some(phrase)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected an attributive comparative: {nominal:#?}"));
         assert!(
-            !tree.contains("degree: Some"),
-            "{source} must not carry a degree measure: {tree}"
+            comparative.degree.is_none(),
+            "{source} must not carry a degree measure: {comparative:#?}"
         );
     }
 }
@@ -1847,20 +1894,53 @@ fn extra_and_additional_keep_their_distinct_printed_adjectives() {
 
 #[test]
 fn after_preposition_attaches_both_trailing_and_fronted() {
-    // Causal pair on the `after` preposition: a trailing temporal adjunct on
-    // an imperative, and a fronted one on an existential.
+    // Causal pair on the `after` preposition: a trailing complement of the
+    // turn nominal, and a fronted clause adjunct on an existential.
     let trailing = parse("Take an extra turn after this one.");
-    let debug = format!("{:?}", trailing.sentence().expect("trailing").body);
+    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
+        &trailing.sentence().expect("trailing").body
+    else {
+        panic!(
+            "expected an imperative transitive: {:#?}",
+            trailing.sentence()
+        );
+    };
     assert!(
-        debug.contains("Prepositional") && debug.contains("After"),
-        "trailing `after this one` should be a prepositional adjunct: {debug}"
+        matches!(
+            &predicate.object,
+            PredicateObject::NounPhrase(NounPhrase::Nominal(nominal))
+                if nominal.complements.iter().any(|complement| matches!(
+                    complement,
+                    NominalComplement::Prepositional(PrepositionalPhrase {
+                        preposition: Preposition::After,
+                        ..
+                    })
+                ))
+        ),
+        "trailing `after this one` should complement the turn nominal: {predicate:#?}"
     );
 
     let fronted = parse("After this phase, there is an additional combat phase.");
-    let debug = format!("{:?}", fronted.sentence().expect("fronted").body);
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &fronted.sentence().expect("fronted").body
+    else {
+        panic!("expected a complex clause: {:#?}", fronted.sentence());
+    };
     assert!(
-        debug.contains("After"),
-        "fronted `After this phase` should carry the After preposition: {debug}"
+        complex.attachments.iter().any(|attachment| matches!(
+            attachment,
+            ClauseAttachment {
+                position: AttachmentPosition::BeforeMatrix,
+                payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(
+                    PrepositionalPhrase {
+                        preposition: Preposition::After,
+                        ..
+                    }
+                )),
+                ..
+            }
+        )),
+        "fronted `After this phase` should carry the After preposition: {complex:#?}"
     );
 }
 
@@ -4877,14 +4957,34 @@ fn the_tie_is_broken_is_not_a_predicate_nominal() {
     let source = "The tied players repeat this process until the tie is broken.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let debug = format!("{:#?}", parsed.sentence().unwrap());
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect(source).body
+    else {
+        panic!(
+            "expected an until-attached complex clause: {:#?}",
+            parsed.sentence()
+        );
+    };
     assert!(
-        !debug.contains("OpaqueLexeme"),
-        "broken must never lower as an OpaqueLexeme: {debug}"
-    );
-    assert!(
-        debug.contains("Passive"),
-        "the until-complement must be a passive verb phrase, not a copular predicate-nominal: {debug}"
+        complex.attachments.iter().any(|attachment| matches!(
+            &attachment.payload,
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                Subordinator::Until,
+                SubordinateBody::Finite(clause),
+            )) if matches!(
+                clause.as_ref(),
+                IndependentClause::Passive(_, predicate)
+                    if matches!(
+                        predicate.head.verb,
+                        VerbInstance {
+                            verb: Verb::Word(Vocab::Break),
+                            slot: VerbSlot::PastParticiple,
+                        }
+                    )
+            )
+        )),
+        "the until-complement must be a passive verb phrase, not a copular \
+         predicate-nominal: {complex:#?}"
     );
 }
 
@@ -4893,11 +4993,7 @@ fn youve_is_never_an_opaque_noun() {
     let source = "Cast this spell only during the declare attackers step and only if you've been attacked this step.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let debug = format!("{:#?}", parsed.sentence().unwrap());
-    assert!(
-        !debug.contains("OpaqueLexeme(\n            \"you've\""),
-        "you've must never lower as an OpaqueLexeme: {debug}"
-    );
+    assert_eq!(render_sentence(parsed.sentence().expect(source)), source);
 }
 
 #[test]
@@ -5019,6 +5115,45 @@ fn clause_elements(clause: &IndependentClause) -> &[PredicateElement] {
     }
 }
 
+fn beginning_of_step_nominal(elements: &[PredicateElement]) -> &NominalPhrase {
+    let at = elements
+        .iter()
+        .find_map(|element| match element {
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))
+                if preposition.preposition == Preposition::At =>
+            {
+                Some(preposition)
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("expected an `at` adjunct: {elements:#?}"));
+    let Phrase::NounPhrase(at_object) = at.object.as_ref() else {
+        panic!("expected an `at` noun-phrase object: {at:#?}");
+    };
+    let NounPhrase::Nominal(beginning) = at_object.as_ref() else {
+        panic!("expected a `beginning` nominal: {at_object:#?}");
+    };
+    let of = beginning
+        .complements
+        .iter()
+        .find_map(|complement| match complement {
+            NominalComplement::Prepositional(preposition)
+                if preposition.preposition == Preposition::Of =>
+            {
+                Some(preposition)
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("expected an `of` complement: {beginning:#?}"));
+    let Phrase::NounPhrase(of_object) = of.object.as_ref() else {
+        panic!("expected an `of` noun-phrase object: {of:#?}");
+    };
+    let NounPhrase::Nominal(step) = of_object.as_ref() else {
+        panic!("expected a step nominal: {of_object:#?}");
+    };
+    step
+}
+
 fn intransitive_or_passive(
     clause: &IndependentClause,
 ) -> (&Subject, &crate::syntax::PredicateHead, &[PredicateElement]) {
@@ -5124,14 +5259,30 @@ fn next_cleanup_step_is_one_nominal() {
         no_stray_temporal_adjunct(elements),
         "no PredicateAdjunct::Temporal may appear here: {elements:#?}"
     );
-    let debug = format!("{elements:#?}");
+    let nominal = beginning_of_step_nominal(elements);
     assert!(
-        debug.contains("\"next\""),
-        "expected the `next` adjective on the `beginning of …` object: {debug}"
+        nominal.modifiers.iter().any(|modifier| matches!(
+            modifier,
+            NominalModifier::Adjective {
+                phrase: AdjectivePhrase {
+                    degree: None,
+                    head: Adjective::Word(vocab),
+                    ..
+                },
+                ..
+            } if matches!(vocab, Vocab::Regular(_)) && vocab.spelling() == "next"
+        )),
+        "expected the `next` adjective on the `beginning of …` object: {nominal:#?}"
     );
     assert!(
-        debug.contains("\"cleanup\""),
-        "expected `cleanup` as a modifier inside the same nominal: {debug}"
+        nominal.modifiers.iter().any(|modifier| matches!(
+            modifier,
+            NominalModifier::Noun {
+                noun: NounInstance::Singular(Noun::Opaque(opaque)),
+                ..
+            } if opaque.spelling() == "cleanup"
+        )),
+        "expected `cleanup` as a modifier inside the same nominal: {nominal:#?}"
     );
 }
 
@@ -5141,9 +5292,15 @@ fn known_noun_step_compounds_are_not_split() {
     // let slice B land — `draw`/`end` are fully known nouns, so the
     // slice-B misparse was invisible on the opacity axis and
     // byte-identical on roundtrip.
-    for source in [
-        "Exile them at the beginning of the next draw step.",
-        "Exile them at the beginning of the next end step.",
+    for (source, expected_modifier) in [
+        (
+            "Exile them at the beginning of the next draw step.",
+            Vocab::Draw,
+        ),
+        (
+            "Exile them at the beginning of the next end step.",
+            Vocab::End,
+        ),
     ] {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
@@ -5160,10 +5317,26 @@ fn known_noun_step_compounds_are_not_split() {
             no_stray_temporal_adjunct(elements),
             "no PredicateAdjunct::Temporal may appear here ({source}): {elements:#?}"
         );
-        let debug = format!("{elements:#?}");
+        let nominal = beginning_of_step_nominal(elements);
         assert!(
-            debug.contains("\"next\""),
-            "expected the compound modifier attached, not split ({source}): {debug}"
+            nominal.modifiers.iter().any(|modifier| matches!(
+                modifier,
+                NominalModifier::Adjective {
+                    phrase: AdjectivePhrase {
+                        degree: None,
+                        head: Adjective::Word(vocab),
+                        ..
+                    },
+                    ..
+                } if matches!(vocab, Vocab::Regular(_)) && vocab.spelling() == "next"
+            )) && nominal.modifiers.iter().any(|modifier| matches!(
+                modifier,
+                NominalModifier::Noun {
+                    noun: NounInstance::Singular(Noun::Word(vocab)),
+                    ..
+                } if *vocab == expected_modifier
+            )),
+            "expected both compound modifiers attached, not split ({source}): {nominal:#?}"
         );
     }
 }

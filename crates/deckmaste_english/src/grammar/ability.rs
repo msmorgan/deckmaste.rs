@@ -3395,7 +3395,7 @@ mod tests {
     }
 
     #[test]
-    fn a_quoted_name_is_not_admitted_as_a_grant_object() {
+    fn quoted_name_exposes_existing_clause_recovery_residue() {
         // Negative armor: a quoted string after `named` is a name, not a
         // granted ability. The grant-object slot fires only after a grant verb,
         // so the existing `named` machinery is untouched — no quoted-ability
@@ -3403,8 +3403,19 @@ mod tests {
         let source = "Create a token named \"A. B\" and draw a card.";
         let report = parse(source);
         assert!(
-            !format!("{:#?}", report.ast).contains("QuotedAbility"),
-            "a quoted name must not be lowered to a quoted ability"
+            matches!(
+                report.ast.abilities.as_slice(),
+                [Ability {
+                    kind: AbilityKind::Paragraph(Paragraph { sentences, .. }),
+                    ..
+                }] if matches!(sentences.as_slice(), [Sentence {
+                    body: SentenceBody::Recovered(_),
+                    ..
+                }])
+            ),
+            "existing residue: the quoted-name clause currently recovers instead of \
+             lowering a name object: {:#?}",
+            report.ast
         );
         assert_eq!(render(&report), source);
     }
@@ -4149,8 +4160,11 @@ mod tests {
             .filter(|component| matches!(component, CostComponent::Symbols(_)))
             .count();
         assert_eq!(symbol_components, 2);
-        let debug = format!("{report:#?}");
-        assert!(!debug.contains("Recovered"), "AST:\n{debug}");
+        assert!(
+            report.ast.recoveries().is_empty(),
+            "AST:\n{:#?}",
+            report.ast
+        );
     }
 
     #[test]
