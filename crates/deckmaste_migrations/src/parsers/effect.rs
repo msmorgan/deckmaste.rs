@@ -11,11 +11,26 @@ use crate::parsers::modify;
 use crate::parsers::modify::strip_prefix_ci;
 use crate::resolve::ResolveCtx;
 
+/// Zone from which an activated ability carrying this effect functions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum FunctionalZone {
+    Graveyard,
+}
+
+impl FunctionalZone {
+    pub(super) fn ron(self) -> &'static str {
+        match self {
+            Self::Graveyard => "Graveyard",
+        }
+    }
+}
+
 /// One parsed effect clause: `TargetSpec` RON fragments to declare on the
 /// frame (empty when the effect targets nothing), and the
 /// `OneShotEffect`/`Action` body RON, which references any declared targets as
 /// `It`, `It`…
 pub(super) struct ParsedEffect {
+    pub(super) functional_zone: Option<FunctionalZone>,
     pub(super) targets: Vec<String>,
     pub(super) effect: String,
 }
@@ -114,6 +129,7 @@ fn parse_player_taps_per_counter(
         return Ok(None);
     };
     Ok(Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![],
         effect: format!(
             "Each(binder: Choose(quantity: Exactly(CounterCount(This, {counter})), \
@@ -144,6 +160,7 @@ fn parse_rhystic_damage(line: &str) -> Option<ParsedEffect> {
             .ok()
             .flatten()?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec!["AnyTarget".to_owned()],
         effect: format!(
             "MayPay(actor: Coalesce([ControllerOf(Target(0)), Target(0)]), cost: [{}], \
@@ -214,6 +231,7 @@ fn parse_becomes_creature(line: &str) -> Option<ParsedEffect> {
             .map(|keyword| format!("GainAbility({keyword})")),
     );
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!(
             "Until(FixedUntil(EndOfTurn), [Modify(This, Several([{}]))])",
@@ -233,6 +251,7 @@ fn parse_gains_control(line: &str) -> Option<ParsedEffect> {
         _ => return None,
     };
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({filter})")],
         effect: "GainControl(This, Target(0))".to_owned(),
     })
@@ -263,6 +282,7 @@ fn parse_damage_and_damage(line: &str) -> Option<ParsedEffect> {
     let mut targets = first.targets;
     targets.extend(second.targets);
     Some(ParsedEffect {
+        functional_zone: None,
         targets,
         effect: format!("Sequentially([{}, {}])", first.effect, second.effect),
     })
@@ -289,6 +309,7 @@ fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Par
     // (and same-kind ambiguity) is now judged inside the matcher itself.
     if let Some(m) = ctx.index.match_kind("OneShotEffect", body)? {
         return Ok(Some(ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: m.macro_name.to_string(),
         }));
@@ -300,6 +321,7 @@ fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Par
         .match_with("OneShotEffect", body, macro_slot_reader)?
     {
         return Ok(Some(ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: m.invocation,
         }));
@@ -410,10 +432,12 @@ fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Opt
     let body = if wrap_by { format!("By(It, {inv})") } else { inv };
     Ok(Some(match subject {
         PlayerSubject::Target(spec) => ParsedEffect {
+            functional_zone: None,
             targets: vec![spec],
             effect: body,
         },
         PlayerSubject::Each(filter) => ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: format!("Each(binder: Existing(SelectAll({filter})), effect: {body})"),
         },
@@ -600,7 +624,9 @@ fn parse_if(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>
     if !base_parsed.targets.is_empty() || !then_parsed.targets.is_empty() {
         return Ok(None);
     }
+    let functional_zone = base_parsed.functional_zone.or(then_parsed.functional_zone);
     Ok(Some(ParsedEffect {
+        functional_zone,
         targets: Vec::new(),
         effect: format!(
             "If(condition: {condition}, then: {}, otherwise: {})",
@@ -624,6 +650,7 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect
         return Ok(None);
     };
     Ok(Some(ParsedEffect {
+        functional_zone: parsed.functional_zone,
         targets: parsed.targets,
         effect: format!("May(effect: {})", parsed.effect),
     }))
@@ -693,7 +720,8 @@ fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Pa
     });
     let not_text = not_at.map(|n| rest[n + NOT_SEP.len()..].trim_end_matches('.'));
 
-    let (targets, effect) = if let Some(cost_body) = strip_prefix_ci(offer, "pay ") {
+    let (targets, effect, functional_zone) = if let Some(cost_body) = strip_prefix_ci(offer, "pay ")
+    {
         // MayPay path. `and_then` is required (a pay offer with only a negative
         // branch declines above via not-without-did); the cost is read bare, so
         // energy (`Pay {E}…`) and any other "Pay"-worded macro cost declines.
@@ -723,6 +751,7 @@ fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Pa
                 cost.join(", "),
                 and_then.effect
             ),
+            and_then.functional_zone,
         )
     } else {
         // May path. Offer targets carry through; a branch's own targets decline.
@@ -733,9 +762,11 @@ fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Pa
         // (empty when the branch is absent). `Ok(None)` declines the whole
         // production: the branch didn't parse, or it declared its own targets,
         // which have no shared announce list to bind against.
-        let branch = |text: Option<&str>, field: &str| -> anyhow::Result<Option<String>> {
+        let branch = |text: Option<&str>,
+                      field: &str|
+         -> anyhow::Result<Option<(String, Option<FunctionalZone>)>> {
             let Some(text) = text else {
-                return Ok(Some(String::new()));
+                return Ok(Some((String::new(), None)));
             };
             let Some(parsed) = parse_clause(&format!("{text}."), ctx)? else {
                 return Ok(None);
@@ -743,9 +774,12 @@ fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Pa
             if !parsed.targets.is_empty() {
                 return Ok(None);
             }
-            Ok(Some(format!(", {field}: {}", parsed.effect)))
+            Ok(Some((
+                format!(", {field}: {}", parsed.effect),
+                parsed.functional_zone,
+            )))
         };
-        let (Some(did_frag), Some(not_frag)) =
+        let (Some((did_frag, did_zone)), Some((not_frag, not_zone))) =
             (branch(did_text, "if_did")?, branch(not_text, "if_not")?)
         else {
             return Ok(None);
@@ -753,9 +787,14 @@ fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Pa
         (
             offer_parsed.targets,
             format!("May(effect: {}{did_frag}{not_frag})", offer_parsed.effect),
+            offer_parsed.functional_zone.or(did_zone).or(not_zone),
         )
     };
-    Ok(Some(ParsedEffect { targets, effect }))
+    Ok(Some(ParsedEffect {
+        functional_zone,
+        targets,
+        effect,
+    }))
 }
 
 /// `<subject> gets ±N/±N [and gain(s) <kw…>] until end of turn.` (and the
@@ -823,6 +862,7 @@ fn parse_pump(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffec
         return Ok(None);
     };
     Ok(Some(ParsedEffect {
+        functional_zone: None,
         targets,
         effect: format!(
             "Continuously(effect: {}, duration: FixedUntil(EndOfTurn))",
@@ -938,6 +978,7 @@ fn parse_combat_restriction(line: &str) -> Option<ParsedEffect> {
     if let Some(subj) = body.strip_suffix(" can't be blocked this turn") {
         let (reference, targets) = combat_restriction_scope(subj)?;
         return Some(ParsedEffect {
+            functional_zone: None,
             targets,
             effect: format!(
                 "Continuously(effect: Cant(Block(on: {reference})), \
@@ -948,6 +989,7 @@ fn parse_combat_restriction(line: &str) -> Option<ParsedEffect> {
     let subj = body.strip_suffix(" can't block this turn")?;
     let (reference, targets) = combat_restriction_scope(subj)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets,
         effect: format!(
             "Continuously(effect: Cant(Block(by: {reference})), \
@@ -1030,8 +1072,10 @@ fn parse_sequence(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedE
     if parts[1..].iter().any(|p| !p.targets.is_empty()) {
         return Ok(None);
     }
+    let functional_zone = parts.iter().find_map(|part| part.functional_zone);
     let effects: Vec<String> = parts.iter().map(|p| p.effect.clone()).collect();
     Ok(Some(ParsedEffect {
+        functional_zone,
         targets: parts[0].targets.clone(),
         effect: format!("Sequentially([{}])", effects.join(", ")),
     }))
@@ -1109,6 +1153,7 @@ fn parse_delayed_next_end_step(
         return Ok(None);
     }
     Ok(Some(ParsedEffect {
+        functional_zone: inner.functional_zone,
         targets: Vec::new(),
         effect: format!(
             "Delayed(event: StepBegins(at: Ending(End), whose: EachPlayers), effect: {})",
@@ -1138,12 +1183,14 @@ fn parse_exile_target(line: &str) -> Option<ParsedEffect> {
             .or_else(|| (noun == "card").then_some(""))?;
         let filter = any_graveyard_card_filter(noun)?;
         return Some(ParsedEffect {
+            functional_zone: None,
             targets: vec![format!("TargetOne({filter})")],
             effect: "Move(Target(0), Exile)".to_owned(),
         });
     }
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({filter})")],
         effect: "Move(Target(0), Exile)".to_owned(),
     })
@@ -1180,6 +1227,7 @@ fn parse_return_that_card(line: &str) -> Option<ParsedEffect> {
         format!("Move(That(Card), Battlefield, [{}])", riders.join(", "))
     };
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect,
     })
@@ -1191,6 +1239,7 @@ fn parse_destroy(line: &str) -> Option<ParsedEffect> {
         .strip_prefix("target ")?;
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({filter})")],
         effect: "Destroy(Target(0))".to_owned(),
     })
@@ -1207,6 +1256,7 @@ fn parse_destroy_no_regen(line: &str) -> Option<ParsedEffect> {
         strip_prefix_ci(line, "destroy target ")?.strip_suffix(". It can't be regenerated.")?;
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({filter})")],
         effect: "DestroyNoRegen(Target(0))".to_owned(),
     })
@@ -1225,6 +1275,7 @@ fn parse_destroy_macro_target(
         return Ok(None);
     };
     Ok(Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({})", matched.macro_name)],
         effect: "Destroy(Target(0))".to_owned(),
     }))
@@ -1264,6 +1315,7 @@ fn parse_sacrifice(line: &str) -> Option<ParsedEffect> {
     }
     let Some(toll) = toll else {
         return Some(ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: "Sacrifice(This)".to_owned(),
         });
@@ -1278,6 +1330,7 @@ fn parse_sacrifice(line: &str) -> Option<ParsedEffect> {
         return None;
     }
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!(
             "Unless(effect: Sacrifice(This), unless: [{}])",
@@ -1298,6 +1351,7 @@ fn parse_attach(line: &str) -> Option<ParsedEffect> {
     let subject = strip_prefix_ci(line, "attach it to target ")?.strip_suffix('.')?;
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({filter})")],
         effect: "Attach(what: This, to: Target(0))".to_owned(),
     })
@@ -1317,6 +1371,7 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
     // Bare "Counter target spell."
     if body.is_empty() {
         return Some(ParsedEffect {
+            functional_zone: None,
             targets,
             effect: "Counter(Target(0))".to_owned(),
         });
@@ -1333,6 +1388,7 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
         return None;
     }
     Some(ParsedEffect {
+        functional_zone: None,
         targets,
         effect: format!(
             "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), unless: [{}])",
@@ -1422,7 +1478,11 @@ fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Par
             )
         }
     };
-    Ok(Some(ParsedEffect { targets, effect }))
+    Ok(Some(ParsedEffect {
+        functional_zone: None,
+        targets,
+        effect,
+    }))
 }
 
 /// `<count> <kind> counter[s]` (the clause before "on …") -> `(count RON, kind
@@ -1502,12 +1562,14 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
         "~ to its owner's hand" | "it to its owner's hand" | "~ to your hand" | "it to your hand"
     ) {
         return Some(ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: "Move(This, Hand)".to_owned(),
         });
     }
     if body == "~ from your graveyard to your hand" {
         return Some(ParsedEffect {
+            functional_zone: Some(FunctionalZone::Graveyard),
             targets: Vec::new(),
             effect: "Move(This, Hand)".to_owned(),
         });
@@ -1517,6 +1579,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     // [`parse_return_that_card`] reads, just landing in hand.
     if body == "that card to your hand" {
         return Some(ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: "Move(That(Card), Hand)".to_owned(),
         });
@@ -1535,6 +1598,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
             .or_else(|| (noun == "card").then_some(""))?;
         let card_filter = graveyard_card_filter(subject)?;
         return Some(ParsedEffect {
+            functional_zone: None,
             targets: vec![format!("TargetOne({card_filter})")],
             effect: "Move(Target(0), Hand)".to_owned(),
         });
@@ -1545,6 +1609,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     if let Some(target_subject) = subject.strip_prefix("target ") {
         let filter = object_target_filter(target_subject)?;
         return Some(ParsedEffect {
+            functional_zone: None,
             targets: vec![format!("TargetOne({filter})")],
             effect: "Move(Target(0), Hand)".to_owned(),
         });
@@ -1569,6 +1634,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     }
     let filter = parsed_filter.into_predicate();
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!(
             "With(binder: ChooseOne(filter: {filter}), body: Move(That(Permanent), Hand))"
@@ -1633,6 +1699,7 @@ fn parse_search_library(line: &str) -> Option<ParsedEffect> {
     parts.push(format!("Move(That(Card), {zone}, {riders})"));
     parts.push("Shuffle".to_owned());
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!(
             "With(binder: SearchOne(filter: {filter}), body: Sequentially([{}]))",
@@ -1859,7 +1926,10 @@ fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
         body,
         "~ from your graveyard to the battlefield" | "it from your graveyard to the battlefield"
     ) {
+        let functional_zone = (body == "~ from your graveyard to the battlefield")
+            .then_some(FunctionalZone::Graveyard);
         return Some(ParsedEffect {
+            functional_zone,
             targets: Vec::new(),
             effect: "Move(This, Battlefield)".to_owned(),
         });
@@ -1875,6 +1945,7 @@ fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
         .or_else(|| (noun == "card").then_some(""))?;
     let card_filter = graveyard_card_filter(subject)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({card_filter})")],
         effect: "Move(Target(0), Battlefield)".to_owned(),
     })
@@ -1919,6 +1990,7 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
             | "it on top of your library"
     ) {
         return Some(ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: "Move(This, Library(FromTop(0)))".to_owned(),
         });
@@ -1931,6 +2003,7 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
             | "it on the bottom of your library"
     ) {
         return Some(ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: "Move(This, Library(FromBottom(0)))".to_owned(),
         });
@@ -1952,6 +2025,7 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
     let subject = rest.strip_prefix("target ")?;
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({filter})")],
         effect: format!("Move(Target(0), Library({anchor}))"),
     })
@@ -1974,6 +2048,7 @@ fn parse_tap_untap(line: &str) -> Option<ParsedEffect> {
     let subject = rest.strip_suffix('.')?;
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: vec![format!("TargetOne({filter})")],
         effect: format!("{verb}(Target(0))"),
     })
@@ -2163,6 +2238,7 @@ fn parse_deal_damage(line: &str, slot: usize) -> Option<ParsedEffect> {
             DamagePatient::EachOf { filter } => (Vec::new(), format!("SelectAll({filter})")),
         };
         return Some(ParsedEffect {
+            functional_zone: None,
             targets,
             effect: format!("DealDamage(This, StatOf(This, Power), {selection})"),
         });
@@ -2231,7 +2307,11 @@ fn parse_deal_damage(line: &str, slot: usize) -> Option<ParsedEffect> {
             (targets, format!("DealDamage(This, {amount}, {reference})"))
         }
     };
-    Some(ParsedEffect { targets, effect })
+    Some(ParsedEffect {
+        functional_zone: None,
+        targets,
+        effect,
+    })
 }
 
 /// `Draw N card(s).` — no targets. Case-insensitive lead ("draw" or "Draw").
@@ -2243,6 +2323,7 @@ fn parse_draw(line: &str) -> Option<ParsedEffect> {
         .or_else(|| rest.strip_suffix(" card"))?;
     let n = number_word(count)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!("Draw({n})"),
     })
@@ -2270,6 +2351,7 @@ fn parse_discard(line: &str) -> Option<ParsedEffect> {
     let n = number_word(count)?;
     let effect = if random { format!("DiscardAtRandom({n})") } else { format!("Discard({n})") };
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect,
     })
@@ -2297,6 +2379,7 @@ fn parse_draw_then_discard(line: &str) -> Option<ParsedEffect> {
         _ => return None,
     };
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!("Sequentially([{}, {}])", first.effect, second.effect),
     })
@@ -2307,6 +2390,7 @@ fn parse_draw_then_discard(line: &str) -> Option<ParsedEffect> {
 fn parse_lose_life(line: &str) -> Option<ParsedEffect> {
     let amount = life_amount(strip_prefix_ci(line, "you lose ")?)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!("LoseLife({amount})"),
     })
@@ -2317,6 +2401,7 @@ fn parse_lose_life(line: &str) -> Option<ParsedEffect> {
 fn parse_gain_life(line: &str) -> Option<ParsedEffect> {
     let amount = life_amount(strip_prefix_ci(line, "you gain ")?)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!("GainLife({amount})"),
     })
@@ -2367,6 +2452,7 @@ fn parse_create_predefined_token(line: &str) -> Option<ParsedEffect> {
     // "tapped …" modifier left in `name`) declines cleanly.
     deckmaste_core::PredefinedToken::from_name(name)?;
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!("Create({count}, Named({name}))"),
     })
@@ -2400,6 +2486,7 @@ fn parse_get_emblem(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Parse
     for parser in crate::resolve::REGISTRY {
         if let Some(ability) = parser(inner, ctx)? {
             return Ok(Some(ParsedEffect {
+                functional_zone: None,
                 targets: Vec::new(),
                 effect: format!("GetEmblem([{ability}])"),
             }));
@@ -2488,6 +2575,7 @@ fn parse_create_token(line: &str) -> Option<ParsedEffect> {
     fields.push(format!("power: {power}"));
     fields.push(format!("toughness: {toughness}"));
     Some(ParsedEffect {
+        functional_zone: None,
         targets: Vec::new(),
         effect: format!("Create({count}, Token({}))", fields.join(", ")),
     })

@@ -64,3 +64,7 @@ with-rider test (`:433`) still emits `from: Graveyard` (now via the effect, not
 the peeler); the `target … from your graveyard` object form (`:445`) still emits
 **no** `from:`; `cargo xtask generate plugins/wizards` re-emits affected cards
 with the zone; `cargo test --workspace` green.
+
+Completed 2026-07-28: self-return productions carry `FunctionalZone::Graveyard`
+on `ParsedEffect`; activated framing reads that metadata independently of rider
+parsing, and effect composition preserves it.

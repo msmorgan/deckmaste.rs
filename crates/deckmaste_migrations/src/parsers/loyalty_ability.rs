@@ -53,6 +53,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     // `LoyaltyPlus(n: 1, effect: AddMana(2, Red))` is this shape).
     if let Some(add) = crate::parsers::mana_ability::parse_add_effect(effect_clause)? {
         let parsed = ParsedEffect {
+            functional_zone: None,
             targets: Vec::new(),
             effect: add,
         };

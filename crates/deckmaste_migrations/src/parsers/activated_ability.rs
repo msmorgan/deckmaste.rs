@@ -41,11 +41,9 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
 
 /// The fields an "Activate only …" rider sentence lowers onto the
 /// `Activated` frame — the activation `window`, a use `limit`, an activation
-/// `condition`, and (for a graveyard-functioning self-return) the `from`
-/// zone.
+/// `condition`, and a use `limit`.
 #[derive(Default)]
 struct Riders {
-    from: Option<&'static str>,
     window: Option<&'static str>,
     condition: Option<String>,
     limit: Option<&'static str>,
@@ -79,14 +77,6 @@ fn peel_activation_riders(
         if !apply_rider_clause(part.trim(), &mut riders, ctx)? {
             return Ok((effect_clause.to_owned(), None));
         }
-    }
-    // A self-return-from-graveyard body ("Return ~ from your graveyard …",
-    // self-ref) marks the ability as functioning from the graveyard; a
-    // `target … from your graveyard` OBJECT description (a different card
-    // the effect reaches into the graveyard for) must not trip this — the
-    // self-ref substring is exact enough to tell them apart.
-    if body.contains("~ from your graveyard") {
-        riders.from = Some("Graveyard");
     }
     // `body` is `effect_clause` with its own trailing period consumed as
     // half of the ". Activate only " delimiter — reattach it, since the body
@@ -137,9 +127,9 @@ fn apply_rider_clause(part: &str, riders: &mut Riders, ctx: &ResolveCtx) -> anyh
 /// `condition`, `limits`).
 fn render(cost: &[String], riders: Option<&Riders>, parsed: &ParsedEffect) -> String {
     let cost = cost.join(", ");
-    let from = riders
-        .and_then(|r| r.from)
-        .map_or(String::new(), |z| format!(", from: {z}"));
+    let from = parsed
+        .functional_zone
+        .map_or(String::new(), |z| format!(", from: {}", z.ron()));
     let window = riders
         .and_then(|r| r.window)
         .map_or(String::new(), |w| format!(", window: {w}"));
@@ -435,6 +425,38 @@ mod tests {
         );
     }
 
+    #[test]
+    fn graveyard_activation_without_rider() {
+        assert_eq!(
+            act("{2}{R}{R}{R}: Return ~ from your graveyard to your hand.").as_deref(),
+            Some(
+                "Activated(cost: [Mana([Generic(2),Red,Red,Red])], from: Graveyard, effect: Move(This, Hand))"
+            )
+        );
+        assert_eq!(
+            act("{2}{B}: Return ~ from your graveyard to the battlefield.").as_deref(),
+            Some(
+                "Activated(cost: [Mana([Generic(2),Black])], from: Graveyard, effect: Move(This, Battlefield))"
+            )
+        );
+    }
+
+    #[test]
+    fn graveyard_functional_zone_survives_effect_composition() {
+        assert_eq!(
+            act("{2}: You may return ~ from your graveyard to your hand.").as_deref(),
+            Some(
+                "Activated(cost: [Mana([Generic(2)])], from: Graveyard, effect: May(effect: Move(This, Hand)))"
+            )
+        );
+        assert_eq!(
+            act("{2}: Return ~ from your graveyard to your hand. Draw a card.").as_deref(),
+            Some(
+                "Activated(cost: [Mana([Generic(2)])], from: Graveyard, effect: Sequentially([Move(This, Hand), Draw(1)]))"
+            )
+        );
+    }
+
     /// A `target … from your graveyard` OBJECT description (a different card
     /// the effect reaches into the graveyard for, not the ability's own
     /// source) must NOT trip the graveyard-functioning `from` detection —
@@ -448,6 +470,21 @@ mod tests {
         .unwrap();
         assert!(!out.contains("from: Graveyard"), "no self-ref: {out}");
         assert!(out.contains("window: DuringStep(Beginning(Upkeep), Your)"));
+
+        let reanimate =
+            act("{2}{B}: Return target creature card from your graveyard to the battlefield.")
+                .unwrap();
+        assert!(
+            !reanimate.contains("from: Graveyard"),
+            "target object: {reanimate}"
+        );
+
+        let trigger_anaphor =
+            act("{2}{B}: Return it from your graveyard to the battlefield.").unwrap();
+        assert!(
+            !trigger_anaphor.contains("from: Graveyard"),
+            "anaphoric object: {trigger_anaphor}"
+        );
     }
 
     /// "Activate only as a sorcery." — the dominant rider in the wizards
