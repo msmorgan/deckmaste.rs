@@ -409,9 +409,17 @@ pub(in crate::grammar) fn reduction_cost(
             ..
         })
     );
+    let open_exception_list = tag == RuleTag::ClauseExcepted
+        && matches!(
+            children.get(2).map(|child| child.features),
+            Some(Features::ExceptionRider {
+                oxford_pending: true
+            })
+        );
     ParseCost {
         precedence,
-        reading_dispreference: u32::from(finite_first_shared_predicate),
+        reading_dispreference: u32::from(finite_first_shared_predicate)
+            + u32::from(open_exception_list),
         ..ParseCost::default()
     }
 }
@@ -1917,12 +1925,14 @@ pub(super) fn reduce_composed_clause(
             else {
                 return None;
             };
-            Some(Features::ExceptionRider)
+            Some(Features::ExceptionRider {
+                oxford_pending: false,
+            })
         }
         RuleTag::ExceptionRiderConjoined
         | RuleTag::ExceptionRiderComma
         | RuleTag::ExceptionRiderOxford => {
-            if !matches!(children.first()?.features, Features::ExceptionRider) {
+            if !matches!(children.first()?.features, Features::ExceptionRider { .. }) {
                 return None;
             }
             let Features::Clause {
@@ -1931,7 +1941,9 @@ pub(super) fn reduce_composed_clause(
             else {
                 return None;
             };
-            Some(Features::ExceptionRider)
+            Some(Features::ExceptionRider {
+                oxford_pending: tag == RuleTag::ExceptionRiderComma,
+            })
         }
         RuleTag::ClauseExcepted => {
             let Features::Clause {
@@ -1948,7 +1960,7 @@ pub(super) fn reduce_composed_clause(
             if *subjunctive {
                 return None;
             }
-            if !matches!(children.get(2)?.features, Features::ExceptionRider) {
+            if !matches!(children.get(2)?.features, Features::ExceptionRider { .. }) {
                 return None;
             }
             Some(Features::Clause {

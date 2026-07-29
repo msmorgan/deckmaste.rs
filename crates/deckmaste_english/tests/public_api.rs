@@ -1353,12 +1353,9 @@ fn single_conjunct_exception_rider_round_trips() {
 }
 
 #[test]
-fn quoted_final_exception_conjunct_exposes_existing_scope_residue() {
-    // Sakashima-shaped: the surface is a three-member Oxford exception list,
-    // but the current tree keeps only the first two members in the rider and
-    // coordinates the quoted-ability clause outside it. The former debug-text
-    // assertion accidentally passed by finding those nodes independently.
-    // `english-exception-rider-quoted-conjunct` owns the grammar correction.
+fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
+    // Sakashima-shaped: all three members belong to one Oxford exception list,
+    // including the final quoted-ability clause.
     let source = "You may have Nissa Revane enter as a copy of any creature on \
                   the battlefield, except its name is Nissa Revane, it's legendary \
                   in addition to its other types, and it has \"{2}{U}{U}: Return \
@@ -1367,48 +1364,91 @@ fn quoted_final_exception_conjunct_exposes_existing_scope_residue() {
     let (rendered, ast) = parse_face(source, &copy_catalogs(), NISSA, true);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
-    let rider = exception_rider(only_independent_clause(&ast))
-        .unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
-    let IndependentClause::Coordinated(coordination) = only_independent_clause(&ast) else {
-        panic!("expected the known outer coordination residue: {ast}");
-    };
+    let clause = only_independent_clause(&ast);
+    let rider =
+        exception_rider(clause).unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
     assert!(
-        matches!(
-            rider.first.as_ref(),
-            IndependentClause::Copular(
-                _,
-                CopularPredicate {
-                    complement: CopularComplement::NounPhrase(NounPhrase::ThisCard(
-                        ThisCardForm::FullName
-                    )),
-                    ..
-                }
-            )
-        ) && matches!(
-            rider.rest.as_slice(),
-            [ExceptionConjunct {
-                clause: IndependentClause::Copular(..),
-                ..
-            }]
-        ) && matches!(
-            coordination.rest.as_slice(),
-            [ClauseCoordination {
-                member: CoordinatedClauseMember::Independent(clause),
-                ..
-            }] if matches!(
-                clause.as_ref(),
-                IndependentClause::Transitive(
+        !matches!(clause, IndependentClause::Coordinated(_))
+            && matches!(
+                rider.first.as_ref(),
+                IndependentClause::Copular(
                     _,
-                    TransitivePredicate {
-                        kind: Transitive {
-                            object: PredicateObject::QuotedAbility(_),
-                            ..
-                        },
+                    CopularPredicate {
+                        complement: CopularComplement::NounPhrase(NounPhrase::ThisCard(
+                            ThisCardForm::FullName
+                        )),
                         ..
                     }
                 )
             )
-        ),
+            && matches!(
+                rider.rest.as_slice(),
+                [
+                    ExceptionConjunct {
+                        conjunction: None,
+                        comma: true,
+                        clause: IndependentClause::Copular(..),
+                    },
+                    ExceptionConjunct {
+                        conjunction: Some(PredicateConjunction::And),
+                        comma: true,
+                        clause: IndependentClause::Transitive(
+                            _,
+                            TransitivePredicate {
+                                kind: Transitive {
+                                    object: PredicateObject::QuotedAbility(_),
+                                    ..
+                                },
+                                ..
+                            }
+                        ),
+                    },
+                ]
+            ),
+        "AST:\n{ast}"
+    );
+}
+
+#[test]
+fn two_member_post_exception_coordination_stays_outside_the_rider() {
+    // With no preceding comma member, `, and <clause>` is ordinary outer
+    // clause coordination rather than an Oxford close for the rider.
+    let source = "You may have Nissa Revane enter as a copy of any creature on \
+                  the battlefield, except its name is Nissa Revane, and it has \
+                  \"{2}{U}{U}: Return Nissa Revane to its owner's hand.\"";
+    let (rendered, ast) = parse_face(source, &copy_catalogs(), NISSA, true);
+    assert_eq!(rendered, source);
+    assert_no_recovery(&ast);
+    let clause = only_independent_clause(&ast);
+    let rider =
+        exception_rider(clause).unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
+    assert!(
+        rider.rest.is_empty()
+            && matches!(
+                clause,
+                IndependentClause::Coordinated(CoordinatedIndependentClause {
+                    rest,
+                    ..
+                }) if matches!(
+                    rest.as_slice(),
+                    [ClauseCoordination {
+                        member: CoordinatedClauseMember::Independent(clause),
+                        ..
+                    }] if matches!(
+                        clause.as_ref(),
+                        IndependentClause::Transitive(
+                            _,
+                            TransitivePredicate {
+                                kind: Transitive {
+                                    object: PredicateObject::QuotedAbility(_),
+                                    ..
+                                },
+                                ..
+                            }
+                        )
+                    )
+                )
+            ),
         "AST:\n{ast}"
     );
 }

@@ -14,3 +14,7 @@ Keep ordinary post-rider clause coordination outside it; license the boundary
 from punctuation and constituent shape, never spelling or card identity. Add
 typed positive and over-fire assertions, preserve byte-exact rendering, and
 report the recovery delta. Standard constraints apply.
+
+## Completion
+
+- Preferred an available Oxford close over attaching an open comma-run exception; the supported recovery census and exact round-trip count are unchanged.

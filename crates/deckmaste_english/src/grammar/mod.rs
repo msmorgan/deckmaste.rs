@@ -1093,9 +1093,14 @@ pub(crate) enum Features {
         auxiliary: AuxiliaryInstance,
     },
     /// A coordinated list of exception clauses gathered under a leading
-    /// `except` marker. Fieldless: the rider carries no agreement of its own —
-    /// each conjunct is an independently agreeing finite clause.
-    ExceptionRider,
+    /// `except` marker. The rider carries no agreement of its own — each
+    /// conjunct is an independently agreeing finite clause.
+    ExceptionRider {
+        /// The rider currently ends in an asyndetic comma member (`except A,
+        /// B`). Attaching that open list to its host is permitted, but loses to
+        /// an available Oxford close (`except A, B, and C`).
+        oxford_pending: bool,
+    },
     /// One `only …` restriction-run member. Fieldless, mirroring
     /// `ExceptionRider`.
     RestrictionMember,
