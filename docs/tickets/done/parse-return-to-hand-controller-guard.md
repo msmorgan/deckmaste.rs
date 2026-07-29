@@ -30,3 +30,8 @@ declines (no controller restriction); the existing "Return a land you control â€
 
 (Surfaced by the code review on `engine-block-legality-query`; the finding is in
 the bounce-followups parse work, not that feature.)
+
+Completed 2026-07-28: the chosen-subject arm requires a filter structurally
+parsed as controlled by you, with unrestricted and opponent-controlled forms
+pinned to decline. A later postfix may follow `you control`; no raw suffix gate
+is involved.

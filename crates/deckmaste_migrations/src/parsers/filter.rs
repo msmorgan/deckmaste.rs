@@ -9,6 +9,46 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
+/// Controller restriction recorded while parsing a filter phrase. Consumers
+/// that need a particular controller inspect this typed fact rather than the
+/// English suffix or the rendered `Predicate` RON.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FilterController {
+    You,
+    Opponent,
+}
+
+/// Grammatical identity of the filter's head noun. The rendered predicate is
+/// intentionally not used to recover this distinction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FilterHead {
+    TypeNoun,
+    Subtype,
+    Other,
+}
+
+/// A parsed object-description phrase together with the semantic facts that
+/// downstream grammar gates need.
+pub(crate) struct ParsedFilter {
+    predicate: String,
+    head: FilterHead,
+    controllers: Vec<FilterController>,
+}
+
+impl ParsedFilter {
+    pub(crate) fn into_predicate(self) -> String {
+        self.predicate
+    }
+
+    pub(crate) fn head(&self) -> FilterHead {
+        self.head
+    }
+
+    pub(crate) fn is_controlled_by(&self, controller: FilterController) -> bool {
+        self.controllers.as_slice() == [controller]
+    }
+}
+
 /// Every printed subtype name across the Scryfall subtype catalogs (creature,
 /// artifact, enchantment, land, planeswalker, battle, spell). Used to validate
 /// a subtype-adjective ("Elf creatures") so a Title-Case non-subtype at a
@@ -89,6 +129,12 @@ pub(crate) fn subtype_category(word: &str) -> Option<&'static str> {
 
 /// Parse an object-description phrase into a `Predicate` RON string, or `None`.
 pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
+    parse_phrase_detailed(phrase).map(ParsedFilter::into_predicate)
+}
+
+/// Parse an object-description phrase while retaining grammatical facts that
+/// are otherwise lost when its predicate is rendered to RON.
+pub(crate) fn parse_phrase_detailed(phrase: &str) -> Option<ParsedFilter> {
     let mut rest = phrase.trim();
     let mut prefix_atoms: Vec<String> = Vec::new();
 
@@ -142,14 +188,16 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     // Peels right-to-left off the end, so with multiple postfix clauses the atoms
     // land in reverse source order.
     let mut postfix_atoms: Vec<String> = Vec::new();
+    let mut controllers = Vec::new();
     loop {
         // "on the battlefield" is the default scope: consume, emit no atom.
         if let Some(r) = rest.trim_end().strip_suffix(" on the battlefield") {
             rest = r;
             continue;
         }
-        if let Some((atom, r)) = strip_postfix(rest) {
+        if let Some((atom, r, controller)) = strip_postfix(rest) {
             postfix_atoms.push(atom);
+            controllers.extend(controller);
             rest = r;
             continue;
         }
@@ -157,10 +205,15 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     }
 
     // What's left must be exactly the head noun.
-    let mut atoms = head_noun(rest)?;
+    let head = head_noun(rest)?;
+    let mut atoms = head.atoms;
     atoms.extend(prefix_atoms);
     atoms.extend(postfix_atoms);
-    Some(combine(atoms))
+    Some(ParsedFilter {
+        predicate: combine(atoms),
+        head: head.kind,
+        controllers,
+    })
 }
 
 /// A damage-event RECIPIENT phrase ("a player", "an opponent", "you", "a
@@ -265,23 +318,30 @@ pub(crate) fn type_head_atom(word: &str) -> Option<String> {
 static STAT_CLAUSE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i) with (power|toughness) (\d+) or (greater|less)$").unwrap());
 
-/// Peel one trailing relative clause off `s`, returning (atom, head-remainder).
-fn strip_postfix(s: &str) -> Option<(String, &str)> {
+/// Peel one trailing relative clause off `s`, returning its predicate atom,
+/// head remainder, and any controller restriction it establishes.
+fn strip_postfix(s: &str) -> Option<(String, &str, Option<FilterController>)> {
     let s = s.trim_end();
-    for (suffix, atom) in [
-        (" you control", "ControlledBy(Ref(You))"),
+    for (suffix, atom, controller) in [
+        (
+            " you control",
+            "ControlledBy(Ref(You))",
+            Some(FilterController::You),
+        ),
         (
             " an opponent controls",
             "ControlledBy(OpponentOf(Ref(You)))",
+            Some(FilterController::Opponent),
         ),
         (
             " your opponents control",
             "ControlledBy(OpponentOf(Ref(You)))",
+            Some(FilterController::Opponent),
         ),
-        (" you own", "Owner(Ref(You))"),
+        (" you own", "Owner(Ref(You))", None),
     ] {
         if let Some(head) = s.strip_suffix(suffix) {
-            return Some((atom.to_string(), head));
+            return Some((atom.to_string(), head, controller));
         }
     }
     // Stat clauses via regex (power/toughness, greater/less).
@@ -290,11 +350,11 @@ fn strip_postfix(s: &str) -> Option<(String, &str)> {
         let n = &caps[2];
         let cmp = if caps[3].eq_ignore_ascii_case("greater") { "AtLeast" } else { "AtMost" };
         let head = &s[..caps.get(0).unwrap().start()];
-        return Some((format!("Stat({stat}, {cmp}, {n})"), head));
+        return Some((format!("Stat({stat}, {cmp}, {n})"), head, None));
     }
     if let Some(head) = s.strip_suffix(" with a +1/+1 counter on it") {
         // Counter kinds are bare `CounterRef` idents, not strings.
-        return Some(("HasCounter(P1P1Counter)".to_string(), head));
+        return Some(("HasCounter(P1P1Counter)".to_string(), head, None));
     }
     // "… with <keyword>" → Has(<Keyword>) (a keyword-quality clause, e.g.
     // "creatures with flying"). Only a catalog keyword qualifies — a "with …"
@@ -303,7 +363,7 @@ fn strip_postfix(s: &str) -> Option<(String, &str)> {
     if let Some((head, kw)) = s.rsplit_once(" with ")
         && let Some(name) = crate::parsers::keyword_ability::match_keyword_name(kw)
     {
-        return Some((format!("Has({name})"), head));
+        return Some((format!("Has({name})"), head, None));
     }
     None
 }
@@ -558,7 +618,12 @@ fn subtype_head(word: &str) -> Option<String> {
 /// over-counting "Goblins/Elves you control" by one. The type-noun heads are
 /// already battlefield-scoped through their `Permanent`/`Creature` macros; this
 /// gives the subtype head the same scope.
-fn head_noun(word: &str) -> Option<Vec<String>> {
+struct HeadNoun {
+    atoms: Vec<String>,
+    kind: FilterHead,
+}
+
+fn head_noun(word: &str) -> Option<HeadNoun> {
     let w = word.trim();
     // "worthy" / "worthy creature(s)" — the named compound predicate
     // [CR#700.16]. Both forms emit the `Worthy` macro invocation: worthy is
@@ -569,14 +634,23 @@ fn head_noun(word: &str) -> Option<Vec<String>> {
             .strip_prefix("worthy ")
             .is_some_and(|tail| singularize(tail.trim()) == "creature")
     {
-        return Some(vec!["Worthy".to_string()]);
+        return Some(HeadNoun {
+            atoms: vec!["Worthy".to_string()],
+            kind: FilterHead::Other,
+        });
     }
     // A designation head ("commander") is not a subtype ([CR#903.3]).
     if let Some(ident) = designation_ident(w) {
-        return Some(vec![format!("Designated(\"{ident}\")")]);
+        return Some(HeadNoun {
+            atoms: vec![format!("Designated(\"{ident}\")")],
+            kind: FilterHead::Other,
+        });
     }
     if let Some(atom) = type_noun_atom(&singularize(w).to_ascii_lowercase()) {
-        return Some(vec![atom.to_string()]);
+        return Some(HeadNoun {
+            atoms: vec![atom.to_string()],
+            kind: FilterHead::TypeNoun,
+        });
     }
     // Otherwise a lone word is a subtype only if it validates against the
     // catalog ([`subtype_head`], plural-aware) — a non-subtype (anaphor, object
@@ -584,10 +658,13 @@ fn head_noun(word: &str) -> Option<Vec<String>> {
     // never graduates a wrong card. `Permanent` ([CR#109.2]) scopes it to the
     // battlefield, matching the type-noun heads' built-in scope.
     if let Some(subtype) = subtype_head(w) {
-        return Some(vec![
-            "Permanent".to_string(),
-            format!("Subtype({})", crate::ident::to_rust_ident(&subtype)),
-        ]);
+        return Some(HeadNoun {
+            atoms: vec![
+                "Permanent".to_string(),
+                format!("Subtype({})", crate::ident::to_rust_ident(&subtype)),
+            ],
+            kind: FilterHead::Subtype,
+        });
     }
     None
 }
@@ -620,6 +697,13 @@ mod tests {
             Some("And([Permanent, Subtype(Goblin)])")
         );
         assert_eq!(parse_phrase("sorceries").as_deref(), Some("Type(Sorcery)"));
+        let type_noun = parse_phrase_detailed("creatures you control").unwrap();
+        assert_eq!(type_noun.head(), FilterHead::TypeNoun);
+        assert!(type_noun.is_controlled_by(FilterController::You));
+
+        let subtype = parse_phrase_detailed("Goblins an opponent controls").unwrap();
+        assert_eq!(subtype.head(), FilterHead::Subtype);
+        assert!(subtype.is_controlled_by(FilterController::Opponent));
     }
 
     #[test]

@@ -1563,10 +1563,11 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     // licensed only when the choice is restricted to permanents the resolving
     // player controls. Otherwise this would silently turn an ordinary bounce
     // spell into a controller-unbounded `ChooseOne`, bypassing target rules.
-    if !subject.ends_with(" you control") {
+    let parsed_filter = filter::parse_phrase_detailed(subject)?;
+    if !parsed_filter.is_controlled_by(filter::FilterController::You) {
         return None;
     }
-    let filter = object_target_filter(subject)?;
+    let filter = parsed_filter.into_predicate();
     Some(ParsedEffect {
         targets: Vec::new(),
         effect: format!(
@@ -2036,10 +2037,10 @@ fn type_noun_phrase(phrase: &str) -> Option<String> {
         .or_else(|| strip_prefix_ci(phrase, "an "))
         .unwrap_or(phrase)
         .trim();
-    let filter = filter::parse_phrase(phrase)?;
-    // A bare-subtype head renders as `And([Permanent, Subtype(...)])` (or a
-    // lone `Subtype(...)`); reject those — only true type nouns disjoin here.
-    (!filter.contains("Subtype(")).then_some(filter)
+    let filter = filter::parse_phrase_detailed(phrase)?;
+    // Only a genuine type-noun head disjoins here. The filter parser retains
+    // that identity explicitly, so this gate never re-parses rendered RON.
+    (filter.head() == filter::FilterHead::TypeNoun).then(|| filter.into_predicate())
 }
 
 /// A combat-status adjective -> its `Predicate` status atom. The disjoinable
@@ -2156,7 +2157,11 @@ fn parse_deal_damage(line: &str, slot: usize) -> Option<ParsedEffect> {
         .strip_prefix("damage equal to its power to ")
         .or_else(|| body.strip_prefix("damage equal to ~'s power to "))
     {
-        let (targets, selection) = damage_target(tail, slot)?;
+        let patient = damage_target(tail, slot)?;
+        let (targets, selection) = match patient {
+            DamagePatient::Reference { targets, reference } => (targets, reference),
+            DamagePatient::EachOf { filter } => (Vec::new(), format!("SelectAll({filter})")),
+        };
         return Some(ParsedEffect {
             targets,
             effect: format!("DealDamage(This, StatOf(This, Power), {selection})"),
@@ -2197,11 +2202,11 @@ fn parse_deal_damage(line: &str, slot: usize) -> Option<ParsedEffect> {
             (amount, tail)
         }
     };
-    let (targets, selection) = damage_target(tail, slot)?;
+    let patient = damage_target(tail, slot)?;
     // Bare X is currently grounded only for mass-damage selections (the
     // Hurricane family). Other X-damage frames need their surrounding spell
     // cost threaded into this parser before they can safely opt in.
-    if amount == "X" && !selection.starts_with("SelectAll(") {
+    if amount == "X" && !matches!(patient, DamagePatient::EachOf { .. }) {
         return None;
     }
     // A verb takes a single `Reference`; a "to each / to all" shape's patient is
@@ -2218,12 +2223,13 @@ fn parse_deal_damage(line: &str, slot: usize) -> Option<ParsedEffect> {
     // trigger families use for their `EventFilter` macros. A targeted
     // shape's patient is a `Reference` (`It`) and rides the verb unchanged,
     // no macro needed.
-    let effect = match selection
-        .strip_prefix("SelectAll(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
-        Some(filter) => format!("DealsDamageToEach({amount}, {filter})"),
-        None => format!("DealDamage(This, {amount}, {selection})"),
+    let (targets, effect) = match patient {
+        DamagePatient::EachOf { filter } => {
+            (Vec::new(), format!("DealsDamageToEach({amount}, {filter})"))
+        }
+        DamagePatient::Reference { targets, reference } => {
+            (targets, format!("DealDamage(This, {amount}, {reference})"))
+        }
     };
     Some(ParsedEffect { targets, effect })
 }
@@ -2579,42 +2585,65 @@ pub(super) fn number_word(word: &str) -> Option<u32> {
     }
 }
 
-/// Maps the "to <X>" tail of a damage clause to its `(target declarations,
-/// body selection)`. Targeted shapes declare a `TargetSpec` and the body reads
+/// The two structurally distinct patients a damage clause can name.
+enum DamagePatient {
+    /// One object/player reference, with any target declarations it requires.
+    Reference {
+        targets: Vec<String>,
+        reference: String,
+    },
+    /// A distributive set represented by the filter inside `SelectAll`.
+    EachOf { filter: String },
+}
+
+/// Maps the "to <X>" tail of a damage clause to its typed patient. Targeted
+/// shapes declare a `TargetSpec` and the body reads
 /// it back POSITIONALLY as `Target(slot)` ([CR#115.3,601.2c]) — `slot` is the
 /// announce-list index this declaration will occupy, threaded in by the caller
 /// (0 for a lone damage clause; the two-patient shape
 /// [`parse_damage_and_damage`] gives its second patient index 1). "each" shapes
-/// declare nothing and inline a `SelectAll(...)` selection.
-fn damage_target(text: &str, slot: usize) -> Option<(Vec<String>, String)> {
+/// declare nothing and retain the filter to which damage distributes.
+fn damage_target(text: &str, slot: usize) -> Option<DamagePatient> {
     Some(match text {
-        "any target" => (vec!["AnyTarget".to_owned()], format!("Target({slot})")),
-        "you" => (Vec::new(), "You".to_owned()),
-        "target player" => (
-            vec!["TargetOne(Player)".to_owned()],
-            format!("Target({slot})"),
-        ),
+        "any target" => DamagePatient::Reference {
+            targets: vec!["AnyTarget".to_owned()],
+            reference: format!("Target({slot})"),
+        },
+        "you" => DamagePatient::Reference {
+            targets: Vec::new(),
+            reference: "You".to_owned(),
+        },
+        "target player" => DamagePatient::Reference {
+            targets: vec!["TargetOne(Player)".to_owned()],
+            reference: format!("Target({slot})"),
+        },
         // "target opponent" — a single opponent of you ([CR#102.2]).
-        "target opponent" => (
-            vec!["TargetOne(OpponentOf(Ref(You)))".to_owned()],
-            format!("Target({slot})"),
-        ),
+        "target opponent" => DamagePatient::Reference {
+            targets: vec!["TargetOne(OpponentOf(Ref(You)))".to_owned()],
+            reference: format!("Target({slot})"),
+        },
         // The restricted "any target" minus its object members ([CR#115.4]):
         // a player or planeswalker, never a creature/battle (Lava Spike).
-        "target player or planeswalker" => (
-            vec!["TargetOne(Or([Player, Planeswalker]))".to_owned()],
-            format!("Target({slot})"),
-        ),
-        "each creature" => (Vec::new(), "SelectAll(Creature)".to_owned()),
-        "each player" => (Vec::new(), "SelectAll(Player)".to_owned()),
+        "target player or planeswalker" => DamagePatient::Reference {
+            targets: vec!["TargetOne(Or([Player, Planeswalker]))".to_owned()],
+            reference: format!("Target({slot})"),
+        },
+        "each creature" => DamagePatient::EachOf {
+            filter: "Creature".to_owned(),
+        },
+        "each player" => DamagePatient::EachOf {
+            filter: "Player".to_owned(),
+        },
         // "each opponent" — the players who are opponents of you ([CR#102.2]).
-        "each opponent" => (Vec::new(), "SelectAll(OpponentOf(Ref(You)))".to_owned()),
+        "each opponent" => DamagePatient::EachOf {
+            filter: "OpponentOf(Ref(You))".to_owned(),
+        },
         // "each creature and each player" — every member of the combined set
         // ([CR#608.2d] distributive each). The two "each" groups union into one
         // `SelectAll(Or([…]))` selection (Pestilence / Earthquake-style sweeps).
-        "each creature and each player" => {
-            (Vec::new(), "SelectAll(Or([Creature, Player]))".to_owned())
-        }
+        "each creature and each player" => DamagePatient::EachOf {
+            filter: "Or([Creature, Player])".to_owned(),
+        },
         // A qualified creature class unioned with all players (Hurricane):
         // preserve the creature qualifier on only that arm.
         _ if text.starts_with("each ") && text.ends_with(" and each player") => {
@@ -2622,7 +2651,9 @@ fn damage_target(text: &str, slot: usize) -> Option<(Vec<String>, String)> {
                 .strip_prefix("each ")?
                 .strip_suffix(" and each player")?;
             let filter = object_target_filter(subject)?;
-            (Vec::new(), format!("SelectAll(Or([{filter}, Player]))"))
+            DamagePatient::EachOf {
+                filter: format!("Or([{filter}, Player])"),
+            }
         }
         // A "each <subject>" mass-burn recipient class beyond the bare-noun
         // shapes above (the damage-sweeper family, ~186 corpus lines):
@@ -2634,7 +2665,7 @@ fn damage_target(text: &str, slot: usize) -> Option<(Vec<String>, String)> {
         _ if text.starts_with("each ") => {
             let subject = text.strip_prefix("each ")?;
             let filter = object_target_filter(subject)?;
-            (Vec::new(), format!("SelectAll({filter})"))
+            DamagePatient::EachOf { filter }
         }
         // A "target <subject>" object target whose subject parses through the
         // shared object-target grammar (single head noun, or a "<type> or
@@ -2642,10 +2673,10 @@ fn damage_target(text: &str, slot: usize) -> Option<(Vec<String>, String)> {
         _ => {
             let subject = text.strip_prefix("target ")?;
             let filter = object_target_filter(subject)?;
-            (
-                vec![format!("TargetOne({filter})")],
-                format!("Target({slot})"),
-            )
+            DamagePatient::Reference {
+                targets: vec![format!("TargetOne({filter})")],
+                reference: format!("Target({slot})"),
+            }
         }
     })
 }
@@ -4424,10 +4455,20 @@ mod tests {
                 "With(binder: ChooseOne(filter: And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), body: Move(That(Permanent), Hand))".to_owned()
             ))
         );
+        // Controller metadata comes from the parsed filter, not the phrase's
+        // final words: a later postfix may follow the controller clause.
+        assert_eq!(
+            parsed("Return an artifact you control with flying to its owner's hand."),
+            Some((
+                String::new(),
+                "With(binder: ChooseOne(filter: And([Type(Artifact), Has(Flying), ControlledBy(Ref(You))])), body: Move(That(Permanent), Hand))".to_owned()
+            ))
+        );
         // A bare determiner does not make the effect non-targeted: without the
         // controller restriction this surface must remain unresolved rather
         // than choose from every matching permanent.
         assert!(parsed("Return an artifact to its owner's hand.").is_none());
+        assert!(parsed("Return an artifact an opponent controls to its owner's hand.").is_none());
     }
 
     #[test]
@@ -5117,6 +5158,9 @@ mod tests {
                 "Destroy(Target(0))".to_owned()
             ))
         );
+        // Catalog subtype heads are not card-type nouns. The distinction is
+        // retained by `ParsedFilter`, never recovered from its RON spelling.
+        assert!(parsed("Destroy target Goblin or Elf.").is_none());
         // Single-type "permanent" still parses through the shared phrase grammar.
         assert_eq!(
             parsed("Destroy target permanent."),
