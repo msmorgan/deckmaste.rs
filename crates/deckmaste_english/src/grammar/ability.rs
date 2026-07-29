@@ -2452,11 +2452,16 @@ fn find_first_top_level_sentence_terminal(tokens: &[Token]) -> Option<usize> {
     None
 }
 
-/// Whether an independent clause is a [`IndependentClause::Copular`] whose
+/// Whether an independent clause is a simple copular predication whose
 /// complement is a bare nominal headed by [`Noun::Opaque`] — the shape
 /// `clause_event` must reject (see its doc comment).
 fn copular_complement_head_is_opaque(clause: &IndependentClause) -> bool {
-    let IndependentClause::Copular(_, predicate) = clause else {
+    let (IndependentClause::Copular(_, predicate)
+    | IndependentClause::Predicated(
+        _,
+        crate::syntax::PredicateExpression::Simple(Predicate::Copular(predicate)),
+    )) = clause
+    else {
         return false;
     };
     let CopularComplement::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.complement else {
@@ -2934,12 +2939,15 @@ mod tests {
                 trigger_prefix: None,
                 at_random: false,
                 imperative: Predicate::Transitive(TransitivePredicate {
-                    object: PredicateObject::NounPhrase(NounPhrase::Coordinated(
-                        CoordinatedNounPhrase {
-                            first,
-                            rest,
-                        }
-                    )),
+                    kind: Transitive {
+                        object: PredicateObject::NounPhrase(NounPhrase::Coordinated(
+                            CoordinatedNounPhrase {
+                                first,
+                                rest,
+                            }
+                        )),
+                        ..
+                    },
                     ..
                 }),
             }) if matches!(
@@ -3083,7 +3091,10 @@ mod tests {
         };
         assert!(matches!(
             paragraph.sentences[0].body,
-            SentenceBody::Independent(IndependentClause::Coordinated(_))
+            SentenceBody::Independent(IndependentClause::Predicated(
+                _,
+                PredicateExpression::Coordinated(_)
+            ))
         ));
     }
 
@@ -3111,17 +3122,19 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &paragraph.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Predicated(
+            _,
+            PredicateExpression::Coordinated(coordination),
+        )) = &paragraph.sentences[0].body
         else {
             panic!(
                 "expected coordinated clause, got {:#?}",
                 paragraph.sentences[0].body
             );
         };
-        assert_eq!(coordination.rest.len(), 3);
-        assert!(coordination.rest.iter().all(|coordination| {
-            coordination.conjunction == Some(PredicateConjunction::Then) && coordination.comma
+        assert_eq!(coordination.junctions().len(), 3);
+        assert!(coordination.junctions().iter().all(|junction| {
+            junction.conjunction == Some(PredicateConjunction::Then) && junction.comma
         }));
     }
 
@@ -3133,18 +3146,20 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &paragraph.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Predicated(
+            _,
+            PredicateExpression::Coordinated(coordination),
+        )) = &paragraph.sentences[0].body
         else {
             panic!(
                 "expected coordinated clause, got {:#?}",
                 paragraph.sentences[0].body
             );
         };
-        assert_eq!(coordination.rest.len(), 2);
-        assert_eq!(coordination.rest[0].conjunction, None);
+        assert_eq!(coordination.junctions().len(), 2);
+        assert_eq!(coordination.junctions()[0].conjunction, None);
         assert_eq!(
-            coordination.rest[1].conjunction,
+            coordination.junctions()[1].conjunction,
             Some(PredicateConjunction::Then)
         );
         assert_eq!(
@@ -3404,15 +3419,12 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &paragraph.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Predicated(
+            Some(Subject(NounPhrase::Nominal(subject))),
+            PredicateExpression::Coordinated(_),
+        )) = &paragraph.sentences[0].body
         else {
             panic!("expected coordination");
-        };
-        let IndependentClause::Transitive(Subject(NounPhrase::Nominal(subject)), _) =
-            coordination.first.as_ref()
-        else {
-            panic!("expected nominal subject");
         };
         assert!(matches!(
             subject.modifiers.as_slice(),
@@ -3850,7 +3862,10 @@ mod tests {
         assert!(matches!(
             &choice.imperative,
             Predicate::Transitive(TransitivePredicate {
-                object: PredicateObject::NounPhrase(NounPhrase::Quantity(Quantity::Exact(number))),
+                kind: Transitive {
+                    object: PredicateObject::NounPhrase(NounPhrase::Quantity(Quantity::Exact(number))),
+                    ..
+                },
                 ..
             }) if number.value == 1
         ));
@@ -3881,7 +3896,10 @@ mod tests {
         assert_eq!(*introducer, TriggerWord::Whenever);
         assert!(matches!(
             event,
-            TriggerEvent::Clause(IndependentClause::Coordinated(_))
+            TriggerEvent::Clause(IndependentClause::Predicated(
+                _,
+                PredicateExpression::Coordinated(_)
+            ))
         ));
         let choice = modal_header_choice(&report);
         assert!(choice.trigger_prefix.is_none());
@@ -3926,7 +3944,10 @@ mod tests {
         assert!(matches!(
             &choice.imperative,
             Predicate::Transitive(TransitivePredicate {
-                object: PredicateObject::NounPhrase(NounPhrase::Coordinated(_)),
+                kind: Transitive {
+                    object: PredicateObject::NounPhrase(NounPhrase::Coordinated(_)),
+                    ..
+                },
                 ..
             })
         ));
@@ -5420,7 +5441,10 @@ mod tests {
             };
             assert!(matches!(
                 triggered.conditions.first.event,
-                TriggerEvent::Clause(IndependentClause::Coordinated(_))
+                TriggerEvent::Clause(
+                    IndependentClause::Predicated(_, PredicateExpression::Coordinated(_))
+                        | IndependentClause::Coordinated(_)
+                )
             ));
             assert_eq!(render(&report), source);
         }
@@ -5447,7 +5471,10 @@ mod tests {
         };
         assert!(matches!(
             triggered.conditions.first.event,
-            TriggerEvent::Clause(IndependentClause::Coordinated(_))
+            TriggerEvent::Clause(IndependentClause::Predicated(
+                _,
+                PredicateExpression::Coordinated(_)
+            ))
         ));
         assert_eq!(
             report
@@ -5796,7 +5823,10 @@ mod tests {
         assert!(
             matches!(
                 triggered.event,
-                TriggerEvent::Clause(IndependentClause::Coordinated(_))
+                TriggerEvent::Clause(IndependentClause::Predicated(
+                    _,
+                    PredicateExpression::Coordinated(_)
+                ))
             ),
             "{:#?}",
             triggered.event
@@ -5894,8 +5924,8 @@ mod tests {
 
     #[test]
     fn coordinated_trigger_event_is_unchanged() {
-        // Merieke Ri Berit's shape: still `IndependentClause::Coordinated`,
-        // the one variant the old filter already admitted.
+        // Merieke Ri Berit's shared subject scopes over the coordinated event
+        // predicates rather than being buried in a first clause conjunct.
         let source = "{T}: Gain control of target creature for as long as you control Merieke Ri Berit. \
              When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature.";
         let report = parse(source);
@@ -5911,7 +5941,10 @@ mod tests {
         };
         assert!(matches!(
             triggered.event,
-            TriggerEvent::Clause(IndependentClause::Coordinated(_))
+            TriggerEvent::Clause(IndependentClause::Predicated(
+                _,
+                PredicateExpression::Coordinated(_)
+            ))
         ));
         assert_eq!(render(&report), source);
     }

@@ -1,3 +1,6 @@
+use std::ops::Deref;
+use std::ops::DerefMut;
+
 use super::ability::Ability;
 use super::ability::QuotedAbility;
 use super::phrase::AdjectivePhrase;
@@ -25,14 +28,23 @@ pub enum IndependentClause {
     Intransitive(Subject, IntransitivePredicate),
     Copular(Subject, CopularPredicate),
     Passive(Subject, PassivePredicate),
+    /// A finite clause whose subject scopes over one predicate expression.
+    /// Predicate coordination lives inside that expression, so the subject is
+    /// a sibling of the whole coordinated phrase rather than being buried in
+    /// its first conjunct.
+    Predicated(Option<Subject>, PredicateExpression),
     Imperative(Predicate),
-    /// A modal clause. The predicate is `None` when the verb phrase is elided
-    /// under the modal (VP-ellipsis, e.g. "If you can't, …"); the modal then
-    /// renders alone with no synthesized pro-verb.
+    /// A modal clause. This leaf representation is retained for an
+    /// uncoordinated clause; when it participates in predicate coordination,
+    /// the modal is promoted to [`Predicate::Deontic`] like every other
+    /// conjunct.
     Deontic(Subject, Modal, Option<Predicate>),
     Existential(ExistentialClause),
     Proform(Subject, ProPredicate),
     Complex(ComplexClause),
+    /// Coordination of complete clauses, each with its own subject. This is
+    /// distinct from [`PredicateExpression::Coordinated`], where one subject
+    /// scopes over every predicate conjunct.
     Coordinated(CoordinatedIndependentClause),
 }
 
@@ -67,6 +79,32 @@ pub enum Predicate {
     Copular(CopularPredicate),
     Passive(PassivePredicate),
     Proform(ProPredicate),
+    Deontic(DeonticPredicate),
+    /// A predicate plus dependents whose scope ends before the next coordinated
+    /// predicate (`P1 unless C or P2`, `P1, where C, then P2`).
+    Attached(AttachedPredicate),
+}
+
+/// The predicate constituent of a finite clause.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PredicateExpression {
+    Simple(Predicate),
+    Coordinated(Coordination<Predicate>),
+}
+
+/// A modal predicate. The inner predicate is absent under VP-ellipsis (`If
+/// you can't, …`); modality remains inside the predicate layer in either
+/// case.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeonticPredicate {
+    pub modal: Modal,
+    pub inner: Option<Box<Predicate>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttachedPredicate {
+    pub predicate: Box<Predicate>,
+    pub attachments: Vec<ClauseAttachment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,31 +131,52 @@ pub enum PreverbModifier {
     Next,
 }
 
+/// Shared shell for predicates with a lexical [`PredicateHead`]. `K` carries
+/// only the complement structure that distinguishes predicate kinds; the head
+/// and trailing elements have one representation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TransitivePredicate {
+pub struct HeadedPredicate<K> {
     pub head: PredicateHead,
+    pub kind: K,
+    pub elements: Vec<PredicateElement>,
+}
+
+impl<K> Deref for HeadedPredicate<K> {
+    type Target = K;
+
+    fn deref(&self) -> &Self::Target {
+        &self.kind
+    }
+}
+
+impl<K> DerefMut for HeadedPredicate<K> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.kind
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Transitive {
     pub pre_object_elements: Vec<PredicateElement>,
     pub object: PredicateObject,
-    pub elements: Vec<PredicateElement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IntransitivePredicate {
-    pub head: PredicateHead,
-    pub elements: Vec<PredicateElement>,
-}
+pub struct Intransitive;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PassivePredicate {
-    pub head: PredicateHead,
+pub struct Passive {
     /// The theme retained post-verbally under recipient passivization: the
     /// `damage` of `an opponent was dealt damage this turn`. `None` for every
     /// ordinary passive, where the promoted subject IS the theme. Licensed
     /// only by a frame whose `is_recipient_passive()` holds, so the field can
     /// never be populated by a verb that does not lexically take a recipient.
     pub retained_object: Option<PredicateObject>,
-    pub elements: Vec<PredicateElement>,
 }
+
+pub type TransitivePredicate = HeadedPredicate<Transitive>;
+pub type IntransitivePredicate = HeadedPredicate<Intransitive>;
+pub type PassivePredicate = HeadedPredicate<Passive>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CopularPredicate {
@@ -179,10 +238,9 @@ pub struct ProPredicate {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ObjectGapPredicate {
-    pub head: PredicateHead,
-    pub elements: Vec<PredicateElement>,
-}
+pub struct ObjectGap;
+
+pub type ObjectGapPredicate = HeadedPredicate<ObjectGap>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PredicateObject {
@@ -346,10 +404,6 @@ pub enum RelativeGap {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelativeBody {
     SubjectGap(Predicate),
-    ModalSubjectGap {
-        modal: Modal,
-        predicate: Option<Predicate>,
-    },
     ObjectGap {
         subject: Subject,
         predicate: ObjectGapPredicate,
@@ -459,6 +513,49 @@ pub enum AttachmentPosition {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoordinationJunction {
+    /// `None` records an asyndetic comma junction; coordinated junctions carry
+    /// their overt connective.
+    pub conjunction: Option<PredicateConjunction>,
+    pub comma: bool,
+}
+
+/// A validated coordination of two or more uniform conjuncts.
+///
+/// Conjuncts and the junctions between them are stored separately so no
+/// conjunct is structurally privileged as `first`. The private fields keep
+/// the invariant `junctions.len() + 1 == conjuncts.len()` intact.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Coordination<T> {
+    conjuncts: Vec<T>,
+    junctions: Vec<CoordinationJunction>,
+}
+
+impl<T> Coordination<T> {
+    pub fn new(first: T, junction: CoordinationJunction, second: T) -> Self {
+        Self {
+            conjuncts: vec![first, second],
+            junctions: vec![junction],
+        }
+    }
+
+    #[must_use]
+    pub fn conjuncts(&self) -> &[T] {
+        &self.conjuncts
+    }
+
+    #[must_use]
+    pub fn junctions(&self) -> &[CoordinationJunction] {
+        &self.junctions
+    }
+
+    pub(crate) fn push(&mut self, junction: CoordinationJunction, conjunct: T) {
+        self.junctions.push(junction);
+        self.conjuncts.push(conjunct);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoordinatedIndependentClause {
     pub first: Box<IndependentClause>,
     pub rest: Vec<ClauseCoordination>,
@@ -471,15 +568,12 @@ pub struct ClauseCoordination {
     pub member: CoordinatedClauseMember,
 }
 
+/// A complete-clause coordination continuation. Subjectless continuations are
+/// folded into the predicate expression of the preceding clause before this
+/// layer is built, so every member here is a complete independent clause.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CoordinatedClauseMember {
     Independent(Box<IndependentClause>),
-    SharedPredicate(Predicate),
-    /// A coordinated member under a shared modal, whose subject is inherited
-    /// from the first coordinated clause. `None` records an elided verb
-    /// phrase under the modal (VP-ellipsis), mirroring
-    /// [`IndependentClause::Deontic`]'s own `None` case.
-    SharedDeontic(Modal, Option<Predicate>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

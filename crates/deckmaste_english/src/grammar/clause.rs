@@ -4,6 +4,7 @@
 )]
 use super::*;
 use crate::syntax::AbilityObject;
+use crate::syntax::AttachedPredicate;
 use crate::syntax::AttachmentPosition;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
@@ -12,6 +13,9 @@ use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedClauseMember;
 use crate::syntax::CoordinatedIndependentClause;
 use crate::syntax::CoordinatedPredicateObject;
+use crate::syntax::Coordination;
+use crate::syntax::CoordinationJunction;
+use crate::syntax::DeonticPredicate;
 use crate::syntax::DependentAttachment;
 use crate::syntax::DependentClause;
 use crate::syntax::EllipticalClause;
@@ -26,6 +30,7 @@ use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
 use crate::syntax::PredicateComplement;
 use crate::syntax::PredicateElement;
+use crate::syntax::PredicateExpression;
 use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
 use crate::syntax::PredicateObjectCoordination;
@@ -3524,6 +3529,7 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                     subject: Subject(subject),
                     predicate: ObjectGapPredicate {
                         head: predicate.head,
+                        kind: crate::syntax::ObjectGap,
                         elements: predicate.elements,
                     },
                 },
@@ -3554,6 +3560,7 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
                     subject: subject_auxiliary.subject,
                     predicate: ObjectGapPredicate {
                         head: predicate.head,
+                        kind: crate::syntax::ObjectGap,
                         elements: predicate.elements,
                     },
                 },
@@ -3597,13 +3604,14 @@ fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered
             // would be", "creature that would die") keeps it — nulling those on
             // the loose "intransitive with empty elements" test silently ate the
             // verb (e.g. the "be" of "would be dealt").
-            let body = match modal {
-                Some(modal) => RelativeBody::ModalSubjectGap {
+            let predicate = match modal {
+                Some(modal) => Predicate::Deontic(DeonticPredicate {
                     modal,
-                    predicate: if elided { None } else { Some(predicate) },
-                },
-                None => RelativeBody::SubjectGap(predicate),
+                    inner: if elided { None } else { Some(Box::new(predicate)) },
+                }),
+                None => predicate,
             };
+            let body = RelativeBody::SubjectGap(predicate);
             Some(Lowered::RelativeClause(RelativeClause {
                 marker,
                 gap: RelativeGap::Subject,
@@ -4303,40 +4311,439 @@ fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered>
     let Lowered::SimpleClause(next) = take(children, clause_index)? else {
         return None;
     };
-    let member = if next.subject.is_some() {
-        CoordinatedClauseMember::Independent(Box::new(finish_simple_clause(next)?))
+    let junction = CoordinationJunction { conjunction, comma };
+    let coordinated = if next.subject.is_some() {
+        let next = finish_simple_clause(next)?;
+        let continuation = ClauseCoordination {
+            conjunction: junction.conjunction,
+            comma: junction.comma,
+            member: CoordinatedClauseMember::Independent(Box::new(next)),
+        };
+        match first {
+            IndependentClause::Coordinated(mut coordinated) => {
+                coordinated.rest.push(continuation);
+                IndependentClause::Coordinated(coordinated)
+            }
+            first => IndependentClause::Coordinated(CoordinatedIndependentClause {
+                first: Box::new(first),
+                rest: vec![continuation],
+            }),
+        }
     } else {
         let FinishedPredicate {
             modal,
-            predicate,
+            mut predicate,
             elided,
         } = finish_predicate(next.predicate)?;
-        match modal {
-            None => CoordinatedClauseMember::SharedPredicate(predicate),
-            Some(modal) => CoordinatedClauseMember::SharedDeontic(
+        if let Some(modal) = modal {
+            predicate = Predicate::Deontic(DeonticPredicate {
                 modal,
-                if elided { None } else { Some(predicate) },
-            ),
+                inner: if elided { None } else { Some(Box::new(predicate)) },
+            });
+        } else if let Some(inflection) = finite_inflection_of_clause(&first) {
+            apply_finite_inflection(&mut predicate, inflection);
+        }
+        if starts_new_clause_group(&first, &junction) || !accepts_shared_predicate(&first) {
+            append_subjectless_clause(first, &junction, predicate)?
+        } else {
+            append_shared_predicate(first, junction, predicate)?
         }
     };
-    let coordination = ClauseCoordination {
-        conjunction,
-        comma,
-        member,
-    };
-    let coordinated = match first {
-        IndependentClause::Coordinated(mut coordinated) => {
-            coordinated.rest.push(coordination);
-            coordinated
+    Some(Lowered::Clause(Clause::Independent(coordinated)))
+}
+
+#[derive(Clone, Copy)]
+enum FiniteInflection {
+    Present(Agreement),
+    Past(Agreement),
+}
+
+impl FiniteInflection {
+    const fn verb_slot(self) -> VerbSlot {
+        match self {
+            Self::Present(Agreement { person, number }) => VerbSlot::Present { person, number },
+            Self::Past(Agreement { person, number }) => VerbSlot::Past { person, number },
         }
-        first => CoordinatedIndependentClause {
-            first: Box::new(first),
-            rest: vec![coordination],
+    }
+
+    const fn auxiliary_inflection(self) -> AuxiliaryInflection {
+        match self {
+            Self::Present(Agreement { person, number }) => {
+                AuxiliaryInflection::Present { person, number }
+            }
+            Self::Past(Agreement { person, number }) => {
+                AuxiliaryInflection::Past { person, number }
+            }
+        }
+    }
+}
+
+fn finite_inflection_of_clause(clause: &IndependentClause) -> Option<FiniteInflection> {
+    match clause {
+        IndependentClause::Transitive(_, predicate) => finite_inflection_of_head(&predicate.head),
+        IndependentClause::Intransitive(_, predicate) => finite_inflection_of_head(&predicate.head),
+        IndependentClause::Passive(_, predicate) => finite_inflection_of_head(&predicate.head),
+        IndependentClause::Copular(_, predicate) => {
+            finite_inflection_of_auxiliary(predicate.copula.auxiliary)
+        }
+        IndependentClause::Proform(_, predicate) => {
+            finite_inflection_of_auxiliary(predicate.auxiliary)
+        }
+        IndependentClause::Deontic(..)
+        | IndependentClause::Imperative(_)
+        | IndependentClause::Existential(_) => None,
+        IndependentClause::Complex(complex) => finite_inflection_of_clause(&complex.matrix),
+        IndependentClause::Predicated(_, expression) => match expression {
+            PredicateExpression::Simple(predicate) => finite_inflection_of_predicate(predicate),
+            PredicateExpression::Coordinated(coordination) => coordination
+                .conjuncts()
+                .first()
+                .and_then(finite_inflection_of_predicate),
         },
+        IndependentClause::Coordinated(coordination) => {
+            coordination
+                .rest
+                .last()
+                .and_then(|continuation| match &continuation.member {
+                    CoordinatedClauseMember::Independent(clause) => {
+                        finite_inflection_of_clause(clause)
+                    }
+                })
+        }
+    }
+}
+
+fn finite_inflection_of_predicate(predicate: &Predicate) -> Option<FiniteInflection> {
+    match predicate {
+        Predicate::Transitive(predicate) => finite_inflection_of_head(&predicate.head),
+        Predicate::Intransitive(predicate) => finite_inflection_of_head(&predicate.head),
+        Predicate::Passive(predicate) => finite_inflection_of_head(&predicate.head),
+        Predicate::Copular(predicate) => finite_inflection_of_auxiliary(predicate.copula.auxiliary),
+        Predicate::Proform(predicate) => finite_inflection_of_auxiliary(predicate.auxiliary),
+        Predicate::Deontic(_) => None,
+        Predicate::Attached(predicate) => finite_inflection_of_predicate(&predicate.predicate),
+    }
+}
+
+fn finite_inflection_of_head(head: &PredicateHead) -> Option<FiniteInflection> {
+    if let Some(auxiliary) = head.auxiliaries.first().copied() {
+        finite_inflection_of_auxiliary(auxiliary)
+    } else {
+        match head.verb.slot {
+            VerbSlot::Present { person, number } => {
+                Some(FiniteInflection::Present(Agreement { person, number }))
+            }
+            VerbSlot::Past { person, number } => {
+                Some(FiniteInflection::Past(Agreement { person, number }))
+            }
+            _ => None,
+        }
+    }
+}
+
+const fn finite_inflection_of_auxiliary(auxiliary: AuxiliaryInstance) -> Option<FiniteInflection> {
+    match auxiliary.inflection {
+        AuxiliaryInflection::Present { person, number } => {
+            Some(FiniteInflection::Present(Agreement { person, number }))
+        }
+        AuxiliaryInflection::Past { person, number } => {
+            Some(FiniteInflection::Past(Agreement { person, number }))
+        }
+        _ => None,
+    }
+}
+
+fn apply_finite_inflection(predicate: &mut Predicate, inflection: FiniteInflection) {
+    match predicate {
+        Predicate::Transitive(predicate) => {
+            apply_finite_inflection_to_head(&mut predicate.head, inflection);
+        }
+        Predicate::Intransitive(predicate) => {
+            apply_finite_inflection_to_head(&mut predicate.head, inflection);
+        }
+        Predicate::Passive(predicate) => {
+            apply_finite_inflection_to_head(&mut predicate.head, inflection);
+        }
+        Predicate::Copular(predicate) => {
+            apply_finite_inflection_to_auxiliary(&mut predicate.copula.auxiliary, inflection);
+        }
+        Predicate::Proform(predicate) => {
+            apply_finite_inflection_to_auxiliary(&mut predicate.auxiliary, inflection);
+        }
+        // The modal itself is uninflected and licenses the inner infinitive.
+        Predicate::Deontic(_) => {}
+        Predicate::Attached(predicate) => {
+            apply_finite_inflection(&mut predicate.predicate, inflection);
+        }
+    }
+}
+
+fn apply_finite_inflection_to_head(head: &mut PredicateHead, inflection: FiniteInflection) {
+    if let Some(auxiliary) = head.auxiliaries.first_mut() {
+        apply_finite_inflection_to_auxiliary(auxiliary, inflection);
+    } else if head.verb.slot == VerbSlot::Infinitive {
+        let vocabulary = crate::word::Vocabulary::new();
+        let mut finite = head.verb.clone();
+        finite.slot = inflection.verb_slot();
+        let source_spelling = vocabulary.render_verb_instance(&head.verb);
+        if source_spelling.is_some() && source_spelling == vocabulary.render_verb_instance(&finite)
+        {
+            head.verb = finite;
+        }
+    }
+}
+
+/// Records agreement only when the finite form is syncretic with the parsed
+/// base form. The grammar intentionally admits some subjectless continuations
+/// whose apparent predicate head is really a noun or an imperative; changing
+/// their surface (`target` -> `targets`, `return` -> `returned`) would turn a
+/// representation-only normalization into a parse-selection change.
+fn apply_finite_inflection_to_auxiliary(
+    auxiliary: &mut AuxiliaryInstance,
+    inflection: FiniteInflection,
+) {
+    if auxiliary.inflection == AuxiliaryInflection::Base {
+        let vocabulary = crate::word::Vocabulary::new();
+        let mut finite = *auxiliary;
+        finite.inflection = inflection.auxiliary_inflection();
+        let source_spelling = vocabulary.render_auxiliary(*auxiliary);
+        if source_spelling.is_some() && source_spelling == vocabulary.render_auxiliary(finite) {
+            *auxiliary = finite;
+        }
+    }
+}
+
+/// Adds a subjectless predicate to the rightmost finite clause that supplies
+/// its subject. This turns mixed `S₁ P₁ and S₂ P₂ and P₃` into coordination of
+/// two complete clauses, with `P₂ and P₃` coordinated under `S₂`.
+fn append_shared_predicate(
+    clause: IndependentClause,
+    junction: CoordinationJunction,
+    predicate: Predicate,
+) -> Option<IndependentClause> {
+    match clause {
+        IndependentClause::Transitive(subject, first) => Some(IndependentClause::Predicated(
+            Some(subject),
+            PredicateExpression::Coordinated(Coordination::new(
+                Predicate::Transitive(first),
+                junction,
+                predicate,
+            )),
+        )),
+        IndependentClause::Intransitive(subject, first) => Some(IndependentClause::Predicated(
+            Some(subject),
+            PredicateExpression::Coordinated(Coordination::new(
+                Predicate::Intransitive(first),
+                junction,
+                predicate,
+            )),
+        )),
+        IndependentClause::Copular(subject, first) => Some(IndependentClause::Predicated(
+            Some(subject),
+            PredicateExpression::Coordinated(Coordination::new(
+                Predicate::Copular(first),
+                junction,
+                predicate,
+            )),
+        )),
+        IndependentClause::Passive(subject, first) => Some(IndependentClause::Predicated(
+            Some(subject),
+            PredicateExpression::Coordinated(Coordination::new(
+                Predicate::Passive(first),
+                junction,
+                predicate,
+            )),
+        )),
+        IndependentClause::Proform(subject, first) => Some(IndependentClause::Predicated(
+            Some(subject),
+            PredicateExpression::Coordinated(Coordination::new(
+                Predicate::Proform(first),
+                junction,
+                predicate,
+            )),
+        )),
+        IndependentClause::Deontic(subject, modal, inner) => Some(IndependentClause::Predicated(
+            Some(subject),
+            PredicateExpression::Coordinated(Coordination::new(
+                Predicate::Deontic(DeonticPredicate {
+                    modal,
+                    inner: inner.map(Box::new),
+                }),
+                junction,
+                predicate,
+            )),
+        )),
+        IndependentClause::Imperative(first) => Some(IndependentClause::Predicated(
+            None,
+            PredicateExpression::Coordinated(Coordination::new(first, junction, predicate)),
+        )),
+        IndependentClause::Predicated(subject, expression) => {
+            let expression = match expression {
+                PredicateExpression::Simple(first) => {
+                    PredicateExpression::Coordinated(Coordination::new(first, junction, predicate))
+                }
+                PredicateExpression::Coordinated(mut coordinated) => {
+                    coordinated.push(junction, predicate);
+                    PredicateExpression::Coordinated(coordinated)
+                }
+            };
+            Some(IndependentClause::Predicated(subject, expression))
+        }
+        IndependentClause::Complex(mut complex) => {
+            let after_matrix: Vec<_> = complex
+                .attachments
+                .iter()
+                .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
+                .cloned()
+                .collect();
+            if !after_matrix.is_empty()
+                && let Some((subject, PredicateExpression::Simple(first))) =
+                    into_predicate_expression(*complex.matrix.clone())
+            {
+                let first = Predicate::Attached(AttachedPredicate {
+                    predicate: Box::new(first),
+                    attachments: after_matrix,
+                });
+                let predicated = IndependentClause::Predicated(
+                    subject,
+                    PredicateExpression::Coordinated(Coordination::new(first, junction, predicate)),
+                );
+                complex
+                    .attachments
+                    .retain(|attachment| attachment.position == AttachmentPosition::BeforeMatrix);
+                return if complex.attachments.is_empty() {
+                    Some(predicated)
+                } else {
+                    complex.matrix = Box::new(predicated);
+                    Some(IndependentClause::Complex(complex))
+                };
+            }
+            let matrix = append_shared_predicate(*complex.matrix, junction, predicate)?;
+            complex.matrix = Box::new(matrix);
+            Some(IndependentClause::Complex(complex))
+        }
+        IndependentClause::Coordinated(mut coordinated) => {
+            let CoordinatedClauseMember::Independent(last) =
+                &mut coordinated.rest.last_mut()?.member;
+            if !accepts_shared_predicate(last) {
+                return None;
+            }
+            let replacement = append_shared_predicate((**last).clone(), junction, predicate)?;
+            **last = replacement;
+            Some(IndependentClause::Coordinated(coordinated))
+        }
+        IndependentClause::Existential(_) => None,
+    }
+}
+
+fn into_predicate_expression(
+    clause: IndependentClause,
+) -> Option<(Option<Subject>, PredicateExpression)> {
+    match clause {
+        IndependentClause::Transitive(subject, predicate) => Some((
+            Some(subject),
+            PredicateExpression::Simple(Predicate::Transitive(predicate)),
+        )),
+        IndependentClause::Intransitive(subject, predicate) => Some((
+            Some(subject),
+            PredicateExpression::Simple(Predicate::Intransitive(predicate)),
+        )),
+        IndependentClause::Copular(subject, predicate) => Some((
+            Some(subject),
+            PredicateExpression::Simple(Predicate::Copular(predicate)),
+        )),
+        IndependentClause::Passive(subject, predicate) => Some((
+            Some(subject),
+            PredicateExpression::Simple(Predicate::Passive(predicate)),
+        )),
+        IndependentClause::Proform(subject, predicate) => Some((
+            Some(subject),
+            PredicateExpression::Simple(Predicate::Proform(predicate)),
+        )),
+        IndependentClause::Deontic(subject, modal, inner) => Some((
+            Some(subject),
+            PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
+                modal,
+                inner: inner.map(Box::new),
+            })),
+        )),
+        IndependentClause::Imperative(predicate) => {
+            Some((None, PredicateExpression::Simple(predicate)))
+        }
+        IndependentClause::Predicated(subject, expression) => Some((subject, expression)),
+        _ => None,
+    }
+}
+
+/// Keeps a subjectless imperative as a complete clause member when there is no
+/// finite subject to share, or when a changed overt connective starts a new
+/// clause-level group (`C1 and C2, or P3`). The latter preserves ordinary
+/// `and`/`or` grouping instead of incorrectly making `P3` a predicate of C2's
+/// subject.
+fn append_subjectless_clause(
+    clause: IndependentClause,
+    junction: &CoordinationJunction,
+    predicate: Predicate,
+) -> Option<IndependentClause> {
+    if matches!(predicate, Predicate::Deontic(_)) {
+        return None;
+    }
+    let continuation = ClauseCoordination {
+        conjunction: junction.conjunction,
+        comma: junction.comma,
+        member: CoordinatedClauseMember::Independent(Box::new(IndependentClause::Imperative(
+            predicate,
+        ))),
     };
-    Some(Lowered::Clause(Clause::Independent(
-        IndependentClause::Coordinated(coordinated),
-    )))
+    match clause {
+        IndependentClause::Coordinated(mut coordinated) => {
+            coordinated.rest.push(continuation);
+            Some(IndependentClause::Coordinated(coordinated))
+        }
+        first => Some(IndependentClause::Coordinated(
+            CoordinatedIndependentClause {
+                first: Box::new(first),
+                rest: vec![continuation],
+            },
+        )),
+    }
+}
+
+fn starts_new_clause_group(clause: &IndependentClause, junction: &CoordinationJunction) -> bool {
+    let IndependentClause::Coordinated(coordinated) = clause else {
+        return false;
+    };
+    coordinated.rest.last().is_some_and(|previous| {
+        matches!(
+            (previous.conjunction, junction.conjunction),
+            (Some(previous), Some(next)) if previous != next
+        )
+    })
+}
+
+fn accepts_shared_predicate(clause: &IndependentClause) -> bool {
+    match clause {
+        IndependentClause::Transitive(..)
+        | IndependentClause::Intransitive(..)
+        | IndependentClause::Copular(..)
+        | IndependentClause::Passive(..)
+        | IndependentClause::Proform(..)
+        | IndependentClause::Deontic(..)
+        | IndependentClause::Imperative(..)
+        | IndependentClause::Predicated(..) => true,
+        IndependentClause::Complex(complex) => accepts_shared_predicate(&complex.matrix),
+        IndependentClause::Coordinated(coordination) => {
+            coordination
+                .rest
+                .last()
+                .is_some_and(|continuation| match &continuation.member {
+                    CoordinatedClauseMember::Independent(clause) => {
+                        accepts_shared_predicate(clause)
+                    }
+                })
+        }
+        IndependentClause::Existential(_) => false,
+    }
 }
 
 fn conditional(
@@ -4439,6 +4846,14 @@ fn independent_with_subject(subject: Subject, predicate: Predicate) -> Independe
         Predicate::Copular(predicate) => IndependentClause::Copular(subject, predicate),
         Predicate::Passive(predicate) => IndependentClause::Passive(subject, predicate),
         Predicate::Proform(predicate) => IndependentClause::Proform(subject, predicate),
+        Predicate::Deontic(predicate) => IndependentClause::Deontic(
+            subject,
+            predicate.modal,
+            predicate.inner.map(|inner| *inner),
+        ),
+        predicate @ Predicate::Attached(_) => {
+            IndependentClause::Predicated(Some(subject), PredicateExpression::Simple(predicate))
+        }
     }
 }
 
@@ -4663,14 +5078,16 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
         pre_object_elements.append(&mut elements);
         Predicate::Passive(PassivePredicate {
             head,
-            retained_object,
+            kind: crate::syntax::Passive { retained_object },
             elements: pre_object_elements,
         })
     } else if let Some(object) = object {
         Predicate::Transitive(crate::syntax::TransitivePredicate {
             head,
-            pre_object_elements,
-            object,
+            kind: crate::syntax::Transitive {
+                pre_object_elements,
+                object,
+            },
             elements,
         })
     } else if head.auxiliaries.is_empty()
@@ -4700,6 +5117,7 @@ fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
         pre_object_elements.append(&mut elements);
         Predicate::Intransitive(crate::syntax::IntransitivePredicate {
             head,
+            kind: crate::syntax::Intransitive,
             elements: pre_object_elements,
         })
     };
@@ -4890,6 +5308,17 @@ mod tests {
     use crate::word::Verb;
     use crate::word::VerbSlot;
     use crate::word::Vocab;
+
+    fn predicate_coordination(sentence: &Sentence) -> &Coordination<Predicate> {
+        let SentenceBody::Independent(IndependentClause::Predicated(
+            _,
+            PredicateExpression::Coordinated(coordination),
+        )) = &sentence.body
+        else {
+            panic!("expected shared-subject predicate coordination: {sentence:#?}");
+        };
+        coordination
+    }
 
     const FIXTURES: [&str; 29] = [
         "Draw a card.",
@@ -7979,13 +8408,15 @@ mod tests {
     #[test]
     fn goblin_chieftain_stat_change_remains_one_magic_atom() {
         let sentence = parse("Other Goblin creatures you control get +1/+1 and have haste.");
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &sentence.sentence().unwrap().body
+        let SentenceBody::Independent(IndependentClause::Predicated(
+            _,
+            PredicateExpression::Coordinated(coordination),
+        )) = &sentence.sentence().unwrap().body
         else {
             panic!("expected coordinated predicates");
         };
-        let IndependentClause::Transitive(_, first) = coordination.first.as_ref() else {
-            panic!("expected simple first predicate");
+        let [Predicate::Transitive(first), _] = coordination.conjuncts() else {
+            panic!("expected two predicate conjuncts");
         };
         assert!(matches!(first.object, PredicateObject::PowerToughness(_)));
     }
@@ -8585,18 +9016,21 @@ mod tests {
             [NominalComplement::Relative(RelativeClause {
                 marker: RelativeMarker::That,
                 gap: RelativeGap::Subject,
-                body: RelativeBody::ModalSubjectGap {
+                body: RelativeBody::SubjectGap(Predicate::Deontic(DeonticPredicate {
                     modal: Modal {
                         auxiliary: AuxiliaryInstance {
                             auxiliary: Auxiliary::Would,
                             ..
                         },
                     },
-                    predicate: Some(Predicate::Passive(PassivePredicate { elements, .. })),
-                },
+                    inner: Some(predicate),
+                })),
             })] if matches!(
-                elements.as_slice(),
-                [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+                predicate.as_ref(),
+                Predicate::Passive(PassivePredicate { elements, .. }) if matches!(
+                    elements.as_slice(),
+                    [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+                )
             )
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -8797,18 +9231,8 @@ mod tests {
     fn quoted_ability_is_a_coordinated_grant_predicate_object() {
         let source = "Enchanted creature gets +2/+2 and has \"{T}: Draw a card.\"";
         let parsed = parse(source);
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &parsed.sentence().unwrap().body
-        else {
-            panic!("expected coordinated predicates: {:#?}", parsed.sentence());
-        };
-        let [
-            ClauseCoordination {
-                member: CoordinatedClauseMember::SharedPredicate(Predicate::Transitive(shared)),
-                ..
-            },
-        ] = coordination.rest.as_slice()
-        else {
+        let coordination = predicate_coordination(parsed.sentence().unwrap());
+        let [_, Predicate::Transitive(shared)] = coordination.conjuncts() else {
             panic!("expected one shared-predicate conjunct: {coordination:#?}");
         };
         assert!(
@@ -10415,49 +10839,86 @@ mod tests {
     fn shared_deontic_active_modal_coordinates_with_a_transitive_first_conjunct() {
         let source = "Enchanted creature gets +2/+2 and can't attack.";
         let parsed = parse(source);
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &parsed.sentence().expect("sentence root").body
-        else {
-            panic!("expected a coordinated clause: {:#?}", parsed.sentence());
-        };
+        let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
         let [
-            ClauseCoordination {
-                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
-                ..
-            },
-        ] = coordination.rest.as_slice()
+            _,
+            Predicate::Deontic(DeonticPredicate {
+                modal,
+                inner: Some(predicate),
+            }),
+        ] = coordination.conjuncts()
         else {
             panic!("expected one shared-deontic conjunct: {coordination:#?}");
         };
         assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
         assert!(
-            matches!(predicate, Predicate::Intransitive(_)),
+            matches!(predicate.as_ref(), Predicate::Intransitive(_)),
             "`attack` under the modal stays intransitive: {predicate:#?}"
         );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
     #[test]
+    fn shared_predicates_receive_the_finite_subject_agreement() {
+        let plural = parse("Other Merfolk get +1/+1 and have islandwalk.");
+        let coordination = predicate_coordination(plural.sentence().expect("plural sentence"));
+        let [_, Predicate::Transitive(have)] = coordination.conjuncts() else {
+            panic!("expected a transitive `have` conjunct: {coordination:#?}");
+        };
+        assert_eq!(
+            have.head.verb.slot,
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Plural,
+            }
+        );
+
+        let singular = parse("This creature gets +2/+0 and has flying.");
+        let coordination = predicate_coordination(singular.sentence().expect("singular sentence"));
+        let [_, Predicate::Transitive(has)] = coordination.conjuncts() else {
+            panic!("expected a transitive `has` conjunct: {coordination:#?}");
+        };
+        assert_eq!(
+            has.head.verb.slot,
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            }
+        );
+    }
+
+    #[test]
+    fn shared_predicate_agreement_never_changes_an_ambiguous_tail_spelling() {
+        for source in [
+            "Target creature gains flying and double strike until end of turn.",
+            "Return enchanted creature card to the battlefield under your control and attach this Aura to it.",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(
+                render_sentence(parsed.sentence().expect("sentence root")),
+                source
+            );
+        }
+    }
+
+    #[test]
     fn shared_deontic_passive_modal_coordinates_with_a_transitive_first_conjunct() {
         let source = "Enchanted creature gets +1/+0 and can't be blocked.";
         let parsed = parse(source);
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &parsed.sentence().expect("sentence root").body
-        else {
-            panic!("expected a coordinated clause: {:#?}", parsed.sentence());
-        };
+        let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
         let [
-            ClauseCoordination {
-                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
-                ..
-            },
-        ] = coordination.rest.as_slice()
+            _,
+            Predicate::Deontic(DeonticPredicate {
+                modal,
+                inner: Some(predicate),
+            }),
+        ] = coordination.conjuncts()
         else {
             panic!("expected one shared-deontic conjunct: {coordination:#?}");
         };
         assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
         assert!(
-            matches!(predicate, Predicate::Passive(_)),
+            matches!(predicate.as_ref(), Predicate::Passive(_)),
             "`be blocked` under the modal is passive: {predicate:#?}"
         );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -10467,31 +10928,23 @@ mod tests {
     fn shared_deontic_composes_with_a_modal_first_clause() {
         let source = "This creature can't block and can't be blocked.";
         let parsed = parse(source);
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &parsed.sentence().expect("sentence root").body
-        else {
-            panic!("expected a coordinated clause: {:#?}", parsed.sentence());
-        };
-        assert!(
-            matches!(
-                coordination.first.as_ref(),
-                IndependentClause::Deontic(_, _, Some(Predicate::Intransitive(_)))
-            ),
-            "expected a deontic intransitive first clause: {:#?}",
-            coordination.first
-        );
+        let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
         let [
-            ClauseCoordination {
-                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
-                ..
-            },
-        ] = coordination.rest.as_slice()
+            Predicate::Deontic(DeonticPredicate {
+                inner: Some(first), ..
+            }),
+            Predicate::Deontic(DeonticPredicate {
+                modal,
+                inner: Some(predicate),
+            }),
+        ] = coordination.conjuncts()
         else {
-            panic!("expected one shared-deontic conjunct: {coordination:#?}");
+            panic!("expected two deontic predicate conjuncts: {coordination:#?}");
         };
+        assert!(matches!(first.as_ref(), Predicate::Intransitive(_)));
         assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
         assert!(
-            matches!(predicate, Predicate::Passive(_)),
+            matches!(predicate.as_ref(), Predicate::Passive(_)),
             "`be blocked` under the modal is passive: {predicate:#?}"
         );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -10502,22 +10955,19 @@ mod tests {
         let source =
             "Enchanted creature gets +1/+1 and can't be blocked except by creatures with flying.";
         let parsed = parse(source);
-        let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
-            &parsed.sentence().expect("sentence root").body
-        else {
-            panic!("expected a coordinated clause: {:#?}", parsed.sentence());
-        };
+        let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
         let [
-            ClauseCoordination {
-                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
-                ..
-            },
-        ] = coordination.rest.as_slice()
+            _,
+            Predicate::Deontic(DeonticPredicate {
+                modal,
+                inner: Some(predicate),
+            }),
+        ] = coordination.conjuncts()
         else {
             panic!("expected one shared-deontic conjunct: {coordination:#?}");
         };
         assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
-        let Predicate::Passive(passive) = predicate else {
+        let Predicate::Passive(passive) = predicate.as_ref() else {
             panic!("expected a passive predicate under the modal: {predicate:#?}");
         };
         assert!(
@@ -10563,65 +11013,64 @@ mod tests {
         else {
             panic!("expected a finite `if` subordinate: {:#?}", attachment.kind);
         };
-        let IndependentClause::Coordinated(coordination) = if_body.as_ref() else {
-            panic!("expected a coordinated `if` body: {if_body:#?}");
-        };
-        assert!(
-            matches!(
-                coordination.first.as_ref(),
-                IndependentClause::Proform(_, crate::syntax::ProPredicate { auxiliary })
-                    if auxiliary.auxiliary == Auxiliary::Do && auxiliary.contracted_negation
-            ),
-            "expected the first conjunct to keep its do-support VP-ellipsis: {:#?}",
-            coordination.first
-        );
-        let [
-            ClauseCoordination {
-                member: CoordinatedClauseMember::SharedDeontic(modal, Some(predicate)),
-                ..
-            },
-        ] = coordination.rest.as_slice()
+        let IndependentClause::Predicated(_, PredicateExpression::Coordinated(coordination)) =
+            if_body.as_ref()
         else {
-            panic!("expected one shared-deontic conjunct: {coordination:#?}");
+            panic!("expected coordinated predicates in the `if` body: {if_body:#?}");
         };
+        let [
+            Predicate::Proform(crate::syntax::ProPredicate { auxiliary }),
+            Predicate::Deontic(DeonticPredicate {
+                modal,
+                inner: Some(predicate),
+            }),
+        ] = coordination.conjuncts()
+        else {
+            panic!("expected proform and deontic predicate conjuncts: {coordination:#?}");
+        };
+        assert_eq!(auxiliary.auxiliary, Auxiliary::Do);
+        assert!(auxiliary.contracted_negation);
         assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
-        assert!(matches!(predicate, Predicate::Intransitive(_)));
+        assert!(matches!(predicate.as_ref(), Predicate::Intransitive(_)));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 
     #[test]
     fn shared_deontic_none_renders_as_the_bare_modal() {
-        // Source-free renderer check: `SharedDeontic(modal, None)` must never
+        // Source-free renderer check: an elided deontic conjunct must never
         // synthesize a pro-verb, only the modal auxiliary itself.
-        let member = CoordinatedClauseMember::SharedDeontic(
-            Modal {
+        let second = Predicate::Deontic(DeonticPredicate {
+            modal: Modal {
                 auxiliary: crate::word::AuxiliaryInstance {
                     auxiliary: Auxiliary::Can,
                     inflection: AuxiliaryInflection::Base,
                     contracted_negation: true,
                 },
             },
-            None,
-        );
-        let parsed_first = parse("Draw a card.");
-        let SentenceBody::Independent(IndependentClause::Imperative(first_predicate)) =
+            inner: None,
+        });
+        let parsed_first = parse("You draw a card.");
+        let SentenceBody::Independent(IndependentClause::Transitive(subject, first_predicate)) =
             parsed_first.sentence().expect("sentence root").body.clone()
         else {
-            panic!("expected an imperative first clause");
+            panic!("expected a finite first clause");
         };
-        let coordinated = CoordinatedIndependentClause {
-            first: Box::new(IndependentClause::Imperative(first_predicate)),
-            rest: vec![ClauseCoordination {
-                conjunction: Some(PredicateConjunction::And),
-                comma: false,
-                member,
-            }],
-        };
+        let coordinated = IndependentClause::Predicated(
+            Some(subject),
+            PredicateExpression::Coordinated(Coordination::new(
+                Predicate::Transitive(first_predicate),
+                CoordinationJunction {
+                    conjunction: Some(PredicateConjunction::And),
+                    comma: false,
+                },
+                second,
+            )),
+        );
         let sentence = Sentence {
             initial_uppercase: true,
-            body: SentenceBody::Independent(IndependentClause::Coordinated(coordinated)),
+            body: SentenceBody::Independent(coordinated),
         };
         let rendered = render_sentence(&sentence);
-        assert_eq!(rendered, "Draw a card and can't.");
+        assert_eq!(rendered, "You draw a card and can't.");
     }
 }

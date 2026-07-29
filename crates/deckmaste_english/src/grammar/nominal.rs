@@ -2225,8 +2225,10 @@ mod tests {
                                     },
                                     distributive_each: false,
                                 },
-                                pre_object_elements: vec![],
-                                object: PredicateObject::NounPhrase(noun_phrase.clone()),
+                                kind: crate::syntax::Transitive {
+                                    pre_object_elements: vec![],
+                                    object: PredicateObject::NounPhrase(noun_phrase.clone()),
+                                },
                                 elements: vec![],
                             }),
                         )),

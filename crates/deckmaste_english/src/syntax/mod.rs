@@ -303,6 +303,19 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 }
                 self.predicate_elements(&predicate.elements, context);
             }
+            IndependentClause::Predicated(subject, expression) => {
+                if let Some(subject) = subject {
+                    self.subject(subject, context);
+                }
+                match expression {
+                    PredicateExpression::Simple(predicate) => self.predicate(predicate, context),
+                    PredicateExpression::Coordinated(coordination) => {
+                        for predicate in coordination.conjuncts() {
+                            self.predicate(predicate, context);
+                        }
+                    }
+                }
+            }
             IndependentClause::Imperative(predicate) => self.predicate(predicate, context),
             IndependentClause::Deontic(subject, _, predicate) => {
                 self.subject(subject, context);
@@ -353,14 +366,6 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     match &coordination.member {
                         CoordinatedClauseMember::Independent(clause) => {
                             self.independent_clause(clause, context);
-                        }
-                        CoordinatedClauseMember::SharedPredicate(predicate) => {
-                            self.predicate(predicate, context);
-                        }
-                        CoordinatedClauseMember::SharedDeontic(_, predicate) => {
-                            if let Some(predicate) = predicate {
-                                self.predicate(predicate, context);
-                            }
                         }
                     }
                 }
@@ -425,6 +430,43 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.predicate_elements(&predicate.elements, context);
             }
             Predicate::Proform(_) => {}
+            Predicate::Deontic(predicate) => {
+                if let Some(inner) = &predicate.inner {
+                    self.predicate(inner, context);
+                }
+            }
+            Predicate::Attached(predicate) => {
+                self.predicate(&predicate.predicate, context);
+                for attachment in &predicate.attachments {
+                    match &attachment.kind {
+                        ClauseAttachmentKind::Dependent(clause) => {
+                            self.dependent_clause(clause, context);
+                        }
+                        ClauseAttachmentKind::Adjunct(adjunct) => {
+                            self.predicate_adjunct(adjunct, context);
+                        }
+                        ClauseAttachmentKind::Exception(rider) => {
+                            self.independent_clause(&rider.first, context);
+                            for conjunct in &rider.rest {
+                                self.independent_clause(&conjunct.clause, context);
+                            }
+                        }
+                        ClauseAttachmentKind::Restriction(run) => {
+                            for adjunct in &run.first {
+                                self.predicate_adjunct(adjunct, context);
+                            }
+                            for member in &run.rest {
+                                for adjunct in &member.adjuncts {
+                                    self.predicate_adjunct(adjunct, context);
+                                }
+                            }
+                        }
+                        ClauseAttachmentKind::Appositive(clause) => {
+                            self.independent_clause(clause, context);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -565,11 +607,6 @@ impl<'syntax> RecoveryWalker<'syntax> {
     ) {
         match &relative.body {
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate, context),
-            RelativeBody::ModalSubjectGap { predicate, .. } => {
-                if let Some(predicate) = predicate {
-                    self.predicate(predicate, context);
-                }
-            }
             RelativeBody::ObjectGap { subject, predicate } => {
                 self.subject(subject, context);
                 Self::predicate_head(&predicate.head, context);
@@ -959,13 +996,15 @@ mod tests {
                 paragraph(IndependentClause::Imperative(Predicate::Transitive(
                     TransitivePredicate {
                         head: predicate_head(Vocab::Draw),
-                        pre_object_elements: vec![],
-                        object: PredicateObject::QuotedAbility(Box::new(QuotedAbility {
-                            ability: Box::new(paragraph_recovered("embedded")),
-                            initial_uppercase: false,
-                            closed: true,
-                            terminal_period: true,
-                        })),
+                        kind: Transitive {
+                            pre_object_elements: vec![],
+                            object: PredicateObject::QuotedAbility(Box::new(QuotedAbility {
+                                ability: Box::new(paragraph_recovered("embedded")),
+                                initial_uppercase: false,
+                                closed: true,
+                                terminal_period: true,
+                            })),
+                        },
                         elements: vec![],
                     },
                 ))),
@@ -1031,13 +1070,15 @@ mod tests {
         let ast = paragraph(IndependentClause::Imperative(Predicate::Transitive(
             TransitivePredicate {
                 head,
-                pre_object_elements: vec![],
-                object: PredicateObject::NounPhrase(NounPhrase::Nominal(NominalPhrase {
-                    determiner: None,
-                    modifiers: vec![],
-                    head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
-                    complements: vec![],
-                })),
+                kind: Transitive {
+                    pre_object_elements: vec![],
+                    object: PredicateObject::NounPhrase(NounPhrase::Nominal(NominalPhrase {
+                        determiner: None,
+                        modifiers: vec![],
+                        head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                        complements: vec![],
+                    })),
+                },
                 elements: vec![],
             },
         )));
@@ -1106,6 +1147,7 @@ mod tests {
     fn intransitive(vocab: Vocab) -> IntransitivePredicate {
         IntransitivePredicate {
             head: predicate_head(vocab),
+            kind: Intransitive,
             elements: vec![],
         }
     }
