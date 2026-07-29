@@ -56,3 +56,28 @@ citations move files); the comment-multiset audit from the
 [[split-trigger-rs]] template. Its "Gotchas" section (interleaved test-mod
 imports, orphaned section banners, `cargo fix --allow-no-vcs`) applies
 verbatim.
+
+## Completion (2026-07-28)
+
+- Inspection found that the stable seams are the chart lifecycle and dispatch
+  phases: rule registration, reduction, lowering, scanning, and parse support.
+  `clause.rs` now mirrors those registration/reduction/lowering phases, with
+  its tests isolated from production code. The constructor's registration
+  call sequence remains unchanged.
+- Relocated the parent-level nominal suite to `grammar/tests/nominal.rs` and
+  the literal-audit wrapper to `grammar/tests/litaudit.rs`. The grammar test
+  count remains exactly 429, and the normalized 1,847-line comment multiset is
+  identical before and after the move.
+- Removed the parent-wide `dead_code` allowance. The few staged variants and
+  helpers that still require it now carry narrow, reasoned allowances.
+- The before/after recovery reports are byte-identical (SHA-256
+  `f14d8a37088b788fe5b2e6e0fd06700c79e2716f63e167dbbe1f74dbc99a6ce0`),
+  and all 31,685 supported faces round-trip cleanly with zero mismatches or
+  render errors.
+- `cargo test -p deckmaste_english` passes (576 unit tests and 115 public API
+  tests); formatting and all-target checking are clean. Strict Clippy reports
+  only the same pre-existing grammar/test/renderer warnings as the parent
+  line; with that baseline allowed, every split module is warning-clean.
+- `cargo xtask cite check` reaches the same two malformed placeholder
+  citations in `docs/tickets/planned/comment-discipline-sweep.md`; no moved CR
+  citation is stale or malformed.

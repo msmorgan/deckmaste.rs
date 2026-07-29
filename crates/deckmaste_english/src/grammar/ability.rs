@@ -2390,6 +2390,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         parsed
     }
 
+    #[allow(
+        dead_code,
+        reason = "whole-phrase recovery remains staged for later ability milestones"
+    )]
     fn recovered_phrase(&mut self, tokens: &[Token]) -> Phrase {
         Phrase::Recovered(self.recovered_text(tokens))
     }
