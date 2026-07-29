@@ -1559,6 +1559,13 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     ) {
         return None;
     }
+    // A determiner alone cannot replace targeting: the non-target form is
+    // licensed only when the choice is restricted to permanents the resolving
+    // player controls. Otherwise this would silently turn an ordinary bounce
+    // spell into a controller-unbounded `ChooseOne`, bypassing target rules.
+    if !subject.ends_with(" you control") {
+        return None;
+    }
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: Vec::new(),
@@ -4417,6 +4424,10 @@ mod tests {
                 "With(binder: ChooseOne(filter: And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), body: Move(That(Permanent), Hand))".to_owned()
             ))
         );
+        // A bare determiner does not make the effect non-targeted: without the
+        // controller restriction this surface must remain unresolved rather
+        // than choose from every matching permanent.
+        assert!(parsed("Return an artifact to its owner's hand.").is_none());
     }
 
     #[test]
