@@ -23,13 +23,11 @@ use crate::syntax::CopularComplement;
 use crate::syntax::CopularPredicate;
 use crate::syntax::Cost;
 use crate::syntax::CostComponent;
-use crate::syntax::Demonstrative;
 use crate::syntax::DependentClause;
 use crate::syntax::Determiner;
 use crate::syntax::EllipticalClause;
 use crate::syntax::ExceptionRider;
 use crate::syntax::ExistentialClause;
-use crate::syntax::ExistentialForm;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyCount;
 use crate::syntax::FrequencyPhrase;
@@ -102,9 +100,14 @@ use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
 use crate::syntax::VerbParticle;
 use crate::word::Adjective;
+use crate::word::Auxiliary;
+use crate::word::AuxiliaryInflection;
+use crate::word::AuxiliaryInstance;
 use crate::word::InitialSound;
 use crate::word::Noun;
 use crate::word::NounInstance;
+use crate::word::Number;
+use crate::word::Person;
 use crate::word::PronounInstance;
 use crate::word::Verb;
 use crate::word::Vocab;
@@ -167,27 +170,23 @@ impl Determiner {
     /// A noun-phrase possessor containing a self reference requires the
     /// [`OracleText::render`] identity arguments and is rejected here.
     pub fn render(&self) -> Result<String, RenderError> {
+        if let Some(spelling) = self.closed_spelling() {
+            return Ok(spelling.to_owned());
+        }
         match self {
-            Self::Possessive(Possessor::Pronoun(pronoun)) => Vocabulary::new()
-                .render_possessive_pronoun(*pronoun)
-                .map(str::to_owned)
-                .ok_or(RenderError::MissingLexicalForm("possessive pronoun")),
             Self::Possessive(Possessor::NounPhrase(_)) => Err(RenderError::CardIdentityRequired),
-            Self::The => Ok("the".to_owned()),
-            Self::Each => Ok("each".to_owned()),
-            Self::Another => Ok("another".to_owned()),
-            Self::Indefinite(IndefiniteArticle::A) => Ok("a".to_owned()),
-            Self::Indefinite(IndefiniteArticle::An) => Ok("an".to_owned()),
-            Self::Demonstrative(Demonstrative::This) => Ok("this".to_owned()),
-            Self::Demonstrative(Demonstrative::That) => Ok("that".to_owned()),
-            Self::Demonstrative(Demonstrative::These) => Ok("these".to_owned()),
-            Self::Demonstrative(Demonstrative::Those) => Ok("those".to_owned()),
             Self::Target(None) => Ok("target".to_owned()),
             Self::Target(Some(quantity)) => Ok(format!("{} target", render_quantity(*quantity))),
             Self::Quantity(quantity) => Ok(render_quantity(*quantity)),
-            Self::All => Ok("all".to_owned()),
-            Self::Any => Ok("any".to_owned()),
-            Self::No => Ok("no".to_owned()),
+            Self::The
+            | Self::Each
+            | Self::Another
+            | Self::Indefinite(_)
+            | Self::Demonstrative(_)
+            | Self::Possessive(Possessor::Pronoun(_))
+            | Self::All
+            | Self::Any
+            | Self::No => unreachable!("closed forms returned above"),
         }
     }
 }
@@ -465,7 +464,7 @@ impl<'identity> Renderer<'identity> {
             TriggerEvent::Clause(clause) => self.independent_clause(clause)?,
             TriggerEvent::Temporal(phrase) => self.noun_phrase(phrase)?,
         };
-        let mut rendered = format!("{} {event}", render_trigger_word(introducer));
+        let mut rendered = format!("{} {event}", introducer.spelling());
         if let Some(condition) = intervening_condition {
             rendered.push_str(", ");
             rendered.push_str(&self.dependent_clause(condition)?);
@@ -482,7 +481,7 @@ impl<'identity> Renderer<'identity> {
         let mut rendered = self.trigger_frame(*introducer, event, None)?;
         for coordination in &conditions.rest {
             rendered.push(' ');
-            rendered.push_str(render_predicate_conjunction(coordination.conjunction));
+            rendered.push_str(coordination.conjunction.spelling());
             rendered.push(' ');
             let TriggerCondition { introducer, event } = &coordination.condition;
             rendered.push_str(&self.trigger_frame(*introducer, event, None)?);
@@ -1092,12 +1091,11 @@ impl<'identity> Renderer<'identity> {
         head: &PredicateHead,
     ) -> Result<(String, usize), RenderError> {
         let mut subject = self.subject(subject)?;
-        let auxiliary_start = self.contract_with_first_auxiliary(&mut subject, head)?;
+        let auxiliary_start = Self::contract_with_first_auxiliary(&mut subject, head)?;
         Ok((subject, auxiliary_start))
     }
 
     fn contract_with_first_auxiliary(
-        &self,
         rendered_subject: &mut String,
         head: &PredicateHead,
     ) -> Result<usize, RenderError> {
@@ -1109,8 +1107,7 @@ impl<'identity> Renderer<'identity> {
             .first()
             .copied()
             .ok_or(RenderError::MissingLexicalForm("contracted auxiliary"))?;
-        let auxiliary = self.render_auxiliary(auxiliary)?;
-        rendered_subject.push_str(contraction_suffix(&auxiliary)?);
+        rendered_subject.push_str(contraction_suffix(auxiliary)?);
         Ok(1)
     }
 
@@ -1365,8 +1362,10 @@ impl<'identity> Renderer<'identity> {
         let complement = self.copular_complement(&predicate.complement)?;
         let mut parts = Vec::with_capacity(predicate.adjuncts.len() + 2);
         if predicate.copula.contracted_with_subject {
-            let auxiliary = self.render_auxiliary(predicate.copula.auxiliary)?;
-            parts.push(format!("{subject}{}", contraction_suffix(&auxiliary)?));
+            parts.push(format!(
+                "{subject}{}",
+                contraction_suffix(predicate.copula.auxiliary)?
+            ));
         } else {
             parts.push(subject);
             parts.push(self.render_auxiliary(predicate.copula.auxiliary)?);
@@ -1408,13 +1407,7 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn existential_clause(&self, clause: &ExistentialClause) -> Result<String, RenderError> {
-        let opening = match clause.form {
-            ExistentialForm::Is => "there is",
-            ExistentialForm::ContractedIs => "there's",
-            ExistentialForm::Are => "there are",
-            ExistentialForm::Was => "there was",
-            ExistentialForm::Were => "there were",
-        };
+        let opening = clause.form.spelling();
         let mut parts = vec![opening.to_owned(), self.noun_phrase(&clause.pivot)?];
         for adjunct in &clause.adjuncts {
             parts.push(self.predicate_adjunct(adjunct)?);
@@ -1492,28 +1485,27 @@ impl<'identity> Renderer<'identity> {
                 if predicate.head.first_auxiliary_contracted_with_subject =>
             {
                 let auxiliary_start =
-                    self.contract_with_first_auxiliary(&mut marker, &predicate.head)?;
+                    Self::contract_with_first_auxiliary(&mut marker, &predicate.head)?;
                 self.transitive_predicate_from(predicate, auxiliary_start)?
             }
             RelativeBody::SubjectGap(Predicate::Intransitive(predicate))
                 if predicate.head.first_auxiliary_contracted_with_subject =>
             {
                 let auxiliary_start =
-                    self.contract_with_first_auxiliary(&mut marker, &predicate.head)?;
+                    Self::contract_with_first_auxiliary(&mut marker, &predicate.head)?;
                 self.intransitive_predicate_from(predicate, auxiliary_start)?
             }
             RelativeBody::SubjectGap(Predicate::Passive(predicate))
                 if predicate.head.first_auxiliary_contracted_with_subject =>
             {
                 let auxiliary_start =
-                    self.contract_with_first_auxiliary(&mut marker, &predicate.head)?;
+                    Self::contract_with_first_auxiliary(&mut marker, &predicate.head)?;
                 self.passive_predicate_from(predicate, auxiliary_start)?
             }
             RelativeBody::SubjectGap(Predicate::Copular(predicate))
                 if predicate.copula.contracted_with_subject =>
             {
-                let auxiliary = self.render_auxiliary(predicate.copula.auxiliary)?;
-                marker.push_str(contraction_suffix(&auxiliary)?);
+                marker.push_str(contraction_suffix(predicate.copula.auxiliary)?);
                 let mut parts = Vec::new();
                 if predicate.distributive_each {
                     parts.push("each".to_owned());
@@ -1553,13 +1545,7 @@ impl<'identity> Renderer<'identity> {
             NounPhrase::Possessive(possessor) => {
                 self.determiner(&Determiner::Possessive(possessor.clone()))
             }
-            NounPhrase::Demonstrative(demonstrative) => Ok(match demonstrative {
-                Demonstrative::This => "this",
-                Demonstrative::That => "that",
-                Demonstrative::These => "these",
-                Demonstrative::Those => "those",
-            }
-            .to_owned()),
+            NounPhrase::Demonstrative(demonstrative) => Ok(demonstrative.spelling().to_owned()),
             NounPhrase::Quantity(quantity) => Ok(render_quantity(*quantity)),
             NounPhrase::ThisCard(form) => self.this_card(*form),
             NounPhrase::Partitive(partitive) => Ok(format!(
@@ -2013,14 +1999,6 @@ fn possessive_marker(possessor: &NounPhrase) -> &'static str {
     }
 }
 
-fn render_trigger_word(word: TriggerWord) -> &'static str {
-    match word {
-        TriggerWord::When => "when",
-        TriggerWord::Whenever => "whenever",
-        TriggerWord::At => "at",
-    }
-}
-
 fn render_loyalty_cost(cost: LoyaltyCost) -> String {
     let sign = match cost.sign {
         LoyaltyCostSign::None => "",
@@ -2431,12 +2409,41 @@ fn render_catalog_atom(atom: &crate::catalog::CatalogAtom) -> String {
     }
 }
 
-fn contraction_suffix(auxiliary: &str) -> Result<&'static str, RenderError> {
-    match auxiliary {
-        "am" => Ok("'m"),
-        "are" => Ok("'re"),
-        "is" | "has" => Ok("'s"),
-        "have" => Ok("'ve"),
+fn contraction_suffix(auxiliary: AuxiliaryInstance) -> Result<&'static str, RenderError> {
+    use Auxiliary as A;
+    use AuxiliaryInflection as I;
+    use Number as N;
+    use Person as P;
+
+    match (auxiliary.auxiliary, auxiliary.inflection) {
+        (
+            A::Be,
+            I::Present {
+                person: P::Second, ..
+            }
+            | I::Present {
+                person: P::Third,
+                number: N::Plural,
+            },
+        ) => Ok("'re"),
+        (
+            A::Be | A::Have,
+            I::Present {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Ok("'s"),
+        (
+            A::Have,
+            I::Base
+            | I::Present {
+                person: P::Second, ..
+            }
+            | I::Present {
+                person: P::Third,
+                number: N::Plural,
+            },
+        ) => Ok("'ve"),
         _ => Err(RenderError::MissingLexicalForm("subject contraction")),
     }
 }
@@ -2464,32 +2471,11 @@ fn render_signed_scalar(scalar: SignedScalar) -> String {
 }
 
 fn render_subordinator(subordinator: Subordinator) -> &'static str {
-    match subordinator {
-        Subordinator::When => "when",
-        Subordinator::If => "if",
-        Subordinator::As => "as",
-        Subordinator::While => "while",
-        Subordinator::Unless => "unless",
-        Subordinator::AsLongAs => "as long as",
-        Subordinator::ForAsLongAs => "for as long as",
-        Subordinator::Until => "until",
-        Subordinator::Because => "because",
-        Subordinator::RatherThan => "rather than",
-        Subordinator::Before => "before",
-        Subordinator::After => "after",
-        Subordinator::TheNextTime => "the next time",
-        Subordinator::Where => "where",
-        Subordinator::AsThough => "as though",
-    }
+    subordinator.spelling()
 }
 
 fn render_predicate_conjunction(conjunction: PredicateConjunction) -> &'static str {
-    match conjunction {
-        PredicateConjunction::And => "and",
-        PredicateConjunction::Or => "or",
-        PredicateConjunction::Then => "then",
-        PredicateConjunction::AndOr => "and/or",
-    }
+    conjunction.spelling()
 }
 
 fn keyword_argument_separator(separator: KeywordArgumentSeparator) -> &'static str {
@@ -2512,28 +2498,7 @@ fn render_keyword_cost_terminal(terminal: Option<KeywordCostTerminal>) -> &'stat
 }
 
 fn render_preposition(preposition: Preposition) -> &'static str {
-    match preposition {
-        Preposition::After => "after",
-        Preposition::Among => "among",
-        Preposition::As => "as",
-        Preposition::At => "at",
-        Preposition::Before => "before",
-        Preposition::Between => "between",
-        Preposition::By => "by",
-        Preposition::During => "during",
-        Preposition::For => "for",
-        Preposition::From => "from",
-        Preposition::In => "in",
-        Preposition::Into => "into",
-        Preposition::Of => "of",
-        Preposition::On => "on",
-        Preposition::Onto => "onto",
-        Preposition::To => "to",
-        Preposition::Until => "until",
-        Preposition::Under => "under",
-        Preposition::With => "with",
-        Preposition::Without => "without",
-    }
+    preposition.spelling()
 }
 
 /// Whether an adjective base is a rules collective shorthand (see

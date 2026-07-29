@@ -611,6 +611,35 @@ pub enum Subordinator {
     AsThough,
 }
 
+impl Subordinator {
+    // Longest shared prefixes come first so scanning chooses the whole closed
+    // lexeme before its one-word prefix.
+    pub(crate) const FORMS: &'static [(Self, &'static str)] = &[
+        (Self::ForAsLongAs, "for as long as"),
+        (Self::TheNextTime, "the next time"),
+        (Self::AsLongAs, "as long as"),
+        (Self::AsThough, "as though"),
+        (Self::RatherThan, "rather than"),
+        (Self::When, "when"),
+        (Self::If, "if"),
+        (Self::As, "as"),
+        (Self::While, "while"),
+        (Self::Unless, "unless"),
+        (Self::Until, "until"),
+        (Self::Because, "because"),
+        (Self::Before, "before"),
+        (Self::After, "after"),
+        (Self::Where, "where"),
+    ];
+
+    pub(crate) fn spelling(self) -> &'static str {
+        Self::FORMS
+            .iter()
+            .find_map(|(subordinator, spelling)| (*subordinator == self).then_some(*spelling))
+            .expect("every subordinator has one spelling")
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PredicateConjunction {
     And,
@@ -622,6 +651,30 @@ pub enum PredicateConjunction {
     /// or noun-phrase connective, so every coordination outside the
     /// modifier list rejects it.
     AndOr,
+}
+
+impl PredicateConjunction {
+    const FORMS: &'static [(Self, &'static str)] = &[
+        (Self::And, "and"),
+        (Self::Or, "or"),
+        (Self::Then, "then"),
+        (Self::AndOr, "and/or"),
+    ];
+
+    pub(crate) fn from_spelling(surface: &str) -> Option<Self> {
+        Self::FORMS.iter().find_map(|(conjunction, spelling)| {
+            surface
+                .eq_ignore_ascii_case(spelling)
+                .then_some(*conjunction)
+        })
+    }
+
+    pub(crate) fn spelling(self) -> &'static str {
+        Self::FORMS
+            .iter()
+            .find_map(|(conjunction, spelling)| (*conjunction == self).then_some(*spelling))
+            .expect("every predicate conjunction has one spelling")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -638,4 +691,28 @@ pub enum ExistentialForm {
     Are,
     Was,
     Were,
+}
+
+impl ExistentialForm {
+    pub(crate) const FORMS: &'static [(Self, &'static str)] = &[
+        (Self::Is, "there is"),
+        (Self::ContractedIs, "there's"),
+        (Self::Are, "there are"),
+        (Self::Was, "there was"),
+        (Self::Were, "there were"),
+    ];
+
+    pub(crate) fn spelling(self) -> &'static str {
+        Self::FORMS
+            .iter()
+            .find_map(|(form, spelling)| (*form == self).then_some(*spelling))
+            .expect("every existential form has one spelling")
+    }
+
+    pub(crate) const fn number(self) -> crate::word::Number {
+        match self {
+            Self::Is | Self::ContractedIs | Self::Was => crate::word::Number::Singular,
+            Self::Are | Self::Were => crate::word::Number::Plural,
+        }
+    }
 }

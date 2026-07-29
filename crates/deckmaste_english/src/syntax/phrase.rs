@@ -329,6 +329,48 @@ impl Hash for Determiner {
 }
 
 impl Determiner {
+    const SIMPLE_FORMS: &'static [(Self, &'static str)] = &[
+        (Self::The, "the"),
+        (Self::Each, "each"),
+        (Self::Another, "another"),
+        (Self::All, "all"),
+        (Self::Any, "any"),
+        (Self::No, "no"),
+    ];
+
+    pub(crate) fn from_spelling(surface: &str) -> Option<Self> {
+        Self::SIMPLE_FORMS
+            .iter()
+            .find_map(|(determiner, spelling)| {
+                surface
+                    .eq_ignore_ascii_case(spelling)
+                    .then(|| determiner.clone())
+            })
+            .or_else(|| IndefiniteArticle::from_spelling(surface).map(Self::Indefinite))
+            .or_else(|| Demonstrative::from_spelling(surface).map(Self::Demonstrative))
+            .or_else(|| {
+                Pronoun::from_possessive_spelling(surface)
+                    .map(|pronoun| Self::Possessive(Possessor::Pronoun(pronoun)))
+            })
+    }
+
+    pub(crate) fn closed_spelling(&self) -> Option<&'static str> {
+        Self::SIMPLE_FORMS
+            .iter()
+            .find_map(|(determiner, spelling)| (determiner == self).then_some(*spelling))
+            .or_else(|| match self {
+                Self::Indefinite(article) => Some(article.spelling()),
+                Self::Demonstrative(demonstrative) => Some(demonstrative.spelling()),
+                Self::Possessive(Possessor::Pronoun(pronoun)) => pronoun.possessive_spelling(),
+                Self::Possessive(Possessor::NounPhrase(_))
+                | Self::Target(_)
+                | Self::Quantity(_) => None,
+                Self::The | Self::Each | Self::Another | Self::All | Self::Any | Self::No => {
+                    unreachable!("simple forms returned above")
+                }
+            })
+    }
+
     #[must_use]
     pub const fn noun_cardinality(&self) -> NounCardinality {
         match self {
@@ -377,12 +419,60 @@ pub enum IndefiniteArticle {
     An,
 }
 
+impl IndefiniteArticle {
+    const FORMS: &'static [(Self, &'static str)] = &[(Self::A, "a"), (Self::An, "an")];
+
+    pub(crate) fn from_spelling(surface: &str) -> Option<Self> {
+        Self::FORMS.iter().find_map(|(article, spelling)| {
+            surface.eq_ignore_ascii_case(spelling).then_some(*article)
+        })
+    }
+
+    pub(crate) fn spelling(self) -> &'static str {
+        Self::FORMS
+            .iter()
+            .find_map(|(article, spelling)| (*article == self).then_some(*spelling))
+            .expect("every indefinite article has one spelling")
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Demonstrative {
     This,
     That,
     These,
     Those,
+}
+
+impl Demonstrative {
+    const FORMS: &'static [(Self, &'static str)] = &[
+        (Self::This, "this"),
+        (Self::That, "that"),
+        (Self::These, "these"),
+        (Self::Those, "those"),
+    ];
+
+    pub(crate) fn from_spelling(surface: &str) -> Option<Self> {
+        Self::FORMS.iter().find_map(|(demonstrative, spelling)| {
+            surface
+                .eq_ignore_ascii_case(spelling)
+                .then_some(*demonstrative)
+        })
+    }
+
+    pub(crate) fn spelling(self) -> &'static str {
+        Self::FORMS
+            .iter()
+            .find_map(|(demonstrative, spelling)| (*demonstrative == self).then_some(*spelling))
+            .expect("every demonstrative has one spelling")
+    }
+
+    pub(crate) const fn number(self) -> crate::word::Number {
+        match self {
+            Self::This | Self::That => crate::word::Number::Singular,
+            Self::These | Self::Those => crate::word::Number::Plural,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -736,6 +826,46 @@ pub enum Preposition {
     Under,
     With,
     Without,
+}
+
+impl Preposition {
+    const FORMS: &'static [(Self, &'static str)] = &[
+        (Self::After, "after"),
+        (Self::Among, "among"),
+        (Self::As, "as"),
+        (Self::At, "at"),
+        (Self::Before, "before"),
+        (Self::Between, "between"),
+        (Self::By, "by"),
+        (Self::During, "during"),
+        (Self::For, "for"),
+        (Self::From, "from"),
+        (Self::In, "in"),
+        (Self::Into, "into"),
+        (Self::Of, "of"),
+        (Self::On, "on"),
+        (Self::Onto, "onto"),
+        (Self::To, "to"),
+        (Self::Until, "until"),
+        (Self::Under, "under"),
+        (Self::With, "with"),
+        (Self::Without, "without"),
+    ];
+
+    pub(crate) fn from_spelling(surface: &str) -> Option<Self> {
+        Self::FORMS.iter().find_map(|(preposition, spelling)| {
+            surface
+                .eq_ignore_ascii_case(spelling)
+                .then_some(*preposition)
+        })
+    }
+
+    pub(crate) fn spelling(self) -> &'static str {
+        Self::FORMS
+            .iter()
+            .find_map(|(preposition, spelling)| (*preposition == self).then_some(*spelling))
+            .expect("every preposition has one spelling")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

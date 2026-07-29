@@ -44,6 +44,42 @@ pub enum Pronoun {
     YoursAbsolute,
 }
 
+impl Pronoun {
+    pub(crate) const ALL: [Self; 9] = [
+        Self::You,
+        Self::It(Gender::Neuter),
+        Self::They,
+        Self::It(Gender::Masculine),
+        Self::It(Gender::Feminine),
+        Self::EachOther,
+        Self::Itself,
+        Self::Himself,
+        Self::YoursAbsolute,
+    ];
+
+    const POSSESSIVE_FORMS: &'static [(Self, &'static str)] = &[
+        (Self::You, "your"),
+        (Self::It(Gender::Masculine), "his"),
+        (Self::It(Gender::Feminine), "her"),
+        (Self::It(Gender::Neuter), "its"),
+        (Self::They, "their"),
+    ];
+
+    pub(crate) fn from_possessive_spelling(surface: &str) -> Option<Self> {
+        Self::POSSESSIVE_FORMS
+            .iter()
+            .find_map(|(pronoun, spelling)| {
+                surface.eq_ignore_ascii_case(spelling).then_some(*pronoun)
+            })
+    }
+
+    pub(crate) fn possessive_spelling(self) -> Option<&'static str> {
+        Self::POSSESSIVE_FORMS
+            .iter()
+            .find_map(|(pronoun, spelling)| (*pronoun == self).then_some(*spelling))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Gender {
     Masculine,
@@ -546,11 +582,14 @@ pub enum InitialSound {
 /// a lexical entry's overridden `initial_sound`.
 #[must_use]
 pub fn surface_initial_sound(surface: &str) -> InitialSound {
-    if surface
+    surface
         .chars()
         .next()
-        .is_some_and(|first| matches!(first.to_ascii_lowercase(), 'a' | 'e' | 'i' | 'o' | 'u'))
-    {
+        .map_or(InitialSound::Consonant, character_initial_sound)
+}
+
+fn character_initial_sound(character: char) -> InitialSound {
+    if matches!(character.to_ascii_lowercase(), 'a' | 'e' | 'i' | 'o' | 'u') {
         InitialSound::Vowel
     } else {
         InitialSound::Consonant
@@ -1499,13 +1538,9 @@ impl Vocabulary {
     #[must_use]
     pub fn initial_sound(self, vocab: Vocab) -> InitialSound {
         let definition = vocab.definition();
-        definition.initial_sound.unwrap_or_else(|| {
-            if definition.spelling.starts_with(['a', 'e', 'i', 'o', 'u']) {
-                InitialSound::Vowel
-            } else {
-                InitialSound::Consonant
-            }
-        })
+        definition
+            .initial_sound
+            .unwrap_or_else(|| surface_initial_sound(definition.spelling))
     }
 
     pub(crate) fn exceptional_catalog_noun(canonical: &str) -> Option<Vocab> {
@@ -1624,17 +1659,8 @@ impl Vocabulary {
     }
 
     #[must_use]
-    pub const fn render_possessive_pronoun(self, pronoun: Pronoun) -> Option<&'static str> {
-        match pronoun {
-            Pronoun::You => Some("your"),
-            Pronoun::It(Gender::Masculine) => Some("his"),
-            Pronoun::It(Gender::Feminine) => Some("her"),
-            Pronoun::It(Gender::Neuter) => Some("its"),
-            Pronoun::They => Some("their"),
-            Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute => {
-                None
-            }
-        }
+    pub fn render_possessive_pronoun(self, pronoun: Pronoun) -> Option<&'static str> {
+        pronoun.possessive_spelling()
     }
 
     fn render_vocab_noun(vocab: Vocab, form: NounSurface) -> Option<String> {
@@ -1837,8 +1863,13 @@ fn build_reverse_index() -> HashMap<String, Vec<IndexedWord>> {
         }
     }
 
-    for (surface, pronoun) in PRONOUN_FORMS {
-        insert_index(&mut index, surface, IndexedWord::Pronoun(pronoun));
+    for pronoun in Pronoun::ALL {
+        for case in [PronounCase::Subject, PronounCase::Object] {
+            let pronoun = PronounInstance { pronoun, case };
+            if let Some(surface) = vocabulary.render_pronoun(pronoun) {
+                insert_index(&mut index, surface, IndexedWord::Pronoun(pronoun));
+            }
+        }
     }
 
     index
@@ -1981,107 +2012,6 @@ pub(crate) const VERB_SLOTS: [VerbSlot; 12] = [
     },
     VerbSlot::PresentParticiple,
     VerbSlot::PastParticiple,
-];
-
-const PRONOUN_FORMS: [(&str, PronounInstance); 14] = [
-    (
-        "you",
-        PronounInstance {
-            pronoun: Pronoun::You,
-            case: PronounCase::Subject,
-        },
-    ),
-    (
-        "you",
-        PronounInstance {
-            pronoun: Pronoun::You,
-            case: PronounCase::Object,
-        },
-    ),
-    (
-        "it",
-        PronounInstance {
-            pronoun: Pronoun::It(Gender::Neuter),
-            case: PronounCase::Subject,
-        },
-    ),
-    (
-        "it",
-        PronounInstance {
-            pronoun: Pronoun::It(Gender::Neuter),
-            case: PronounCase::Object,
-        },
-    ),
-    (
-        "they",
-        PronounInstance {
-            pronoun: Pronoun::They,
-            case: PronounCase::Subject,
-        },
-    ),
-    (
-        "them",
-        PronounInstance {
-            pronoun: Pronoun::They,
-            case: PronounCase::Object,
-        },
-    ),
-    (
-        "he",
-        PronounInstance {
-            pronoun: Pronoun::It(Gender::Masculine),
-            case: PronounCase::Subject,
-        },
-    ),
-    (
-        "him",
-        PronounInstance {
-            pronoun: Pronoun::It(Gender::Masculine),
-            case: PronounCase::Object,
-        },
-    ),
-    (
-        "she",
-        PronounInstance {
-            pronoun: Pronoun::It(Gender::Feminine),
-            case: PronounCase::Subject,
-        },
-    ),
-    (
-        "her",
-        PronounInstance {
-            pronoun: Pronoun::It(Gender::Feminine),
-            case: PronounCase::Object,
-        },
-    ),
-    (
-        "each other",
-        PronounInstance {
-            pronoun: Pronoun::EachOther,
-            case: PronounCase::Object,
-        },
-    ),
-    (
-        "itself",
-        PronounInstance {
-            pronoun: Pronoun::Itself,
-            case: PronounCase::Object,
-        },
-    ),
-    (
-        "himself",
-        PronounInstance {
-            pronoun: Pronoun::Himself,
-            case: PronounCase::Object,
-        },
-    ),
-    (
-        "yours",
-        PronounInstance {
-            pronoun: Pronoun::YoursAbsolute,
-            case: PronounCase::Object,
-        },
-    ),
 ];
 
 fn auxiliary_instances() -> impl Iterator<Item = AuxiliaryInstance> {
@@ -2390,7 +2320,7 @@ fn consonant_y_stem(word: &str) -> Option<&str> {
     let stem = word.strip_suffix('y')?;
     stem.chars()
         .next_back()
-        .is_some_and(|character| !is_vowel(character))
+        .is_some_and(|character| character_initial_sound(character) == InitialSound::Consonant)
         .then_some(stem)
 }
 
@@ -2398,10 +2328,6 @@ fn has_sibilant_ending(word: &str) -> bool {
     ["s", "x", "z", "ch", "sh"]
         .iter()
         .any(|ending| word.ends_with(ending))
-}
-
-const fn is_vowel(character: char) -> bool {
-    matches!(character, 'a' | 'e' | 'i' | 'o' | 'u')
 }
 
 #[cfg(test)]

@@ -276,6 +276,27 @@ pub enum TriggerWord {
     At,
 }
 
+impl TriggerWord {
+    const FORMS: &'static [(Self, &'static str)] = &[
+        (Self::When, "when"),
+        (Self::Whenever, "whenever"),
+        (Self::At, "at"),
+    ];
+
+    pub(crate) fn from_spelling(surface: &str) -> Option<Self> {
+        Self::FORMS
+            .iter()
+            .find_map(|(word, spelling)| surface.eq_ignore_ascii_case(spelling).then_some(*word))
+    }
+
+    pub(crate) fn spelling(self) -> &'static str {
+        Self::FORMS
+            .iter()
+            .find_map(|(word, spelling)| (*word == self).then_some(*spelling))
+            .expect("every trigger word has one spelling")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoyaltyAbility {
     pub cost: LoyaltyCost,

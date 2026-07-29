@@ -996,12 +996,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn trigger_word(&self, token: &Token) -> Option<TriggerWord> {
-        Some(match self.token_text(token) {
-            text if text.eq_ignore_ascii_case("when") => TriggerWord::When,
-            text if text.eq_ignore_ascii_case("whenever") => TriggerWord::Whenever,
-            text if text.eq_ignore_ascii_case("at") => TriggerWord::At,
-            _ => return None,
-        })
+        TriggerWord::from_spelling(self.token_text(token))
     }
 
     fn trigger_tail<'tokens>(
@@ -1087,29 +1082,15 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         &self,
         tokens: &'tokens [Token],
     ) -> (Option<FlavorHeader>, &'tokens [Token]) {
-        let mut depth = Nesting::default();
-        for (index, token) in tokens.iter().enumerate() {
-            if depth.is_top_level() && token.kind == TokenKind::Punctuation(Punctuation::EmDash) {
-                if index == 0 || index + 1 >= tokens.len() {
-                    return (None, tokens);
-                }
-                let dash = self.token_text(token);
-                let before_end = tokens[index - 1].span.end;
-                let after_start = tokens[index + 1].span.start;
-                let separator = self.source.get(before_end..after_start);
-                if separator != Some(&format!(" {dash} ")) {
-                    return (None, tokens);
-                }
-                let header_start = tokens[0].span.start;
-                let Some(text) = self.source.get(header_start..before_end) else {
-                    return (None, tokens);
-                };
-                let header = FlavorHeader::new(text, index);
-                return (Some(header), &tokens[index + 1..]);
-            }
-            depth.observe(token.kind);
-        }
-        (None, tokens)
+        let Some(dash) = self.spaced_top_level_em_dash(tokens) else {
+            return (None, tokens);
+        };
+        let before_end = tokens[dash - 1].span.end;
+        let header_start = tokens[0].span.start;
+        let Some(text) = self.source.get(header_start..before_end) else {
+            return (None, tokens);
+        };
+        (Some(FlavorHeader::new(text, dash)), &tokens[dash + 1..])
     }
 
     fn parse_cost_component(&mut self, tokens: &[Token]) -> CostComponent {
@@ -1207,35 +1188,18 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         &self,
         tokens: &'tokens [Token],
     ) -> (Option<FlavorHeader>, &'tokens [Token]) {
-        let mut depth = Nesting::default();
-        for (index, token) in tokens.iter().enumerate() {
-            if depth.is_top_level() && token.kind == TokenKind::Punctuation(Punctuation::EmDash) {
-                // Only the first top-level em dash can begin a header body; if it
-                // does not qualify, the run is not a flavor header.
-                if index == 0 || index + 1 >= tokens.len() {
-                    return (None, tokens);
-                }
-                let dash = self.token_text(token);
-                let before_end = tokens[index - 1].span.end;
-                let after_start = tokens[index + 1].span.start;
-                let separator = self.source.get(before_end..after_start);
-                if separator != Some(&format!(" {dash} ")) {
-                    return (None, tokens);
-                }
-                let header_start = tokens[0].span.start;
-                let Some(text) = self.source.get(header_start..before_end) else {
-                    return (None, tokens);
-                };
-                if !ends_in_flavor_terminal(&tokens[..index]) && !self.catalogs.is_flavor_word(text)
-                {
-                    return (None, tokens);
-                }
-                let header = FlavorHeader::new(text, index);
-                return (Some(header), &tokens[index + 1..]);
-            }
-            depth.observe(token.kind);
+        let Some(dash) = self.spaced_top_level_em_dash(tokens) else {
+            return (None, tokens);
+        };
+        let before_end = tokens[dash - 1].span.end;
+        let header_start = tokens[0].span.start;
+        let Some(text) = self.source.get(header_start..before_end) else {
+            return (None, tokens);
+        };
+        if !ends_in_flavor_terminal(&tokens[..dash]) && !self.catalogs.is_flavor_word(text) {
+            return (None, tokens);
         }
-        (None, tokens)
+        (Some(FlavorHeader::new(text, dash)), &tokens[dash + 1..])
     }
 
     fn parse_sentence(&mut self, tokens: &[Token]) -> Sentence {
@@ -1504,11 +1468,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let Some(first) = tokens.first() else {
             return (None, tokens);
         };
-        let introducer = match self.token_text(first) {
-            text if text.eq_ignore_ascii_case("when") => TriggerWord::When,
-            text if text.eq_ignore_ascii_case("whenever") => TriggerWord::Whenever,
-            text if text.eq_ignore_ascii_case("at") => TriggerWord::At,
-            _ => return (None, tokens),
+        let Some(introducer) = TriggerWord::from_spelling(self.token_text(first)) else {
+            return (None, tokens);
         };
         let Some(comma) = find_top_level_punctuation(tokens, Punctuation::Comma) else {
             return (None, tokens);

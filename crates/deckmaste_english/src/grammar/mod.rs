@@ -202,6 +202,78 @@ pub(crate) enum ContractedSubjectKey {
     Demonstrative(Demonstrative),
 }
 
+impl ContractedSubjectKey {
+    fn agreement(self) -> Agreement {
+        match self {
+            Self::Pronoun(Pronoun::You) => Agreement {
+                person: Person::Second,
+                number: Number::Singular,
+            },
+            Self::Pronoun(Pronoun::They) => Agreement {
+                person: Person::Third,
+                number: Number::Plural,
+            },
+            Self::Pronoun(Pronoun::It(_)) | Self::Demonstrative(Demonstrative::That) => Agreement {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+            Self::Pronoun(
+                Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute,
+            )
+            | Self::Demonstrative(
+                Demonstrative::This | Demonstrative::These | Demonstrative::Those,
+            ) => unreachable!("these subjects have no contracted-auxiliary form"),
+        }
+    }
+}
+
+const SUBJECT_AUXILIARY_SURFACES: [&str; 8] = [
+    "you're", "you've", "he's", "she's", "it's", "that's", "they're", "they've",
+];
+
+const SUBJECT_AUXILIARY_FORMS: &[(usize, ContractedSubjectKey, &[Auxiliary])] = &[
+    (
+        0,
+        ContractedSubjectKey::Pronoun(Pronoun::You),
+        &[Auxiliary::Be],
+    ),
+    (
+        1,
+        ContractedSubjectKey::Pronoun(Pronoun::You),
+        &[Auxiliary::Have],
+    ),
+    (
+        2,
+        ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Masculine)),
+        &[Auxiliary::Be, Auxiliary::Have],
+    ),
+    (
+        3,
+        ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Feminine)),
+        &[Auxiliary::Be, Auxiliary::Have],
+    ),
+    (
+        4,
+        ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Neuter)),
+        &[Auxiliary::Be, Auxiliary::Have],
+    ),
+    (
+        5,
+        ContractedSubjectKey::Demonstrative(Demonstrative::That),
+        &[Auxiliary::Be, Auxiliary::Have],
+    ),
+    (
+        6,
+        ContractedSubjectKey::Pronoun(Pronoun::They),
+        &[Auxiliary::Be],
+    ),
+    (
+        7,
+        ContractedSubjectKey::Pronoun(Pronoun::They),
+        &[Auxiliary::Have],
+    ),
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Nonterminal {
     Quantity,
@@ -503,9 +575,7 @@ impl EnglishLexicalSlot {
             Self::Half => &["half"],
             Self::Rounded => &["rounded"],
             Self::Existential => &["there", "there's"],
-            Self::SubjectAuxiliary => &[
-                "you're", "you've", "he's", "she's", "it's", "that's", "they're", "they've",
-            ],
+            Self::SubjectAuxiliary => &SUBJECT_AUXILIARY_SURFACES,
             Self::Except => &["except"],
 
             Self::Number(_)
@@ -1706,6 +1776,11 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             .then_some(end)
     }
 
+    fn spelling_match(&self, tokens: &[Token], start: usize, spelling: &str) -> Option<usize> {
+        let words = spelling.split_whitespace().collect::<Vec<_>>();
+        self.words_match(tokens, start, &words)
+    }
+
     fn literal_words_match(
         &self,
         tokens: &[Token],
@@ -2641,8 +2716,12 @@ impl EnglishGrammar<'_, '_> {
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Subordinator => self.scan_subordinators(tokens, start),
-            slot @ EnglishLexicalSlot::RatherThan => self
-                .literal_words_match(tokens, start, slot)
+            EnglishLexicalSlot::RatherThan => self
+                .spelling_match(
+                    tokens,
+                    start,
+                    crate::syntax::Subordinator::RatherThan.spelling(),
+                )
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::None,
@@ -2742,51 +2821,20 @@ impl EnglishGrammar<'_, '_> {
         tokens: &[Token],
         start: usize,
     ) -> Option<(usize, crate::syntax::Subordinator)> {
-        let surface = self.token_text(tokens, start)?;
-        if surface.eq_ignore_ascii_case("for")
-            && let Some(end) = self.words_match(tokens, start, &["for", "as", "long", "as"])
-        {
-            return Some((end, crate::syntax::Subordinator::ForAsLongAs));
-        }
-        if surface.eq_ignore_ascii_case("the")
-            && let Some(end) = self.words_match(tokens, start, &["the", "next", "time"])
-        {
-            return Some((end, crate::syntax::Subordinator::TheNextTime));
-        }
-        if surface.eq_ignore_ascii_case("as") {
-            if let Some(end) = self.words_match(tokens, start, &["as", "long", "as"]) {
-                return Some((end, crate::syntax::Subordinator::AsLongAs));
-            }
-            if let Some(end) = self.words_match(tokens, start, &["as", "though"]) {
-                return Some((end, crate::syntax::Subordinator::AsThough));
-            }
-            return Some((start + 1, crate::syntax::Subordinator::As));
-        }
-        let subordinator = if surface.eq_ignore_ascii_case("if") {
-            crate::syntax::Subordinator::If
-        } else if surface.eq_ignore_ascii_case("while") {
-            crate::syntax::Subordinator::While
-        } else if surface.eq_ignore_ascii_case("unless") {
-            crate::syntax::Subordinator::Unless
-        } else if surface.eq_ignore_ascii_case("before") {
-            crate::syntax::Subordinator::Before
-        } else if surface.eq_ignore_ascii_case("after") {
-            crate::syntax::Subordinator::After
-        } else if surface.eq_ignore_ascii_case("until") {
-            // The clausal `until <event clause>` complement that bounds an
-            // iterated action (`reveal cards … until you reveal a creature
-            // card`). Also lexed as `Preposition::Until` for the durational
-            // adjunct `until end of turn`; the two readings are disjoint by
-            // what follows — only a finite `Clause` completes the subordinate
-            // rule, only a noun phrase completes the prepositional one — so no
-            // clean parse gains a competing alternative.
-            crate::syntax::Subordinator::Until
-        } else if surface.eq_ignore_ascii_case("where") {
-            crate::syntax::Subordinator::Where
-        } else {
-            return None;
-        };
-        Some((start + 1, subordinator))
+        crate::syntax::Subordinator::FORMS
+            .iter()
+            .filter(|(subordinator, _)| {
+                !matches!(
+                    subordinator,
+                    crate::syntax::Subordinator::When
+                        | crate::syntax::Subordinator::Because
+                        | crate::syntax::Subordinator::RatherThan
+                )
+            })
+            .find_map(|(subordinator, spelling)| {
+                self.spelling_match(tokens, start, spelling)
+                    .map(|end| (end, *subordinator))
+            })
     }
 
     fn scan_existential(
@@ -2794,34 +2842,20 @@ impl EnglishGrammar<'_, '_> {
         tokens: &[Token],
         start: usize,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        let [there, contracted] = EnglishLexicalSlot::Existential.literal_surfaces() else {
-            unreachable!("existential literal metadata has a fixed shape");
-        };
-        [
-            ((&[*there, "is"] as &[&str]), ExistentialForm::Is),
-            ((&[*contracted] as &[&str]), ExistentialForm::ContractedIs),
-            ((&[*there, "are"] as &[&str]), ExistentialForm::Are),
-            ((&[*there, "was"] as &[&str]), ExistentialForm::Was),
-            ((&[*there, "were"] as &[&str]), ExistentialForm::Were),
-        ]
-        .into_iter()
-        .filter_map(|(words, form)| {
-            self.words_match(tokens, start, words)
-                .map(|end| LexicalMatch {
-                    end,
-                    features: Features::Existential {
-                        number: match form {
-                            ExistentialForm::Is
-                            | ExistentialForm::ContractedIs
-                            | ExistentialForm::Was => Number::Singular,
-                            ExistentialForm::Are | ExistentialForm::Were => Number::Plural,
+        ExistentialForm::FORMS
+            .iter()
+            .filter_map(|(form, spelling)| {
+                self.spelling_match(tokens, start, spelling)
+                    .map(|end| LexicalMatch {
+                        end,
+                        features: Features::Existential {
+                            number: form.number(),
                         },
-                    },
-                    meaning: MeaningKey::Existential(form),
-                    local_cost: ParseCost::default(),
-                })
-        })
-        .collect()
+                        meaning: MeaningKey::Existential(*form),
+                        local_cost: ParseCost::default(),
+                    })
+            })
+            .collect()
     }
 
     fn scan_subject_auxiliary(
@@ -2829,126 +2863,41 @@ impl EnglishGrammar<'_, '_> {
         tokens: &[Token],
         start: usize,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        let [you_are, you_have, he, she, it, that, they_are, they_have] =
-            EnglishLexicalSlot::SubjectAuxiliary.literal_surfaces()
-        else {
-            unreachable!("subject-auxiliary literal metadata has a fixed shape");
-        };
-        [
-            (
-                *you_are,
-                ContractedSubjectKey::Pronoun(Pronoun::You),
-                Auxiliary::Be,
-                Person::Second,
-                Number::Singular,
-            ),
-            (
-                *you_have,
-                ContractedSubjectKey::Pronoun(Pronoun::You),
-                Auxiliary::Have,
-                Person::Second,
-                Number::Singular,
-            ),
-            (
-                *he,
-                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Masculine)),
-                Auxiliary::Be,
-                Person::Third,
-                Number::Singular,
-            ),
-            (
-                *he,
-                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Masculine)),
-                Auxiliary::Have,
-                Person::Third,
-                Number::Singular,
-            ),
-            (
-                *she,
-                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Feminine)),
-                Auxiliary::Be,
-                Person::Third,
-                Number::Singular,
-            ),
-            (
-                *she,
-                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Feminine)),
-                Auxiliary::Have,
-                Person::Third,
-                Number::Singular,
-            ),
-            (
-                *it,
-                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Neuter)),
-                Auxiliary::Be,
-                Person::Third,
-                Number::Singular,
-            ),
-            (
-                *it,
-                ContractedSubjectKey::Pronoun(Pronoun::It(crate::word::Gender::Neuter)),
-                Auxiliary::Have,
-                Person::Third,
-                Number::Singular,
-            ),
-            (
-                *that,
-                ContractedSubjectKey::Demonstrative(Demonstrative::That),
-                Auxiliary::Be,
-                Person::Third,
-                Number::Singular,
-            ),
-            (
-                *that,
-                ContractedSubjectKey::Demonstrative(Demonstrative::That),
-                Auxiliary::Have,
-                Person::Third,
-                Number::Singular,
-            ),
-            (
-                *they_are,
-                ContractedSubjectKey::Pronoun(Pronoun::They),
-                Auxiliary::Be,
-                Person::Third,
-                Number::Plural,
-            ),
-            (
-                *they_have,
-                ContractedSubjectKey::Pronoun(Pronoun::They),
-                Auxiliary::Have,
-                Person::Third,
-                Number::Plural,
-            ),
-        ]
-        .into_iter()
-        .filter_map(|(surface, subject, auxiliary, person, number)| {
-            self.one_token_match(tokens, start, surface).map(|end| {
-                let auxiliary = AuxiliaryInstance {
-                    auxiliary,
-                    inflection: AuxiliaryInflection::Present { person, number },
-                    contracted_negation: false,
-                };
-                LexicalMatch {
-                    end,
-                    features: Features::SubjectAuxiliary {
-                        subject,
-                        agreement: Agreement { person, number },
-                        auxiliary,
-                    },
-                    meaning: MeaningKey::SubjectAuxiliary(SubjectAuxiliaryKey {
-                        subject,
-                        auxiliary,
-                    }),
-                    local_cost: ParseCost {
-                        precedence: u32::from(
-                            auxiliary.auxiliary == Auxiliary::Have && surface.ends_with("'s"),
-                        ),
-                        ..ParseCost::default()
-                    },
-                }
+        SUBJECT_AUXILIARY_FORMS
+            .iter()
+            .flat_map(|(surface_index, subject, auxiliaries)| {
+                auxiliaries.iter().filter_map(move |auxiliary| {
+                    let surface = SUBJECT_AUXILIARY_SURFACES[*surface_index];
+                    self.one_token_match(tokens, start, surface).map(|end| {
+                        let Agreement { person, number } = subject.agreement();
+                        let auxiliary = AuxiliaryInstance {
+                            auxiliary: *auxiliary,
+                            inflection: AuxiliaryInflection::Present { person, number },
+                            contracted_negation: false,
+                        };
+                        LexicalMatch {
+                            end,
+                            features: Features::SubjectAuxiliary {
+                                subject: *subject,
+                                agreement: Agreement { person, number },
+                                auxiliary,
+                            },
+                            meaning: MeaningKey::SubjectAuxiliary(SubjectAuxiliaryKey {
+                                subject: *subject,
+                                auxiliary,
+                            }),
+                            local_cost: ParseCost {
+                                precedence: u32::from(
+                                    auxiliary.auxiliary == Auxiliary::Have
+                                        && surface.ends_with("'s"),
+                                ),
+                                ..ParseCost::default()
+                            },
+                        }
+                    })
+                })
             })
-        })
-        .collect()
+            .collect()
     }
 
     fn scan_possessive_noun(
@@ -3061,15 +3010,7 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let conjunction = if surface.eq_ignore_ascii_case("and") {
-            PredicateConjunction::And
-        } else if surface.eq_ignore_ascii_case("or") {
-            PredicateConjunction::Or
-        } else if surface.eq_ignore_ascii_case("then") {
-            PredicateConjunction::Then
-        } else if surface.eq_ignore_ascii_case("and/or") {
-            PredicateConjunction::AndOr
-        } else {
+        let Some(conjunction) = PredicateConjunction::from_spelling(surface) else {
             return Vec::new();
         };
         vec![LexicalMatch {
@@ -3088,45 +3029,7 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let determiner = if surface.eq_ignore_ascii_case("the") {
-            Determiner::The
-        } else if surface.eq_ignore_ascii_case("each") {
-            Determiner::Each
-        } else if surface.eq_ignore_ascii_case("another") {
-            Determiner::Another
-        } else if surface.eq_ignore_ascii_case("a") {
-            Determiner::Indefinite(IndefiniteArticle::A)
-        } else if surface.eq_ignore_ascii_case("an") {
-            Determiner::Indefinite(IndefiniteArticle::An)
-        } else if surface.eq_ignore_ascii_case("this") {
-            Determiner::Demonstrative(Demonstrative::This)
-        } else if surface.eq_ignore_ascii_case("that") {
-            Determiner::Demonstrative(Demonstrative::That)
-        } else if surface.eq_ignore_ascii_case("these") {
-            Determiner::Demonstrative(Demonstrative::These)
-        } else if surface.eq_ignore_ascii_case("those") {
-            Determiner::Demonstrative(Demonstrative::Those)
-        } else if surface.eq_ignore_ascii_case("all") {
-            Determiner::All
-        } else if surface.eq_ignore_ascii_case("any") {
-            Determiner::Any
-        } else if surface.eq_ignore_ascii_case("no") {
-            Determiner::No
-        } else if surface.eq_ignore_ascii_case("your") {
-            Determiner::Possessive(Possessor::Pronoun(Pronoun::You))
-        } else if surface.eq_ignore_ascii_case("his") {
-            Determiner::Possessive(Possessor::Pronoun(Pronoun::It(
-                crate::word::Gender::Masculine,
-            )))
-        } else if surface.eq_ignore_ascii_case("her") {
-            Determiner::Possessive(Possessor::Pronoun(Pronoun::It(
-                crate::word::Gender::Feminine,
-            )))
-        } else if surface.eq_ignore_ascii_case("its") {
-            Determiner::Possessive(Possessor::Pronoun(Pronoun::It(crate::word::Gender::Neuter)))
-        } else if surface.eq_ignore_ascii_case("their") {
-            Determiner::Possessive(Possessor::Pronoun(Pronoun::They))
-        } else {
+        let Some(determiner) = Determiner::from_spelling(surface) else {
             return Vec::new();
         };
         // `The` heading a multi-word nickname (e.g. `The Beast`) also parses as
@@ -3163,15 +3066,7 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let (demonstrative, number) = if surface.eq_ignore_ascii_case("this") {
-            (crate::syntax::Demonstrative::This, Number::Singular)
-        } else if surface.eq_ignore_ascii_case("that") {
-            (crate::syntax::Demonstrative::That, Number::Singular)
-        } else if surface.eq_ignore_ascii_case("these") {
-            (crate::syntax::Demonstrative::These, Number::Plural)
-        } else if surface.eq_ignore_ascii_case("those") {
-            (crate::syntax::Demonstrative::Those, Number::Plural)
-        } else {
+        let Some(demonstrative) = Demonstrative::from_spelling(surface) else {
             return Vec::new();
         };
         vec![LexicalMatch {
@@ -3179,7 +3074,7 @@ impl EnglishGrammar<'_, '_> {
             features: Features::NounPhrase {
                 agreement: Some(Agreement {
                     person: Person::Third,
-                    number,
+                    number: demonstrative.number(),
                 }),
                 pronoun_case: None,
                 adjunct: None,
@@ -3455,47 +3350,7 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let preposition = if surface.eq_ignore_ascii_case("after") {
-            Preposition::After
-        } else if surface.eq_ignore_ascii_case("among") {
-            Preposition::Among
-        } else if surface.eq_ignore_ascii_case("as") {
-            Preposition::As
-        } else if surface.eq_ignore_ascii_case("at") {
-            Preposition::At
-        } else if surface.eq_ignore_ascii_case("before") {
-            Preposition::Before
-        } else if surface.eq_ignore_ascii_case("between") {
-            Preposition::Between
-        } else if surface.eq_ignore_ascii_case("by") {
-            Preposition::By
-        } else if surface.eq_ignore_ascii_case("during") {
-            Preposition::During
-        } else if surface.eq_ignore_ascii_case("for") {
-            Preposition::For
-        } else if surface.eq_ignore_ascii_case("from") {
-            Preposition::From
-        } else if surface.eq_ignore_ascii_case("in") {
-            Preposition::In
-        } else if surface.eq_ignore_ascii_case("into") {
-            Preposition::Into
-        } else if surface.eq_ignore_ascii_case("of") {
-            Preposition::Of
-        } else if surface.eq_ignore_ascii_case("on") {
-            Preposition::On
-        } else if surface.eq_ignore_ascii_case("onto") {
-            Preposition::Onto
-        } else if surface.eq_ignore_ascii_case("to") {
-            Preposition::To
-        } else if surface.eq_ignore_ascii_case("until") {
-            Preposition::Until
-        } else if surface.eq_ignore_ascii_case("under") {
-            Preposition::Under
-        } else if surface.eq_ignore_ascii_case("with") {
-            Preposition::With
-        } else if surface.eq_ignore_ascii_case("without") {
-            Preposition::Without
-        } else {
+        let Some(preposition) = Preposition::from_spelling(surface) else {
             return Vec::new();
         };
         vec![LexicalMatch {
