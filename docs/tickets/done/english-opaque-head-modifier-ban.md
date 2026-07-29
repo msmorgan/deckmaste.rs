@@ -2,7 +2,7 @@
 needs: []
 ---
 **Measure, then ban, the opaque-nominal-head-with-known-modifier shape.**
-The degenerate reading in which an `Opaque` nominal HEAD carries a non-opaque
+The degenerate reading where an `Opaque` nominal HEAD carries a non-opaque
 `NominalModifier::Noun` (a known noun demoted to modifier under an unknown
 head) has produced wrong-but-round-tripping trees in two unrelated rounds:
 the declarestep `cleanup`-split defect (2026-07-25) and the pluralposs
