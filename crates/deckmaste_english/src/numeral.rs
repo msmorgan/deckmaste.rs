@@ -48,7 +48,7 @@ const ROMAN_PARTS: [(u32, &str); 13] = [
 ];
 
 /// The notation used to format an integer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Numeral {
     /// Lowercase English cardinal words.
     Cardinal,
@@ -61,7 +61,7 @@ pub enum Numeral {
 }
 
 /// An error returned when numeral text is invalid or noncanonical.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct ParseNumeralError;
 
 impl std::fmt::Display for ParseNumeralError {

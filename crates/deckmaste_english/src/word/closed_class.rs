@@ -2,7 +2,7 @@ use super::Number;
 use super::Person;
 use super::Vocabulary;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Pronoun {
     You,
     It(Gender),
@@ -53,26 +53,26 @@ impl Pronoun {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Gender {
     Masculine,
     Feminine,
     Neuter,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum PronounCase {
     Subject,
     Object,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct PronounInstance {
     pub pronoun: Pronoun,
     pub case: PronounCase,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Auxiliary {
     Can,
     Could,
@@ -88,7 +88,7 @@ pub enum Auxiliary {
     Have,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum AuxiliaryInflection {
     Base,
     Present {
@@ -107,7 +107,7 @@ pub enum AuxiliaryInflection {
     PastParticiple,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct AuxiliaryInstance {
     pub auxiliary: Auxiliary,
     pub inflection: AuxiliaryInflection,

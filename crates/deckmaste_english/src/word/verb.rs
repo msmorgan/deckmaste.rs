@@ -8,13 +8,13 @@ use crate::catalog::KeywordAction;
 use crate::syntax::Preposition;
 use crate::syntax::VerbParticle;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Verb {
     Word(Vocab),
     KeywordAction(KeywordAction),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum VerbSlot {
     Infinitive,
     Imperative,
@@ -24,13 +24,13 @@ pub enum VerbSlot {
     PastParticiple,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct VerbInstance {
     pub verb: Verb,
     pub slot: VerbSlot,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(crate) enum ArgumentRequirement {
     Forbidden,
     Optional,
@@ -51,7 +51,7 @@ impl ArgumentRequirement {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(crate) enum PredicateComplementKind {
     Adjective,
     Infinitive,
@@ -60,19 +60,19 @@ pub(crate) enum PredicateComplementKind {
     Statistic,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(crate) enum BareNominalAdjunct {
     Temporal,
     Manner,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(crate) enum PrepositionalRole {
     SelectedComplement,
     Adjunct,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "frame model is stable and shared across many call sites"
@@ -315,13 +315,13 @@ pub(super) const LOOK_PREDICATE_FRAMES: &[PredicateFrame] = &[
 pub(super) const PHASE_PREDICATE_FRAMES: &[PredicateFrame] =
     &[PredicateFrame::OPEN.with_particles(&[VerbParticle::In, VerbParticle::Out])];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum VerbForm {
     Regular,
     Irregular(IrregularVerbDef),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct IrregularVerbDef {
     pub present_second: Option<&'static str>,
     pub present_third_singular: Option<&'static str>,
@@ -398,7 +398,7 @@ impl IrregularVerbDef {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct VerbDefinition {
     pub verb: Verb,
     pub form: VerbForm,

@@ -6,7 +6,7 @@ pub use ability::*;
 pub use clause::*;
 pub use phrase::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum RecoveryRole {
     Clause,
     NominalComplement,
@@ -16,20 +16,20 @@ pub enum RecoveryRole {
     EmbeddedRules,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct RecoveryRef<'a> {
     pub role: RecoveryRole,
     pub text: &'a str,
     pub source_tokens: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum LexicalOpacityKind {
     Noun,
     FlavorHeader,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct LexicalOpacityRef<'a> {
     pub kind: LexicalOpacityKind,
     pub text: &'a str,
@@ -52,7 +52,7 @@ impl OracleText {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, serde::Serialize)]
 struct RecoveryWalker<'syntax> {
     phrases: Vec<RecoveryRef<'syntax>>,
     lexical_opacity: Vec<LexicalOpacityRef<'syntax>>,

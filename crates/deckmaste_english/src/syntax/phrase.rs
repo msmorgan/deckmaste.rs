@@ -21,7 +21,7 @@ use crate::word::Pronoun;
 use crate::word::PronounCase;
 use crate::word::Vocab;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct RecoveredText {
     spelling: String,
     source_tokens: usize,
@@ -47,7 +47,7 @@ impl RecoveredText {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct OpaqueLexeme(String);
 
 impl OpaqueLexeme {
@@ -68,7 +68,7 @@ impl OpaqueLexeme {
 /// the object it is on by name means just that object. Neither variant stores a
 /// spelling — the renderer re-derives it from the face name — so the two forms
 /// are interchangeable referents distinguished only by how the card wrote them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ThisCardForm {
     /// The 2024 Oracle shortened self-reference. [CR#201.5c] treats a card's
     /// shortened name as though it used the card's full name.
@@ -77,7 +77,7 @@ pub enum ThisCardForm {
     FullName,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct OracleSymbol(Arc<str>);
 
 impl OracleSymbol {
@@ -98,33 +98,33 @@ impl OracleSymbol {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct NumberLiteral {
     pub value: i32,
     pub numeral: Numeral,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ScalarSign {
     None,
     Plus,
     Minus,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ScalarValue {
     Integer(u32),
     X,
     Star,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct SignedScalar {
     pub sign: ScalarSign,
     pub value: ScalarValue,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct PowerToughness {
     pub power: SignedScalar,
     pub toughness: SignedScalar,
@@ -189,7 +189,7 @@ impl PowerToughness {
 /// distinction the surface draws — `more`/`greater` above the bound,
 /// `fewer`/`less` at or below it — is preserved here so the renderer replays
 /// the exact word rather than guessing one from the bound's direction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ComparativeWord {
     Fewer,
     Greater,
@@ -214,7 +214,7 @@ impl ComparativeWord {
 /// determined ([CR#107.3]) — never the Roman numeral ten, even though
 /// `Numeral::Roman` is the only notation whose canonical spelling of a value
 /// is `X`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum QuantityValue {
     Literal(NumberLiteral),
     Variable,
@@ -239,7 +239,7 @@ impl QuantityValue {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Quantity {
     Exact(NumberLiteral),
     AtLeast(QuantityValue),
@@ -290,7 +290,7 @@ impl Quantity {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Determiner {
     The,
     Each,
@@ -413,7 +413,7 @@ impl Determiner {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum IndefiniteArticle {
     A,
     An,
@@ -436,7 +436,7 @@ impl IndefiniteArticle {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Demonstrative {
     This,
     That,
@@ -475,13 +475,13 @@ impl Demonstrative {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Possessor {
     Pronoun(Pronoun),
     NounPhrase(Box<NounPhrase>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum NounCardinality {
     SingularCount,
     SingularOrMass,
@@ -491,7 +491,7 @@ pub enum NounCardinality {
     Unconstrained,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum NounPhrase {
     Nominal(NominalPhrase),
     Pronoun {
@@ -521,7 +521,7 @@ pub enum NounPhrase {
     Arithmetic(ArithmeticValue),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SetExceptionNounPhrase {
     pub included: Box<NounPhrase>,
     pub marker: SetExceptionMarker,
@@ -533,7 +533,7 @@ pub struct SetExceptionNounPhrase {
 /// renderer replays the operator rather than deriving it. Operands are
 /// themselves noun-phrase values (a nominal such as `the number of lands you
 /// control`, or a bare number).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ArithmeticValue {
     /// `<value> minus <value>` — subtraction, in either operand order
     /// (`3 minus the number of cards in their hand`, `its toughness minus 1`).
@@ -553,13 +553,13 @@ pub enum ArithmeticValue {
 /// The rounding rider on a `half` value expression. Magic rounds a fractional
 /// result up or down as the surface directs; the direction is carried so the
 /// renderer replays it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum Rounding {
     Up,
     Down,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PartitiveNounPhrase {
     pub head: PartitiveHead,
     pub whole: Box<NounPhrase>,
@@ -568,13 +568,13 @@ pub struct PartitiveNounPhrase {
 /// The quantifier heading a partitive `<head> of <whole>`. `Quantity` covers
 /// the counted partitives (`one of them`, `more than one of X`); `Each` is the
 /// distributive `each of X`, whose determiner is not a count quantity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum PartitiveHead {
     Quantity(Quantity),
     Each,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedNounPhrase {
     pub first: Box<NounPhrase>,
     pub rest: Vec<NounPhraseCoordination>,
@@ -583,21 +583,21 @@ pub struct CoordinatedNounPhrase {
 /// Nominal material coordinated under one shared determiner. Every member's
 /// own [`NominalPhrase::determiner`] is `None`; the sole determiner lives here
 /// so no conjunct is privileged as its accidental carrier.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedNominalPhrase {
     pub determiner: Determiner,
     pub first: Box<NominalPhrase>,
     pub rest: Vec<NominalPhraseCoordination>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhraseCoordination {
     pub conjunction: Option<NounPhraseConjunction>,
     pub comma: bool,
     pub phrase: NominalPhrase,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NounPhraseCoordination {
     /// The connective introducing this member: `None` on the asyndetic
     /// comma-separated interior members of an Oxford head list (`enchantment,`
@@ -608,7 +608,7 @@ pub struct NounPhraseCoordination {
     pub phrase: NounPhrase,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum NounPhraseConjunction {
     And,
     Or,
@@ -616,7 +616,7 @@ pub enum NounPhraseConjunction {
     AndOr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhrase {
     pub determiner: Option<Determiner>,
     pub modifiers: Vec<NominalModifier>,
@@ -637,7 +637,7 @@ pub struct NominalPhrase {
 /// always lowercase, hyphenated `non-Human` bases are always capitalized, so
 /// the glyph is never recorded structurally — the renderer derives it at
 /// render time instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Polarity {
     Positive,
     Negative,
@@ -650,7 +650,7 @@ impl Polarity {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum NominalModifier {
     Adjective {
         polarity: Polarity,
@@ -689,13 +689,13 @@ pub enum NominalModifier {
 /// coordination is recorded (comma and optional conjunction per member) so the
 /// renderer replays the exact surface list. Mirrors the exception-rider list
 /// idiom.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedModifier {
     pub first: Box<NominalModifier>,
     pub rest: Vec<ModifierCoordination>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ModifierCoordination {
     /// The connective introducing this member: `None` on the asyndetic
     /// comma-separated members of an Oxford list (`artifact,` in `artifact,
@@ -705,7 +705,7 @@ pub struct ModifierCoordination {
     pub modifier: NominalModifier,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AdjectivePhrase {
     /// A numeral degree measure premodifying the head (`2 greater`). A
     /// premodifier, never a complement: `complements` renders post-head.
@@ -726,13 +726,13 @@ pub struct AdjectivePhrase {
 /// complement); the attributive modifier list stays a
 /// [`CoordinatedModifier`](crate::syntax::CoordinatedModifier), so no
 /// attributive slot competes with it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedAdjectivePhrase {
     pub first: Box<AdjectivePhrase>,
     pub rest: Vec<AdjectivePhraseCoordination>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AdjectivePhraseCoordination {
     /// The connective introducing this member: `None` on the asyndetic
     /// comma-separated interior members of an Oxford list; `Some` on a bare
@@ -744,19 +744,19 @@ pub struct AdjectivePhraseCoordination {
     pub phrase: AdjectivePhrase,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ComparisonMarker {
     Than,
     ThanOrEqualTo,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ComparisonComplement {
     pub marker: ComparisonMarker,
     pub standard: Box<Phrase>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum AdjectiveComplement {
     Comparison(ComparisonComplement),
     PostnominalComparison(ComparisonComplement),
@@ -764,7 +764,7 @@ pub enum AdjectiveComplement {
     Infinitive(InfinitiveClause),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum NominalComplement {
     Adjective(AdjectivePhrase),
     Prepositional(PrepositionalPhrase),
@@ -803,7 +803,7 @@ pub enum NominalComplement {
     KeywordArgument(super::KeywordArgument),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum SetExceptionMarker {
     Bare,
     For,
@@ -812,7 +812,7 @@ pub enum SetExceptionMarker {
 /// The concrete-color argument of a `devotion` value nominal [CR#700.5]. The
 /// color identities are carried structurally so the renderer replays the exact
 /// words rather than deriving them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum DevotionColors {
     /// A single color: `devotion to green`.
     Color(ColorWord),
@@ -820,13 +820,13 @@ pub enum DevotionColors {
     Pair(ColorWord, ColorWord),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PrepositionalPhrase {
     pub preposition: Preposition,
     pub object: Box<Phrase>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Preposition {
     After,
     Among,
@@ -890,7 +890,7 @@ impl Preposition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Phrase {
     Clause(Box<Clause>),
     NounPhrase(Box<NounPhrase>),

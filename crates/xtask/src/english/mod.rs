@@ -6,15 +6,20 @@ use clap::Subcommand;
 
 use self::bracket::BracketArgs;
 use self::inspect::InspectArgs;
+use self::lint::LintArgs;
 use self::recovery::RecoveryArgs;
 use self::roundtrip::RoundtripArgs;
+use self::shapes::ShapesArgs;
 use self::unknown_phrases::UnknownPhrasesArgs;
 
 mod bracket;
 mod data;
 mod inspect;
+mod lint;
 mod recovery;
 mod roundtrip;
+mod shape;
+mod shapes;
 mod unknown_phrases;
 
 #[derive(Debug, Args)]
@@ -35,6 +40,10 @@ enum EnglishCommand {
     Recovery(RecoveryArgs),
     /// Round-trip supported faces through render and report any mismatches.
     Roundtrip(RoundtripArgs),
+    /// Rank rare AST productions across the corpus as misparse candidates.
+    Shapes(ShapesArgs),
+    /// Report sound structural defects — every finding is proof, not a lead.
+    Lint(LintArgs),
 }
 
 pub fn run(args: EnglishArgs) -> anyhow::Result<()> {
@@ -44,5 +53,7 @@ pub fn run(args: EnglishArgs) -> anyhow::Result<()> {
         EnglishCommand::Unknown(args) => unknown_phrases::run(&args),
         EnglishCommand::Recovery(args) => recovery::run(&args),
         EnglishCommand::Roundtrip(args) => roundtrip::run(&args),
+        EnglishCommand::Shapes(args) => shapes::run(&args),
+        EnglishCommand::Lint(args) => lint::run(&args),
     }
 }

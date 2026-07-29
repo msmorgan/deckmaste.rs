@@ -9,7 +9,7 @@ use super::Vocabulary;
 use crate::catalog::CatalogAtom;
 use crate::syntax::ComparativeWord;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ColorWord {
     White,
     Blue,
@@ -18,7 +18,7 @@ pub enum ColorWord {
     Green,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum CardOrientation {
     FaceUp,
     FaceDown,
@@ -34,7 +34,7 @@ impl CardOrientation {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Adjective {
     Word(Vocab),
     Color(ColorWord),
@@ -44,7 +44,7 @@ pub enum Adjective {
     Ordinal(i32),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum InitialSound {
     Consonant,
     Vowel,
@@ -73,7 +73,7 @@ pub(super) fn character_initial_sound(character: char) -> InitialSound {
 /// rather than matched by spelling in grammar control flow. Every member takes
 /// a `… than X` complement (the parser marks it comparison-pending);
 /// `OrComparative` members additionally head an `N or <word>` quantity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(crate) enum AdjectiveComparison {
     /// `less`/`fewer`/`greater`/`more` — heads `N or <word>` and `<word> than
     /// X`.
@@ -84,7 +84,7 @@ pub(crate) enum AdjectiveComparison {
 
 /// Which comparison class produced a comparison-pending adjective. Derived
 /// from the per-`Vocab` comparison metadata, never from a spelling match.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(crate) enum AdjectiveComparisonClass {
     OrComparative,
     ThanOnly,

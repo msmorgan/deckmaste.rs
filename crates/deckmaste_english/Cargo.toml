@@ -9,6 +9,12 @@ workspace = true
 
 [dependencies]
 hashbrown = "0.15.5"
+# `Serialize` on the syntax tree is a generic traversal protocol, not a
+# serialization format: analysis tools (`cargo xtask english shapes`) drive the
+# derive's exhaustive, compiler-checked walk instead of hand-maintaining a
+# visitor that every AST change must be mirrored into. Serialize only — nothing
+# reconstructs an AST from data.
+serde = { version = "1.0.228", features = ["derive", "rc"] }
 
 [dev-dependencies]
 proptest = "1.11.0"

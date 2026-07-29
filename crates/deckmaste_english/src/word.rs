@@ -59,25 +59,25 @@ pub use verb::VerbDefinition;
 pub use verb::VerbForm;
 pub use verb::VerbInstance;
 pub use verb::VerbSlot;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Person {
     Second,
     Third,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Number {
     Singular,
     Plural,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Tense {
     Present,
     Past,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "each bool is an independent, orthogonal part-of-speech/capability flag, not encodable state"
@@ -281,7 +281,7 @@ fn regular_definition(spelling: &str) -> Option<VocabDefinition> {
         .map(|index| regular_vocabulary()[index])
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct RegularVocab(&'static str);
 
 impl fmt::Debug for RegularVocab {
@@ -295,7 +295,7 @@ macro_rules! vocabulary {
         $variant:ident($spelling:literal)
         $(.$method:ident($($argument:expr),* $(,)?))*;
     )+) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
         pub enum Vocab {
             $($variant,)+
             Regular(RegularVocab),
@@ -826,7 +826,7 @@ vocabulary! {
     Zubera("Zubera").invariant_catalog_noun();
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, serde::Serialize)]
 pub struct Vocabulary;
 
 impl Vocabulary {

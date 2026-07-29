@@ -12,12 +12,12 @@ use super::phrase::Quantity;
 use super::phrase::RecoveredText;
 use crate::catalog::CatalogAtom;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct OracleText {
     pub abilities: Vec<Ability>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Ability {
     /// A Scryfall ability word ([`CatalogKind::AbilityWord`]) peeled before the
     /// ability frame and reproduced as `<word> — `. An ability word is a
@@ -41,7 +41,7 @@ pub struct Ability {
     pub kind: AbilityKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum AbilityKind {
     Activated(ActivatedAbility),
     ClassLevel(ClassLevelAbility),
@@ -56,7 +56,7 @@ pub enum AbilityKind {
     Paragraph(Paragraph),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClassLevelAbility {
     pub cost: Cost,
     pub level: super::phrase::NumberLiteral,
@@ -72,7 +72,7 @@ pub struct ClassLevelAbility {
 /// ability whose modes render as `• `-prefixed bullet lines.
 ///
 /// [`NumberLiteral`]: super::phrase::NumberLiteral
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChapterAbility {
     pub chapters: Vec<super::phrase::NumberLiteral>,
     pub body: Paragraph,
@@ -86,7 +86,7 @@ pub struct ChapterAbility {
 /// sentences) rendered inline after ` | `. This mirrors [`ChapterAbility`]: the
 /// range is the row's analogue of the saga chapter header, reproduced exactly
 /// by the renderer, and the inline layout is carried by the node type itself.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RollRowAbility {
     pub range: RollRange,
     pub body: Paragraph,
@@ -101,7 +101,7 @@ pub struct RollRowAbility {
 /// range separator (an em dash or an ASCII hyphen) to a single en dash
 /// (`–`, U+2013), so the renderer always emits that one glyph. See
 /// [`normalize_roll_row_dashes`](crate::normalize_roll_row_dashes).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum RollRange {
     /// A single face value: `20 | …`.
     Single(super::phrase::NumberLiteral),
@@ -129,7 +129,7 @@ pub enum RollRange {
 /// line per contained ability — the same way a modal ability renders its
 /// bulleted modes. Nothing recovers at the header or the stat line: both are
 /// carried structurally.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct LevelBandAbility {
     pub range: LevelRange,
     pub stats: PowerToughness,
@@ -142,7 +142,7 @@ pub struct LevelBandAbility {
 /// hyphen** the frame actually prints — a level symbol is not a roll-row key,
 /// so `normalize_roll_row_dashes` never rewrites it and the renderer must not
 /// emit an en dash.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum LevelRange {
     /// `LEVEL N1-N2` — active while N1 ≤ level counters ≤ N2 [CR#711.2a].
     Band {
@@ -175,14 +175,14 @@ pub enum LevelRange {
 /// `15+ | …` row from reaching this frame. [CR#721.1] notes a station card
 /// only *usually* prints that keyword; one printed without it would lower as
 /// an ordinary die-roll row instead.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct StationThresholdAbility {
     pub threshold: super::phrase::NumberLiteral,
     /// Boxed so the variant stays small, mirroring `QuotedAbility::ability`.
     pub ability: Box<Ability>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ActivatedAbility {
     pub cost: Cost,
     pub effect: Paragraph,
@@ -192,7 +192,7 @@ pub struct ActivatedAbility {
 /// An activation cost: the comma-separated list of components paid before the
 /// colon. Every cost is a list of typed [`CostComponent`]s; the earlier raw
 /// `SymbolList(String)` and untyped `Components(Vec<Phrase>)` shapes are gone.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct Cost {
     pub flavor_header: Option<FlavorHeader>,
     pub components: Vec<CostComponent>,
@@ -206,7 +206,7 @@ pub struct Cost {
 /// verb is open, the shape is not, so this crate records no per-action semantic
 /// facts. An escape variant ([`Recovered`](CostComponent::Recovered)) keeps the
 /// type from over-closing, mirroring [`KeywordArgument::Recovered`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum CostComponent {
     /// A mana or symbol run paid as a cost — `{2}{R}`, `{T}`, `{Q}`, `{E}{E}`.
     /// One or more oracle symbols; a single symbol is a one-element run,
@@ -234,7 +234,7 @@ pub enum CostComponent {
     Recovered(RecoveredText),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TriggeredAbility {
     pub conditions: TriggerConditionList,
     pub intervening_condition: Option<DependentClause>,
@@ -245,19 +245,19 @@ pub struct TriggeredAbility {
 /// ability has an empty [`Self::rest`]; a mixed-introducer ability keeps each
 /// introducer paired with its own event instead of folding the later condition
 /// into the first event or splitting the effect into multiple abilities.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TriggerConditionList {
     pub first: TriggerCondition,
     pub rest: Vec<TriggerConditionCoordination>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TriggerConditionCoordination {
     pub conjunction: PredicateConjunction,
     pub condition: TriggerCondition,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TriggerCondition {
     pub introducer: TriggerWord,
     pub event: TriggerEvent,
@@ -266,20 +266,20 @@ pub struct TriggerCondition {
 /// The common header of a single-event trigger embedded in a larger syntax
 /// node. Multi-condition top-level triggered abilities use
 /// [`TriggerConditionList`] instead.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TriggerHeader {
     pub introducer: TriggerWord,
     pub event: TriggerEvent,
     pub intervening_condition: Option<DependentClause>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum TriggerEvent {
     Clause(IndependentClause),
     Temporal(NounPhrase),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum TriggerWord {
     When,
     Whenever,
@@ -307,32 +307,32 @@ impl TriggerWord {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct LoyaltyAbility {
     pub cost: LoyaltyCost,
     pub effect: Paragraph,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct LoyaltyCost {
     pub sign: LoyaltyCostSign,
     pub value: LoyaltyCostValue,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum LoyaltyCostSign {
     None,
     Plus,
     Minus,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum LoyaltyCostValue {
     Number(u32),
     X,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ModalAbility {
     pub frame: ModalFrame,
     pub header: Paragraph,
@@ -344,7 +344,7 @@ pub struct ModalAbility {
     clippy::large_enum_variant,
     reason = "larger enum shapes are part of the serialized card-ability model"
 )]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ModalFrame {
     Unframed,
     Preamble {
@@ -367,20 +367,20 @@ pub enum ModalFrame {
     Keyword(CatalogAtom),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ModalHeaderSuffix {
     None,
     SpacedEmDash,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ModalPreambleSeparator {
     None,
     Space,
     CommaSpace,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Mode {
     /// A tiered mode's `<name> — <cost> — ` heading (e.g. `Cross-Slash — {0}
     /// —`). Absent on ordinary `Choose …` modes, whose body follows the
@@ -393,13 +393,13 @@ pub struct Mode {
 /// The label is a verbatim opaque run (licensed lexical opacity); the cost is
 /// the structural additional cost paid to choose the mode. Both always
 /// co-occur, so a single option carries the whole heading.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ModeHeading {
     pub label: FlavorHeader,
     pub cost: Cost,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct KeywordAbilityList {
     pub abilities: Vec<KeywordAbility>,
     /// Ordinary rules sentences printed on the same physical line after the
@@ -421,7 +421,7 @@ pub struct KeywordAbilityList {
 /// of them becomes [`KeywordArgument::Recovered`]. Whether a given
 /// keyword+shape pairing is legal Magic is the engine's concern, not the
 /// grammar's.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct KeywordAbility {
     pub preceding_separator: Option<KeywordListSeparator>,
     pub ability: CatalogAtom,
@@ -435,7 +435,7 @@ pub struct KeywordAbility {
 /// sentence cost, a single quality versus a coordinated one) live inside a
 /// shape's payload, never as sibling shapes. The per-shape citations name the
 /// exemplar CR rules for the shape, not facts about any keyword.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordArgument {
     /// No argument — flying, first strike, deathtouch.
     Absent,
@@ -500,7 +500,7 @@ pub enum KeywordArgument {
 /// cost may end its cost body in. Stored as an enum, never a raw `char` or a
 /// renderer-derived boolean, so the parser maps the actual terminal token and
 /// the renderer maps it straight back.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordCostTerminal {
     Period,
     Exclamation,
@@ -508,7 +508,7 @@ pub enum KeywordCostTerminal {
 }
 
 /// The surfaces a [`KeywordArgument::Costed`] cost takes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordCost {
     /// A mana/symbol cost written after a space — `ward {2}`, `equip {3}`. The
     /// run is carried as its structured oracle symbols, reproduced by
@@ -538,13 +538,13 @@ pub enum KeywordCost {
 /// A [`KeywordArgument::Predicated`] quality filter: one quality, or several
 /// coordinated qualities that the surface joins with ` and ` and the CR treats
 /// as separate abilities [CR#702.16g,702.11f].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PredicatedArgument {
     pub qualities: Vec<PredicatedQuality>,
 }
 
 /// One quality of a [`PredicatedArgument`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PredicatedQuality {
     /// The preposition introducing this quality on the surface (`from` for
     /// protection/hexproof, `for` for affinity), or `None` when the keyword
@@ -553,20 +553,20 @@ pub struct PredicatedQuality {
     pub quality: Phrase,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordListSeparator {
     Comma,
     Semicolon,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordArgumentSeparator {
     Space,
     EmDash,
     SpacedEmDash,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct Paragraph {
     /// Semantically inert flavor text carried before an em dash in header
     /// position (ability start or saga chapter body). Licensed lexical opacity:
@@ -578,7 +578,7 @@ pub struct Paragraph {
 
 /// A flavor junk-before-dash header: an arbitrary token run reproduced
 /// verbatim.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct FlavorHeader {
     text: String,
     source_tokens: usize,
@@ -613,7 +613,7 @@ impl FlavorHeader {
 /// instruction, which a separator or a bulleted mode list follows. The renderer
 /// re-derives the period from the AST tail; the parser strips a trailing period
 /// token without recording it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Sentence {
     pub initial_uppercase: bool,
     pub body: SentenceBody,
@@ -623,7 +623,7 @@ pub struct Sentence {
     clippy::large_enum_variant,
     reason = "sentence bodies can legitimately hold a large independent clause payload"
 )]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum SentenceBody {
     Independent(IndependentClause),
     /// A modal ability's `Choose one` header instruction. Structurally distinct
@@ -653,7 +653,7 @@ pub enum SentenceBody {
 /// [`TriggerHeader`], followed by the effect clause the trigger governs. The
 /// effect is a single [`IndependentClause`], not a [`Paragraph`]: a
 /// sentence-level trigger governs exactly the remainder of its own sentence.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TriggeredSentence {
     pub trigger: TriggerHeader,
     pub effect: IndependentClause,
@@ -673,7 +673,7 @@ pub struct TriggeredSentence {
 ///   second trigger such as `When you do, …` that heads a non-initial header
 ///   sentence. An ability-initial trigger, coordinated (`Ashcoat enters or
 ///   attacks`) or not, is instead absorbed by [`ModalFrame::Triggered`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChoiceInstruction {
     /// Boxed so the choice instruction stays no larger than a bare imperative
     /// header sentence: the trigger clause carries a full event clause, and the
@@ -683,7 +683,7 @@ pub struct ChoiceInstruction {
     pub at_random: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct QuotedAbility {
     pub ability: Box<Ability>,
     pub initial_uppercase: bool,

@@ -9,7 +9,7 @@ use crate::catalog::CatalogAtom;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OpaqueLexeme;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Noun {
     Word(Vocab),
     Catalog(CatalogAtom),
@@ -19,14 +19,14 @@ pub enum Noun {
     Opaque(OpaqueLexeme),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum NounInstance {
     Singular(Noun),
     Plural(Noun),
     Mass(Noun),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum NounDeclension {
     Regular,
     Irregular {
@@ -36,14 +36,14 @@ pub enum NounDeclension {
     Invariant,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Countability {
     Count,
     Mass,
     CountOrMass,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct NounDefinition {
     pub noun: Noun,
     pub declension: NounDeclension,
@@ -159,7 +159,7 @@ impl Countability {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(super) enum NounSurface {
     Singular,
     Plural,

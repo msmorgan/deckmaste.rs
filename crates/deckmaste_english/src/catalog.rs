@@ -25,7 +25,7 @@ use crate::word::Vocabulary;
 use crate::word::WordMatch;
 use crate::word::regular_plural;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 #[repr(u8)]
 pub enum CatalogKind {
     KeywordAbility,
@@ -112,7 +112,7 @@ impl CatalogKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct CatalogAtom {
     pub kind: CatalogKind,
     canonical: Arc<str>,
@@ -188,14 +188,14 @@ impl CatalogAtom {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct KeywordAction {
     canonical: Arc<str>,
     head: KeywordActionHead,
     tail: Arc<str>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 enum KeywordActionHead {
     Regular(Arc<str>),
     Irregular(Vocab),
@@ -245,10 +245,10 @@ impl KeywordAction {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 struct CatalogId(usize);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(crate) enum CatalogSlot {
     AbilityItem,
     KeywordAbilityNoun,
@@ -258,13 +258,13 @@ pub(crate) enum CatalogSlot {
     Verb(VerbSlot),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct CatalogMatch {
     pub(crate) length: usize,
     pub(crate) value: CatalogValue,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(crate) enum CatalogValue {
     Atom(CatalogAtom),
     Word(WordMatch),
@@ -279,14 +279,14 @@ impl CatalogValue {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 enum CasePolicy {
     Exact,
     Lowercase,
     Insensitive,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 struct CatalogIndex {
     by_surface: HashMap<String, Vec<CatalogId>>,
     lengths: Vec<usize>,
@@ -329,7 +329,7 @@ impl CatalogIndex {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Catalogs {
     sources: [Vec<Arc<str>>; CatalogKind::COUNT],
     entries: Vec<CatalogAtom>,
@@ -619,7 +619,7 @@ impl Catalogs {
 /// mandatory `to <color>` argument — and additionally fills the value-noun slot
 /// ([`Self::fills_value_noun`]) the grammar reads to gate its bare-color
 /// production.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(crate) enum RulesNominal {
     /// `historic` — an object with the legendary supertype, the artifact card
     /// type, or the Saga subtype [CR#700.6]. Attributive adjective only

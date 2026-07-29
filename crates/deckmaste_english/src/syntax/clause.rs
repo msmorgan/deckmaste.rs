@@ -16,13 +16,13 @@ use crate::word::AuxiliaryInstance;
 use crate::word::VerbInstance;
 use crate::word::Vocab;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Clause {
     Independent(IndependentClause),
     Dependent(DependentClause),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum IndependentClause {
     Transitive(Subject, TransitivePredicate),
     Intransitive(Subject, IntransitivePredicate),
@@ -48,7 +48,7 @@ pub enum IndependentClause {
     Coordinated(CoordinatedIndependentClause),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum DependentClause {
     Subordinate(Subordinator, SubordinateBody),
     Relative(RelativeClause),
@@ -56,7 +56,7 @@ pub enum DependentClause {
     Gerund(GerundClause),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum SubordinateBody {
     Finite(Box<IndependentClause>),
     Infinitive(InfinitiveClause),
@@ -64,15 +64,15 @@ pub enum SubordinateBody {
     Elliptical(EllipticalClause),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum EllipticalClause {
     Adjective(AdjectivePhrase),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Subject(pub NounPhrase);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Predicate {
     Transitive(TransitivePredicate),
     Intransitive(IntransitivePredicate),
@@ -86,7 +86,7 @@ pub enum Predicate {
 }
 
 /// The predicate constituent of a finite clause.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum PredicateExpression {
     Simple(Predicate),
     Coordinated(Coordination<Predicate>),
@@ -95,19 +95,19 @@ pub enum PredicateExpression {
 /// A modal predicate. The inner predicate is absent under VP-ellipsis (`If
 /// you can't, …`); modality remains inside the predicate layer in either
 /// case.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct DeonticPredicate {
     pub modal: Modal,
     pub inner: Option<Box<Predicate>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AttachedPredicate {
     pub predicate: Box<Predicate>,
     pub attachments: Vec<ClauseAttachment>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PredicateHead {
     pub auxiliaries: Vec<AuxiliaryInstance>,
     pub first_auxiliary_contracted_with_subject: bool,
@@ -122,7 +122,7 @@ pub struct PredicateHead {
     pub distributive_each: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum PreverbModifier {
     Not,
     Also,
@@ -134,7 +134,7 @@ pub enum PreverbModifier {
 /// Shared shell for predicates with a lexical [`PredicateHead`]. `K` carries
 /// only the complement structure that distinguishes predicate kinds; the head
 /// and trailing elements have one representation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct HeadedPredicate<K> {
     pub head: PredicateHead,
     pub kind: K,
@@ -155,16 +155,16 @@ impl<K> DerefMut for HeadedPredicate<K> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Transitive {
     pub pre_object_elements: Vec<PredicateElement>,
     pub object: PredicateObject,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Intransitive;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Passive {
     /// The theme retained post-verbally under recipient passivization: the
     /// `damage` of `an opponent was dealt damage this turn`. `None` for every
@@ -178,7 +178,7 @@ pub type TransitivePredicate = HeadedPredicate<Transitive>;
 pub type IntransitivePredicate = HeadedPredicate<Intransitive>;
 pub type PassivePredicate = HeadedPredicate<Passive>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CopularPredicate {
     pub copula: Copula,
     /// Whether the predication is negated by a free-standing `not`
@@ -203,13 +203,13 @@ pub struct CopularPredicate {
     pub adjuncts: Vec<PredicateAdjunct>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct Copula {
     pub auxiliary: AuxiliaryInstance,
     pub contracted_with_subject: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum CopularComplement {
     NounPhrase(NounPhrase),
     Adjective(AdjectivePhrase),
@@ -227,22 +227,22 @@ pub enum CopularComplement {
     CatalogAtom(CatalogAtom),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct Modal {
     pub auxiliary: AuxiliaryInstance,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct ProPredicate {
     pub auxiliary: AuxiliaryInstance,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ObjectGap;
 
 pub type ObjectGapPredicate = HeadedPredicate<ObjectGap>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum PredicateObject {
     NounPhrase(NounPhrase),
     Ability(AbilityObject),
@@ -255,13 +255,13 @@ pub enum PredicateObject {
     Coordinated(CoordinatedPredicateObject),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedPredicateObject {
     pub first: Box<PredicateObject>,
     pub rest: Vec<PredicateObjectCoordination>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PredicateObjectCoordination {
     /// `None` on the asyndetic comma-separated interior members of an Oxford
     /// list; `Some` on a bare `and`/`or` member and on the final Oxford
@@ -272,13 +272,13 @@ pub struct PredicateObjectCoordination {
     pub object: PredicateObject,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AbilityObject {
     pub ability: CatalogAtom,
     pub argument: Option<Box<PredicateObject>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum PredicateComplement {
     IndirectObject(NounPhrase),
     Adjective(AdjectivePhrase),
@@ -292,7 +292,7 @@ pub enum PredicateComplement {
     Infinitive(InfinitiveClause),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum PredicateElement {
     Complement(PredicateComplement),
     Adjunct(PredicateAdjunct),
@@ -305,7 +305,7 @@ pub enum PredicateElement {
     CoinResult(CoinSide),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum VerbParticle {
     In,
     Out,
@@ -315,13 +315,13 @@ pub enum VerbParticle {
 /// `come up heads`/`come up tails` result predicate [CR#705.1,705.2]. Not a
 /// general noun or adjective reading of `heads`/`tails` — see
 /// `PredicateElement::CoinResult`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum CoinSide {
     Heads,
     Tails,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum PredicateAdjunct {
     Adverb(Vocab),
     Frequency(FrequencyPhrase),
@@ -342,52 +342,52 @@ pub enum PredicateAdjunct {
     Dependent(Box<DependentClause>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct FrequencyPhrase {
     pub bound: FrequencyBound,
     pub count: FrequencyCount,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum FrequencyBound {
     MoreThan,
     NoMoreThan,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum FrequencyCount {
     Once,
     Twice,
     Times(NumberLiteral),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct InfinitiveClause {
     pub negated: bool,
     pub marker: InfinitiveMarker,
     pub predicate: Box<Predicate>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct GerundClause {
     pub predicate: Box<Predicate>,
     pub attachments: Vec<DependentAttachment>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum InfinitiveMarker {
     Bare,
     To,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RelativeClause {
     pub marker: RelativeMarker,
     pub gap: RelativeGap,
     pub body: RelativeBody,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum RelativeMarker {
     That,
     Which,
@@ -395,13 +395,13 @@ pub enum RelativeMarker {
     Zero,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum RelativeGap {
     Subject,
     Object,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum RelativeBody {
     SubjectGap(Predicate),
     ObjectGap {
@@ -410,13 +410,13 @@ pub enum RelativeBody {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ComplexClause {
     pub matrix: Box<IndependentClause>,
     pub attachments: Vec<ClauseAttachment>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Attachment<T> {
     pub position: AttachmentPosition,
     pub comma: bool,
@@ -425,7 +425,7 @@ pub struct Attachment<T> {
 
 pub type ClauseAttachment = Attachment<ClauseAttachmentKind>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ClauseAttachmentKind {
     Dependent(DependentClause),
     Adjunct(PredicateAdjunct),
@@ -458,7 +458,7 @@ pub enum ClauseAttachmentKind {
 
 /// A coordinated run of `only …` restriction members trailing a host clause.
 /// Mirrors [`ExceptionRider`]'s topology.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RestrictionRun {
     /// A member's payload: one adjunct for a `Prepositional`/`Dependent`
     /// member (`only as a sorcery`, `only if …`), **two** for the flat
@@ -473,7 +473,7 @@ pub struct RestrictionRun {
     pub rest: Vec<RestrictionCoordination>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RestrictionCoordination {
     /// `None` on the asyndetic comma-separated interior members of an Oxford
     /// list; `Some(PredicateConjunction::And)` on a bare `and` member and on
@@ -488,13 +488,13 @@ pub struct RestrictionCoordination {
 /// leading `except`. The first conjunct and each continuation is an
 /// independent finite clause; the coordination is recorded (comma and optional
 /// conjunction per member) so the renderer replays the exact surface list.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExceptionRider {
     pub first: Box<IndependentClause>,
     pub rest: Vec<ExceptionConjunct>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExceptionConjunct {
     pub conjunction: Option<PredicateConjunction>,
     pub comma: bool,
@@ -503,13 +503,13 @@ pub struct ExceptionConjunct {
 
 pub type DependentAttachment = Attachment<DependentClause>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum AttachmentPosition {
     BeforeMatrix,
     AfterMatrix,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinationJunction {
     /// `None` records an asyndetic comma junction; coordinated junctions carry
     /// their overt connective.
@@ -522,7 +522,7 @@ pub struct CoordinationJunction {
 /// Conjuncts and the junctions between them are stored separately so no
 /// conjunct is structurally privileged as `first`. The private fields keep
 /// the invariant `junctions.len() + 1 == conjuncts.len()` intact.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Coordination<T> {
     conjuncts: Vec<T>,
     junctions: Vec<CoordinationJunction>,
@@ -552,13 +552,13 @@ impl<T> Coordination<T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedIndependentClause {
     pub first: Box<IndependentClause>,
     pub rest: Vec<ClauseCoordination>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClauseCoordination {
     pub conjunction: Option<PredicateConjunction>,
     pub comma: bool,
@@ -568,12 +568,12 @@ pub struct ClauseCoordination {
 /// A complete-clause coordination continuation. Subjectless continuations are
 /// folded into the predicate expression of the preceding clause before this
 /// layer is built, so every member here is a complete independent clause.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum CoordinatedClauseMember {
     Independent(Box<IndependentClause>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Subordinator {
     When,
     If,
@@ -637,7 +637,7 @@ impl Subordinator {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum PredicateConjunction {
     And,
     Or,
@@ -674,14 +674,14 @@ impl PredicateConjunction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExistentialClause {
     pub form: ExistentialForm,
     pub pivot: NounPhrase,
     pub adjuncts: Vec<PredicateAdjunct>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ExistentialForm {
     Is,
     ContractedIs,

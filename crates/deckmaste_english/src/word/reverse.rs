@@ -23,14 +23,14 @@ use super::noun::NounSurface;
 use super::regular_vocabulary;
 use super::verb::VERB_SLOTS;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum NounUsage {
     Count,
     Mass,
     Either,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum LexicalSlot {
     Noun(NounUsage),
     Verb(VerbSlot),
@@ -41,7 +41,7 @@ pub enum LexicalSlot {
     Auxiliary,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum WordMatch {
     Noun(NounInstance),
     Verb(VerbInstance),
@@ -69,7 +69,7 @@ impl Vocabulary {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub(super) enum IndexedWord {
     Noun { vocab: Vocab, form: NounSurface },
     Agentive { vocab: Vocab, form: NounSurface },
