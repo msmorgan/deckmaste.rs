@@ -24,3 +24,26 @@ on card B, at most one can be right — the divergence alone is the finding.
 Weakest soundness of the `english-lint-*` set; sequence it last.
 
 Standard constraints apply.
+
+## Completion
+
+`divergent-parse` in `xtask/src/english/lint.rs` — **0 findings**, over 52,827
+abilities paired with their source line and 3,297 texts shared by two or more
+cards.
+
+The context guard the ticket demanded turned out to be tractable rather than
+impossible, because the context that can legitimately change a parse is exactly
+what `parse_with_identity` consumes:
+
+- abilities naming their own card are dropped (self-reference makes identical
+  text legitimately parse differently), and
+- `is_legendary` is part of the grouping key rather than something two cards in
+  a group may differ on.
+
+Pairing is conservative — an ability is compared only when a face's line count
+matches its ability count, so a multi-line ability never mispairs.
+
+The check therefore stays a lint rather than being downgraded to an advisory
+feed. It reports a genuine proven invariant, and the run prints its own coverage
+(`abilities paired`, `texts shared`) specifically so a silently no-op'd check
+cannot be mistaken for a clean one — the failure mode this ticket warned about.

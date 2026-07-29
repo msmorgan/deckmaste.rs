@@ -48,3 +48,27 @@ here. If the serde derive proves out, it becomes a candidate shape for that
 ticket's "derived walk".
 
 Standard constraints apply.
+
+## Completion
+
+- `Serialize` derived across the syntax tree (unconditional; `deckmaste_english`
+  is `publish = false` and every consumer is in-workspace). `serde` carries the
+  `rc` feature for the `Arc<str>` atoms. The compiler enumerated the reachable
+  leaf types, so the derive surface needed no guessing.
+- The walk lands in `xtask/src/english/shape.rs` as a `Serializer` producing a
+  `Shape` tree — **not** `serde_json::Value`, which would collapse a unit
+  variant and a plain string into the same `Value::String` and turn every card
+  name into a singleton signature. `Shape` is shared with the `english-lint-*`
+  checks, which need arbitrary-depth sibling access a label-only walk cannot
+  give.
+- `cargo xtask english shapes`: 2,002 distinct productions over 2,653,350 nodes.
+- Two knobs proved necessary against real output, not in design:
+  `--arity collapse` (list *length* was masquerading as list *shape* — a
+  ten-member coordination is ordinary but was a unique signature) and
+  `--lexicalize none` (`CatalogAtom.vocab` made every creature type its own
+  singleton). Both are measured in the module docs.
+
+Calibration remains open: `english-ast-grouping` fixed the Bonfire family
+before this landed, so the labelled pre-fix snapshot that would validate the
+tail no longer reproduces from trunk. The tail's value is instead evidenced by
+the `english-lint-*` findings it is paired with.

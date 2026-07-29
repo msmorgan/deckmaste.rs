@@ -26,3 +26,32 @@ being provable. Prefer a small table that never lies over a broad one that
 needs triage.
 
 Standard constraints apply.
+
+## Completion
+
+`uncontrollable-host` in `xtask/src/english/lint.rs` — **431 findings**, the
+substantive result of the whole claim.
+
+An object-gap relative attaches its gap to the host noun. When the verb filling
+that gap requires an object in the rules sense [CR#109.1] and the host is a mass
+noun, the clause cannot belong to that host. Damage is not among the things rule
+109.1 lists — it is what objects *deal* [CR#120.1] — so `… damage … that player
+controls` is misattached whatever the card means. Both rules were already
+registered in `cr-citations.lock`; no `bless` was needed.
+
+Verified by hand:
+
+- **Acidic Soil** — `<<damage> … <of <lands>>> <<they> <control>>`: `they
+  control` modifies *damage*, not `lands`.
+- **Abzan Monument** — `<<toughness> <among <creatures>>> <<you> <control>>`:
+  belongs to `creatures`.
+
+This is the general form of the defect `english-ast-grouping` fixed for
+`damage … to X and each creature that …`; the general case survived, and every
+one of the 431 is invisible to round-trip because the tokens render back
+unchanged.
+
+The table is deliberately two verbs (`Control`, `Own`). Widening it is real
+follow-up work, but each new entry needs its own CR basis — `109.1` does not
+license a claim about `sacrifice` or `exile`. A small table that never lies
+beats a broad one that needs triage.
