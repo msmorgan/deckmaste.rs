@@ -68,6 +68,7 @@ use super::reduction::auxiliary_form;
 use super::reduction::predicate_form;
 use super::take;
 use crate::syntax::ObjectGapPredicate;
+use crate::syntax::PredicateConjunction;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
@@ -176,6 +177,9 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
+        | RuleTag::ClauseCoordinationCopularNounPrepositional
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
         | RuleTag::ClauseAdverbBefore
         | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
@@ -1122,6 +1126,11 @@ pub(super) fn lower_variable_value_constraint(children: &mut [Lowered]) -> Optio
 )]
 pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
+        RuleTag::ClauseCoordinationCopularNounPrepositional
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
+            lower_shared_copular_coordination(tag, children)
+        }
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic => lower_coordination(tag, children),
@@ -1551,6 +1560,74 @@ pub(super) fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Opti
             append_shared_predicate(first, junction, predicate)?
         }
     };
+    Some(Lowered::Clause(Clause::Independent(coordinated)))
+}
+
+fn lower_shared_copular_coordination(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
+    let Lowered::Clause(Clause::Independent(first)) = take(children, 0)? else {
+        return None;
+    };
+    let (conjunction_index, copula_index, noun_phrase_index, preposition_index, comma) = match tag {
+        RuleTag::ClauseCoordinationCopularNounPrepositional => (Some(1), 2, 3, 4, false),
+        RuleTag::ClauseCoordinationCopularNounPrepositionalComma => (Some(2), 3, 4, 5, true),
+        RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => (None, 2, 3, 4, true),
+        _ => return None,
+    };
+    let conjunction = match conjunction_index {
+        Some(index) => {
+            let Lowered::Conjunction(PredicateConjunction::And) = take(children, index)? else {
+                return None;
+            };
+            Some(PredicateConjunction::And)
+        }
+        None => None,
+    };
+    let Lowered::Auxiliary(auxiliary) = take(children, copula_index)? else {
+        return None;
+    };
+    let copula_agreement = match auxiliary {
+        AuxiliaryInstance {
+            auxiliary: Auxiliary::Be,
+            inflection:
+                AuxiliaryInflection::Present { person, number }
+                | AuxiliaryInflection::Past { person, number },
+            ..
+        } => Agreement { person, number },
+        _ => return None,
+    };
+    if let Some(host_inflection) = finite_inflection_of_clause(&first) {
+        let host_agreement = match host_inflection {
+            FiniteInflection::Present(agreement) | FiniteInflection::Past(agreement) => agreement,
+        };
+        if host_agreement != copula_agreement {
+            return None;
+        }
+    }
+    let Lowered::NounPhrase(complement) = take(children, noun_phrase_index)? else {
+        return None;
+    };
+    let Lowered::PrepositionalPhrase(preposition) = take(children, preposition_index)? else {
+        return None;
+    };
+    if preposition.preposition != crate::syntax::Preposition::In {
+        return None;
+    }
+    let predicate = Predicate::Copular(crate::syntax::CopularPredicate {
+        copula: crate::syntax::Copula {
+            auxiliary,
+            contracted_with_subject: false,
+        },
+        negated: false,
+        distributive_each: false,
+        precomplement_adverbs: Vec::new(),
+        complement: CopularComplement::NounPhrase(complement),
+        adjuncts: vec![PredicateAdjunct::Prepositional(preposition)],
+    });
+    let coordinated = append_shared_predicate(
+        first,
+        CoordinationJunction { conjunction, comma },
+        predicate,
+    )?;
     Some(Lowered::Clause(Clause::Independent(coordinated)))
 }
 

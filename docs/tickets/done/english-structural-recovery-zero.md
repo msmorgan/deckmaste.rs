@@ -82,7 +82,8 @@ usually a root cause; any is pickable as a normal round.
 `english-keyword-ability-parameters`, `english-keyword-action-verbs`,
 `english-keyword-grant-arguments`, `english-negated-contracted-copular`,
 `english-opacity-residue-families`, `english-opaque-head-modifier-ban`,
-`english-predicate-coordination-residue`, `english-quantifier-float-residue`,
+`english-predicate-coordination-residue`,
+`english-predicate-coordination-redesign`, `english-quantifier-float-residue`,
 `english-reduced-recipient-passive-relative`, `english-single-root-lowering`,
 `english-voting-procedure`.
 

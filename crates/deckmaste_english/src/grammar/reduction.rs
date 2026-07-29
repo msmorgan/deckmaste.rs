@@ -172,6 +172,9 @@ pub(super) fn reduce(
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
+        | RuleTag::ClauseCoordinationCopularNounPrepositional
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
         | RuleTag::ClauseAdverbBefore
         | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore

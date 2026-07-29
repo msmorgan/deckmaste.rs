@@ -601,6 +601,51 @@ impl RuleBuilder {
         );
     }
 
+    /// A narrow subject-shared copular continuation for additive type
+    /// predications: `... and is <NP> in <PP>`. The dedicated shape avoids
+    /// admitting arbitrary copular remainders such as `every creature type`.
+    pub(super) fn add_shared_copular_coordination_rules(&mut self) {
+        use EnglishLexicalSlot as L;
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
+        self.add(
+            RuleTag::ClauseCoordinationCopularNounPrepositional,
+            N::Clause,
+            [
+                n(N::Clause),
+                l(L::Conjunction),
+                l(L::Copula),
+                n(N::NounPhrase),
+                n(N::PrepositionalPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::ClauseCoordinationCopularNounPrepositionalComma,
+            N::Clause,
+            [
+                n(N::Clause),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Conjunction),
+                l(L::Copula),
+                n(N::NounPhrase),
+                n(N::PrepositionalPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic,
+            N::Clause,
+            [
+                n(N::Clause),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Copula),
+                n(N::NounPhrase),
+                n(N::PrepositionalPhrase),
+            ],
+        );
+    }
+
     /// General coordination inside the nominal, appended last so every existing
     /// rule keeps its `RuleId` and every existing parse forest keeps its
     /// alternative indices. Two independent shapes:

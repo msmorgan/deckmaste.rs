@@ -413,6 +413,9 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
+        | RuleTag::ClauseCoordinationCopularNounPrepositional
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
         | RuleTag::ClauseAdverbBefore
         | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore

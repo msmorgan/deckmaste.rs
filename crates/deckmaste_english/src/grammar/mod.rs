@@ -1557,6 +1557,11 @@ enum RuleTag {
     ClauseCoordination,
     ClauseCoordinationComma,
     ClauseCoordinationAsyndetic,
+    /// A finite clause followed by a subject-shared copula, nominal
+    /// complement, and additive `in` prepositional adjunct.
+    ClauseCoordinationCopularNounPrepositional,
+    ClauseCoordinationCopularNounPrepositionalComma,
+    ClauseCoordinationCopularNounPrepositionalAsyndetic,
     ClauseAdverbBefore,
     ClauseSentenceAdverbialBefore,
     ClausePrepositionalBefore,
@@ -1755,6 +1760,10 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // Append-last because this widens `NounPhrase`; its dot-1 host gate is
         // categorical, while retaining every earlier rule's stable identity.
         builder.add_set_exception_rules();
+        // This subject-shared copular continuation is registered last of the
+        // entire grammar. Its dot-1 host gate is categorical, and retaining
+        // every earlier RuleId minimizes discovery-order perturbation.
+        builder.add_shared_copular_coordination_rules();
         Self {
             source,
             catalogs,

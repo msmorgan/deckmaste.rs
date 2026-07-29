@@ -5900,3 +5900,80 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
     let rendered = render_sentence(&sentence);
     assert_eq!(rendered, "You draw a card and can't.");
 }
+
+// ---- Stage C: narrow additive-type shared copular members ----
+
+#[test]
+fn additive_type_copular_continuations_share_the_finite_subject() {
+    for (source, conjunction, comma) in [
+        (
+            "Enchanted creature gets +1/+1 and is a Goblin in addition to its other types.",
+            Some(PredicateConjunction::And),
+            false,
+        ),
+        (
+            "Enchanted creature gets +1/+1, and is a Goblin in addition to its other types.",
+            Some(PredicateConjunction::And),
+            true,
+        ),
+        (
+            "Enchanted creature gets +1/+1, is a Goblin in addition to its other types.",
+            None,
+            true,
+        ),
+    ] {
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+        let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
+        let [_, Predicate::Copular(copular)] = coordination.conjuncts() else {
+            panic!("expected a shared copular continuation: {coordination:#?}");
+        };
+        assert!(matches!(
+            copular.complement,
+            CopularComplement::NounPhrase(NounPhrase::Nominal(_))
+        ));
+        let [PredicateAdjunct::Prepositional(preposition)] = copular.adjuncts.as_slice() else {
+            panic!("expected one additive prepositional adjunct: {copular:#?}");
+        };
+        assert_eq!(preposition.preposition, Preposition::In);
+        let Phrase::NounPhrase(object) = preposition.object.as_ref() else {
+            panic!("expected a nominal `addition` object: {preposition:#?}");
+        };
+        let NounPhrase::Nominal(addition) = object.as_ref() else {
+            panic!("expected a nominal `addition` object: {object:#?}");
+        };
+        assert!(matches!(
+            addition.complements.as_slice(),
+            [NominalComplement::Prepositional(to)] if to.preposition == Preposition::To
+        ));
+        assert!(matches!(
+            coordination.junctions(),
+            [CoordinationJunction {
+                conjunction: actual_conjunction,
+                comma: actual_comma,
+            }] if *actual_conjunction == conjunction && *actual_comma == comma
+        ));
+
+        let rendered = render_sentence(parsed.sentence().unwrap());
+        assert_eq!(rendered, source);
+        let reparsed = parse(&rendered);
+        assert_eq!(reparsed.sentence(), parsed.sentence(), "{source}");
+    }
+}
+
+#[test]
+fn additive_type_copular_continuation_rejects_broader_copular_surfaces() {
+    for source in [
+        "Equipped creature gets +3/+0 and is every creature type.",
+        "Equipped creature gets +1/+1 and is all creature types.",
+        "Equipped creature gets +2/+2 and is a black Goblin.",
+        "Equipped creature gets +2/+2 or is a Goblin in addition to its other types.",
+        "Equipped creature gets +2/+2 and are Goblins in addition to their other types.",
+        "Draw a card and is a Goblin in addition to its other types.",
+    ] {
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+            "the narrow additive-type continuation must reject {source:?}"
+        );
+    }
+}

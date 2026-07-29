@@ -143,6 +143,9 @@ pub(in crate::grammar) fn reduce_clause(
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
+        | RuleTag::ClauseCoordinationCopularNounPrepositional
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
         | RuleTag::ClauseAdverbBefore
         | RuleTag::ClauseSentenceAdverbialBefore
         | RuleTag::ClausePrepositionalBefore
@@ -210,6 +213,9 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
     }
     if tag == RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional {
         return matches!(features, Features::VerbPhrase { passive: true, .. });
+    }
+    if let Some(accepts) = accepts_shared_copular_coordination_prefix(tag, features) {
+        return accepts;
     }
     let predicate_rule = matches!(
         tag,
@@ -330,6 +336,27 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
         RuleTag::VerbPhraseCoinResult => frame.requires_coin_result(),
         _ => true,
     }
+}
+
+fn accepts_shared_copular_coordination_prefix(tag: RuleTag, features: &Features) -> Option<bool> {
+    matches!(
+        tag,
+        RuleTag::ClauseCoordinationCopularNounPrepositional
+            | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
+            | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
+    )
+    .then(|| {
+        matches!(
+            features,
+            Features::Clause {
+                agreement: Some(_),
+                standalone: true,
+                finite: true,
+                subjunctive: false,
+                ..
+            }
+        )
+    })
 }
 
 pub(in crate::grammar) fn reduction_cost(
@@ -1714,6 +1741,11 @@ pub(super) fn reduce_composed_clause(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
+        RuleTag::ClauseCoordinationCopularNounPrepositional
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
+            reduce_shared_copular_coordination(tag, children)
+        }
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic => {
@@ -2015,6 +2047,57 @@ pub(super) fn reduce_composed_clause(
         }
         _ => None,
     }
+}
+
+fn reduce_shared_copular_coordination(
+    tag: RuleTag,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Option<Reduced> {
+    let (conjunction_index, copula_index, noun_phrase_index, preposition_index) = match tag {
+        RuleTag::ClauseCoordinationCopularNounPrepositional => (Some(1), 2, 3, 4),
+        RuleTag::ClauseCoordinationCopularNounPrepositionalComma => (Some(2), 3, 4, 5),
+        RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => (None, 2, 3, 4),
+        _ => return None,
+    };
+    let Features::Clause {
+        agreement: Some(host_agreement),
+        standalone: true,
+        finite: true,
+        subjunctive: false,
+        ..
+    } = children.first()?.features
+    else {
+        return None;
+    };
+    if let Some(index) = conjunction_index
+        && !matches!(
+            children.get(index)?.features,
+            Features::Conjunction(crate::syntax::PredicateConjunction::And)
+        )
+    {
+        return None;
+    }
+    let Features::Copula(CopulaAgreement::Indicative(copula_agreement)) =
+        children.get(copula_index)?.features
+    else {
+        return None;
+    };
+    if host_agreement != copula_agreement
+        || !matches!(
+            children.get(noun_phrase_index)?.features,
+            Features::NounPhrase { .. }
+        )
+        || !matches!(
+            children.get(preposition_index)?.features,
+            Features::PrepositionalPhrase {
+                preposition: Preposition::In,
+                ..
+            }
+        )
+    {
+        return None;
+    }
+    Some(propagate(children.first()?))
 }
 
 pub(super) fn fronted_attachment_reduction(

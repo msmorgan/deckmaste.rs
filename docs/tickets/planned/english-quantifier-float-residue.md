@@ -96,7 +96,7 @@ was correct about where the *gain* lives; it said nothing about where the
   each`), `Miasma Demon` (`up to that many ... get ...`), `Tiamat` (search/list
   + relative-clause attachment), `Phantasmal Form` (a `have ..., gain ..., and
   become ...` predicate run — belongs with
-  `english-predicate-coordination-residue`).
+  `english-predicate-coordination-redesign`).
 - **Inside the `any number of` nominal, `target` lowers as an ordinary positive
   `Adjective` modifier** rather than the `Determiner::Target` that the `up to
   two target creatures` path builds. Unchanged by `anof`; a nominal-internal
