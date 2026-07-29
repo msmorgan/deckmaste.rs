@@ -4274,23 +4274,23 @@ fn coordinated_donated_agreement_does_not_adopt_a_bare_imperative_tail() {
     );
 }
 
-// NOTE (out of scope for this round): the plan's negative fixtures
-// `"That player sacrifices a creature, then draw a card."` and
-// `"There is a creature, then draw a card."` were expected to be
-// rejected by the new `host_adopts_imperative` gate. In fact both still
-// parse — not via the new gate, but via two pre-existing,
-// `coordination_agrees` arms this round did not touch:
-// `(Some(_), None, false)` (fires because the bare-stem "draw a card"
-// continuation here lexes as `PredicateForm::Infinitive`, i.e.
-// `standalone: false`, not `Imperative`) and `(None, None, true)`
-// (fires unconditionally whenever the host's own `agreement` is `None`,
-// as it is for an existential clause, regardless of host shape). Both
-// arms predate this round and are unrelated to `host_addressee_subject`/
-// `host_modal`, so fixing them is out of scope here; they are a
-// pre-existing third-person-host over-fire left for a future round.
-// The re-key correctly rejects both shapes via `host_adopts_imperative`
-// — see `coordinated_donated_agreement_does_not_adopt_a_bare_imperative_tail`
-// for the shape the new gate is actually responsible for.
+#[test]
+fn third_person_host_does_not_adopt_an_infinitive_tail() {
+    let source = "That player sacrifices a creature, then draw a card.";
+    assert!(
+        parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+        "a third-person host must not license a subjectless infinitive tail"
+    );
+}
+
+#[test]
+fn existential_host_does_not_adopt_a_bare_imperative_tail() {
+    let source = "There is a creature, then draw a card.";
+    assert!(
+        parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+        "an agreement-less existential host must not license an imperative tail"
+    );
+}
 
 // `kwgrant` round, Stage A: a parameterized keyword ability's symbol-cost
 // argument fused onto its keyword-noun head in grant position (`ward

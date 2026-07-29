@@ -1801,13 +1801,7 @@ pub(super) fn reduce_composed_clause(
             {
                 return None;
             }
-            if !coordination_agrees(
-                *first_agreement,
-                *next_agreement,
-                *has_subject,
-                *standalone,
-                host_adopts_imperative,
-            ) {
+            if !coordination_agrees(children.first()?.features, last.features) {
                 return None;
             }
             Some(Features::Clause {
@@ -2175,26 +2169,49 @@ pub(super) fn conditional_reduction(
     })
 }
 
-pub(super) fn coordination_agrees(
-    first: Option<Agreement>,
-    next: Option<Agreement>,
-    next_has_subject: bool,
-    next_standalone: bool,
-    first_adopts_imperative: bool,
-) -> bool {
-    next_has_subject
-        || matches!((first, next, next_standalone),
-            (Some(left), Some(right), false) if left == right
-        )
-        || matches!((first, next, next_standalone), (None, None, true))
-        || matches!((first, next, next_standalone), (Some(_), None, false))
-        // A first clause whose host adopts the imperative (a genuine
-        // addressee-`you` subject or a base-inflection modal, often "you may
-        // search ..." or "Its controller may search ...") followed by a
-        // subjectless standalone imperative continuation ("..., then
-        // shuffle") — the `then`-tail counterpart to the asyndetic allowance
-        // in `reduce_composed_clause`.
-        || (first_adopts_imperative && next.is_none() && next_standalone)
+fn coordination_agrees(first_features: &Features, next_features: &Features) -> bool {
+    let Features::Clause {
+        agreement: first,
+        finite: first_finite,
+        host_addressee_subject,
+        host_modal: first_is_modal,
+        ..
+    } = first_features
+    else {
+        return false;
+    };
+    let Features::SimpleClause {
+        agreement: next,
+        has_subject: next_has_subject,
+        standalone: next_standalone,
+        host_modal: next_is_modal,
+        ..
+    } = next_features
+    else {
+        return false;
+    };
+    let first_adopts_imperative = *host_addressee_subject || *first_is_modal;
+    let shared_finite_predicate = matches!(
+        (first, next, next_standalone),
+        (Some(left), Some(right), false) if left == right
+    );
+    let imperative_sequence =
+        !*first_finite && matches!((first, next, next_standalone), (None, None, true));
+    let subjectless_modal_predicate =
+        *next_is_modal && matches!((first, next, next_standalone), (Some(_), None, false));
+    // A first clause whose host adopts the imperative (a genuine
+    // addressee-`you` subject or a base-inflection modal, often "you may
+    // search ..." or "Its controller may search ...") followed by a
+    // subjectless standalone imperative continuation ("..., then
+    // shuffle") — the `then`-tail counterpart to the asyndetic allowance in
+    // `reduce_composed_clause`.
+    let hosted_imperative = first_adopts_imperative && next.is_none() && *next_standalone;
+
+    *next_has_subject
+        || shared_finite_predicate
+        || imperative_sequence
+        || subjectless_modal_predicate
+        || hosted_imperative
 }
 
 pub(super) const fn predicate_form(slot: VerbSlot) -> PredicateForm {
