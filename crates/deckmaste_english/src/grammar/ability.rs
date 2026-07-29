@@ -1692,7 +1692,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if tokens.is_empty() {
             return None;
         }
-        if let Some(list) = self.parse_keyword_item_list(tokens) {
+        // The ordinary splitter may accept one or more leading chunks before
+        // a later chunk proves this is a single comma-bearing argument. Keep
+        // that failed alternative transactional so its chart provenance does
+        // not survive beside the whole-line fallback's selected tree.
+        if let Some(list) = self.attempt(|parser| parser.parse_keyword_item_list(tokens)) {
             return Some(list);
         }
         // Fallback: a single unsplit line whose sole item is a Stage B
@@ -5061,6 +5065,18 @@ mod tests {
             ));
             assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
         }
+
+        let source = "Craft with a Dinosaur, a Merfolk, a Pirate, and a Vampire {4}";
+        let report = parse_with_catalogs(source, &shape_catalogs());
+        assert!(
+            report
+                .provenance()
+                .selections()
+                .iter()
+                .all(|selection| { selection.span().text(source) != Some("with a Dinosaur") }),
+            "a failed comma-split alternative leaked into provenance: {:#?}",
+            report.provenance()
+        );
     }
 
     #[test]

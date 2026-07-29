@@ -45,14 +45,11 @@ struct BracketRecord {
     face_name: Option<String>,
     ability_index: usize,
     supported: bool,
-    omitted_crossings: usize,
-    crossing_spans: String,
     bracketed: String,
 }
 
 struct BracketedAbility {
     text: String,
-    crossing_spans: Vec<Span>,
 }
 
 pub(super) fn run(args: &BracketArgs) -> Result<()> {
@@ -74,25 +71,17 @@ pub(super) fn run(args: &BracketArgs) -> Result<()> {
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
 
-        writeln!(
-            writer,
-            concat!(
-                "record\tcard\tface\tability\tsupported\tomitted_crossings\t",
-                "crossing_spans\tbracketed"
-            )
-        )?;
+        writeln!(writer, "record\tcard\tface\tability\tsupported\tbracketed")?;
         for record in records.into_iter().flatten() {
             writeln!(
                 writer,
-                "{}:{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "{}:{}\t{}\t{}\t{}\t{}\t{}",
                 record.face_index,
                 record.ability_index,
                 escape_field(&record.card_name),
                 escape_field(record.face_name.as_deref().unwrap_or("")),
                 record.ability_index,
                 record.supported,
-                record.omitted_crossings,
-                record.crossing_spans,
                 escape_field(&record.bracketed),
             )?;
         }
@@ -133,8 +122,6 @@ fn bracket_records(
                 face_name: card.face_name.clone(),
                 ability_index,
                 supported: card.supported,
-                omitted_crossings: bracketed.crossing_spans.len(),
-                crossing_spans: format_spans(&bracketed.crossing_spans),
                 bracketed: bracketed.text,
             })
         })
@@ -172,40 +159,15 @@ fn bracketed_abilities(card: &CardFace, report: &ParseReport) -> Result<Vec<Brac
             // this span is the source extent of the actual top-level Ability
             // node paired with report.ast().abilities.
             constituents.push(ability_span);
-            let (text, crossing_spans) =
-                bracket_source(&card.oracle_text, ability_span, &constituents, delimiters)
-                    .with_context(|| format!("could not bracket {:?}", card.printed_name()))?;
-            let text = annotate_crossings(text, &crossing_spans);
-            Ok(BracketedAbility {
-                text,
-                crossing_spans,
-            })
+            let text = bracket_source(&card.oracle_text, ability_span, &constituents, delimiters)
+                .with_context(|| format!("could not bracket {:?}", card.printed_name()))?;
+            Ok(BracketedAbility { text })
         })
         .collect()
 }
 
 fn contains(outer: Span, inner: Span) -> bool {
     outer.start <= inner.start && inner.end <= outer.end
-}
-
-fn format_spans(spans: &[Span]) -> String {
-    spans
-        .iter()
-        .map(|span| format!("{}..{}", span.start, span.end))
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
-fn annotate_crossings(text: String, crossing_spans: &[Span]) -> String {
-    if crossing_spans.is_empty() {
-        text
-    } else {
-        format!(
-            "[INCOMPLETE BRACKETING: {} crossing parse nodes at {}] {text}",
-            crossing_spans.len(),
-            format_spans(crossing_spans)
-        )
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -237,7 +199,7 @@ fn bracket_source(
     outer: Span,
     constituents: &[Span],
     delimiters: BracketDelimiters,
-) -> Result<(String, Vec<Span>)> {
+) -> Result<String> {
     let surface = outer
         .text(source)
         .context("ability span is not a UTF-8 boundary in the Oracle text")?;
@@ -248,36 +210,14 @@ fn bracket_source(
             "constituent span {span:?} lies outside ability span {outer:?}"
         );
     }
-    // The chart uses incremental nonterminals while extending predicates and
-    // clauses, so a selected derivation can contain crossing source spans.
-    // Angle brackets cannot encode crossings. Keep the widest actual nodes in
-    // a deterministic laminar projection and report how many narrower chart
-    // nodes were omitted in the corpus TSV.
-    candidates.sort_unstable_by_key(|span| {
-        (
-            std::cmp::Reverse(span.len()),
-            span.start,
-            std::cmp::Reverse(span.end),
-        )
-    });
     // Unary grammar chains frequently give several selected nonterminals the
     // exact same source extent. They carry type information internally, but
     // unlabeled brackets cannot distinguish it, so one pair per distinct span
     // conveys the full visible constituency without redundant chevrons.
+    candidates.sort_unstable_by_key(|span| (span.start, std::cmp::Reverse(span.end)));
     candidates.dedup();
-    let mut spans = Vec::with_capacity(candidates.len());
-    let mut crossing_spans = Vec::new();
-    for candidate in candidates {
-        if spans.iter().all(|kept| !crosses(*kept, candidate)) {
-            spans.push(candidate);
-        } else {
-            crossing_spans.push(candidate);
-        }
-    }
-    crossing_spans.sort_unstable_by_key(|span| (span.start, span.end));
-    spans.sort_unstable_by_key(|span| (span.start, std::cmp::Reverse(span.end)));
     let mut ancestors = Vec::<Span>::new();
-    for span in &spans {
+    for span in &candidates {
         while ancestors
             .last()
             .is_some_and(|ancestor| ancestor.end <= span.start)
@@ -295,7 +235,7 @@ fn bracket_source(
 
     let mut openings = BTreeMap::<usize, usize>::new();
     let mut closings = BTreeMap::<usize, usize>::new();
-    for span in spans {
+    for span in candidates {
         *openings.entry(span.start - outer.start).or_default() += 1;
         *closings.entry(span.end - outer.start).or_default() += 1;
     }
@@ -331,12 +271,7 @@ fn bracket_source(
         strip_structural_brackets(&bracketed, delimiters) == surface,
         "bracketing changed the Oracle surface"
     );
-    Ok((bracketed, crossing_spans))
-}
-
-fn crosses(left: Span, right: Span) -> bool {
-    (left.start < right.start && right.start < left.end && left.end < right.end)
-        || (right.start < left.start && left.start < right.end && right.end < left.end)
+    Ok(bracketed)
 }
 
 fn strip_structural_brackets(bracketed: &str, delimiters: BracketDelimiters) -> String {
@@ -365,10 +300,12 @@ mod tests {
     use deckmaste_english::Span;
 
     use super::BracketDelimiters;
-    use super::annotate_crossings;
+    use super::OracleDataArgs;
+    use super::bracket_records;
     use super::bracket_source;
     use super::escape_field;
     use super::strip_structural_brackets;
+    use crate::english::data::map_supported_faces;
 
     #[test]
     fn tsv_fields_escape_record_separators_and_backslashes() {
@@ -390,9 +327,9 @@ mod tests {
     }
 
     #[test]
-    fn wider_selected_node_wins_when_chart_spans_cross() {
+    fn crossing_selected_nodes_are_an_invariant_failure() {
         let source = "He gains vigilance, indestructible";
-        let (bracketed, crossing_spans) = bracket_source(
+        let error = bracket_source(
             source,
             Span::new(0, source.len()),
             &[
@@ -406,16 +343,35 @@ mod tests {
                 close: '>',
             },
         )
-        .unwrap();
+        .unwrap_err();
 
-        assert_eq!(bracketed, "<He <gains vigilance, indestructible>>");
-        assert_eq!(crossing_spans, [Span::new(0, 18)]);
-        assert_eq!(
-            annotate_crossings(bracketed, &crossing_spans),
-            concat!(
-                "[INCOMPLETE BRACKETING: 1 crossing parse nodes at 0..18] ",
-                "<He <gains vigilance, indestructible>>"
-            )
+        assert!(
+            error.to_string().contains(
+                "crossing constituent spans Span { start: 0, end: 18 } and Span { start: 3"
+            ),
+            "unexpected error: {error:#}"
         );
+    }
+
+    #[test]
+    fn supported_corpus_selected_provenance_is_laminar() {
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for the constituency gate");
+        let outcomes = map_supported_faces(&data.faces, |face_index, card| {
+            bracket_records(face_index, card, &data.catalogs).map_err(|error| {
+                format!(
+                    "row {} ({:?}): {error:#}",
+                    face_index + 1,
+                    card.printed_name()
+                )
+            })
+        });
+        let failures = outcomes
+            .into_iter()
+            .filter_map(Result::err)
+            .collect::<Vec<_>>();
+
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 }
