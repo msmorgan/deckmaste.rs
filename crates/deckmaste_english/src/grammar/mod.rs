@@ -329,6 +329,10 @@ pub(crate) enum Nonterminal {
     Noun,
     Nominal,
     NounPhrase,
+    /// Bare nominal heads coordinated inside one determiner's scope. Dedicated
+    /// consumers can inspect this constituent before its ordinary noun-phrase
+    /// promotion erases the grammar-only shape feature.
+    SharedDeterminerNominal,
     /// A single coordinable attributive modifier — an adjective phrase, a noun,
     /// or a `non-` negated modifier — the atom of a coordinated modifier list.
     ModifierConjunct,
@@ -865,7 +869,12 @@ pub(crate) enum PredicateAttachmentPhase {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum NominalAttachmentPhase {
     Open,
-    Prepositional,
+    Prepositional {
+        /// The attached PP or infinitive contains a strictly nearer host for a
+        /// following relative clause. The farther nominal remains a fallback
+        /// when no internal attachment completes.
+        nearer_relative_host: bool,
+    },
     Relative,
     /// An otherwise-complete explicit relative ending in a bare copular verb
     /// (`creature that was`). A following participle belongs to that copula as
@@ -1055,6 +1064,12 @@ pub(crate) enum Features {
     PrepositionalPhrase {
         preposition: Preposition,
         nominal_attachment: bool,
+        /// The object was parsed as nominal coordination under one shared
+        /// determiner, rather than as coordination of complete noun phrases.
+        shared_determiner_object: bool,
+        /// The coordinated object contains a nearer independently determined
+        /// antecedent for a following relative clause.
+        nearer_relative_host: bool,
     },
     VerbParticle(VerbParticle),
     CoinResult(crate::syntax::CoinSide),
@@ -1462,12 +1477,25 @@ enum RuleTag {
     /// the ordinary formal-singular nominal path; see the registration site
     /// for the full rationale.
     NounPhraseAnyNumberOf,
+    /// Coordination of two independently quantified `damage` nominals, such
+    /// as `2 damage to A and 1 damage to B`.
+    NounPhraseDamageCoordination,
+    /// One target determiner scoping over two bare nominal heads, as in
+    /// `target player or planeswalker`.
+    SharedDeterminerNominal,
+    /// Promotes a shared-determiner nominal constituent to noun-phrase use.
+    NounPhraseSharedDeterminer,
     NounPhraseCoordination,
     NounPhraseAdditiveCoordination,
     NounPhraseMinus,
     NounPhraseHalf,
     NounPhraseHalfRoundedUp,
     NounPhraseHalfRoundedDown,
+    /// A recipient/source preposition whose coordinated object closes with an
+    /// independently determined `each <nominal>` conjunct.
+    PrepositionalPhraseCoordinated,
+    /// A preposition taking nominal material under one shared determiner.
+    PrepositionalPhraseSharedDeterminer,
     PrepositionalPhrase,
     PrepositionalObject,
     Verb,
@@ -1478,6 +1506,9 @@ enum RuleTag {
     VerbPhraseIndirectObject,
     VerbPhraseAdjective,
     VerbPhrasePrepositional,
+    /// A zero-cost passive-predicate attachment for a PP whose object has one
+    /// shared determiner. The ordinary PP rule retains its historical cost.
+    VerbPhrasePassiveSharedDeterminerPrepositional,
     /// The append-last `except by <PP>` exception tail on a passive
     /// predicate: `VerbPhrase -> VerbPhrase Except PrepositionalPhrase`.
     VerbPhraseExceptBy,

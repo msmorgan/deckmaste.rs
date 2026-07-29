@@ -338,6 +338,9 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::CoordinatedModifierOxford
         | RuleTag::NominalCoordinatedModifier => lower_nominal(tag, children),
         RuleTag::NounPhraseNominal
+        | RuleTag::NounPhraseDamageCoordination
+        | RuleTag::SharedDeterminerNominal
+        | RuleTag::NounPhraseSharedDeterminer
         | RuleTag::NounPhraseSetExceptionBare
         | RuleTag::NounPhraseSetExceptionFor
         | RuleTag::ReducedRecipientPassiveTheme
@@ -361,6 +364,8 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::NounPhraseHalf
         | RuleTag::NounPhraseHalfRoundedUp
         | RuleTag::NounPhraseHalfRoundedDown
+        | RuleTag::PrepositionalPhraseCoordinated
+        | RuleTag::PrepositionalPhraseSharedDeterminer
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => lower_phrase(tag, children),
         RuleTag::Verb
@@ -371,6 +376,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
         | RuleTag::VerbPhraseExceptBy
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
@@ -1140,6 +1146,80 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
 )]
 pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
+        RuleTag::NounPhraseDamageCoordination => {
+            let Lowered::Nominal(first) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Conjunction(conjunction) = take(children, 1)? else {
+                return None;
+            };
+            let conjunction = match conjunction {
+                crate::syntax::PredicateConjunction::And => {
+                    crate::syntax::NounPhraseConjunction::And
+                }
+                crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
+                crate::syntax::PredicateConjunction::AndOr => {
+                    crate::syntax::NounPhraseConjunction::AndOr
+                }
+                crate::syntax::PredicateConjunction::Then => return None,
+            };
+            let Lowered::Nominal(next) = take(children, 2)? else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(push_noun_phrase_coordination(
+                NounPhrase::Nominal(first),
+                crate::syntax::NounPhraseCoordination {
+                    conjunction: Some(conjunction),
+                    comma: false,
+                    phrase: NounPhrase::Nominal(next),
+                },
+            )))
+        }
+        RuleTag::SharedDeterminerNominal => {
+            let Lowered::Ignored = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Noun(first_head) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                return None;
+            };
+            let conjunction = match conjunction {
+                crate::syntax::PredicateConjunction::And => {
+                    crate::syntax::NounPhraseConjunction::And
+                }
+                crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
+                crate::syntax::PredicateConjunction::AndOr => {
+                    crate::syntax::NounPhraseConjunction::AndOr
+                }
+                crate::syntax::PredicateConjunction::Then => return None,
+            };
+            let Lowered::Noun(next_head) = take(children, 3)? else {
+                return None;
+            };
+            Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(
+                crate::syntax::CoordinatedNominalPhrase {
+                    determiner: crate::syntax::Determiner::Target(None),
+                    first: Box::new(NominalPhrase {
+                        determiner: None,
+                        modifiers: Vec::new(),
+                        head: first_head,
+                        complements: Vec::new(),
+                    }),
+                    rest: vec![crate::syntax::NominalPhraseCoordination {
+                        conjunction: Some(conjunction),
+                        comma: false,
+                        phrase: NominalPhrase {
+                            determiner: None,
+                            modifiers: Vec::new(),
+                            head: next_head,
+                            complements: Vec::new(),
+                        },
+                    }],
+                },
+            )))
+        }
         RuleTag::NounPhraseSetExceptionBare | RuleTag::NounPhraseSetExceptionFor => {
             let (marker, comma, excluded_index) = match (tag, children.len()) {
                 (RuleTag::NounPhraseSetExceptionBare, 3) => (SetExceptionMarker::Bare, false, 2),
@@ -1307,11 +1387,12 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 comma: false,
                 phrase: next,
             };
-            Some(Lowered::NounPhrase(NounPhrase::Coordinated(
-                push_noun_phrase_coordination(first, coordination),
+            Some(Lowered::NounPhrase(push_noun_phrase_coordination(
+                first,
+                coordination,
             )))
         }
-        RuleTag::NounPhraseListSingle => take(children, 0),
+        RuleTag::NounPhraseSharedDeterminer | RuleTag::NounPhraseListSingle => take(children, 0),
         RuleTag::NounPhraseListComma | RuleTag::NounPhraseCoordinationOxford => {
             let Lowered::NounPhrase(first) = take(children, 0)? else {
                 return None;
@@ -1345,8 +1426,9 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 comma: true,
                 phrase: next,
             };
-            Some(Lowered::NounPhrase(NounPhrase::Coordinated(
-                push_noun_phrase_coordination(first, coordination),
+            Some(Lowered::NounPhrase(push_noun_phrase_coordination(
+                first,
+                coordination,
             )))
         }
         RuleTag::NounPhraseMinus
@@ -1366,6 +1448,56 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 _ => return None,
             };
             Some(Lowered::Phrase(phrase))
+        }
+        RuleTag::PrepositionalPhraseCoordinated => {
+            let Lowered::Preposition(preposition @ (Preposition::To | Preposition::From)) =
+                take(children, 0)?
+            else {
+                return None;
+            };
+            let Lowered::NounPhrase(first) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                return None;
+            };
+            let conjunction = match conjunction {
+                crate::syntax::PredicateConjunction::And => {
+                    crate::syntax::NounPhraseConjunction::And
+                }
+                crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
+                crate::syntax::PredicateConjunction::AndOr => {
+                    crate::syntax::NounPhraseConjunction::AndOr
+                }
+                crate::syntax::PredicateConjunction::Then => return None,
+            };
+            let Lowered::NounPhrase(next) = take(children, 3)? else {
+                return None;
+            };
+            let object = push_noun_phrase_coordination(
+                first,
+                crate::syntax::NounPhraseCoordination {
+                    conjunction: Some(conjunction),
+                    comma: false,
+                    phrase: next,
+                },
+            );
+            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase {
+                preposition,
+                object: Box::new(Phrase::NounPhrase(Box::new(object))),
+            }))
+        }
+        RuleTag::PrepositionalPhraseSharedDeterminer => {
+            let Lowered::Preposition(preposition) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::NounPhrase(object) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase {
+                preposition,
+                object: Box::new(Phrase::NounPhrase(Box::new(object))),
+            }))
         }
         RuleTag::PrepositionalPhrase => {
             let Lowered::Preposition(preposition) = take(children, 0)? else {
@@ -1423,21 +1555,68 @@ pub(super) fn take(children: &mut [Lowered], index: usize) -> Option<Lowered> {
     Some(std::mem::replace(child, Lowered::Ignored))
 }
 
-/// Appends a coordination member to a noun-phrase coordination, extending an
-/// existing flat list in place or opening a fresh one — the shared tail of the
-/// binary, comma, and Oxford coordination rules.
+/// Adds one noun-phrase coordination member. An explicitly parsed coordinated
+/// nominal may extend under its determiner; complete noun phrases coordinate at
+/// the outer level. Homogeneous runs stay flat, while a connective change opens
+/// a new outer group instead of erasing the inner grouping.
 pub(super) fn push_noun_phrase_coordination(
     first: NounPhrase,
     coordination: crate::syntax::NounPhraseCoordination,
-) -> crate::syntax::CoordinatedNounPhrase {
-    match first {
-        NounPhrase::Coordinated(mut coordinated) => {
-            coordinated.rest.push(coordination);
+) -> NounPhrase {
+    let crate::syntax::NounPhraseCoordination {
+        conjunction,
+        comma,
+        phrase: next,
+    } = coordination;
+    match (first, next) {
+        (NounPhrase::CoordinatedNominal(mut coordinated), NounPhrase::Nominal(next))
+            if next.determiner.is_none()
+                && coordination_run_extends(
+                    coordinated.rest.iter().map(|member| member.conjunction),
+                    conjunction,
+                    comma,
+                ) =>
+        {
             coordinated
+                .rest
+                .push(crate::syntax::NominalPhraseCoordination {
+                    conjunction,
+                    comma,
+                    phrase: next,
+                });
+            NounPhrase::CoordinatedNominal(coordinated)
         }
-        first => crate::syntax::CoordinatedNounPhrase {
+        (NounPhrase::Coordinated(mut coordinated), next)
+            if coordination_run_extends(
+                coordinated.rest.iter().map(|member| member.conjunction),
+                conjunction,
+                comma,
+            ) =>
+        {
+            coordinated
+                .rest
+                .push(crate::syntax::NounPhraseCoordination {
+                    conjunction,
+                    comma,
+                    phrase: next,
+                });
+            NounPhrase::Coordinated(coordinated)
+        }
+        (first, next) => NounPhrase::Coordinated(crate::syntax::CoordinatedNounPhrase {
             first: Box::new(first),
-            rest: vec![coordination],
-        },
+            rest: vec![crate::syntax::NounPhraseCoordination {
+                conjunction,
+                comma,
+                phrase: next,
+            }],
+        }),
     }
+}
+
+fn coordination_run_extends(
+    conjunctions: impl DoubleEndedIterator<Item = Option<crate::syntax::NounPhraseConjunction>>,
+    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    comma: bool,
+) -> bool {
+    comma || conjunctions.rev().flatten().next() == conjunction
 }

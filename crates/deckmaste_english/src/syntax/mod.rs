@@ -617,61 +617,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
 
     fn noun_phrase(&mut self, phrase: &'syntax NounPhrase, context: Option<RecoveryRole>) {
         match phrase {
-            NounPhrase::Nominal(nominal) => {
-                if let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) =
-                    &nominal.determiner
-                {
-                    self.noun_phrase(possessor, context);
-                }
-                if let crate::word::NounInstance::Singular(crate::word::Noun::Opaque(opaque))
-                | crate::word::NounInstance::Plural(crate::word::Noun::Opaque(opaque))
-                | crate::word::NounInstance::Mass(crate::word::Noun::Opaque(opaque)) =
-                    &nominal.head
-                {
-                    self.lexical_opacity.push(LexicalOpacityRef {
-                        kind: LexicalOpacityKind::Noun,
-                        text: opaque.spelling(),
-                        source_tokens: 1,
-                    });
-                }
-                for modifier in &nominal.modifiers {
-                    self.nominal_modifier(modifier, context);
-                }
-                for complement in &nominal.complements {
-                    match complement {
-                        NominalComplement::Adjective(adjective) => self.adjective_phrase(
-                            adjective,
-                            RecoveryRole::NominalComplement,
-                            context,
-                        ),
-                        NominalComplement::Prepositional(preposition) => {
-                            self.prepositional_phrase(
-                                preposition,
-                                RecoveryRole::NominalComplement,
-                                context,
-                            );
-                        }
-                        NominalComplement::Infinitive(infinitive) => {
-                            self.predicate(&infinitive.predicate, context);
-                        }
-                        NominalComplement::Relative(relative) => {
-                            self.relative_clause(relative, context);
-                        }
-                        NominalComplement::ReducedRecipientPassive(predicate) => {
-                            self.transitive_predicate(predicate, context);
-                        }
-                        NominalComplement::EventClause(clause) => {
-                            self.independent_clause(clause, context);
-                        }
-                        NominalComplement::KeywordArgument(argument) => {
-                            self.keyword_argument(argument, context);
-                        }
-                        NominalComplement::Quantity(_)
-                        | NominalComplement::PowerToughness(_)
-                        | NominalComplement::Devotion(_) => {}
-                    }
-                }
-            }
+            NounPhrase::Nominal(nominal) => self.nominal_phrase(nominal, context),
             NounPhrase::Pronoun { .. }
             | NounPhrase::Possessive(Possessor::Pronoun(_))
             | NounPhrase::Demonstrative(_)
@@ -681,6 +627,17 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.noun_phrase(possessor, context);
             }
             NounPhrase::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
+            NounPhrase::CoordinatedNominal(coordinated) => {
+                if let Determiner::Possessive(Possessor::NounPhrase(possessor)) =
+                    &coordinated.determiner
+                {
+                    self.noun_phrase(possessor, context);
+                }
+                self.nominal_phrase(&coordinated.first, context);
+                for coordination in &coordinated.rest {
+                    self.nominal_phrase(&coordination.phrase, context);
+                }
+            }
             NounPhrase::Coordinated(coordinated) => {
                 self.noun_phrase(&coordinated.first, context);
                 for coordination in &coordinated.rest {
@@ -698,6 +655,56 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 }
                 ArithmeticValue::Half { value, .. } => self.noun_phrase(value, context),
             },
+        }
+    }
+
+    fn nominal_phrase(&mut self, nominal: &'syntax NominalPhrase, context: Option<RecoveryRole>) {
+        if let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &nominal.determiner
+        {
+            self.noun_phrase(possessor, context);
+        }
+        if let crate::word::NounInstance::Singular(crate::word::Noun::Opaque(opaque))
+        | crate::word::NounInstance::Plural(crate::word::Noun::Opaque(opaque))
+        | crate::word::NounInstance::Mass(crate::word::Noun::Opaque(opaque)) = &nominal.head
+        {
+            self.lexical_opacity.push(LexicalOpacityRef {
+                kind: LexicalOpacityKind::Noun,
+                text: opaque.spelling(),
+                source_tokens: 1,
+            });
+        }
+        for modifier in &nominal.modifiers {
+            self.nominal_modifier(modifier, context);
+        }
+        for complement in &nominal.complements {
+            match complement {
+                NominalComplement::Adjective(adjective) => {
+                    self.adjective_phrase(adjective, RecoveryRole::NominalComplement, context);
+                }
+                NominalComplement::Prepositional(preposition) => {
+                    self.prepositional_phrase(
+                        preposition,
+                        RecoveryRole::NominalComplement,
+                        context,
+                    );
+                }
+                NominalComplement::Infinitive(infinitive) => {
+                    self.predicate(&infinitive.predicate, context);
+                }
+                NominalComplement::Relative(relative) => self.relative_clause(relative, context),
+                NominalComplement::ReducedRecipientPassive(predicate) => {
+                    self.transitive_predicate(predicate, context);
+                }
+                NominalComplement::EventClause(clause) => {
+                    self.independent_clause(clause, context);
+                }
+                NominalComplement::KeywordArgument(argument) => {
+                    self.keyword_argument(argument, context);
+                }
+                NominalComplement::Quantity(_)
+                | NominalComplement::PowerToughness(_)
+                | NominalComplement::Devotion(_) => {}
+            }
         }
     }
 

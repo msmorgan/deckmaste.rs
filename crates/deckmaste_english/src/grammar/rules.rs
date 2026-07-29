@@ -457,6 +457,14 @@ impl RuleBuilder {
             ],
         );
 
+        // Register the shared-determiner object path before the general PP.
+        // Equal-cost forest ties therefore preserve the more specific
+        // constituent without assigning a global cost to shared target NPs.
+        self.add(
+            RuleTag::PrepositionalPhraseSharedDeterminer,
+            N::PrepositionalPhrase,
+            [l(L::Preposition), n(N::SharedDeterminerNominal)],
+        );
         self.add(
             RuleTag::PrepositionalPhrase,
             N::PrepositionalPhrase,
@@ -718,6 +726,49 @@ impl RuleBuilder {
                 precedence: 1,
                 ..ParseCost::default()
             },
+        );
+
+        // Selectional coordination categories are appended so existing rule
+        // prediction and stable tie order remain unchanged when none applies.
+        self.add(
+            RuleTag::NounPhraseDamageCoordination,
+            N::NounPhrase,
+            [n(N::Nominal), l(L::Conjunction), n(N::Nominal)],
+        );
+        self.add(
+            RuleTag::SharedDeterminerNominal,
+            N::SharedDeterminerNominal,
+            [
+                l(L::DeterminerTarget),
+                n(N::Noun),
+                l(L::Conjunction),
+                n(N::Noun),
+            ],
+        );
+        self.add(
+            RuleTag::NounPhraseSharedDeterminer,
+            N::NounPhrase,
+            [n(N::SharedDeterminerNominal)],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseCoordinated,
+            N::PrepositionalPhrase,
+            [
+                l(L::Preposition),
+                n(N::NounPhrase),
+                l(L::Conjunction),
+                n(N::NounPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseCoordinated,
+            N::PrepositionalPhrase,
+            [
+                l(L::Preposition),
+                n(N::SharedDeterminerNominal),
+                l(L::Conjunction),
+                n(N::NounPhrase),
+            ],
         );
     }
 

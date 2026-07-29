@@ -1556,6 +1556,28 @@ impl<'identity> Renderer<'identity> {
                 },
                 self.noun_phrase(&partitive.whole)?
             )),
+            NounPhrase::CoordinatedNominal(coordinated) => {
+                let mut rendered = self.determiner(&coordinated.determiner)?;
+                rendered.push(' ');
+                rendered.push_str(&self.nominal_phrase(&coordinated.first)?);
+                for coordination in &coordinated.rest {
+                    if coordination.comma {
+                        rendered.push(',');
+                    }
+                    rendered.push(' ');
+                    if let Some(conjunction) = coordination.conjunction {
+                        rendered.push_str(match conjunction {
+                            NounPhraseConjunction::And => "and",
+                            NounPhraseConjunction::Or => "or",
+                            NounPhraseConjunction::Plus => "plus",
+                            NounPhraseConjunction::AndOr => "and/or",
+                        });
+                        rendered.push(' ');
+                    }
+                    rendered.push_str(&self.nominal_phrase(&coordination.phrase)?);
+                }
+                Ok(rendered)
+            }
             NounPhrase::Coordinated(coordinated) => {
                 let mut rendered = self.noun_phrase(&coordinated.first)?;
                 for coordination in &coordinated.rest {

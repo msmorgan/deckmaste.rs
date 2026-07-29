@@ -354,6 +354,34 @@ mod tests {
     }
 
     #[test]
+    fn bonfire_dump_exposes_shared_target_and_full_recipient_coordination() {
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for the Bonfire fixture");
+        let (face_index, card) = data
+            .faces
+            .iter()
+            .enumerate()
+            .find(|(_, card)| card.printed_name() == "Bonfire of the Damned")
+            .expect("Bonfire of the Damned must be present in the release corpus");
+        let records = bracket_records(face_index, card, &data.catalogs)
+            .expect("Bonfire must have laminar parse provenance");
+        let damage = &records
+            .first()
+            .expect("Bonfire must have a spell-effect ability")
+            .bracketed;
+
+        assert!(
+            damage.contains("<to <target <player> or <planeswalker>> and <<each> <<creature>"),
+            "unexpected Bonfire bracket tree: {damage}"
+        );
+        assert!(
+            !damage.contains("<<<target> <player>> or <planeswalker>>"),
+            "the first target head must not carry the shared determiner: {damage}"
+        );
+    }
+
+    #[test]
     fn supported_corpus_selected_provenance_is_laminar() {
         let data = OracleDataArgs::default()
             .load()

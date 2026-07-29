@@ -503,6 +503,11 @@ pub enum NounPhrase {
     Quantity(Quantity),
     ThisCard(ThisCardForm),
     Partitive(PartitiveNounPhrase),
+    /// Coordination inside one determiner's scope (`target artifact or
+    /// enchantment`). This is one determined selection whose nominal material
+    /// is coordinated, distinct from [`Self::Coordinated`] complete noun
+    /// phrases (`target artifact and target enchantment`).
+    CoordinatedNominal(CoordinatedNominalPhrase),
     Coordinated(CoordinatedNounPhrase),
     /// A trailing set exclusion over a complete noun phrase. The wrapper can
     /// scope over a coordinated included set while the excluded set remains
@@ -573,6 +578,23 @@ pub enum PartitiveHead {
 pub struct CoordinatedNounPhrase {
     pub first: Box<NounPhrase>,
     pub rest: Vec<NounPhraseCoordination>,
+}
+
+/// Nominal material coordinated under one shared determiner. Every member's
+/// own [`NominalPhrase::determiner`] is `None`; the sole determiner lives here
+/// so no conjunct is privileged as its accidental carrier.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoordinatedNominalPhrase {
+    pub determiner: Determiner,
+    pub first: Box<NominalPhrase>,
+    pub rest: Vec<NominalPhraseCoordination>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NominalPhraseCoordination {
+    pub conjunction: Option<NounPhraseConjunction>,
+    pub comma: bool,
+    pub phrase: NominalPhrase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

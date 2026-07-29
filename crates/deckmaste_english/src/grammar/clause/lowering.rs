@@ -79,6 +79,7 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
         | RuleTag::VerbPhraseExceptBy
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
@@ -291,6 +292,7 @@ pub(super) fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhraseParticle
@@ -369,7 +371,8 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
             };
             VerbDependent::CoordinatedAdjective(coordinated_modifier_as_adjectives(coordinated)?)
         }
-        RuleTag::VerbPhrasePrepositional => {
+        RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional => {
             let Lowered::PrepositionalPhrase(preposition) = take(children, 1)? else {
                 return None;
             };

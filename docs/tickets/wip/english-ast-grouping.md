@@ -1,30 +1,27 @@
 ---
 needs: [english-structural-recovery-zero]
 ---
-**AST grouping dedup and coordination shared-material elevation.** Sibling of
-`english-predicate-generics` and `english-surface-fact-diet`; adjudicated from
-an external review 2026-07-23, each item verified against the code.
+**Nominal-coordination shared-determiner elevation and attachment repair.**
+Sibling of `english-predicate-generics` and `english-surface-fact-diet`;
+adjudicated from an external review 2026-07-23 and extended by the Bonfire
+bracket audit.
 
-- **Shared `TriggerHeader` struct** — `{ introducer: TriggerWord, event:
-  TriggerEvent, intervening_condition: Option<DependentClause> }` is written
-  out three times: `TriggeredAbility`, `ModalFrame::Triggered`, and
-  `ChoiceTrigger` (whose doc admits it mirrors the frame). Extract once;
-  the three sites hold the struct.
-- **`Attachment<T>` scaffolding** — `ClauseAttachment { position, comma,
-  kind }` and `DependentAttachment { position, comma, clause }` share their
-  scaffolding; the narrower gerund type is deliberate precision (gerunds
-  admit only dependent clauses), so unify as a generic
-  `Attachment<T> { position, comma, payload: T }` rather than collapsing the
-  payload types.
-- **Nominal-coordination shared-determiner elevation** — verified on
-  Disenchant: `CoordinatedNounPhrase.first` holds `determiner: Some(Target)`
-  while `rest` members carry `determiner: None`, so the shared determiner is
-  buried in the first conjunct (the same asymmetry the predicate-generics
-  ticket fixes one layer up). Needs the same two-species split: coordination
-  of head material UNDER one determiner (`target artifact or enchantment` —
-  one selection) vs coordination of full nominals (`target artifact and
-  target enchantment` — two). Survey `CoordinatedPredicateObject` for the
-  same pattern while there.
+- Split coordination of nominal material under one determiner (`target
+  artifact or enchantment` — one selection) from coordination of complete noun
+  phrases (`target artifact and target enchantment` — two). The shared
+  determiner lives above every conjunct; no first conjunct carries it as an
+  accidental special case.
+- Preserve the distinction in the grammar provenance as well as the lowered
+  AST. `target instant or sorcery card` remains coordinated modifier material,
+  not two target heads.
+- Correct the larger recipient/source and repeated-theme ambiguities exposed by
+  Bonfire and Hail Storm. Bonfire is one `damage` object with one `to` PP; that
+  PP coordinates shared-target `player or planeswalker` with independently
+  determined `each creature ...`, and the zero relative belongs only to
+  `creature`.
+- Survey `CoordinatedPredicateObject` for the same defect. Its members are all
+  complete predicate objects and it owns no shared determiner/material, so it
+  needs no analogous split.
 
 Adjudication notes (no action here): typed activation-cost components
 (replacing `Cost::Components(Vec<Phrase>)`, an 18-variant catch-all bag)
@@ -35,5 +32,22 @@ against the real three-way split: partitive selection (`each of X`) vs
 measure (`the number of X`) vs container (`a deck of cards`, barely
 oracle-relevant).
 
-Representation-only throughout: recovery census byte-identical, round-trip
-stays at zero. Standard constraints apply.
+Recovery census byte-identical and round-trip stays at zero. Standard
+constraints apply.
+
+## Completion
+
+- Added `CoordinatedNominalPhrase`, whose single determiner scopes over bare
+  nominal members, while `CoordinatedNounPhrase` remains coordination of
+  complete noun phrases. Renderer and syntax traversal support both shapes.
+- Added categorical grammar constituents for shared target heads, coordinated
+  recipient/source PPs, and repeated `damage` themes. Attachment preference is
+  carried by grammar features; there are no card-name or suffix checks.
+- Bonfire, Hail Storm, Disenchant, and the passive `dealt to target player or
+  planeswalker` ambiguity have typed structural regression tests, with
+  repeated-target and coordinated-modifier controls.
+- The supported-card bracket audit changes 763 of 55,983 ability rows, all in
+  the intended shared-target, recipient/source, repeated-damage, or directly
+  nested coordination families. The recovery census is byte-for-byte identical
+  to the parent (3,480 structural spans / 64,217 source tokens), and all 31,685
+  supported faces round-trip with zero mismatches or render errors.

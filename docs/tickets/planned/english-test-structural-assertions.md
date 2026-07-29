@@ -1,5 +1,5 @@
 ---
-needs: [english-ast-grouping]
+needs: [english-ast-wrapper-dedup]
 ---
 **Convert the debug-string assertion idiom in
 `crates/deckmaste_english/tests/public_api.rs` (plus the in-crate uses in
@@ -12,10 +12,10 @@ whitespace-stripped signatures like
 several `Coordinated*` types) can pass on the wrong structure. The crate's
 unit tests already use the sound idiom.
 
-Gated on [[english-ast-grouping]] (itself post-campaign): that ticket
-reshapes the AST and would break every debug string regardless — convert
-once, after the reshuffle settles. The recovery campaign keeps adding tests
-in the string idiom until then; accepted (cheap to write, converted
-mechanically here). Gate: exact test-count parity, and each converted
-assertion must still fail on the structure it guards (spot-verify by
+Gated transitively on [[english-ast-grouping]] through
+[[english-ast-wrapper-dedup]]: both reshape the AST and would break debug
+strings regardless — convert once, after the reshuffle settles. The recovery
+campaign keeps adding tests in the string idiom until then; accepted (cheap to
+write, converted mechanically here). Gate: exact test-count parity, and each
+converted assertion must still fail on the structure it guards (spot-verify by
 temporarily disabling one guarded mechanism). Standard constraints apply.

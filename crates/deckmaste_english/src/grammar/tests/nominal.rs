@@ -353,6 +353,70 @@ mod tests {
     }
 
     #[test]
+    fn target_coordination_carries_one_shared_determiner() {
+        let source = "target artifact or land";
+        let parsed = parse(source);
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!(
+                "expected nominal coordination under one determiner: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert_eq!(coordinated.determiner, Determiner::Target(None));
+        assert!(coordinated.first.determiner.is_none());
+        let [land] = coordinated.rest.as_slice() else {
+            panic!("expected one coordinated head: {coordinated:#?}");
+        };
+        assert_eq!(
+            land.conjunction,
+            Some(crate::syntax::NounPhraseConjunction::Or)
+        );
+        assert!(land.phrase.determiner.is_none());
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn repeated_target_determiners_coordinate_complete_noun_phrases() {
+        let source = "target artifact and target land";
+        let parsed = parse(source);
+        let Some(NounPhrase::Coordinated(coordinated)) = parsed.noun_phrase() else {
+            panic!(
+                "expected coordination of two complete noun phrases: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert!(matches!(
+            coordinated.first.as_ref(),
+            NounPhrase::Nominal(first)
+                if first.determiner == Some(Determiner::Target(None))
+        ));
+        assert!(matches!(
+            coordinated.rest.as_slice(),
+            [crate::syntax::NounPhraseCoordination {
+                conjunction: Some(crate::syntax::NounPhraseConjunction::And),
+                phrase: NounPhrase::Nominal(next),
+                ..
+            }] if next.determiner == Some(Determiner::Target(None))
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn coordinated_type_modifiers_do_not_become_shared_target_heads() {
+        let source = "target artifact or land card";
+        let parsed = parse(source);
+        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            panic!("expected one card nominal: {:#?}", parsed.noun_phrase());
+        };
+        assert_eq!(nominal.determiner, Some(Determiner::Target(None)));
+        assert!(matches!(
+            nominal.modifiers.as_slice(),
+            [NominalModifier::Coordinated(_)]
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
     fn noun_phrase_set_exceptions_preserve_scope_marker_and_comma() {
         for (source, expected_marker, comma, included_coordination, excluded_coordination) in [
             (

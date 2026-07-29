@@ -726,4 +726,14 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::Except), n(N::PrepositionalPhrase)],
     );
+    // The ordinary `VerbPhrasePrepositional` production retains its historical
+    // precedence cost. This later alternative is admitted only when reduction
+    // sees both a passive host and a PP carrying the explicit shared-determiner
+    // object feature, resolving `dealt to target player or planeswalker`
+    // without perturbing any other predicate-PP chart path.
+    builder.add(
+        RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), n(N::PrepositionalPhrase)],
+    );
 }

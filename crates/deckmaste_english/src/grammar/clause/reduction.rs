@@ -41,6 +41,7 @@ pub(in crate::grammar) fn reduce_clause(
         | RuleTag::VerbPhraseIndirectObject
         | RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
         | RuleTag::VerbPhraseExceptBy
         | RuleTag::VerbPhraseInfinitive
         | RuleTag::VerbPhraseAdverb
@@ -207,6 +208,9 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
             } if frame.is_recipient_passive() && object.has_direct_object()
         );
     }
+    if tag == RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional {
+        return matches!(features, Features::VerbPhrase { passive: true, .. });
+    }
     let predicate_rule = matches!(
         tag,
         RuleTag::VerbPhraseDirectObject
@@ -344,8 +348,17 @@ pub(in crate::grammar) fn reduction_cost(
                 ..
             })
         );
-    let precedence =
-        u32::from(active_temporal_attachment || tag == RuleTag::ClauseSubordinateAfter);
+    let damage_nominal_infinitive = tag == RuleTag::NominalInfinitive
+        && matches!(
+            children.first().map(|child| child.features),
+            Some(Features::Nominal {
+                recipient_passive_theme: true,
+                ..
+            })
+        );
+    let precedence = u32::from(active_temporal_attachment)
+        + u32::from(tag == RuleTag::ClauseSubordinateAfter)
+        + u32::from(damage_nominal_infinitive);
     // The finite-first shared-predicate reading (a modal/finite clause hosting
     // a subjectless standalone-imperative continuation, asyndetic or
     // `then`/`and`-joined) is a narrow additive allowance layered on top of the
@@ -577,6 +590,23 @@ pub(super) fn reduce_predicate(
                 return None;
             };
             extend_predicate(children.first()?, PredicateAttachment::Exception)
+        }
+        RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional => {
+            let Features::VerbPhrase { passive: true, .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::PrepositionalPhrase {
+                preposition,
+                shared_determiner_object: true,
+                ..
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            extend_predicate(
+                children.first()?,
+                PredicateAttachment::Prepositional(*preposition),
+            )
         }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional

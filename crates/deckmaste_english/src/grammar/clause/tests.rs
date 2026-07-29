@@ -1296,6 +1296,148 @@ fn exact_quantities_can_measure_mass_nouns() {
 }
 
 #[test]
+fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
+    let source = "This card deals X damage to target player or planeswalker and each creature that player or that planeswalker's controller controls.";
+    let parsed = parse(source);
+    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a transitive clause");
+    };
+    let PredicateObject::NounPhrase(NounPhrase::Nominal(damage)) = &predicate.object else {
+        panic!("expected a nominal damage object: {:#?}", predicate.object);
+    };
+    assert!(matches!(
+        damage.head,
+        NounInstance::Mass(Noun::Word(Vocab::Damage))
+    ));
+    let [NominalComplement::Prepositional(recipient)] = damage.complements.as_slice() else {
+        panic!("damage must own exactly one recipient PP: {damage:#?}");
+    };
+    assert_eq!(recipient.preposition, Preposition::To);
+    let Phrase::NounPhrase(recipient) = recipient.object.as_ref() else {
+        panic!("expected a noun-phrase recipient: {recipient:#?}");
+    };
+    let NounPhrase::Coordinated(recipient) = recipient.as_ref() else {
+        panic!("expected full recipient coordination: {recipient:#?}");
+    };
+    let NounPhrase::CoordinatedNominal(targets) = recipient.first.as_ref() else {
+        panic!("expected one shared-target first member: {recipient:#?}");
+    };
+    assert_eq!(targets.determiner, Determiner::Target(None));
+    assert!(targets.first.determiner.is_none());
+    assert!(matches!(
+        targets.rest.as_slice(),
+        [crate::syntax::NominalPhraseCoordination {
+            conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
+            phrase: NominalPhrase {
+                determiner: None,
+                ..
+            },
+            ..
+        }]
+    ));
+    let [creatures] = recipient.rest.as_slice() else {
+        panic!("expected one outer coordination member: {recipient:#?}");
+    };
+    assert_eq!(
+        creatures.conjunction,
+        Some(crate::syntax::NounPhraseConjunction::And)
+    );
+    let NounPhrase::Nominal(creatures) = &creatures.phrase else {
+        panic!("expected an independently determined creature member");
+    };
+    assert_eq!(creatures.determiner, Some(Determiner::Each));
+    assert!(matches!(
+        creatures.complements.as_slice(),
+        [NominalComplement::Relative(RelativeClause {
+            marker: RelativeMarker::Zero,
+            gap: RelativeGap::Object,
+            ..
+        })]
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn repeated_damage_themes_coordinate_as_complete_noun_phrases() {
+    let source = "This card deals 2 damage to each attacking creature and 1 damage to you and each creature you control.";
+    let parsed = parse(source);
+    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a transitive clause");
+    };
+    let PredicateObject::NounPhrase(NounPhrase::Coordinated(objects)) = &predicate.object else {
+        panic!(
+            "expected coordinated damage objects: {:#?}",
+            predicate.object
+        );
+    };
+    assert!(matches!(
+        objects.first.as_ref(),
+        NounPhrase::Nominal(first)
+            if matches!(first.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+                && matches!(first.complements.as_slice(), [NominalComplement::Prepositional(_)])
+    ));
+    assert!(matches!(
+        objects.rest.as_slice(),
+        [crate::syntax::NounPhraseCoordination {
+            conjunction: Some(crate::syntax::NounPhraseConjunction::And),
+            phrase: NounPhrase::Nominal(second),
+            ..
+        }] if matches!(second.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+            && matches!(second.complements.as_slice(), [NominalComplement::Prepositional(_)])
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn passive_to_shared_target_stays_inside_the_relative_predicate() {
+    let source =
+        "Prevent all damage that would be dealt to target player or planeswalker this turn.";
+    let parsed = parse(source);
+    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a transitive imperative");
+    };
+    let PredicateObject::NounPhrase(NounPhrase::Nominal(damage)) = &predicate.object else {
+        panic!("expected a nominal damage object");
+    };
+    let [
+        NominalComplement::Relative(RelativeClause {
+            body:
+                RelativeBody::SubjectGap(Predicate::Deontic(DeonticPredicate {
+                    inner: Some(inner),
+                    ..
+                })),
+            ..
+        }),
+    ] = damage.complements.as_slice()
+    else {
+        panic!("damage must own one complete relative: {damage:#?}");
+    };
+    let Predicate::Passive(passive) = inner.as_ref() else {
+        panic!("expected a passive predicate inside the relative: {inner:#?}");
+    };
+    let [
+        PredicateElement::Adjunct(PredicateAdjunct::Prepositional(to)),
+        PredicateElement::Adjunct(PredicateAdjunct::Temporal(_)),
+    ] = passive.elements.as_slice()
+    else {
+        panic!("the passive must retain its recipient and temporal adjunct: {passive:#?}");
+    };
+    assert_eq!(to.preposition, Preposition::To);
+    assert!(matches!(
+        to.object.as_ref(),
+        Phrase::NounPhrase(targets)
+            if matches!(targets.as_ref(), NounPhrase::CoordinatedNominal(_))
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
 fn as_fills_the_preposition_slot_after_an_adverb() {
     let source = "Activate only as a sorcery.";
     let parsed = parse(source);
