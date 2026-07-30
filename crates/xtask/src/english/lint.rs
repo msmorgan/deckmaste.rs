@@ -71,34 +71,6 @@ struct Finding {
     detail: String,
 }
 
-/// A full nested rendering, used to compare two parses for equality.
-fn render(shape: &Shape) -> String {
-    match shape {
-        Shape::Scalar(kind) => (*kind).to_string(),
-        Shape::Unit { .. } => shape.label(),
-        Shape::Absent => "None".to_string(),
-        Shape::Newtype { inner, .. } => format!("{}({})", shape.label(), render(inner)),
-        Shape::Node { fields, .. } => {
-            let rendered: Vec<_> = fields
-                .iter()
-                .map(|(key, value)| format!("{key}: {}", render(value)))
-                .collect();
-            format!("{}{{{}}}", shape.label(), rendered.join(", "))
-        }
-        Shape::Seq(items) => {
-            let rendered: Vec<_> = items.iter().map(render).collect();
-            format!("[{}]", rendered.join(", "))
-        }
-        Shape::Map(entries) => {
-            let rendered: Vec<_> = entries
-                .iter()
-                .map(|(key, value)| format!("{}: {}", render(key), render(value)))
-                .collect();
-            format!("{{{}}}", rendered.join(", "))
-        }
-    }
-}
-
 fn elements<'a>(shape: &'a Shape, key: &str) -> &'a [Shape] {
     shape.field(key).map_or(&[], Shape::elements)
 }
@@ -352,7 +324,7 @@ fn ability_parses(
         .map(|(line, ability)| AbilityParse {
             text: (*line).to_string(),
             legendary,
-            shape: render(ability),
+            shape: ability.fingerprint(),
             card: card_name.to_string(),
         })
         .collect()

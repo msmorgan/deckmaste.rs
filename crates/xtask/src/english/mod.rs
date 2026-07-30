@@ -7,6 +7,7 @@ use clap::Subcommand;
 use self::bracket::BracketArgs;
 use self::inspect::InspectArgs;
 use self::lint::LintArgs;
+use self::probe::ProbeArgs;
 use self::recovery::RecoveryArgs;
 use self::roundtrip::RoundtripArgs;
 use self::shapes::ShapesArgs;
@@ -16,6 +17,7 @@ mod bracket;
 mod data;
 mod inspect;
 mod lint;
+mod probe;
 mod recovery;
 mod roundtrip;
 mod shape;
@@ -44,6 +46,9 @@ enum EnglishCommand {
     Shapes(ShapesArgs),
     /// Report sound structural defects — every finding is proof, not a lead.
     Lint(LintArgs),
+    /// Probe the parser directly: free-text parses, ceiling calibration, and
+    /// a printed-text law baseline.
+    Probe(ProbeArgs),
 }
 
 pub fn run(args: EnglishArgs) -> anyhow::Result<()> {
@@ -55,5 +60,6 @@ pub fn run(args: EnglishArgs) -> anyhow::Result<()> {
         EnglishCommand::Roundtrip(args) => roundtrip::run(&args),
         EnglishCommand::Shapes(args) => shapes::run(&args),
         EnglishCommand::Lint(args) => lint::run(&args),
+        EnglishCommand::Probe(args) => probe::run(&args),
     }
 }

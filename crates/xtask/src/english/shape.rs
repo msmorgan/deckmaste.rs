@@ -137,6 +137,34 @@ impl Shape {
             Self::Scalar(_) | Self::Unit { .. } | Self::Absent => {}
         }
     }
+
+    /// A full nested rendering, used to compare two parses for equality.
+    pub(super) fn fingerprint(&self) -> String {
+        match self {
+            Shape::Scalar(kind) => (*kind).to_string(),
+            Shape::Unit { .. } => self.label(),
+            Shape::Absent => "None".to_string(),
+            Shape::Newtype { inner, .. } => format!("{}({})", self.label(), inner.fingerprint()),
+            Shape::Node { fields, .. } => {
+                let rendered: Vec<_> = fields
+                    .iter()
+                    .map(|(key, value)| format!("{key}: {}", value.fingerprint()))
+                    .collect();
+                format!("{}{{{}}}", self.label(), rendered.join(", "))
+            }
+            Shape::Seq(items) => {
+                let rendered: Vec<_> = items.iter().map(Shape::fingerprint).collect();
+                format!("[{}]", rendered.join(", "))
+            }
+            Shape::Map(entries) => {
+                let rendered: Vec<_> = entries
+                    .iter()
+                    .map(|(key, value)| format!("{}: {}", key.fingerprint(), value.fingerprint()))
+                    .collect();
+                format!("{{{}}}", rendered.join(", "))
+            }
+        }
+    }
 }
 
 fn qualify(name: &str, variant: Option<&str>) -> String {
@@ -596,5 +624,26 @@ mod tests {
         );
         assert!(labels.contains(&"Leaf::Beta".to_string()));
         assert!(labels.contains(&"Fixture".to_string()));
+    }
+
+    #[test]
+    fn fingerprint_renders_nested_structure_canonically() {
+        let shape = Shape::Seq(vec![Shape::Newtype {
+            name: "Wrapper",
+            variant: None,
+            inner: Box::new(Shape::Absent),
+        }]);
+        assert_eq!(shape.fingerprint(), "[Wrapper(None)]");
+    }
+
+    #[test]
+    fn fingerprint_distinguishes_two_groupings_of_the_same_leaves() {
+        let flat = Shape::Seq(vec![Shape::Absent, Shape::Absent]);
+        let nested = Shape::Seq(vec![Shape::Seq(vec![Shape::Absent]), Shape::Absent]);
+        assert_ne!(
+            flat.fingerprint(),
+            nested.fingerprint(),
+            "grouping must survive fingerprinting or minimal pairs cannot detect collapse"
+        );
     }
 }
