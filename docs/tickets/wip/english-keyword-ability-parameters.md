@@ -92,3 +92,35 @@ tight-cost bodies whose cost clauses `parse_cost` cannot type. They recovered
 before `kwparam` and still do; only their carrier changed.
 
 Standard constraints apply.
+
+## 2026-07-30: the bare-NP gate needs a keyword→shape table
+
+Attempted entry 3 (`Champion a [quality]`) plus the Enchant misparse below with
+a categorical opener — argument parses *exactly* as `Nonterminal::NounPhrase`,
+keyword stands alone on its line (`!in_list`). It fixes both targets and moves
+recovery 3390 → 3359 spans, but it is **not sound**, on two pre-existing
+invariants:
+
+- `Protection creature` becomes a keyword line, which
+  `a_bare_noun_argument_is_not_admitted_as_a_keyword_line` forbids by design:
+  protection's shape is `Protection from [quality]` [CR#702.16a], never a bare
+  noun phrase.
+- `Partner with [name]` (entry 1) breaks round-trip on Impetuous Protege and
+  Proud Mentor — the noun-phrase arm captures the card *name* as an ordinary
+  nominal, the same missing name-nonterminal gap entry 1 records.
+
+Both failures share one cause: **which argument shape a keyword takes is not
+recorded anywhere.** `KeywordArgument`'s doc says the argument-shape vocabulary
+is closed, but nothing maps a keyword atom to the shape it licenses, so any
+gate must either name keywords (banned) or accept every atom (unsound). The
+open work is therefore a keyword→argument-shape table derived from the CR, not
+another opener heuristic. The CR states a written form explicitly for only
+three keywords (`Enchant [object or player]` [CR#702.5a], `Protection from
+[quality]` [CR#702.16a], `Gift a [something]` [CR#702.174a]); the rest must
+come from the exemplar rules the `kwparam` round already read.
+
+**Not attempted:** the full `Predicated` → `Qualified(Phrase)` collapse.
+`Hexproof from` is itself a keyword-ability catalog surface, so `carries_from`
+reflects Scryfall data rather than an invention; collapsing needs the argument
+re-cut against the shorter `Hexproof` atom (also a catalog member) plus a cost
+preference for it when the argument coordinates.
