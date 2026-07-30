@@ -124,3 +124,31 @@ come from the exemplar rules the `kwparam` round already read.
 reflects Scryfall data rather than an invention; collapsing needs the argument
 re-cut against the shorter `Hexproof` atom (also a catalog member) plus a cost
 preference for it when the argument coordinates.
+
+## 2026-07-30: the subject gate is unsound too — same missing data
+
+Also attempted the Enchant misparse from the other end: reject a clause whose
+subject is a bare keyword-ability catalog atom (no determiner, modifiers, or
+complements) in `lower_simple_clause`. It kills the misparse — `Enchant tapped
+creature` recovers honestly instead of deriving a transitive clause whose verb
+is a past-tense `tap` — and all 753 tests plus `roundtrip --require-clean`
+stay green.
+
+The recovery census refutes it: 3390 → 3405 spans. The premise is false.
+`if tribute wasn't paid` (10 spans, Tribute [CR#702.104]) is a *legitimate*
+bare keyword-atom subject, as is the keyword coordination in `Target creature
+without first strike, double strike, or vigilance …`. Only `Enchant tapped
+creature` was a real misparse.
+
+So both attempted fixes fail on the same missing datum: a per-keyword property
+separating **declaration-only** keywords, whose name never heads a nominal
+(enchant [CR#702.5a], champion [CR#702.72a]), from **referable** ones, whose
+name is an ordinary nominal in running text (tribute, flying, trample). Neither
+a structural gate nor an argument-shape opener can stand in for it.
+
+**Method note.** Neither the round-trip gate nor the test suite caught the
+over-rejection — recovery preserves spans verbatim, so a rejected derivation
+still round-trips clean. The recovery census was the only instrument that saw
+it. Pair that with the comma finding above: over-*acceptance* surfaces by not
+storing derivable state, over-*rejection* surfaces in the census, and
+round-trip catches neither.
