@@ -38,3 +38,31 @@ Two rules the round paid for, worth reusing:
 Keeping a field is a legitimate outcome — document the refutation on the field
 with its witnesses, as that round did for eleven of them. Standard constraints
 apply.
+
+## Two refutations from that round that do not hold up
+
+Both were recorded as settled and are not. Re-test before trusting either.
+
+**`ComparativeWord` — the cited minimal pair is not minimal.** The round kept the
+field on `total power 2 or more` vs `total power 8 or greater`, described as the
+same head class and direction. The two differ in **syntactic frame**:
+`Tap any number of other creatures you control with total power 2 or more:` is a
+nominal qualifier (a saddle cost), while `if creatures you control have total
+power 8 or greater` is a predicate complement. Corpus checks that motivate a
+frame-sensitive retest: `with power N or more` has **zero** occurrences, while
+`with power N or greater` is well attested (`Regenerate target creature with
+power 5 or greater`, `Target creature with power 4 or greater`, `a creature with
+mana value 6 or greater`). So a rule keyed on frame — qualifier vs predicate —
+or on the statistic head is untested, not refuted. Direction stays semantic
+either way.
+
+**`KeywordListSeparator` — the "reminder text" explanation is unverified.** The
+round recorded its 34 mismatches against an always-`Comma` rule as "genuine WotC
+semicolon style, likely tied to now-stripped reminder text." That causal story
+was never checked, and a search for semicolon-separated keyword lists does not
+turn up the shape it predicts. Treat the 34 as **unclassified**: enumerate them
+and look at the actual faces before concluding the variation is language rather
+than a parse or a stripping artifact. Note that reminder text is *stripped*, not
+parsed — `strip_reminder_text` removes parenthesized groups at the input
+boundary before tokenizing — so any theory involving reminder text has to
+explain an effect that survives its removal.
