@@ -40,7 +40,6 @@ use crate::syntax::KeywordAbilityList;
 use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
 use crate::syntax::KeywordCost;
-use crate::syntax::KeywordCostTerminal;
 use crate::syntax::KeywordListSeparator;
 use crate::syntax::LevelBandAbility;
 use crate::syntax::LevelRange;
@@ -50,7 +49,6 @@ use crate::syntax::LoyaltyCostValue;
 use crate::syntax::ModalAbility;
 use crate::syntax::ModalFrame;
 use crate::syntax::ModalHeaderSuffix;
-use crate::syntax::ModalPreambleSeparator;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
@@ -416,14 +414,6 @@ impl<'identity> Renderer<'identity> {
         };
         let framed = match &modal.frame {
             ModalFrame::Unframed => header,
-            ModalFrame::Preamble { body, separator } => {
-                let separator = match separator {
-                    ModalPreambleSeparator::None => "",
-                    ModalPreambleSeparator::Space => " ",
-                    ModalPreambleSeparator::CommaSpace => ", ",
-                };
-                format!("{}{separator}{header}", self.paragraph(body, true)?)
-            }
             ModalFrame::Activated(cost) => format!("{}: {header}", self.cost(cost)?),
             ModalFrame::Triggered(trigger) => format!(
                 "{}, {header}",
@@ -563,20 +553,21 @@ impl<'identity> Renderer<'identity> {
     fn keyword_cost(&self, cost: &KeywordCost) -> Result<String, RenderError> {
         Ok(match cost {
             KeywordCost::Symbols(symbols) => format!(" {}", render_symbol_sequence(symbols)),
-            KeywordCost::Sentence { separator, ability } => format!(
+            // `Sentence`'s separator is always the spaced em dash; see the
+            // variant's doc comment.
+            KeywordCost::Sentence { ability } => format!(
                 "{}{}",
-                keyword_argument_separator(*separator),
+                keyword_argument_separator(KeywordArgumentSeparator::SpacedEmDash),
                 self.nested_ability(ability, true, false)?
             ),
-            KeywordCost::Components {
-                separator,
-                cost,
-                terminal,
-            } => format!(
+            // `Components`'s separator is always the tight em dash, and a
+            // present terminal is always a bare period; see the variant's
+            // doc comment.
+            KeywordCost::Components { cost, terminal } => format!(
                 "{}{}{}",
-                keyword_argument_separator(*separator),
+                keyword_argument_separator(KeywordArgumentSeparator::EmDash),
                 capitalize_first(self.cost(cost)?),
-                render_keyword_cost_terminal(*terminal)
+                if *terminal { "." } else { "" }
             ),
         })
     }
@@ -640,10 +631,12 @@ impl<'identity> Renderer<'identity> {
             KeywordArgument::Named { separator, label } => {
                 format!("{}{label}", keyword_argument_separator(*separator))
             }
-            KeywordArgument::Recovered { separator, text } => {
+            // `Recovered`'s separator is always Space; see the variant's doc
+            // comment.
+            KeywordArgument::Recovered { text } => {
                 format!(
                     "{}{}",
-                    keyword_argument_separator(*separator),
+                    keyword_argument_separator(KeywordArgumentSeparator::Space),
                     text.spelling()
                 )
             }
@@ -2081,11 +2074,10 @@ impl<'identity> Renderer<'identity> {
         {
             interior.push('.');
         }
-        let mut rendered = format!("\"{interior}");
-        if quoted.closed {
-            rendered.push('"');
-        }
-        Ok(rendered)
+        // The closing quote always prints: `closed` was removed (surface-fact
+        // sweep, 2026-07-30) after every construction site was found to set
+        // it to `true` — 0 mismatches across all 31685 supported faces.
+        Ok(format!("\"{interior}\""))
     }
 
     fn render_noun(&self, noun: &NounInstance) -> Result<String, RenderError> {
@@ -2459,7 +2451,7 @@ fn adjunct_terminal_quote(adjunct: &PredicateAdjunct) -> Option<&QuotedAbility> 
 /// second quote — the only one the enclosing sentence's period moves inside.
 fn predicate_object_terminal_quote(object: &PredicateObject) -> Option<&QuotedAbility> {
     match object {
-        PredicateObject::QuotedAbility(quoted) => quoted.closed.then_some(quoted),
+        PredicateObject::QuotedAbility(quoted) => Some(quoted),
         PredicateObject::Coordinated(coordinated) => coordinated_object_terminal_quote(coordinated),
         _ => None,
     }
@@ -2476,7 +2468,7 @@ fn coordinated_object_terminal_quote(
 
 fn phrase_terminal_quote(phrase: &Phrase) -> Option<&QuotedAbility> {
     match phrase {
-        Phrase::QuotedAbility(quoted) if quoted.closed => Some(quoted),
+        Phrase::QuotedAbility(quoted) => Some(quoted),
         _ => None,
     }
 }
@@ -2640,17 +2632,6 @@ fn keyword_argument_separator(separator: KeywordArgumentSeparator) -> &'static s
         KeywordArgumentSeparator::Space => " ",
         KeywordArgumentSeparator::EmDash => "—",
         KeywordArgumentSeparator::SpacedEmDash => " — ",
-    }
-}
-
-/// Renders a [`KeywordCostTerminal`] back to its literal punctuation, or the
-/// empty string when the cost body carried no terminal at all.
-fn render_keyword_cost_terminal(terminal: Option<KeywordCostTerminal>) -> &'static str {
-    match terminal {
-        None => "",
-        Some(KeywordCostTerminal::Period) => ".",
-        Some(KeywordCostTerminal::Exclamation) => "!",
-        Some(KeywordCostTerminal::Question) => "?",
     }
 }
 

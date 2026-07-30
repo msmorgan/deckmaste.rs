@@ -235,7 +235,6 @@ impl<'syntax> SyntaxInventory<'syntax> {
             AbilityKind::Loyalty(loyalty) => self.paragraph(&loyalty.effect),
             AbilityKind::Modal(modal) => {
                 match &modal.frame {
-                    ModalFrame::Preamble { body, .. } => self.paragraph(body),
                     ModalFrame::Activated(cost) => self.cost(cost),
                     ModalFrame::Triggered(trigger) => self.trigger_header(trigger),
                     ModalFrame::Unframed

@@ -108,7 +108,6 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     | ModalFrame::Loyalty(_)
                     | ModalFrame::Chapter(_)
                     | ModalFrame::Keyword(_) => {}
-                    ModalFrame::Preamble { body, .. } => self.paragraph(body, context),
                     ModalFrame::Activated(cost) => {
                         self.cost(cost, Some(RecoveryRole::ActivationCost));
                     }
@@ -1007,7 +1006,6 @@ mod tests {
                             preceding_separator: None,
                             ability: flying,
                             argument: KeywordArgument::Recovered {
-                                separator: KeywordArgumentSeparator::Space,
                                 text: recovered("argument"),
                             },
                         }],
@@ -1032,7 +1030,6 @@ mod tests {
                             object: PredicateObject::QuotedAbility(Box::new(QuotedAbility {
                                 ability: Box::new(paragraph_recovered("embedded")),
                                 initial_uppercase: false,
-                                closed: true,
                             })),
                         },
                         elements: vec![],

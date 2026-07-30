@@ -4668,8 +4668,8 @@ fn quoted_ability_is_a_coordinated_grant_predicate_object() {
         panic!("expected one shared-predicate conjunct: {coordination:#?}");
     };
     assert!(
-        matches!(&shared.object, PredicateObject::QuotedAbility(quoted) if quoted.closed),
-        "the shared predicate's object is the closed quote: {:#?}",
+        matches!(&shared.object, PredicateObject::QuotedAbility(_)),
+        "the shared predicate's object is the quoted ability: {:#?}",
         shared.object
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -4696,16 +4696,19 @@ fn two_quoted_abilities_are_a_coordinated_object() {
         panic!("expected a coordinated object: {:#?}", predicate.object);
     };
     assert!(
-        matches!(first.as_ref(), PredicateObject::QuotedAbility(quoted) if quoted.closed),
-        "the non-final conjunct is a closed quote: {first:#?}"
+        matches!(first.as_ref(), PredicateObject::QuotedAbility(_)),
+        "the non-final conjunct is a quoted ability: {first:#?}"
     );
     assert!(
-        matches!(rest.as_slice(), [PredicateObjectCoordination {
+        matches!(
+            rest.as_slice(),
+            [PredicateObjectCoordination {
                 conjunction: Some(crate::syntax::PredicateConjunction::And),
-                object: PredicateObject::QuotedAbility(quoted),
+                object: PredicateObject::QuotedAbility(_),
                 ..
-            }] if quoted.closed),
-        "the final conjunct is a closed quote too: {rest:#?}"
+            }]
+        ),
+        "the final conjunct is a quoted ability too: {rest:#?}"
     );
     // The period placement the two conjuncts differ on lives only here now:
     // `card" and "` for the non-final one, `card."` for the sentence-final one.

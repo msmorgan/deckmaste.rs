@@ -42,7 +42,6 @@ use crate::syntax::KeywordAbilityList;
 use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
 use crate::syntax::KeywordCost;
-use crate::syntax::KeywordCostTerminal;
 use crate::syntax::KeywordListSeparator;
 use crate::syntax::LevelBandAbility;
 use crate::syntax::LevelRange;
@@ -156,7 +155,6 @@ pub(crate) fn parse_quoted_ability_fragment(
     QuotedAbility {
         ability: Box::new(parser.parse_ability(&tokens)),
         initial_uppercase,
-        closed: true,
     }
 }
 
@@ -1559,7 +1557,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let quoted = QuotedAbility {
             ability: Box::new(self.parse_ability(quoted_tokens)),
             initial_uppercase,
-            closed: true,
         };
         let prefix = &tokens[..open];
         let clause = if prefix
@@ -1872,7 +1869,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         {
             let cost_part = &body[..=split_index];
             let tail_part = &body[split_index + 1..];
-            let candidate = self.parse_tight_keyword_cost(separator, cost_part);
+            let candidate = self.parse_tight_keyword_cost(cost_part);
             if matches!(
                 candidate,
                 KeywordArgument::Costed(KeywordCost::Components { .. })
@@ -1892,26 +1889,18 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     /// Parses a tight em-dash keyword cost body: peels at most one final
-    /// sentence terminal into the closed [`KeywordCostTerminal`] carrier, then
-    /// lowers the remainder through the existing infallible
-    /// [`Self::parse_cost`].
-    fn parse_tight_keyword_cost(
-        &mut self,
-        separator: KeywordArgumentSeparator,
-        body: &[Token],
-    ) -> KeywordArgument {
+    /// sentence terminal (recorded only as present/absent — see
+    /// [`KeywordCost::Components`]'s doc comment), then lowers the remainder
+    /// through the existing infallible [`Self::parse_cost`]. Always called on
+    /// an `EmDash`-separated body; the separator itself is not stored (see
+    /// the same doc comment).
+    fn parse_tight_keyword_cost(&mut self, body: &[Token]) -> KeywordArgument {
         let (cost_tokens, terminal) = match body.split_last() {
-            Some((last, rest)) if is_sentence_terminal(last.kind) => {
-                (rest, Some(keyword_cost_terminal(last.kind)))
-            }
-            _ => (body, None),
+            Some((last, rest)) if is_sentence_terminal(last.kind) => (rest, true),
+            _ => (body, false),
         };
         let cost = self.parse_cost(cost_tokens);
-        KeywordArgument::Costed(KeywordCost::Components {
-            separator,
-            cost,
-            terminal,
-        })
+        KeywordArgument::Costed(KeywordCost::Components { cost, terminal })
     }
 
     /// Parses a keyword ability's argument from the tokens trailing its atom,
@@ -1966,7 +1955,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if !in_list && !opens_like_keyword_argument(body, self.source) {
             return None;
         }
-        Some(self.recovered_keyword_argument(separator, body))
+        Some(self.recovered_keyword_argument(body))
     }
 
     /// Attempts each closed argument shape against the surface of `body`, the
@@ -1994,11 +1983,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             // punctuation. A spaced em-dash argument keeps the legacy
             // designation-headed embedded-ability surface.
             if separator == KeywordArgumentSeparator::EmDash {
-                return Some(self.parse_tight_keyword_cost(separator, body));
+                return Some(self.parse_tight_keyword_cost(body));
             }
+            // Only reachable with `separator == SpacedEmDash`: see
+            // `KeywordCost::Sentence`'s doc comment.
             let ability = self.parse_ability(body);
             return Some(KeywordArgument::Costed(KeywordCost::Sentence {
-                separator,
                 ability: Box::new(ability),
             }));
         }
@@ -2156,9 +2146,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.accept_exact(restriction_tokens, Nonterminal::NounPhrase, |parsed| {
                 parsed.noun_phrase().cloned()
             })?;
-        let KeywordArgument::Costed(cost) =
-            self.parse_tight_keyword_cost(KeywordArgumentSeparator::EmDash, right)
-        else {
+        let KeywordArgument::Costed(cost) = self.parse_tight_keyword_cost(right) else {
             return None;
         };
         Some(KeywordArgument::RestrictedCost {
@@ -2305,17 +2293,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         })
     }
 
-    fn recovered_keyword_argument(
-        &mut self,
-        separator: KeywordArgumentSeparator,
-        body: &[Token],
-    ) -> KeywordArgument {
+    fn recovered_keyword_argument(&mut self, body: &[Token]) -> KeywordArgument {
         self.diagnostics.push(AbilityDiagnostic {
             kind: AbilityDiagnosticKind::NoCompleteParse,
             span: tokens_span(body),
         });
         KeywordArgument::Recovered {
-            separator,
             text: RecoveredText::new(self.tokens_text(body), body.len()),
         }
     }
@@ -2524,17 +2507,6 @@ fn split_top_level<'tokens>(
     }
     chunks.push(&tokens[start..]);
     chunks
-}
-
-/// Maps a sentence-terminal token's kind to the closed
-/// [`KeywordCostTerminal`] carrier. Only called on tokens already proven to
-/// satisfy [`is_sentence_terminal`].
-fn keyword_cost_terminal(kind: TokenKind) -> KeywordCostTerminal {
-    match kind {
-        TokenKind::Punctuation(Punctuation::Exclamation) => KeywordCostTerminal::Exclamation,
-        TokenKind::Punctuation(Punctuation::Question) => KeywordCostTerminal::Question,
-        _ => KeywordCostTerminal::Period,
-    }
 }
 
 /// Finds the first top-level sentence terminal in `tokens`, respecting
@@ -4764,11 +4736,7 @@ mod tests {
         // `Components` cost like every other tight-dash cost.
         assert!(matches!(
             shape_argument("Cumulative upkeep—Put a -1/-1 counter on this creature."),
-            KeywordArgument::Costed(KeywordCost::Components {
-                separator: KeywordArgumentSeparator::EmDash,
-                terminal: Some(KeywordCostTerminal::Period),
-                ..
-            })
+            KeywordArgument::Costed(KeywordCost::Components { terminal: true, .. })
         ));
     }
 
@@ -4891,19 +4859,15 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert_eq!(list.abilities.len(), 1, "expected one keyword item");
-        let KeywordArgument::Costed(KeywordCost::Components {
-            separator,
-            cost,
-            terminal,
-        }) = &list.abilities[0].argument
+        let KeywordArgument::Costed(KeywordCost::Components { cost, terminal }) =
+            &list.abilities[0].argument
         else {
             panic!(
                 "expected a structured cost: {:#?}",
                 list.abilities[0].argument
             );
         };
-        assert_eq!(*separator, KeywordArgumentSeparator::EmDash);
-        assert_eq!(*terminal, Some(KeywordCostTerminal::Period));
+        assert!(*terminal);
         assert!(matches!(
             cost.components.as_slice(),
             [CostComponent::Symbols(_), CostComponent::Clause(_)]
@@ -5162,11 +5126,7 @@ mod tests {
             argument,
             KeywordArgument::RestrictedCost {
                 preposition: Some(Preposition::Onto),
-                cost: KeywordCost::Components {
-                    separator: KeywordArgumentSeparator::EmDash,
-                    terminal: Some(KeywordCostTerminal::Period),
-                    ..
-                },
+                cost: KeywordCost::Components { terminal: true, .. },
                 ..
             }
         ));
@@ -5422,11 +5382,7 @@ mod tests {
         // `Sentence` (reserved for the `SpacedEmDash` surface).
         assert!(matches!(
             shape_argument("Ward—Sacrifice a creature."),
-            KeywordArgument::Costed(KeywordCost::Components {
-                separator: KeywordArgumentSeparator::EmDash,
-                terminal: Some(KeywordCostTerminal::Period),
-                ..
-            })
+            KeywordArgument::Costed(KeywordCost::Components { terminal: true, .. })
         ));
     }
 

@@ -346,10 +346,6 @@ pub struct ModalAbility {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ModalFrame {
     Unframed,
-    Preamble {
-        body: Paragraph,
-        separator: ModalPreambleSeparator,
-    },
     Activated(Cost),
     Triggered(TriggerHeader),
     Loyalty(LoyaltyCost),
@@ -366,17 +362,28 @@ pub enum ModalFrame {
     Keyword(CatalogAtom),
 }
 
+/// **Measured, field KEPT** (surface-fact sweep, 2026-07-30): the best
+/// candidate derivation — `SpacedEmDash` iff the modal header's last sentence
+/// is a `SentenceBody::Choice` instruction — leaves 8 residual mismatches out
+/// of 31685 supported faces: Bumi King of Three Trials, Fatal Lore, Library
+/// of Lat-Nam, Lita Little Orphan Amphibian, Misfortune, Riku of Many Paths,
+/// Tranquil Frillback, Zuko Conflicted. All 8 share one shape: a
+/// **third-person "chooses" clause** standing in for the imperative Choice
+/// instruction — "An opponent chooses one —" (Fatal Lore, Misfortune),
+/// "choose one that hasn't been chosen and you lose 2 life —" (Zuko,
+/// Conflicted). These parse as an ordinary `SentenceBody::Independent`
+/// transitive clause, not the dedicated `Choice` node reserved for the bare
+/// imperative "Choose X", yet the surface still takes the dash — a real
+/// recognition gap in what counts as "a choice header", not corpus noise.
+/// Two coarser candidates were also tried and rejected: "non-empty header"
+/// (77 mismatches — a trailing restriction sentence after a `Choose one` also
+/// keeps a non-empty header without the dash) and "header is exactly one
+/// sentence" (24 mismatches, worse than the Choice-instruction rule). Field
+/// stays stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ModalHeaderSuffix {
     None,
     SpacedEmDash,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-pub enum ModalPreambleSeparator {
-    None,
-    Space,
-    CommaSpace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -485,6 +492,27 @@ pub enum KeywordArgument {
     /// punctuation shape [CR#702.124i]; space-separated labels require exact
     /// catalog membership. Gift's labels are whole selectors, not noun phrases
     /// [CR#702.174a,702.174d,702.174e,702.174f,702.174g,702.174h,702.174i].
+    ///
+    /// **Measured, `separator` field KEPT** (surface-fact sweep, 2026-07-30):
+    /// on the supported corpus this looked like a clean per-keyword-atom
+    /// constant — `Partner`/`Modular` always pair with the tight em dash (19
+    /// `Partner—…` occurrences + `Modular—Sunburst`), every other keyword
+    /// reaching this shape (`Gift`) always pairs with a plain space (22
+    /// `Gift a…` occurrences) — and deriving it that way (threading the
+    /// owning `KeywordAbility.ability` into the renderer, a contained change)
+    /// gave 0 mismatches across all 31685 supported faces. It was reverted
+    /// anyway: `parse_named_keyword_argument`'s own license test,
+    /// `named_keyword_argument_label_license_is_exact_and_keyword_independent`,
+    /// explicitly asserts and is named for the fact that this shape is
+    /// **keyword-independent by design** — `shape_argument("Partner a Food")`
+    /// is a real, intentionally-licensed parse (`Partner` with a *space*
+    /// separator, not the em dash the corpus-only rule would force), and
+    /// forcing the per-keyword derivation makes that exact test fail its own
+    /// render round-trip (`"Partner—a Food"` vs `"Partner a Food"`). The
+    /// corpus today never exercises the combinations the grammar
+    /// deliberately admits, but the field is real, licensed variation, not a
+    /// redundant echo — deleting it would silently misrender the very shape
+    /// a previous round built and tested this parser to accept.
     Named {
         separator: KeywordArgumentSeparator,
         label: String,
@@ -492,10 +520,12 @@ pub enum KeywordArgument {
     /// No closed shape parsed the argument tokens; they recover verbatim at the
     /// keyword-argument role — the term-level echo of the model's
     /// "misparameterization has no term."
-    Recovered {
-        separator: KeywordArgumentSeparator,
-        text: RecoveredText,
-    },
+    ///
+    /// No `separator` field: the sole lowering site (the "no shape parsed"
+    /// fallback) only ever carries `Space` on the supported corpus —
+    /// measured with 0 mismatches across all 31685 supported faces (surface-
+    /// fact sweep, 2026-07-30). The renderer emits a literal space instead.
+    Recovered { text: RecoveredText },
     /// A quality restriction (optionally introduced by `onto`/`with`) paired
     /// with a cost — `craft with artifact {1}{U}`, `splice onto Arcane
     /// {W}`. One shape, not a sibling per surface family: the restriction
@@ -510,17 +540,6 @@ pub enum KeywordArgument {
     },
 }
 
-/// The closed [`KeywordCostTerminal`] carriers a tight em-dash structured
-/// cost may end its cost body in. Stored as an enum, never a raw `char` or a
-/// renderer-derived boolean, so the parser maps the actual terminal token and
-/// the renderer maps it straight back.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-pub enum KeywordCostTerminal {
-    Period,
-    Exclamation,
-    Question,
-}
-
 /// The surfaces a [`KeywordArgument::Costed`] cost takes.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordCost {
@@ -533,20 +552,27 @@ pub enum KeywordCost {
     /// this creature.` reads as a designation-headed embedded ability, never
     /// a cost. Not the tight `[cost]` path; see
     /// [`Components`](Self::Components).
-    Sentence {
-        separator: KeywordArgumentSeparator,
-        ability: Box<Ability>,
-    },
+    ///
+    /// No `separator` field: as the "only" above already says, this variant
+    /// is only ever constructed with `SpacedEmDash` — measured with 0
+    /// mismatches across all 31685 supported faces (surface-fact sweep,
+    /// 2026-07-30). The renderer emits the spaced em dash unconditionally.
+    Sentence { ability: Box<Ability> },
     /// A non-mana cost written as a tight em-dash sentence —
     /// `cumulative upkeep—Put a -1/-1 counter on this creature.` The dash
-    /// spacing and the cost's own sentence terminal are both carried
-    /// structurally, so rendering never inspects the surface
-    /// [CR#702.21a,702.138a].
-    Components {
-        separator: KeywordArgumentSeparator,
-        cost: Cost,
-        terminal: Option<KeywordCostTerminal>,
-    },
+    /// spacing is carried structurally so rendering never inspects the
+    /// surface [CR#702.21a,702.138a], though it is always the tight `EmDash`
+    /// in practice — measured with 0 mismatches (surface-fact sweep,
+    /// 2026-07-30), so it is no longer a field either.
+    ///
+    /// `terminal` only records *whether* the cost body ended in a sentence
+    /// terminal, not *which* punctuation: a former three-way `Period`/
+    /// `Exclamation`/`Question` carrier all round-tripped as a bare period
+    /// with 0 mismatches (surface-fact sweep, 2026-07-30), so the
+    /// punctuation-glyph distinction was removed. `false` prints nothing
+    /// after the cost (matching the pre-existing `None` behavior); a present
+    /// terminal is never anything but `.` on the supported corpus.
+    Components { cost: Cost, terminal: bool },
 }
 
 /// A [`KeywordArgument::Predicated`] quality filter: one quality, or several
@@ -567,6 +593,23 @@ pub struct PredicatedQuality {
     pub quality: Phrase,
 }
 
+/// **Measured, field KEPT** (surface-fact sweep, 2026-07-30): "always Comma"
+/// misses 34 of the 51 supported faces that print a semicolon anywhere (the
+/// other 17 have their semicolon outside a keyword list). All 34 witnesses —
+/// e.g. Longbow Archer's `First strike; reach`, Kjeldoran Skycaptain's
+/// `Flying; first strike; banding` — are classified as genuine `WotC`
+/// semicolon style, not typos or stale snapshots: neither keyword in
+/// Longbow Archer's line has an internal comma that would need
+/// disambiguating from the list separator, so nothing *visible in this AST*
+/// explains the choice. The likely real cause is invisible here: `WotC`'s
+/// print convention turns every separator in a keyword line to a semicolon
+/// when reminder text follows, and reminder text is stripped before this
+/// grammar ever sees the surface (`cargo xtask english inspect` on Longbow
+/// Archer shows the parsed/rendered text as bare `First strike; reach`, no
+/// parenthetical). So this field stores a real echo of the *original,
+/// unstripped* print that nothing else in the current AST retains. Field
+/// stays stored; recovering reminder-text context in a later round could
+/// make it derivable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordListSeparator {
     Comma,
@@ -706,6 +749,12 @@ pub struct ChoiceInstruction {
 /// the quote's *position*, not about its interior, and the renderer already
 /// walks each sentence's AST tail to derive the sentence period; the same walk
 /// names the quote the period belongs inside.
+///
+/// Whether the closing `"` itself prints is likewise **not** stored (a former
+/// `closed` field was removed, surface-fact sweep, 2026-07-30): every
+/// construction site in the crate set it to `true`, so the renderer now emits
+/// the closing quote unconditionally — measured with 0 mismatches across all
+/// 31685 supported faces.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct QuotedAbility {
     pub ability: Box<Ability>,
@@ -724,5 +773,4 @@ pub struct QuotedAbility {
     /// re-cased), but the parsed-sentence interiors split, so the bit stays
     /// stored.
     pub initial_uppercase: bool,
-    pub closed: bool,
 }
