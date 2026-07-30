@@ -43,8 +43,11 @@ preserves their grammatical role.
   suppress genuine agreement-class findings — one real case (`"Aang
   attack"`, a clean carrier producing an ungrammatical parse) was lost to
   it. The census under-reports that class.
-- Bare keyword lines contribute no fragments at all — see
-  `english-keyword-only-provenance-gap`.
+- Rule-indexed fragments intentionally exclude bare keyword lines: a bare
+  keyword is one atomic catalog item with no chart derivation beneath its
+  ability span. If the instrument needs keyword atoms, mine the typed keyword
+  AST/catalog directly rather than manufacturing a grammar rule solely for
+  provenance.
 - One proposed filter was rejected by measurement: adjacent-duplicate-word
   rejection, because 161 of 31,685 printed faces legitimately contain them
   (`"Cascade, cascade, cascade, cascade"`, `"discover, discover"`).

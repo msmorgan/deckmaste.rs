@@ -25,3 +25,7 @@ evidence: `bracket` renders exactly what `selections()` reports, and for the
 keyword line it reports nothing to bracket.
 
 Standard constraints apply.
+
+## Completion
+
+- Confirmed bare keywords are atomic catalog items and `<Trample>` is their complete structure; no synthetic grammar provenance landed, and keyword mining remains an adversarial-instrument concern.
