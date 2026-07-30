@@ -14,6 +14,7 @@ use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 use rand::RngExt;
 
+use crate::agenda::FinalizeMark;
 use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
@@ -840,20 +841,26 @@ impl GameState {
     /// refuses it so it opens no fresh window. [CR#616.1g,121.2a]: a
     /// CONTAINED window (one of an aggregate `Batch`'s `n` per-entity
     /// futures, `act.contained`) still runs this whole computation — its
-    /// underlying move still needs to happen and `committed` still feeds
-    /// the RETURNED `Progress` — but its fact/trigger emission is
-    /// suppressed; the aggregate's own (non-contained) `FinalizeAct` is the
-    /// one ACT-level commit for the batch.
-    fn finalize_act(&mut self, act: GameEvent, watch: &FinalizeWatch, mark: usize) -> Progress {
+    /// characteristic result still needs to happen and `committed` still
+    /// feeds the RETURNED `Progress` plus the private contained-success
+    /// ledger — but its fact/trigger emission is suppressed; the aggregate's
+    /// own (non-contained) `FinalizeAct` is the one ACT-level commit for the
+    /// batch.
+    fn finalize_act(
+        &mut self,
+        act: GameEvent,
+        watch: &FinalizeWatch,
+        mark: FinalizeMark,
+    ) -> Progress {
         let committed = match watch {
             FinalizeWatch::BodyRan => true,
-            FinalizeWatch::Patients(ids) => self.resolution_events[mark..].iter().any(|e| {
+            FinalizeWatch::Patients(ids) => self.resolution_events[mark.events..].iter().any(|e| {
                 matches!(
                     e,
                     GameEvent::ZoneChange(ZoneChange { snapshot: Some(_), object, .. }) if ids.contains(object)
                 )
             }),
-            FinalizeWatch::Performer(player) => self.resolution_events[mark..].iter().any(|e| {
+            FinalizeWatch::Performer(player) => self.resolution_events[mark.events..].iter().any(|e| {
                 let GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(snap),
                     cause: Some(c),
@@ -872,20 +879,27 @@ impl GameState {
             }),
             // [CR#616.1g,121.2a]: the aggregate finalizes iff ≥1 of the `n`
             // contained per-entity futures its own PASSED apply scheduled
-            // itself committed a move since `mark` — watched at the GROUND
-            // TRUTH `ZoneChange` commit (cause-verb-scoped, mirroring
-            // `Performer`'s own shape) rather than a contained future's own
-            // `Act` fact, because `finalize_act` suppresses THAT emission
-            // below (a "whenever you Verb" trigger must fire once per
-            // batch, not once per contained entity — see
-            // `GameEvent::Act::contained`).
-            FinalizeWatch::AnyContained(verb) => self.resolution_events[mark..].iter().any(|e| {
-                matches!(
-                    e,
-                    GameEvent::ZoneChange(ZoneChange { snapshot: Some(_), cause: Some(c), .. })
-                        if c.verb.as_str() == verb.as_str()
-                )
-            }),
+            // itself committed since `mark`. Mill's direct batch lane reports
+            // through its GROUND-TRUTH cause-tagged `ZoneChange`; every
+            // repeated `Act` lane reports through the contained future's OWN
+            // verb-appropriate finalizer. Neither exposes a contained `Act`
+            // fact: `finalize_act` suppresses that public emission below so a
+            // "whenever you Verb" trigger fires once per batch, not once per
+            // entity (see `GameEvent::Act::contained`).
+            FinalizeWatch::AnyContained(verb) => {
+                let direct_event_committed = self.resolution_events[mark.events..].iter().any(|e| {
+                    matches!(
+                        e,
+                        GameEvent::ZoneChange(ZoneChange { snapshot: Some(_), cause: Some(c), .. })
+                            if c.verb.as_str() == verb.as_str()
+                    )
+                });
+                let contained_act_committed = self
+                    .resolution_contained_act_commits
+                    .get(verb)
+                    .is_some_and(|&serial| serial > mark.contained_act_serial);
+                direct_event_committed || contained_act_committed
+            }
         };
         // [CR#616.1g,121.2a]: a CONTAINED per-entity future (one of an
         // aggregate `Batch` window's `n` contents) commits its own
@@ -900,6 +914,19 @@ impl GameState {
                 ..
             })
         );
+        // A contained future still runs its OWN verb-appropriate watcher. Its
+        // success is private resolution plumbing: record a marker for the
+        // enclosing aggregate, never a public `Act` fact that would trigger
+        // once per element. This preserves BodyRan successes (Fight/reorder)
+        // even when the body produces no ground-truth zone-change event.
+        if committed
+            && contained
+            && let GameEvent::Act(Act { verb, .. }) = &act
+        {
+            self.resolution_contained_act_serial += 1;
+            self.resolution_contained_act_commits
+                .insert(*verb, self.resolution_contained_act_serial);
+        }
         if committed && !contained {
             let done: Vec<GameEvent> = match act {
                 GameEvent::Act(Act {

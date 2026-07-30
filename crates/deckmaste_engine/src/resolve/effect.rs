@@ -2610,6 +2610,115 @@ mod tests {
         );
     }
 
+    /// [CR#616.1g,701.14a]: a `Batch(2, Fight(a, b))` records ONE aggregate
+    /// fight fact per fighter, not one fact per contained iteration. Fight has
+    /// no zone-change result for `AnyContained` to observe; the aggregate must
+    /// consume the contained fights' own successful finalization decisions.
+    #[test]
+    fn batch_fight_records_one_aggregate_fact_per_fighter() {
+        let mut state = game();
+        let fighter = |name: &str| {
+            Card::Normal(deckmaste_core::CardFace {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                power: Some(deckmaste_core::StatValue::Number(2)),
+                toughness: Some(deckmaste_core::StatValue::Number(5)),
+                ..deckmaste_core::CardFace::default()
+            })
+        };
+        let a = mint_on_field(&mut state, fighter("Batch Fighter A"));
+        let b = mint_on_field(&mut state, fighter("Batch Fighter B"));
+        let frame = frame_src_targets(a, vec![a, b]);
+
+        state.run_effect(
+            OneShotEffect::Batch(
+                Count::Literal(2),
+                Arc::new(fight_effect(&Reference::Target(0), &Reference::Target(1))),
+            ),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 100);
+
+        let fights: Vec<_> = state
+            .history
+            .entries()
+            .filter(|e| {
+                matches!(&e.fact, GameEvent::Act(Act { verb, committed: true, .. })
+                    if verb.as_str() == "Fight")
+            })
+            .collect();
+        assert_eq!(
+            fights.len(),
+            2,
+            "the aggregate records one fact per fighter, not per contained fight"
+        );
+        let subjects: Vec<_> = fights
+            .iter()
+            .map(|e| match &e.fact {
+                GameEvent::Act(Act { on, .. }) => on.clone(),
+                _ => unreachable!(),
+            })
+            .collect();
+        assert!(
+            subjects.iter().any(|on| on.as_slice() == [a])
+                && subjects.iter().any(|on| on.as_slice() == [b])
+        );
+        assert!(
+            fights[0].batch.is_some() && fights[0].batch == fights[1].batch,
+            "the aggregate's per-fighter facts share one history batch id"
+        );
+    }
+
+    /// [CR#120.8,701.14a]: an all-zero-power fight still happened even though
+    /// zero damage ultimately produces no `DamageDealt` fact. Aggregate Fight
+    /// finalization therefore cannot use damage (or zone movement) as its
+    /// success signal; it must inherit the contained Fight finalizer's
+    /// `BodyRan` result.
+    #[test]
+    fn batch_fight_with_zero_power_still_records_its_aggregate_fact() {
+        let mut state = game();
+        let fighter = |name: &str| {
+            Card::Normal(deckmaste_core::CardFace {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                power: Some(deckmaste_core::StatValue::Number(0)),
+                toughness: Some(deckmaste_core::StatValue::Number(1)),
+                ..deckmaste_core::CardFace::default()
+            })
+        };
+        let a = mint_on_field(&mut state, fighter("Zero Fighter A"));
+        let b = mint_on_field(&mut state, fighter("Zero Fighter B"));
+        let frame = frame_src_targets(a, vec![a, b]);
+
+        state.run_effect(
+            OneShotEffect::Batch(
+                Count::Literal(1),
+                Arc::new(fight_effect(&Reference::Target(0), &Reference::Target(1))),
+            ),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 60);
+
+        let subjects: Vec<_> = state
+            .history
+            .entries()
+            .filter_map(|e| match &e.fact {
+                GameEvent::Act(Act {
+                    verb,
+                    on,
+                    committed: true,
+                    ..
+                }) if verb.as_str() == "Fight" => Some(on.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(subjects.len(), 2, "both zero-power fighters still fought");
+        assert!(
+            subjects.iter().any(|on| on.as_slice() == [a])
+                && subjects.iter().any(|on| on.as_slice() == [b])
+        );
+    }
+
     /// [CR#616.1g,701.17b]: `Batch(2, Act(Mill(You,1)))` over an EMPTY
     /// library fizzles the WHOLE aggregate — `batch_act_head` must resolve
     /// the Mill patient group (mirroring `composite_items`'s own

@@ -655,7 +655,7 @@ impl GameState {
                 })
             })
             .collect();
-        let mark = self.resolution_events.len();
+        let mark = self.finalize_mark();
         let mut items = Vec::with_capacity(acts.len() + 1);
         items.push(WorkItem::Emit(Occurrence::Batch(acts.clone())));
         for act in acts {

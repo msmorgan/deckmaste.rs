@@ -78,6 +78,11 @@ impl GameState {
         // [CR#603.12]: a reflexive trigger looks back only over events of the
         // resolution that CREATES it, so the window resets each resolution.
         self.resolution_events.clear();
+        // The aggregate finalization ledger has the same one-resolution
+        // lifetime: no contained action from an earlier stack entry may
+        // satisfy a later aggregate's watcher.
+        self.resolution_contained_act_commits.clear();
+        self.resolution_contained_act_serial = 0;
         // [CR#608.2c]: resolution note slots exist only within the resolving
         // entry's instruction sequence. This fresh-resolution boundary is the
         // one canonical clear point for ALL resolution-scoped registers (see

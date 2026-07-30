@@ -153,7 +153,7 @@ impl GameState {
                     })
                 })
                 .collect();
-            let mark = self.resolution_events.len();
+            let mark = self.finalize_mark();
             self.schedule_front(vec![
                 WorkItem::Emit(Occurrence::Batch(mill_events)),
                 WorkItem::FinalizeAct {
@@ -172,7 +172,7 @@ impl GameState {
             // contained futures do ([CR#614.1]: a REPLACED aggregate never
             // reaches this arm at all, so it never plants a `FinalizeAct` to
             // spuriously fire off an unrelated later same-verb resolution).
-            let mark = self.resolution_events.len();
+            let mark = self.finalize_mark();
             self.schedule_front(vec![
                 WorkItem::RunEffect {
                     effect: Arc::new(deckmaste_core::OneShotEffect::Repeat(
@@ -201,7 +201,7 @@ impl GameState {
         if let Some(&top) = self.zones.libraries[player.index()].front() {
             let rebuilt = rebuilt_act(a);
             self.that_much = Some(1);
-            let mark = self.resolution_events.len();
+            let mark = self.finalize_mark();
             // The emitting lane owns the attribution ([CR#703.4d]): the effect
             // lane tags `EffectInstruction` + its source; don't reconstruct a
             // sourceless cause here.
@@ -303,7 +303,7 @@ impl GameState {
         let contents = a
             .contents
             .expect("a reorder/fight window carries its body in contents");
-        let mark = self.resolution_events.len();
+        let mark = self.finalize_mark();
         self.schedule_front(vec![
             WorkItem::RunEffect {
                 effect: Arc::new(contents.body),

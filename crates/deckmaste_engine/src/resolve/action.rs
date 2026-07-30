@@ -847,7 +847,7 @@ impl GameState {
             WorkItem::FinalizeAct {
                 act,
                 watch,
-                mark: self.resolution_events.len(),
+                mark: self.finalize_mark(),
             },
         ]
     }

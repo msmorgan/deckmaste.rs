@@ -49,11 +49,27 @@ pub enum FinalizeWatch {
     /// never runs, so it never plants a `FinalizeAct` that could later see
     /// an unrelated same-verb resolution and spuriously finalize;
     /// [CR#614.1]). So `mark` covers only what THIS aggregate's own `n`
-    /// contained futures do. Scoped by the aggregate's own verb so an
-    /// unrelated committed `Act` from a nested resolution (a triggered
-    /// destroy fired mid-mill) can't be mistaken for one of this
-    /// aggregate's contents.
+    /// contained futures do. Direct aggregate lanes (currently Mill's one
+    /// simultaneous move batch) report through their cause-tagged committed
+    /// event; repeated contained `Act` lanes report the success decision made
+    /// by each contained future's OWN verb-appropriate `FinalizeWatch`. That
+    /// second signal is what lets a body-only verb such as Fight finalize
+    /// without guessing from damage or adding a per-verb branch here. Scoped
+    /// by the aggregate's own verb so an unrelated nested action can't be
+    /// mistaken for one of this aggregate's contents.
     AnyContained(deckmaste_core::VerbName),
+}
+
+/// The two resolution-scoped cursors a [`FinalizeWatch`] starts observing at.
+/// Ordinary keyword actions read `events`; an aggregate's `AnyContained`
+/// watcher also reads `contained_act_serial`, the private success ledger's
+/// monotonic cursor. Keeping both cursors makes the boundary exact even when
+/// several successful body-only actions produce no public game event between
+/// them, without retaining one marker per batch element.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FinalizeMark {
+    pub(crate) events: usize,
+    pub(crate) contained_act_serial: u64,
 }
 
 /// One unit of engine work. `step()` pops exactly one; handlers schedule
@@ -289,15 +305,16 @@ pub enum WorkItem {
     },
     /// [CR#616.1]: the finalization watcher planted alongside a future `Act`
     /// window. After the window resolves (the action passed, was redirected, or
-    /// was replaced away) this observes `resolution_events[mark..]` for
-    /// `watch`'s characteristic committed change and, on a hit, emits the
-    /// committed PAST `Act` fact (`act` with `committed: true`) — recording it
-    /// and firing its "whenever you …" triggers. A miss records nothing (a
-    /// replaced-away mill, a regenerated destroy, an empty-library draw). `act`
-    /// is the future window event; the handler flips its phase marker.
+    /// was replaced away) this observes the resolution-scoped cursors in
+    /// `mark` for `watch`'s characteristic committed change and, on a hit,
+    /// emits the committed PAST `Act` fact (`act` with `committed: true`) —
+    /// recording it and firing its "whenever you …" triggers. A miss records
+    /// nothing (a replaced-away mill, a regenerated destroy, an empty-library
+    /// draw). `act` is the future window event; the handler flips its phase
+    /// marker.
     FinalizeAct {
         act: GameEvent,
         watch: FinalizeWatch,
-        mark: usize,
+        mark: FinalizeMark,
     },
 }

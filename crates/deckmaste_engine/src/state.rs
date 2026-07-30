@@ -321,6 +321,19 @@ pub struct GameState {
     /// [`that_much`](Self::that_much) / [`moved_chain`](Self::moved_chain)),
     /// appended to by the history recorder for every non-meta fact.
     pub resolution_events: Vec<GameEvent>,
+    /// Successful contained keyword actions since the current stack entry
+    /// began resolving. This is an INTERNAL aggregate-finalization signal, not
+    /// a game fact: contained `Act` commits stay absent from history and
+    /// trigger scans, while their enclosing `Batch` can still learn that at
+    /// least one contained future committed. Each verb retains only its most
+    /// recent success serial, so a huge `Batch` stays bounded by the number of
+    /// distinct verbs rather than its cardinality. Cleared with
+    /// `resolution_events` at the fresh-resolution boundary.
+    pub resolution_contained_act_commits: std::collections::HashMap<deckmaste_core::VerbName, u64>,
+    /// Monotonic cursor for `resolution_contained_act_commits`; a
+    /// `FinalizeMark` snapshots it so a stale success for the same verb cannot
+    /// satisfy a later aggregate.
+    pub resolution_contained_act_serial: u64,
     /// Combat-phase designations ([CR#506]): attackers, blocks, and
     /// damage-assignment order. Cleared at end of combat ([CR#511.3]).
     pub combat: CombatState,
@@ -504,6 +517,14 @@ pub struct NotedMember {
 }
 
 impl GameState {
+    /// Freeze every resolution-scoped success cursor a `FinalizeAct` may read.
+    pub(crate) fn finalize_mark(&self) -> crate::agenda::FinalizeMark {
+        crate::agenda::FinalizeMark {
+            events: self.resolution_events.len(),
+            contained_act_serial: self.resolution_contained_act_serial,
+        }
+    }
+
     /// Builds the card table, shuffles seeded, draws opening hands (no
     /// mulligans in the skeleton), and seeds the agenda with turn 1.
     ///
@@ -574,6 +595,8 @@ impl GameState {
             placing_trigger: None,
             delayed_triggers: Vec::new(),
             resolution_events: Vec::new(),
+            resolution_contained_act_commits: std::collections::HashMap::new(),
+            resolution_contained_act_serial: 0,
             combat: CombatState::default(),
             combat_damage: None,
             rng,
