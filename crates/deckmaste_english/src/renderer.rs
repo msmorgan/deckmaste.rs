@@ -55,7 +55,6 @@ use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
 use crate::syntax::NounPhrase;
-use crate::syntax::NounPhraseConjunction;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
@@ -88,6 +87,7 @@ use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
 use crate::syntax::SetExceptionMarker;
 use crate::syntax::SignedScalar;
+use crate::syntax::SimplePrepositionalPhrase;
 use crate::syntax::StationThresholdAbility;
 use crate::syntax::Subject;
 use crate::syntax::SubordinateBody;
@@ -1571,12 +1571,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(match conjunction {
-                            NounPhraseConjunction::And => "and",
-                            NounPhraseConjunction::Or => "or",
-                            NounPhraseConjunction::Plus => "plus",
-                            NounPhraseConjunction::AndOr => "and/or",
-                        });
+                        rendered.push_str(conjunction.spelling());
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.nominal_phrase(&coordination.phrase)?);
@@ -1595,12 +1590,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(match conjunction {
-                            NounPhraseConjunction::And => "and",
-                            NounPhraseConjunction::Or => "or",
-                            NounPhraseConjunction::Plus => "plus",
-                            NounPhraseConjunction::AndOr => "and/or",
-                        });
+                        rendered.push_str(conjunction.spelling());
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.noun_phrase(&coordination.phrase)?);
@@ -1934,6 +1924,30 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn prepositional_phrase(&self, phrase: &PrepositionalPhrase) -> Result<String, RenderError> {
+        match phrase {
+            PrepositionalPhrase::Simple(simple) => self.simple_prepositional_phrase(simple),
+            PrepositionalPhrase::Coordinated(coordinated) => {
+                let mut rendered = self.simple_prepositional_phrase(&coordinated.first)?;
+                for coordination in &coordinated.rest {
+                    if coordination.comma {
+                        rendered.push(',');
+                    }
+                    rendered.push(' ');
+                    if let Some(conjunction) = coordination.conjunction {
+                        rendered.push_str(conjunction.spelling());
+                        rendered.push(' ');
+                    }
+                    rendered.push_str(&self.simple_prepositional_phrase(&coordination.phrase)?);
+                }
+                Ok(rendered)
+            }
+        }
+    }
+
+    fn simple_prepositional_phrase(
+        &self,
+        phrase: &SimplePrepositionalPhrase,
+    ) -> Result<String, RenderError> {
         Ok(format!(
             "{} {}",
             render_preposition(phrase.preposition),
@@ -2263,7 +2277,7 @@ fn copular_ends_with_closed_quote(predicate: &CopularPredicate) -> bool {
     if let Some(adjunct) = predicate.adjuncts.last() {
         adjunct_ends_with_closed_quote(adjunct)
     } else if let CopularComplement::Prepositional(prepositional) = &predicate.complement {
-        phrase_is_closed_quote(&prepositional.object)
+        phrase_is_closed_quote(&prepositional.tail().object)
     } else {
         false
     }
@@ -2328,7 +2342,7 @@ fn predicate_element_is_closed_quote(element: &PredicateElement) -> bool {
 fn complement_is_closed_quote(complement: &PredicateComplement) -> bool {
     match complement {
         PredicateComplement::Prepositional(prepositional) => {
-            phrase_is_closed_quote(&prepositional.object)
+            phrase_is_closed_quote(&prepositional.tail().object)
         }
         PredicateComplement::IndirectObject(_)
         | PredicateComplement::Adjective(_)
@@ -2341,7 +2355,7 @@ fn adjunct_ends_with_closed_quote(adjunct: &PredicateAdjunct) -> bool {
     match adjunct {
         PredicateAdjunct::Prepositional(prepositional)
         | PredicateAdjunct::Exception(prepositional) => {
-            phrase_is_closed_quote(&prepositional.object)
+            phrase_is_closed_quote(&prepositional.tail().object)
         }
         PredicateAdjunct::Adverb(_)
         | PredicateAdjunct::Frequency(_)
@@ -3340,10 +3354,10 @@ mod tests {
                         NounInstance::Mass(Noun::Word(Vocab::Damage)),
                         vec![],
                     )),
-                    VerbDependent::Prepositional(PrepositionalPhrase {
-                        preposition: Preposition::From,
-                        object: Box::new(Phrase::NounPhrase(Box::new(target_source))),
-                    }),
+                    VerbDependent::Prepositional(PrepositionalPhrase::simple(
+                        Preposition::From,
+                        Phrase::NounPhrase(Box::new(target_source)),
+                    )),
                 ],
             ),
         ));
@@ -3423,24 +3437,25 @@ mod tests {
             None,
             vec![],
             NounInstance::Plural(Noun::Word(Vocab::Card)),
-            vec![NominalComplement::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::In,
-                object: Box::new(Phrase::NounPhrase(Box::new(nominal(
-                    Some(Determiner::Possessive(Possessor::Pronoun(Pronoun::You))),
-                    vec![],
-                    NounInstance::Singular(Noun::Word(Vocab::Hand)),
-                    vec![],
-                )))),
-            })],
+            vec![NominalComplement::Prepositional(
+                PrepositionalPhrase::simple(
+                    Preposition::In,
+                    Phrase::NounPhrase(Box::new(nominal(
+                        Some(Determiner::Possessive(Possessor::Pronoun(Pronoun::You))),
+                        vec![],
+                        NounInstance::Singular(Noun::Word(Vocab::Hand)),
+                        vec![],
+                    ))),
+                ),
+            )],
         );
         let number = nominal(
             Some(Determiner::The),
             vec![],
             NounInstance::Singular(Noun::Word(Vocab::Number)),
-            vec![NominalComplement::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::Of,
-                object: Box::new(Phrase::NounPhrase(Box::new(cards))),
-            })],
+            vec![NominalComplement::Prepositional(
+                PrepositionalPhrase::simple(Preposition::Of, Phrase::NounPhrase(Box::new(cards))),
+            )],
         );
         let full_name = paragraph_ability(simple(
             Some(Subject(nominal(
@@ -3459,10 +3474,10 @@ mod tests {
                         degree: None,
                         head: Adjective::Word(Vocab::Equal),
                         complements: vec![AdjectiveComplement::Prepositional(
-                            PrepositionalPhrase {
-                                preposition: Preposition::To,
-                                object: Box::new(Phrase::NounPhrase(Box::new(number))),
-                            },
+                            PrepositionalPhrase::simple(
+                                Preposition::To,
+                                Phrase::NounPhrase(Box::new(number)),
+                            ),
                         )],
                     }),
                 ))],

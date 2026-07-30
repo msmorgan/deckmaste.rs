@@ -761,8 +761,8 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn prepositional_phrase(&mut self, phrase: &'syntax PrepositionalPhrase) {
-        self.prepositions.push(phrase.preposition);
-        self.phrase(&phrase.object);
+        self.prepositions.push(phrase.head().preposition);
+        self.phrase(&phrase.head().object);
     }
 
     fn phrase(&mut self, phrase: &'syntax Phrase) {
@@ -1072,10 +1072,12 @@ fn is_any_number_of(phrase: &NounPhrase) -> bool {
     modifiers.is_empty()
         && matches!(
             complements.first(),
-            Some(NominalComplement::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::Of,
-                ..
-            }))
+            Some(NominalComplement::Prepositional(
+                PrepositionalPhrase::Simple(deckmaste_english::syntax::SimplePrepositionalPhrase {
+                    preposition: Preposition::Of,
+                    ..
+                })
+            ))
         )
 }
 
@@ -1162,10 +1164,10 @@ fn matrix_has_prepositional_adjunct(clause: &IndependentClause, expected: Prepos
     elements.iter().any(|element| {
         matches!(
             element,
-            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(PrepositionalPhrase {
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(PrepositionalPhrase::Simple(deckmaste_english::syntax::SimplePrepositionalPhrase {
                 preposition,
                 ..
-            })) if *preposition == expected
+            }))) if *preposition == expected
         )
     })
 }

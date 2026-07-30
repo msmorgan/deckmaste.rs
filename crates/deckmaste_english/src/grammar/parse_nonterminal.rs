@@ -371,6 +371,9 @@ fn collect_lowered_coordination_spans(
             else {
                 return;
             };
+            let crate::syntax::PrepositionalPhrase::Simple(after) = after else {
+                return;
+            };
             let super::Phrase::NounPhrase(after) = *after.object else {
                 return;
             };
@@ -494,11 +497,11 @@ fn find_shared_determiner_edit(
             else {
                 return None;
             };
-            if before.preposition != after.preposition {
+            if before.head().preposition != after.head().preposition {
                 return None;
             }
             let (super::Phrase::NounPhrase(before), super::Phrase::NounPhrase(after)) =
-                (before.object.as_ref(), after.object.as_ref())
+                (before.head().object.as_ref(), after.head().object.as_ref())
             else {
                 return None;
             };

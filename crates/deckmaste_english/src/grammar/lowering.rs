@@ -1006,7 +1006,7 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                 return None;
             };
             if !matches!(adjective.head, Adjective::Participle(Tense::Past, _))
-                || preposition.preposition != Preposition::By
+                || preposition.head().preposition != Preposition::By
             {
                 return None;
             }
@@ -1493,10 +1493,9 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 determiner: Some(determiner),
                 modifiers: Vec::new(),
                 head,
-                complements: vec![NominalComplement::Prepositional(PrepositionalPhrase {
-                    preposition,
-                    object: Box::new(Phrase::NounPhrase(Box::new(whole))),
-                })],
+                complements: vec![NominalComplement::Prepositional(
+                    PrepositionalPhrase::simple(preposition, Phrase::NounPhrase(Box::new(whole))),
+                )],
             })))
         }
         RuleTag::NounPhraseCoordination | RuleTag::NounPhraseAdditiveCoordination => {
@@ -1627,10 +1626,10 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                     phrase: next,
                 },
             );
-            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase {
+            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase::simple(
                 preposition,
-                object: Box::new(Phrase::NounPhrase(Box::new(object))),
-            }))
+                Phrase::NounPhrase(Box::new(object)),
+            )))
         }
         RuleTag::PrepositionalPhraseSharedDeterminer => {
             let Lowered::Preposition(preposition) = take(children, 0)? else {
@@ -1639,10 +1638,10 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::NounPhrase(object) = take(children, 1)? else {
                 return None;
             };
-            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase {
+            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase::simple(
                 preposition,
-                object: Box::new(Phrase::NounPhrase(Box::new(object))),
-            }))
+                Phrase::NounPhrase(Box::new(object)),
+            )))
         }
         RuleTag::PrepositionalPhrase => {
             let Lowered::Preposition(preposition) = take(children, 0)? else {
@@ -1651,10 +1650,10 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::Phrase(object) = take(children, 1)? else {
                 return None;
             };
-            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase {
+            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase::simple(
                 preposition,
-                object: Box::new(object),
-            }))
+                object,
+            )))
         }
         _ => None,
     }
@@ -1837,7 +1836,7 @@ fn push_into_last_prepositional_object(
     let Some(NominalComplement::Prepositional(preposition)) = host.complements.last_mut() else {
         return false;
     };
-    let Phrase::NounPhrase(object) = preposition.object.as_mut() else {
+    let Phrase::NounPhrase(object) = preposition.head_mut().object.as_mut() else {
         return false;
     };
     match object.as_mut() {

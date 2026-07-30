@@ -799,7 +799,11 @@ impl<'syntax> RecoveryWalker<'syntax> {
         role: RecoveryRole,
         context: Option<RecoveryRole>,
     ) {
-        self.phrase(&phrase.object, role, context);
+        // Every conjunct, not just the head: recovery inside a later member of
+        // `from A, from B, and from C` must still reach the census.
+        for member in phrase.members() {
+            self.phrase(&member.object, role, context);
+        }
     }
 
     fn phrase(
@@ -1142,10 +1146,12 @@ mod tests {
                 comma: false,
                 phrase: known_nominal(Vocab::Spell),
             }],
-            complements: vec![NominalComplement::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::With,
-                object: Box::new(Phrase::NounPhrase(Box::new(opaque))),
-            })],
+            complements: vec![NominalComplement::Prepositional(
+                PrepositionalPhrase::simple(
+                    Preposition::With,
+                    Phrase::NounPhrase(Box::new(opaque)),
+                ),
+            )],
         });
         let oracle_text = OracleText {
             abilities: vec![paragraph(IndependentClause::Intransitive(

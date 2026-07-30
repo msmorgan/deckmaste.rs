@@ -514,7 +514,7 @@ fn number_of_times_takes_a_finite_event_clause() {
     let [NominalComplement::Prepositional(of)] = number.complements.as_slice() else {
         panic!("expected an `of` complement: {number:#?}");
     };
-    let crate::syntax::Phrase::NounPhrase(object) = of.object.as_ref() else {
+    let crate::syntax::Phrase::NounPhrase(object) = of.head().object.as_ref() else {
         panic!("`of` object should be a noun phrase");
     };
     let NounPhrase::Nominal(times) = object.as_ref() else {
@@ -886,7 +886,8 @@ fn as_though_mana_copula_purpose_infinitive_attaches_inside_the_complement_nomin
     let [NominalComplement::Prepositional(of_any_color)] = mana.complements.as_slice() else {
         panic!("expected `mana` to take one prepositional complement: {mana:#?}");
     };
-    let crate::syntax::Phrase::NounPhrase(any_color_np) = of_any_color.object.as_ref() else {
+    let crate::syntax::Phrase::NounPhrase(any_color_np) = of_any_color.head().object.as_ref()
+    else {
         panic!("expected a noun-phrase object of `of`: {of_any_color:#?}");
     };
     let NounPhrase::Nominal(any_color) = any_color_np.as_ref() else {
@@ -1224,7 +1225,10 @@ fn numeral_before_an_or_comparative_stays_attributive() {
                 };
                 predicate.elements.iter().find_map(|element| match element {
                     PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
-                        PrepositionalPhrase { object, .. },
+                        PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
+                            object,
+                            ..
+                        }),
                     )) => match object.as_ref() {
                         Phrase::NounPhrase(noun) => match noun.as_ref() {
                             NounPhrase::Nominal(nominal) => Some(nominal),
@@ -1364,8 +1368,8 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
     let [NominalComplement::Prepositional(recipient)] = damage.complements.as_slice() else {
         panic!("damage must own exactly one recipient PP: {damage:#?}");
     };
-    assert_eq!(recipient.preposition, Preposition::To);
-    let Phrase::NounPhrase(recipient) = recipient.object.as_ref() else {
+    assert_eq!(recipient.head().preposition, Preposition::To);
+    let Phrase::NounPhrase(recipient) = recipient.head().object.as_ref() else {
         panic!("expected a noun-phrase recipient: {recipient:#?}");
     };
     let NounPhrase::Coordinated(recipient) = recipient.as_ref() else {
@@ -1428,7 +1432,7 @@ fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() 
     else {
         panic!("the first damage needs one recipient PP: {first_damage:#?}");
     };
-    let Phrase::NounPhrase(first_recipient) = first_recipient.object.as_ref() else {
+    let Phrase::NounPhrase(first_recipient) = first_recipient.head().object.as_ref() else {
         panic!("expected a noun-phrase first recipient: {first_recipient:#?}");
     };
     assert!(matches!(
@@ -1451,7 +1455,7 @@ fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() 
     else {
         panic!("the second damage needs one recipient PP: {second_damage:#?}");
     };
-    let Phrase::NounPhrase(second_recipient) = second_recipient.object.as_ref() else {
+    let Phrase::NounPhrase(second_recipient) = second_recipient.head().object.as_ref() else {
         panic!("expected a noun-phrase second recipient: {second_recipient:#?}");
     };
     assert!(matches!(
@@ -1477,8 +1481,8 @@ fn rules_object_gap_skips_a_mass_comparison_head() {
     let [NominalComplement::Prepositional(set)] = toughness.complements.as_slice() else {
         panic!("expected one comparison-set PP: {toughness:#?}");
     };
-    assert_eq!(set.preposition, Preposition::Among);
-    let Phrase::NounPhrase(object) = set.object.as_ref() else {
+    assert_eq!(set.head().preposition, Preposition::Among);
+    let Phrase::NounPhrase(object) = set.head().object.as_ref() else {
         panic!("expected a nominal comparison-set object: {set:#?}");
     };
     let NounPhrase::Nominal(object) = object.as_ref() else {
@@ -1509,10 +1513,12 @@ fn subject_gap_attachment_remains_governed_by_agreement() {
         matches!(
             toughness.complements.as_slice(),
             [
-                NominalComplement::Prepositional(PrepositionalPhrase {
-                    preposition: Preposition::Among,
-                    ..
-                }),
+                NominalComplement::Prepositional(PrepositionalPhrase::Simple(
+                    crate::syntax::SimplePrepositionalPhrase {
+                        preposition: Preposition::Among,
+                        ..
+                    }
+                )),
                 NominalComplement::Relative(RelativeClause {
                     marker: RelativeMarker::That,
                     gap: RelativeGap::Subject,
@@ -1544,7 +1550,7 @@ fn rules_object_gap_reaches_the_deepest_nested_pp_host() {
         let NominalComplement::Prepositional(phrase) = complement else {
             return None;
         };
-        let Phrase::NounPhrase(object) = phrase.object.as_ref() else {
+        let Phrase::NounPhrase(object) = phrase.head().object.as_ref() else {
             return None;
         };
         let NounPhrase::Nominal(object) = object.as_ref() else {
@@ -1575,10 +1581,10 @@ fn rules_object_gap_ranks_valid_hosts_across_nested_pps() {
     let [NominalComplement::Prepositional(from)] = spells.complements.as_slice() else {
         panic!("ownership relative must not remain on spells: {spells:#?}");
     };
-    let Phrase::PrepositionalPhrase(among) = from.object.as_ref() else {
+    let Phrase::PrepositionalPhrase(among) = from.head().object.as_ref() else {
         panic!("expected nested `from among` PPs: {from:#?}");
     };
-    let Phrase::NounPhrase(cards) = among.object.as_ref() else {
+    let Phrase::NounPhrase(cards) = among.head().object.as_ref() else {
         panic!("expected cards inside `among`: {among:#?}");
     };
     let NounPhrase::Nominal(cards) = cards.as_ref() else {
@@ -1587,10 +1593,12 @@ fn rules_object_gap_ranks_valid_hosts_across_nested_pps() {
     assert!(matches!(
         cards.complements.as_slice(),
         [
-            NominalComplement::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::In,
-                ..
-            }),
+            NominalComplement::Prepositional(PrepositionalPhrase::Simple(
+                crate::syntax::SimplePrepositionalPhrase {
+                    preposition: Preposition::In,
+                    ..
+                }
+            )),
             NominalComplement::Relative(RelativeClause {
                 marker: RelativeMarker::Zero,
                 gap: RelativeGap::Object,
@@ -1611,10 +1619,12 @@ fn invalid_mass_pp_object_falls_back_to_the_outer_count_host() {
     assert!(matches!(
         creature.complements.as_slice(),
         [
-            NominalComplement::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::With,
-                ..
-            }),
+            NominalComplement::Prepositional(PrepositionalPhrase::Simple(
+                crate::syntax::SimplePrepositionalPhrase {
+                    preposition: Preposition::With,
+                    ..
+                }
+            )),
             NominalComplement::Relative(RelativeClause {
                 marker: RelativeMarker::Zero,
                 gap: RelativeGap::Object,
@@ -1635,8 +1645,8 @@ fn rules_object_gap_keeps_coordinated_members_inside_the_preposition() {
     let [NominalComplement::Prepositional(recipient)] = damage.complements.as_slice() else {
         panic!("damage must retain one coordinated recipient PP: {damage:#?}");
     };
-    assert_eq!(recipient.preposition, Preposition::To);
-    let Phrase::NounPhrase(recipient) = recipient.object.as_ref() else {
+    assert_eq!(recipient.head().preposition, Preposition::To);
+    let Phrase::NounPhrase(recipient) = recipient.head().object.as_ref() else {
         panic!("expected a noun-phrase recipient: {recipient:#?}");
     };
     let NounPhrase::Coordinated(recipient) = recipient.as_ref() else {
@@ -1676,8 +1686,8 @@ fn rules_object_gap_prefers_the_nearest_preposition_without_stealing_its_subject
     let [NominalComplement::Prepositional(objects)] = control.complements.as_slice() else {
         panic!("control must retain one coordinated `of` PP: {control:#?}");
     };
-    assert_eq!(objects.preposition, Preposition::Of);
-    let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
+    assert_eq!(objects.head().preposition, Preposition::Of);
+    let Phrase::NounPhrase(objects) = objects.head().object.as_ref() else {
         panic!("expected noun-phrase objects: {objects:#?}");
     };
     let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
@@ -1715,7 +1725,7 @@ fn coordinated_member_consumes_following_modifiers_before_the_pp_closes() {
     let [NominalComplement::Prepositional(objects)] = control.complements.as_slice() else {
         panic!("control must retain one complete `of` PP: {control:#?}");
     };
-    let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
+    let Phrase::NounPhrase(objects) = objects.head().object.as_ref() else {
         panic!("expected noun-phrase objects: {objects:#?}");
     };
     let NounPhrase::Coordinated(objects) = objects.as_ref() else {
@@ -1738,10 +1748,12 @@ fn coordinated_member_consumes_following_modifiers_before_the_pp_closes() {
                 gap: RelativeGap::Subject,
                 ..
             }),
-            NominalComplement::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::With,
-                ..
-            })
+            NominalComplement::Prepositional(PrepositionalPhrase::Simple(
+                crate::syntax::SimplePrepositionalPhrase {
+                    preposition: Preposition::With,
+                    ..
+                }
+            ))
         ]
     ));
 }
@@ -1760,19 +1772,23 @@ fn coordinated_member_refuses_unrelated_following_pps() {
     };
     let [
         NominalComplement::Prepositional(objects),
-        NominalComplement::Prepositional(PrepositionalPhrase {
-            preposition: Preposition::Until,
-            ..
-        }),
-        NominalComplement::Prepositional(PrepositionalPhrase {
-            preposition: Preposition::Of,
-            ..
-        }),
+        NominalComplement::Prepositional(PrepositionalPhrase::Simple(
+            crate::syntax::SimplePrepositionalPhrase {
+                preposition: Preposition::Until,
+                ..
+            },
+        )),
+        NominalComplement::Prepositional(PrepositionalPhrase::Simple(
+            crate::syntax::SimplePrepositionalPhrase {
+                preposition: Preposition::Of,
+                ..
+            },
+        )),
     ] = control.complements.as_slice()
     else {
         panic!("the following PPs must remain outside the final member: {control:#?}");
     };
-    let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
+    let Phrase::NounPhrase(objects) = objects.head().object.as_ref() else {
         panic!("expected noun-phrase objects: {objects:#?}");
     };
     let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
@@ -1882,7 +1898,7 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
     let [NominalComplement::Prepositional(objects)] = counter.complements.as_slice() else {
         panic!("counter must retain one complete `on` PP: {counter:#?}");
     };
-    let Phrase::NounPhrase(objects) = objects.object.as_ref() else {
+    let Phrase::NounPhrase(objects) = objects.head().object.as_ref() else {
         panic!("expected noun-phrase counter recipients: {objects:#?}");
     };
     let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
@@ -1982,9 +1998,9 @@ fn passive_to_shared_target_stays_inside_the_relative_predicate() {
     else {
         panic!("the passive must retain its recipient and temporal adjunct: {passive:#?}");
     };
-    assert_eq!(to.preposition, Preposition::To);
+    assert_eq!(to.head().preposition, Preposition::To);
     assert!(matches!(
-        to.object.as_ref(),
+        to.head().object.as_ref(),
         Phrase::NounPhrase(targets)
             if matches!(targets.as_ref(), NounPhrase::CoordinatedNominal(_))
     ));
@@ -2007,7 +2023,7 @@ fn as_fills_the_preposition_slot_after_an_adverb() {
             [
                 PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
                 PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition)),
-            ] if preposition.preposition == crate::syntax::Preposition::As
+            ] if preposition.head().preposition == crate::syntax::Preposition::As
         ),
         "{predicate:#?}"
     );
@@ -2411,10 +2427,10 @@ fn after_preposition_attaches_both_trailing_and_fronted() {
             PredicateObject::NounPhrase(NounPhrase::Nominal(nominal))
                 if nominal.complements.iter().any(|complement| matches!(
                     complement,
-                    NominalComplement::Prepositional(PrepositionalPhrase {
+                    NominalComplement::Prepositional(PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
                         preposition: Preposition::After,
                         ..
-                    })
+                    }))
                 ))
         ),
         "trailing `after this one` should complement the turn nominal: {predicate:#?}"
@@ -2432,10 +2448,10 @@ fn after_preposition_attaches_both_trailing_and_fronted() {
             ClauseAttachment {
                 position: AttachmentPosition::BeforeMatrix,
                 payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(
-                    PrepositionalPhrase {
+                    PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
                         preposition: Preposition::After,
                         ..
-                    }
+                    })
                 )),
                 ..
             }
@@ -2589,7 +2605,7 @@ fn plural_temporal_heads_do_not_become_late_objects() {
             )) if matches!(
                 predicate.elements.as_slice(),
                 [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
-                    if preposition.preposition == crate::syntax::Preposition::During
+                    if preposition.head().preposition == crate::syntax::Preposition::During
             )
         ),
         "{:#?}",
@@ -2733,8 +2749,11 @@ fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
     else {
         panic!("expected one fronted prepositional adjunct: {complex:#?}");
     };
-    assert_eq!(preposition.preposition, crate::syntax::Preposition::As);
-    let crate::syntax::Phrase::NounPhrase(noun_phrase) = preposition.object.as_ref() else {
+    assert_eq!(
+        preposition.head().preposition,
+        crate::syntax::Preposition::As
+    );
+    let crate::syntax::Phrase::NounPhrase(noun_phrase) = preposition.head().object.as_ref() else {
         panic!("expected the adjunct to modify a cost noun phrase: {preposition:#?}");
     };
     let NounPhrase::Nominal(nominal) = noun_phrase.as_ref() else {
@@ -3418,13 +3437,13 @@ fn rather_than_can_contrast_gerund_clauses() {
             matches!(
                 element,
                 PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))
-                    if preposition.preposition == crate::syntax::Preposition::By
+                    if preposition.head().preposition == crate::syntax::Preposition::By
             )
         })
     else {
         panic!("expected a by-gerund adjunct: {cast:#?}");
     };
-    let crate::syntax::Phrase::Clause(clause) = by.object.as_ref() else {
+    let crate::syntax::Phrase::Clause(clause) = by.head().object.as_ref() else {
         panic!("by should take a clause: {by:#?}");
     };
     let Clause::Dependent(DependentClause::Gerund(gerund)) = clause.as_ref() else {
@@ -4292,10 +4311,12 @@ fn reduced_recipient_passive_keeps_agent_and_temporal_tails() {
     assert!(matches!(
         predicate.elements.as_slice(),
         [
-            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::By,
-                ..
-            })),
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
+                    preposition: Preposition::By,
+                    ..
+                })
+            )),
             PredicateElement::Adjunct(PredicateAdjunct::Temporal(_)),
         ]
     ));
@@ -4564,7 +4585,7 @@ fn distributive_each_copular_carries_each_and_binds_the_standard() {
             matches!(
                 adjective.complements.as_slice(),
                 [AdjectiveComplement::Prepositional(preposition)]
-                    if preposition.preposition == crate::syntax::Preposition::To
+                    if preposition.head().preposition == crate::syntax::Preposition::To
             ),
             "the `to`-standard must bind to `equal`: {adjective:#?}"
         );
@@ -5336,7 +5357,7 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
             run.first
         );
     };
-    let crate::syntax::Phrase::NounPhrase(object) = during.object.as_ref() else {
+    let crate::syntax::Phrase::NounPhrase(object) = during.head().object.as_ref() else {
         panic!("expected a noun-phrase PP object: {during:#?}");
     };
     let crate::syntax::NounPhrase::Nominal(nominal) = object.as_ref() else {
@@ -5626,14 +5647,14 @@ fn beginning_of_step_nominal(elements: &[PredicateElement]) -> &NominalPhrase {
         .iter()
         .find_map(|element| match element {
             PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))
-                if preposition.preposition == Preposition::At =>
+                if preposition.head().preposition == Preposition::At =>
             {
                 Some(preposition)
             }
             _ => None,
         })
         .unwrap_or_else(|| panic!("expected an `at` adjunct: {elements:#?}"));
-    let Phrase::NounPhrase(at_object) = at.object.as_ref() else {
+    let Phrase::NounPhrase(at_object) = at.head().object.as_ref() else {
         panic!("expected an `at` noun-phrase object: {at:#?}");
     };
     let NounPhrase::Nominal(beginning) = at_object.as_ref() else {
@@ -5644,14 +5665,14 @@ fn beginning_of_step_nominal(elements: &[PredicateElement]) -> &NominalPhrase {
         .iter()
         .find_map(|complement| match complement {
             NominalComplement::Prepositional(preposition)
-                if preposition.preposition == Preposition::Of =>
+                if preposition.head().preposition == Preposition::Of =>
             {
                 Some(preposition)
             }
             _ => None,
         })
         .unwrap_or_else(|| panic!("expected an `of` complement: {beginning:#?}"));
-    let Phrase::NounPhrase(of_object) = of.object.as_ref() else {
+    let Phrase::NounPhrase(of_object) = of.head().object.as_ref() else {
         panic!("expected an `of` noun-phrase object: {of:#?}");
     };
     let NounPhrase::Nominal(step) = of_object.as_ref() else {
@@ -5697,14 +5718,14 @@ fn cleanup_step_compound_is_not_split() {
         .iter()
         .find_map(|element| match element {
             PredicateElement::Adjunct(PredicateAdjunct::Prepositional(pp))
-                if pp.preposition == Preposition::From =>
+                if pp.head().preposition == Preposition::From =>
             {
                 Some(pp)
             }
             _ => None,
         })
         .unwrap_or_else(|| panic!("expected a `from` PP adjunct: {elements:#?}"));
-    let crate::syntax::Phrase::NounPhrase(from_object) = from_pp.object.as_ref() else {
+    let crate::syntax::Phrase::NounPhrase(from_object) = from_pp.head().object.as_ref() else {
         panic!("expected a noun-phrase PP object: {from_pp:#?}");
     };
     let crate::syntax::NounPhrase::Nominal(from_nominal) = from_object.as_ref() else {
@@ -5715,14 +5736,14 @@ fn cleanup_step_compound_is_not_split() {
         .iter()
         .find_map(|complement| match complement {
             crate::syntax::NominalComplement::Prepositional(pp)
-                if pp.preposition == Preposition::During =>
+                if pp.head().preposition == Preposition::During =>
             {
                 Some(pp)
             }
             _ => None,
         })
         .unwrap_or_else(|| panic!("expected a `during` PP complement: {from_nominal:#?}"));
-    let crate::syntax::Phrase::NounPhrase(object) = during_pp.object.as_ref() else {
+    let crate::syntax::Phrase::NounPhrase(object) = during_pp.head().object.as_ref() else {
         panic!("expected a noun-phrase PP object: {during_pp:#?}");
     };
     let crate::syntax::NounPhrase::Nominal(nominal) = object.as_ref() else {
@@ -6170,7 +6191,7 @@ fn except_by_is_typed_predicate_exception() {
     let sentence = parsed.sentence().expect("sentence root");
     let predicate = passive_deontic(sentence);
     let pp = sole_exception_pp(predicate);
-    assert_eq!(pp.preposition, Preposition::By);
+    assert_eq!(pp.head().preposition, Preposition::By);
     assert_eq!(render_sentence(sentence), source);
 }
 
@@ -6191,7 +6212,7 @@ fn except_by_follows_temporal_adjunct() {
             predicate.elements
         );
     };
-    assert_eq!(pp.preposition, Preposition::By);
+    assert_eq!(pp.head().preposition, Preposition::By);
     assert_eq!(render_sentence(sentence), source);
 }
 
@@ -6208,7 +6229,7 @@ fn except_by_reuses_existing_noun_phrase_coordination() {
         let sentence = parsed.sentence().expect("sentence root");
         let predicate = passive_deontic(sentence);
         let pp = sole_exception_pp(predicate);
-        assert_eq!(pp.preposition, Preposition::By, "{source}");
+        assert_eq!(pp.head().preposition, Preposition::By, "{source}");
         assert_eq!(render_sentence(sentence), source, "{source}");
     }
 }
@@ -6720,7 +6741,7 @@ fn coordinated_postpositive_participles_share_the_creature_head() {
     let [NominalComplement::Prepositional(on)] = counter.complements.as_slice() else {
         panic!("expected one recipient PP: {counter:#?}");
     };
-    let Phrase::NounPhrase(target) = on.object.as_ref() else {
+    let Phrase::NounPhrase(target) = on.head().object.as_ref() else {
         panic!("expected a target creature: {on:#?}");
     };
     let NounPhrase::Nominal(target) = target.as_ref() else {
@@ -6744,7 +6765,7 @@ fn coordinated_postpositive_participles_share_the_creature_head() {
     ));
     assert!(matches!(
         second.phrase.complements.as_slice(),
-        [AdjectiveComplement::Prepositional(by)] if by.preposition == Preposition::By
+        [AdjectiveComplement::Prepositional(by)] if by.head().preposition == Preposition::By
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -6785,8 +6806,8 @@ fn additive_type_copular_continuations_share_the_finite_subject() {
         let [PredicateAdjunct::Prepositional(preposition)] = copular.adjuncts.as_slice() else {
             panic!("expected one additive prepositional adjunct: {copular:#?}");
         };
-        assert_eq!(preposition.preposition, Preposition::In);
-        let Phrase::NounPhrase(object) = preposition.object.as_ref() else {
+        assert_eq!(preposition.head().preposition, Preposition::In);
+        let Phrase::NounPhrase(object) = preposition.head().object.as_ref() else {
             panic!("expected a nominal `addition` object: {preposition:#?}");
         };
         let NounPhrase::Nominal(addition) = object.as_ref() else {
@@ -6794,7 +6815,7 @@ fn additive_type_copular_continuations_share_the_finite_subject() {
         };
         assert!(matches!(
             addition.complements.as_slice(),
-            [NominalComplement::Prepositional(to)] if to.preposition == Preposition::To
+            [NominalComplement::Prepositional(to)] if to.head().preposition == Preposition::To
         ));
         assert!(matches!(
             coordination.junctions(),

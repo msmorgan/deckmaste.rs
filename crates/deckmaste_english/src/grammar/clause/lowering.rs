@@ -382,7 +382,7 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
             };
             match predicate
                 .frame
-                .prepositional_role(preposition.preposition)?
+                .prepositional_role(preposition.head().preposition)?
             {
                 PrepositionalRole::SelectedComplement => VerbDependent::PredicateComplement(
                     Phrase::PrepositionalPhrase(Box::new(preposition)),
@@ -1595,7 +1595,7 @@ fn lower_shared_copular_coordination(tag: RuleTag, children: &mut [Lowered]) -> 
     let Lowered::PrepositionalPhrase(preposition) = take(children, preposition_index)? else {
         return None;
     };
-    if preposition.preposition != crate::syntax::Preposition::In {
+    if preposition.head().preposition != crate::syntax::Preposition::In {
         return None;
     }
     let predicate = Predicate::Copular(crate::syntax::CopularPredicate {

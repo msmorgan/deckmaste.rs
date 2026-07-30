@@ -1630,10 +1630,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         clause
             .predicate
             .dependents
-            .push(VerbDependent::Prepositional(PrepositionalPhrase {
-                preposition: Preposition::With,
-                object: Box::new(Phrase::QuotedAbility(Box::new(quoted))),
-            }));
+            .push(VerbDependent::Prepositional(PrepositionalPhrase::simple(
+                Preposition::With,
+                Phrase::QuotedAbility(Box::new(quoted)),
+            )));
         finish_simple_clause(clause)
     }
 
@@ -2250,10 +2250,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.accept_exact(segment, Nonterminal::PrepositionalPhrase, |parsed| {
                 parsed.prepositional_phrase().cloned()
             })
+            && let PrepositionalPhrase::Simple(simple) = prepositional
         {
             return Some(PredicatedQuality {
-                preposition: Some(prepositional.preposition),
-                quality: *prepositional.object,
+                preposition: Some(simple.preposition),
+                quality: *simple.object,
             });
         }
         // A bare quality with no preposition (`hexproof from blue` → `blue`).

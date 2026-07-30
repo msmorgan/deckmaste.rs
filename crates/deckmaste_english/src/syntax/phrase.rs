@@ -619,6 +619,22 @@ pub enum NounPhraseConjunction {
     AndOr,
 }
 
+impl NounPhraseConjunction {
+    const FORMS: &'static [(Self, &'static str)] = &[
+        (Self::And, "and"),
+        (Self::Or, "or"),
+        (Self::Plus, "plus"),
+        (Self::AndOr, "and/or"),
+    ];
+
+    pub(crate) fn spelling(self) -> &'static str {
+        Self::FORMS
+            .iter()
+            .find_map(|(conjunction, spelling)| (*conjunction == self).then_some(*spelling))
+            .expect("every noun-phrase conjunction has one spelling")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhrase {
     pub determiner: Option<Determiner>,
@@ -827,10 +843,110 @@ pub enum DevotionColors {
     Pair(ColorWord, ColorWord),
 }
 
+/// A prepositional phrase, simple or coordinated. Coordination is a variant of
+/// the phrase type itself — exactly as [`NounPhrase::Coordinated`] is — so
+/// every slot that already accepts a prepositional phrase (nominal complements,
+/// clause adjuncts, exception riders, keyword arguments) admits the coordinated
+/// form without opting in. A sibling `Phrase` variant would instead require
+/// each of those slots to widen separately, which is the reachability gap that
+/// left `Protection from blue, from black, and from red` unparsed.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct PrepositionalPhrase {
+pub enum PrepositionalPhrase {
+    Simple(SimplePrepositionalPhrase),
+    Coordinated(CoordinatedPrepositionalPhrase),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct SimplePrepositionalPhrase {
     pub preposition: Preposition,
     pub object: Box<Phrase>,
+}
+
+impl PrepositionalPhrase {
+    /// Builds the uncoordinated form.
+    #[must_use]
+    pub fn simple(preposition: Preposition, object: Phrase) -> Self {
+        Self::Simple(SimplePrepositionalPhrase {
+            preposition,
+            object: Box::new(object),
+        })
+    }
+
+    /// The first member. Call this only where the head member genuinely answers
+    /// the question (which preposition introduces the phrase); a site that must
+    /// see every conjunct wants [`Self::members`] instead, since treating the
+    /// head as the whole phrase is the misattachment this type exists to
+    /// prevent.
+    #[must_use]
+    pub const fn head(&self) -> &SimplePrepositionalPhrase {
+        match self {
+            Self::Simple(simple) => simple,
+            Self::Coordinated(coordinated) => &coordinated.first,
+        }
+    }
+
+    /// Mutable [`Self::head`], carrying the same caveat.
+    pub const fn head_mut(&mut self) -> &mut SimplePrepositionalPhrase {
+        match self {
+            Self::Simple(simple) => simple,
+            Self::Coordinated(coordinated) => &mut coordinated.first,
+        }
+    }
+
+    /// The last member — the one whose surface ends the phrase. Sites asking
+    /// what the phrase *ends* with (trailing punctuation, a closing quote) want
+    /// this, not [`Self::head`].
+    #[must_use]
+    pub fn tail(&self) -> &SimplePrepositionalPhrase {
+        match self {
+            Self::Simple(simple) => simple,
+            Self::Coordinated(coordinated) => coordinated
+                .rest
+                .last()
+                .map_or(&*coordinated.first, |coordination| &coordination.phrase),
+        }
+    }
+
+    /// The sole member, or `None` when this phrase is coordinated.
+    #[must_use]
+    pub const fn as_simple(&self) -> Option<&SimplePrepositionalPhrase> {
+        match self {
+            Self::Simple(simple) => Some(simple),
+            Self::Coordinated(_) => None,
+        }
+    }
+
+    /// Every member in surface order.
+    pub fn members(&self) -> impl Iterator<Item = &SimplePrepositionalPhrase> {
+        let rest = match self {
+            Self::Simple(_) => [].iter(),
+            Self::Coordinated(coordinated) => coordinated.rest.iter(),
+        };
+        std::iter::once(self.head()).chain(rest.map(|coordination| &coordination.phrase))
+    }
+}
+
+/// Prepositional phrases coordinated as siblings, each repeating its own
+/// preposition: `from blue and from black`, `from Vampires, from Werewolves,
+/// and from Zombies`. The repeated preposition is what distinguishes this from
+/// a single simple phrase whose *object* is coordinated (`from artifacts,
+/// creatures, and enchantments`) — one shared preposition over a coordinated
+/// noun phrase. Collapsing the two loses the surface distinction and
+/// misattaches the second preposition as a conjunct of the first object.
+///
+/// Mirrors [`CoordinatedNounPhrase`]: interior asyndetic Oxford members carry
+/// `conjunction: None`, and the final member carries `Some`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct CoordinatedPrepositionalPhrase {
+    pub first: Box<SimplePrepositionalPhrase>,
+    pub rest: Vec<PrepositionalPhraseCoordination>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct PrepositionalPhraseCoordination {
+    pub conjunction: Option<NounPhraseConjunction>,
+    pub comma: bool,
+    pub phrase: SimplePrepositionalPhrase,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
