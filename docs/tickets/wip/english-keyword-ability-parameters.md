@@ -135,7 +135,7 @@ is a past-tense `tap` — and all 753 tests plus `roundtrip --require-clean`
 stay green.
 
 The recovery census refutes it: 3390 → 3405 spans. The premise is false.
-`if tribute wasn't paid` (10 spans, Tribute [CR#702.104]) is a *legitimate*
+`if tribute wasn't paid` (10 spans, Tribute [CR#702.104b]) is a *legitimate*
 bare keyword-atom subject, as is the keyword coordination in `Target creature
 without first strike, double strike, or vigilance …`. Only `Enchant tapped
 creature` was a real misparse.
