@@ -1927,9 +1927,13 @@ impl<'identity> Renderer<'identity> {
         match phrase {
             PrepositionalPhrase::Simple(simple) => self.simple_prepositional_phrase(simple),
             PrepositionalPhrase::Coordinated(coordinated) => {
+                // The serial comma is a function of length, never a stored
+                // flag: `A and B` takes none, `A, B, and C` takes one before
+                // every member. See `PrepositionalPhraseCoordination`.
+                let serial_comma = coordinated.rest.len() > 1;
                 let mut rendered = self.simple_prepositional_phrase(&coordinated.first)?;
                 for coordination in &coordinated.rest {
-                    if coordination.comma {
+                    if serial_comma {
                         rendered.push(',');
                     }
                     rendered.push(' ');

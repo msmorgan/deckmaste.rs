@@ -6848,3 +6848,85 @@ fn additive_type_copular_continuation_rejects_broader_copular_surfaces() {
         );
     }
 }
+
+/// The members of the sole coordinated prepositional adjunct of an imperative
+/// transitive predicate.
+fn sole_coordinated_prepositional_adjunct(
+    sentence: &Sentence,
+) -> &crate::syntax::CoordinatedPrepositionalPhrase {
+    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
+        &sentence.body
+    else {
+        panic!(
+            "expected an imperative transitive clause: {:#?}",
+            sentence.body
+        );
+    };
+    // The run attaches to the direct object's nominal, not to the verb:
+    // `target card from your graveyard and from your hand`.
+    let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.kind.object else {
+        panic!("expected a nominal direct object: {:#?}", predicate.kind);
+    };
+    let [NominalComplement::Prepositional(pp)] = nominal.complements.as_slice() else {
+        panic!(
+            "expected exactly one prepositional complement: {:#?}",
+            nominal.complements
+        );
+    };
+    let PrepositionalPhrase::Coordinated(coordinated) = pp else {
+        panic!("expected a coordinated prepositional phrase: {pp:#?}");
+    };
+    coordinated
+}
+
+#[test]
+fn sibling_prepositional_pair_takes_no_serial_comma() {
+    let source = "Exile target card from your graveyard and from your hand.";
+    let parsed = parse(source);
+    let sentence = parsed.sentence().expect("sentence root");
+    let coordinated = sole_coordinated_prepositional_adjunct(sentence);
+    // Two members: the conjunction rides the single continuation, and no comma
+    // is stored anywhere — the renderer derives its absence from the length.
+    let [second] = coordinated.rest.as_slice() else {
+        panic!("expected one continuation: {:#?}", coordinated.rest);
+    };
+    assert_eq!(
+        second.conjunction,
+        Some(crate::syntax::NounPhraseConjunction::And)
+    );
+    assert_eq!(render_sentence(sentence), source);
+}
+
+#[test]
+fn sibling_prepositional_oxford_list_takes_the_serial_comma() {
+    let source = "Exile target card from your graveyard, from your hand, and from exile.";
+    let parsed = parse(source);
+    let sentence = parsed.sentence().expect("sentence root");
+    let coordinated = sole_coordinated_prepositional_adjunct(sentence);
+    // Three members: the interior one is asyndetic, the last carries `and`.
+    let [interior, last] = coordinated.rest.as_slice() else {
+        panic!("expected two continuations: {:#?}", coordinated.rest);
+    };
+    assert_eq!(interior.conjunction, None);
+    assert_eq!(
+        last.conjunction,
+        Some(crate::syntax::NounPhraseConjunction::And)
+    );
+    assert_eq!(render_sentence(sentence), source);
+}
+
+#[test]
+fn a_comma_before_a_two_member_conjunction_is_not_a_prepositional_coordination() {
+    // Giant Oyster's shape: the comma before `and` marks a clause boundary, so
+    // strict serial-comma style forbids reading `from A, and from B` as one
+    // coordinated phrase. The pair base of `PrepositionalPhraseList` makes that
+    // unrepresentable rather than merely unpreferred.
+    let source = "Exile target card from your graveyard, and put a card into your hand.";
+    let parsed = parse(source);
+    let sentence = parsed.sentence().expect("sentence root");
+    assert!(
+        !format!("{sentence:#?}").contains("CoordinatedPrepositionalPhrase"),
+        "a clause-boundary comma must not coordinate prepositional phrases: {sentence:#?}"
+    );
+    assert_eq!(render_sentence(sentence), source);
+}

@@ -942,10 +942,20 @@ pub struct CoordinatedPrepositionalPhrase {
     pub rest: Vec<PrepositionalPhraseCoordination>,
 }
 
+/// One non-first member of a sibling prepositional coordination.
+///
+/// No `comma` flag: on the supported corpus the serial comma is exactly
+/// determined by member count — absent from a two-member coordination (1364
+/// occurrences, 0 exceptions) and present on every member of a three-or-more
+/// list (139 occurrences, 0 exceptions) — so the renderer derives it from
+/// [`CoordinatedPrepositionalPhrase::rest`] rather than the AST carrying a
+/// field that could contradict it. Recording it would let a lowering bug emit
+/// `A, and B` and still round-trip clean, since the renderer would faithfully
+/// print the stored mistake. This follows the same rule as [`Polarity`], whose
+/// `non-` hyphen is derived rather than stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PrepositionalPhraseCoordination {
     pub conjunction: Option<NounPhraseConjunction>,
-    pub comma: bool,
     pub phrase: SimplePrepositionalPhrase,
 }
 

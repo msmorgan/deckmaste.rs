@@ -855,6 +855,55 @@ impl RuleBuilder {
                 n(N::NounPhrase),
             ],
         );
+        // Sibling coordination: each member repeats its own preposition (`from
+        // blue and from black`). The rules above instead share one preposition
+        // across coordinated objects (`from artifacts, creatures, and
+        // enchantments`); registering sibling coordination after them keeps the
+        // shared-preposition reading preferred where both would fit.
+        // The run's base is a *pair*, not a single phrase, so
+        // `PrepositionalPhraseList` always holds at least two members and the
+        // Oxford close below therefore needs at least three. That makes strict
+        // serial-comma style structural: `A and B` takes no comma (the binary
+        // rule), `A, B, and C` takes one (this run plus the close), and
+        // `A, and B` matches nothing — a comma before the conjunction of a
+        // two-member coordination marks a clause boundary, not a list.
+        self.add(
+            RuleTag::PrepositionalPhraseListPair,
+            N::PrepositionalPhraseList,
+            [
+                n(N::PrepositionalPhrase),
+                l(L::Punctuation(Punctuation::Comma)),
+                n(N::PrepositionalPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseListComma,
+            N::PrepositionalPhraseList,
+            [
+                n(N::PrepositionalPhraseList),
+                l(L::Punctuation(Punctuation::Comma)),
+                n(N::PrepositionalPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseSiblingCoordinated,
+            N::PrepositionalPhrase,
+            [
+                n(N::PrepositionalPhrase),
+                l(L::Conjunction),
+                n(N::PrepositionalPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseSiblingCoordinated,
+            N::PrepositionalPhrase,
+            [
+                n(N::PrepositionalPhraseList),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Conjunction),
+                n(N::PrepositionalPhrase),
+            ],
+        );
     }
 
     /// Attachment points that *consume* the landed coordination nonterminals at

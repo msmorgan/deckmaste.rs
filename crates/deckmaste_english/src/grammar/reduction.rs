@@ -135,6 +135,9 @@ pub(super) fn reduce(
         | RuleTag::PrepositionalPhraseRulesObjectCoordinated
         | RuleTag::PrepositionalPhraseSharedDeterminer
         | RuleTag::PrepositionalPhrase
+        | RuleTag::PrepositionalPhraseListPair
+        | RuleTag::PrepositionalPhraseListComma
+        | RuleTag::PrepositionalPhraseSiblingCoordinated
         | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
@@ -1678,6 +1681,48 @@ pub(super) fn reduce_phrase(
         RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::NounPhraseCoordinationOxford => reduce_noun_phrase_coordination(tag, children),
+        RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma => {
+            let Features::PrepositionalPhrase { .. } = children.first()?.features else {
+                return None;
+            };
+            let Features::PrepositionalPhrase { .. } = children.get(2)?.features else {
+                return None;
+            };
+            Some(children.first()?.features.clone())
+        }
+        RuleTag::PrepositionalPhraseSiblingCoordinated => {
+            // Every member repeats its own preposition, so the coordination
+            // keeps the first member's: that is what introduces the phrase and
+            // what an enclosing slot selects on. The object is never a shared
+            // determiner group — each member brought its own.
+            let Features::PrepositionalPhrase {
+                preposition,
+                nominal_attachment,
+                ..
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            let conjunction_index = if children.len() == 4 { 2 } else { 1 };
+            let Features::Conjunction(_) = children.get(conjunction_index)?.features else {
+                return None;
+            };
+            // The right edge is the last member, so a following relative
+            // attaches against that member's object, not the first's.
+            let Features::PrepositionalPhrase {
+                nearer_relative_host,
+                ..
+            } = children.last()?.features
+            else {
+                return None;
+            };
+            Some(Features::PrepositionalPhrase {
+                preposition: *preposition,
+                nominal_attachment: *nominal_attachment,
+                shared_determiner_object: false,
+                nearer_relative_host: *nearer_relative_host,
+            })
+        }
         RuleTag::NounPhraseListSingle => {
             let Features::NounPhrase { .. } = children.first()?.features else {
                 return None;

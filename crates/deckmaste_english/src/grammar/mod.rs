@@ -362,6 +362,11 @@ pub(crate) enum Nonterminal {
     /// Oxford-close rules, never as a standalone noun phrase, so a bare comma
     /// run of noun phrases never coordinates on its own.
     NounPhraseList,
+    /// The comma run of a sibling prepositional coordination (`from Vampires,
+    /// from Werewolves`). Reached only from the Oxford-close rule, so a bare
+    /// comma run of prepositional phrases never coordinates on its own —
+    /// the same restriction [`Self::NounPhraseList`] carries.
+    PrepositionalPhraseList,
     /// One member of a mana-amount list: a lone oracle symbol (`{G}`) or a
     /// contiguous symbol group (`{C}{U}`). Reached only through the mana-list
     /// productions.
@@ -1710,6 +1715,18 @@ enum RuleTag {
     NounPhraseListComma,
     /// The final Oxford member closing a noun-phrase head list (`…, or land`).
     NounPhraseCoordinationOxford,
+    /// The two-member comma base of a sibling prepositional run. Requiring a
+    /// pair keeps a comma out of two-member coordinations (see the rule).
+    PrepositionalPhraseListPair,
+    /// An asyndetic comma continuation of a sibling prepositional run (`from
+    /// Vampires, from Werewolves`).
+    PrepositionalPhraseListComma,
+    /// Prepositional phrases coordinated as siblings, each repeating its own
+    /// preposition (`from blue and from black`). Distinct from
+    /// [`Self::PrepositionalPhraseCoordinated`], which shares one preposition
+    /// across coordinated objects (`from artifacts, creatures, and
+    /// enchantments`).
+    PrepositionalPhraseSiblingCoordinated,
     // --- Coordination-consumer rules (appended after `add_coordination_rules`)
     // ---
     /// A coordinated predicative-adjective complement on an intransitive-`be`

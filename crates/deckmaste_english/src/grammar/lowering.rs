@@ -376,6 +376,9 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::NounPhraseHalfRoundedUp
         | RuleTag::NounPhraseHalfRoundedDown
         | RuleTag::PrepositionalPhraseCoordinated
+        | RuleTag::PrepositionalPhraseListPair
+        | RuleTag::PrepositionalPhraseListComma
+        | RuleTag::PrepositionalPhraseSiblingCoordinated
         | RuleTag::PrepositionalPhraseRulesObjectCoordinated
         | RuleTag::PrepositionalPhraseSharedDeterminer
         | RuleTag::PrepositionalPhrase
@@ -1655,7 +1658,75 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 object,
             )))
         }
+        RuleTag::PrepositionalPhraseListPair
+        | RuleTag::PrepositionalPhraseListComma
+        | RuleTag::PrepositionalPhraseSiblingCoordinated => {
+            let Lowered::PrepositionalPhrase(first) = take(children, 0)? else {
+                return None;
+            };
+            // The serial comma is not recorded — the renderer derives it from
+            // member count. Only the connective is carried, since which of
+            // `and`/`or`/`and-or` closes the list is not derivable.
+            let (conjunction, next_index) = if matches!(
+                tag,
+                RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma
+            ) {
+                // An asyndetic member of the run: `from Vampires,`.
+                (None, 2)
+            } else if children.len() == 4 {
+                // The Oxford close: `…, and from Zombies`.
+                let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                    return None;
+                };
+                (Some(noun_phrase_conjunction(conjunction)?), 3)
+            } else {
+                // The bare two-member form: `from blue and from black`.
+                let Lowered::Conjunction(conjunction) = take(children, 1)? else {
+                    return None;
+                };
+                (Some(noun_phrase_conjunction(conjunction)?), 2)
+            };
+            let Lowered::PrepositionalPhrase(next) = take(children, next_index)? else {
+                return None;
+            };
+            // Only a simple phrase can join as a member; a nested coordination
+            // would flatten two different bracketings into one shape.
+            let PrepositionalPhrase::Simple(next) = next else {
+                return None;
+            };
+            let coordination = crate::syntax::PrepositionalPhraseCoordination {
+                conjunction,
+                phrase: next,
+            };
+            Some(Lowered::PrepositionalPhrase(match first {
+                PrepositionalPhrase::Simple(first) => PrepositionalPhrase::Coordinated(
+                    crate::syntax::CoordinatedPrepositionalPhrase {
+                        first: Box::new(first),
+                        rest: vec![coordination],
+                    },
+                ),
+                PrepositionalPhrase::Coordinated(mut coordinated) => {
+                    coordinated.rest.push(coordination);
+                    PrepositionalPhrase::Coordinated(coordinated)
+                }
+            }))
+        }
         _ => None,
+    }
+}
+
+/// The noun-phrase connective a coordinating conjunction denotes, or `None`
+/// when it never joins phrases (`then` sequences clauses).
+fn noun_phrase_conjunction(
+    conjunction: crate::syntax::PredicateConjunction,
+) -> Option<crate::syntax::NounPhraseConjunction> {
+    match conjunction {
+        crate::syntax::PredicateConjunction::And => Some(crate::syntax::NounPhraseConjunction::And),
+        crate::syntax::PredicateConjunction::Or => Some(crate::syntax::NounPhraseConjunction::Or),
+        crate::syntax::PredicateConjunction::AndOr => {
+            Some(crate::syntax::NounPhraseConjunction::AndOr)
+        }
+        crate::syntax::PredicateConjunction::Then => None,
     }
 }
 
