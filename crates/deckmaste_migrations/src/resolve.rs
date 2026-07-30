@@ -421,8 +421,9 @@ mod tests {
         // reader `resolve_cards`/`graduate` round-trips card RON through — so the
         // fixture must be one the bare core reader accepts. A bare one-token
         // player verb (`GainLife(1)`) is exactly such a form; draw/mill are no
-        // longer bare-core (they lower to `Composite(Draw/Mill(who, n), …)`),
-        // so the Ascend fold is exercised with a surviving bare `PlayerAction`.
+        // longer bare-core (mill lowers to `Composite(Mill(who), …)` and draw to
+        // `Batch(n, By(who, DrawCard))`), so the Ascend fold is exercised with a
+        // surviving bare `PlayerAction`.
         let mut face = TodoCardFace {
             name: "Test Spell".into(),
             types: vec![RawIdent("Sorcery".into())],

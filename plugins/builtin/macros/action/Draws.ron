@@ -1,16 +1,19 @@
 // "[subject] draws N" ([CR#121.1]): the DECLARATIVE-SUBJECT draw — that player
 // draws N cards, ONE AT A TIME ([CR#121.2] — a per-card SEQUENCE, NOT a
-// simultaneous batch like mill). `Draws`'s slice-family twin of `Draw`: a
-// `Batch(N, ...)` over the per-unit `Composite` named "Draw" whose body
-// DESCRIBES the top-of-library → Hand relocation (an `Each` over `TopOfLibrary`,
-// `whose: Param(0)`). The engine reads the performer off the body's selection
-// and runs the N contained draws SEQUENTIALLY, each binding the library top LATE
-// and empty-checking BEFORE its move (an empty library loses the game,
-// [CR#120.3,104.3c]).
+// simultaneous batch like mill). `Draws` is `Draw`'s twin: a `Batch(N, ...)`
+// over the per-unit `By(who, Draw)`. The engine runs the N contained draws
+// SEQUENTIALLY, each binding the library top LATE and empty-checking BEFORE its
+// move, so an empty library loses the game ([CR#121.4,104.3c]).
 //
-// `who` (Param(0)) rides the body selection's `whose`. The template renders the
-// subject context-aware ("Target player draws two cards.", "Each player draws a
-// card."); the count spells its noun via the `card|cards` modifier.
+// NOT a keyword action ([CR#701] does not list drawing — it is [CR#121]) and NOT
+// a `Composite`: drawing is irreducible ([CR#121.5]), so there is no body. See
+// `Draw.ron` for the full note, including why the `KeywordAction` macro kind
+// stays (it is the English verb registry, not a CR claim).
+//
+// `who` (Param(0)) is `By`'s agent — a real slot, not a coordinate scraped off a
+// body selection. The template renders the subject context-aware ("Target player
+// draws two cards.", "Each player draws a card."); the count spells its noun via
+// the `card|cards` modifier.
 //
 // Usage: Draws(It, 1) (the announced player target / Each-bound player, Jace
 // Beleren) / Draws(Target(0), 2).
@@ -19,8 +22,5 @@
     template: "${0} draws ${1:card|cards}",
     kinds: [OneShotEffect, KeywordAction],
     params: [Reference, Count],
-    body: Batch(Param(1), Composite(
-        name: Draw,
-        body: Each(binder: Existing(TopOfLibrary(count: 1, whose: Param(0))), effect: Move(It, Hand)),
-    )),
+    body: Batch(Param(1), By(Param(0), DrawCard)),
 )

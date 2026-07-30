@@ -423,15 +423,14 @@ mod tests {
                     player,
                     legal,
                 })) => {
-                    if *player == me {
-                        if let Some(id) = driver.state.zones.hands[me.index()]
+                    if *player == me
+                        && let Some(id) = driver.state.zones.hands[me.index()]
                             .iter()
                             .copied()
                             .find(|&id| driver.state.autotap_for_cast(me, id).is_some())
-                        {
-                            spell = Some(id);
-                            break;
-                        }
+                    {
+                        spell = Some(id);
+                        break;
                     }
                     let action = legal
                         .iter()

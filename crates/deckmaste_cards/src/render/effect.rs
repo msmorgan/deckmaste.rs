@@ -1079,11 +1079,19 @@ fn slice_whose(body: &OneShotEffect) -> Option<&Reference> {
 }
 
 /// The collective rendering of an [`OneShotEffect::Each`] over a
-/// `Batch`-wrapped slice keyword action ([CR#121.1,701.17a]) with the loop
-/// element as performer — "Each player draws/mills N cards." (Jace Beleren's
-/// "[+2]: Each player draws a card."). Draw/mill expand to `Batch(count,
-/// Act(Composite{name}))` whose per-unit body's `whose` is the loop element
-/// `It`; the batch count is the card count. `None` for any other shape.
+/// `Batch`-wrapped per-card action ([CR#121.1,701.17a]) with the loop element
+/// as performer — "Each player draws/mills N cards." (Jace Beleren's "[+2]:
+/// Each player draws a card."). Both spell `Batch(count, …)` with the batch
+/// count as the card count, but they name their performer differently, because
+/// only one of them is a keyword action:
+///
+/// - **mill** ([CR#701.17a]) is a keyword action, so its per-unit body is a
+///   `Composite` and the performer rides that body's `TopOfLibrary` slice.
+/// - **draw** ([CR#121.1]) is NOT ([CR#701] does not list it) and is
+///   irreducible ([CR#121.5]), so it has no body at all — its per-unit form is
+///   `By(who, DrawCard)` and the performer IS the `By` agent.
+///
+/// `None` for any other shape.
 fn each_collective_batch(
     effect: &OneShotEffect,
     binder: &deckmaste_core::Binder,
@@ -1092,18 +1100,21 @@ fn each_collective_batch(
     let OneShotEffect::Batch(count, body) = effect else {
         return None;
     };
-    let OneShotEffect::Act(Action::Composite {
-        name,
-        body: verb_body,
-    }) = peel_expanded(body)
-    else {
-        return None;
+    let (verb, whose) = match peel_expanded(body) {
+        OneShotEffect::Act(Action::Composite {
+            name,
+            body: verb_body,
+        }) => (name.as_str(), slice_whose(verb_body)?),
+        OneShotEffect::Act(Action::By(who, deckmaste_core::PlayerAction::DrawCard)) => {
+            ("Draw", who)
+        }
+        _ => return None,
     };
-    if !matches!(slice_whose(verb_body), Some(Reference::It)) {
+    if !matches!(whose, Reference::It) {
         return None;
     }
     let each_group = format!("each {}", binder_group_noun(binder, ctx));
-    match name.as_str() {
+    match verb {
         "Draw" => Some(format!(
             "{} draws {}.",
             capitalize_first(&each_group),

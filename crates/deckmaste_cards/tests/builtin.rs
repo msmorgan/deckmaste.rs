@@ -398,8 +398,8 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         panic!("Unless must expand to MustPay, got {:?}", exp.value);
     };
     assert_eq!(m.actor, Reference::You, "the payer defaults to You");
-    // `Draw(1)` is now the `Draw` macro (like `Mill`), so the unpaid branch is
-    // its remembered `Expanded` wrapping the `Composite(Draw(You, 1), …)`.
+    // `Draw(1)` is the `Draw` macro, so the unpaid branch is its remembered
+    // `Expanded` wrapping the `Batch(1, Act(By(You, DrawCard)))`.
     let OneShotEffect::Expanded(draw_exp) = m.or_else.as_ref() else {
         panic!(
             "or_else should be the remembered Draw expansion, got {:?}",
@@ -407,14 +407,19 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         );
     };
     assert_eq!(draw_exp.name.as_str(), "Draw");
-    // `Draw(1)` is a slice-family `Batch(1, Act(Composite(name: Draw, …)))`.
+    // `Draw(1)` is `Batch(1, Act(By(You, DrawCard)))`: the `Batch` is the
+    // instruction level a count-referring replacement bites ([CR#121.2a]) and
+    // each element is one individual card draw ([CR#121.2]). NOT a `Composite`
+    // — drawing is [CR#121], not a keyword action ([CR#701]), and [CR#121.5]
+    // makes it irreducible, so there is no body.
     let OneShotEffect::Batch(_, draw_inner) = draw_exp.value.as_ref() else {
         panic!("Draw expands to a Batch, got {:?}", draw_exp.value);
     };
     assert!(
         matches!(
             draw_inner.as_ref(),
-            OneShotEffect::Act(Action::Composite { name, .. }) if name.as_str() == "Draw"
+            OneShotEffect::Act(Action::By(who, deckmaste_core::PlayerAction::DrawCard))
+                if *who == Reference::You
         ),
         "or_else carries the unpaid Draw batch, got {draw_inner:?}"
     );

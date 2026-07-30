@@ -765,29 +765,10 @@ impl GameState {
                 );
                 self.act_window(act, FinalizeWatch::Patients(patients))
             }
-            // ── Draw: one single-card window ([CR#121.2]); the count-many
-            // sequence is the aggregate `Batch` lane's, which replicates this
-            // per-unit window. ──
-            "Draw" => {
-                let Some(who) = composite_body_whose(body) else {
-                    return vec![];
-                };
-                let Some(player) = self.eval_player_ref(who, frame) else {
-                    return vec![];
-                };
-                // The draw's `FinalizeAct` is scheduled by its OWN apply (the
-                // late-bound card and its `mark` are known only there), so only
-                // the window is planted here.
-                vec![WorkItem::Emit(Occurrence::single(future(
-                    "Draw",
-                    Some(player),
-                    vec![],
-                    None,
-                    None,
-                    Some(Cause::draw(Agency::EffectInstruction, agent)),
-                    false,
-                )))]
-            }
+            // NOTE: there is deliberately no "Draw" arm. Drawing is [CR#121], a
+            // game action, not one of the keyword actions [CR#701] enumerates,
+            // so it is not a `Composite` at all — it is
+            // `By(who, PlayerAction::DrawCard)`, resolved by `player_action_items`.
             // ── Reorder verbs: scry / surveil / fateseal ([CR#701.22a]) ──
             verb @ ("Scry" | "Surveil" | "Fateseal") => {
                 let Some(who) = composite_body_whose(body) else {
@@ -2146,6 +2127,65 @@ mod tests {
                 |e| matches!(&e.fact, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Mill")
             ),
             "an empty-library mill performs no keyword action ([CR#701.17b,701.22b])"
+        );
+    }
+
+    /// [CR#121.4]: drawing from an EMPTY library is not a silent no-op — it sets
+    /// the [CR#704.5b] loss flag, and emits no draw fact.
+    ///
+    /// This is the case a `Composite` over a Library → Hand `Move` could not
+    /// express: the move would simply find nothing and vanish, MISSING the
+    /// loss. It is why draw is a bodiless `By(who, DrawCard)` whose apply
+    /// empty-checks BEFORE moving — and [CR#121.5] means such a move would
+    /// not be a draw anyway. Contrast the empty-library mill above, which
+    /// correctly fizzles to nothing ([CR#701.17b]): the two verbs differ
+    /// precisely because only one of them is a keyword action.
+    #[test]
+    fn drawing_from_an_empty_library_sets_the_loss_flag() {
+        let (mut state, a) = bear_on_field();
+        let frame = frame_src(a);
+
+        // Control: a stocked library draws, committing the card and the fact.
+        let hand_before = state.zones.hands[0].len();
+        state.run_effect(
+            OneShotEffect::draw(Reference::You, Count::Literal(1)),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.zones.hands[0].len(),
+            hand_before + 1,
+            "a stocked library draws one card ([CR#121.1])"
+        );
+        assert!(
+            state.history.entries().any(
+                |e| matches!(&e.fact, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Draw")
+            ),
+            "the draw emits its Act(Draw) name-fact"
+        );
+        assert!(
+            !state.players[0].drew_from_empty,
+            "a successful draw sets no loss flag"
+        );
+
+        // Empty the library and draw again: no draw fact, but the loss flag IS
+        // set — the failure is OBSERVABLE, not silent.
+        state.zones.libraries[0].clear();
+        let before = state.history.entries().count();
+        state.run_effect(
+            OneShotEffect::draw(Reference::You, Count::Literal(1)),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert!(
+            state.players[0].drew_from_empty,
+            "drawing from an empty library sets the loss flag ([CR#121.4,704.5b])"
+        );
+        assert!(
+            !state.history.entries().skip(before).any(
+                |e| matches!(&e.fact, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Draw")
+            ),
+            "no draw happened, so no Act(Draw) fact ([CR#121.4])"
         );
     }
 

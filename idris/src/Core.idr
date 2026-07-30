@@ -2257,14 +2257,19 @@ mutual
     -- (`Ward Cost`, `Protection Quality`). ENTITY-KEYED and heterogeneous —
     -- each atom names only the coordinates it fixes ([CR#701]):
     --  * SLICE-family verbs read the top of a library
-    --    ([CR#121,701.17a,701.22a,701.20a]). Scry/Surveil act on YOUR library by
-    --    definition, so they carry only the `count` — no performer. Mill/Draw
-    --    carry the PERFORMING player
-    --    `who` (so `Act` records who milled/drew — "whenever an opponent draws"),
-    --    but NOT a count: their multi-card forms ride the `Batch` count tier
-    --    ([CR#121.2a]) and each contained atom is a single top-slot slice.
+    --    ([CR#701.17a,701.22a,701.20a]). Scry/Surveil act on YOUR library by
+    --    definition, so they carry only the `count` — no performer. Mill carries
+    --    the PERFORMING player
+    --    `who` (so `Act` records who milled — "whenever an opponent mills"),
+    --    but NOT a count: its multi-card form rides the `Batch` count tier and
+    --    each contained atom is a single top-slot slice.
     --    Fateseal ([CR#701.20a]) names the fatesealed player's library plus the
     --    `count` (an opponent's top, not yours).
+    --    (Drawing is NOT here: [CR#701] does not list it — it is [CR#121], a
+    --    game action — and it is irreducible ([CR#121.5]: a library → hand move
+    --    made without the word "draw" is not a draw), so it has no body to read
+    --    coordinates off. Draw is the `Action.Draw` verb below, carrying its own
+    --    actor and count; Rust's twin is `By(who, PlayerAction::Draw)`.)
     --  * `Discard` ([CR#701.9a]) is a CHOICE verb: the affected cards live in the
     --    body's `With (Choose ..) ..`/`With (Existing (Random ..)) ..` decision
     --    (the [CR#701.9b] batch choice, or the bound single `Move` for "discard
@@ -2278,15 +2283,14 @@ mutual
     --  * `Fight` carries its two fighter objects.
     -- (Rust data-fies these as `Action::Composite(VerbName, body)` — the verb name
     -- plus the coordinates reconstructed from the expanded body; this typed mirror
-    -- stays the soundness gate. `Mill`/`Draw` are the landed slice-family shape:
+    -- stays the soundness gate. `Mill` is the landed slice-family shape:
     -- an earlier draft keyed `Mill` on an object, superseded by the 2026-07-16
-    -- `Batch`-containment ruling that made mill a slice verb like draw.)
+    -- `Batch`-containment ruling that made mill a slice verb.)
     data KeywordActionSpec : Ctx -> Type where
       Scry     : Count b -> KeywordActionSpec b
       Surveil  : Count b -> KeywordActionSpec b
       Fateseal : Reference b APlayer -> Count b -> KeywordActionSpec b
       Mill     : Reference b APlayer -> KeywordActionSpec b
-      Draw     : Reference b APlayer -> KeywordActionSpec b
       Discard  : Reference b APlayer -> Count b -> KeywordActionSpec b
       Destroy  : Reference b AnObject -> KeywordActionSpec b
       Fight    : Reference b AnObject -> Reference b AnObject -> KeywordActionSpec b
@@ -2330,8 +2334,13 @@ mutual
       GrantDesignation : (d : Designation) -> Reference b (designationKindScope d) -> Action b
       Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
       Unattach : Reference b AnObject -> Action b
-      -- a player verb: the `actor` draws n cards. Rust has no bespoke draw — its twin is the
-      -- `KeywordAction::Draw` `Composite` lane (a settled, intentional asymmetry; this verb stays).
+      -- a player verb: the `actor` draws n cards ([CR#121.1]). Rust's twin is
+      -- `By(actor, PlayerAction::Draw)` under a `Batch` count ([CR#121.2] — the
+      -- individual card draw is the replaceable unit there); the emitter folds that
+      -- `Batch` into this `Count`, since `actionIntro` derives the card/amount
+      -- anaphora from it ("draw three cards, then gain THAT MUCH life").
+      -- Deliberately NOT a `KeywordActionSpec`: [CR#701] does not list drawing, and
+      -- [CR#121.5] makes it irreducible, so there is no `Composite` body for it.
       Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
       -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
       GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b

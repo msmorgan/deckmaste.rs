@@ -1635,10 +1635,12 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
                 .ok_or_else(|| gap(format!("{name} composite body has no TopOfLibrary slice")))?;
             Ok(app(name, vec![emit_count(count)?].into()))
         }
-        "Mill" | "Draw" => {
-            // SLICE family ([CR#121.2,701.17a]): the atom carries the performing
-            // player; the count rides the enclosing `Batch`, and each contained
-            // atom is a single top-slot slice — so no count arg here.
+        // SLICE family ([CR#701.17a]): the atom carries the performing player;
+        // the count rides the enclosing `Batch`, and each contained atom is a
+        // single top-slot slice — so no count arg here. Mill is alone in this
+        // family now: draw is [CR#121], NOT a keyword action ([CR#701]), so it
+        // never reaches the `Composite` lane at all.
+        "Mill" => {
             let (whose, _count) = top_of_library(body)
                 .ok_or_else(|| gap(format!("{name} composite body has no TopOfLibrary slice")))?;
             Ok(app(name, vec![emit_reference(whose)?].into()))
@@ -1837,6 +1839,18 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         PlayerAction::LoseLife(c) => Ok(app(
             "loseLifeBy",
             vec![emit_reference(actor)?, emit_count(c)?].into(),
+        )),
+        // ONE card ([CR#121.1,121.2]) — a bare per-card draw reached OFF the
+        // `Batch` path, so the count is 1 here. `Batch(n, Act(By(who, Draw)))`
+        // is folded to `Act (drawBy who n)` by `emit_effect` instead, because
+        // Idris's `Action.Draw` carries the count on the verb.
+        PlayerAction::DrawCard => Ok(app(
+            "drawBy",
+            vec![
+                emit_reference(actor)?,
+                emit_count(&deckmaste_core::Count::Literal(1))?,
+            ]
+            .into(),
         )),
         PlayerAction::AddMana(count, production) => {
             let (mana, riders) = emit_mana_production(production)?;
@@ -2964,9 +2978,10 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
             reject_amount(amount)?;
             (vec!["Draw".to_string()].into(), actor_facet(who)?)
         }
-        // [CR#701]: the named keyword-action filter lowers to the verb's
-        // `EventKind` (`Destroy`/`Discard`/`Draw`/`Mill`/`Scry`/`Surveil`/
-        // `Fateseal`/`Fight`) — the verb pins the kind, the performer `who` rides
+        // The named `Act`-fact filter lowers to the verb's `EventKind`
+        // (`Destroy`/`Discard`/`Draw`/`Mill`/`Scry`/`Surveil`/
+        // `Fateseal`/`Fight` — mostly [CR#701] keyword actions, plus `Draw`,
+        // which is [CR#121.1]) — the verb pins the kind, the performer `who` rides
         // the `Actor` facet and the affected object `on` the `Agent` facet
         // ([CR#616.1,701.9c] name-fact matching). `cause` (agency/cost narrowing —
         // "cycles" as a discard) has no Idris coordinate, so a narrowed filter is
@@ -3243,11 +3258,16 @@ fn actor_agent_facets(who: &Predicate, what: &Predicate) -> Result<Arc<[String]>
     Ok(facets.into())
 }
 
-/// Map a keyword-action verb name ([CR#701]) to its Idris `EventKind`
-/// constructor for an `EventFilter::Act` lowering. The verb-named kinds
+/// Map an `Act`-fact verb name to its Idris `EventKind` constructor for an
+/// `EventFilter::Act` lowering. The verb-named kinds
 /// (`Destroy`/`Discard`/`Draw` and the added
 /// `Mill`/`Scry`/`Surveil`/`Fateseal`/ `Fight`) sit beside one another in
 /// `Core.idr`'s `EventKind`; an unrecognized verb is a gap.
+///
+/// This vocabulary is the set of named action FACTS the engine commits, which
+/// is BROADER than the keyword actions [CR#701] enumerates: `Draw` belongs here
+/// as the name-fact a "whenever you draw a card" trigger reads ([CR#121.1]),
+/// even though drawing is a game action ([CR#121]) and not a keyword action.
 fn act_event_kind(verb: &str) -> Result<String, Gap> {
     match verb {
         "Destroy" | "Discard" | "Draw" | "Mill" | "Scry" | "Surveil" | "Fateseal" | "Fight" => {
@@ -3302,6 +3322,35 @@ fn merge_one_of(fs: &[EventFilter]) -> Result<KindsAndFacets, Gap> {
 // ===========================================================================
 // OneShotEffect
 // ===========================================================================
+
+/// Fold `Batch(n, Act(By(who, DrawCard)))` into Idris's count-carrying
+/// `Action.Draw` — `Act (drawBy who n)`. `None` for any other `Batch` body,
+/// which then emits the ordinary shell form.
+///
+/// Rust models "draw N" as N SEQUENTIAL single-card draws, because the
+/// individual card draw is the replaceable unit ([CR#121.2]) and the `Batch` is
+/// the instruction level a count-referring replacement bites ([CR#121.2a]).
+/// Idris's `Action.Draw` instead carries the count on the verb, and its
+/// `actionIntro` derives the card/amount anaphora FROM that count — so "draw
+/// three cards, then gain THAT MUCH life" needs the 3 there, not on an
+/// enclosing `Batch`. Folding keeps ONE draw spelling per side.
+///
+/// (Drawing never rides the `Composite`/`KeywordActionSpec` lane at all: it is
+/// [CR#121], not one of the keyword actions [CR#701] enumerates, and [CR#121.5]
+/// makes it irreducible — there is no body to reconstruct coordinates from.)
+fn emit_batched_draw(n: &Count, body: &OneShotEffect) -> Result<Option<String>, Gap> {
+    let OneShotEffect::Act(Action::By(who, PlayerAction::DrawCard)) = peel_os(body) else {
+        return Ok(None);
+    };
+    Ok(Some(app(
+        "Act",
+        vec![app(
+            "drawBy",
+            vec![emit_reference(who)?, emit_count(n)?].into(),
+        )]
+        .into(),
+    )))
+}
 
 fn emit_effect(e: &OneShotEffect) -> R {
     Ok(match e {
@@ -3437,12 +3486,14 @@ fn emit_effect(e: &OneShotEffect) -> R {
         OneShotEffect::Repeat(n, body) => {
             app("Repeat", vec![emit_count(n)?, emit_effect(body)?].into())
         }
-        // SHELL: `Batch` emits exactly like `Repeat` at this stage (see the
-        // Idris `Batch` doc comment) — the aggregate-count tier is a later
-        // pass's job, not this one's.
-        OneShotEffect::Batch(n, body) => {
-            app("Batch", vec![emit_count(n)?, emit_effect(body)?].into())
-        }
+        // A batched draw folds into Idris's count-carrying verb
+        // (`emit_batched_draw`); every other `Batch` is the SHELL form, emitting
+        // exactly like `Repeat` at this stage (see the Idris `Batch` doc
+        // comment) — the aggregate-count tier is a later pass's job.
+        OneShotEffect::Batch(n, body) => match emit_batched_draw(n, body)? {
+            Some(folded) => folded,
+            None => app("Batch", vec![emit_count(n)?, emit_effect(body)?].into()),
+        },
         OneShotEffect::RevealUntil(r) => app(
             "RevealUntil",
             vec![
@@ -3930,15 +3981,50 @@ mod tests {
         );
     }
 
-    /// [CR#121.2,701.17a]: mill/draw re-key to the performing PLAYER only — the
-    /// count rides the enclosing `Batch`, so the per-unit atom has no count
-    /// arg.
+    /// [CR#701.17a]: mill re-keys to the performing PLAYER only — the count
+    /// rides the enclosing `Batch`, so the per-unit atom has no count arg.
     #[test]
-    fn mill_and_draw_specs_carry_only_the_player() {
+    fn mill_spec_carries_only_the_player() {
         let mill = emit_action(&Action::mill_one(Reference::You)).expect("mill should emit");
         assert!(mill.contains("Mill You"), "mill carries the player: {mill}");
+    }
+
+    /// Draw does NOT go through `KeywordActionSpec`: it is [CR#121], not a
+    /// keyword action ([CR#701]), so `By(who, DrawCard)` emits the Idris
+    /// `Action.Draw` player verb via the positional `drawBy` helper. A bare
+    /// per-unit draw reached off the `Batch` path carries count 1 ([CR#121.2]).
+    #[test]
+    fn draw_emits_the_player_verb_not_a_keyword_spec() {
         let draw = emit_action(&Action::draw_one(Reference::You)).expect("draw should emit");
-        assert!(draw.contains("Draw You"), "draw carries the player: {draw}");
+        assert!(
+            draw.contains("drawBy") && draw.contains("You"),
+            "draw emits the player verb with its actor: {draw}"
+        );
+        assert!(
+            !draw.contains("Composite"),
+            "draw is not a keyword action, so it must not ride the Composite lane: {draw}"
+        );
+    }
+
+    /// [CR#121.2a]: `Batch(n, Act(By(who, DrawCard)))` FOLDS into Idris's
+    /// count-carrying `Action.Draw`, because `actionIntro` derives the
+    /// card/amount anaphora from that count ("draw three cards, then gain THAT
+    /// MUCH life") — an enclosing `Batch` would leave the anaphora at 1.
+    #[test]
+    fn batched_draw_folds_its_count_onto_the_idris_verb() {
+        let out = emit_effect(&deckmaste_core::OneShotEffect::draw(
+            Reference::You,
+            Count::Literal(3),
+        ))
+        .expect("a batched draw should emit");
+        assert!(
+            out.contains("drawBy") && out.contains("Literal 3"),
+            "the Batch count folds onto the verb: {out}"
+        );
+        assert!(
+            !out.contains("Batch"),
+            "the Batch must be folded away, not emitted alongside: {out}"
+        );
     }
 
     /// [CR#701.20a]: fateseal now emits (previously an Idris gap) — the

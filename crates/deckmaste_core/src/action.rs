@@ -332,6 +332,35 @@ pub enum PlayerAction {
         Destination,
         #[macro_ron(default = "crate::empty_arc()")] Arc<[EnterRider]>,
     ),
+    /// "[Player] draws a card" ([CR#121.1]) — exactly ONE card ([CR#121.2]).
+    /// "Draw N" is [`OneShotEffect::draw`](crate::OneShotEffect::draw) —
+    /// `Batch(n, Act(By(who, Draw)))` — where the `Batch` is the *instruction*
+    /// level a count-referring replacement modifies ([CR#121.2a]) and each
+    /// element is one individual card draw ([CR#121.2]).
+    ///
+    /// A footing verb like
+    /// [`VentureIntoDungeon`](PlayerAction::VentureIntoDungeon): the late
+    /// top-of-library bind and the empty-library loss ([CR#121.4,104.3c]) are
+    /// the engine's, and the agent rides [`Action::By`].
+    ///
+    /// Deliberately NOT a [`Move`](PlayerAction::Move), and NOT a
+    /// [`Composite`](Action::Composite) over one. Drawing is irreducible:
+    /// [CR#121.5] states that moving cards from a library to a hand *without*
+    /// the word "draw" is not a draw, so a Library → Hand body would denote a
+    /// DIFFERENT event — missing draw triggers, draw replacements ([CR#121.6]),
+    /// and the empty-library loss. Nor is drawing a keyword action: [CR#701]
+    /// enumerates those and drawing is not among them; it is [CR#121], a
+    /// game action, the same tier as damage ([CR#120]).
+    ///
+    /// Named `DrawCard`, not `Draw`, and that is load-bearing: a BARE
+    /// (zero-arg) variant name parses as a COMPLETE value at any `Action`
+    /// slot, because [`Action::By`] is `#[macro_ron(embed)]` and
+    /// `OneShotEffect::Act` is `#[macro_ron(flatten)]`. A bare `Draw`
+    /// variant therefore shadows the `Draw(N)` authoring macro — every
+    /// `Draw(1)` in a card would read `Draw` as this variant and then choke
+    /// on `(1)` as trailing characters. Keep any new bare variant's name
+    /// distinct from every macro name.
+    DrawCard,
     /// "[Player] ventures into the dungeon" ([CR#701.49a]) — a footing verb:
     /// the venture-marker/dungeon machinery is the engine's; the agent rides
     /// [`Action::By`].
@@ -547,34 +576,23 @@ impl Action {
         }
     }
 
-    /// One card of a draw ([CR#121.1,121.2]) — the PER-UNIT keyword action a
-    /// draw's `Batch` contains: a [`Composite`](Action::Composite) named
-    /// `"Draw"` whose body DESCRIBES the top-of-library → Hand relocation (an
-    /// [`Each`](crate::Each) over
-    /// [`TopOfLibrary`](crate::Selection::TopOfLibrary)); `whose` rides the
-    /// body's selection so the engine reads the performer off it. A whole draw
-    /// is [`OneShotEffect::draw`](crate::OneShotEffect::draw) — `Batch(count,
-    /// Act(Draw))`, `count` SEQUENTIAL single-card draws ([CR#121.2], each
-    /// seeing prior state), UNLIKE mill's one simultaneous batch. The body is
-    /// NOT the executor — the `Act(Draw)` apply binds the library top LATE and
-    /// empty-checks BEFORE its move (an empty library loses the game,
-    /// [CR#120.3,104.3c] — an executing body would silently no-op and MISS that
-    /// loss); the stored body is the faithful render/re-emit facet only.
+    /// One card of a draw ([CR#121.1,121.2]) — the PER-UNIT action a draw's
+    /// `Batch` contains: `By(who, Draw)`, the agent in a real slot.
+    ///
+    /// This is deliberately NOT a [`Composite`](Action::Composite). Drawing is
+    /// [CR#121], a game action, not one of the keyword actions [CR#701]
+    /// enumerates; and it has no honest body — [CR#121.5] states that a
+    /// Library → Hand move made *without* the word "draw" is not a draw, so
+    /// such a body would denote a different event. See
+    /// [`PlayerAction::DrawCard`]. A whole draw is
+    /// [`OneShotEffect::draw`](crate::OneShotEffect::draw) — `Batch(count,
+    /// Act(By(who, Draw)))`, `count` SEQUENTIAL single-card draws ([CR#121.2],
+    /// each seeing prior state), UNLIKE mill's one simultaneous batch. The
+    /// engine's `Act(Draw)` apply binds the library top LATE and empty-checks
+    /// BEFORE its move ([CR#121.4,104.3c]).
     #[must_use]
     pub fn draw_one(who: Reference) -> Action {
-        Action::Composite {
-            name: crate::VerbName::from("Draw"),
-            body: Arc::new(crate::OneShotEffect::Each(crate::Each {
-                binder: crate::Binder::Existing(Selection::TopOfLibrary {
-                    count: Count::Literal(1),
-                    whose: who,
-                }),
-                effect: Arc::new(crate::OneShotEffect::Act(Action::move_to(
-                    Reference::It,
-                    crate::Zone::Hand,
-                ))),
-            })),
-        }
+        Action::By(who, PlayerAction::DrawCard)
     }
 
     /// "`who` discards `count`" ([CR#701.9a]) — the keyword action as data:

@@ -1233,15 +1233,20 @@ fn cause_verbs_are_entailment_rows() {
         "entailments table should carry the closed cause-verb vocab; got {known:?}"
     );
 
-    // The `Act` master form's `verb:` slot ([CR#701]) shares this field name
-    // but carries a keyword-action NAME, a vocabulary that supersets the cause
-    // verbs: the reorder actions (scry/surveil/fateseal) and draw entail no
-    // cause-narrowed fact view, so they carry NO entailments.ron row (the
-    // would-lane shape guard is simply vacuous for a rowless verb) — yet remain
-    // valid `verb:` spellings. Admit them alongside the cause-verb rows; the
-    // typo/dead-verb check still bites every genuinely-unknown spelling.
-    let keyword_action_only: BTreeSet<&str> =
-        BTreeSet::from(["Draw", "Fateseal", "Scry", "Surveil"]);
+    // The `Act` master form's `verb:` slot shares this field name but carries an
+    // ACT-FACT verb name, a vocabulary that supersets the cause verbs: the
+    // reorder keyword actions (scry/surveil/fateseal, [CR#701.22a]) and draw
+    // ([CR#121.1]) entail no cause-narrowed fact view, so they carry NO
+    // entailments.ron row (the would-lane shape guard is simply vacuous for a
+    // rowless verb) — yet remain valid `verb:` spellings. Admit them alongside
+    // the cause-verb rows; the typo/dead-verb check still bites every
+    // genuinely-unknown spelling.
+    //
+    // NB `Draw` is in this set as an act-fact NAME, not as a keyword action:
+    // [CR#701] enumerates the keyword actions and drawing is not among them (it
+    // is [CR#121]). The name is historical; the set means "act-fact verb with no
+    // entailments row".
+    let act_fact_only: BTreeSet<&str> = BTreeSet::from(["Draw", "Fateseal", "Scry", "Surveil"]);
 
     // Every corpus cause/act-struct `verb:` field must be a known row or a
     // keyword-action name. RON is lenient about the spellings this must
@@ -1259,7 +1264,7 @@ fn cause_verbs_are_entailment_rows() {
     for text in accept_corpus() {
         for c in use_verb.captures_iter(&text) {
             let verb = c[1].to_string();
-            if !known.contains(&verb) && !keyword_action_only.contains(verb.as_str()) {
+            if !known.contains(&verb) && !act_fact_only.contains(verb.as_str()) {
                 bad.insert(verb);
             }
         }

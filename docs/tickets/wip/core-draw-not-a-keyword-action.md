@@ -6,10 +6,10 @@ in favour of a bodiless `PlayerAction::Draw` carried by `Action::By(who, …)`.
 
 ## Why
 
-Draw was modelled as a `Composite` on the premise that it is a CR 701 keyword
-action. It is not. CR 701 lists 69 keyword actions (701.2 Activate … 701.69
-Heal); drawing is **[CR#121.1]**, a section-1 Game Concepts rule — the same tier
-as damage ([CR#120.3]) and counters.
+Draw was modelled as a `Composite` on the premise that it is a keyword action
+[CR#701]. It is not: [CR#701] enumerates 69 keyword actions, Activate through
+Heal, and drawing is not among them. Drawing is **[CR#121.1]**, a section-1 Game
+Concepts rule — the same tier as damage ([CR#120]) and counters.
 
 Mis-filing alone would be cosmetic. The modelling error is that the composite
 body is *wrong*, not merely mis-labelled:
@@ -104,9 +104,9 @@ body — rather than building machinery.
 Standard constraints apply (fmt, clippy, CR-citation check/audit, wizards
 regen). Deltas worth naming:
 
-- `cargo xtask cite audit --diff` must be read by eye for the new [CR#121.x]
-  cites — this ticket exists *because* a citation was right-numbered and
-  wrong-topiced.
+- `cargo xtask cite audit --diff` must be read by eye for every new
+  drawing-a-card cite — this ticket exists *because* a citation was
+  right-numbered and wrong-topiced.
 - `cd idris && ./scripts/build` PASS; `cargo xtask idris-check plugins/canon` no
   regressions; `cargo xtask fidelity` PASS (render fidelity for draw cards must
   hold — the removed body was the render facet, so the renderer must get its

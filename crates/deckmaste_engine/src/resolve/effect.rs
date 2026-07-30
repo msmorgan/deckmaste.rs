@@ -1148,12 +1148,8 @@ impl GameState {
                 let n = self.eval_count(&count, frame);
                 if n == 0 {
                     // Clean no-op — mirrors `Repeat`.
-                } else if let OneShotEffect::Act(Action::Composite {
-                    name,
-                    body: composite_body,
-                }) = peel_effect(&body)
-                {
-                    if let Some(head) = self.batch_act_head(name, composite_body, frame) {
+                } else if let Some(unit) = batch_act_unit(peel_effect(&body)) {
+                    if let Some(head) = self.batch_act_head(&unit, frame) {
                         let verb = deckmaste_core::VerbName::from(head.verb);
                         let act = GameEvent::Act(Act {
                             verb,
@@ -1303,14 +1299,28 @@ impl GameState {
     /// WHOLE aggregate here too — no window at all, matching
     /// `composite_items`'s discipline exactly ([CR#701.8a,701.9a,701.17a]) —
     /// never a panic.
-    fn batch_act_head(
-        &self,
-        name: &deckmaste_core::VerbName,
-        body: &OneShotEffect,
-        frame: &Frame,
-    ) -> Option<BatchActHead> {
+    fn batch_act_head(&self, unit: &BatchUnit<'_>, frame: &Frame) -> Option<BatchActHead> {
         use deckmaste_core::Agency;
         let agent = Some((frame.source, frame.controller));
+        let (name, body) = match unit {
+            // Draw ([CR#121.1]) is a game action, NOT a keyword action
+            // ([CR#701]) — it has no composite body, so there are no stored
+            // coordinates to read: the performer comes straight off `By`'s
+            // agent slot. The aggregate window still opens, because that is
+            // what a count-referring replacement bites (Alhammarret's Archive,
+            // [CR#121.2a,616.1g]) BEFORE any of the individual card draws
+            // ([CR#121.2]) exists.
+            BatchUnit::Draw(who) => {
+                return Some(BatchActHead {
+                    verb: "Draw",
+                    who: Some(self.eval_player_ref(who, frame)?),
+                    on: vec![],
+                    cause: Some(Cause::draw(Agency::EffectInstruction, agent)),
+                    from: None,
+                });
+            }
+            BatchUnit::Composite(name, body) => (*name, *body),
+        };
         // The performer a slice/reorder body names, resolved to a player.
         let performer =
             || composite_body_whose(body).and_then(|who| self.eval_player_ref(who, frame));
@@ -1358,13 +1368,6 @@ impl GameState {
                     from: Some(Zone::Library),
                 }
             }
-            "Draw" => BatchActHead {
-                verb: "Draw",
-                who: Some(performer()?),
-                on: vec![],
-                cause: Some(Cause::draw(Agency::EffectInstruction, agent)),
-                from: None,
-            },
             verb @ ("Scry" | "Surveil" | "Fateseal") => {
                 let who = Some(performer()?);
                 if !self.composite_body_would_act(body, frame) {
@@ -1752,6 +1755,33 @@ fn among_noted_choice(
 fn for_this_event_rider(effect: &OneShotEffect) -> Option<&[StaticEffect]> {
     match peel_effect(effect) {
         OneShotEffect::Until(deckmaste_core::Duration::ForThisEvent, parts) => Some(parts),
+        _ => None,
+    }
+}
+
+/// A `Batch`'s per-unit body when it is one that takes an AGGREGATE `Act`
+/// window ([CR#616.1g]) — the two shapes are not one type because drawing is
+/// not a keyword action:
+///
+/// - [`Composite`](BatchUnit::Composite) — a keyword action ([CR#701]), whose
+///   coordinates are read off its stored body.
+/// - [`Draw`](BatchUnit::Draw) — a game action ([CR#121.1]) carried by
+///   [`Action::By`], whose performer is the `By` agent itself. Drawing is
+///   irreducible ([CR#121.5]: a Library → Hand move made without the word
+///   "draw" is not a draw), so it has no body to read.
+enum BatchUnit<'a> {
+    Composite(&'a deckmaste_core::VerbName, &'a OneShotEffect),
+    Draw(&'a Reference),
+}
+
+/// Classify a `Batch`'s per-unit body: `Some` iff it takes an aggregate window.
+/// `None` keeps the plain sequential `Repeat`-style lane.
+fn batch_act_unit(unit: &OneShotEffect) -> Option<BatchUnit<'_>> {
+    match unit {
+        OneShotEffect::Act(Action::Composite { name, body }) => {
+            Some(BatchUnit::Composite(name, body))
+        }
+        OneShotEffect::Act(Action::By(who, PlayerAction::DrawCard)) => Some(BatchUnit::Draw(who)),
         _ => None,
     }
 }

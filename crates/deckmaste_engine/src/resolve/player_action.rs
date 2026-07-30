@@ -11,6 +11,7 @@ use deckmaste_core::Zone;
 
 use super::occurrence_of;
 use crate::agenda::WorkItem;
+use crate::event::Act;
 use crate::event::Cause;
 use crate::event::Copied;
 use crate::event::CounterPlaced;
@@ -365,6 +366,40 @@ impl GameState {
                     count,
                     called: *called,
                 }]
+            }
+            // [CR#121.1]: `actor` draws ONE card. Only the window is planted
+            // here — the draw's `FinalizeAct` is scheduled by its OWN apply,
+            // where the late-bound card and its `mark` are first known. That
+            // apply binds the library top LATE and empty-checks BEFORE the
+            // move, so an empty library loses the game ([CR#121.4,104.3c])
+            // instead of silently no-opping.
+            //
+            // There is no body and no patient: drawing is irreducible
+            // ([CR#121.5] — a Library → Hand move made without the word "draw"
+            // is not a draw), which is why this is a footing verb here rather
+            // than a `Composite` over a move. "Draw N" is `Batch(n, …)` over
+            // this ([CR#121.2]); the aggregate window that a count-referring
+            // replacement bites ([CR#121.2a]) is `batch_act_head`'s.
+            PlayerAction::DrawCard => {
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::Act(Act {
+                    verb: deckmaste_core::VerbName::from("Draw"),
+                    who: Some(actor),
+                    on: vec![],
+                    from: None,
+                    to: None,
+                    cause: Some(Cause::draw(
+                        Agency::EffectInstruction,
+                        Some((frame.source, frame.controller)),
+                    )),
+                    committed: false,
+                    contents: None,
+                    // A single card draw is never itself an aggregate.
+                    batch: None,
+                    inherited: frame.anaphora.inherited_replacements.clone(),
+                    // [CR#616.1g,121.2a]: set iff this draw is one of an
+                    // aggregate `Batch`'s contained per-card futures.
+                    contained: frame.anaphora.contained_in_batch,
+                })))]
             }
             // core-action-riders-cost-modes: shapes landed, execution seams.
             PlayerAction::VentureIntoDungeon => {

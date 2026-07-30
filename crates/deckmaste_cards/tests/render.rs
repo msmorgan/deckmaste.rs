@@ -1157,10 +1157,10 @@ fn renders_trigger_with_turnof_intervening_if() {
     use deckmaste_core::RelationPredicate;
     use deckmaste_core::TriggeredAbility;
     use deckmaste_core::Zone;
-    // `Draw(1)` is a slice-family verb macro (`Batch(1, Act(Composite(name:
-    // Draw, …)))`) that renders via its template — build it through the real
-    // plugin so it carries that `Expanded` provenance rather than an
-    // unrendered raw `Batch`.
+    // `Draw(1)` is a verb macro (`Batch(1, Act(By(You, DrawCard)))` — [CR#121] is
+    // a game action, so no `Composite`) that renders via its template — build it
+    // through the real plugin so it carries that `Expanded` provenance rather
+    // than an unrendered raw `Batch`.
     let plugin = Plugin::load(builtin_path()).unwrap();
     let draw: OneShotEffect = plugin.macros.read_str("Draw(1)").unwrap();
     let face = CardFace {
