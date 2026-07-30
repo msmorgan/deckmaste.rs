@@ -1034,7 +1034,6 @@ mod tests {
                                 ability: Box::new(paragraph_recovered("embedded")),
                                 initial_uppercase: false,
                                 closed: true,
-                                terminal_period: true,
                             })),
                         },
                         elements: vec![],

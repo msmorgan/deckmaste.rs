@@ -203,6 +203,20 @@ struct Renderer<'identity> {
     /// level (depth 0); nested inside a quote it is ordinary prose that keeps
     /// its period (`becomes an Aura with "enchant creature …."`).
     nesting: Cell<usize>,
+    /// The quoted ability that terminates the sentence currently being
+    /// rendered, or `None` when that sentence ends in something else.
+    ///
+    /// Published by [`Self::sentence`] from the same AST tail walk that derives
+    /// the sentence's period, and read by [`Self::quoted_ability`] to place
+    /// that period *inside* the closing quote (`gains "…."`) rather than
+    /// after it (`has "…" and "…."`). This is the channel that lets the
+    /// placement be derived instead of stored: a quote cannot see its own
+    /// position, but the sentence can see which quote is its tail.
+    ///
+    /// Held as a bare address so the channel borrows nothing from the tree
+    /// being rendered. It is only ever compared by identity, never read
+    /// through.
+    terminal_quote: Cell<Option<*const QuotedAbility>>,
 }
 
 impl<'identity> Renderer<'identity> {
@@ -212,6 +226,7 @@ impl<'identity> Renderer<'identity> {
             short_name: short_name(name, is_legendary),
             vocabulary: Vocabulary::new(),
             nesting: Cell::new(0),
+            terminal_quote: Cell::new(None),
         }
     }
 
@@ -728,8 +743,39 @@ impl<'identity> Renderer<'identity> {
         capitalize: bool,
         force_no_period: bool,
     ) -> Result<String, RenderError> {
+        // Publish this sentence's terminal quote for the duration of its body,
+        // so a quoted ability rendered deep inside it can recognize itself as
+        // the node that absorbs this sentence's period. Restored afterwards: a
+        // quote's own interior sentences publish their own terminals while
+        // nested inside this one. When the period is forced off — a modal
+        // header's ` —` suffix standing in for it — there is nothing to absorb,
+        // so nothing is published.
+        let published = if force_no_period {
+            None
+        } else {
+            sentence_terminal_quote(sentence).map(std::ptr::from_ref)
+        };
+        let previous = self.terminal_quote.replace(published);
+        let body = self.sentence_body(sentence, capitalize);
+        self.terminal_quote.set(previous);
+        let (body, capitalize) = body?;
+        let mut rendered = if capitalize { capitalize_first(body) } else { body };
+        if !force_no_period && self.sentence_takes_period(sentence) {
+            rendered.push('.');
+        }
+        Ok(rendered)
+    }
+
+    /// Renders a sentence's body, reporting whether the result still wants
+    /// initial capitalization. Split out of [`Self::sentence`] so the
+    /// terminal-quote channel is restored on the error path as well.
+    fn sentence_body(
+        &self,
+        sentence: &Sentence,
+        capitalize: bool,
+    ) -> Result<(String, bool), RenderError> {
         let capitalize = capitalize && sentence.initial_uppercase;
-        let (body, capitalize) = match &sentence.body {
+        Ok(match &sentence.body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
             SentenceBody::Choice(choice) => (self.choice_instruction(choice)?, capitalize),
             SentenceBody::PowerToughness(value) => (
@@ -750,12 +796,7 @@ impl<'identity> Renderer<'identity> {
                 (format!("{frame}, {effect}"), capitalize)
             }
             SentenceBody::Recovered(recovery) => (recovery.spelling().to_owned(), false),
-        };
-        let mut rendered = if capitalize { capitalize_first(body) } else { body };
-        if !force_no_period && self.sentence_takes_period(sentence) {
-            rendered.push('.');
-        }
-        Ok(rendered)
+        })
     }
 
     /// Whether a rendered sentence takes a trailing period.
@@ -795,7 +836,7 @@ impl<'identity> Renderer<'identity> {
             SentenceBody::Independent(clause) => clause,
             SentenceBody::Triggered(triggered) => &triggered.effect,
         };
-        if independent_clause_ends_with_closed_quote(clause)
+        if independent_clause_terminal_quote(clause).is_some()
             || self.clause_ends_with_terminated_self_reference(clause)
         {
             return false;
@@ -1991,15 +2032,22 @@ impl<'identity> Renderer<'identity> {
         // The interior's derived terminal period is withheld unless this quote
         // closes its enclosing sentence — the period sits inside the quote only
         // when the surface put it there (`gains "…."` vs `has "…" and "…."`).
-        let mut interior = self.nested_ability(
-            &quoted.ability,
-            quoted.initial_uppercase,
-            !quoted.terminal_period,
-        )?;
+        //
+        // Derived, not stored: the enclosing sentence published the address of
+        // the quote its AST tail walk reached, and this is that quote exactly
+        // when the two addresses agree. Identity is the right test because the
+        // walk borrows from the very tree being rendered — two distinct quotes
+        // with equal content are still only one sentence tail.
+        let terminal_period = self
+            .terminal_quote
+            .get()
+            .is_some_and(|terminal| std::ptr::eq(terminal, quoted));
+        let mut interior =
+            self.nested_ability(&quoted.ability, quoted.initial_uppercase, !terminal_period)?;
         // Keyword lines do not derive sentence punctuation themselves. A
-        // quoted keyword ability can nevertheless carry a terminal recorded by
-        // the quote wrapper, after the parser has kept it out of the argument.
-        if quoted.terminal_period
+        // quoted keyword ability can nevertheless take a terminal from the
+        // quote's own position, after the parser has kept it out of the argument.
+        if terminal_period
             && matches!(
                 &quoted.ability.kind,
                 AbilityKind::Keyword(list)
@@ -2184,55 +2232,78 @@ fn independent_clause_final_self_reference(clause: &IndependentClause) -> Option
     }
 }
 
-fn independent_clause_ends_with_closed_quote(clause: &IndependentClause) -> bool {
+/// The closed quoted ability that terminates a sentence, if any — the one node
+/// whose interior keeps the sentence's period inside its closing quote.
+///
+/// A [`SentenceBody::Choice`] header and a bare power/toughness body have no
+/// object position to hold a quote, and a recovered span reproduces its own
+/// punctuation verbatim, so none of the three can move a period into a quote.
+fn sentence_terminal_quote(sentence: &Sentence) -> Option<&QuotedAbility> {
+    let clause = match &sentence.body {
+        SentenceBody::Choice(_) | SentenceBody::PowerToughness(_) | SentenceBody::Recovered(_) => {
+            return None;
+        }
+        SentenceBody::Independent(clause) => clause,
+        SentenceBody::Triggered(triggered) => &triggered.effect,
+    };
+    independent_clause_terminal_quote(clause)
+}
+
+/// The closed quoted ability a clause's final *rendered* constituent is, if
+/// any — the single node whose interior absorbs the enclosing sentence's
+/// terminal period. Returning the node rather than a bare `bool` is what lets
+/// [`Renderer::quoted_ability`] derive a period placement the AST no longer
+/// stores: the sentence renderer publishes this node's address, and the quote
+/// that recognizes itself in it keeps its interior period.
+fn independent_clause_terminal_quote(clause: &IndependentClause) -> Option<&QuotedAbility> {
     match clause {
-        IndependentClause::Transitive(_, predicate) => transitive_ends_with_closed_quote(predicate),
+        IndependentClause::Transitive(_, predicate) => transitive_terminal_quote(predicate),
         IndependentClause::Intransitive(_, predicate) => {
-            last_element_is_closed_quote(&predicate.elements)
+            last_element_terminal_quote(&predicate.elements)
         }
-        IndependentClause::Passive(_, predicate) => passive_ends_with_closed_quote(predicate),
-        IndependentClause::Copular(_, predicate) => copular_ends_with_closed_quote(predicate),
+        IndependentClause::Passive(_, predicate) => passive_terminal_quote(predicate),
+        IndependentClause::Copular(_, predicate) => copular_terminal_quote(predicate),
         IndependentClause::Predicated(_, expression) => {
-            predicate_expression_ends_with_closed_quote(expression)
+            predicate_expression_terminal_quote(expression)
         }
-        IndependentClause::Imperative(predicate) => predicate_ends_with_closed_quote(predicate),
-        IndependentClause::Deontic(_, _, Some(predicate)) => {
-            predicate_ends_with_closed_quote(predicate)
-        }
-        IndependentClause::Coordinated(clause) => coordinated_ends_with_closed_quote(clause),
-        IndependentClause::Complex(clause) => complex_ends_with_closed_quote(clause),
+        IndependentClause::Imperative(predicate)
+        | IndependentClause::Deontic(_, _, Some(predicate)) => predicate_terminal_quote(predicate),
+        IndependentClause::Coordinated(clause) => coordinated_terminal_quote(clause),
+        IndependentClause::Complex(clause) => complex_terminal_quote(clause),
         IndependentClause::Existential(_)
         | IndependentClause::Proform(..)
-        | IndependentClause::Deontic(_, _, None) => false,
+        | IndependentClause::Deontic(_, _, None) => None,
     }
 }
 
-fn predicate_expression_ends_with_closed_quote(expression: &PredicateExpression) -> bool {
+fn predicate_expression_terminal_quote(expression: &PredicateExpression) -> Option<&QuotedAbility> {
     match expression {
-        PredicateExpression::Simple(predicate) => predicate_ends_with_closed_quote(predicate),
+        PredicateExpression::Simple(predicate) => predicate_terminal_quote(predicate),
         PredicateExpression::Coordinated(coordination) => coordination
             .conjuncts()
             .last()
-            .is_some_and(predicate_expression_ends_with_closed_quote),
+            .and_then(predicate_expression_terminal_quote),
     }
 }
 
-fn predicate_ends_with_closed_quote(predicate: &Predicate) -> bool {
+fn predicate_terminal_quote(predicate: &Predicate) -> Option<&QuotedAbility> {
     match predicate {
-        Predicate::Transitive(predicate) => transitive_ends_with_closed_quote(predicate),
-        Predicate::Intransitive(predicate) => last_element_is_closed_quote(&predicate.elements),
-        Predicate::Passive(predicate) => passive_ends_with_closed_quote(predicate),
-        Predicate::Copular(predicate) => copular_ends_with_closed_quote(predicate),
-        Predicate::Proform(_) => false,
+        Predicate::Transitive(predicate) => transitive_terminal_quote(predicate),
+        Predicate::Intransitive(predicate) => last_element_terminal_quote(&predicate.elements),
+        Predicate::Passive(predicate) => passive_terminal_quote(predicate),
+        Predicate::Copular(predicate) => copular_terminal_quote(predicate),
+        Predicate::Proform(_) => None,
         Predicate::Deontic(predicate) => predicate
             .inner
             .as_deref()
-            .is_some_and(predicate_ends_with_closed_quote),
-        Predicate::Attached(predicate) => attached_predicate_ends_with_closed_quote(predicate),
+            .and_then(predicate_terminal_quote),
+        Predicate::Attached(predicate) => attached_predicate_terminal_quote(predicate),
     }
 }
 
-fn attached_predicate_ends_with_closed_quote(predicate: &crate::syntax::AttachedPredicate) -> bool {
+fn attached_predicate_terminal_quote(
+    predicate: &crate::syntax::AttachedPredicate,
+) -> Option<&QuotedAbility> {
     match predicate
         .attachments
         .iter()
@@ -2240,68 +2311,66 @@ fn attached_predicate_ends_with_closed_quote(predicate: &crate::syntax::Attached
         .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
     {
         Some(attachment) => match &attachment.payload {
-            ClauseAttachmentKind::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
+            ClauseAttachmentKind::Adjunct(adjunct) => adjunct_terminal_quote(adjunct),
             ClauseAttachmentKind::Dependent(_)
             | ClauseAttachmentKind::Exception(_)
-            | ClauseAttachmentKind::Restriction(_) => false,
-            ClauseAttachmentKind::Appositive(clause) => {
-                independent_clause_ends_with_closed_quote(clause)
-            }
+            | ClauseAttachmentKind::Restriction(_) => None,
+            ClauseAttachmentKind::Appositive(clause) => independent_clause_terminal_quote(clause),
         },
-        None => predicate_ends_with_closed_quote(&predicate.predicate),
+        None => predicate_terminal_quote(&predicate.predicate),
     }
 }
 
 /// A transitive predicate ends with its final adjunct/complement element, or —
 /// when it has none — with its object (`this creature gains "…"` leaves the
 /// quoted ability as the object with no trailing element).
-fn transitive_ends_with_closed_quote(predicate: &TransitivePredicate) -> bool {
+fn transitive_terminal_quote(predicate: &TransitivePredicate) -> Option<&QuotedAbility> {
     if predicate.elements.is_empty() {
-        predicate_object_is_closed_quote(&predicate.object)
+        predicate_object_terminal_quote(&predicate.object)
     } else {
-        last_element_is_closed_quote(&predicate.elements)
+        last_element_terminal_quote(&predicate.elements)
     }
 }
 
 /// A passive predicate ends with its final element, or — when it has none —
-/// with its retained object, mirroring
-/// [`transitive_ends_with_closed_quote`]'s object fallback; ordinary passives
-/// (no retained object, no elements) never end in a closed quote here.
-fn passive_ends_with_closed_quote(predicate: &crate::syntax::PassivePredicate) -> bool {
+/// with its retained object, mirroring [`transitive_terminal_quote`]'s object
+/// fallback; ordinary passives (no retained object, no elements) never end in a
+/// closed quote here.
+fn passive_terminal_quote(predicate: &crate::syntax::PassivePredicate) -> Option<&QuotedAbility> {
     if predicate.elements.is_empty() {
         predicate
             .retained_object
             .as_ref()
-            .is_some_and(predicate_object_is_closed_quote)
+            .and_then(predicate_object_terminal_quote)
     } else {
-        last_element_is_closed_quote(&predicate.elements)
+        last_element_terminal_quote(&predicate.elements)
     }
 }
 
-fn copular_ends_with_closed_quote(predicate: &CopularPredicate) -> bool {
+fn copular_terminal_quote(predicate: &CopularPredicate) -> Option<&QuotedAbility> {
     if let Some(adjunct) = predicate.adjuncts.last() {
-        adjunct_ends_with_closed_quote(adjunct)
+        adjunct_terminal_quote(adjunct)
     } else if let CopularComplement::Prepositional(prepositional) = &predicate.complement {
-        phrase_is_closed_quote(&prepositional.tail().object)
+        phrase_terminal_quote(&prepositional.tail().object)
     } else {
-        false
+        None
     }
 }
 
-fn coordinated_ends_with_closed_quote(clause: &CoordinatedIndependentClause) -> bool {
+fn coordinated_terminal_quote(clause: &CoordinatedIndependentClause) -> Option<&QuotedAbility> {
     match clause.rest.last() {
         Some(coordination) => match &coordination.member {
             CoordinatedClauseMember::Independent(clause) => {
-                independent_clause_ends_with_closed_quote(clause)
+                independent_clause_terminal_quote(clause)
             }
         },
-        None => independent_clause_ends_with_closed_quote(&clause.first),
+        None => independent_clause_terminal_quote(&clause.first),
     }
 }
 
 /// A complex clause renders its after-matrix attachments after the matrix, so
 /// the tail is the last such attachment when present, and the matrix otherwise.
-fn complex_ends_with_closed_quote(clause: &ComplexClause) -> bool {
+fn complex_terminal_quote(clause: &ComplexClause) -> Option<&QuotedAbility> {
     match clause
         .attachments
         .iter()
@@ -2309,86 +2378,85 @@ fn complex_ends_with_closed_quote(clause: &ComplexClause) -> bool {
         .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
     {
         Some(attachment) => match &attachment.payload {
-            ClauseAttachmentKind::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
-            ClauseAttachmentKind::Dependent(_) => false,
+            ClauseAttachmentKind::Adjunct(adjunct) => adjunct_terminal_quote(adjunct),
+            ClauseAttachmentKind::Dependent(_) => None,
             ClauseAttachmentKind::Exception(rider) => match rider.rest.last() {
-                Some(conjunct) => independent_clause_ends_with_closed_quote(&conjunct.clause),
-                None => independent_clause_ends_with_closed_quote(&rider.first),
+                Some(conjunct) => independent_clause_terminal_quote(&conjunct.clause),
+                None => independent_clause_terminal_quote(&rider.first),
             },
             ClauseAttachmentKind::Restriction(run) => match run.rest.last() {
-                Some(member) => member
-                    .adjuncts
-                    .last()
-                    .is_some_and(adjunct_ends_with_closed_quote),
-                None => run.first.last().is_some_and(adjunct_ends_with_closed_quote),
+                Some(member) => member.adjuncts.last().and_then(adjunct_terminal_quote),
+                None => run.first.last().and_then(adjunct_terminal_quote),
             },
-            ClauseAttachmentKind::Appositive(clause) => {
-                independent_clause_ends_with_closed_quote(clause)
-            }
+            ClauseAttachmentKind::Appositive(clause) => independent_clause_terminal_quote(clause),
         },
-        None => independent_clause_ends_with_closed_quote(&clause.matrix),
+        None => independent_clause_terminal_quote(&clause.matrix),
     }
 }
 
-fn last_element_is_closed_quote(elements: &[PredicateElement]) -> bool {
-    elements
-        .last()
-        .is_some_and(predicate_element_is_closed_quote)
+fn last_element_terminal_quote(elements: &[PredicateElement]) -> Option<&QuotedAbility> {
+    elements.last().and_then(predicate_element_terminal_quote)
 }
 
-fn predicate_element_is_closed_quote(element: &PredicateElement) -> bool {
+fn predicate_element_terminal_quote(element: &PredicateElement) -> Option<&QuotedAbility> {
     match element {
-        PredicateElement::Complement(complement) => complement_is_closed_quote(complement),
-        PredicateElement::Adjunct(adjunct) => adjunct_ends_with_closed_quote(adjunct),
-        PredicateElement::Particle(_) | PredicateElement::CoinResult(_) => false,
+        PredicateElement::Complement(complement) => complement_terminal_quote(complement),
+        PredicateElement::Adjunct(adjunct) => adjunct_terminal_quote(adjunct),
+        PredicateElement::Particle(_) | PredicateElement::CoinResult(_) => None,
     }
 }
 
-fn complement_is_closed_quote(complement: &PredicateComplement) -> bool {
+fn complement_terminal_quote(complement: &PredicateComplement) -> Option<&QuotedAbility> {
     match complement {
         PredicateComplement::Prepositional(prepositional) => {
-            phrase_is_closed_quote(&prepositional.tail().object)
+            phrase_terminal_quote(&prepositional.tail().object)
         }
         PredicateComplement::IndirectObject(_)
         | PredicateComplement::Adjective(_)
         | PredicateComplement::CoordinatedAdjective(_)
-        | PredicateComplement::Infinitive(_) => false,
+        | PredicateComplement::Infinitive(_) => None,
     }
 }
 
-fn adjunct_ends_with_closed_quote(adjunct: &PredicateAdjunct) -> bool {
+fn adjunct_terminal_quote(adjunct: &PredicateAdjunct) -> Option<&QuotedAbility> {
     match adjunct {
         PredicateAdjunct::Prepositional(prepositional)
         | PredicateAdjunct::Exception(prepositional) => {
-            phrase_is_closed_quote(&prepositional.tail().object)
+            phrase_terminal_quote(&prepositional.tail().object)
         }
         PredicateAdjunct::Adverb(_)
         | PredicateAdjunct::Frequency(_)
         | PredicateAdjunct::Temporal(_)
         | PredicateAdjunct::Manner(_)
-        | PredicateAdjunct::Dependent(_) => false,
+        | PredicateAdjunct::Dependent(_) => None,
     }
 }
 
-fn predicate_object_is_closed_quote(object: &PredicateObject) -> bool {
+/// The closed quoted ability an object position terminates with, if any. A
+/// coordination's tail member supplies it, so `has "…" and "…."` yields the
+/// second quote — the only one the enclosing sentence's period moves inside.
+fn predicate_object_terminal_quote(object: &PredicateObject) -> Option<&QuotedAbility> {
     match object {
-        PredicateObject::QuotedAbility(quoted) => quoted.closed,
-        PredicateObject::Coordinated(coordinated) => {
-            coordinated_object_is_closed_quote(coordinated)
-        }
-        _ => false,
+        PredicateObject::QuotedAbility(quoted) => quoted.closed.then_some(quoted),
+        PredicateObject::Coordinated(coordinated) => coordinated_object_terminal_quote(coordinated),
+        _ => None,
     }
 }
 
-fn coordinated_object_is_closed_quote(coordinated: &CoordinatedPredicateObject) -> bool {
+fn coordinated_object_terminal_quote(
+    coordinated: &CoordinatedPredicateObject,
+) -> Option<&QuotedAbility> {
     match coordinated.rest.last() {
-        Some(coordination) => predicate_object_is_closed_quote(&coordination.object),
-        None => predicate_object_is_closed_quote(&coordinated.first),
+        Some(coordination) => predicate_object_terminal_quote(&coordination.object),
+        None => predicate_object_terminal_quote(&coordinated.first),
     }
 }
 
-fn phrase_is_closed_quote(phrase: &Phrase) -> bool {
-    matches!(phrase, Phrase::QuotedAbility(quoted) if quoted.closed)
+fn phrase_terminal_quote(phrase: &Phrase) -> Option<&QuotedAbility> {
+    match phrase {
+        Phrase::QuotedAbility(quoted) if quoted.closed => Some(quoted),
+        _ => None,
+    }
 }
 
 /// Renders the `to <color>` argument of a `devotion` value nominal [CR#700.5]

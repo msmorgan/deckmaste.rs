@@ -698,19 +698,19 @@ pub struct ChoiceInstruction {
     pub at_random: bool,
 }
 
+/// A quoted ability filling an object or coordination slot (`gains "…"`).
+///
+/// Where the interior's terminal period sits is **not** stored: a quoted
+/// ability that closes its enclosing sentence absorbs that sentence's period
+/// into the quote (`gains "…."`), while the same ability in a non-final slot —
+/// a coordinated conjunct (`has "…" and "…."`) or one before a trailing adjunct
+/// (`gains "…" until end of turn.`) — prints without it. That is a fact about
+/// the quote's *position*, not about its interior, and the renderer already
+/// walks each sentence's AST tail to derive the sentence period; the same walk
+/// names the quote the period belongs inside.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct QuotedAbility {
     pub ability: Box<Ability>,
     pub initial_uppercase: bool,
     pub closed: bool,
-    /// Whether the interior's final sentence keeps its terminal period *inside*
-    /// the closing quote (`"…."`) or not (`"…"`). A quoted ability that closes
-    /// its enclosing sentence absorbs that sentence's period into the quote, so
-    /// the surface prints `gains "…."`; the same ability in a non-final slot —
-    /// a coordinated conjunct (`has "…" and "…."`) or before a trailing adjunct
-    /// (`gains "…" until end of turn.`) — prints without it. The distinction is
-    /// not recoverable from the interior alone (the parser strips the terminal
-    /// period either way), so it is carried here and the renderer withholds the
-    /// interior's final period when this is `false`.
-    pub terminal_period: bool,
 }

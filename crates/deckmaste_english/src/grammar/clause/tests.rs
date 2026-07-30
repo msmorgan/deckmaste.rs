@@ -4677,8 +4677,8 @@ fn quoted_ability_is_a_coordinated_grant_predicate_object() {
         panic!("expected one shared-predicate conjunct: {coordination:#?}");
     };
     assert!(
-        matches!(&shared.object, PredicateObject::QuotedAbility(quoted) if quoted.terminal_period),
-        "the shared predicate's object is the closed, sentence-final quote: {:#?}",
+        matches!(&shared.object, PredicateObject::QuotedAbility(quoted) if quoted.closed),
+        "the shared predicate's object is the closed quote: {:#?}",
         shared.object
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -4686,6 +4686,9 @@ fn quoted_ability_is_a_coordinated_grant_predicate_object() {
 
 /// Two quoted abilities coordinate as one object (`has "A" and "B."`); only
 /// the sentence-final conjunct keeps its terminal period inside the quote.
+/// Both conjuncts are identical closed quotes structurally — the placement is
+/// derived from which one ends the sentence, so the round-trip equality below
+/// is what pins it.
 #[test]
 fn two_quoted_abilities_are_a_coordinated_object() {
     let source =
@@ -4702,17 +4705,19 @@ fn two_quoted_abilities_are_a_coordinated_object() {
         panic!("expected a coordinated object: {:#?}", predicate.object);
     };
     assert!(
-        matches!(first.as_ref(), PredicateObject::QuotedAbility(quoted) if !quoted.terminal_period),
-        "the non-final conjunct drops its interior period: {first:#?}"
+        matches!(first.as_ref(), PredicateObject::QuotedAbility(quoted) if quoted.closed),
+        "the non-final conjunct is a closed quote: {first:#?}"
     );
     assert!(
         matches!(rest.as_slice(), [PredicateObjectCoordination {
                 conjunction: Some(crate::syntax::PredicateConjunction::And),
                 object: PredicateObject::QuotedAbility(quoted),
                 ..
-            }] if quoted.terminal_period),
-        "the final conjunct keeps its interior period: {rest:#?}"
+            }] if quoted.closed),
+        "the final conjunct is a closed quote too: {rest:#?}"
     );
+    // The period placement the two conjuncts differ on lives only here now:
+    // `card" and "` for the non-final one, `card."` for the sentence-final one.
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -4750,44 +4755,46 @@ fn keyword_and_quoted_ability_are_a_coordinated_object() {
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
-/// The interior's terminal period is a positional distinction carried on
-/// the node, not derived from the interior alone: a quote before a
-/// trailing adjunct drops it (`gains "…" until end of turn.`); the same
-/// quote in sentence-final position keeps it (`gains "…."`). Both
-/// round-trip.
+/// The interior's terminal period is a positional distinction **derived at
+/// render**, not carried on the node: a quote before a trailing adjunct drops
+/// it (`gains "…" until end of turn.`); the same quote in sentence-final
+/// position keeps it (`gains "…."`).
+///
+/// This pins the derivation from both sides. The two quoted abilities are
+/// structurally *equal* — nothing about the node records where its period went
+/// — yet they round-trip to different surfaces, because the renderer reads the
+/// placement off each sentence's tail instead of off the node.
 #[test]
-fn quoted_ability_interior_period_tracks_sentence_final_position() {
-    let non_final = "This creature gains \"{T}: Draw a card\" until end of turn.";
-    let parsed = parse(non_final);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause: {:#?}", parsed.sentence());
-    };
-    assert!(
-        matches!(&predicate.object, PredicateObject::QuotedAbility(quoted) if !quoted.terminal_period),
-        "a quote before a trailing adjunct drops its interior period: {:#?}",
-        predicate.object
-    );
-    assert!(
-        !predicate.elements.is_empty(),
-        "the trailing adjunct survives"
-    );
-    assert_eq!(render_sentence(parsed.sentence().unwrap()), non_final);
+fn quoted_ability_interior_period_is_derived_from_sentence_final_position() {
+    fn quoted_object(source: &str) -> (crate::syntax::QuotedAbility, String, bool) {
+        let parsed = parse(source);
+        let sentence = parsed.sentence().unwrap();
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) = &sentence.body
+        else {
+            panic!("expected a transitive clause: {sentence:#?}");
+        };
+        let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
+            panic!("expected a quoted-ability object: {:#?}", predicate.object);
+        };
+        (
+            (**quoted).clone(),
+            render_sentence(sentence),
+            !predicate.elements.is_empty(),
+        )
+    }
 
+    let non_final = "This creature gains \"{T}: Draw a card\" until end of turn.";
     let sentence_final = "This creature gains \"{T}: Draw a card.\"";
-    let parsed = parse(sentence_final);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause: {:#?}", parsed.sentence());
-    };
-    assert!(
-        matches!(&predicate.object, PredicateObject::QuotedAbility(quoted) if quoted.terminal_period),
-        "a sentence-final quote keeps its interior period: {:#?}",
-        predicate.object
+    let (non_final_quote, non_final_rendered, has_adjunct) = quoted_object(non_final);
+    let (final_quote, final_rendered, _) = quoted_object(sentence_final);
+
+    assert!(has_adjunct, "the trailing adjunct survives");
+    assert_eq!(
+        non_final_quote, final_quote,
+        "the same quote in both positions: no stored period distinguishes them"
     );
-    assert_eq!(render_sentence(parsed.sentence().unwrap()), sentence_final);
+    assert_eq!(non_final_rendered, non_final);
+    assert_eq!(final_rendered, sentence_final);
 }
 
 /// Residue: a three-member Oxford-comma object list ending in a quoted
