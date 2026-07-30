@@ -15,7 +15,7 @@ by tested design) and is NOT this ticket.
 ## 2026-07-28 re-audit
 
 `cargo xtask catalogs` is currently a byte-identical regeneration and still
-does not add `Corrupted`. The generator's authority is CR 207.2c, and the local
+does not add `Corrupted`. The generator's authority is [CR#207.2c], and the local
 CR snapshot lists 61 ability words without `Corrupted`; the Scryfall catalog
 contains 69 entries and is intentionally not consulted for this generated
 catalog (`crates/xtask/src/english/data.rs` loads only flavor words directly
