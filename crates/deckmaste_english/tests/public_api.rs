@@ -285,6 +285,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
                     KeywordCost::Symbols(_) => {}
                 }
             }
+            KeywordArgument::Qualified(phrase) => self.phrase(phrase),
             KeywordArgument::Predicated(predicated) => {
                 for quality in &predicated.qualities {
                     if let Some(preposition) = quality.preposition {
@@ -3009,15 +3010,16 @@ fn keyword_ability_object_stays_an_atom_and_verb_stays_out() {
 }
 
 #[test]
-fn champion_is_still_missing_and_guarded() {
-    // `champion` stays OUT (only one corpus witness; see the round's plan).
-    // Mistbind Clique carries *two* recovered spans — the keyword-argument
-    // line `Champion a Faerie` (a separate, still-unrelated gap) and the
-    // `championed` trigger sentence — and both must still recover, because
-    // `champion` is not modeled and the
-    // `copular_complement_head_is_opaque` guard (grammar/ability.rs) stays
-    // load-bearing to keep the trigger from camouflaging as a copular/opaque
-    // noun reading until `champion` lands.
+fn the_championed_trigger_is_still_missing_and_guarded() {
+    // The `championed` *verb* stays OUT (only one corpus witness; see the
+    // round's plan), so Mistbind Clique's trigger sentence must still recover
+    // and the `copular_complement_head_is_opaque` guard (grammar/ability.rs)
+    // stays load-bearing, keeping that trigger from camouflaging as a
+    // copular/opaque noun reading.
+    //
+    // Its keyword line `Champion a Faerie` no longer recovers: round `enchant`
+    // gave the keyword-argument slot the bare noun phrase [CR#702.72a] writes
+    // for champion, so exactly one span is left.
     let source = "Champion a Faerie\nWhen a Faerie is championed with this creature, tap all \
         lands target player controls.";
     let catalogs = Catalogs::new(
@@ -3030,9 +3032,8 @@ fn champion_is_still_missing_and_guarded() {
     assert_eq!(rendered, source);
     assert_eq!(
         ast.recoveries().len(),
-        2,
-        "expected both `Champion a Faerie` and the `championed` trigger to still recover:\n\
-         AST:\n{ast}"
+        1,
+        "expected only the `championed` trigger to still recover:\nAST:\n{ast}"
     );
 }
 

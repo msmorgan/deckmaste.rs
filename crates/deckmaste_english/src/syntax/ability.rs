@@ -458,6 +458,21 @@ pub enum KeywordArgument {
     /// `from [quality]` and `for [text]` [CR#702.16a,702.11d,702.41a], the
     /// coordinated form as `from [A] and from [B]` [CR#702.16g,702.11f].
     Predicated(PredicatedArgument),
+    /// A bare noun-phrase argument: no preposition, no cost, no list — the
+    /// shape [CR#702.5a] gives enchant (`Enchant [object or player]`) and
+    /// [CR#702.72a] gives champion (`Champion an [object]`). Neither
+    /// [`Self::Predicated`] (which needs `from`/`for` or a list) nor
+    /// [`Self::RestrictedCost`] (which needs a trailing symbol cost) admits it,
+    /// so without this variant such a line leaves the keyword frame for the
+    /// general sentence grammar, where `Enchant tapped creature` derives a
+    /// transitive clause whose subject is the `Enchant` atom and whose verb is
+    /// a past-tense `tap` — a reading that round-trips clean, so no fidelity
+    /// gate can see it.
+    ///
+    /// Holds a whole [`Phrase`] rather than a `NounPhrase` so the slot can
+    /// reach the rest of the phrase grammar as the remaining shapes collapse
+    /// into it; only the noun-phrase arm is produced today.
+    Qualified(Phrase),
     /// A symbol cost paired with power/toughness by a spaced em dash. The
     /// shape's exemplar rules give the argument as `[cost] — [P]/[T]`
     /// [CR#702.160a,718.1]. A shape added beyond the CR's six observed

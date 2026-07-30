@@ -2845,3 +2845,20 @@ impl Grammar for EnglishGrammar<'_, '_> {
 pub(crate) fn keyword_atom_carries_from(atom: &CatalogAtom) -> bool {
     atom.canonical().rsplit(' ').next() == Some("from")
 }
+
+/// Whether a keyword atom's own catalog surface ends in a preposition —
+/// `Partner with`, `Hexproof from`, `Splice onto`. The generalization of
+/// [`keyword_atom_carries_from`], and the same kind of property: read off the
+/// closed catalog surface, never a keyword-name list.
+///
+/// Such an atom has already consumed the preposition that introduces its
+/// argument, so whatever follows is that preposition's complement — a card
+/// name for `Partner with`, a quality for `Hexproof from`. It is therefore
+/// never a bare noun-phrase argument in the [CR#702.5a] enchant sense, even
+/// when the tokens happen to parse as one.
+pub(crate) fn keyword_atom_carries_preposition(atom: &CatalogAtom) -> bool {
+    atom.canonical()
+        .rsplit(' ')
+        .next()
+        .is_some_and(|last| crate::syntax::Preposition::from_spelling(last).is_some())
+}

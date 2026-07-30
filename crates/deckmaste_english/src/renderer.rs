@@ -589,6 +589,7 @@ impl<'identity> Renderer<'identity> {
     fn keyword_argument(&self, argument: &KeywordArgument) -> Result<String, RenderError> {
         Ok(match argument {
             KeywordArgument::Absent => String::new(),
+            KeywordArgument::Qualified(phrase) => format!(" {}", self.phrase(phrase)?),
             KeywordArgument::Counted(quantity) => format!(" {}", render_quantity(*quantity)),
             KeywordArgument::Costed(cost) => self.keyword_cost(cost)?,
             KeywordArgument::RestrictedCost {

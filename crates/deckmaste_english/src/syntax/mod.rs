@@ -171,6 +171,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     KeywordCost::Components { cost, .. } => self.cost(cost, inner),
                 }
             }
+            KeywordArgument::Qualified(phrase) => {
+                self.phrase(phrase, RecoveryRole::KeywordArgument, inner);
+            }
             KeywordArgument::Predicated(predicated) => {
                 for quality in &predicated.qualities {
                     self.phrase(&quality.quality, RecoveryRole::KeywordArgument, inner);

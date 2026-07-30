@@ -1726,15 +1726,26 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         for (preceding_separator, chunk) in chunks {
             let (atom, matched_end) = self.longest_ability_item_atom(chunk)?;
             let carries_from = super::keyword_atom_carries_from(&atom);
+            // An atom that already spells its own preposition has consumed the
+            // one introducing its argument, so what follows is that
+            // preposition's complement, never a bare object.
+            let bare_object = !super::keyword_atom_carries_preposition(&atom);
             let argument_tokens = &chunk[matched_end..];
             let ability_end = chunk.get(matched_end.checked_sub(1)?)?.span.end;
             let argument = if in_list {
-                self.parse_keyword_argument(argument_tokens, ability_end, in_list, carries_from)?
+                self.parse_keyword_argument(
+                    argument_tokens,
+                    ability_end,
+                    in_list,
+                    carries_from,
+                    bare_object,
+                )?
             } else {
                 let (argument, tail) = self.parse_keyword_argument_with_tail(
                     argument_tokens,
                     ability_end,
                     carries_from,
+                    bare_object,
                 )?;
                 trailing = tail;
                 argument
@@ -1887,6 +1898,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         argument_tokens: &[Token],
         ability_end: usize,
         carries_from: bool,
+        bare_object: bool,
     ) -> Option<(KeywordArgument, Option<Paragraph>)> {
         let (separator, body) = split_keyword_argument_separator(argument_tokens, ability_end);
         if separator == KeywordArgumentSeparator::EmDash
@@ -1904,8 +1916,13 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 return Some((candidate, Some(tail)));
             }
         }
-        let argument =
-            self.parse_keyword_argument(argument_tokens, ability_end, false, carries_from)?;
+        let argument = self.parse_keyword_argument(
+            argument_tokens,
+            ability_end,
+            false,
+            carries_from,
+            bare_object,
+        )?;
         Some((argument, None))
     }
 
@@ -1946,6 +1963,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         ability_end: usize,
         in_list: bool,
         carries_from: bool,
+        bare_object: bool,
     ) -> Option<KeywordArgument> {
         if argument_tokens.is_empty() {
             return Some(KeywordArgument::Absent);
@@ -1969,7 +1987,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             })
             .unwrap_or(argument_tokens);
         let (separator, body) = split_keyword_argument_separator(argument_tokens, ability_end);
-        if let Some(argument) = self.parse_shaped_argument(separator, body, in_list, carries_from) {
+        if let Some(argument) =
+            self.parse_shaped_argument(separator, body, in_list, carries_from, bare_object)
+        {
             return Some(argument);
         }
         // No closed shape matched. On a single keyword line, keep the argument
@@ -1993,6 +2013,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         body: &[Token],
         in_list: bool,
         carries_from: bool,
+        bare_object: bool,
     ) -> Option<KeywordArgument> {
         if let Some(named) = self.parse_named_keyword_argument(separator, body) {
             return Some(named);
@@ -2016,7 +2037,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 ability: Box::new(ability),
             }));
         }
-        self.parse_space_argument(body, in_list, carries_from)
+        self.parse_space_argument(body, in_list, carries_from, bare_object)
     }
 
     fn parse_named_keyword_argument(
@@ -2039,6 +2060,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         body: &[Token],
         in_list: bool,
         carries_from: bool,
+        bare_object: bool,
     ) -> Option<KeywordArgument> {
         // An internal em dash pairs a count with a cost (`suspend N—[cost]`) or a
         // cost with power/toughness (`prototype [cost] — [P]/[T]`).
@@ -2062,7 +2084,36 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if let Some(restricted) = self.parse_restricted_cost(body) {
             return Some(restricted);
         }
-        self.parse_predicated(body, in_list, carries_from)
+        if let Some(predicated) = self.parse_predicated(body, in_list, carries_from) {
+            return Some(predicated);
+        }
+        self.parse_qualified(body, in_list, bare_object)
+    }
+
+    /// The bare noun-phrase argument [CR#702.5a] gives enchant (`Enchant
+    /// [object or player]`) and [CR#702.72a] gives champion (`Champion an
+    /// [object]`) — no preposition, no cost, no list.
+    ///
+    /// Tried last, once every closed shape above has declined, and gated
+    /// categorically rather than by keyword name: the atom must not spell its
+    /// own preposition (`Partner with`, `Hexproof from` have already consumed
+    /// it, so their tail is that preposition's complement — a card name or a
+    /// quality — not an object), the keyword must stand alone on its line, and
+    /// the tokens must parse *exactly* as one noun phrase.
+    fn parse_qualified(
+        &mut self,
+        body: &[Token],
+        in_list: bool,
+        bare_object: bool,
+    ) -> Option<KeywordArgument> {
+        if !bare_object || in_list || body.is_empty() {
+            return None;
+        }
+        self.accept_exact(body, Nonterminal::NounPhrase, |parsed| {
+            Some(KeywordArgument::Qualified(Phrase::NounPhrase(Box::new(
+                parsed.noun_phrase()?.clone(),
+            ))))
+        })
     }
 
     /// Stage B's restriction-plus-final-symbol-cost shape: a quality
@@ -5299,6 +5350,11 @@ mod tests {
             } if label == "a Food"
         ));
 
+        // The license this test guards is the *label* one: a bare noun phrase
+        // is never a `Named` argument, because only an exact catalog member is.
+        // Whether the line is a keyword ability at all is a separate question —
+        // `Champion a Faerie` is one [CR#702.72a], and since round `enchant` it
+        // parses as a `Qualified` noun phrase rather than recovering.
         for source in [
             "Champion a Faerie",
             "Gift a creature",
@@ -5308,11 +5364,13 @@ mod tests {
             "Gift a food",
         ] {
             let report = parse_with_catalogs(source, &shape_catalogs());
-            assert!(
-                !matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_)),
-                "{source:?} must not be a keyword ability: {:#?}",
-                report.ast
-            );
+            if let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind {
+                assert!(
+                    !matches!(list.abilities[0].argument, KeywordArgument::Named { .. }),
+                    "{source:?} must not license a named label: {:#?}",
+                    report.ast
+                );
+            }
             assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
         }
 
@@ -5379,7 +5437,7 @@ mod tests {
         let mut parser = super::Parser::new(source, &catalogs, &self_reference);
         assert!(
             parser
-                .parse_keyword_argument(&surface.tokens, 0, true, false)
+                .parse_keyword_argument(&surface.tokens, 0, true, false, false)
                 .is_none()
         );
     }
@@ -5448,15 +5506,48 @@ mod tests {
     }
 
     #[test]
-    fn a_bare_noun_argument_is_not_admitted_as_a_keyword_line() {
-        // Without a preposition or symbol, `Protection creature` is ordinary rules
-        // text, not a keyword ability with a quality argument.
+    fn a_bare_noun_argument_is_a_qualified_keyword_argument() {
+        // A keyword atom followed by a bare noun phrase is the shape [CR#702.5a]
+        // gives enchant and [CR#702.72a] gives champion, so English syntax
+        // admits it. That protection's own argument is `from [quality]`
+        // [CR#702.16a] — making `Protection creature` meaningless as a Magic
+        // rule — is a semantic fact this layer deliberately does not decide;
+        // see the `english-clauses-are-structural` decision. What the grammar
+        // must still refuse is an atom that spells its own preposition, whose
+        // tail is that preposition's complement rather than an object.
         let report = parse_with_catalogs("Protection creature", &shape_catalogs());
-        assert!(
-            !matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_)),
-            "a bare noun argument must not become a keyword line: {:#?}",
-            report.ast
+        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+            panic!("expected a keyword ability: {:#?}", report.ast);
+        };
+        assert!(matches!(
+            list.abilities[0].argument,
+            KeywordArgument::Qualified(Phrase::NounPhrase(_))
+        ));
+        assert_eq!(
+            report.ast.render("Test Card", false).unwrap(),
+            "Protection creature"
         );
+    }
+
+    #[test]
+    fn an_atom_carrying_its_own_preposition_takes_no_bare_object() {
+        // `Partner with Proud Mentor` names a card; the atom has already
+        // consumed `with`, so its tail is that preposition's complement and
+        // must not be re-read as an object noun phrase.
+        for source in ["Partner with Proud Mentor", "Hexproof from black"] {
+            let report = parse_with_catalogs(source, &shape_catalogs());
+            if let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind {
+                assert!(
+                    !matches!(
+                        list.abilities[0].argument,
+                        KeywordArgument::Qualified(Phrase::NounPhrase(_))
+                    ),
+                    "{source:?} must not take a bare object: {:#?}",
+                    report.ast
+                );
+            }
+            assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
+        }
     }
 
     #[test]
