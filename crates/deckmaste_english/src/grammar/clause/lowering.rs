@@ -446,7 +446,6 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
                 first: Box::new(PredicateObject::QuotedAbility(first)),
                 rest: vec![PredicateObjectCoordination {
                     conjunction: Some(conjunction),
-                    comma: false,
                     object: PredicateObject::QuotedAbility(next),
                 }],
             })
@@ -468,7 +467,6 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
                 })),
                 rest: vec![PredicateObjectCoordination {
                     conjunction: Some(conjunction),
-                    comma: false,
                     object: PredicateObject::QuotedAbility(next),
                 }],
             })
@@ -561,7 +559,6 @@ pub(super) fn lower_mana_amount(tag: RuleTag, children: &mut [Lowered]) -> Optio
             let next = member(take(children, 2)?)?;
             let coordination = PredicateObjectCoordination {
                 conjunction: None,
-                comma: true,
                 object: next,
             };
             Some(Lowered::ManaAmount(PredicateObject::Coordinated(
@@ -574,7 +571,6 @@ pub(super) fn lower_mana_amount(tag: RuleTag, children: &mut [Lowered]) -> Optio
             let next = member(take(children, 2)?)?;
             let coordination = PredicateObjectCoordination {
                 conjunction: Some(conjunction),
-                comma: false,
                 object: next,
             };
             Some(Lowered::ManaAmount(PredicateObject::Coordinated(
@@ -587,7 +583,6 @@ pub(super) fn lower_mana_amount(tag: RuleTag, children: &mut [Lowered]) -> Optio
             let next = member(take(children, 3)?)?;
             let coordination = PredicateObjectCoordination {
                 conjunction: Some(conjunction),
-                comma: true,
                 object: next,
             };
             Some(Lowered::ManaAmount(PredicateObject::Coordinated(
@@ -1307,10 +1302,10 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
             let Lowered::ExceptionRider(mut rider) = take(children, 0)? else {
                 return None;
             };
-            let (conjunction, clause_index, comma) = match tag {
-                RuleTag::ExceptionRiderConjoined => (Some(1), 2, false),
-                RuleTag::ExceptionRiderComma => (None, 2, true),
-                RuleTag::ExceptionRiderOxford => (Some(2), 3, true),
+            let (conjunction, clause_index) = match tag {
+                RuleTag::ExceptionRiderConjoined => (Some(1), 2),
+                RuleTag::ExceptionRiderComma => (None, 2),
+                RuleTag::ExceptionRiderOxford => (Some(2), 3),
                 _ => return None,
             };
             let conjunction = match conjunction {
@@ -1327,7 +1322,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
             };
             rider.rest.push(ExceptionConjunct {
                 conjunction,
-                comma,
                 clause,
             });
             Some(Lowered::ExceptionRider(rider))
@@ -1433,7 +1427,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                         first,
                         rest: vec![RestrictionCoordination {
                             conjunction: Some(conjunction),
-                            comma: false,
                             adjuncts: next,
                         }],
                     }))
@@ -1447,7 +1440,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                         first,
                         rest: vec![RestrictionCoordination {
                             conjunction: None,
-                            comma: true,
                             adjuncts: next,
                         }],
                     }))
@@ -1458,7 +1450,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     };
                     run.rest.push(RestrictionCoordination {
                         conjunction: None,
-                        comma: true,
                         adjuncts: next,
                     });
                     Some(Lowered::RestrictionRun(run))
@@ -1480,7 +1471,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                 };
                 run.rest.push(RestrictionCoordination {
                     conjunction: Some(conjunction),
-                    comma: true,
                     adjuncts: next,
                 });
                 Some(Lowered::RestrictionRun(run))
@@ -2234,7 +2224,6 @@ pub(super) fn coordinated_modifier_as_adjectives(
     for coordination in modifier.rest {
         rest.push(crate::syntax::AdjectivePhraseCoordination {
             conjunction: coordination.conjunction,
-            comma: coordination.comma,
             phrase: modifier_as_predicative_adjective(coordination.modifier)?,
         });
     }

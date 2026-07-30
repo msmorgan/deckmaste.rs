@@ -18,6 +18,7 @@ use super::Features;
 use super::FrequencyBound;
 use super::FrequencyCount;
 use super::FrequencyPhrase;
+use super::IndefiniteArticle;
 use super::InitialSound;
 use super::LexicalMatch;
 use super::LexicalSlot;
@@ -484,7 +485,11 @@ impl EnglishGrammar<'_, '_> {
             end: start + 1,
             features: Features::Determiner {
                 cardinality: determiner.noun_cardinality(),
-                article: determiner.article(),
+                // The scanned word itself, not `determiner` (which no longer
+                // carries it — see `Determiner::Indefinite`): this feature
+                // exists only to gate the parse against the following
+                // material's initial sound in `article_accepts`.
+                article: IndefiniteArticle::from_spelling(surface),
                 set_exception_host: determiner == Determiner::All || determiner == Determiner::Each,
             },
             meaning: MeaningKey::Determiner(determiner),

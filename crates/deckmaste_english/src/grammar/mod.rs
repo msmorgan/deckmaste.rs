@@ -1299,15 +1299,6 @@ impl Quantity {
     }
 }
 
-impl Determiner {
-    const fn article(&self) -> Option<IndefiniteArticle> {
-        match self {
-            Self::Indefinite(article) => Some(*article),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum LiteralKey {
     Face,

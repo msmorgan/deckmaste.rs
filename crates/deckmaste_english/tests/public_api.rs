@@ -669,7 +669,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
             Determiner::The
             | Determiner::Each
             | Determiner::Another
-            | Determiner::Indefinite(_)
+            | Determiner::Indefinite
             | Determiner::Demonstrative(_)
             | Determiner::Target(None)
             | Determiner::All
@@ -1452,12 +1452,10 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
                 [
                     ExceptionConjunct {
                         conjunction: None,
-                        comma: true,
                         clause: IndependentClause::Copular(..),
                     },
                     ExceptionConjunct {
                         conjunction: Some(PredicateConjunction::And),
-                        comma: true,
                         clause: IndependentClause::Transitive(
                             _,
                             TransitivePredicate {

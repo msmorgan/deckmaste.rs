@@ -76,7 +76,6 @@ mod tests {
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::Determiner;
-    use crate::syntax::IndefiniteArticle;
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalModifier;
     use crate::syntax::NounPhrase;
@@ -118,10 +117,7 @@ mod tests {
         let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
             panic!("expected one nominal direct object");
         };
-        assert_eq!(
-            object.determiner,
-            Some(Determiner::Indefinite(IndefiniteArticle::A))
-        );
+        assert_eq!(object.determiner, Some(Determiner::Indefinite));
         assert!(matches!(
             &object.head,
             NounInstance::Singular(Noun::Opaque(opaque)) if opaque.spelling() == "blorple"

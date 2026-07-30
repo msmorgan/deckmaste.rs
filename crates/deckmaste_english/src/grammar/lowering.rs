@@ -1024,7 +1024,6 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                     first: Box::new(first),
                     rest: vec![crate::syntax::AdjectivePhraseCoordination {
                         conjunction: Some(conjunction),
-                        comma: false,
                         phrase: adjective,
                     }],
                 },
@@ -1041,7 +1040,6 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                         .rest
                         .push(crate::syntax::AdjectivePhraseCoordination {
                             conjunction: Some(conjunction),
-                            comma: false,
                             phrase: adjective,
                         });
                     coordinated
@@ -1056,10 +1054,10 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
         RuleTag::NominalPostpositiveAdjectiveConjoined
         | RuleTag::NominalPostpositiveAdjectiveAsyndetic
         | RuleTag::NominalPostpositiveAdjectiveOxford => {
-            let (conjunction_index, adjective_index, comma) = match tag {
-                RuleTag::NominalPostpositiveAdjectiveConjoined => (Some(1), 2, false),
-                RuleTag::NominalPostpositiveAdjectiveAsyndetic => (None, 2, true),
-                RuleTag::NominalPostpositiveAdjectiveOxford => (Some(2), 3, true),
+            let (conjunction_index, adjective_index) = match tag {
+                RuleTag::NominalPostpositiveAdjectiveConjoined => (Some(1), 2),
+                RuleTag::NominalPostpositiveAdjectiveAsyndetic => (None, 2),
+                RuleTag::NominalPostpositiveAdjectiveOxford => (Some(2), 3),
                 _ => unreachable!("matched postpositive coordination tag"),
             };
             let conjunction = match conjunction_index {
@@ -1083,7 +1081,6 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                     first: Box::new(first),
                     rest: vec![crate::syntax::AdjectivePhraseCoordination {
                         conjunction,
-                        comma,
                         phrase: adjective,
                     }],
                 },
@@ -1103,7 +1100,6 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                         .rest
                         .push(crate::syntax::AdjectivePhraseCoordination {
                             conjunction,
-                            comma,
                             phrase: adjective,
                         });
                     coordinated
@@ -1237,10 +1233,10 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             let Lowered::CoordinatedModifier(mut coordinated) = take(children, 0)? else {
                 return None;
             };
-            let (conjunction, comma, modifier_index) = match tag {
-                RuleTag::ModifierListComma => (None, true, 2),
-                RuleTag::CoordinatedModifierConjoined => (Some(1), false, 2),
-                RuleTag::CoordinatedModifierOxford => (Some(2), true, 3),
+            let (conjunction, modifier_index) = match tag {
+                RuleTag::ModifierListComma => (None, 2),
+                RuleTag::CoordinatedModifierConjoined => (Some(1), 2),
+                RuleTag::CoordinatedModifierOxford => (Some(2), 3),
                 _ => return None,
             };
             let conjunction = match conjunction {
@@ -1257,7 +1253,6 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             };
             coordinated.rest.push(crate::syntax::ModifierCoordination {
                 conjunction,
-                comma,
                 modifier,
             });
             Some(Lowered::CoordinatedModifier(coordinated))

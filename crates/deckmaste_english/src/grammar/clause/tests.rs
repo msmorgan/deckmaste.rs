@@ -190,10 +190,7 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
         panic!("expected a nominal object, got {:?}", predicate.object);
     };
-    assert_eq!(
-        nominal.determiner,
-        Some(Determiner::Indefinite(crate::syntax::IndefiniteArticle::A))
-    );
+    assert_eq!(nominal.determiner, Some(Determiner::Indefinite));
     assert!(matches!(
         nominal.head,
         NounInstance::Singular(Noun::Word(Vocab::Coin))
@@ -2119,7 +2116,6 @@ fn coordinated_only_restrictions_form_one_restriction_attachment() {
     ));
     assert_eq!(run.rest.len(), 1);
     assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
-    assert!(!run.rest[0].comma);
     assert!(matches!(
         run.rest[0].adjuncts.as_slice(),
         [PredicateAdjunct::Adverb(_), PredicateAdjunct::Temporal(_),]
@@ -2160,7 +2156,6 @@ fn restriction_run_admits_an_if_clause_member() {
     ));
     assert_eq!(run.rest.len(), 1);
     assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
-    assert!(!run.rest[0].comma);
     assert!(matches!(
         run.rest[0].adjuncts.as_slice(),
         [PredicateAdjunct::Dependent(dependent)]
@@ -2190,9 +2185,7 @@ fn oxford_restriction_run_carries_member_boundaries() {
     };
     assert_eq!(run.rest.len(), 2);
     assert_eq!(run.rest[0].conjunction, None);
-    assert!(run.rest[0].comma);
     assert_eq!(run.rest[1].conjunction, Some(PredicateConjunction::And));
-    assert!(run.rest[1].comma);
 }
 
 #[test]
@@ -3900,7 +3893,6 @@ fn oracle_symbol_alternatives_are_a_coordinated_object() {
             if matches!(first.as_ref(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{R}")
                 && matches!(rest.as_slice(), [PredicateObjectCoordination {
                     conjunction: Some(crate::syntax::PredicateConjunction::Or),
-                    comma: false,
                     object: PredicateObject::OracleSymbol(symbol),
                 }] if symbol.as_str() == "{G}")
     ));
@@ -3924,12 +3916,10 @@ fn mana_amount_oxford_list_is_three_scalar_members() {
                 && matches!(rest.as_slice(), [
                     PredicateObjectCoordination {
                         conjunction: None,
-                        comma: true,
                         object: PredicateObject::OracleSymbol(b),
                     },
                     PredicateObjectCoordination {
                         conjunction: Some(crate::syntax::PredicateConjunction::Or),
-                        comma: true,
                         object: PredicateObject::OracleSymbol(g),
                     },
                 ] if b.as_str() == "{B}" && g.as_str() == "{G}")
@@ -4033,13 +4023,14 @@ fn mana_amount_and_list_is_five_members() {
     assert_eq!(rest.len(), 4, "expected five members total: {rest:#?}");
     for interior in &rest[..3] {
         assert_eq!(interior.conjunction, None);
-        assert!(interior.comma);
     }
     assert_eq!(
         rest[3].conjunction,
         Some(crate::syntax::PredicateConjunction::And)
     );
-    assert!(rest[3].comma);
+    // The serial comma is derived from `conjunction`/`rest.len()`, not stored
+    // (see `PredicateObjectCoordination`); the render assertion below is what
+    // pins every member's comma in this five-member Oxford list.
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -5379,7 +5370,6 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
     );
     assert_eq!(run.rest.len(), 1);
     assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
-    assert!(!run.rest[0].comma);
     let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].adjuncts.as_slice() else {
         panic!(
             "expected a single Dependent member: {:#?}",
@@ -5569,9 +5559,7 @@ fn oxford_restriction_run_carries_member_boundaries_true_witness() {
     };
     assert_eq!(run.rest.len(), 2);
     assert_eq!(run.rest[0].conjunction, None);
-    assert!(run.rest[0].comma);
     assert_eq!(run.rest[1].conjunction, Some(PredicateConjunction::And));
-    assert!(run.rest[1].comma);
 }
 
 #[test]

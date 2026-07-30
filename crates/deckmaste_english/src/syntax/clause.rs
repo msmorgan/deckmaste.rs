@@ -113,6 +113,29 @@ pub struct AttachedPredicate {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PredicateHead {
     pub auxiliaries: Vec<AuxiliaryInstance>,
+    /// **Measured, field KEPT** (surface-fact diet, 2026-07-30 measurement
+    /// round): the ticket's construction-kind hypothesis — non-passive
+    /// positions contract, passive `it is` does not — is FALSIFIED. Coding
+    /// `!is_passive && !auxiliaries.is_empty()` as the derivation produced 161
+    /// mismatches and 731 render errors. Witness: Adanto Vanguard, "As long
+    /// as this creature **is** attacking, it gets +2/+0." is a non-passive
+    /// predicate with an auxiliary present, so the rule forces a contraction
+    /// attempt, but the corpus never contracts a full noun-phrase subject
+    /// ("this creature's attacking" does not occur). The render errors are
+    /// a second, independent symptom: `contraction_suffix` only covers
+    /// `Auxiliary::Be`/`Have` (subject contraction), not `Auxiliary::Do`
+    /// (negation, "doesn't"/"didn't"), so every negated do-support predicate
+    /// that the rule now tries to contract blows up too. The data instead
+    /// points at **subject pronominality** — only pronoun subjects contract,
+    /// full noun phrases never do — as the better hypothesis, though that
+    /// alone cannot be exact either: the corpus has both `it's` (1132
+    /// occurrences) and `it is` (73). Field stays stored.
+    ///
+    /// Separately, negation contraction needs no field and none was added:
+    /// across all 31685 supported faces there are zero occurrences of
+    /// `cannot`/`does not`/`do not`/`is not`/`did not`/`are not`, against
+    /// `can't` 3131 / `don't` 728 / `doesn't` 450 / `isn't` 246 / `didn't`
+    /// 128 / `aren't` 54 — the corpus has no variation to store.
     pub first_auxiliary_contracted_with_subject: bool,
     pub preverb_modifiers: Vec<PreverbModifier>,
     pub verb: VerbInstance,
@@ -209,6 +232,23 @@ pub struct CopularPredicate {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct Copula {
     pub auxiliary: AuxiliaryInstance,
+    /// **Measured, field KEPT** (surface-fact diet, 2026-07-30 measurement
+    /// round): the ticket's construction-kind hypothesis — copular positions
+    /// always contract — is FALSIFIED, more heavily than the sibling
+    /// `first_auxiliary_contracted_with_subject` field. Coding unconditional
+    /// contraction produced 1617 mismatches and 162 render errors. Witnesses:
+    /// Abominable Treefolk, "Abominable Treefolk's power and toughness **are**
+    /// each equal to the number of snow permanents you control." forces
+    /// "...**'re** each equal to..." for a full noun-phrase subject; Abzan
+    /// Monument, "**X is** the greatest toughness among creatures you
+    /// control." forces "X's the greatest..." even for a single-letter
+    /// variable subject. Render errors come from past/subjunctive copulas
+    /// ("as though it **were** mana of any color" — Abstruse Appropriation):
+    /// `contraction_suffix` has no arm for `Past`, so forcing contraction
+    /// there hits its `_ => Err(...)` case. Same read as the sibling field:
+    /// **subject pronominality**, not copular position, predicts contraction
+    /// — and even that is not exact (`it's` 1132 vs `it is` 73 on the
+    /// supported corpus). Field stays stored.
     pub contracted_with_subject: bool,
 }
 
@@ -264,6 +304,18 @@ pub struct CoordinatedPredicateObject {
     pub rest: Vec<PredicateObjectCoordination>,
 }
 
+/// One non-first member of a predicate-object coordination.
+///
+/// No `comma` flag: on the supported corpus the serial comma is exactly
+/// determined by member count and connective — absent only on an asyndetic
+/// interior member (which always takes one) or on a connective member of a
+/// two-member list (which never does), present on every connective member of
+/// a three-or-more-member (Oxford) list — measured with 0 exceptions across
+/// all 31685 supported faces. The renderer derives it from
+/// [`CoordinatedPredicateObject::rest`] rather than the AST carrying a field
+/// that could contradict it, following the same idiom as
+/// [`PrepositionalPhraseCoordination`](super::phrase::PrepositionalPhraseCoordination)
+/// and [`TriggerConditionCoordination`](crate::syntax::TriggerConditionCoordination).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PredicateObjectCoordination {
     /// `None` on the asyndetic comma-separated interior members of an Oxford
@@ -271,7 +323,6 @@ pub struct PredicateObjectCoordination {
     /// member. Mirrors
     /// [`NounPhraseCoordination`](super::phrase::NounPhraseCoordination).
     pub conjunction: Option<PredicateConjunction>,
-    pub comma: bool,
     pub object: PredicateObject,
 }
 
@@ -419,6 +470,18 @@ pub struct ComplexClause {
     pub attachments: Vec<ClauseAttachment>,
 }
 
+/// **Measured, `comma` field KEPT** (surface-fact diet, 2026-07-30
+/// measurement round): attachments are independent pre-/post-matrix riders on
+/// a host clause, not members of a coordination — there is no `conjunction`
+/// field and the parent holds a flat `Vec<Attachment<T>>`, not a
+/// `first`/`rest` pair whose length could drive a serial-comma rule. Across
+/// its construction sites (`grammar/clause/lowering.rs`, `grammar/ability.rs`)
+/// `comma` takes at least 3 distinct forms: hardcoded `true`, hardcoded
+/// `false`, and a rule-tag-threaded variable (`conditional`/
+/// `conditional_body`'s own `comma: bool` parameter, forwarded from whichever
+/// comma/no-comma subordinate-clause grammar production fired further up the
+/// call chain) — a per-rule-tag constant with no coordination count to derive
+/// from.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Attachment<T> {
     pub position: AttachmentPosition,
@@ -476,31 +539,54 @@ pub struct RestrictionRun {
     pub rest: Vec<RestrictionCoordination>,
 }
 
+/// One non-first member of an `only …` restriction run.
+///
+/// No `comma` flag: on the supported corpus the serial comma is exactly
+/// determined by member count and connective — absent only on an asyndetic
+/// interior member (which always takes one) or on a connective member of a
+/// two-member list (which never does), present on every connective member of
+/// a three-or-more-member (Oxford) list — measured with 0 exceptions across
+/// all 31685 supported faces. The renderer derives it from
+/// [`RestrictionRun::rest`] rather than the AST carrying a field that could
+/// contradict it, following the same idiom as
+/// [`PrepositionalPhraseCoordination`](super::phrase::PrepositionalPhraseCoordination)
+/// and [`TriggerConditionCoordination`](crate::syntax::TriggerConditionCoordination).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RestrictionCoordination {
     /// `None` on the asyndetic comma-separated interior members of an Oxford
     /// list; `Some(PredicateConjunction::And)` on a bare `and` member and on
     /// the final Oxford member. Mirrors [`ExceptionConjunct`].
     pub conjunction: Option<PredicateConjunction>,
-    pub comma: bool,
     /// See [`RestrictionRun::first`] for why this is a (non-empty) list.
     pub adjuncts: Vec<PredicateAdjunct>,
 }
 
 /// A coordinated list of exception clauses trailing a host clause under a
 /// leading `except`. The first conjunct and each continuation is an
-/// independent finite clause; the coordination is recorded (comma and optional
-/// conjunction per member) so the renderer replays the exact surface list.
+/// independent finite clause; the coordination is recorded (conjunction per
+/// member; the comma is derived) so the renderer replays the exact surface
+/// list.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExceptionRider {
     pub first: Box<IndependentClause>,
     pub rest: Vec<ExceptionConjunct>,
 }
 
+/// One non-first member of an exception-rider coordination.
+///
+/// No `comma` flag: on the supported corpus the serial comma is exactly
+/// determined by member count and connective — absent only on an asyndetic
+/// interior member (which always takes one) or on a connective member of a
+/// two-member list (which never does), present on every connective member of
+/// a three-or-more-member (Oxford) list — measured with 0 exceptions across
+/// all 31685 supported faces. The renderer derives it from
+/// [`ExceptionRider::rest`] rather than the AST carrying a field that could
+/// contradict it, following the same idiom as
+/// [`PrepositionalPhraseCoordination`](super::phrase::PrepositionalPhraseCoordination)
+/// and [`TriggerConditionCoordination`](crate::syntax::TriggerConditionCoordination).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExceptionConjunct {
     pub conjunction: Option<PredicateConjunction>,
-    pub comma: bool,
     pub clause: IndependentClause,
 }
 
@@ -512,6 +598,23 @@ pub enum AttachmentPosition {
     AfterMatrix,
 }
 
+/// **Measured, `comma` field KEPT** (surface-fact diet, 2026-07-30
+/// measurement round): the count-based derivation that deleted `comma` from
+/// [`NounPhraseCoordination`](super::phrase::NounPhraseCoordination)-shaped
+/// siblings (`comma == conjunction.is_none() || rest.len() >= 2`) was tried
+/// here too and misses by 1011 of 31685 supported faces. The dominant miss is
+/// the sequencing connective `Then`: it takes a comma even in a bare
+/// two-member shared-subject coordination ("Draw a card, **then** discard a
+/// card." — Academy Elite; "choose target instant or sorcery card in your
+/// graveyard, **then** roll a d20." — Aberrant Mind Sorcerer), which the
+/// count rule never predicts since it only forces a comma at 3+ members. A
+/// `Then`-aware refinement (also force a comma whenever `conjunction ==
+/// Some(PredicateConjunction::Then)`) cuts the miss to 8 residual faces —
+/// ordinary 2-member `and`/`or` coordinations that still take a comma,
+/// apparently because each conjunct is long/clausal rather than a short
+/// phrase: Angel of Jubilation, Armed with Proof, Arterial Alchemy, Gogo
+/// Mysterious Mime, Neverending Torment, Nightmare Incursion, Turnabout,
+/// Yasharn Implacable Earth. Neither rule is exact, so `comma` stays stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinationJunction {
     /// `None` records an asyndetic comma junction; coordinated junctions carry
@@ -684,6 +787,20 @@ pub struct ExistentialClause {
     pub adjuncts: Vec<PredicateAdjunct>,
 }
 
+/// **Measured, `ContractedIs` KEPT** (surface-fact diet, 2026-07-30
+/// measurement round): unlike its `PredicateHead`/`Copula` siblings, this one
+/// cleanly confirms half of the ticket's hypothesis. Deriving "sentence-
+/// initial existential never contracts" (`ContractedIs → Is` unconditionally)
+/// leaves only 9 mismatches out of 31685 supported faces, and all 9 are
+/// **subordinate-position** `there's`, never sentence-initial: "Aang has
+/// vigilance **as long as there's** a Lesson card in your graveyard." (Aang,
+/// A Lot to Learn), "**if there's** a Lesson card in your graveyard, draw a
+/// card." (Leaves from the Vine, Dragonfly Swarm) — plus Fire Nation Cadets,
+/// First-Time Flyer, Moraug Fury of Akoum, Shauku Endbringer, Walltop
+/// Sentries, World at War. So the "subordinate positions contract" half of
+/// the hypothesis holds too, precisely on the residual; deriving would need
+/// clause-position context this node doesn't carry, so the field stays
+/// stored rather than half-deriving it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ExistentialForm {
     Is,

@@ -13,7 +13,6 @@ mod tests {
     use crate::syntax::AdjectivePhrase;
     use crate::syntax::ComparisonMarker;
     use crate::syntax::Determiner;
-    use crate::syntax::IndefiniteArticle;
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalModifier;
@@ -656,10 +655,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(
-            coordinated.determiner,
-            Determiner::Indefinite(IndefiniteArticle::An)
-        );
+        assert_eq!(coordinated.determiner, Determiner::Indefinite);
         let [orc, equipment] = coordinated.rest.as_slice() else {
             panic!("expected three coordinated nominals: {coordinated:#?}");
         };
@@ -1230,7 +1226,6 @@ mod tests {
             member.conjunction,
             Some(crate::syntax::PredicateConjunction::And)
         );
-        assert!(!member.comma);
         assert!(matches!(
             &member.modifier,
             NominalModifier::Adjective {
@@ -1241,6 +1236,13 @@ mod tests {
                 },
             }
         ));
+        // The serial comma is derived from `conjunction`/`rest.len()`, not
+        // stored (see `ModifierCoordination`); this round-trip is what pins
+        // the binary `and` coordination taking no comma.
+        assert_eq!(
+            render_fragment(parsed.noun_phrase().unwrap()),
+            "a white and blue Goblin creature"
+        );
     }
 
     #[test]
@@ -2609,7 +2611,6 @@ mod tests {
         let [second, third] = coordinated.rest.as_slice() else {
             panic!("expected two continuations, got {:#?}", coordinated.rest);
         };
-        assert!(second.comma, "second conjunct is comma-joined");
         assert_eq!(second.conjunction, None);
         assert!(matches!(
             &second.modifier,
@@ -2621,7 +2622,6 @@ mod tests {
                 },
             }
         ));
-        assert!(third.comma);
         assert_eq!(
             third.conjunction,
             Some(crate::syntax::PredicateConjunction::Or)
@@ -2644,6 +2644,13 @@ mod tests {
             );
         };
         assert_eq!(of.head().preposition, crate::syntax::Preposition::Of);
+        // The serial comma is derived from `conjunction`/`rest.len()`, not
+        // stored (see `ModifierCoordination`); this round-trip is what pins
+        // both interior commas and the Oxford-list comma before `or`.
+        assert_eq!(
+            render_fragment(parsed.noun_phrase().unwrap()),
+            "your first, second, or third turns of the game"
+        );
     }
 
     #[test]
@@ -2691,7 +2698,6 @@ mod tests {
         let [only] = coordinated.rest.as_slice() else {
             panic!("expected one continuation, got {:#?}", coordinated.rest);
         };
-        assert!(!only.comma, "binary `or` coordination has no comma");
         assert_eq!(
             only.conjunction,
             Some(crate::syntax::PredicateConjunction::Or)
@@ -2709,6 +2715,13 @@ mod tests {
         assert_eq!(
             nominal.head,
             NounInstance::Singular(Noun::Word(Vocab::Card))
+        );
+        // The serial comma is derived from `conjunction`/`rest.len()`, not
+        // stored (see `ModifierCoordination`); this round-trip is what pins
+        // the binary `or` coordination taking no comma.
+        assert_eq!(
+            render_fragment(parsed.noun_phrase().unwrap()),
+            "your first or second card"
         );
     }
 
@@ -2907,7 +2920,7 @@ mod tests {
                 panic!("{source}: expected a Nominal noun phrase, got {noun_phrase:?}");
             };
             assert!(
-                matches!(nominal.determiner, Some(Determiner::Indefinite(_))),
+                matches!(nominal.determiner, Some(Determiner::Indefinite)),
                 "{source}: expected an indefinite determiner, got {:?}",
                 nominal.determiner
             );

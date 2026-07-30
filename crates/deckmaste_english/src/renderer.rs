@@ -117,7 +117,6 @@ use crate::word::surface_initial_sound;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderError {
     MissingLexicalForm(&'static str),
-    InvalidIndefiniteArticle,
     CardIdentityRequired,
     /// A [`NominalComplement::KeywordArgument`] carrying a `KeywordArgument`
     /// shape the syntax never licenses in nominal-complement position (only
@@ -135,7 +134,6 @@ impl fmt::Display for RenderError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::MissingLexicalForm(kind) => write!(formatter, "missing {kind} form"),
-            Self::InvalidIndefiniteArticle => formatter.write_str("invalid indefinite article"),
             Self::CardIdentityRequired => {
                 formatter.write_str("card identity is required to render this determiner")
             }
@@ -178,10 +176,14 @@ impl Determiner {
             Self::Target(None) => Ok("target".to_owned()),
             Self::Target(Some(quantity)) => Ok(format!("{} target", render_quantity(*quantity))),
             Self::Quantity(quantity) => Ok(render_quantity(*quantity)),
+            Self::Indefinite => unreachable!(
+                "indefinite article needs the following material's initial sound, which this \
+                 determiner-only method has no access to; NominalPhrase/CoordinatedNominalPhrase \
+                 derive it themselves before ever calling this"
+            ),
             Self::The
             | Self::Each
             | Self::Another
-            | Self::Indefinite(_)
             | Self::Demonstrative(_)
             | Self::Possessive(Possessor::Pronoun(_))
             | Self::All
@@ -1075,7 +1077,12 @@ impl<'identity> Renderer<'identity> {
         let mut rendered = String::from("except ");
         rendered.push_str(&self.independent_clause(&rider.first)?);
         for conjunct in &rider.rest {
-            if conjunct.comma {
+            // The serial comma is a function of length and connective, never
+            // a stored flag: an asyndetic interior member always takes a
+            // comma, and a member with a connective takes one only in a
+            // three-or-more-member (Oxford) list. See `ExceptionConjunct`.
+            let comma = conjunct.conjunction.is_none() || rider.rest.len() >= 2;
+            if comma {
                 rendered.push(',');
             }
             rendered.push(' ');
@@ -1092,7 +1099,12 @@ impl<'identity> Renderer<'identity> {
         let mut rendered = String::from("only ");
         rendered.push_str(&self.restriction_member(&run.first)?);
         for member in &run.rest {
-            if member.comma {
+            // The serial comma is a function of length and connective, never
+            // a stored flag: an asyndetic interior member always takes a
+            // comma, and a member with a connective takes one only in a
+            // three-or-more-member (Oxford) list. See `RestrictionCoordination`.
+            let comma = member.conjunction.is_none() || run.rest.len() >= 2;
+            if comma {
                 rendered.push(',');
             }
             if let Some(conjunction) = member.conjunction {
@@ -1342,7 +1354,13 @@ impl<'identity> Renderer<'identity> {
             PredicateObject::Coordinated(coordinated) => {
                 let mut rendered = self.predicate_object(&coordinated.first)?;
                 for coordination in &coordinated.rest {
-                    if coordination.comma {
+                    // The serial comma is a function of length and
+                    // connective, never a stored flag: an asyndetic interior
+                    // member always takes a comma, and a member with a
+                    // connective takes one only in a three-or-more-member
+                    // (Oxford) list. See `PredicateObjectCoordination`.
+                    let comma = coordination.conjunction.is_none() || coordinated.rest.len() >= 2;
+                    if comma {
                         rendered.push(',');
                     }
                     rendered.push(' ');
@@ -1591,17 +1609,15 @@ impl<'identity> Renderer<'identity> {
                 self.noun_phrase(&partitive.whole)?
             )),
             NounPhrase::CoordinatedNominal(coordinated) => {
-                if let Determiner::Indefinite(article) = coordinated.determiner {
-                    let expected = self.nominal_initial_sound(&coordinated.first)?;
-                    let actual = match article {
-                        IndefiniteArticle::A => InitialSound::Consonant,
-                        IndefiniteArticle::An => InitialSound::Vowel,
-                    };
-                    if actual != expected {
-                        return Err(RenderError::InvalidIndefiniteArticle);
-                    }
-                }
-                let mut rendered = self.determiner(&coordinated.determiner)?;
+                // The indefinite article's word is not stored: it is the
+                // initial sound of the first coordinated nominal (`an Elf,
+                // Orc, or Equipment`). See `Determiner::Indefinite`.
+                let mut rendered = if coordinated.determiner == Determiner::Indefinite {
+                    let sound = self.nominal_initial_sound(&coordinated.first)?;
+                    indefinite_article_for(sound).to_owned()
+                } else {
+                    self.determiner(&coordinated.determiner)?
+                };
                 rendered.push(' ');
                 rendered.push_str(&self.nominal_phrase(&coordinated.first)?);
                 for coordination in &coordinated.rest {
@@ -1675,21 +1691,18 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn nominal_phrase(&self, phrase: &NominalPhrase) -> Result<String, RenderError> {
-        if let Some(Determiner::Indefinite(article)) = phrase.determiner {
-            let expected = self.nominal_initial_sound(phrase)?;
-            let actual = match article {
-                IndefiniteArticle::A => InitialSound::Consonant,
-                IndefiniteArticle::An => InitialSound::Vowel,
-            };
-            if actual != expected {
-                return Err(RenderError::InvalidIndefiniteArticle);
-            }
-        }
-
         let mut parts = Vec::with_capacity(phrase.modifiers.len() + phrase.complements.len() + 2);
         let mut trailing_modifier_complements = Vec::new();
         if let Some(determiner) = &phrase.determiner {
-            parts.push(self.determiner(determiner)?);
+            // The indefinite article's word is not stored: it is the initial
+            // sound of the material that follows it (`a card`, `an Elf`).
+            // See `Determiner::Indefinite`.
+            if *determiner == Determiner::Indefinite {
+                let sound = self.nominal_initial_sound(phrase)?;
+                parts.push(indefinite_article_for(sound).to_owned());
+            } else {
+                parts.push(self.determiner(determiner)?);
+            }
         }
         for modifier in &phrase.modifiers {
             let (rendered, trailing) = self.render_nominal_modifier(modifier)?;
@@ -1777,7 +1790,13 @@ impl<'identity> Renderer<'identity> {
                 let (first, mut trailing) = self.render_nominal_modifier(&coordinated.first)?;
                 let mut rendered = first;
                 for coordination in &coordinated.rest {
-                    if coordination.comma {
+                    // The serial comma is a function of length and connective,
+                    // never a stored flag: an asyndetic interior member always
+                    // takes a comma, and a member with a connective takes one
+                    // only in a three-or-more-member (Oxford) list. See
+                    // `ModifierCoordination`.
+                    let comma = coordination.conjunction.is_none() || coordinated.rest.len() >= 2;
+                    if comma {
                         rendered.push(',');
                     }
                     rendered.push(' ');
@@ -1903,7 +1922,13 @@ impl<'identity> Renderer<'identity> {
     ) -> Result<String, RenderError> {
         let mut rendered = self.adjective_phrase(&coordinated.first)?;
         for coordination in &coordinated.rest {
-            if coordination.comma {
+            // The serial comma is a function of length and connective, never
+            // a stored flag: an asyndetic interior member always takes a
+            // comma, and a member with a connective takes one only in a
+            // three-or-more-member (Oxford) list. See
+            // `AdjectivePhraseCoordination`.
+            let comma = coordination.conjunction.is_none() || coordinated.rest.len() >= 2;
+            if comma {
                 rendered.push(',');
             }
             rendered.push(' ');
@@ -2464,6 +2489,18 @@ fn render_devotion_colors(colors: crate::syntax::DevotionColors) -> String {
         crate::syntax::DevotionColors::Pair(first, second) => {
             format!("to {} and {}", first.spelling(), second.spelling())
         }
+    }
+}
+
+/// The indefinite article's surface word for a given initial sound. See
+/// `Determiner::Indefinite`: the AST never stores which word was written, so
+/// every render site derives it here from the following material's initial
+/// sound, reusing `IndefiniteArticle::spelling()` rather than inlining the
+/// literal words.
+fn indefinite_article_for(sound: InitialSound) -> &'static str {
+    match sound {
+        InitialSound::Consonant => IndefiniteArticle::A.spelling(),
+        InitialSound::Vowel => IndefiniteArticle::An.spelling(),
     }
 }
 
@@ -3224,7 +3261,7 @@ mod tests {
                 Vocab::Draw,
                 VerbSlot::Imperative,
                 vec![VerbDependent::DirectObject(nominal(
-                    Some(Determiner::Indefinite(IndefiniteArticle::A)),
+                    Some(Determiner::Indefinite),
                     vec![],
                     NounInstance::Singular(Noun::Word(Vocab::Card)),
                     vec![],
@@ -3264,7 +3301,7 @@ mod tests {
 
         let hour = paragraph_ability(simple_with_auxiliaries(
             Some(Subject(nominal(
-                Some(Determiner::Indefinite(IndefiniteArticle::An)),
+                Some(Determiner::Indefinite),
                 vec![],
                 NounInstance::Singular(Noun::Word(Vocab::Hour)),
                 vec![],
@@ -3415,7 +3452,7 @@ mod tests {
                 vec![
                     VerbDependent::IndirectObject(target_player.clone()),
                     VerbDependent::DirectObject(nominal(
-                        Some(Determiner::Indefinite(IndefiniteArticle::A)),
+                        Some(Determiner::Indefinite),
                         vec![],
                         NounInstance::Singular(Noun::Word(Vocab::Number)),
                         vec![],
@@ -3485,7 +3522,7 @@ mod tests {
                         Vocab::Draw,
                         VerbSlot::Imperative,
                         vec![VerbDependent::DirectObject(nominal(
-                            Some(Determiner::Indefinite(IndefiniteArticle::A)),
+                            Some(Determiner::Indefinite),
                             vec![],
                             NounInstance::Singular(Noun::Word(Vocab::Card)),
                             vec![],
@@ -4066,9 +4103,9 @@ mod tests {
         assert_eq!(trailing, vec!["than one".to_string()]);
     }
 
-    fn power_toughness_nominal(article: IndefiniteArticle, power: ScalarValue) -> NominalPhrase {
+    fn power_toughness_nominal(power: ScalarValue) -> NominalPhrase {
         NominalPhrase {
-            determiner: Some(Determiner::Indefinite(article)),
+            determiner: Some(Determiner::Indefinite),
             modifiers: vec![NominalModifier::PowerToughness(PowerToughness {
                 power: SignedScalar {
                     sign: ScalarSign::None,
@@ -4085,22 +4122,23 @@ mod tests {
     }
 
     #[test]
-    fn indefinite_article_rejects_a_mismatched_power_toughness_onset() {
-        // The renderer hard-gate fixture (§5.5): the gate must stay loud, in
-        // both directions, rather than silently rendering a wrong article.
+    fn indefinite_article_derives_from_the_power_toughness_onset() {
+        // `Determiner::Indefinite` carries no word (see its doc comment): the
+        // renderer always derives `a`/`an` from what follows, in both
+        // directions, rather than trusting (and risking a mismatched) stored
+        // article.
         let renderer = Renderer::new("Test Card", false);
-        let a_over_vowel = power_toughness_nominal(IndefiniteArticle::A, ScalarValue::X);
+        let x_over_x = power_toughness_nominal(ScalarValue::X);
         assert_eq!(
-            renderer.nominal_phrase(&a_over_vowel),
-            Err(RenderError::InvalidIndefiniteArticle),
-            "`a X/X ...` (vowel onset under `a`) must be rejected"
+            renderer.nominal_phrase(&x_over_x).unwrap(),
+            "an X/X token",
+            "`X/X` has a vowel onset (\"ex\"), so it takes `an`"
         );
-        let an_over_consonant =
-            power_toughness_nominal(IndefiniteArticle::An, ScalarValue::Integer(1));
+        let one_over_one = power_toughness_nominal(ScalarValue::Integer(1));
         assert_eq!(
-            renderer.nominal_phrase(&an_over_consonant),
-            Err(RenderError::InvalidIndefiniteArticle),
-            "`an 1/1 ...` (consonant onset under `an`) must be rejected"
+            renderer.nominal_phrase(&one_over_one).unwrap(),
+            "a 1/1 token",
+            "`1/1` has a consonant onset (\"one\"), so it takes `a`"
         );
     }
 
@@ -4232,12 +4270,10 @@ mod tests {
             rest: vec![
                 PredicateObjectCoordination {
                     conjunction: None,
-                    comma: true,
                     object: oracle_symbol_object("{B}"),
                 },
                 PredicateObjectCoordination {
                     conjunction: Some(PredicateConjunction::Or),
-                    comma: true,
                     object: oracle_symbol_object("{G}"),
                 },
             ],
@@ -4256,22 +4292,18 @@ mod tests {
             rest: vec![
                 PredicateObjectCoordination {
                     conjunction: None,
-                    comma: true,
                     object: oracle_symbol_object("{U}"),
                 },
                 PredicateObjectCoordination {
                     conjunction: None,
-                    comma: true,
                     object: oracle_symbol_object("{B}"),
                 },
                 PredicateObjectCoordination {
                     conjunction: None,
-                    comma: true,
                     object: oracle_symbol_object("{R}"),
                 },
                 PredicateObjectCoordination {
                     conjunction: Some(PredicateConjunction::And),
-                    comma: true,
                     object: oracle_symbol_object("{G}"),
                 },
             ],
@@ -4289,7 +4321,6 @@ mod tests {
             first: Box::new(oracle_symbol_object("{R}")),
             rest: vec![PredicateObjectCoordination {
                 conjunction: Some(PredicateConjunction::Or),
-                comma: false,
                 object: oracle_symbol_object("{G}"),
             }],
         });
@@ -4303,7 +4334,6 @@ mod tests {
             first: Box::new(oracle_symbol_object("{U}")),
             rest: vec![PredicateObjectCoordination {
                 conjunction: Some(PredicateConjunction::Or),
-                comma: false,
                 object: PredicateObject::SymbolSequence(vec![
                     OracleSymbol::new("{C}").unwrap(),
                     OracleSymbol::new("{U}").unwrap(),

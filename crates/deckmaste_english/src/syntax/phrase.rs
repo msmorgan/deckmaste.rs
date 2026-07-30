@@ -189,6 +189,17 @@ impl PowerToughness {
 /// distinction the surface draws — `more`/`greater` above the bound,
 /// `fewer`/`less` at or below it — is preserved here so the renderer replays
 /// the exact word rather than guessing one from the bound's direction.
+///
+/// **Measured, field KEPT** (surface-fact diet, 2026-07-30 measurement
+/// round): direction (`more`/`greater` vs `fewer`/`less`) is semantic and was
+/// never a candidate for deletion. The within-direction lexical choice
+/// (`more` vs `greater`; `fewer` vs `less`) is not derivable from the head
+/// class and direction either: a genuine minimal pair exists on the
+/// supported corpus. `total power 2 or more` (Adventurer's Airship) and
+/// `total power 8 or greater` (Atarka Beastbreaker) share the identical head
+/// class (`total power`) and the identical floor direction, yet differ in
+/// which word is used. No head-class rule (count/mass or otherwise)
+/// predicts this; the field stays stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ComparativeWord {
     Fewer,
@@ -295,7 +306,16 @@ pub enum Determiner {
     The,
     Each,
     Another,
-    Indefinite(IndefiniteArticle),
+    /// The indefinite article slot (`a`/`an`). Carries no word: on the
+    /// supported corpus the choice between them is exactly the initial sound
+    /// of the material that follows — a consonant sound takes `a`, a vowel
+    /// sound takes `an` — measured with 0 exceptions across all 31685
+    /// supported faces (the renderer's existing `nominal_initial_sound`
+    /// validation already proved `expected == actual` for every supported
+    /// face before this field was removed). The renderer derives the word
+    /// from [`NominalPhrase`]'s or [`CoordinatedNominalPhrase`]'s own initial
+    /// sound rather than the AST carrying a field that could contradict it.
+    Indefinite,
     Demonstrative(Demonstrative),
     Target(Option<Quantity>),
     Quantity(Quantity),
@@ -314,7 +334,6 @@ impl Hash for Determiner {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::mem::discriminant(self).hash(state);
         match self {
-            Self::Indefinite(article) => article.hash(state),
             Self::Demonstrative(demonstrative) => demonstrative.hash(state),
             Self::Target(quantity) => quantity.hash(state),
             Self::Quantity(quantity) => quantity.hash(state),
@@ -323,7 +342,13 @@ impl Hash for Determiner {
                 pronoun.hash(state);
             }
             Self::Possessive(Possessor::NounPhrase(_)) => 1_u8.hash(state),
-            Self::The | Self::Each | Self::Another | Self::All | Self::Any | Self::No => {}
+            Self::Indefinite
+            | Self::The
+            | Self::Each
+            | Self::Another
+            | Self::All
+            | Self::Any
+            | Self::No => {}
         }
     }
 }
@@ -346,7 +371,7 @@ impl Determiner {
                     .eq_ignore_ascii_case(spelling)
                     .then(|| determiner.clone())
             })
-            .or_else(|| IndefiniteArticle::from_spelling(surface).map(Self::Indefinite))
+            .or_else(|| IndefiniteArticle::from_spelling(surface).map(|_| Self::Indefinite))
             .or_else(|| Demonstrative::from_spelling(surface).map(Self::Demonstrative))
             .or_else(|| {
                 Pronoun::from_possessive_spelling(surface)
@@ -359,10 +384,16 @@ impl Determiner {
             .iter()
             .find_map(|(determiner, spelling)| (determiner == self).then_some(*spelling))
             .or_else(|| match self {
-                Self::Indefinite(article) => Some(article.spelling()),
                 Self::Demonstrative(demonstrative) => Some(demonstrative.spelling()),
                 Self::Possessive(Possessor::Pronoun(pronoun)) => pronoun.possessive_spelling(),
-                Self::Possessive(Possessor::NounPhrase(_))
+                // Indefinite has no fixed spelling: which word it renders as
+                // depends on the initial sound of the material that follows
+                // it, which this determiner-only method has no access to. The
+                // two callers that can hold one (`NominalPhrase`,
+                // `CoordinatedNominalPhrase`) derive it themselves before
+                // ever reaching the generic determiner renderer.
+                Self::Indefinite
+                | Self::Possessive(Possessor::NounPhrase(_))
                 | Self::Target(_)
                 | Self::Quantity(_) => None,
                 Self::The | Self::Each | Self::Another | Self::All | Self::Any | Self::No => {
@@ -374,7 +405,7 @@ impl Determiner {
     #[must_use]
     pub const fn noun_cardinality(&self) -> NounCardinality {
         match self {
-            Self::Each | Self::Another | Self::Indefinite(_) | Self::Target(None) => {
+            Self::Each | Self::Another | Self::Indefinite | Self::Target(None) => {
                 NounCardinality::SingularCount
             }
             // The singular demonstratives determine a singular count noun (`that
@@ -521,6 +552,18 @@ pub enum NounPhrase {
     Arithmetic(ArithmeticValue),
 }
 
+/// **Measured, `comma` field KEPT** (surface-fact diet, 2026-07-30
+/// measurement round): this is a binary wrapper (one included side, one
+/// excluded side), not a coordination list — there is no `conjunction` field
+/// and no `first`/`rest` parent to count members over, so the serial-comma
+/// derivation used elsewhere in this family does not apply. `comma` varies
+/// independently of `marker`: the single lowering site
+/// (`grammar/lowering.rs`, `RuleTag::NounPhraseSetExceptionBare` /
+/// `NounPhraseSetExceptionFor`) assigns both `true` and `false` for *both*
+/// markers depending only on which of 4 `(tag, children.len())` grammar
+/// productions matched — i.e. `comma` records only whether the surface had a
+/// comma token before `except`/`except for`, a fact with no other structural
+/// witness on this node.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SetExceptionNounPhrase {
     pub included: Box<NounPhrase>,
@@ -714,13 +757,24 @@ pub struct CoordinatedModifier {
     pub rest: Vec<ModifierCoordination>,
 }
 
+/// One non-first member of an attributive modifier coordination.
+///
+/// No `comma` flag: on the supported corpus the serial comma is exactly
+/// determined by member count and connective — absent only on an asyndetic
+/// interior member (which always takes one) or on a connective member of a
+/// two-member list (which never does), present on every connective member of
+/// a three-or-more-member (Oxford) list — measured with 0 exceptions across
+/// all 31685 supported faces. The renderer derives it from
+/// [`CoordinatedModifier::rest`] rather than the AST carrying a field that
+/// could contradict it, following the same idiom as
+/// [`PrepositionalPhraseCoordination`] and
+/// [`TriggerConditionCoordination`](crate::syntax::TriggerConditionCoordination).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ModifierCoordination {
     /// The connective introducing this member: `None` on the asyndetic
     /// comma-separated members of an Oxford list (`artifact,` in `artifact,
     /// creature, and land`); `Some` on the final `and`/`or`/`and/or` member.
     pub conjunction: Option<PredicateConjunction>,
-    pub comma: bool,
     pub modifier: NominalModifier,
 }
 
@@ -752,6 +806,18 @@ pub struct CoordinatedAdjectivePhrase {
     pub rest: Vec<AdjectivePhraseCoordination>,
 }
 
+/// One non-first member of a predicative adjective-phrase coordination.
+///
+/// No `comma` flag: on the supported corpus the serial comma is exactly
+/// determined by member count and connective — absent only on an asyndetic
+/// interior member (which always takes one) or on a connective member of a
+/// two-member list (which never does), present on every connective member of
+/// a three-or-more-member (Oxford) list — measured with 0 exceptions across
+/// all 31685 supported faces. The renderer derives it from
+/// [`CoordinatedAdjectivePhrase::rest`] rather than the AST carrying a field
+/// that could contradict it, following the same idiom as
+/// [`PrepositionalPhraseCoordination`] and
+/// [`TriggerConditionCoordination`](crate::syntax::TriggerConditionCoordination).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AdjectivePhraseCoordination {
     /// The connective introducing this member: `None` on the asyndetic
@@ -760,7 +826,6 @@ pub struct AdjectivePhraseCoordination {
     /// disjunctive-or-conjunctive `and/or` is admitted here because a supported
     /// copular witness (Glistening Deluge) attests it.
     pub conjunction: Option<PredicateConjunction>,
-    pub comma: bool,
     pub phrase: AdjectivePhrase,
 }
 

@@ -884,7 +884,7 @@ mod tests {
         };
 
         assert_eq!(
-            Determiner::Indefinite(IndefiniteArticle::An).noun_cardinality(),
+            Determiner::Indefinite.noun_cardinality(),
             NounCardinality::SingularCount
         );
         assert_eq!(
