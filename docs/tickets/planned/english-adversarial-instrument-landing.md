@@ -6,7 +6,7 @@ trunk pointing at it.** It lives in the sibling workspace
 `english-adversarial-corpus`, a sixth sibling to
 `recovery`/`roundtrip`/`shapes`/`lint`/`bracket` — and the first *active*
 instrument: the other five read the printed snapshot; this one synthesizes
-legal-but-unprinted text from verbatim fragments and checks structural laws
+candidate unprinted text from verbatim fragments and checks structural laws
 against it.
 
 Modes: `--text` (probe one literal text — the CLI previously had no
@@ -25,11 +25,20 @@ coordination-monotonicity schemas — were deliberately deferred until a
 census existed, because authoring minimal pairs before knowing the real
 failure shapes is guessing. The census now exists.
 
+Composition admission must also become category- and agreement-safe. The
+current standalone `parses_clean` check admitted 32 recovered outputs, but a
+complete audit found every one grammatically malformed: examples include
+`Agent Frank Horrigan enters or attack`, `Foray of Orcs deals all to ...`,
+`Then each who lost ...`, and a literal doubled comma. Clean parses of the
+input fragments do not prove that a substitution or coordination extension
+preserves their grammatical role.
+
 ## Limitations worth recording so nobody rediscovers them
 
-- `(rule, depth)` does NOT identify a grammatical category. Composition
-  therefore does not infer interchangeability; it verifies admissibility by
-  requiring every input piece to parse clean standalone.
+- `(rule, depth)` does NOT identify a grammatical category, and requiring
+  every input piece to parse clean standalone does not establish
+  interchangeability. The landing work must use a stronger typed/schema
+  admission rule rather than treating output recovery as a parser frontier.
 - The nested-pair filter that removes duplication artifacts can also
   suppress genuine agreement-class findings — one real case (`"Aang
   attack"`, a clean carrier producing an ungrammatical parse) was lost to

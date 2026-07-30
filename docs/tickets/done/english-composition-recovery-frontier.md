@@ -36,3 +36,7 @@ Three verbatim examples, with recipe and donor cards from the census:
 
 Every substring in each example is attested verbatim printed text; only the
 arrangement is synthesized. Standard constraints apply.
+
+## Completion
+
+- Audited all 32 compositions and found every output grammatically malformed; no parser widening landed, and category/agreement-safe admission remains with the adversarial-instrument ticket.
