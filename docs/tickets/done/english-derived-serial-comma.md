@@ -48,3 +48,44 @@ share the nominal rule. Where a construction is genuinely free, keep the field
 and say why in its doc.
 
 Standard constraints apply.
+
+## Completion
+
+Each of the eleven was measured separately by swapping the derivation into the
+renderer with the field still stored and populated, then reading
+`cargo xtask english roundtrip --list`. That is the only way to see a
+disagreement: while the bit is stored the renderer replays it and the face
+round-trips clean either way.
+
+**Five delete**, derivation exact at 0 mismatches —
+`ModifierCoordination`, `AdjectivePhraseCoordination`,
+`PredicateObjectCoordination`, `ExceptionConjunct`, `RestrictionCoordination`,
+all as `conjunction.is_none() || rest.len() >= 2`.
+
+**Three keep, refutation documented on the field.**
+`CoordinationJunction`: the count rule misses 1011 faces because the sequencing
+connective `Then` takes a comma even in a bare two-member shared-subject
+coordination; a `Then`-aware refinement reaches 8 residual faces (Turnabout,
+Angel of Jubilation, Armed with Proof, Arterial Alchemy, Gogo Mysterious Mime,
+Neverending Torment, Nightmare Incursion, Yasharn Implacable Earth) that take a
+comma for conjunct length, so it is not exact.
+`SetExceptionNounPhrase`: a binary wrapper, not a list; `comma` varies
+independently of `marker` across its four productions, recording only whether
+the surface printed a comma before `except`.
+`Attachment<T>`: attachments are independent riders, not list members, and the
+field takes three distinct forms across its sites including a rule-tag-threaded
+variable.
+
+**Three split out**, because deleting them would convert a silent misparse into
+a render regression: `NounPhraseCoordination` (39) and
+`NominalPhraseCoordination` (1) to `english-coordination-comma-defects`, and
+`ClauseCoordination` (281) to `english-clause-coordination-comma-rule`.
+
+The ticket's central claim held and then some. The 39 `NounPhraseCoordination`
+disagreements are the Arrest/Pacifism aura template, whose stored tree
+coordinates *`block`* with *`its activated abilities`* — a verb conjoined with a
+noun phrase, invisible for as long as the comma bit was replayed. This is the
+Giant Oyster finding again, on far more common cards.
+
+Round-trip 31685/31685 clean, 2937 tests passing, recovery census
+byte-identical, fidelity 0 failing.
