@@ -15,8 +15,10 @@ printed 99.9th percentile), `--printed` (run the laws over printed faces as
 a baseline), and the default synthesized sweep. 48 module tests, 118 in the
 xtask crate.
 
-**Why it is unintegrated, in one line:** the drain protocol — its contents
-are the open failure list, so it lands only when it is clean.
+**Why it is unintegrated, in one line:** its composition admission and tie
+classification are unsound, two designed invariants remain deferred, and its
+contents are the open failure list, so it lands only after those are corrected
+and the resulting list is clean.
 
 ## What deliberate work remains before it could land
 
@@ -48,6 +50,10 @@ preserves their grammatical role.
   ability span. If the instrument needs keyword atoms, mine the typed keyword
   AST/catalog directly rather than manufacturing a grammar rule solely for
   provenance.
+- The reported 93.07% printed "tie" baseline is invalid. `facts_for` records a
+  tie whenever `tied_alternatives()` is nonempty, but that slice always includes
+  the selected minimum-cost alternative. Actual equal-cost ties require
+  `len() > 1`; fix the predicate and recalibrate every tie count and assertion.
 - One proposed filter was rejected by measurement: adjacent-duplicate-word
   rejection, because 161 of 31,685 printed faces legitimately contain them
   (`"Cascade, cascade, cascade, cascade"`, `"discover, discover"`).

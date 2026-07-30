@@ -118,6 +118,13 @@ impl ParseSelection {
         self.rule
     }
 
+    /// Indices of all alternatives at this selection's root with the minimum
+    /// parse cost, including the selected alternative itself.
+    ///
+    /// A successful forest selection therefore has at least one index here;
+    /// only a length greater than one indicates an equal-cost tie. The forest
+    /// resolves such a tie deterministically by grammar-rule order and then
+    /// alternative index.
     #[must_use]
     pub fn tied_alternatives(&self) -> &[usize] {
         &self.tied_alternatives
@@ -236,7 +243,7 @@ mod tests {
         assert!(report.provenance.selections.iter().all(|selection| {
             selection.span == Span::new(0, 12)
                 && selection.rule.is_some()
-                && !selection.tied_alternatives.is_empty()
+                && selection.tied_alternatives.len() == 1
                 && selection.cost == crate::forest::ParseCost::default()
         }));
     }
