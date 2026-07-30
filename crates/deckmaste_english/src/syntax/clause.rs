@@ -89,7 +89,10 @@ pub enum Predicate {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum PredicateExpression {
     Simple(Predicate),
-    Coordinated(Coordination<Predicate>),
+    /// A recursively grouped predicate coordination. Recursive conjuncts keep
+    /// mixed connectives explicit: `(attack or block) and has ...` is one
+    /// `and` coordination whose first conjunct is the nested `or` group.
+    Coordinated(Coordination<PredicateExpression>),
 }
 
 /// A modal predicate. The inner predicate is absent under VP-ellipsis (`If

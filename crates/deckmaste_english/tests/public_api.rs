@@ -44,7 +44,7 @@ fn selected_constituents_expose_the_possessive_determiner() {
         .provenance()
         .selections()
         .iter()
-        .flat_map(|selection| selection.constituent_spans())
+        .flat_map(deckmaste_english::ParseSelection::constituent_spans)
         .filter_map(|span| span.text(source))
         .collect::<Vec<_>>();
 
@@ -67,7 +67,7 @@ fn selected_constituents_include_a_chart_lowered_quoted_ability() {
         .provenance()
         .selections()
         .iter()
-        .flat_map(|selection| selection.constituent_spans())
+        .flat_map(deckmaste_english::ParseSelection::constituent_spans)
         .filter_map(|span| span.text(source))
         .collect::<Vec<_>>();
 
@@ -382,14 +382,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 if let Some(subject) = subject {
                     self.subject(subject);
                 }
-                match expression {
-                    PredicateExpression::Simple(predicate) => self.predicate(predicate),
-                    PredicateExpression::Coordinated(coordination) => {
-                        for predicate in coordination.conjuncts() {
-                            self.predicate(predicate);
-                        }
-                    }
-                }
+                self.predicate_expression(expression);
             }
             IndependentClause::Imperative(predicate) => self.predicate(predicate),
             IndependentClause::Deontic(subject, _, predicate) => {
@@ -414,6 +407,17 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 for coordination in &coordinated.rest {
                     let CoordinatedClauseMember::Independent(clause) = &coordination.member;
                     self.independent_clause(clause);
+                }
+            }
+        }
+    }
+
+    fn predicate_expression(&mut self, expression: &'syntax PredicateExpression) {
+        match expression {
+            PredicateExpression::Simple(predicate) => self.predicate(predicate),
+            PredicateExpression::Coordinated(coordination) => {
+                for expression in coordination.conjuncts() {
+                    self.predicate_expression(expression);
                 }
             }
         }
@@ -690,6 +694,12 @@ impl<'syntax> SyntaxInventory<'syntax> {
     fn nominal_complement(&mut self, complement: &'syntax NominalComplement) {
         match complement {
             NominalComplement::Adjective(adjective) => self.adjective_phrase(adjective),
+            NominalComplement::CoordinatedAdjective(coordinated) => {
+                self.adjective_phrase(&coordinated.first);
+                for member in &coordinated.rest {
+                    self.adjective_phrase(&member.phrase);
+                }
+            }
             NominalComplement::Prepositional(preposition) => {
                 self.prepositional_phrase(preposition);
             }
@@ -827,13 +837,7 @@ fn exception_rider(clause: &IndependentClause) -> Option<&ExceptionRider> {
             };
             Some(rider)
         }),
-        IndependentClause::Predicated(_, expression) => match expression {
-            PredicateExpression::Simple(predicate) => exception_rider_in_predicate(predicate),
-            PredicateExpression::Coordinated(coordination) => coordination
-                .conjuncts()
-                .iter()
-                .find_map(exception_rider_in_predicate),
-        },
+        IndependentClause::Predicated(_, expression) => exception_rider_in_expression(expression),
         IndependentClause::Imperative(predicate) => exception_rider_in_predicate(predicate),
         IndependentClause::Deontic(_, _, predicate) => {
             predicate.as_ref().and_then(exception_rider_in_predicate)
@@ -851,6 +855,16 @@ fn exception_rider(clause: &IndependentClause) -> Option<&ExceptionRider> {
         | IndependentClause::Passive(..)
         | IndependentClause::Existential(..)
         | IndependentClause::Proform(..) => None,
+    }
+}
+
+fn exception_rider_in_expression(expression: &PredicateExpression) -> Option<&ExceptionRider> {
+    match expression {
+        PredicateExpression::Simple(predicate) => exception_rider_in_predicate(predicate),
+        PredicateExpression::Coordinated(coordination) => coordination
+            .conjuncts()
+            .iter()
+            .find_map(exception_rider_in_expression),
     }
 }
 
@@ -882,13 +896,7 @@ fn appositive(clause: &IndependentClause) -> Option<&IndependentClause> {
             };
             Some(appositive.as_ref())
         }),
-        IndependentClause::Predicated(_, expression) => match expression {
-            PredicateExpression::Simple(predicate) => appositive_in_predicate(predicate),
-            PredicateExpression::Coordinated(coordination) => coordination
-                .conjuncts()
-                .iter()
-                .find_map(appositive_in_predicate),
-        },
+        IndependentClause::Predicated(_, expression) => appositive_in_expression(expression),
         IndependentClause::Imperative(predicate) => appositive_in_predicate(predicate),
         IndependentClause::Deontic(_, _, predicate) => {
             predicate.as_ref().and_then(appositive_in_predicate)
@@ -907,6 +915,16 @@ fn appositive(clause: &IndependentClause) -> Option<&IndependentClause> {
         | IndependentClause::Passive(..)
         | IndependentClause::Existential(..)
         | IndependentClause::Proform(..) => None,
+    }
+}
+
+fn appositive_in_expression(expression: &PredicateExpression) -> Option<&IndependentClause> {
+    match expression {
+        PredicateExpression::Simple(predicate) => appositive_in_predicate(predicate),
+        PredicateExpression::Coordinated(coordination) => coordination
+            .conjuncts()
+            .iter()
+            .find_map(appositive_in_expression),
     }
 }
 
@@ -962,8 +980,8 @@ fn clause_subject(clause: &IndependentClause) -> Option<&NounPhrase> {
         | IndependentClause::Copular(subject, _)
         | IndependentClause::Passive(subject, _)
         | IndependentClause::Deontic(subject, _, _)
-        | IndependentClause::Proform(subject, _) => Some(&subject.0),
-        IndependentClause::Predicated(Some(subject), _) => Some(&subject.0),
+        | IndependentClause::Proform(subject, _)
+        | IndependentClause::Predicated(Some(subject), _) => Some(&subject.0),
         IndependentClause::Complex(complex) => clause_subject(&complex.matrix),
         IndependentClause::Predicated(None, _)
         | IndependentClause::Imperative(_)
@@ -1125,20 +1143,20 @@ fn predicate_has_finite_subordinate(predicate: &Predicate, expected: Subordinato
 
 fn matrix_has_prepositional_adjunct(clause: &IndependentClause, expected: Preposition) -> bool {
     let elements = match clause {
-        IndependentClause::Transitive(_, predicate) => &predicate.elements,
-        IndependentClause::Intransitive(_, predicate) => &predicate.elements,
+        IndependentClause::Transitive(_, predicate)
+        | IndependentClause::Predicated(
+            _,
+            PredicateExpression::Simple(Predicate::Transitive(predicate)),
+        ) => &predicate.elements,
+        IndependentClause::Intransitive(_, predicate)
+        | IndependentClause::Predicated(
+            _,
+            PredicateExpression::Simple(Predicate::Intransitive(predicate)),
+        ) => &predicate.elements,
         IndependentClause::Passive(_, predicate) => &predicate.elements,
         IndependentClause::Complex(complex) => {
             return matrix_has_prepositional_adjunct(&complex.matrix, expected);
         }
-        IndependentClause::Predicated(
-            _,
-            PredicateExpression::Simple(Predicate::Transitive(predicate)),
-        ) => &predicate.elements,
-        IndependentClause::Predicated(
-            _,
-            PredicateExpression::Simple(Predicate::Intransitive(predicate)),
-        ) => &predicate.elements,
         _ => return false,
     };
     elements.iter().any(|element| {

@@ -1491,6 +1491,10 @@ enum RuleTag {
     ReducedRecipientPassiveTheme,
     ReducedRecipientPassiveNominalAdjunct,
     NominalPostpositiveAdjective,
+    NominalPostpositiveAdjectiveConjoinedPrepositional,
+    NominalPostpositiveAdjectiveConjoined,
+    NominalPostpositiveAdjectiveAsyndetic,
+    NominalPostpositiveAdjectiveOxford,
     NominalComparison,
     NominalDevotion,
     DevotionColorSingle,
@@ -2299,7 +2303,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 matches
                     .into_iter()
                     .filter(|candidate| {
-                        carries_from_max_end.map_or(true, |max_end| candidate.end >= max_end)
+                        carries_from_max_end.is_none_or(|max_end| candidate.end >= max_end)
                     })
                     .collect()
             }

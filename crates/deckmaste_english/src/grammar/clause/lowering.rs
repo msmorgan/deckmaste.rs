@@ -1525,21 +1525,7 @@ pub(super) fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Opti
     let junction = CoordinationJunction { conjunction, comma };
     let coordinated = if next.subject.is_some() {
         let next = finish_simple_clause(next)?;
-        let continuation = ClauseCoordination {
-            conjunction: junction.conjunction,
-            comma: junction.comma,
-            member: CoordinatedClauseMember::Independent(Box::new(next)),
-        };
-        match first {
-            IndependentClause::Coordinated(mut coordinated) => {
-                coordinated.rest.push(continuation);
-                IndependentClause::Coordinated(coordinated)
-            }
-            first => IndependentClause::Coordinated(CoordinatedIndependentClause {
-                first: Box::new(first),
-                rest: vec![continuation],
-            }),
-        }
+        append_complete_clause(first, junction, next)
     } else {
         let FinishedPredicate {
             modal,
@@ -1672,13 +1658,7 @@ pub(super) fn finite_inflection_of_clause(clause: &IndependentClause) -> Option<
         | IndependentClause::Imperative(_)
         | IndependentClause::Existential(_) => None,
         IndependentClause::Complex(complex) => finite_inflection_of_clause(&complex.matrix),
-        IndependentClause::Predicated(_, expression) => match expression {
-            PredicateExpression::Simple(predicate) => finite_inflection_of_predicate(predicate),
-            PredicateExpression::Coordinated(coordination) => coordination
-                .conjuncts()
-                .first()
-                .and_then(finite_inflection_of_predicate),
-        },
+        IndependentClause::Predicated(_, expression) => finite_inflection_of_expression(expression),
         IndependentClause::Coordinated(coordination) => {
             coordination
                 .rest
@@ -1689,6 +1669,16 @@ pub(super) fn finite_inflection_of_clause(clause: &IndependentClause) -> Option<
                     }
                 })
         }
+    }
+}
+
+fn finite_inflection_of_expression(expression: &PredicateExpression) -> Option<FiniteInflection> {
+    match expression {
+        PredicateExpression::Simple(predicate) => finite_inflection_of_predicate(predicate),
+        PredicateExpression::Coordinated(coordination) => coordination
+            .conjuncts()
+            .first()
+            .and_then(finite_inflection_of_expression),
     }
 }
 
@@ -1809,68 +1799,64 @@ pub(super) fn append_shared_predicate(
         IndependentClause::Transitive(subject, first) => Some(IndependentClause::Predicated(
             Some(subject),
             PredicateExpression::Coordinated(Coordination::new(
-                Predicate::Transitive(first),
+                PredicateExpression::Simple(Predicate::Transitive(first)),
                 junction,
-                predicate,
+                PredicateExpression::Simple(predicate),
             )),
         )),
         IndependentClause::Intransitive(subject, first) => Some(IndependentClause::Predicated(
             Some(subject),
             PredicateExpression::Coordinated(Coordination::new(
-                Predicate::Intransitive(first),
+                PredicateExpression::Simple(Predicate::Intransitive(first)),
                 junction,
-                predicate,
+                PredicateExpression::Simple(predicate),
             )),
         )),
         IndependentClause::Copular(subject, first) => Some(IndependentClause::Predicated(
             Some(subject),
             PredicateExpression::Coordinated(Coordination::new(
-                Predicate::Copular(first),
+                PredicateExpression::Simple(Predicate::Copular(first)),
                 junction,
-                predicate,
+                PredicateExpression::Simple(predicate),
             )),
         )),
         IndependentClause::Passive(subject, first) => Some(IndependentClause::Predicated(
             Some(subject),
             PredicateExpression::Coordinated(Coordination::new(
-                Predicate::Passive(first),
+                PredicateExpression::Simple(Predicate::Passive(first)),
                 junction,
-                predicate,
+                PredicateExpression::Simple(predicate),
             )),
         )),
         IndependentClause::Proform(subject, first) => Some(IndependentClause::Predicated(
             Some(subject),
             PredicateExpression::Coordinated(Coordination::new(
-                Predicate::Proform(first),
+                PredicateExpression::Simple(Predicate::Proform(first)),
                 junction,
-                predicate,
+                PredicateExpression::Simple(predicate),
             )),
         )),
         IndependentClause::Deontic(subject, modal, inner) => Some(IndependentClause::Predicated(
             Some(subject),
             PredicateExpression::Coordinated(Coordination::new(
-                Predicate::Deontic(DeonticPredicate {
+                PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
                     modal,
                     inner: inner.map(Box::new),
-                }),
+                })),
                 junction,
-                predicate,
+                PredicateExpression::Simple(predicate),
             )),
         )),
         IndependentClause::Imperative(first) => Some(IndependentClause::Predicated(
             None,
-            PredicateExpression::Coordinated(Coordination::new(first, junction, predicate)),
+            PredicateExpression::Coordinated(Coordination::new(
+                PredicateExpression::Simple(first),
+                junction,
+                PredicateExpression::Simple(predicate),
+            )),
         )),
         IndependentClause::Predicated(subject, expression) => {
-            let expression = match expression {
-                PredicateExpression::Simple(first) => {
-                    PredicateExpression::Coordinated(Coordination::new(first, junction, predicate))
-                }
-                PredicateExpression::Coordinated(mut coordinated) => {
-                    coordinated.push(junction, predicate);
-                    PredicateExpression::Coordinated(coordinated)
-                }
-            };
+            let expression = push_predicate_expression(expression, junction, predicate);
             Some(IndependentClause::Predicated(subject, expression))
         }
         IndependentClause::Complex(mut complex) => {
@@ -1890,7 +1876,11 @@ pub(super) fn append_shared_predicate(
                 });
                 let predicated = IndependentClause::Predicated(
                     subject,
-                    PredicateExpression::Coordinated(Coordination::new(first, junction, predicate)),
+                    PredicateExpression::Coordinated(Coordination::new(
+                        PredicateExpression::Simple(first),
+                        junction,
+                        PredicateExpression::Simple(predicate),
+                    )),
                 );
                 complex
                     .attachments
@@ -1917,6 +1907,38 @@ pub(super) fn append_shared_predicate(
             Some(IndependentClause::Coordinated(coordinated))
         }
         IndependentClause::Existential(_) => None,
+    }
+}
+
+/// Adds one predicate without flattening a changed connective into the
+/// existing run. Predicate expressions are recursive specifically so
+/// `(attack or block) and has ...` keeps the `or` constituent as the first
+/// member of the outer `and` group. Asyndetic Oxford members remain in the
+/// open run until its overt closing connective arrives.
+fn push_predicate_expression(
+    expression: PredicateExpression,
+    junction: CoordinationJunction,
+    predicate: Predicate,
+) -> PredicateExpression {
+    match expression {
+        PredicateExpression::Coordinated(mut coordinated)
+            if !connective_changes(
+                coordinated
+                    .junctions()
+                    .iter()
+                    .rev()
+                    .find_map(|junction| junction.conjunction),
+                junction.conjunction,
+            ) =>
+        {
+            coordinated.push(junction, PredicateExpression::Simple(predicate));
+            PredicateExpression::Coordinated(coordinated)
+        }
+        expression => PredicateExpression::Coordinated(Coordination::new(
+            expression,
+            junction,
+            PredicateExpression::Simple(predicate),
+        )),
     }
 }
 
@@ -1972,25 +1994,69 @@ pub(super) fn append_subjectless_clause(
     if matches!(predicate, Predicate::Deontic(_)) {
         return None;
     }
+    Some(append_complete_clause(
+        clause,
+        junction.clone(),
+        IndependentClause::Imperative(predicate),
+    ))
+}
+
+/// Adds a complete clause while preserving punctuation-signaled grouping.
+/// A changed connective after a comma starts a new outer group (`A and B, or
+/// C`). Without that comma it joins the rightmost clause (`A, or B and C`),
+/// which is also where an immediately following subjectless predicate finds
+/// its finite subject.
+fn append_complete_clause(
+    first: IndependentClause,
+    junction: CoordinationJunction,
+    next: IndependentClause,
+) -> IndependentClause {
     let continuation = ClauseCoordination {
         conjunction: junction.conjunction,
         comma: junction.comma,
-        member: CoordinatedClauseMember::Independent(Box::new(IndependentClause::Imperative(
-            predicate,
-        ))),
+        member: CoordinatedClauseMember::Independent(Box::new(next)),
     };
-    match clause {
+    match first {
         IndependentClause::Coordinated(mut coordinated) => {
-            coordinated.rest.push(continuation);
-            Some(IndependentClause::Coordinated(coordinated))
+            let changed = connective_changes(
+                coordinated
+                    .rest
+                    .iter()
+                    .rev()
+                    .find_map(|member| member.conjunction),
+                junction.conjunction,
+            );
+            if changed && junction.comma {
+                return IndependentClause::Coordinated(CoordinatedIndependentClause {
+                    first: Box::new(IndependentClause::Coordinated(coordinated)),
+                    rest: vec![continuation],
+                });
+            }
+            if changed {
+                let CoordinatedClauseMember::Independent(last) = &mut coordinated
+                    .rest
+                    .last_mut()
+                    .expect("a coordinated clause has a continuation")
+                    .member;
+                let CoordinatedClauseMember::Independent(next) = continuation.member;
+                **last = append_complete_clause((**last).clone(), junction, *next);
+            } else {
+                coordinated.rest.push(continuation);
+            }
+            IndependentClause::Coordinated(coordinated)
         }
-        first => Some(IndependentClause::Coordinated(
-            CoordinatedIndependentClause {
-                first: Box::new(first),
-                rest: vec![continuation],
-            },
-        )),
+        first => IndependentClause::Coordinated(CoordinatedIndependentClause {
+            first: Box::new(first),
+            rest: vec![continuation],
+        }),
     }
+}
+
+fn connective_changes(
+    previous: Option<PredicateConjunction>,
+    next: Option<PredicateConjunction>,
+) -> bool {
+    matches!((previous, next), (Some(previous), Some(next)) if previous != next)
 }
 
 pub(super) fn starts_new_clause_group(
@@ -2000,12 +2066,13 @@ pub(super) fn starts_new_clause_group(
     let IndependentClause::Coordinated(coordinated) = clause else {
         return false;
     };
-    coordinated.rest.last().is_some_and(|previous| {
-        matches!(
-            (previous.conjunction, junction.conjunction),
-            (Some(previous), Some(next)) if previous != next
-        )
-    })
+    junction.comma
+        && coordinated.rest.last().is_some_and(|previous| {
+            matches!(
+                (previous.conjunction, junction.conjunction),
+                (Some(previous), Some(next)) if previous != next
+            )
+        })
 }
 
 pub(super) fn accepts_shared_predicate(clause: &IndependentClause) -> bool {

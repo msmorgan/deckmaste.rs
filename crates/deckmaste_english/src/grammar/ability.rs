@@ -1889,20 +1889,19 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         carries_from: bool,
     ) -> Option<(KeywordArgument, Option<Paragraph>)> {
         let (separator, body) = split_keyword_argument_separator(argument_tokens, ability_end);
-        if separator == KeywordArgumentSeparator::EmDash {
-            if let Some(split_index) = find_first_top_level_sentence_terminal(body) {
-                if split_index + 1 < body.len() {
-                    let cost_part = &body[..=split_index];
-                    let tail_part = &body[split_index + 1..];
-                    let candidate = self.parse_tight_keyword_cost(separator, cost_part);
-                    if matches!(
-                        candidate,
-                        KeywordArgument::Costed(KeywordCost::Components { .. })
-                    ) {
-                        let tail = self.parse_paragraph(tail_part);
-                        return Some((candidate, Some(tail)));
-                    }
-                }
+        if separator == KeywordArgumentSeparator::EmDash
+            && let Some(split_index) = find_first_top_level_sentence_terminal(body)
+            && split_index + 1 < body.len()
+        {
+            let cost_part = &body[..=split_index];
+            let tail_part = &body[split_index + 1..];
+            let candidate = self.parse_tight_keyword_cost(separator, cost_part);
+            if matches!(
+                candidate,
+                KeywordArgument::Costed(KeywordCost::Components { .. })
+            ) {
+                let tail = self.parse_paragraph(tail_part);
+                return Some((candidate, Some(tail)));
             }
         }
         let argument =
@@ -3027,10 +3026,7 @@ mod tests {
                 imperative: Predicate::Transitive(TransitivePredicate {
                     kind: Transitive {
                         object: PredicateObject::NounPhrase(NounPhrase::Coordinated(
-                            CoordinatedNounPhrase {
-                                first,
-                                rest,
-                            }
+                            CoordinatedNounPhrase { first, rest }
                         )),
                         ..
                     },
@@ -5014,8 +5010,7 @@ mod tests {
                         ..
                     }]
                 ),
-                "expected a single RestrictedCost item for {source:?}: {:#?}",
-                list
+                "expected a single RestrictedCost item for {source:?}: {list:#?}"
             );
             assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
         }

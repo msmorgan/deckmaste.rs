@@ -66,6 +66,7 @@ use super::opacity;
 use super::parse_support::EnglishForest;
 use super::quantity_value;
 use crate::word::NounDeclension;
+use crate::word::Tense;
 
 #[allow(
     dead_code,
@@ -329,6 +330,10 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::RulesObjectFollowupNominalPrepositional
         | RuleTag::NominalReducedRecipientPassive
         | RuleTag::NominalPostpositiveAdjective
+        | RuleTag::NominalPostpositiveAdjectiveConjoinedPrepositional
+        | RuleTag::NominalPostpositiveAdjectiveConjoined
+        | RuleTag::NominalPostpositiveAdjectiveAsyndetic
+        | RuleTag::NominalPostpositiveAdjectiveOxford
         | RuleTag::NominalComparison
         | RuleTag::NominalDevotion
         | RuleTag::DevotionColorSingle
@@ -987,6 +992,126 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                 .push(NominalComplement::Adjective(adjective));
             Some(Lowered::Nominal(nominal))
         }
+        RuleTag::NominalPostpositiveAdjectiveConjoinedPrepositional => {
+            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Conjunction(conjunction) = take(children, 1)? else {
+                return None;
+            };
+            let Lowered::AdjectivePhrase(mut adjective) = take(children, 2)? else {
+                return None;
+            };
+            let Lowered::PrepositionalPhrase(preposition) = take(children, 3)? else {
+                return None;
+            };
+            if !matches!(adjective.head, Adjective::Participle(Tense::Past, _))
+                || preposition.preposition != Preposition::By
+            {
+                return None;
+            }
+            adjective
+                .complements
+                .push(crate::syntax::AdjectiveComplement::Prepositional(
+                    preposition,
+                ));
+            let previous = nominal.complements.pop()?;
+            let coordinated = match previous {
+                NominalComplement::Adjective(first) => crate::syntax::CoordinatedAdjectivePhrase {
+                    first: Box::new(first),
+                    rest: vec![crate::syntax::AdjectivePhraseCoordination {
+                        conjunction: Some(conjunction),
+                        comma: false,
+                        phrase: adjective,
+                    }],
+                },
+                NominalComplement::CoordinatedAdjective(mut coordinated) => {
+                    let previous_conjunction = coordinated
+                        .rest
+                        .iter()
+                        .rev()
+                        .find_map(|member| member.conjunction);
+                    if previous_conjunction.is_some_and(|previous| previous != conjunction) {
+                        return None;
+                    }
+                    coordinated
+                        .rest
+                        .push(crate::syntax::AdjectivePhraseCoordination {
+                            conjunction: Some(conjunction),
+                            comma: false,
+                            phrase: adjective,
+                        });
+                    coordinated
+                }
+                _ => return None,
+            };
+            nominal
+                .complements
+                .push(NominalComplement::CoordinatedAdjective(coordinated));
+            Some(Lowered::Nominal(nominal))
+        }
+        RuleTag::NominalPostpositiveAdjectiveConjoined
+        | RuleTag::NominalPostpositiveAdjectiveAsyndetic
+        | RuleTag::NominalPostpositiveAdjectiveOxford => {
+            let (conjunction_index, adjective_index, comma) = match tag {
+                RuleTag::NominalPostpositiveAdjectiveConjoined => (Some(1), 2, false),
+                RuleTag::NominalPostpositiveAdjectiveAsyndetic => (None, 2, true),
+                RuleTag::NominalPostpositiveAdjectiveOxford => (Some(2), 3, true),
+                _ => unreachable!("matched postpositive coordination tag"),
+            };
+            let conjunction = match conjunction_index {
+                Some(index) => {
+                    let Lowered::Conjunction(conjunction) = take(children, index)? else {
+                        return None;
+                    };
+                    Some(conjunction)
+                }
+                None => None,
+            };
+            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::AdjectivePhrase(adjective) = take(children, adjective_index)? else {
+                return None;
+            };
+            let previous = nominal.complements.pop()?;
+            let coordinated = match previous {
+                NominalComplement::Adjective(first) => crate::syntax::CoordinatedAdjectivePhrase {
+                    first: Box::new(first),
+                    rest: vec![crate::syntax::AdjectivePhraseCoordination {
+                        conjunction,
+                        comma,
+                        phrase: adjective,
+                    }],
+                },
+                NominalComplement::CoordinatedAdjective(mut coordinated) => {
+                    let previous_conjunction = coordinated
+                        .rest
+                        .iter()
+                        .rev()
+                        .find_map(|member| member.conjunction);
+                    if matches!(
+                        (previous_conjunction, conjunction),
+                        (Some(previous), Some(next)) if previous != next
+                    ) {
+                        return None;
+                    }
+                    coordinated
+                        .rest
+                        .push(crate::syntax::AdjectivePhraseCoordination {
+                            conjunction,
+                            comma,
+                            phrase: adjective,
+                        });
+                    coordinated
+                }
+                _ => return None,
+            };
+            nominal
+                .complements
+                .push(NominalComplement::CoordinatedAdjective(coordinated));
+            Some(Lowered::Nominal(nominal))
+        }
         RuleTag::NominalComparison => {
             let Lowered::Nominal(mut nominal) = take(children, 0)? else {
                 return None;
@@ -1189,8 +1314,15 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::Ignored = take(children, 0)? else {
                 return None;
             };
-            let Lowered::Noun(first_head) = take(children, 1)? else {
-                return None;
+            let first = match take(children, 1)? {
+                Lowered::Noun(head) => NominalPhrase {
+                    determiner: None,
+                    modifiers: Vec::new(),
+                    head,
+                    complements: Vec::new(),
+                },
+                Lowered::Nominal(first) => first,
+                _ => return None,
             };
             let Lowered::Conjunction(conjunction) = take(children, 2)? else {
                 return None;
@@ -1205,29 +1337,28 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 }
                 crate::syntax::PredicateConjunction::Then => return None,
             };
-            let Lowered::Noun(next_head) = take(children, 3)? else {
-                return None;
+            let mut next = match take(children, 3)? {
+                Lowered::Noun(head) => NominalPhrase {
+                    determiner: None,
+                    modifiers: Vec::new(),
+                    head,
+                    complements: Vec::new(),
+                },
+                Lowered::Nominal(next) => next,
+                _ => return None,
             };
+            let group_complements =
+                take_trailing_group_complements(nominal_has_relative(&first), &mut next);
             Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(
                 crate::syntax::CoordinatedNominalPhrase {
                     determiner: crate::syntax::Determiner::Target(None),
-                    first: Box::new(NominalPhrase {
-                        determiner: None,
-                        modifiers: Vec::new(),
-                        head: first_head,
-                        complements: Vec::new(),
-                    }),
+                    first: Box::new(first),
                     rest: vec![crate::syntax::NominalPhraseCoordination {
                         conjunction: Some(conjunction),
                         comma: false,
-                        phrase: NominalPhrase {
-                            determiner: None,
-                            modifiers: Vec::new(),
-                            head: next_head,
-                            complements: Vec::new(),
-                        },
+                        phrase: next,
                     }],
-                    complements: Vec::new(),
+                    complements: group_complements,
                 },
             )))
         }

@@ -718,10 +718,11 @@ pub struct AdjectivePhrase {
     pub complements: Vec<AdjectiveComplement>,
 }
 
-/// A coordinated run of predicative adjective phrases filling one copular or
-/// intransitive-`be` complement slot: `green and white` (Glistening Deluge),
+/// A coordinated run of adjective phrases filling one predicative or
+/// postnominal complement slot: `green and white` (Glistening Deluge),
 /// `red or green` (Aether Gust), `legendary and snow` (Moritte of the Frost),
-/// `green and/or white` (Glistening Deluge). It reuses the landed coordination
+/// `green and/or white` (Glistening Deluge), or `creature blocking or blocked
+/// by this creature` (Lesser Werewolf). It reuses the landed coordination
 /// idiom — a first conjunct plus a list of [`AdjectivePhraseCoordination`]
 /// continuations, each recording its own comma and optional connective — so the
 /// renderer replays the exact surface list. Reached only from predicative
@@ -770,6 +771,9 @@ pub enum AdjectiveComplement {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum NominalComplement {
     Adjective(AdjectivePhrase),
+    /// Coordinated postnominal adjectives/reduced participles sharing the
+    /// nominal host (`creature blocking or blocked by this creature`).
+    CoordinatedAdjective(CoordinatedAdjectivePhrase),
     Prepositional(PrepositionalPhrase),
     Infinitive(InfinitiveClause),
     Relative(RelativeClause),

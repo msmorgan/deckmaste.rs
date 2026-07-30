@@ -42,7 +42,7 @@ use crate::word::Verb;
 use crate::word::VerbSlot;
 use crate::word::Vocab;
 
-fn predicate_coordination(sentence: &Sentence) -> &Coordination<Predicate> {
+fn predicate_coordination(sentence: &Sentence) -> &Coordination<PredicateExpression> {
     let SentenceBody::Independent(IndependentClause::Predicated(
         _,
         PredicateExpression::Coordinated(coordination),
@@ -1414,7 +1414,8 @@ fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() 
     let source = "That creature gets +1/+1 and deals 3 damage to target player or planeswalker and 1 damage to each creature that player or that planeswalker controls.";
     let parsed = parse(source);
     let predicates = predicate_coordination(parsed.sentence().expect("sentence root"));
-    let [_, Predicate::Transitive(deals)] = predicates.conjuncts() else {
+    let [_, PredicateExpression::Simple(Predicate::Transitive(deals))] = predicates.conjuncts()
+    else {
         panic!("expected coordinated `gets` and `deals` predicates: {predicates:#?}");
     };
     let PredicateObject::NounPhrase(NounPhrase::Coordinated(damage)) = &deals.object else {
@@ -1809,7 +1810,8 @@ fn verb_homograph_does_not_close_a_shared_determiner_group() {
     let source = "Create a token and copy target spell.";
     let parsed = parse(source);
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
-    let [_, Predicate::Transitive(copy)] = coordination.conjuncts() else {
+    let [_, PredicateExpression::Simple(Predicate::Transitive(copy))] = coordination.conjuncts()
+    else {
         panic!("`copy` must remain the second predicate: {coordination:#?}");
     };
     assert!(matches!(copy.head.verb.verb, Verb::Word(Vocab::Copy)));
@@ -2220,14 +2222,10 @@ fn single_only_restriction_keeps_its_flat_elements() {
             panic!("expected an imperative intransitive for {source}");
         };
         assert!(
-            predicate.elements.iter().all(|element| !matches!(
-                element,
-                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(_))
-                    | PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))
-            ) || matches!(
-                element,
-                PredicateElement::Adjunct(_)
-            )),
+            predicate
+                .elements
+                .iter()
+                .all(|element| matches!(element, PredicateElement::Adjunct(_))),
             "{source}: {:#?}",
             predicate.elements
         );
@@ -3841,7 +3839,8 @@ fn goblin_chieftain_stat_change_remains_one_magic_atom() {
     else {
         panic!("expected coordinated predicates");
     };
-    let [Predicate::Transitive(first), _] = coordination.conjuncts() else {
+    let [PredicateExpression::Simple(Predicate::Transitive(first)), _] = coordination.conjuncts()
+    else {
         panic!("expected two predicate conjuncts");
     };
     assert!(matches!(first.object, PredicateObject::PowerToughness(_)));
@@ -4649,7 +4648,11 @@ fn quoted_ability_is_a_coordinated_grant_predicate_object() {
     let source = "Enchanted creature gets +2/+2 and has \"{T}: Draw a card.\"";
     let parsed = parse(source);
     let coordination = predicate_coordination(parsed.sentence().unwrap());
-    let [_, Predicate::Transitive(shared)] = coordination.conjuncts() else {
+    let [
+        _,
+        PredicateExpression::Simple(Predicate::Transitive(shared)),
+    ] = coordination.conjuncts()
+    else {
         panic!("expected one shared-predicate conjunct: {coordination:#?}");
     };
     assert!(
@@ -4883,9 +4886,9 @@ fn existential_host_does_not_adopt_a_bare_imperative_tail() {
 // {2}`). Fixture keyword catalog above adds `Ward`, `Equip`,
 // `Protection`, `Annihilator`, `Double strike` for this and later stages.
 
-fn keyword_symbol_cost<'a>(
-    nominal: &'a crate::syntax::NominalPhrase,
-) -> (&'a str, &'a [crate::syntax::OracleSymbol]) {
+fn keyword_symbol_cost(
+    nominal: &crate::syntax::NominalPhrase,
+) -> (&str, &[crate::syntax::OracleSymbol]) {
     let NounInstance::Mass(Noun::Catalog(atom)) = &nominal.head else {
         panic!("expected a catalog noun head, got {:?}", nominal.head);
     };
@@ -5058,9 +5061,9 @@ fn keyword_grant_ordinary_noun_never_acquires_a_predicated_complement() {
 // `kwgrant` round, Stage B: explicit `from` qualities fused onto a
 // keyword-noun head in grant position (`protection from black`).
 
-fn keyword_predicated_argument<'a>(
-    nominal: &'a crate::syntax::NominalPhrase,
-) -> (&'a str, &'a [crate::syntax::PredicatedQuality]) {
+fn keyword_predicated_argument(
+    nominal: &crate::syntax::NominalPhrase,
+) -> (&str, &[crate::syntax::PredicatedQuality]) {
     let NounInstance::Mass(Noun::Catalog(atom)) = &nominal.head else {
         panic!("expected a catalog noun head, got {:?}", nominal.head);
     };
@@ -6314,13 +6317,12 @@ fn other_except_classes_are_unchanged() {
     // `except` PPs and fronted `Except for`) must all keep their prior
     // disposition: the new append-last `By`-only production must not
     // consume any of these.
-    for source in ["Each spell costs {3} more to cast except during its controller's turn."] {
-        let result = parse_nonterminal(source, &exception_catalogs(), Nonterminal::Sentence);
-        assert!(
-            result.is_err() || result.unwrap().opacity_mode() != OpacityMode::Exact,
-            "{source} must not become a whole recovery via the new production"
-        );
-    }
+    let source = "Each spell costs {3} more to cast except during its controller's turn.";
+    let result = parse_nonterminal(source, &exception_catalogs(), Nonterminal::Sentence);
+    assert!(
+        result.is_err() || result.unwrap().opacity_mode() != OpacityMode::Exact,
+        "{source} must not become a whole recovery via the new production"
+    );
 }
 
 #[test]
@@ -6348,10 +6350,10 @@ fn shared_deontic_active_modal_coordinates_with_a_transitive_first_conjunct() {
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
     let [
         _,
-        Predicate::Deontic(DeonticPredicate {
+        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
             modal,
             inner: Some(predicate),
-        }),
+        })),
     ] = coordination.conjuncts()
     else {
         panic!("expected one shared-deontic conjunct: {coordination:#?}");
@@ -6368,7 +6370,8 @@ fn shared_deontic_active_modal_coordinates_with_a_transitive_first_conjunct() {
 fn shared_predicates_receive_the_finite_subject_agreement() {
     let plural = parse("Other Merfolk get +1/+1 and have islandwalk.");
     let coordination = predicate_coordination(plural.sentence().expect("plural sentence"));
-    let [_, Predicate::Transitive(have)] = coordination.conjuncts() else {
+    let [_, PredicateExpression::Simple(Predicate::Transitive(have))] = coordination.conjuncts()
+    else {
         panic!("expected a transitive `have` conjunct: {coordination:#?}");
     };
     assert_eq!(
@@ -6381,7 +6384,8 @@ fn shared_predicates_receive_the_finite_subject_agreement() {
 
     let singular = parse("This creature gets +2/+0 and has flying.");
     let coordination = predicate_coordination(singular.sentence().expect("singular sentence"));
-    let [_, Predicate::Transitive(has)] = coordination.conjuncts() else {
+    let [_, PredicateExpression::Simple(Predicate::Transitive(has))] = coordination.conjuncts()
+    else {
         panic!("expected a transitive `has` conjunct: {coordination:#?}");
     };
     assert_eq!(
@@ -6414,10 +6418,10 @@ fn shared_deontic_passive_modal_coordinates_with_a_transitive_first_conjunct() {
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
     let [
         _,
-        Predicate::Deontic(DeonticPredicate {
+        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
             modal,
             inner: Some(predicate),
-        }),
+        })),
     ] = coordination.conjuncts()
     else {
         panic!("expected one shared-deontic conjunct: {coordination:#?}");
@@ -6436,13 +6440,14 @@ fn shared_deontic_composes_with_a_modal_first_clause() {
     let parsed = parse(source);
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
     let [
-        Predicate::Deontic(DeonticPredicate {
-            inner: Some(first), ..
-        }),
-        Predicate::Deontic(DeonticPredicate {
+        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
+            inner: Some(first),
+            ..
+        })),
+        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
             modal,
             inner: Some(predicate),
-        }),
+        })),
     ] = coordination.conjuncts()
     else {
         panic!("expected two deontic predicate conjuncts: {coordination:#?}");
@@ -6464,10 +6469,10 @@ fn shared_deontic_passive_composes_with_an_exception_tail() {
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
     let [
         _,
-        Predicate::Deontic(DeonticPredicate {
+        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
             modal,
             inner: Some(predicate),
-        }),
+        })),
     ] = coordination.conjuncts()
     else {
         panic!("expected one shared-deontic conjunct: {coordination:#?}");
@@ -6528,11 +6533,11 @@ fn shared_deontic_with_vp_ellipsis_preserves_the_first_deontic_ellipsis() {
         panic!("expected coordinated predicates in the `if` body: {if_body:#?}");
     };
     let [
-        Predicate::Proform(crate::syntax::ProPredicate { auxiliary }),
-        Predicate::Deontic(DeonticPredicate {
+        PredicateExpression::Simple(Predicate::Proform(crate::syntax::ProPredicate { auxiliary })),
+        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
             modal,
             inner: Some(predicate),
-        }),
+        })),
     ] = coordination.conjuncts()
     else {
         panic!("expected proform and deontic predicate conjuncts: {coordination:#?}");
@@ -6567,12 +6572,12 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
     let coordinated = IndependentClause::Predicated(
         Some(subject),
         PredicateExpression::Coordinated(Coordination::new(
-            Predicate::Transitive(first_predicate),
+            PredicateExpression::Simple(Predicate::Transitive(first_predicate)),
             CoordinationJunction {
                 conjunction: Some(PredicateConjunction::And),
                 comma: false,
             },
-            second,
+            PredicateExpression::Simple(second),
         )),
     );
     let sentence = Sentence {
@@ -6581,6 +6586,167 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
     };
     let rendered = render_sentence(&sentence);
     assert_eq!(rendered, "You draw a card and can't.");
+}
+
+#[test]
+fn changed_predicate_connective_nests_the_completed_left_group() {
+    let source = "Enchanted creature can't attack or block and has flying.";
+    let parsed = parse(source);
+    let outer = predicate_coordination(parsed.sentence().expect("sentence root"));
+    assert!(matches!(
+        outer.junctions(),
+        [CoordinationJunction {
+            conjunction: Some(PredicateConjunction::And),
+            comma: false,
+        }]
+    ));
+    let [
+        PredicateExpression::Coordinated(inner),
+        PredicateExpression::Simple(_),
+    ] = outer.conjuncts()
+    else {
+        panic!("expected `(attack or block) and has`: {outer:#?}");
+    };
+    assert_eq!(inner.conjuncts().len(), 2);
+    assert!(matches!(
+        inner.junctions(),
+        [CoordinationJunction {
+            conjunction: Some(PredicateConjunction::Or),
+            comma: false,
+        }]
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn mixed_complete_clause_connectives_keep_both_punctuation_groups() {
+    let source = concat!(
+        "You draw a card, then you discard a card, or you lose 1 life ",
+        "and you gain 1 life."
+    );
+    let parsed = parse(source);
+    let SentenceBody::Independent(IndependentClause::Coordinated(outer)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!(
+            "expected outer complete-clause coordination: {:#?}",
+            parsed.sentence()
+        );
+    };
+    assert!(
+        matches!(outer.first.as_ref(), IndependentClause::Coordinated(left) if matches!(
+            left.rest.as_slice(),
+            [ClauseCoordination {
+                conjunction: Some(PredicateConjunction::Then),
+                comma: true,
+                ..
+            }]
+        ))
+    );
+    let [
+        ClauseCoordination {
+            conjunction: Some(PredicateConjunction::Or),
+            comma: true,
+            member: CoordinatedClauseMember::Independent(right),
+        },
+    ] = outer.rest.as_slice()
+    else {
+        panic!("expected one comma-delimited outer `or`: {outer:#?}");
+    };
+    assert!(
+        matches!(right.as_ref(), IndependentClause::Coordinated(right) if matches!(
+            right.rest.as_slice(),
+            [ClauseCoordination {
+                conjunction: Some(PredicateConjunction::And),
+                comma: false,
+                ..
+            }]
+        ))
+    );
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn uniform_clause_and_predicate_runs_remain_flat() {
+    let clauses = "You draw a card and you discard a card and you gain 1 life.";
+    let parsed = parse(clauses);
+    let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected one flat clause run: {:#?}", parsed.sentence());
+    };
+    assert_eq!(coordination.rest.len(), 2);
+    assert!(matches!(
+        coordination.rest.as_slice(),
+        [
+            ClauseCoordination {
+                conjunction: Some(PredicateConjunction::And),
+                comma: false,
+                ..
+            },
+            ClauseCoordination {
+                conjunction: Some(PredicateConjunction::And),
+                comma: false,
+                ..
+            }
+        ]
+    ));
+
+    let predicates = "This creature gets +1/+1 and gains flying and has vigilance.";
+    let parsed = parse(predicates);
+    let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
+    assert!(
+        coordination
+            .conjuncts()
+            .iter()
+            .all(|expression| matches!(expression, PredicateExpression::Simple(_)))
+    );
+    assert_eq!(coordination.conjuncts().len(), 3);
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), predicates);
+}
+
+#[test]
+fn coordinated_postpositive_participles_share_the_creature_head() {
+    let source = "Put a counter on target creature blocking or blocked by this creature.";
+    let parsed = parse(source);
+    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(put))) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a transitive imperative: {:#?}", parsed.sentence());
+    };
+    let PredicateObject::NounPhrase(NounPhrase::Nominal(counter)) = &put.object else {
+        panic!("expected a counter object: {put:#?}");
+    };
+    let [NominalComplement::Prepositional(on)] = counter.complements.as_slice() else {
+        panic!("expected one recipient PP: {counter:#?}");
+    };
+    let Phrase::NounPhrase(target) = on.object.as_ref() else {
+        panic!("expected a target creature: {on:#?}");
+    };
+    let NounPhrase::Nominal(target) = target.as_ref() else {
+        panic!("expected one nominal target: {target:#?}");
+    };
+    let [NominalComplement::CoordinatedAdjective(participles)] = target.complements.as_slice()
+    else {
+        panic!("expected coordinated postpositive participles: {target:#?}");
+    };
+    assert!(matches!(
+        participles.first.head,
+        Adjective::Participle(Tense::Present, Verb::Word(Vocab::Block))
+    ));
+    let [second] = participles.rest.as_slice() else {
+        panic!("expected one `or blocked` member: {participles:#?}");
+    };
+    assert_eq!(second.conjunction, Some(PredicateConjunction::Or));
+    assert!(matches!(
+        second.phrase.head,
+        Adjective::Participle(Tense::Past, Verb::Word(Vocab::Block))
+    ));
+    assert!(matches!(
+        second.phrase.complements.as_slice(),
+        [AdjectiveComplement::Prepositional(by)] if by.preposition == Preposition::By
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
 // ---- Stage C: narrow additive-type shared copular members ----
@@ -6607,7 +6773,9 @@ fn additive_type_copular_continuations_share_the_finite_subject() {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
         let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
-        let [_, Predicate::Copular(copular)] = coordination.conjuncts() else {
+        let [_, PredicateExpression::Simple(Predicate::Copular(copular))] =
+            coordination.conjuncts()
+        else {
             panic!("expected a shared copular continuation: {coordination:#?}");
         };
         assert!(matches!(

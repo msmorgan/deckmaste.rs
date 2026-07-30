@@ -915,11 +915,8 @@ impl<'identity> Renderer<'identity> {
                 let first = conjuncts
                     .next()
                     .expect("a validated coordination has a first conjunct");
-                let mut rendered = match subject {
-                    Some(subject) => self.predicate_with_subject(subject, first)?,
-                    None => self.predicate(first)?,
-                };
-                for (junction, predicate) in coordination.junctions().iter().zip(conjuncts) {
+                let mut rendered = self.predicate_expression(subject, first)?;
+                for (junction, expression) in coordination.junctions().iter().zip(conjuncts) {
                     if junction.comma {
                         rendered.push(',');
                     }
@@ -928,7 +925,7 @@ impl<'identity> Renderer<'identity> {
                         rendered.push_str(render_predicate_conjunction(conjunction));
                         rendered.push(' ');
                     }
-                    rendered.push_str(&self.predicate(predicate)?);
+                    rendered.push_str(&self.predicate_expression(None, expression)?);
                 }
                 Ok(rendered)
             }
@@ -1059,11 +1056,9 @@ impl<'identity> Renderer<'identity> {
             if member.comma {
                 rendered.push(',');
             }
-            if member.conjunction.is_some() {
+            if let Some(conjunction) = member.conjunction {
                 rendered.push(' ');
-                rendered.push_str(render_predicate_conjunction(
-                    member.conjunction.expect("checked Some above"),
-                ));
+                rendered.push_str(render_predicate_conjunction(conjunction));
             }
             rendered.push_str(" only ");
             rendered.push_str(&self.restriction_member(&member.adjuncts)?);
@@ -1683,6 +1678,9 @@ impl<'identity> Renderer<'identity> {
     fn nominal_complement(&self, complement: &NominalComplement) -> Result<String, RenderError> {
         Ok(match complement {
             NominalComplement::Adjective(adjective) => self.adjective_phrase(adjective)?,
+            NominalComplement::CoordinatedAdjective(coordinated) => {
+                self.coordinated_adjective_phrase(coordinated)?
+            }
             NominalComplement::Prepositional(preposition) => {
                 self.prepositional_phrase(preposition)?
             }
@@ -2196,7 +2194,7 @@ fn predicate_expression_ends_with_closed_quote(expression: &PredicateExpression)
         PredicateExpression::Coordinated(coordination) => coordination
             .conjuncts()
             .last()
-            .is_some_and(predicate_ends_with_closed_quote),
+            .is_some_and(predicate_expression_ends_with_closed_quote),
     }
 }
 
@@ -3277,12 +3275,12 @@ mod tests {
         let ast = paragraph_ability(Clause::Independent(IndependentClause::Predicated(
             Some(subject),
             PredicateExpression::Coordinated(crate::syntax::Coordination::new(
-                Predicate::Transitive(first),
+                PredicateExpression::Simple(Predicate::Transitive(first)),
                 crate::syntax::CoordinationJunction {
                     conjunction: Some(PredicateConjunction::And),
                     comma: false,
                 },
-                second,
+                PredicateExpression::Simple(second),
             )),
         )));
 

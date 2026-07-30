@@ -303,14 +303,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 if let Some(subject) = subject {
                     self.subject(subject, context);
                 }
-                match expression {
-                    PredicateExpression::Simple(predicate) => self.predicate(predicate, context),
-                    PredicateExpression::Coordinated(coordination) => {
-                        for predicate in coordination.conjuncts() {
-                            self.predicate(predicate, context);
-                        }
-                    }
-                }
+                self.predicate_expression(expression, context);
             }
             IndependentClause::Imperative(predicate) => self.predicate(predicate, context),
             IndependentClause::Deontic(subject, _, predicate) => {
@@ -405,6 +398,21 @@ impl<'syntax> RecoveryWalker<'syntax> {
 
     fn subject(&mut self, subject: &'syntax Subject, context: Option<RecoveryRole>) {
         self.noun_phrase(&subject.0, context);
+    }
+
+    fn predicate_expression(
+        &mut self,
+        expression: &'syntax PredicateExpression,
+        context: Option<RecoveryRole>,
+    ) {
+        match expression {
+            PredicateExpression::Simple(predicate) => self.predicate(predicate, context),
+            PredicateExpression::Coordinated(coordination) => {
+                for expression in coordination.conjuncts() {
+                    self.predicate_expression(expression, context);
+                }
+            }
+        }
     }
 
     fn predicate(&mut self, predicate: &'syntax Predicate, context: Option<RecoveryRole>) {
@@ -688,6 +696,13 @@ impl<'syntax> RecoveryWalker<'syntax> {
         match complement {
             NominalComplement::Adjective(adjective) => {
                 self.adjective_phrase(adjective, RecoveryRole::NominalComplement, context);
+            }
+            NominalComplement::CoordinatedAdjective(coordinated) => {
+                self.coordinated_adjective_phrase(
+                    coordinated,
+                    RecoveryRole::NominalComplement,
+                    context,
+                );
             }
             NominalComplement::Prepositional(preposition) => {
                 self.prepositional_phrase(preposition, RecoveryRole::NominalComplement, context);

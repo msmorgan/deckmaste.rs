@@ -23,3 +23,7 @@ is representable — the fix is likely parser-side rather than an AST change, bu
 confirm against the real enum shape before assuming it.
 
 Regression gate: `mixed-conjunction` to 0. Standard constraints apply.
+
+## Completion
+
+- Preserved mixed-connective grouping with recursive predicate expressions and nested clause/nominal/adjective coordination; the supported `mixed-conjunction` census is zero and all supported faces round-trip exactly.

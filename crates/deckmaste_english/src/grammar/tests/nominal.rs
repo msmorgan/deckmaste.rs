@@ -377,6 +377,94 @@ mod tests {
     }
 
     #[test]
+    fn target_scopes_over_coordinated_modified_nominals() {
+        let source = "target enchanted creature or enchantment creature you control";
+        let catalogs =
+            fixture_catalogs().with_catalog(CatalogKind::CardType, ["Creature", "Enchantment"]);
+        let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
+            .expect("modified target alternatives must parse");
+        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            panic!(
+                "expected modified nominals under one target determiner: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert_eq!(coordinated.determiner, Determiner::Target(None));
+        assert_eq!(coordinated.rest.len(), 1);
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn among_oxford_list_stays_inside_the_second_coordinated_selection() {
+        let source = concat!(
+            "a +1/+1 counter and a counter from among flying, first strike, ",
+            "lifelink, or vigilance on it"
+        );
+        let catalogs = fixture_catalogs().with_catalog(
+            CatalogKind::KeywordAbility,
+            ["Flying", "First Strike", "Lifelink", "Vigilance"],
+        );
+        let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
+            .expect("the coordinated counter selection must parse");
+        let Some(NounPhrase::Coordinated(outer)) = parsed.noun_phrase() else {
+            panic!(
+                "expected two coordinated counter selections: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        let [second] = outer.rest.as_slice() else {
+            panic!("expected one outer `and` member: {outer:#?}");
+        };
+        assert_eq!(
+            second.conjunction,
+            Some(crate::syntax::NounPhraseConjunction::And)
+        );
+        let NounPhrase::Nominal(second) = &second.phrase else {
+            panic!("expected a nominal second counter: {second:#?}");
+        };
+        let [
+            NominalComplement::Prepositional(from),
+            NominalComplement::Prepositional(on),
+        ] = second.complements.as_slice()
+        else {
+            panic!("expected `from among ...` followed by `on it`: {second:#?}");
+        };
+        assert_eq!(from.preposition, crate::syntax::Preposition::From);
+        assert_eq!(on.preposition, crate::syntax::Preposition::On);
+        let crate::syntax::Phrase::PrepositionalPhrase(among) = from.object.as_ref() else {
+            panic!("expected nested `among` PP: {from:#?}");
+        };
+        assert_eq!(among.preposition, crate::syntax::Preposition::Among);
+        let crate::syntax::Phrase::NounPhrase(options) = among.object.as_ref() else {
+            panic!("expected an `among` option list: {among:#?}");
+        };
+        let NounPhrase::Coordinated(options) = options.as_ref() else {
+            panic!("expected coordinated keyword options: {options:#?}");
+        };
+        assert!(matches!(
+            options.rest.as_slice(),
+            [
+                crate::syntax::NounPhraseCoordination {
+                    conjunction: None,
+                    comma: true,
+                    ..
+                },
+                crate::syntax::NounPhraseCoordination {
+                    conjunction: None,
+                    comma: true,
+                    ..
+                },
+                crate::syntax::NounPhraseCoordination {
+                    conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
+                    comma: true,
+                    ..
+                }
+            ]
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
     fn general_determiners_scope_over_modified_nominals() {
         for (source, expected_determiner) in [
             ("another target creature or artifact", Determiner::Another),
@@ -1833,8 +1921,9 @@ mod tests {
                     polarity: Polarity::Positive,
                     phrase,
                 } => match &phrase.head {
-                    Adjective::Word(vocab) => vocab.spelling(),
-                    Adjective::Participle(_, Verb::Word(vocab)) => vocab.spelling(),
+                    Adjective::Word(vocab) | Adjective::Participle(_, Verb::Word(vocab)) => {
+                        vocab.spelling()
+                    }
                     other => panic!("{source}: unexpected adjective head {other:?}"),
                 },
                 other => panic!("{source}: expected an adjective modifier, got {other:?}"),

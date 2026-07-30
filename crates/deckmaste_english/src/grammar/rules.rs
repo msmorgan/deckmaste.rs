@@ -773,6 +773,15 @@ impl RuleBuilder {
             },
         );
 
+        self.add_selectional_coordination_rules();
+    }
+
+    fn add_selectional_coordination_rules(&mut self) {
+        use EnglishLexicalSlot as L;
+        use Expected::Lexical as l;
+        use Expected::Nonterminal as n;
+        use Nonterminal as N;
+
         // Selectional coordination categories are appended so existing rule
         // prediction and stable tie order remain unchanged when none applies.
         self.add(
@@ -789,6 +798,26 @@ impl RuleBuilder {
                 l(L::Conjunction),
                 n(N::Noun),
             ],
+        );
+        self.add_with_cost(
+            RuleTag::SharedDeterminerNominal,
+            N::SharedDeterminerNominal,
+            [
+                l(L::DeterminerTarget),
+                n(N::Nominal),
+                l(L::Conjunction),
+                n(N::Nominal),
+            ],
+            ParseCost {
+                // This production is the categorical evidence that the one
+                // target determiner selects two *modified* nominal
+                // alternatives; the reduction gate rejects a bare head plus a
+                // compound (`target artifact or land card`). Prefer this over
+                // coincidental modifier coordination inside one later nominal
+                // (`target enchanted creature or enchantment creature`).
+                attachment_count: 1,
+                ..ParseCost::default()
+            },
         );
         self.add(
             RuleTag::NounPhraseSharedDeterminer,
@@ -811,6 +840,17 @@ impl RuleBuilder {
             [
                 l(L::Preposition),
                 n(N::SharedDeterminerNominal),
+                l(L::Conjunction),
+                n(N::NounPhrase),
+            ],
+        );
+        self.add(
+            RuleTag::PrepositionalPhraseCoordinated,
+            N::PrepositionalPhrase,
+            [
+                l(L::Preposition),
+                n(N::NounPhraseList),
+                l(L::Punctuation(Punctuation::Comma)),
                 l(L::Conjunction),
                 n(N::NounPhrase),
             ],
@@ -853,6 +893,50 @@ impl RuleBuilder {
             RuleTag::RelativeContractedCopularCoordinatedAdjective,
             N::RelativeClause,
             [l(L::SubjectAuxiliary), n(N::CoordinatedModifier)],
+        );
+
+        // A postnominal adjective/reduced-participle run stays inside the
+        // nominal it modifies (`creature blocking or blocked by this
+        // creature`). The first adjective has already put the nominal in its
+        // postpositive attachment phase, which is the reduction-time gate for
+        // every continuation below.
+        self.add_with_cost(
+            RuleTag::NominalPostpositiveAdjectiveConjoinedPrepositional,
+            N::Nominal,
+            [
+                n(N::Nominal),
+                l(L::Conjunction),
+                n(N::AdjectivePhrase),
+                n(N::PrepositionalPhrase),
+            ],
+            ParseCost {
+                attachment_count: 1,
+                ..ParseCost::default()
+            },
+        );
+        self.add(
+            RuleTag::NominalPostpositiveAdjectiveConjoined,
+            N::Nominal,
+            [n(N::Nominal), l(L::Conjunction), n(N::AdjectivePhrase)],
+        );
+        self.add(
+            RuleTag::NominalPostpositiveAdjectiveAsyndetic,
+            N::Nominal,
+            [
+                n(N::Nominal),
+                l(L::Punctuation(Punctuation::Comma)),
+                n(N::AdjectivePhrase),
+            ],
+        );
+        self.add(
+            RuleTag::NominalPostpositiveAdjectiveOxford,
+            N::Nominal,
+            [
+                n(N::Nominal),
+                l(L::Punctuation(Punctuation::Comma)),
+                l(L::Conjunction),
+                n(N::AdjectivePhrase),
+            ],
         );
 
         // Family A: a power/toughness value complement on a characteristic

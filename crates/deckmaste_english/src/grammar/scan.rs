@@ -852,9 +852,18 @@ pub(super) fn lexical_word_matches(
                 // lexical nouns. Thus technical words such as `player`,
                 // `controller`, and `owner` keep their lexical identity, while
                 // an unclaimed surface such as `voter` is verb-backed.
+                //
+                // Singular `target` is also a genuine noun (`any target`), but
+                // its bare reading must lose when the rules determiner can head
+                // the same complete selection (`target enchanted creature`).
+                // Plural `targets` is unambiguous and pays no cost.
                 local_cost: ParseCost {
                     reading_dispreference: u32::from(is_fused_head_noun(&noun))
-                        + u32::from(is_derived_agent_noun(&noun)),
+                        + u32::from(is_derived_agent_noun(&noun))
+                        + u32::from(matches!(
+                            noun,
+                            NounInstance::Singular(Noun::Word(Vocab::Target))
+                        )),
                     ..ParseCost::default()
                 },
                 meaning: MeaningKey::Noun(noun),
@@ -892,14 +901,23 @@ pub(super) fn lexical_word_matches(
             let Some(initial_sound) = adjective_initial_sound(&adjective) else {
                 return Vec::new();
             };
-            single(
+            let target_modifier = matches!(&adjective, Adjective::Word(Vocab::Target));
+            let mut matches = single(
                 Features::Adjective {
                     initial_sound,
                     comparison: adjective_comparison_state(&adjective),
                     card_orientation: false,
                 },
                 MeaningKey::Adjective(adjective),
-            )
+            );
+            if target_modifier {
+                // Keep the adjective reading for `the target creature`, where
+                // the leading article rules out a second determiner, but let
+                // an overt repeated `target` start its own selected noun phrase
+                // whenever both readings complete.
+                matches[0].local_cost.reading_dispreference += 1;
+            }
+            matches
         }
         WordMatch::Adverb(adverb) | WordMatch::SentenceAdverbial(adverb) => {
             single(Features::None, MeaningKey::Adverb(adverb))
