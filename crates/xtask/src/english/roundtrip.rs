@@ -146,6 +146,7 @@ fn print_count(label: &str, count: usize) {
 #[cfg(test)]
 mod tests {
     use deckmaste_english::normalize_roll_row_dashes;
+    use deckmaste_english::normalize_sentence_case;
     use deckmaste_english::normalize_typographic_quotes;
     use deckmaste_english::strip_reminder_text;
 
@@ -155,7 +156,7 @@ mod tests {
     /// `oracle_text` is the real name-bearing parse input.
     fn face(name: &str, source: &str, is_legendary: bool) -> CardFace {
         let normalized_source = normalize_roll_row_dashes(&normalize_typographic_quotes(source));
-        let oracle_text = strip_reminder_text(&normalized_source);
+        let oracle_text = normalize_sentence_case(&strip_reminder_text(&normalized_source));
         CardFace {
             card_name: name.to_owned(),
             face_name: None,

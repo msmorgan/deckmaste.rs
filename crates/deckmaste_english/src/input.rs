@@ -71,6 +71,64 @@ fn normalize_roll_row_line(line: &str) -> String {
     rewritten
 }
 
+/// Uppercases a sentence-initial letter that Oracle printed lowercase by
+/// data-entry mistake, not by any rule of the language.
+///
+/// A lowercase ASCII letter is rewritten to uppercase when it is preceded, on
+/// the same line, by a `.` or a `:` followed by exactly one space — the two
+/// punctuation marks that open a new sentence in Oracle text (a period
+/// between sentences, a colon after an activation cost). Nothing else is
+/// touched: a mid-word or decimal period, a letter already uppercase, and any
+/// other position are all left alone.
+///
+/// This is typography, not language: two faces in the supported corpus break
+/// Oracle's own sentence-initial capitalization rule, and both are data
+/// defects rather than a real casing distinction to model —
+///
+/// - Sphinx Summoner: the snapshot reads `...put it into your hand. then
+///   shuffle...` where the live card has a comma, not a period (a stale
+///   snapshot datum).
+/// - Necratog: the snapshot reads `...of your graveyard: this creature gets
+///   +2/+2...` where Oracle capitalizes after the cost colon (a live-oracle
+///   typo; normalizing the position is inert on errata).
+///
+/// Rather than store a casing bit on every sentence to reproduce two data
+/// defects, the boundary rewrites the position and the round-trip gate
+/// compares in the normalized domain. This is the same move the 2026-07-23
+/// round made for `RollRangeDash` via [`normalize_roll_row_dashes`].
+#[must_use]
+pub fn normalize_sentence_case(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    for (index, line) in text.split('\n').enumerate() {
+        if index > 0 {
+            output.push('\n');
+        }
+        output.push_str(&normalize_sentence_case_line(line));
+    }
+    output
+}
+
+/// Rewrites every sentence-initial lowercase letter on a single line, leaving
+/// every other character untouched. Works over `char`s, not bytes, so a
+/// multi-byte character elsewhere on the line is reproduced intact.
+fn normalize_sentence_case_line(line: &str) -> String {
+    let chars: Vec<char> = line.chars().collect();
+    let mut output = String::with_capacity(line.len());
+    for (index, &character) in chars.iter().enumerate() {
+        // A `. ` or `: ` immediately behind this character is a sentence
+        // boundary; two spaces would put a space, not the punctuation, at
+        // `index - 2`, which is exactly "followed by exactly one space".
+        let boundary =
+            index >= 2 && chars[index - 1] == ' ' && matches!(chars[index - 2], '.' | ':');
+        if boundary && character.is_ascii_lowercase() {
+            output.push(character.to_ascii_uppercase());
+        } else {
+            output.push(character);
+        }
+    }
+    output
+}
+
 /// Removes parenthesized reminder text before English parsing.
 ///
 /// Parentheses are lexical trivia in Oracle text for this phase. One ordinary
@@ -166,6 +224,57 @@ mod tests {
         assert_eq!(
             normalize_roll_row_dashes("2-9 creatures attack."),
             "2-9 creatures attack."
+        );
+    }
+
+    #[test]
+    fn sentence_case_witnesses_normalize_after_a_period_or_cost_colon() {
+        // Sphinx Summoner's stale snapshot: the live card has a comma, not a
+        // period, at this position, so Oracle never actually breaks a
+        // sentence here — but the snapshot text does, and must normalize.
+        assert_eq!(
+            normalize_sentence_case(
+                "Exile the top card of your library. Put it into your hand. then shuffle your \
+                 library."
+            ),
+            "Exile the top card of your library. Put it into your hand. Then shuffle your \
+             library."
+        );
+        // Necratog: the live Oracle capitalizes after the activation-cost
+        // colon; the snapshot's lowercase `this` is a live-oracle typo.
+        assert_eq!(
+            normalize_sentence_case(
+                "{1}, Sacrifice a creature card from your graveyard: this creature gets +2/+2 \
+                 until end of turn."
+            ),
+            "{1}, Sacrifice a creature card from your graveyard: This creature gets +2/+2 \
+             until end of turn."
+        );
+    }
+
+    #[test]
+    fn sentence_case_near_misses_are_left_alone() {
+        // Already uppercase: nothing to rewrite.
+        assert_eq!(
+            normalize_sentence_case("Draw a card. Then discard a card."),
+            "Draw a card. Then discard a card."
+        );
+        // A lowercase letter not preceded by `. ` or `: ` is unchanged.
+        assert_eq!(
+            normalize_sentence_case("You may then draw a card."),
+            "You may then draw a card."
+        );
+        // A decimal point is not a sentence boundary: the character after it
+        // is a digit, never a letter to uppercase.
+        assert_eq!(
+            normalize_sentence_case("Each player loses 3.5 life."),
+            "Each player loses 3.5 life."
+        );
+        // A mid-word period with no following space is not `. `, so the
+        // letter immediately after it is left alone.
+        assert_eq!(
+            normalize_sentence_case("A card named e.g.this stays as printed."),
+            "A card named e.g.this stays as printed."
         );
     }
 

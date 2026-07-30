@@ -30,6 +30,7 @@ pub use catalog::Catalogs;
 pub use chart::ChartStats;
 pub use forest::ForestStats;
 pub use input::normalize_roll_row_dashes;
+pub use input::normalize_sentence_case;
 pub use input::normalize_typographic_quotes;
 pub use input::strip_reminder_text;
 pub use numeral::Numeral;

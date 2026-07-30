@@ -6609,7 +6609,6 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
         )),
     );
     let sentence = Sentence {
-        initial_uppercase: true,
         body: SentenceBody::Independent(coordinated),
     };
     let rendered = render_sentence(&sentence);

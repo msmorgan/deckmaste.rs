@@ -997,7 +997,6 @@ mod tests {
                             components: vec![CostComponent::Recovered(recovered("cost"))],
                         },
                         effect: Paragraph::default(),
-                        effect_initial_uppercase: true,
                     }),
                 },
                 Ability {
@@ -1256,7 +1255,6 @@ mod tests {
                         components,
                     },
                     effect: Paragraph::default(),
-                    effect_initial_uppercase: true,
                 }),
             }],
         }
@@ -1265,10 +1263,7 @@ mod tests {
     fn paragraph_body(body: SentenceBody) -> Paragraph {
         Paragraph {
             flavor_header: None,
-            sentences: vec![Sentence {
-                initial_uppercase: true,
-                body,
-            }],
+            sentences: vec![Sentence { body }],
         }
     }
 }

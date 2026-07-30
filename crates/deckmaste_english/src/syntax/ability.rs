@@ -186,7 +186,6 @@ pub struct StationThresholdAbility {
 pub struct ActivatedAbility {
     pub cost: Cost,
     pub effect: Paragraph,
-    pub effect_initial_uppercase: bool,
 }
 
 /// An activation cost: the comma-separated list of components paid before the
@@ -630,7 +629,6 @@ impl FlavorHeader {
 /// token without recording it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Sentence {
-    pub initial_uppercase: bool,
     pub body: SentenceBody,
 }
 
@@ -711,6 +709,20 @@ pub struct ChoiceInstruction {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct QuotedAbility {
     pub ability: Box<Ability>,
+    /// Whether the quoted interior takes an initial capital. NOT derivable,
+    /// and the refutation is a witness pair with the same structure and
+    /// different bits: both Takklemaggot's `gains "At the beginning of that
+    /// player's upkeep, this enchantment deals 1 damage to that player."` and
+    /// Master of the Hunt's `It has "bands with other creatures named Wolves
+    /// of the Hunt."` quote an interior that parses as an ordinary
+    /// `Paragraph` whose first sentence is a parsed `Independent` clause, yet
+    /// Oracle prints the first capitalized and the second lowercase. A
+    /// derivation from node kind was measured against the supported corpus:
+    /// keyword-line and recovered interiors are correctly predicted (a
+    /// keyword line's leading text is its `CatalogAtom`'s *observed*
+    /// spelling and a recovered span is verbatim, so neither may be
+    /// re-cased), but the parsed-sentence interiors split, so the bit stays
+    /// stored.
     pub initial_uppercase: bool,
     pub closed: bool,
 }

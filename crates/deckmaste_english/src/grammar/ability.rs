@@ -319,7 +319,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return AbilityKind::Activated(ActivatedAbility {
                 cost,
                 effect: self.parse_paragraph(effect_tokens),
-                effect_initial_uppercase: self.tokens_start_uppercase(effect_tokens),
             });
         }
         if let Some((chapters, effect)) = self.chapter_frame(tokens) {
@@ -1211,32 +1210,22 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_sentence(&mut self, tokens: &[Token]) -> Sentence {
-        let initial_uppercase = self.tokens_start_uppercase(tokens);
         if let Some(sentence) = self.attempt(|parser| parser.parse_quoted_sentence(tokens)) {
             return sentence;
         }
-        if let Some(mut sentence) = self.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
+        if let Some(sentence) = self.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
             parsed.sentence().cloned()
         }) {
-            sentence.initial_uppercase = initial_uppercase;
             return sentence;
         }
-        if let Some(sentence) =
-            self.attempt(|parser| parser.parse_dash_appositive(tokens, initial_uppercase))
-        {
+        if let Some(sentence) = self.attempt(|parser| parser.parse_dash_appositive(tokens)) {
             return sentence;
         }
         if let Some(body) = self.parse_power_toughness_body(tokens) {
-            return Sentence {
-                initial_uppercase,
-                body,
-            };
+            return Sentence { body };
         }
         if let Some(body) = self.attempt(|parser| parser.parse_triggered_sentence(tokens)) {
-            return Sentence {
-                initial_uppercase,
-                body,
-            };
+            return Sentence { body };
         }
 
         self.diagnostics.push(AbilityDiagnostic {
@@ -1249,7 +1238,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // (`source_tokens` still counts the whole span, so the recovery census
         // is unchanged.)
         Sentence {
-            initial_uppercase,
             body: SentenceBody::Recovered(RecoveredText::new(
                 self.tokens_text(tokens),
                 tokens.len(),
@@ -1311,11 +1299,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// directly rather than through the chart because the spaced em dash is not
     /// a chart terminal; the construction only composes two existing clause
     /// parses under a [`ComplexClause`] appositive attachment.
-    fn parse_dash_appositive(
-        &mut self,
-        tokens: &[Token],
-        initial_uppercase: bool,
-    ) -> Option<Sentence> {
+    fn parse_dash_appositive(&mut self, tokens: &[Token]) -> Option<Sentence> {
         let dash = self.spaced_top_level_em_dash(tokens)?;
         let matrix_tokens = &tokens[..dash];
         let body_tokens = tokens.get(dash + 1..)?;
@@ -1340,7 +1324,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             Self::coordinates_with_or(body).then(|| body.clone())
         })?;
         Some(Sentence {
-            initial_uppercase,
             body: SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
                 matrix: Box::new(matrix),
                 attachments: vec![ClauseAttachment {
@@ -1438,11 +1421,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// sentences such as `Each mode must target a different player.` are
     /// unaffected).
     fn parse_choice_sentence(&mut self, tokens: &[Token]) -> Sentence {
-        let initial_uppercase = self.tokens_start_uppercase(tokens);
         let body = peel_sentence_ending(tokens);
         if let Some(choice) = self.attempt(|parser| parser.parse_choice_instruction(body)) {
             return Sentence {
-                initial_uppercase,
                 body: SentenceBody::Choice(choice),
             };
         }
@@ -1590,7 +1571,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.quoted_grant_object_clause(prefix, quoted)?
         };
         Some(Sentence {
-            initial_uppercase: self.tokens_start_uppercase(tokens),
             body: SentenceBody::Independent(clause),
         })
     }

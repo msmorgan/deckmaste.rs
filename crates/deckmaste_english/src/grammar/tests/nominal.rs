@@ -2968,7 +2968,6 @@ mod tests {
                 kind: AbilityKind::Paragraph(Paragraph {
                     flavor_header: None,
                     sentences: vec![Sentence {
-                        initial_uppercase: true,
                         body: SentenceBody::Independent(IndependentClause::Imperative(
                             Predicate::Transitive(TransitivePredicate {
                                 head: PredicateHead {

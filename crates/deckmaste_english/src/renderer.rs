@@ -288,11 +288,9 @@ impl<'identity> Renderer<'identity> {
             AbilityKind::Activated(activated) => Ok(format!(
                 "{}: {}",
                 self.cost(&activated.cost)?,
-                self.paragraph_with_suffix(
-                    &activated.effect,
-                    activated.effect_initial_uppercase,
-                    suppress_final_period,
-                )?
+                // An activated ability's effect always capitalizes after the
+                // cost colon; there is no surface where it does not.
+                self.paragraph_with_suffix(&activated.effect, true, suppress_final_period)?
             )),
             AbilityKind::ClassLevel(level) => Ok(format!(
                 "{}: Level {}",
@@ -774,7 +772,6 @@ impl<'identity> Renderer<'identity> {
         sentence: &Sentence,
         capitalize: bool,
     ) -> Result<(String, bool), RenderError> {
-        let capitalize = capitalize && sentence.initial_uppercase;
         Ok(match &sentence.body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
             SentenceBody::Choice(choice) => (self.choice_instruction(choice)?, capitalize),
@@ -2892,11 +2889,19 @@ mod tests {
     }
 
     #[test]
-    fn activated_effect_preserves_explicit_initial_case() {
+    fn activated_effect_always_capitalizes_after_the_cost_colon() {
+        // `effect_initial_uppercase` is gone: an activated ability's effect
+        // always capitalizes after the cost colon, regardless of the source's
+        // own casing at that position (Necratog's live Oracle text is a typo
+        // that prints this lowercase; the input boundary's
+        // `normalize_sentence_case` corrects it before this ever parses).
         let source = "Exile a card: this creature gets +2/+2 until end of turn.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
 
-        assert_eq!(source_free(&ast, "Test Card", false), source);
+        assert_eq!(
+            source_free(&ast, "Test Card", false),
+            "Exile a card: This creature gets +2/+2 until end of turn."
+        );
     }
 
     #[test]
@@ -2962,11 +2967,20 @@ mod tests {
     }
 
     #[test]
-    fn later_sentences_preserve_explicit_lowercase_initials() {
+    fn later_sentences_always_capitalize_regardless_of_source_case() {
+        // `Sentence.initial_uppercase` is gone: position alone decides
+        // capitalization (`capitalize_first_sentence || index > 0`), so a
+        // non-initial sentence always capitalizes even when the source
+        // itself printed it lowercase (Sphinx Summoner's stale snapshot is
+        // exactly this shape; the input boundary's `normalize_sentence_case`
+        // corrects it before this ever parses).
         let source = "Draw a card. then shuffle.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
 
-        assert_eq!(source_free(&ast, "Test Card", false), source);
+        assert_eq!(
+            source_free(&ast, "Test Card", false),
+            "Draw a card. Then shuffle."
+        );
     }
 
     #[test]
@@ -3465,7 +3479,6 @@ mod tests {
         let draw_effect = Paragraph {
             flavor_header: None,
             sentences: vec![Sentence {
-                initial_uppercase: true,
                 body: sentence_body(simple(
                     None,
                     verb_phrase(
@@ -3596,7 +3609,6 @@ mod tests {
                         // real parser produces — so no period is derived; the
                         // ` —` header suffix follows instead.
                         sentences: vec![Sentence {
-                            initial_uppercase: true,
                             body: SentenceBody::Choice(ChoiceInstruction {
                                 trigger_prefix: None,
                                 imperative: strict_predicate(verb_phrase(
@@ -3629,7 +3641,6 @@ mod tests {
                 kind: AbilityKind::Paragraph(Paragraph {
                     flavor_header: Some(FlavorHeader::new("Throw ...", 2)),
                     sentences: vec![Sentence {
-                        initial_uppercase: true,
                         body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
                     }],
                 }),
@@ -3704,7 +3715,6 @@ mod tests {
                     body: Paragraph {
                         flavor_header: None,
                         sentences: vec![Sentence {
-                            initial_uppercase: true,
                             body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
                         }],
                     },
@@ -3945,7 +3955,6 @@ mod tests {
                 kind: AbilityKind::Paragraph(Paragraph {
                     flavor_header: None,
                     sentences: vec![Sentence {
-                        initial_uppercase: true,
                         body: match clause {
                             Clause::Independent(clause) => SentenceBody::Independent(clause),
                             Clause::Dependent(_) => panic!("sentence fixture must be independent"),

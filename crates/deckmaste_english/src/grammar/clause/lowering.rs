@@ -1492,7 +1492,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                 return None;
             };
             Some(Lowered::Sentence(Sentence {
-                initial_uppercase: true,
                 body: SentenceBody::Independent(clause),
             }))
         }
