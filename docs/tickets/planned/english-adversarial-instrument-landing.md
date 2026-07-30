@@ -44,7 +44,7 @@ failure shapes is guessing. The census now exists.
   the ceilings are by definition the printed 99.9th percentile.
 - `ability-independence` found zero findings across 58 compositions — a
   clean result for the parser, not an unrun check.
-- No formal whole-branch code review has been run over the instrument's
-  seven commits; each task was reviewed individually.
+- No formal whole-branch code review has been run over the instrument's 15
+  commits; each task was reviewed individually.
 
 Standard constraints apply.
