@@ -225,15 +225,25 @@ fn the_two_g5_negative_findings_are_loaded_but_unframed() {
     }
 }
 
-/// G5 finding, locked in: `<Param(0)> you control` — the frame the user
+/// The G5 finding this test was minted to lock in has been **resolved**, by
+/// the user ruling that reopened Task 4: `<Param(0)> you control` — the frame
 /// directed for `ControlledByYou`, exercising `FieldSlice` from the side
-/// `target <Param(0)>` doesn't reach (frame claims `complements`, hole
-/// claims `modifiers`+`head`) — is refused by the current compiler. Driven
-/// against the macro's own real, loaded `params`, not a hand-rolled fixture,
-/// so this fails loudly if `ControlledByYou.ron`'s signature ever changes
-/// out from under the finding.
+/// `target <Param(0)>` doesn't reach — now compiles, with the hole claiming
+/// `modifiers`+`head` and the frame keeping its `complements`.
+///
+/// The test is inverted rather than deleted, and this is what its previous
+/// self asked for: it recorded that if the shape ever compiled, "the compiler
+/// grew the complementary shape and the G5 report needs updating, not this
+/// test loosening". The compiler did grow it, so the assertion now pins the
+/// *positive* outcome. Still driven against the macro's own real, loaded
+/// `params` rather than a hand-rolled fixture, so it fails loudly if
+/// `ControlledByYou.ron`'s signature changes out from under it.
+///
+/// Note `ControlledByYou` still carries no `frames:` field — authoring it is
+/// the lexicon's call, not the compiler's, and
+/// `the_two_g5_negative_findings_are_loaded_but_unframed` above still holds.
 #[test]
-fn controlled_by_you_complement_side_field_slice_is_refused() {
+fn controlled_by_you_complement_side_field_slice_compiles() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
     let def = unique_defs(&plugin)
@@ -242,24 +252,24 @@ fn controlled_by_you_complement_side_field_slice_is_refused() {
         .expect("ControlledByYou must be loaded");
     let params = positional_params(def);
 
-    let error = deckmaste_frames::compile(
+    let frame = deckmaste_frames::compile(
         &FrameSpec::bare("<Param(0)> you control"),
         FragmentKind::Nominal,
         &params,
         &real_catalogs(),
         &plugin.macros,
     )
-    .expect_err(
-        "`<Param(0)> you control` is expected to be refused by the current \
-         `classify()` (only the all-three-fields `FieldSlice` claim is \
-         supported) — if this now succeeds, the compiler grew the \
-         complementary shape and the G5 report needs updating, not this \
-         test loosening",
-    );
-    let message = format!("{error:#}");
-    assert!(
-        message.contains("complements"),
-        "expected the field-slice refusal naming `complements`: {message}"
+    .unwrap_or_else(|error| {
+        panic!("`<Param(0)> you control` is a real constituent and must compile: {error:#}")
+    });
+
+    assert_eq!(frame.holes.len(), 1);
+    assert_eq!(
+        frame.holes[0].class,
+        deckmaste_frames::HoleClass::FieldSlice {
+            claimed: vec!["modifiers", "head"],
+        },
+        "the frame owns the postmodifier; the hole is the premodifiers and head"
     );
 }
 

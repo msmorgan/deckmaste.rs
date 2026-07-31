@@ -70,27 +70,43 @@ pub enum HoleClass {
     /// The hole-constituency audit's central finding, and 57 of the corpus's
     /// 128 holes: `syntax::NominalPhrase` is flat
     /// (`determiner`/`modifiers`/`head`/`complements`) because lowering
-    /// erases the N-bar the parse forest had, so in `target <Param(0)>` the
-    /// determiner belongs to the *frame* and the hole covers the remaining
-    /// three fields. There is no single node to point at, so the hole's
-    /// [`Hole::path`] addresses the owning `NominalPhrase` and `claimed`
-    /// names the fields the hole takes.
+    /// erases the N-bar the parse forest had, so a frame that supplies part
+    /// of a nominal leaves the hole covering the rest. There is no single
+    /// node to point at, so the hole's [`Hole::path`] addresses the owning
+    /// `NominalPhrase` and `claimed` names the fields the hole takes.
+    ///
+    /// # `claimed` is variable — read it, never assume it
+    ///
+    /// Two frame shapes are supported, and they claim **different** field
+    /// sets:
+    ///
+    /// | frame | frame owns | `claimed` |
+    /// |---|---|---|
+    /// | `target <Param(0)>` | `determiner` | `["modifiers", "head", "complements"]` |
+    /// | `<Param(0)> you control` | `complements` | `["modifiers", "head"]` |
+    ///
+    /// A consumer must bind exactly the fields `claimed` names. Assuming the
+    /// three-field set — matching on it, or indexing past it — silently
+    /// mis-binds the second shape, taking a postmodifier that belongs to the
+    /// frame. `claimed` is always a contiguous run of the node's declaration
+    /// order, and always contains `"head"`.
     ///
     /// # How to read one
     ///
-    /// `View::Hole` appears **once per claimed field** — three times, for the
-    /// only shape the pilot produces — each carrying the same `index` and the
-    /// same `class`. The owning node therefore keeps its exact arity and
-    /// field names, and the frame's own `determiner` sits *beside* the holes
-    /// rather than being spliced around them.
+    /// `View::Hole` appears **once per claimed field** — so three times for
+    /// the determiner-owning shape and twice for the complement-owning one —
+    /// each carrying the same `index` and the same `class`. The owning node
+    /// therefore keeps its exact arity and field names, and whatever the
+    /// frame owns sits *beside* the holes rather than being spliced around
+    /// them.
     ///
     /// So a consumer walking the two trees in lockstep needs no special case:
     /// at a `Hole`-valued field it binds the card node's same-named field,
-    /// at any other field it compares. The three fields are one hole, not
-    /// three — **treat them as a unit**: bind all of `claimed` or none, and do
-    /// not treat a per-field match as a hole match on its own. `claimed` is
-    /// the authority on the grouping; the repetition is a convenience for the
-    /// walk, not three independent bindings.
+    /// at any other field it compares. The claimed fields are one hole, not
+    /// several — **treat them as a unit**: bind all of `claimed` or none, and
+    /// do not treat a per-field match as a hole match on its own. `claimed`
+    /// is the authority on the grouping; the repetition is a convenience for
+    /// the walk, not independent bindings.
     FieldSlice { claimed: Vec<&'static str> },
     /// The hole is a bare number: the `value` of a `NumberLiteral`. The
     /// sibling `numeral` field (Arabic vs. spelled-out) is the frame's, not
@@ -653,31 +669,80 @@ fn classify(
         return Ok((HoleClass::Numeral, site));
     }
     if parent_name == Some("NominalPhrase") && last == Some(PathStep::Field("head")) {
-        // Spec D7: the determiner belongs to the frame and the hole is the
-        // determinerless nominal core. Anything the frame put in the other
-        // two fields would have to be merged with the filler's, which the
-        // pilot does not do — so say so rather than compile something whose
-        // meaning is not defined.
-        let claimed = ["modifiers", "head", "complements"];
-        for field in ["modifiers", "complements"] {
-            let empty = parent
-                .then(PathStep::Field(field))
-                .resolve(tree)
-                .is_some_and(View::is_vacuous);
-            anyhow::ensure!(
-                empty,
-                "puts frame material in a nominal's `{field}` beside the hole at {site}; \
-                 a field-slice hole must claim {claimed:?} whole"
-            );
-        }
-        return Ok((
-            HoleClass::FieldSlice {
-                claimed: claimed.to_vec(),
-            },
-            parent,
-        ));
+        return Ok((field_slice(tree, &parent, &site)?, parent));
     }
     Ok((HoleClass::Subtree, site))
+}
+
+/// Decides which fields of a flat `NominalPhrase` a hole at its `head`
+/// claims, from which of the sibling fields the frame filled in.
+///
+/// Reaching here at all means the nominal is not witness-only, so at least
+/// one sibling holds frame material — otherwise the hoist would have taken
+/// the whole node and the hole would be a [`HoleClass::Subtree`].
+///
+/// Two asymmetries are supported, and they are the two the pilot lexicon
+/// attests. Both leave the hole a **contiguous** run of the flat node:
+///
+/// | frame owns | example frame | hole claims |
+/// |---|---|---|
+/// | `determiner` | `target <Param(0)>` | `modifiers`, `head`, `complements` |
+/// | `complements` | `<Param(0)> you control` | `modifiers`, `head` |
+///
+/// The first is spec D7 and 57 of the corpus's 128 holes. The second is its
+/// mirror: `creature you control` really does lower to a `NominalPhrase`
+/// whose `complements` carry a zero-marked object-gap `RelativeClause`
+/// (`grammar/lowering.rs`), so the postmodifier is the frame's and the hole
+/// is the premodifiers plus the head.
+///
+/// Note the deliberate asymmetry between the two rows: the determiner case
+/// claims the empty `complements` (so a filler may bring its own
+/// postmodifier) while the complement case does **not** claim the empty
+/// `determiner`. A filter predicate is determinerless by construction — the
+/// determiner is the *enclosing* frame's to supply — so handing it to the
+/// filler would let an argument smuggle in a determiner the frame never
+/// licensed.
+///
+/// Anything else refuses. A frame owning both ends (`target <Param(0)> you
+/// control`) would leave the hole a discontinuous slice, which the
+/// all-or-none binding contract cannot express; a frame owning only
+/// `modifiers` (`white <Param(0)>`) is a coherent third shape that was
+/// considered and deliberately left out of scope.
+fn field_slice(tree: &View, parent: &TreePath, site: &TreePath) -> anyhow::Result<HoleClass> {
+    let occupied = |field| {
+        !parent
+            .then(PathStep::Field(field))
+            .resolve(tree)
+            .is_some_and(View::is_vacuous)
+    };
+    let claimed: &[&'static str] = match (
+        occupied("determiner"),
+        occupied("modifiers"),
+        occupied("complements"),
+    ) {
+        (true, false, false) => &["modifiers", "head", "complements"],
+        (false, false, true) => &["modifiers", "head"],
+        (determiner, modifiers, complements) => {
+            let held: Vec<&str> = [
+                ("determiner", determiner),
+                ("modifiers", modifiers),
+                ("complements", complements),
+            ]
+            .into_iter()
+            .filter_map(|(name, occupied)| occupied.then_some(name))
+            .collect();
+            anyhow::bail!(
+                "puts frame material in a nominal's {held:?} beside the hole at {site}; \
+                 a field-slice hole must claim a contiguous run, so the frame may own the \
+                 determiner alone (the hole claiming [\"modifiers\", \"head\", \"complements\"]) \
+                 or the complements alone (the hole claiming [\"modifiers\", \"head\"]), \
+                 but not this combination"
+            );
+        }
+    };
+    Ok(HoleClass::FieldSlice {
+        claimed: claimed.to_vec(),
+    })
 }
 
 /// Puts every hole into the tree, replacing what the witnesses left.
@@ -1654,29 +1719,116 @@ mod tests {
         );
     }
 
-    /// The field-slice guard: a frame may claim the determiner, but if it
-    /// also puts material in a nominal's `modifiers` or `complements` the
-    /// hole is no longer the whole determinerless core, and the merge that
-    /// would need is not defined. Both fields are checked, both are
-    /// authorable, and both are refused by name rather than mis-compiled.
+    /// Compiles a `Nominal` frame with one `Predicate` hole.
+    fn compile_filter(text: &str) -> anyhow::Result<CompiledFrame> {
+        compile(
+            &bare(text),
+            FragmentKind::Nominal,
+            &["Predicate".to_string()],
+            &Catalogs::default(),
+            &reader(),
+        )
+    }
+
+    /// The complement-side asymmetry: `<Param(0)> you control` is the mirror
+    /// of `target <Param(0)>`, and the pilot lexicon needs both.
+    ///
+    /// `creature you control` lowers to a `NominalPhrase` whose `complements`
+    /// hold a zero-marked object-gap `RelativeClause` — the postmodifier is
+    /// the frame's — so the hole claims the premodifiers and the head only.
+    /// The determiner stays outside the hole: a filter predicate is
+    /// determinerless by construction, and the enclosing frame supplies it.
+    #[test]
+    fn a_postmodified_filter_hole_claims_only_the_premodifiers_and_head() {
+        let frame = compile_filter("<Param(0)> you control").expect("a real constituent");
+        assert_eq!(frame.holes.len(), 1);
+        assert_eq!(
+            frame.holes[0].class,
+            HoleClass::FieldSlice {
+                claimed: vec!["modifiers", "head"],
+            }
+        );
+        assert_sites_resolve(&frame);
+
+        let owner = frame.holes[0].path.resolve(&frame.tree).unwrap();
+        assert_eq!(owner.type_name(), Some("NominalPhrase"));
+        let View::Node { fields, .. } = owner else { panic!("{owner:?}") };
+        assert_eq!(fields.len(), 4);
+        // determiner: outside the hole, and still the frame's empty slot.
+        assert_eq!(fields[0].0, "determiner");
+        assert!(fields[0].1.is_vacuous());
+        // modifiers + head: the hole.
+        for (name, value) in &fields[1..3] {
+            assert!(
+                matches!(value, View::Hole { index: 0, .. }),
+                "{name} should be part of the slice, got {value:?}"
+            );
+        }
+        // complements: the frame's relative clause, untouched.
+        assert_eq!(fields[3].0, "complements");
+        assert!(
+            !fields[3].1.is_vacuous(),
+            "the frame's postmodifier must survive: {:?}",
+            fields[3].1
+        );
+        assert!(
+            !holes_in(&fields[3].1).contains(&0),
+            "the hole must not have swallowed the frame's complement"
+        );
+    }
+
+    /// The two supported asymmetries claim *different* field sets — the
+    /// contract Tasks 7 and 8 must read rather than assume.
+    #[test]
+    fn the_two_supported_asymmetries_claim_different_sets() {
+        let determiner_side = compile_filter("target <Param(0)>").unwrap();
+        let complement_side = compile_filter("<Param(0)> you control").unwrap();
+        let claimed = |frame: &CompiledFrame| match &frame.holes[0].class {
+            HoleClass::FieldSlice { claimed } => claimed.clone(),
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(
+            claimed(&determiner_side),
+            ["modifiers", "head", "complements"]
+        );
+        assert_eq!(claimed(&complement_side), ["modifiers", "head"]);
+        assert_ne!(claimed(&determiner_side), claimed(&complement_side));
+    }
+
+    /// The field-slice guard still refuses everything outside the two
+    /// supported asymmetries. These are each one edit away from a legal shape
+    /// and must not be confused with them:
+    ///
+    /// - `target <Param(0)> you control` differs from the newly-legal
+    ///   `<Param(0)> you control` **only** by the determiner — and that is
+    ///   exactly what makes it illegal, since the hole would be a discontinuous
+    ///   slice with frame material on both sides.
+    /// - `white <Param(0)>` is the coherent third shape (frame owns `modifiers`
+    ///   alone, hole would claim `["head", "complements"]`). It was considered
+    ///   and deliberately left out of scope, so it must keep refusing rather
+    ///   than quietly start working.
     #[test]
     fn frame_material_beside_a_field_slice_hole_is_refused() {
-        for (text, field) in [
-            ("target white <Param(0)>", "modifiers"),
-            ("target <Param(0)> you control", "complements"),
+        for (text, held) in [
+            // Frame owns both ends: discontinuous, refused.
+            (
+                "target <Param(0)> you control",
+                vec!["determiner", "complements"],
+            ),
+            ("target white <Param(0)>", vec!["determiner", "modifiers"]),
+            // Frame owns the premodifier alone: out of scope, refused.
+            ("white <Param(0)>", vec!["modifiers"]),
         ] {
-            let error = compile(
-                &bare(text),
-                FragmentKind::Nominal,
-                &["Predicate".to_string()],
-                &Catalogs::default(),
-                &reader(),
-            )
-            .unwrap_err();
+            let error = compile_filter(text).unwrap_err();
             let message = format!("{error:#}");
+            // Assert on the exact list the error reports as frame material,
+            // not on a bare field name: the message's explanatory suffix
+            // names every field while spelling out the two legal claims, so a
+            // substring test for `modifiers` would pass for any of these and
+            // could not tell the three refusals apart.
             assert!(
-                message.contains(field),
-                "{text:?} should name `{field}`: {message}"
+                message.contains(&format!("{held:?}")),
+                "{text:?} should report frame material in exactly {held:?}: {message}"
             );
             assert!(message.contains(text), "and name the frame: {message}");
         }
