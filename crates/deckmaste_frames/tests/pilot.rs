@@ -199,7 +199,13 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
             continue;
         }
         constructor_names.push(entry.constructor.as_str());
-        let kind = if entry.constructor == "Target" {
+        // The catalog schema carries no category, so this test picks one by
+        // name. (Task 7 found that inferring it by "first category that
+        // parses cleanly" is unsound — every entry parses at three or four of
+        // the five — and its `Lexicon` registers each frame at *every*
+        // accepting category instead of guessing. This test only needs one
+        // category per entry to prove G1, so the by-name pick stays.)
+        let kind = if matches!(entry.constructor.as_str(), "Target" | "This") {
             FragmentKind::Nominal
         } else {
             FragmentKind::Sentence
@@ -217,7 +223,12 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
     constructor_names.sort_unstable();
     assert_eq!(
         constructor_names,
-        vec!["DealDamage", "GainLife", "Target"],
+        // `This` joined the three seeded entries in Task 7's review addendum:
+        // the nullary pro-form entry that lets a card's own subject recover
+        // as the RON constant `This` instead of as an unmatched residual. It
+        // compiles clean here like any other entry, which is this test's job;
+        // the matching side is covered in `deckmaste_frames::unify`'s suite.
+        vec!["DealDamage", "GainLife", "Target", "This"],
         "constructor catalog entry set changed"
     );
 }

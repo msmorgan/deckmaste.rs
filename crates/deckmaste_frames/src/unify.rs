@@ -372,10 +372,21 @@ fn unify_at(target: &View, lexicon: &Lexicon, position: FramePosition, depth: us
         return Recovered::Residual(target.clone());
     };
 
-    let ambiguities = if matches.len() > 1 {
-        vec![describe_tie(lexicon, &matches, best)]
-    } else {
+    // Two *registrations of one authored frame* are not an ambiguity — they
+    // are one reading reached twice. A constructor frame is registered at
+    // every category that accepts it (see `lexicon`), so `~` enters the
+    // lexicon as both `This`@Nominal and `This`@Cost; at the depth a pro-form
+    // matches, the two patterns are the identical bare hole and would report a
+    // tie against themselves. An ambiguity is two frames disagreeing about
+    // what the English *is*, so the report is built from the rivals that name
+    // a different authored frame.
+    let rivals: Vec<usize> = (0..matches.len())
+        .filter(|order| *order != best && !same_authored_frame(lexicon, &matches, *order, best))
+        .collect();
+    let ambiguities = if rivals.is_empty() {
         Vec::new()
+    } else {
+        vec![describe_tie(lexicon, &matches, best, &rivals)]
     };
     let winner = &matches[best];
     let entry = &lexicon.entries()[winner.entry];
@@ -418,27 +429,34 @@ fn recover_argument(
     Recovered::Residual(View::Absent)
 }
 
-fn describe_tie(lexicon: &Lexicon, matches: &[Matched], best: usize) -> String {
-    let describe = |matched: &Matched| {
-        let entry = &lexicon.entries()[matched.entry];
+/// Whether two matches came from the same authored frame, registered twice.
+///
+/// Identity is the authoring, not the compiled entry: same owner name, same
+/// slot in its `frames:` list, same origin. Only the per-category
+/// registration can differ.
+fn same_authored_frame(lexicon: &Lexicon, matches: &[Matched], left: usize, right: usize) -> bool {
+    let entry = |order: usize| &lexicon.entries()[matches[order].entry];
+    let (left, right) = (entry(left), entry(right));
+    left.name == right.name && left.frame_index == right.frame_index && left.origin == right.origin
+}
+
+fn describe_tie(lexicon: &Lexicon, matches: &[Matched], best: usize, rivals: &[usize]) -> String {
+    let describe = |order: usize| {
+        let found = &matches[order];
+        let entry = &lexicon.entries()[found.entry];
         format!(
             "{} {:?} (claims {}, {} guard(s))",
             entry.label(),
             entry.frame.spec.text,
-            matched.claimed,
-            matched.guards,
+            found.claimed,
+            found.guards,
         )
     };
-    let losers: Vec<String> = matches
-        .iter()
-        .enumerate()
-        .filter(|(order, _)| *order != best)
-        .map(|(_, matched)| describe(matched))
-        .collect();
+    let losers: Vec<String> = rivals.iter().copied().map(describe).collect();
     format!(
         "{} frames match: chose {}; also matched {}",
-        matches.len(),
-        describe(&matches[best]),
+        rivals.len() + 1,
+        describe(best),
         losers.join(", "),
     )
 }
@@ -459,13 +477,26 @@ fn describe_tie(lexicon: &Lexicon, matches: &[Matched], best: usize) -> String {
 /// depths is tried, preferring the least-peeled alignment that matches.
 /// Peeling is only ever applied at the *root* of an attempt; inside the walk,
 /// wrappers are compared exactly.
+///
+/// # Bare-hole patterns
+///
+/// Peeling can strip a pattern down to nothing but its hole — that is what a
+/// *pro-form* frame is, a frame whose entire text is one sigil. Such a pattern
+/// is only admissible when the hole itself discriminates:
+///
+/// - a [`HoleClass::SelfRef`] hole does, and strongly. Its two predicates
+///   ([`is_self_reference`]) accept a self-reference and nothing else, so
+///   `(constructor: "This", frames: ["~"])` matches exactly the trees that
+///   *are* the card naming itself. It is admitted, and its match counts one
+///   claimed node.
+/// - every other class does not. A bare [`HoleClass::Subtree`] hole accepts any
+///   tree at all and would make a contentless frame match everywhere, so it is
+///   refused here — and refused again by the `claimed == 0` check below, which
+///   is the same guarantee stated a second way.
 fn try_entry(index: usize, entry: &Entry, target: &View) -> Option<Matched> {
     let mut best: Option<(usize, Matched)> = None;
     for (pattern_depth, pattern) in unwrappings(&entry.frame.tree).into_iter().enumerate() {
-        // A pattern peeled down to a bare hole would match anything and claim
-        // nothing; `claimed == 0` rejects it below, but skipping early keeps
-        // the work off the hot path.
-        if matches!(pattern, View::Hole { .. }) {
+        if matches!(pattern, View::Hole { class, .. } if *class != HoleClass::SelfRef) {
             continue;
         }
         for (target_depth, candidate) in unwrappings(target).into_iter().enumerate() {
@@ -519,8 +550,19 @@ fn unwrappings(view: &View) -> Vec<&View> {
 
 /// A cheap pre-check before cloning the target: two roots can only match if
 /// they name the same type and variant.
+///
+/// A **hole** pattern is the exception, and has to be: a hole names no type at
+/// all, so type equality would reject every target that is not itself a hole.
+/// A captured self-reference arrives wrapped as `Subject(…)` or
+/// `Phrase::NounPhrase(…)` depending on where it sat, which is exactly the
+/// wrapping a pro-form frame's hole is supposed to see through. What may
+/// legitimately stand at a hole is the hole class's own business, and
+/// [`match_hole`] is where that is decided; [`try_entry`] has already refused
+/// the classes whose answer would be "anything".
 fn roots_align(pattern: &View, target: &View) -> bool {
-    pattern.type_name() == target.type_name() && pattern.variant_name() == target.variant_name()
+    matches!(pattern, View::Hole { .. })
+        || (pattern.type_name() == target.type_name()
+            && pattern.variant_name() == target.variant_name())
 }
 
 /// Rewrites the target's hole-driven inflections to citation form, exactly as
@@ -752,8 +794,17 @@ fn match_hole(index: usize, class: &HoleClass, target: &View, attempt: &mut Atte
             }
             _ => false,
         },
+        // The one hole class that *narrows* what may stand at it rather than
+        // accepting whatever is there, so its match is content the frame
+        // accounted for and counts toward `claimed` — which is what lets a
+        // frame consisting of nothing but `~` clear the `claimed == 0` bar
+        // that (rightly) stops a contentless frame matching everything.
         HoleClass::SelfRef => {
-            is_self_reference(target) && attempt.bind(index, class, Binding::Node(target.clone()))
+            if !is_self_reference(target) {
+                return false;
+            }
+            attempt.claimed += 1;
+            attempt.bind(index, class, Binding::Node(target.clone()))
         }
         // Reached only if a field-slice hole turns up somewhere other than as
         // a field of the node whose fields it claims, which relocation cannot
@@ -911,9 +962,10 @@ mod tests {
     /// exists for it. "any target" is the wording the round's own brief names
     /// and it does parse as `to` + a nominal.
     ///
-    /// Arguments 0 and 2 come back as residuals because the pilot lexicon
-    /// frames neither a bare self-reference nor "any target" — recovery is
-    /// still total, which is the point.
+    /// Argument 0 is the card naming itself and recovers as the RON constant
+    /// `This`, through the catalog's nullary pro-form entry. Argument 2 comes
+    /// back as a residual because nothing in the pilot lexicon frames "any
+    /// target" — recovery is still total, which is the point.
     #[test]
     fn deal_damage_recovers_all_three_args() {
         let target = parse(
@@ -926,13 +978,9 @@ mod tests {
         assert_eq!(entry, "DealDamage");
         assert_eq!(args.len(), 3, "one argument per declared param: {args:#?}");
 
-        let Recovered::Residual(subject) = &args[0] else {
-            panic!("arg 0 is the unlexicalized subject: {:#?}", args[0]);
-        };
-        assert!(
-            is_self_reference(subject),
-            "arg 0 is the card naming itself: {subject:#?}"
-        );
+        let (subject, subject_args) = invocation(&args[0]);
+        assert_eq!(subject, "This", "the subject is the card itself");
+        assert!(subject_args.is_empty(), "`This` is a nullary constant");
         assert_eq!(args[1], literal("3"));
         let Recovered::Residual(recipient) = &args[2] else {
             panic!("arg 2 is the unlexicalized recipient: {:#?}", args[2]);
@@ -944,6 +992,104 @@ mod tests {
                 .any(|(_, node)| node.variant_name() == Some("Any")),
             "arg 2 is the whole `any target` nominal: {recipient:#?}"
         );
+    }
+
+    /// The end-to-end case the review addendum was minted for, in the shape a
+    /// ground-truth comparison actually needs: the argument the card's own
+    /// subject fills recovers as a **structure**, `This`, comparable against
+    /// the authored RON — not as a residual the comparison cannot read.
+    ///
+    /// Asserted on the whole `Recovered` rather than on the entry name, so it
+    /// pins the nullary shape and the absence of a spurious self-ambiguity
+    /// (the pro-form frame is registered at two categories) as well.
+    #[test]
+    fn a_self_referential_subject_recovers_as_the_this_constant() {
+        let target = parse(
+            "Lightning Bolt deals 3 damage to any target.",
+            FragmentKind::Sentence,
+            "Lightning Bolt",
+        );
+        let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
+        let (_, args) = invocation(&recovered);
+        assert_eq!(
+            args[0],
+            Recovered::Invocation {
+                entry: "This".to_string(),
+                args: Vec::new(),
+                ambiguities: Vec::new(),
+            },
+            "two registrations of one authored frame are one reading, not a tie"
+        );
+
+        // The same constant, recovered from the other self-reference surface.
+        let demonstrative = parse("this creature", FragmentKind::Nominal, "");
+        assert_eq!(
+            invocation(&unify(
+                &demonstrative,
+                &fixture().lexicon,
+                FramePosition::Main
+            ))
+            .0,
+            "This"
+        );
+    }
+
+    /// The blast radius of admitting a bare-hole pattern, pinned from both
+    /// sides. A frame that peels down to one hole may match only when the hole
+    /// *discriminates*: a `SelfRef` hole accepts a self-reference and nothing
+    /// else, while a `Subtree` hole accepts anything and would make a
+    /// contentless frame match everywhere.
+    ///
+    /// Both halves are driven at the same alignment — a *captured*
+    /// constituent, which is the only place a bare-hole pattern is reachable
+    /// (against a whole `Fragment` the unpeeled pattern aligns first).
+    #[test]
+    fn a_bare_hole_frame_matches_only_when_its_hole_discriminates() {
+        // A captured constituent: the payload of a fragment, with no
+        // `Fragment` wrapper of its own.
+        let captured = |text: &str, kind, name: &str| -> View {
+            let View::Newtype { inner, .. } = parse(text, kind, name) else {
+                unreachable!("a fragment is always a newtype wrapper")
+            };
+            *inner
+        };
+
+        let pro_form = sole("This", compiled("~", FragmentKind::Nominal, &[]), &[]);
+        let discriminating = captured("this creature", FragmentKind::Nominal, "");
+        assert_eq!(
+            invocation(&unify(&discriminating, &pro_form, FramePosition::Main)).0,
+            "This",
+            "a bare `SelfRef` hole is admissible: its predicate is the frame's content"
+        );
+        // ... and it is a predicate, not a wildcard.
+        let ordinary = captured("target creature", FragmentKind::Nominal, "");
+        assert!(matches!(
+            unify(&ordinary, &pro_form, FramePosition::Main),
+            Recovered::Residual(_)
+        ));
+
+        // The guard that must not have been reopened: a frame whose whole
+        // text is one ordinary param hole claims nothing and constrains
+        // nothing, so it cannot match a captured constituent at all.
+        let wildcard = sole(
+            "Transparent",
+            compiled("<Param(0)>", FragmentKind::Nominal, &["Predicate"]),
+            &["Predicate"],
+        );
+        assert_eq!(
+            wildcard.entries()[0].frame.holes[0].class,
+            HoleClass::Subtree,
+            "fixture check: this frame really is a bare non-`SelfRef` hole"
+        );
+        for target in [&discriminating, &ordinary] {
+            assert!(
+                matches!(
+                    unify(target, &wildcard, FramePosition::Main),
+                    Recovered::Residual(_)
+                ),
+                "a bare `Subtree` hole must stay unmatchable: {target:#?}"
+            );
+        }
     }
 
     /// The D8 guard case: the imperative frame holes only its count, and its
@@ -1351,6 +1497,10 @@ mod tests {
         );
         assert_eq!(kinds("GainLife"), ["Ability", "Cost", "Sentence"]);
         assert_eq!(kinds("Target"), ["Ability", "Cost", "Nominal", "Sentence"]);
+        // The pro-form: a lone `~` is a noun phrase or a cost line and
+        // nothing else, which is why the two registrations it does get are
+        // the same bare hole and must not read as an ambiguity.
+        assert_eq!(kinds("This"), ["Cost", "Nominal"]);
 
         // The whole point of not guessing: only the `Nominal` registration of
         // `Target` can align with a nominal target, so the extra ones are

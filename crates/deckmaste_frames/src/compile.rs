@@ -1870,10 +1870,13 @@ mod tests {
         let macros = reader();
         for entry in &catalog {
             for spec in &entry.frames {
-                // `Target` is a noun phrase; the two effect constructors are
-                // sentences. (Task 5's catalog schema will carry the category
-                // rather than inferring it; the pilot has three entries.)
-                let kind = if entry.constructor == "Target" {
+                // `Target` and the `This` pro-form are noun phrases; the two
+                // effect constructors are sentences. Picked by name because
+                // the catalog schema carries no category — Task 7 found that
+                // inferring one from "the first category that parses cleanly"
+                // is unsound, and its `Lexicon` registers each frame at every
+                // accepting category instead of guessing.
+                let kind = if matches!(entry.constructor.as_str(), "Target" | "This") {
                     FragmentKind::Nominal
                 } else {
                     FragmentKind::Sentence

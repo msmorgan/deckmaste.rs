@@ -57,4 +57,31 @@
     // idiom — and surfacing only Param(1) (`Predicate`) in the frame text.
     (constructor: "Target", params: ["Quantity", "Predicate"],
      frames: [(text: "target <Param(1)>", when: [(0, "Exactly(1)")])]),
+
+    // `Reference::This` — the nullary *pro-form* entry, added in Task 7's
+    // review addendum. Every other entry here renders a constructor that
+    // takes arguments; this one renders a bare constant, and its whole frame
+    // text is the self-reference sigil.
+    //
+    // Why it is needed: `This` is what a card's own subject is in RON
+    // (`DealsDamageToEach`'s body is `DealDamage(This, Param(0), It)`, and
+    // the same `This` heads most sentence-position canon lines), but until
+    // this entry existed nothing mapped the English back. A `~` sigil covers
+    // self-reference *inside* a frame, where it produces no argument at all;
+    // an argument position holding the card itself — `DealDamage`'s
+    // `<Param(0)>` — had no lexicon entry to recurse into, so it recovered as
+    // an unmatched residual and a structural comparison against the authored
+    // RON failed on that argument.
+    //
+    // It is matchable only because of the engine change that shipped with it:
+    // a frame whose entire tree peels down to one hole is admissible when the
+    // hole *discriminates*, which a `SelfRef` hole does (it accepts a
+    // self-reference and nothing else) and a `Subtree` hole does not. See
+    // `try_entry` in `crates/deckmaste_frames/src/unify.rs`.
+    //
+    // No `params`, so no `<Param(i)>` may appear in the text, and recovery is
+    // the nullary invocation `This` — the same shape the `Creature` predicate
+    // macro already recovers as.
+    (constructor: "This", params: [],
+     frames: ["~"]),
 ]
