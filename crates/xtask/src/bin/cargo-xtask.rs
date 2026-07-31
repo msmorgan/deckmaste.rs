@@ -14,6 +14,7 @@ use xtask::fidelity::FidelityArgs;
 use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::idris_check::IdrisCheckArgs;
+use xtask::macros::MacroArgs;
 use xtask::map::MapArgs;
 use xtask::resolve::ResolveArgs;
 use xtask::stubs::StubsArgs;
@@ -54,6 +55,9 @@ enum Cmd {
     Cite(CiteArgs),
     /// Inspect parsed Oracle text and audit unresolved English phrases.
     English(EnglishArgs),
+    /// Frame-layer tooling: dump a compiled frame, and check/rewrite a
+    /// macro's legacy `template:` field against its `frames:`.
+    Macro(MacroArgs),
     /// The anaphora-soundness gate: re-emit each expanded card as a raw
     /// Idris `Core.idr` expression and typecheck it with `idris2 --check`.
     /// One card name = single-card mode; omitted = batch-check the plugin.
@@ -75,6 +79,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Graduate(args) => xtask::graduate::run(&args),
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
         Cmd::English(args) => xtask::english::run(args),
+        Cmd::Macro(args) => xtask::macros::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
     }

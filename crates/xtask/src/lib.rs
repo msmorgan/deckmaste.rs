@@ -19,6 +19,7 @@ pub mod fidelity;
 pub mod generate;
 pub mod graduate;
 pub mod idris_check;
+pub mod macros;
 pub mod map;
 pub mod resolve;
 pub mod stubs;

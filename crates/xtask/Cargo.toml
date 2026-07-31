@@ -13,7 +13,12 @@ clap = { version = "4.6.1", features = ["derive"] }
 deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 deckmaste_english = { version = "0.1.0", path = "../deckmaste_english" }
+# `macro inspect` compiles a frame (needs `CompiledFrame`/`compile`); `macro
+# templates` only needs the schema (`macro_ron::frames`) and `MacroDef`, but
+# both live in the same two crates the frame layer split across.
+deckmaste_frames = { version = "0.1.0", path = "../deckmaste_frames" }
 deckmaste_migrations = { version = "0.1.0", path = "../deckmaste_migrations" }
+macro_ron = { version = "0.1.0", path = "../macro_ron" }
 # `map enums`: parse Rust sources to find `pub enum` shapes; span-locations
 # lets `syn`'s spans report real source line numbers outside a proc-macro.
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }

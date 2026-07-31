@@ -1,0 +1,690 @@
+//! `cargo xtask macro templates` — the D10 coexistence contract: every
+//! framed macro definition's checked-in `template:` field (the legacy
+//! rules-text mini-language `deckmaste_cards::template` renders from) must
+//! equal [`project`]ion of its first frame's authored text, so `template:`
+//! and `frames:` can't quietly drift into two different sources of truth
+//! for the same rendering.
+//!
+//! `--check` reports every divergence and exits 1. `--write` rewrites the
+//! `template:` field in place, byte-surgically (find the field's quoted RON
+//! string literal, replace only that span) so every comment and the rest of
+//! the file's formatting survives untouched — a full `ron`-round-trip
+//! rewrite would lose the file's comments, which this corpus leans on
+//! heavily for CR citations and rationale.
+//!
+//! Neither mode ever touches `frames:`. A guard's stored spelling
+//! (`when: [(0, "Exactly(1)")]`) is the readable sugar on purpose — guard
+//! *satisfaction* is defined on the fully-expanded canonical form
+//! (`deckmaste_frames::guard`), but the catalog keeps the sugar, and
+//! `project` must not silently "fix" that by expanding it: `project` only
+//! ever looks at a frame's `text`, never its `when`.
+//!
+//! A macro whose checked-in `template:` uses a legacy mini-language feature
+//! `project` cannot express (a `${i:modifier}` codec, a
+//! `${prefix#name#suffix}` conditional, a `${slot*{literal}}` repeat, or a
+//! named `${name}` slot) is reported as `excepted`, not failed — see
+//! [`has_mini_language_exception`].
+
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+
+use anyhow::Context;
+use clap::Args;
+use deckmaste_cards::plugin::Plugin;
+use macro_ron::MacroDef;
+
+#[derive(Debug, Args)]
+pub(super) struct TemplatesArgs {
+    /// Verify every framed def's checked-in `template:` equals
+    /// projection(first frame); exits 1 listing every divergence.
+    #[arg(long, conflicts_with = "write")]
+    check: bool,
+
+    /// Rewrite every divergent `template:` field in place. Never touches
+    /// `frames:` — see the module doc.
+    #[arg(long)]
+    write: bool,
+
+    /// Defaults to this workspace's `plugins/builtin`.
+    plugin_dir: Option<PathBuf>,
+}
+
+pub(super) fn run(args: TemplatesArgs) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        args.check ^ args.write,
+        "pass exactly one of `--check` or `--write`"
+    );
+    let plugin_dir = args.plugin_dir.unwrap_or_else(super::default_plugin_dir);
+    let mode = if args.write { Mode::Write } else { Mode::Check };
+
+    let report = execute(&plugin_dir, mode)?;
+
+    println!(
+        "{}: {} framed def(s) checked, {} excepted, {} rewritten, {} divergent",
+        plugin_dir.display(),
+        report.checked,
+        report.excepted,
+        report.rewritten,
+        report.divergences.len(),
+    );
+    for divergence in &report.divergences {
+        eprintln!(
+            "{}: `{}` template {:?} does not match projection(first frame) {:?}",
+            divergence.path.display(),
+            divergence.name,
+            divergence.actual,
+            divergence.expected,
+        );
+    }
+    for (path, error) in &report.write_failures {
+        eprintln!("{}: {error:#}", path.display());
+    }
+    anyhow::ensure!(
+        report.divergences.is_empty(),
+        "{} `template:` divergence(s)",
+        report.divergences.len()
+    );
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Check,
+    Write,
+}
+
+#[derive(Debug)]
+struct Divergence {
+    path: PathBuf,
+    name: String,
+    actual: Option<String>,
+    expected: String,
+}
+
+#[derive(Debug, Default)]
+struct Report {
+    /// Framed defs seen (non-empty `frames:`) — the population `--check`
+    /// and `--write` operate over.
+    checked: usize,
+    /// Framed defs skipped because their checked-in `template:` uses a
+    /// mini-language feature `project` cannot express.
+    excepted: usize,
+    /// Divergent `template:` fields actually rewritten (`Mode::Write` only).
+    rewritten: usize,
+    /// Files still divergent after this run: every one, under `Mode::Check`;
+    /// under `Mode::Write`, only the ones a rewrite attempt failed on.
+    divergences: Vec<Divergence>,
+    /// Why a `Mode::Write` rewrite attempt failed, alongside its file.
+    write_failures: Vec<(PathBuf, anyhow::Error)>,
+}
+
+/// Walks every `.ron` file under `<plugin_dir>/macros`, classifying each
+/// framed def (non-empty `frames:`) as matching, excepted, or divergent —
+/// and, under [`Mode::Write`], rewriting divergent ones in place.
+///
+/// Parses each file's raw text through `plugin`'s own fully-loaded
+/// [`MacroSet`](macro_ron::MacroSet) (`plugin.macros.read_str`), not a bare
+/// `ron` read: roughly an eighth of this corpus's macro files (`Ascend.ron`,
+/// every other `KeywordAbility(...)`/subtype-meta invocation) are
+/// meta-macro *invocations*, not literal `MacroDef` structs — reading one
+/// bare (no macros registered) fails outright with "expected struct `Macro`
+/// but found `KeywordAbility`". `Plugin::load` resolves exactly these
+/// through the same `read_str` call, registering meta-macros as it goes
+/// until every file parses; re-running that same call against the
+/// finished, fully-populated set (deterministic given a fixed registry)
+/// reproduces the identical resolved `MacroDef` for every file, invocation
+/// or not.
+fn execute(plugin_dir: &Path, mode: Mode) -> anyhow::Result<Report> {
+    let plugin = Plugin::load_with_sibling_prelude(plugin_dir)
+        .with_context(|| format!("loading plugin {}", plugin_dir.display()))?;
+    let macros_dir = plugin_dir.join(deckmaste_core::plugin::MACROS_DIR);
+    let mut report = Report::default();
+
+    for path in ron_files_recursive(&macros_dir)? {
+        let source =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        let def: MacroDef = plugin
+            .macros
+            .read_str(&source)
+            .with_context(|| format!("parsing {} as a macro definition", path.display()))?;
+        if def.frames().is_empty() {
+            continue;
+        }
+        report.checked += 1;
+
+        let expected = project(&def.frames()[0].text);
+        let actual = def.template().map(str::to_owned);
+        if actual.as_deref().is_some_and(has_mini_language_exception) {
+            report.excepted += 1;
+            continue;
+        }
+        if actual.as_deref() == Some(expected.as_str()) {
+            continue;
+        }
+
+        let name = def.name.as_str().to_string();
+        if mode == Mode::Write {
+            match rewrite_template_field(&source, &expected) {
+                Ok(rewritten) => {
+                    fs::write(&path, rewritten)
+                        .with_context(|| format!("writing {}", path.display()))?;
+                    report.rewritten += 1;
+                    continue;
+                }
+                Err(error) => report.write_failures.push((path.clone(), error)),
+            }
+        }
+        report.divergences.push(Divergence {
+            path,
+            name,
+            actual,
+            expected,
+        });
+    }
+    Ok(report)
+}
+
+/// Projects an authored frame's text into the legacy `template:`
+/// mini-language spelling: `<Param(i)>` becomes `${i}`; `~` and every other
+/// byte copies through unchanged.
+///
+/// Purely lexical — it never parses the frame text as English and never
+/// looks at a frame's `when`/`position`, so it cannot see (and cannot
+/// disturb) a guard's stored spelling.
+#[must_use]
+fn project(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while !rest.is_empty() {
+        if let Some(tail) = rest.strip_prefix("<Param(")
+            && let Some(end) = tail.find(")>")
+        {
+            out.push_str("${");
+            out.push_str(tail[..end].trim());
+            out.push('}');
+            rest = &tail[end + 2..];
+            continue;
+        }
+        let step = rest
+            .char_indices()
+            .nth(1)
+            .map_or(rest.len(), |(offset, _)| offset);
+        out.push_str(&rest[..step]);
+        rest = &rest[step..];
+    }
+    out
+}
+
+/// Whether `template` uses a legacy mini-language feature [`project`]
+/// cannot express: a codec (`${0:card|cards}`), a conditional
+/// (`${ from #from#}`), a repeat (`${0*{E}}`), or a named slot (`${effect}`,
+/// as opposed to a positional `${0}`).
+///
+/// One rule covers all four: a hole whose content is anything other than a
+/// bare run of ASCII digits is an exception. A colon/hash/star-bearing
+/// content is never all-digits, and neither is a bare name — so this is the
+/// union of the four patterns without needing to name them separately.
+#[must_use]
+fn has_mini_language_exception(template: &str) -> bool {
+    let mut rest = template;
+    while let Some((content, consumed)) = next_hole(rest) {
+        let plain_positional = !content.is_empty() && content.bytes().all(|b| b.is_ascii_digit());
+        if !plain_positional {
+            return true;
+        }
+        rest = &rest[consumed..];
+    }
+    false
+}
+
+/// The content of the first `${...}` hole in `text`, and the byte offset
+/// just past its closing `}`. Brace-nesting aware: a repeat's literal
+/// payload (`${0*{E}}`) contains an inner `{`/`}` pair, so a naive
+/// first-`}`-wins scan would cut the hole short at `${0*{E}` — this instead
+/// tracks depth from the `${`'s own opening brace and stops when it returns
+/// to zero. `None` if `text` has no `${` at all, or an unterminated one.
+fn next_hole(text: &str) -> Option<(&str, usize)> {
+    let start = text.find("${")?;
+    let content_start = start + 2;
+    let mut depth = 1usize;
+    for (offset, ch) in text[content_start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some((
+                        &text[content_start..content_start + offset],
+                        content_start + offset + 1,
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Rewrites `source`'s top-level `template: "..."` string field to hold
+/// `new_value`, keeping every other byte — comments, other fields,
+/// formatting — untouched.
+///
+/// Located by its exact on-disk spelling, `template: "`: a top-level string
+/// field always has a space then an opening quote right after the colon,
+/// while the field-*forwarding* spelling a meta-macro's produced-def
+/// literal nests (`template: Param(template)`, seen in e.g.
+/// `plugins/builtin/macros/macro/subtype/CreatureType.ron`) has no quote
+/// there and so is never matched by this marker.
+///
+/// # Errors
+/// If `source` has no `template: "..."` field to rewrite — a framed def
+/// that has never had its own `template:` field needs one added by hand;
+/// this function refuses to guess where to insert it.
+fn rewrite_template_field(source: &str, new_value: &str) -> anyhow::Result<String> {
+    const MARKER: &str = "template: \"";
+    let marker_at = source
+        .find(MARKER)
+        .ok_or_else(|| anyhow::anyhow!("no `template: \"...\"` field found to rewrite"))?;
+    let quote_open = marker_at + MARKER.len() - 1;
+    let value_start = quote_open + 1;
+
+    let bytes = source.as_bytes();
+    let mut index = value_start;
+    let mut escaped = false;
+    let quote_close = loop {
+        let byte = *bytes
+            .get(index)
+            .ok_or_else(|| anyhow::anyhow!("unterminated `template:` string literal"))?;
+        if escaped {
+            escaped = false;
+        } else if byte == b'\\' {
+            escaped = true;
+        } else if byte == b'"' {
+            break index;
+        }
+        index += 1;
+    };
+
+    let quoted = deckmaste_core::ron::options().to_string(&new_value)?;
+    let mut rewritten = String::with_capacity(source.len());
+    rewritten.push_str(&source[..quote_open]);
+    rewritten.push_str(&quoted);
+    rewritten.push_str(&source[quote_close + 1..]);
+    Ok(rewritten)
+}
+
+/// The `.ron` files under `dir` at any depth, sorted; an absent directory is
+/// empty. A private copy of the same small walker every plugin-tree reader
+/// in this workspace carries (`macro_ron::frames::ron_files_recursive`,
+/// `deckmaste_cards::plugin::ron_files_recursive`, both crate-private to
+/// their own crates) — xtask depends on neither crate's internals, so this
+/// stays its own copy rather than a new public API surface just for one
+/// caller.
+fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    let mut files = Vec::new();
+    let mut subdirs = Vec::new();
+    for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            subdirs.push(path);
+        } else if path.extension().is_some_and(|ext| ext == "ron") {
+            files.push(path);
+        }
+    }
+    subdirs.sort();
+    for subdir in subdirs {
+        files.extend(ron_files_recursive(&subdir)?);
+    }
+    files.sort();
+    Ok(files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------
+    // `project` — the brief's own TDD case, verbatim.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn projection_replaces_param_holes_and_keeps_self_reference() {
+        assert_eq!(
+            project("~ deals <Param(0)> damage to each <Param(1)>"),
+            "~ deals ${0} damage to each ${1}"
+        );
+    }
+
+    #[test]
+    fn projection_of_a_frame_with_no_holes_is_unchanged() {
+        assert_eq!(project("hexproof"), "hexproof");
+    }
+
+    #[test]
+    fn projection_never_expands_a_guards_spelling() {
+        // `project` only ever sees `FrameSpec::text`; a guard's `when` isn't
+        // even in scope for it to expand.
+        assert_eq!(project("target <Param(1)>"), "target ${1}");
+    }
+
+    // -----------------------------------------------------------------
+    // `has_mini_language_exception` — the census's four buckets, plus the
+    // ordinary positional case that must NOT be flagged.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn plain_positional_holes_are_not_an_exception() {
+        assert!(!has_mini_language_exception(
+            "${0} deals ${1} damage to ${2}"
+        ));
+        assert!(!has_mini_language_exception("hexproof"));
+    }
+
+    #[test]
+    fn a_codec_hole_is_an_exception() {
+        // `Discard.ron`.
+        assert!(has_mini_language_exception("discard ${0:card|cards}"));
+    }
+
+    #[test]
+    fn a_conditional_hole_is_an_exception() {
+        // `Hexproof.ron`.
+        assert!(has_mini_language_exception("hexproof${ from #from#}"));
+    }
+
+    #[test]
+    fn a_repeat_hole_is_an_exception() {
+        // `GainEnergy.ron`, brace-nested payload.
+        assert!(has_mini_language_exception("you get ${0*{E}}"));
+    }
+
+    #[test]
+    fn a_named_slot_is_an_exception() {
+        // `Chapter.ron`.
+        assert!(has_mini_language_exception("${n} — ${effect}"));
+    }
+
+    #[test]
+    fn next_hole_is_brace_nesting_aware() {
+        let (content, consumed) = next_hole("you get ${0*{E}} today").unwrap();
+        assert_eq!(content, "0*{E}");
+        assert_eq!(&"you get ${0*{E}} today"[consumed..], " today");
+    }
+
+    /// Not part of the regular suite — a one-time (re-runnable on demand)
+    /// cross-check of the detector against
+    /// `docs/superpowers/research/2026-07-30-macro-frames/
+    /// macro-schema-census.md` §3's independently-derived count: "21 macros
+    /// total carry a D10-relevant feature". Scans every `template:` in the
+    /// real corpus (not just framed defs — the census counted by template
+    /// content, not by `frames:`, which is empty everywhere today) and
+    /// asserts the same 21 names. Ignored by default because the corpus is
+    /// living data (Task 6+ will add real `frames:`, new macros will be
+    /// added) and a hard-coded name list tied to it would go stale exactly
+    /// the way the round's own tests are told not to depend on repo
+    /// content; run with `cargo test -p xtask --lib -- --ignored
+    /// macro_schema_census_count_matches_21` to re-verify by hand.
+    #[test]
+    #[ignore = "cross-checks the live corpus against the census; run on demand"]
+    fn macro_schema_census_count_matches_21() {
+        let plugin_dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin");
+        let plugin = Plugin::load_with_sibling_prelude(&plugin_dir).unwrap();
+        let macros_dir = plugin_dir.join("macros");
+        let mut hits: Vec<String> = Vec::new();
+        for path in ron_files_recursive(&macros_dir).unwrap() {
+            let source = std::fs::read_to_string(&path).unwrap();
+            let def: MacroDef = match plugin.macros.read_str(&source) {
+                Ok(def) => def,
+                Err(error) => panic!("{}: {error}", path.display()),
+            };
+            if def.template().is_some_and(has_mini_language_exception) {
+                hits.push(def.name.as_str().to_string());
+            }
+        }
+        hits.sort();
+        let expected = {
+            let mut names = vec![
+                "Chapter",
+                "DestroyNoRegen",
+                "Discard",
+                "DiscardAtRandom",
+                "DiscardCards",
+                "Discards",
+                "DiscardsAtRandom",
+                "Draw",
+                "Draws",
+                "GainEnergy",
+                "Hexproof",
+                "LoyaltyMinus",
+                "LoyaltyPlus",
+                "LoyaltyZero",
+                "Mill",
+                "Mills",
+                "PayEnergy",
+                "PreventAll",
+                "PreventNext",
+                "Unless",
+                "Ward",
+            ];
+            names.sort_unstable();
+            names
+        };
+        assert_eq!(
+            hits,
+            expected,
+            "{} macro(s) flagged, census says 21",
+            hits.len()
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // `rewrite_template_field` — the byte-surgical splice.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn rewrite_replaces_only_the_template_string_preserving_the_rest() {
+        let source = "// a comment mentioning template: too\n(\n    name: \"Draws\",\n    template: \"${0} draws ${1} cards\",\n    kinds: [OneShotEffect],\n)\n";
+        let rewritten = rewrite_template_field(source, "${0} draws ${1} card(s)").unwrap();
+        assert!(rewritten.contains("template: \"${0} draws ${1} card(s)\","));
+        assert!(rewritten.contains("// a comment mentioning template: too"));
+        assert!(rewritten.contains("name: \"Draws\","));
+    }
+
+    #[test]
+    fn rewrite_is_idempotent() {
+        let source =
+            "(\n    name: \"Draw\",\n    template: \"draw ${0} cards\",\n    kinds: [Count],\n)\n";
+        let once = rewrite_template_field(source, "draw ${0} card").unwrap();
+        let twice = rewrite_template_field(&once, "draw ${0} card").unwrap();
+        assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn rewrite_refuses_to_guess_at_a_missing_field() {
+        let source = "(\n    name: \"Chapter\",\n    kinds: [Ability],\n)\n";
+        let error = rewrite_template_field(source, "${n}").unwrap_err();
+        assert!(format!("{error:#}").contains("no `template:"));
+    }
+
+    #[test]
+    fn rewrite_does_not_touch_a_meta_macros_nested_forwarding_field() {
+        // `CreatureType.ron`'s shape: no top-level `template: "..."` string
+        // at all, only the produced def's `template: Param(template)`
+        // forwarding spelling nested in `body:`.
+        let source = "(\n    name: \"CreatureType\",\n    kinds: [Macro],\n    params: { \"name\": String, \"template\": Default(String, Param(name)) },\n    body: (\n        name: Param(name),\n        template: Param(template),\n        kinds: [Subtype],\n        body: Subtype(name: Param(template), types: [Creature]),\n    ),\n)\n";
+        let error = rewrite_template_field(source, "whatever").unwrap_err();
+        assert!(format!("{error:#}").contains("no `template:"));
+    }
+
+    // -----------------------------------------------------------------
+    // `execute` end to end — real files under a throwaway temp dir, per
+    // the round's ruling that these tests build their own fixtures rather
+    // than depending on the corpus (which currently frames nothing).
+    // -----------------------------------------------------------------
+
+    fn tempdir_with(files: &[(&str, &str)]) -> TempDir {
+        let dir = TempDir::new();
+        for (rel, body) in files {
+            let path = dir.path().join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, body).unwrap();
+        }
+        dir
+    }
+
+    // Every fixture body is a trivial, name-collision-free RON value (`0`),
+    // never the macro's own name (`body: Draws(...)` inside a def named
+    // `Draws` reads as a self-invocation and trips `macro_ron`'s cycle
+    // check at registration) — these fixtures only need to *register*
+    // cleanly, `execute` never expands a body.
+    const MATCHING: &str = r#"(
+    name: "Draws",
+    template: "${0} draws ${1} cards",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    frames: ["<Param(0)> draws <Param(1)> cards"],
+    body: 0,
+)
+"#;
+
+    const DIVERGENT: &str = r#"(
+    name: "GainLife",
+    template: "${0} gains ${1} life",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    frames: ["<Param(0)> gain <Param(1)> life"],
+    body: 0,
+)
+"#;
+
+    const EXCEPTED: &str = r#"(
+    name: "Discard",
+    template: "discard ${0:card|cards}",
+    kinds: [OneShotEffect, KeywordAction],
+    params: [Count],
+    frames: ["discard <Param(0)>"],
+    body: 0,
+)
+"#;
+
+    const UNFRAMED: &str = r#"(
+    name: "Landwalk",
+    template: "landwalk",
+    kinds: [KeywordAbility],
+    body: 0,
+)
+"#;
+
+    #[test]
+    fn check_passes_when_every_framed_def_matches_its_projection() {
+        let dir = tempdir_with(&[
+            ("macros/action/Draws.ron", MATCHING),
+            ("macros/keyword/Landwalk.ron", UNFRAMED),
+        ]);
+        let report = execute(dir.path(), Mode::Check).unwrap();
+        assert_eq!(report.checked, 1, "the unframed def is out of scope");
+        assert_eq!(report.excepted, 0);
+        assert!(report.divergences.is_empty());
+    }
+
+    #[test]
+    fn check_reports_a_divergence_and_names_the_file() {
+        let dir = tempdir_with(&[("macros/effect/GainLife.ron", DIVERGENT)]);
+        let report = execute(dir.path(), Mode::Check).unwrap();
+        assert_eq!(report.checked, 1);
+        assert_eq!(report.divergences.len(), 1);
+        let divergence = &report.divergences[0];
+        assert_eq!(divergence.name, "GainLife");
+        assert_eq!(divergence.expected, "${0} gain ${1} life");
+        assert_eq!(divergence.actual.as_deref(), Some("${0} gains ${1} life"));
+    }
+
+    #[test]
+    fn check_excepts_a_mini_language_template_instead_of_failing_it() {
+        let dir = tempdir_with(&[("macros/action/Discard.ron", EXCEPTED)]);
+        let report = execute(dir.path(), Mode::Check).unwrap();
+        assert_eq!(report.checked, 1);
+        assert_eq!(report.excepted, 1);
+        assert!(
+            report.divergences.is_empty(),
+            "an excepted def must not also be reported as a divergence: {:?}",
+            report.divergences
+        );
+    }
+
+    #[test]
+    fn write_rewrites_a_divergent_template_in_place_and_becomes_check_clean() {
+        let dir = tempdir_with(&[("macros/effect/GainLife.ron", DIVERGENT)]);
+        let path = dir.path().join("macros/effect/GainLife.ron");
+
+        let written = execute(dir.path(), Mode::Write).unwrap();
+        assert_eq!(written.rewritten, 1);
+        assert!(written.divergences.is_empty());
+        assert!(written.write_failures.is_empty());
+
+        let on_disk = std::fs::read_to_string(&path).unwrap();
+        assert!(on_disk.contains(r#"template: "${0} gain ${1} life","#));
+        // Nothing else moved: same `frames:`/`body:` text, byte for byte.
+        assert!(on_disk.contains(r#"frames: ["<Param(0)> gain <Param(1)> life"],"#));
+        assert!(on_disk.contains("body: 0,"));
+
+        let rechecked = execute(dir.path(), Mode::Check).unwrap();
+        assert!(rechecked.divergences.is_empty(), "now idempotent");
+    }
+
+    #[test]
+    fn write_never_expands_a_guards_stored_spelling() {
+        let source = r#"(
+    name: "Target",
+    template: "target any target",
+    kinds: [TargetSpec],
+    params: [Predicate],
+    frames: [(text: "target <Param(0)>", when: [(0, "Exactly(1)")])],
+    body: 0,
+)
+"#;
+        let dir = tempdir_with(&[("macros/target/Target.ron", source)]);
+        let path = dir.path().join("macros/target/Target.ron");
+
+        let written = execute(dir.path(), Mode::Write).unwrap();
+        assert_eq!(written.rewritten, 1);
+
+        let on_disk = std::fs::read_to_string(&path).unwrap();
+        assert!(on_disk.contains(r#"template: "target ${0}","#));
+        // The guard's sugar is untouched — still `Exactly(1)`, not expanded
+        // to `Range(Some(1), Some(1))`.
+        assert!(on_disk.contains(r#"when: [(0, "Exactly(1)")]"#));
+    }
+
+    /// Minimal self-cleaning temp dir (avoids adding the `tempfile` crate) —
+    /// same pattern as `xtask::coverage`'s own test-only copy.
+    struct TempDir(std::path::PathBuf);
+    impl TempDir {
+        fn new() -> Self {
+            use std::sync::atomic::AtomicU32;
+            use std::sync::atomic::Ordering;
+            static N: AtomicU32 = AtomicU32::new(0);
+            let base = std::env::temp_dir().join(format!(
+                "xtask-macro-templates-{}-{}",
+                std::process::id(),
+                N.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir_all(&base).unwrap();
+            Self(base)
+        }
+        fn path(&self) -> &std::path::Path {
+            &self.0
+        }
+    }
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+}
