@@ -13,6 +13,8 @@ use std::fmt;
 use serde::Serialize;
 use serde::ser;
 
+use crate::compile::HoleClass;
+
 /// One node of a `Serialize` value's tree, with scalar values preserved.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum View {
@@ -44,12 +46,222 @@ pub enum View {
     Map(Vec<(View, View)>),
     /// `Option::None`.
     Absent,
+    /// A typed hole: the one node kind [`of`] never produces. The frame
+    /// compiler puts these in by *relocation* — replacing the witness it
+    /// substituted into a frame's text with the hole that witness stood
+    /// for. See [`mod@crate::compile`].
+    Hole { index: usize, class: HoleClass },
 }
 
 /// Build a [`View`] from anything that derives `Serialize`.
 pub fn of<T: Serialize + ?Sized>(value: &T) -> View {
     // The builder is infallible; the error type exists only to satisfy serde.
     value.serialize(ViewBuilder).unwrap_or(View::Absent)
+}
+
+/// One hop down a [`View`]. Together these address a node without borrowing
+/// it, which is what lets a [`CompiledFrame`](crate::compile::CompiledFrame)
+/// keep a side table pointing into its own tree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathStep {
+    /// Into [`View::Node`]'s field of this name.
+    Field(&'static str),
+    /// Into [`View::Seq`]'s element at this index.
+    Index(usize),
+    /// Through [`View::Newtype`]'s single child.
+    Inner,
+    /// Into the key of [`View::Map`]'s entry at this index.
+    MapKey(usize),
+    /// Into the value of [`View::Map`]'s entry at this index.
+    MapValue(usize),
+}
+
+impl fmt::Display for PathStep {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PathStep::Field(name) => write!(formatter, ".{name}"),
+            PathStep::Index(index) => write!(formatter, "[{index}]"),
+            PathStep::Inner => formatter.write_str("()"),
+            PathStep::MapKey(index) => write!(formatter, "{{{index}}}.key"),
+            PathStep::MapValue(index) => write!(formatter, "{{{index}}}.value"),
+        }
+    }
+}
+
+/// An address inside a [`View`], from the root down.
+///
+/// Paths recorded by the frame compiler are valid against the *compiled*
+/// tree, after relocation and citation normalization — that is the tree a
+/// consumer holds.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TreePath(pub Vec<PathStep>);
+
+impl fmt::Display for TreePath {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.is_empty() {
+            return formatter.write_str("<root>");
+        }
+        for step in &self.0 {
+            write!(formatter, "{step}")?;
+        }
+        Ok(())
+    }
+}
+
+impl TreePath {
+    /// This path with one more step on the end.
+    #[must_use]
+    pub fn then(&self, step: PathStep) -> TreePath {
+        let mut steps = self.0.clone();
+        steps.push(step);
+        TreePath(steps)
+    }
+
+    /// Whether `self` addresses `other` or an ancestor of it.
+    #[must_use]
+    pub fn is_prefix_of(&self, other: &TreePath) -> bool {
+        other.0.starts_with(&self.0)
+    }
+
+    /// The node this path addresses, or `None` if it does not resolve.
+    #[must_use]
+    pub fn resolve<'tree>(&self, root: &'tree View) -> Option<&'tree View> {
+        let mut node = root;
+        for step in &self.0 {
+            node = step_into(node, *step)?;
+        }
+        Some(node)
+    }
+
+    /// The node this path addresses, mutably.
+    pub fn resolve_mut<'tree>(&self, root: &'tree mut View) -> Option<&'tree mut View> {
+        let mut node = root;
+        for step in &self.0 {
+            node = step_into_mut(node, *step)?;
+        }
+        Some(node)
+    }
+}
+
+fn step_into(node: &View, step: PathStep) -> Option<&View> {
+    match (node, step) {
+        (View::Node { fields, .. }, PathStep::Field(name)) => fields
+            .iter()
+            .find_map(|(key, value)| (*key == name).then_some(value)),
+        (View::Seq(items), PathStep::Index(index)) => items.get(index),
+        (View::Newtype { inner, .. }, PathStep::Inner) => Some(inner),
+        (View::Map(entries), PathStep::MapKey(index)) => entries.get(index).map(|(key, _)| key),
+        (View::Map(entries), PathStep::MapValue(index)) => {
+            entries.get(index).map(|(_, value)| value)
+        }
+        _ => None,
+    }
+}
+
+fn step_into_mut(node: &mut View, step: PathStep) -> Option<&mut View> {
+    match (node, step) {
+        (View::Node { fields, .. }, PathStep::Field(name)) => fields
+            .iter_mut()
+            .find_map(|(key, value)| (*key == name).then_some(value)),
+        (View::Seq(items), PathStep::Index(index)) => items.get_mut(index),
+        (View::Newtype { inner, .. }, PathStep::Inner) => Some(inner),
+        (View::Map(entries), PathStep::MapKey(index)) => entries.get_mut(index).map(|(key, _)| key),
+        (View::Map(entries), PathStep::MapValue(index)) => {
+            entries.get_mut(index).map(|(_, value)| value)
+        }
+        _ => None,
+    }
+}
+
+impl View {
+    /// This node's children, each with the step that reaches it.
+    #[must_use]
+    pub fn children(&self) -> Vec<(PathStep, &View)> {
+        match self {
+            View::Node { fields, .. } => fields
+                .iter()
+                .map(|(name, value)| (PathStep::Field(name), value))
+                .collect(),
+            View::Seq(items) => items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| (PathStep::Index(index), item))
+                .collect(),
+            View::Newtype { inner, .. } => vec![(PathStep::Inner, inner.as_ref())],
+            View::Map(entries) => entries
+                .iter()
+                .enumerate()
+                .flat_map(|(index, (key, value))| {
+                    [
+                        (PathStep::MapKey(index), key),
+                        (PathStep::MapValue(index), value),
+                    ]
+                })
+                .collect(),
+            View::Scalar { .. } | View::Unit { .. } | View::Absent | View::Hole { .. } => {
+                Vec::new()
+            }
+        }
+    }
+
+    /// Every node in this tree, deepest-last within each branch, each with
+    /// the path that reaches it from here.
+    #[must_use]
+    pub fn walk(&self) -> Vec<(TreePath, &View)> {
+        let mut out = Vec::new();
+        self.walk_into(&TreePath::default(), &mut out);
+        out
+    }
+
+    fn walk_into<'tree>(&'tree self, at: &TreePath, out: &mut Vec<(TreePath, &'tree View)>) {
+        out.push((at.clone(), self));
+        for (step, child) in self.children() {
+            child.walk_into(&at.then(step), out);
+        }
+    }
+
+    /// The `name` of a [`View::Node`], [`View::Newtype`] or [`View::Unit`] —
+    /// the Rust type the node came from. `None` for everything else.
+    #[must_use]
+    pub fn type_name(&self) -> Option<&'static str> {
+        match self {
+            View::Node { name, .. } | View::Newtype { name, .. } | View::Unit { name, .. } => {
+                Some(name)
+            }
+            _ => None,
+        }
+    }
+
+    /// The `variant` of a [`View::Node`], [`View::Newtype`] or
+    /// [`View::Unit`]. `None` for a struct (rather than a variant) and for
+    /// everything else.
+    #[must_use]
+    pub fn variant_name(&self) -> Option<&'static str> {
+        match self {
+            View::Node { variant, .. }
+            | View::Newtype { variant, .. }
+            | View::Unit { variant, .. } => *variant,
+            _ => None,
+        }
+    }
+
+    /// Whether this node carries no content of its own: `None`, or an empty
+    /// sequence.
+    ///
+    /// Load-bearing in relocation. A witness-substituted frame's tree has
+    /// nodes whose *other* fields are structurally empty — `determiner: None`
+    /// and `modifiers: []` around an opaque head noun — and a hole must be
+    /// allowed to grow through those, because nothing in them came from the
+    /// frame's own text. Anything else (a `Newtype`, a `Unit`, a `Scalar`)
+    /// *is* frame material and stops the hole.
+    #[must_use]
+    pub fn is_vacuous(&self) -> bool {
+        match self {
+            View::Absent => true,
+            View::Seq(items) => items.is_empty(),
+            _ => false,
+        }
+    }
 }
 
 /// The walk cannot fail; `serde` still requires an error type.

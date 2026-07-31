@@ -20,6 +20,16 @@ serde = { version = "1.0.228", features = ["derive"] }
 # crate is the engine that will consume it (and eventually `MacroSet`
 # itself, to expand macro bodies), so the dependency arrow points this way,
 # not the reverse — the reverse direction is what caused the cycle this
-# arrangement fixes. `deckmaste_english` and `deckmaste_core` are expected
-# additions in later tasks; not added now since nothing here needs them yet.
+# arrangement fixes. `MacroSet` is already needed: the guard normalizer
+# reads a guard's RON spelling through it.
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
+# The frame compiler substitutes witnesses into a frame's text and parses
+# the result at a grammatical category, so it needs the English parser.
+# `deckmaste_english` stays a leaf: this arrow points into it and it gains
+# no dependency of its own.
+deckmaste_english = { version = "0.1.0", path = "../deckmaste_english" }
+# A guard's constant is a `deckmaste_core` RON term, read at the type its
+# param declares. The `param type name -> Rust type` table in `guard.rs`
+# needs every macroable core type by name.
+deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+anyhow = "1.0.102"
