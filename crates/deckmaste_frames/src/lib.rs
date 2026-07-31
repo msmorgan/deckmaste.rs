@@ -46,7 +46,6 @@ pub use compile::Hole;
 pub use compile::HoleClass;
 pub use compile::Normalization;
 pub use compile::compile;
-pub use compile::compile_with_macros;
 pub use view::PathStep;
 pub use view::TreePath;
 pub use view::View;

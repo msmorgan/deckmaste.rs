@@ -76,10 +76,21 @@ pub enum HoleClass {
     /// [`Hole::path`] addresses the owning `NominalPhrase` and `claimed`
     /// names the fields the hole takes.
     ///
-    /// `View::Hole` appears once per claimed field in the tree, each carrying
-    /// the same hole index — the node keeps its shape so a unifier can walk
-    /// it field-by-field, and the frame's own `determiner` sits beside the
-    /// holes rather than being spliced around them.
+    /// # How to read one
+    ///
+    /// `View::Hole` appears **once per claimed field** — three times, for the
+    /// only shape the pilot produces — each carrying the same `index` and the
+    /// same `class`. The owning node therefore keeps its exact arity and
+    /// field names, and the frame's own `determiner` sits *beside* the holes
+    /// rather than being spliced around them.
+    ///
+    /// So a consumer walking the two trees in lockstep needs no special case:
+    /// at a `Hole`-valued field it binds the card node's same-named field,
+    /// at any other field it compares. The three fields are one hole, not
+    /// three — **treat them as a unit**: bind all of `claimed` or none, and do
+    /// not treat a per-field match as a hole match on its own. `claimed` is
+    /// the authority on the grouping; the repetition is a convenience for the
+    /// walk, not three independent bindings.
     FieldSlice { claimed: Vec<&'static str> },
     /// The hole is a bare number: the `value` of a `NumberLiteral`. The
     /// sibling `numeral` field (Arabic vs. spelled-out) is the frame's, not
@@ -103,9 +114,23 @@ pub enum HoleClass {
 /// One hole in a compiled frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hole {
-    /// This hole's position in [`CompiledFrame::holes`], and the `index` its
-    /// [`View::Hole`] nodes carry. **Not** the param index — a guarded frame
-    /// has params with no hole — read [`Hole::param`] for that.
+    /// This hole's slot in [`CompiledFrame::holes`], and the `index` its
+    /// [`View::Hole`] nodes carry — `holes[h.index] == h`, always.
+    ///
+    /// **It is not the param index**, and a consumer that assumes it is will
+    /// bind the wrong argument. The two coincide only when every declared
+    /// param is holed. They part company in the two cases the pilot already
+    /// contains:
+    ///
+    /// - a **guarded** param has no hole, so the holes after it shift down —
+    ///   `(text: "draw <Param(1)> cards", when: [(0, "You")])` has one hole,
+    ///   `index: 0`, `param: Some(1)`;
+    /// - a **`~`** hole has no param at all.
+    ///
+    /// Recover the argument slot from [`Hole::param`], or go the other way
+    /// with [`CompiledFrame::hole_for_param`]. A guarded param is recovered
+    /// not from the holes at all but from
+    /// [`CompiledFrame::guards`] — that is what a guard is for.
     pub index: usize,
     /// The `<Param(i)>` this hole came from; `None` for a `~` hole, which
     /// stands for the card rather than for an argument.
@@ -114,6 +139,14 @@ pub struct Hole {
     /// Where the hole sits in [`CompiledFrame::tree`]: the node it replaced,
     /// except for [`HoleClass::FieldSlice`], where it is the owning node
     /// whose fields the hole claims.
+    ///
+    /// **One path, even when the hole has several sites.** Every `~` in a
+    /// frame is the same referent and shares one hole, so a frame saying `~`
+    /// twice puts two `View::Hole` nodes in the tree and `path` keeps only
+    /// the first. A consumer that must visit every occurrence — a renderer
+    /// substituting a filler back — scans the tree for
+    /// `View::Hole { index, .. }` rather than trusting `path`, which is a
+    /// convenience for the single-site case and for diagnostics.
     pub path: TreePath,
     /// What was substituted into the frame text to find this hole. Kept for
     /// diagnostics — nothing downstream should need it.
@@ -213,15 +246,19 @@ impl CompiledFrame {
     }
 }
 
-/// Compiles one frame, reading guard constants with a `deckmaste_core`-only
-/// RON reader.
+/// Compiles one frame.
 ///
 /// `params` names each positional hole's declared type, in index order — the
 /// common denominator of `MacroDef.params` and `ConstructorFrames.params`.
 ///
-/// Use [`compile_with_macros`] instead when guards are spelled with the
-/// plugins' readable macro sugar (`Exactly(1)`); this entry point only reads
-/// bare core constructors (`You`, `Range(Some(1), Some(1))`).
+/// `macros` is **required**, not a convenience: guard satisfaction is defined
+/// on fully-expanded canonical form (see [`crate::guard`]), and the catalog's
+/// preferred guard spelling is the readable macro sugar — the seeded
+/// `Target` entry guards `Exactly(1)`, which is a plugin macro and not a
+/// `deckmaste_core` constructor at all. A compiler that cannot see the macros
+/// therefore cannot evaluate the guards it is handed. Pass
+/// [`guard::core_reader`] only for a frame set known to guard with bare core
+/// constructors.
 ///
 /// # Errors
 /// If the frame spells a reserved witness token; if a hole names a param that
@@ -230,19 +267,6 @@ impl CompiledFrame {
 /// witness cannot be found exactly once in the parse; or if a guard constant
 /// is unreadable or not ground.
 pub fn compile(
-    spec: &FrameSpec,
-    kind: FragmentKind,
-    params: &[String],
-    catalogs: &Catalogs,
-) -> anyhow::Result<CompiledFrame> {
-    compile_with_macros(spec, kind, params, catalogs, guard::core_reader())
-}
-
-/// [`compile`], with the macro set a guard's RON spelling is read through.
-///
-/// # Errors
-/// As [`compile`].
-pub fn compile_with_macros(
     spec: &FrameSpec,
     kind: FragmentKind,
     params: &[String],
@@ -261,9 +285,7 @@ pub fn compile_with_macros(
 
     let mut agreement = agreement_deps(&tree, &placed);
     relocate(&mut tree, &placed);
-    for dep in &mut agreement {
-        dep.normalized = normalize_citation(&mut tree, dep);
-    }
+    normalize_all(&mut tree, &mut agreement);
 
     let holes = placed
         .into_iter()
@@ -302,6 +324,7 @@ pub fn compile_with_macros(
 // ---------------------------------------------------------------------------
 
 /// A hole the frame text asks for, before the parse says where it landed.
+#[derive(Debug)]
 struct PlannedHole {
     index: usize,
     param: Option<usize>,
@@ -450,6 +473,7 @@ fn parse_witnessed(text: &str, kind: FragmentKind, catalogs: &Catalogs) -> anyho
 // ---------------------------------------------------------------------------
 
 /// A hole once the parse has said where it is.
+#[derive(Debug)]
 struct PlacedHole {
     planned: PlannedHole,
     class: HoleClass,
@@ -513,19 +537,17 @@ fn place(tree: &View, planned: PlannedHole) -> anyhow::Result<PlacedHole> {
         planned.occurrences,
     );
 
+    // Every site of one hole necessarily gets the same class: the only hole
+    // that can have more than one site is `~` (a param may be holed exactly
+    // once — `plan_holes` enforces linearity), and `classify` answers
+    // `SelfRef` for every self-reference site unconditionally. So the class
+    // is decided once, from the first site.
     let mut sites = Vec::new();
     let mut class = None;
     for marker in markers {
         let site = hoist(tree, &marker, witness);
         let (site_class, site) = classify(tree, site, witness)?;
-        if let Some(previous) = &class {
-            anyhow::ensure!(
-                *previous == site_class,
-                "witness `{witness}` landed in two different kinds of position \
-                 ({previous:?} and {site_class:?})",
-            );
-        }
-        class = Some(site_class);
+        class.get_or_insert(site_class);
         sites.push(site);
     }
     Ok(PlacedHole {
@@ -754,21 +776,61 @@ fn agreement_deps(tree: &View, placed: &[PlacedHole]) -> Vec<AgreementDep> {
     deps
 }
 
-/// Rewrites one agreement site to citation form, returning what it changed.
-fn normalize_citation(tree: &mut View, dep: &AgreementDep) -> Vec<Normalization> {
+/// A sequence element that citation normalization took out, so every
+/// recorded path running through a later sibling can be renumbered.
+struct Removal {
+    sequence: TreePath,
+    index: usize,
+}
+
+/// Runs citation normalization over every agreement site, keeping the whole
+/// side table's paths valid as it goes.
+///
+/// One of the rewrites removes an element from a nominal's `modifiers`, which
+/// renumbers its later siblings. [`PlacedHole::finish`] re-derives hole paths
+/// from the finished tree afterwards and so is immune, but an
+/// [`AgreementDep::site`] has no marker in the tree to re-find it by — so
+/// each removal is reported back here and every site is repaired against it
+/// immediately. Without that, a site addressing a later sibling would quietly
+/// start pointing at its neighbour: `normalize_citation` would find the wrong
+/// node shape, bail, record nothing, and two authorings of the same frame
+/// would compile to different trees with no error raised.
+fn normalize_all(tree: &mut View, agreement: &mut [AgreementDep]) {
+    for index in 0..agreement.len() {
+        let site = agreement[index].site.clone();
+        let kind = agreement[index].kind;
+        let (applied, removal) = normalize_citation(tree, &site, kind);
+        agreement[index].normalized = applied;
+        if let Some(removal) = removal {
+            for dep in agreement.iter_mut() {
+                dep.site
+                    .shift_after_removal(&removal.sequence, removal.index);
+            }
+        }
+    }
+}
+
+/// Rewrites one agreement site to citation form, returning what it changed
+/// and any sequence element it removed.
+fn normalize_citation(
+    tree: &mut View,
+    at: &TreePath,
+    kind: AgreeKind,
+) -> (Vec<Normalization>, Option<Removal>) {
     let mut applied = Vec::new();
-    let Some(site) = dep.site.resolve_mut(tree) else {
-        return applied;
+    let mut removal = None;
+    let Some(site) = at.resolve_mut(tree) else {
+        return (applied, None);
     };
-    match dep.kind {
+    match kind {
         AgreeKind::VerbWithHole(_) => {
             let View::Node { fields, .. } = site else {
-                return applied;
+                return (applied, None);
             };
             let Some((_, View::Node { fields: slot, .. })) =
                 fields.iter_mut().find(|(name, _)| *name == "slot")
             else {
-                return applied;
+                return (applied, None);
             };
             let mut was = ("Third", "Singular");
             let mut changed = false;
@@ -799,11 +861,15 @@ fn normalize_citation(tree: &mut View, dep: &AgreementDep) -> Vec<Normalization>
         }
         AgreeKind::NounNumberFromHole(hole) => {
             let View::Node { fields, .. } = site else {
-                return applied;
+                return (applied, None);
             };
-            if let Some(moved) = take_quantity_modifier(fields, hole) {
+            if let Some((moved, at_index)) = take_quantity_modifier(fields, hole) {
                 set_field(fields, "determiner", moved);
                 applied.push(Normalization::QuantityToDeterminer);
+                removal = Some(Removal {
+                    sequence: at.then(PathStep::Field("modifiers")),
+                    index: at_index,
+                });
             }
             if let Some((_, head)) = fields.iter_mut().find(|(name, _)| *name == "head")
                 && let View::Newtype {
@@ -818,13 +884,16 @@ fn normalize_citation(tree: &mut View, dep: &AgreementDep) -> Vec<Normalization>
             }
         }
     }
-    applied
+    (applied, removal)
 }
 
 /// Takes the sole `NominalModifier::Quantity` bearing hole `hole` out of a
 /// nominal's `modifiers`, if its `determiner` is empty, and returns it
-/// re-wrapped as a `Determiner::Quantity`.
-fn take_quantity_modifier(fields: &mut [(&'static str, View)], hole: usize) -> Option<View> {
+/// re-wrapped as a `Determiner::Quantity`, with the index it came from.
+fn take_quantity_modifier(
+    fields: &mut [(&'static str, View)],
+    hole: usize,
+) -> Option<(View, usize)> {
     let determiner_is_empty = fields
         .iter()
         .any(|(name, value)| *name == "determiner" && value.is_vacuous());
@@ -846,11 +915,14 @@ fn take_quantity_modifier(fields: &mut [(&'static str, View)], hole: usize) -> O
     let View::Newtype { inner, .. } = items.remove(at) else {
         return None;
     };
-    Some(View::Newtype {
-        name: "Determiner",
-        variant: Some("Quantity"),
-        inner,
-    })
+    Some((
+        View::Newtype {
+            name: "Determiner",
+            variant: Some("Quantity"),
+            inner,
+        },
+        at,
+    ))
 }
 
 fn set_field(fields: &mut [(&'static str, View)], name: &str, value: View) {
@@ -896,6 +968,7 @@ mod tests {
             FragmentKind::Sentence,
             &deal_damage_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap();
         assert_eq!(frame.holes.len(), 3);
@@ -905,6 +978,7 @@ mod tests {
                 .iter()
                 .any(|hole| matches!(hole.class, HoleClass::Numeral))
         );
+        assert_sites_resolve(&frame);
         // No witness survives: the compiled tree is witness-free by
         // construction, which is the property the whole design rests on.
         assert!(
@@ -930,6 +1004,7 @@ mod tests {
             FragmentKind::Nominal,
             &["Predicate".to_string()],
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap();
         assert!(
@@ -968,6 +1043,7 @@ mod tests {
             FragmentKind::Nominal,
             &["Predicate".to_string()],
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap();
         assert_eq!(frame.holes[0].class, HoleClass::Subtree);
@@ -980,6 +1056,7 @@ mod tests {
             FragmentKind::Sentence,
             &draw_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap();
         let b = compile(
@@ -987,9 +1064,12 @@ mod tests {
             FragmentKind::Sentence,
             &draw_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap();
         assert_eq!(a.tree, b.tree, "citation normalization (spec D5/D6)");
+        assert_sites_resolve(&a);
+        assert_sites_resolve(&b);
 
         // And the difference is recorded rather than silently discarded: the
         // singular authoring needed both rewrites, the plural one only the
@@ -1027,8 +1107,10 @@ mod tests {
             FragmentKind::Sentence,
             &["Count".to_string(), "Count".to_string()],
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap();
+        assert_sites_resolve(&frame);
         assert_eq!(frame.holes.len(), 3, "two P/T halves plus the `~` hole");
         assert_eq!(frame.holes[0].class, HoleClass::PtHalf);
         assert_eq!(frame.holes[1].class, HoleClass::PtHalf);
@@ -1044,6 +1126,48 @@ mod tests {
         );
     }
 
+    /// Every `~` in one frame is the same referent, so they share **one**
+    /// hole — which means `View::Hole` appears once per occurrence while
+    /// `holes` gains a single entry, and `Hole::path` keeps only the first
+    /// site. A consumer that must visit every occurrence scans the tree for
+    /// `View::Hole { index }` rather than trusting the path.
+    #[test]
+    fn repeated_self_reference_sigils_share_one_hole() {
+        let frame = compile(
+            &bare("~ and ~ get +<Param(0)>/+<Param(1)>"),
+            FragmentKind::Sentence,
+            &["Count".to_string(), "Count".to_string()],
+            &Catalogs::default(),
+            &reader(),
+        )
+        .unwrap();
+        let self_ref = frame
+            .holes
+            .iter()
+            .find(|hole| hole.class == HoleClass::SelfRef)
+            .expect("a `~` hole");
+        assert_eq!(self_ref.param, None);
+        let sites: Vec<usize> = holes_in(&frame.tree)
+            .into_iter()
+            .filter(|index| *index == self_ref.index)
+            .collect();
+        assert_eq!(sites.len(), 2, "one `View::Hole` per `~` occurrence");
+        assert_eq!(
+            frame
+                .holes
+                .iter()
+                .filter(|hole| hole.class == HoleClass::SelfRef)
+                .count(),
+            1,
+            "but one entry in `holes`"
+        );
+        // The stored path is the first site and resolves there.
+        assert!(matches!(
+            self_ref.path.resolve(&frame.tree),
+            Some(View::Hole { .. })
+        ));
+    }
+
     #[test]
     fn a_frame_that_spells_a_reserved_token_is_a_build_error() {
         for text in ["zzhole0 draws a card", "<Param(0)> deals 41 damage"] {
@@ -1052,6 +1176,7 @@ mod tests {
                 FragmentKind::Sentence,
                 &deal_damage_params(),
                 &Catalogs::default(),
+                &reader(),
             )
             .unwrap_err();
             let message = format!("{error:#}");
@@ -1070,6 +1195,7 @@ mod tests {
             FragmentKind::Sentence,
             &draw_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap_err();
         let message = format!("{error:#}");
@@ -1086,6 +1212,7 @@ mod tests {
             FragmentKind::Sentence,
             &draw_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap_err();
         assert!(format!("{error:#}").contains("linear"), "{error:#}");
@@ -1098,6 +1225,7 @@ mod tests {
             FragmentKind::Sentence,
             &draw_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap_err();
         assert!(format!("{unguarded:#}").contains("guard"), "{unguarded:#}");
@@ -1111,6 +1239,7 @@ mod tests {
             FragmentKind::Sentence,
             &draw_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap();
         assert_eq!(guarded.holes.len(), 1);
@@ -1144,6 +1273,7 @@ mod tests {
             FragmentKind::Sentence,
             &draw_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap_err();
         assert!(format!("{error:#}").contains("pre-bound"), "{error:#}");
@@ -1160,6 +1290,7 @@ mod tests {
             FragmentKind::Sentence,
             &draw_params(),
             &Catalogs::default(),
+            &reader(),
         )
         .unwrap_err();
         assert!(format!("{error:#}").contains("Param"), "{error:#}");
@@ -1177,12 +1308,15 @@ mod tests {
                 FragmentKind::Sentence,
                 &draw_params(),
                 &Catalogs::default(),
+                &reader(),
             )
             .unwrap_or_else(|error| panic!("{text}: {error:#}"))
         };
         let plural = compile_one("<Param(0)> gain <Param(1)> life");
         let singular = compile_one("<Param(0)> gains <Param(1)> life");
         assert_eq!(plural.tree, singular.tree);
+        assert_sites_resolve(&plural);
+        assert_sites_resolve(&singular);
         assert!(
             plural
                 .agreement
@@ -1201,11 +1335,34 @@ mod tests {
         );
     }
 
-    /// A reader that knows one plugin macro, so a guard may be authored with
-    /// the readable sugar the catalog actually uses. `params: [Any]` rather
-    /// than `[Count]` keeps this a fixture: registering the real param-type
-    /// set is `deckmaste_cards`'s job, and this crate sits below it.
-    fn reader_with_exactly() -> MacroSet {
+    /// Every recorded agreement site must still address the node kind its
+    /// dependency is about — the promise `TreePath`'s own documentation
+    /// makes. Cheap, so every successful compile in this module asserts it.
+    fn assert_sites_resolve(frame: &CompiledFrame) {
+        for dep in &frame.agreement {
+            let node = dep.site.resolve(&frame.tree).unwrap_or_else(|| {
+                panic!("{:?} site {} does not resolve at all", dep.kind, dep.site)
+            });
+            let expected = match dep.kind {
+                AgreeKind::VerbWithHole(_) => "VerbInstance",
+                AgreeKind::NounNumberFromHole(_) => "NominalPhrase",
+            };
+            assert_eq!(
+                node.type_name(),
+                Some(expected),
+                "{:?} site {} resolved to {node:?}",
+                dep.kind,
+                dep.site
+            );
+        }
+    }
+
+    /// The macro set every test compiles against: deckmaste's RON dialect
+    /// plus one plugin macro, so a guard may be authored with the readable
+    /// sugar the catalog actually uses. `params: [Any]` rather than `[Count]`
+    /// keeps this a fixture — registering the real param-type set is
+    /// `deckmaste_cards`'s job, and this crate sits below it.
+    fn reader() -> MacroSet {
         let mut macros = MacroSet::new(deckmaste_core::ron::kinds())
             .with_options(deckmaste_core::ron::raw_options());
         let def: macro_ron::MacroDef = macros
@@ -1222,7 +1379,7 @@ mod tests {
     #[test]
     fn a_guard_holds_any_spelling_of_its_constant() {
         let compile_guard = |source: &str| {
-            compile_with_macros(
+            compile(
                 &FrameSpec {
                     text: "target <Param(1)>".into(),
                     when: vec![(0, source.to_string())],
@@ -1231,7 +1388,7 @@ mod tests {
                 FragmentKind::Nominal,
                 &["Quantity".to_string(), "Predicate".to_string()],
                 &Catalogs::default(),
-                &reader_with_exactly(),
+                &reader(),
             )
             .unwrap_or_else(|error| panic!("{source}: {error:#}"))
             .guards
@@ -1254,6 +1411,244 @@ mod tests {
         );
     }
 
+    // -----------------------------------------------------------------
+    // Citation normalization must keep the side table's own paths valid
+    // -----------------------------------------------------------------
+
+    /// Lifting a count out of `modifiers` renumbers every later sibling, so
+    /// any agreement site recorded *through* one of them has to be repaired.
+    ///
+    /// Driven through the real normalization entry point on a hand-built
+    /// tree, because English puts nothing that is itself an agreement site
+    /// inside an attributive modifier (`NominalModifier` reaches no
+    /// `NominalPhrase` or `VerbInstance`), so the shape cannot be reached by
+    /// parsing — see `a_second_modifier_survives_the_count_being_lifted` for
+    /// the closest authorable analogue. Without the repair the second
+    /// dependency's site addresses its neighbour, `normalize_citation` finds
+    /// the wrong node shape, bails, and records nothing — a silently
+    /// unnormalized tree with no error raised.
+    #[test]
+    fn a_removed_modifier_repairs_later_agreement_sites() {
+        let plural_head = || View::Newtype {
+            name: "NounInstance",
+            variant: Some("Plural"),
+            inner: Box::new(View::Unit {
+                name: "Vocab",
+                variant: Some("Card"),
+            }),
+        };
+        let nested = View::Node {
+            name: "NominalPhrase",
+            variant: None,
+            fields: vec![
+                ("determiner", View::Absent),
+                ("modifiers", View::Seq(vec![])),
+                ("head", plural_head()),
+                ("complements", View::Seq(vec![])),
+            ],
+        };
+        let mut tree = View::Node {
+            name: "NominalPhrase",
+            variant: None,
+            fields: vec![
+                ("determiner", View::Absent),
+                (
+                    "modifiers",
+                    View::Seq(vec![
+                        View::Newtype {
+                            name: "NominalModifier",
+                            variant: Some("Quantity"),
+                            inner: Box::new(View::Newtype {
+                                name: "Quantity",
+                                variant: Some("Exact"),
+                                inner: Box::new(View::Hole {
+                                    index: 0,
+                                    class: HoleClass::Numeral,
+                                }),
+                            }),
+                        },
+                        View::Newtype {
+                            name: "NominalModifier",
+                            variant: Some("Adjective"),
+                            inner: Box::new(nested),
+                        },
+                    ]),
+                ),
+                ("head", plural_head()),
+                ("complements", View::Seq(vec![])),
+            ],
+        };
+        let inner_site = TreePath(vec![
+            PathStep::Field("modifiers"),
+            PathStep::Index(1),
+            PathStep::Inner,
+        ]);
+        let mut agreement = vec![
+            AgreementDep {
+                site: TreePath::default(),
+                kind: AgreeKind::NounNumberFromHole(0),
+                normalized: Vec::new(),
+            },
+            AgreementDep {
+                site: inner_site,
+                kind: AgreeKind::NounNumberFromHole(1),
+                normalized: Vec::new(),
+            },
+        ];
+
+        normalize_all(&mut tree, &mut agreement);
+
+        // The outer nominal normalized: count lifted, head singularized.
+        assert!(
+            agreement[0]
+                .normalized
+                .contains(&Normalization::QuantityToDeterminer),
+            "{:?}",
+            agreement[0]
+        );
+        // The inner one still found its node, and its stored path is still
+        // valid against the finished tree.
+        assert!(
+            agreement[1]
+                .normalized
+                .contains(&Normalization::NounNumber { from: "Plural" }),
+            "the later site was not normalized: {:?}",
+            agreement[1]
+        );
+        let node = agreement[1]
+            .site
+            .resolve(&tree)
+            .expect("the repaired site resolves");
+        assert_eq!(node.type_name(), Some("NominalPhrase"));
+        assert_eq!(
+            node.children()
+                .iter()
+                .find_map(|(step, child)| (*step == PathStep::Field("head"))
+                    .then(|| child.variant_name()))
+                .flatten(),
+            Some("Singular")
+        );
+    }
+
+    /// The authorable half of the same hazard: a second modifier really does
+    /// sit after the count in `41 <Param> card`, so the removal really does
+    /// renumber a live sibling — and the hole that moved must still be found
+    /// at its recorded path.
+    #[test]
+    fn a_second_modifier_survives_the_count_being_lifted() {
+        let params = ["Reference", "Count", "Predicate"]
+            .map(String::from)
+            .to_vec();
+        let compile_one = |text: &str| {
+            compile(
+                &bare(text),
+                FragmentKind::Sentence,
+                &params,
+                &Catalogs::default(),
+                &reader(),
+            )
+            .unwrap_or_else(|error| panic!("{text}: {error:#}"))
+        };
+        let singular = compile_one("<Param(0)> draw <Param(1)> <Param(2)> card");
+        let plural = compile_one("<Param(0)> draws <Param(1)> <Param(2)> cards");
+        assert_eq!(singular.tree, plural.tree);
+        for frame in [&singular, &plural] {
+            assert_sites_resolve(frame);
+            for hole in &frame.holes {
+                let at = hole.path.resolve(&frame.tree).unwrap_or_else(|| {
+                    panic!("hole {} at {} does not resolve", hole.index, hole.path)
+                });
+                assert!(
+                    matches!(at, View::Hole { index, .. } if *index == hole.index),
+                    "hole {} at {} resolved to {at:?}",
+                    hole.index,
+                    hole.path
+                );
+            }
+        }
+        assert!(
+            singular.agreement.iter().any(|dep| dep
+                .normalized
+                .contains(&Normalization::QuantityToDeterminer)),
+            "the singular authoring should have lifted its count: {:?}",
+            singular.agreement
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // The relocation-stage checks, at their own entry point
+    // -----------------------------------------------------------------
+
+    /// The brief's "compile error if any witness is not found exactly once".
+    ///
+    /// Driven through `place` directly in both directions. An authored frame
+    /// cannot reach the "twice" case — `plan_holes` rejects a repeated
+    /// `<Param(i)>` as non-linear first (`a_non_linear_frame_is_rejected`
+    /// covers that separate check) — and no pilot frame reaches the "never"
+    /// case, since a clean parse keeps its opaque nouns. The trees here are
+    /// real parser output; only the planner is bypassed.
+    #[test]
+    fn a_witness_must_be_found_exactly_once() {
+        let planned = |witness: Witness| PlannedHole {
+            index: 0,
+            param: Some(0),
+            witness,
+            occurrences: 1,
+        };
+
+        let tree = parse_witnessed(
+            "zzhole0 deals 41 damage to zzhole0",
+            FragmentKind::Sentence,
+            &Catalogs::default(),
+        )
+        .unwrap();
+        let twice = place(&tree, planned(witness::lexeme("Predicate", 0))).unwrap_err();
+        assert!(
+            format!("{twice:#}").contains("found 2 time(s)"),
+            "{twice:#}"
+        );
+
+        let tree = parse_witnessed(
+            "zzhole0 draws a card",
+            FragmentKind::Sentence,
+            &Catalogs::default(),
+        )
+        .unwrap();
+        let never = place(&tree, planned(witness::lexeme("Predicate", 7))).unwrap_err();
+        assert!(
+            format!("{never:#}").contains("found 0 time(s)"),
+            "{never:#}"
+        );
+    }
+
+    /// The field-slice guard: a frame may claim the determiner, but if it
+    /// also puts material in a nominal's `modifiers` or `complements` the
+    /// hole is no longer the whole determinerless core, and the merge that
+    /// would need is not defined. Both fields are checked, both are
+    /// authorable, and both are refused by name rather than mis-compiled.
+    #[test]
+    fn frame_material_beside_a_field_slice_hole_is_refused() {
+        for (text, field) in [
+            ("target white <Param(0)>", "modifiers"),
+            ("target <Param(0)> you control", "complements"),
+        ] {
+            let error = compile(
+                &bare(text),
+                FragmentKind::Nominal,
+                &["Predicate".to_string()],
+                &Catalogs::default(),
+                &reader(),
+            )
+            .unwrap_err();
+            let message = format!("{error:#}");
+            assert!(
+                message.contains(field),
+                "{text:?} should name `{field}`: {message}"
+            );
+            assert!(message.contains(text), "and name the frame: {message}");
+        }
+    }
+
     /// The frame catalog's own seeded entries have to compile, or Task 6 has
     /// nothing to author against.
     #[test]
@@ -1262,7 +1657,7 @@ mod tests {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin/frames");
         let catalog = macro_ron::frames::load_constructor_frames(&dir).unwrap();
         assert!(!catalog.is_empty());
-        let macros = reader_with_exactly();
+        let macros = reader();
         for entry in &catalog {
             for spec in &entry.frames {
                 // `Target` is a noun phrase; the two effect constructors are
@@ -1273,14 +1668,14 @@ mod tests {
                 } else {
                     FragmentKind::Sentence
                 };
-                let frame =
-                    compile_with_macros(spec, kind, &entry.params, &Catalogs::default(), &macros)
-                        .unwrap_or_else(|error| panic!("{}: {error:#}", entry.constructor));
+                let frame = compile(spec, kind, &entry.params, &Catalogs::default(), &macros)
+                    .unwrap_or_else(|error| panic!("{}: {error:#}", entry.constructor));
                 assert!(
                     !frame.holes.is_empty(),
                     "{} compiled with no holes",
                     entry.constructor
                 );
+                assert_sites_resolve(&frame);
             }
         }
     }

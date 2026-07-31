@@ -87,6 +87,27 @@ pub fn normalize_source(macros: &MacroSet, param_type: &str, source: &str) -> an
 /// Rejects a term that still holds a free `Param(…)` or an unexpanded
 /// remembered invocation.
 ///
+/// # Reachability
+///
+/// **Neither branch fires through [`normalize_source`] today**, and that is a
+/// property of the layers below rather than of this check:
+///
+/// - a free `Param` is refused earlier, by `macro_ron`'s reader — a top-level
+///   read has no expansion frame for the hole to resolve against, so it errors
+///   with "`Param(0)` outside any macro expansion"
+///   (`crates/macro_ron/src/expand.rs:161-173`);
+/// - an unexpanded invocation (which views as an `Expansion` node, not as the
+///   `Expanded` variant holding it) cannot survive [`normalized`], because that
+///   is exactly what `expand_all` strips.
+///
+/// It is kept, and tested at its own entry point, because it asserts the
+/// user-ruled invariant on *the value that is actually stored* in
+/// [`CompiledGuard::value`](crate::CompiledGuard) rather than inferring it
+/// from two other crates' current behaviour. If either of those layers ever
+/// admits such a term — a `Quote`-deferred `Param`, a reader that resolves
+/// holes leniently, a hand-built guard value — this is the thing that
+/// notices.
+///
 /// # Errors
 /// Naming the offending node.
 pub fn ensure_ground(term: &View) -> anyhow::Result<()> {
@@ -94,10 +115,17 @@ pub fn ensure_ground(term: &View) -> anyhow::Result<()> {
         if node.type_name() == Some("Param") || node.variant_name() == Some("Param") {
             anyhow::bail!("a guard constant must be ground; found a free `Param` at {path}");
         }
-        if node.variant_name() == Some("Expanded") {
+        // A *remembered* invocation views as the invocation it re-serializes
+        // to — `Expansion` with the macro's name as its variant, wrapping the
+        // argument's RAW SOURCE TEXT — not as the `Expanded` variant that
+        // holds it. Which is the whole reason the ruling puts guard
+        // satisfaction on expanded form: comparing un-normalized views would
+        // be comparing RON source strings.
+        if node.type_name() == Some("Expansion") {
             anyhow::bail!(
-                "a guard constant must be fully expanded; found an `Expanded` node at {path} \
-                 (this is a bug in `normalized`, not in the authored guard)"
+                "a guard constant must be fully expanded; found the unexpanded invocation \
+                 `{}` at {path} (this is a bug in `normalized`, not in the authored guard)",
+                node.variant_name().unwrap_or("?"),
             );
         }
     }
@@ -105,14 +133,16 @@ pub fn ensure_ground(term: &View) -> anyhow::Result<()> {
 }
 
 /// A `MacroSet` that knows deckmaste's RON dialect and its bare-numeral
-/// literal positions, but no plugin macros.
+/// literal positions, but **no plugin macros**.
 ///
-/// The default reader for [`compile`](crate::compile::compile): enough for a
-/// guard spelled as a plain core constructor (`You`, `This`,
-/// `Range(Some(1), Some(1))`). A caller with plugin macros loaded should
-/// thread its own set through
-/// [`compile_with_macros`](crate::compile::compile_with_macros) so the
-/// readable sugar (`Exactly(1)`) parses too.
+/// Enough for a guard spelled as a plain core constructor (`You`, `This`,
+/// `Range(Some(1), Some(1))`), and nothing more: it cannot read the readable
+/// sugar the frame catalog prefers (`Exactly(1)` is a `Quantity` *macro*, and
+/// `Quantity` itself has only `Range` and `Expanded`). So this is a fixture
+/// and a fallback, not a default — [`compile`](crate::compile::compile) takes
+/// the macro set as a required argument precisely so that a caller cannot
+/// reach for this one by accident and get a guard rejected that the round's
+/// own catalog authored.
 #[must_use]
 pub fn core_reader() -> &'static MacroSet {
     static READER: LazyLock<MacroSet> = LazyLock::new(|| {
@@ -226,11 +256,61 @@ mod tests {
         assert_eq!(normalized(plain), normalized(remembered));
     }
 
+    /// A free `Param` never reaches [`ensure_ground`]: `macro_ron`'s reader
+    /// refuses it first. Asserted on *that* wording, because asserting on
+    /// "Param" alone would pass on the echoed spelling in the error's own
+    /// prefix and so would pass with the whole check deleted.
     #[test]
-    fn a_free_param_in_a_guard_is_rejected() {
+    fn a_free_param_in_a_guard_is_refused_by_the_reader() {
         let error = normalize_source(core_reader(), "Reference", "Param(0)").unwrap_err();
         let text = format!("{error:#}");
-        assert!(text.contains("Param"), "{text}");
+        assert!(
+            text.contains("outside any macro expansion"),
+            "expected the reader's own refusal, got: {text}"
+        );
+    }
+
+    /// The user-ruled groundness invariant, exercised at the entry point that
+    /// actually implements it. `normalize_source` cannot reach it (see
+    /// [`ensure_ground`]'s reachability note), so it is driven directly, on a
+    /// term of exactly the shape the ruling forbids.
+    #[test]
+    fn ensure_ground_rejects_a_free_param_term() {
+        let free = View::Newtype {
+            name: "Param",
+            variant: None,
+            inner: Box::new(View::Scalar {
+                kind: "u32",
+                repr: "0".into(),
+            }),
+        };
+        // Nested, so the walk (not just a root check) is what finds it.
+        let term = View::Node {
+            name: "Quantity",
+            variant: Some("Range"),
+            fields: vec![("lo", free.clone()), ("hi", View::Absent)],
+        };
+        for term in [free, term] {
+            let error = ensure_ground(&term).unwrap_err();
+            let text = format!("{error:#}");
+            assert!(text.contains("must be ground"), "{text}");
+        }
+        // And a genuinely ground term passes.
+        ensure_ground(&normalized(deckmaste_core::Reference::You)).unwrap();
+    }
+
+    /// The other half of the invariant: a value that was *not* run through
+    /// `expand_all` is refused rather than stored as if it were canonical.
+    #[test]
+    fn ensure_ground_rejects_an_unexpanded_term() {
+        let unexpanded = view::of(&deckmaste_core::Quantity::Expanded(macro_ron::Expansion {
+            name: "Exactly".into(),
+            args: macro_ron::ExpansionArgs::Positional(vec!["1".into()]),
+            template: None,
+            value: Box::new(deckmaste_core::Quantity::one()),
+        }));
+        let error = ensure_ground(&unexpanded).unwrap_err();
+        assert!(format!("{error:#}").contains("fully expanded"), "{error:#}");
     }
 
     #[test]
