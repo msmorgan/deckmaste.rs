@@ -1461,8 +1461,17 @@ mod tests {
                 "Creature[0]@Nominal",
                 "DealsDamageToEach[0]@Sentence",
                 "Draw[0]@Sentence",
+                // `Draw[1]`/`Draws[2]`/`Draws[3]`: Task 8's own G3/G4 canon
+                // sweep found "draw a card" (indefinite, the corpus's most
+                // common count) had no frame at all — a `Numeral` hole only
+                // ever matches a *quantity* determiner — and added a
+                // zero-hole literal per macro, guarded on count = 1
+                // (`Draw.ron`/`Draws.ron` carry the full story).
+                "Draw[1]@Sentence",
                 "Draws[0]@Sentence",
                 "Draws[1]@Sentence",
+                "Draws[2]@Sentence",
+                "Draws[3]@Sentence",
                 "Flying[0]@KeywordLine",
                 "Protection[0]@KeywordLine",
                 "PumpThisUntilEot[0]@Sentence",

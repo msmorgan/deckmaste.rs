@@ -39,6 +39,22 @@
     // corpus-alternation.md` §3) — the agreement side table (Task 4) derives
     // gains/gain from the subject filler, so no guard is needed on this
     // pilot entry.
+    //
+    // A `You`-guarded literal frame ("you gain <Param(1)> life", mirroring
+    // `Draws.ron`'s own fix) was tried here during Task 8's canon sweep to
+    // recover the pronoun subject "you" (which, unlike `This`, has no
+    // lexicon entry of its own — see `docs/superpowers/research/
+    // 2026-07-30-macro-frames/pilot-constituency-findings.md`'s G3/G4
+    // section) — it compiled and matched correctly, but a *rendered* RON
+    // spelling `GainLife(You, N)` failed the G4 ground-truth check: the
+    // real `#[macro_ron(embed)]` sugar this constructor's own comment above
+    // describes reads a bare `GainLife(N)` (one arg, the `By` subject
+    // defaulted), not the frame's two-param `GainLife(subject, count)`
+    // shape, so `macros.read_str::<OneShotEffect>("GainLife(You, N)")`
+    // genuinely does not parse. Reverted rather than special-cased in xtask
+    // (which would duplicate this constructor's own embed-sugar knowledge
+    // in a second, driftable place) — recorded as an open, disclosed gap
+    // in the G5 findings file instead.
     (constructor: "GainLife", params: ["Reference", "Count"],
      frames: ["<Param(0)> gains <Param(1)> life"]),
 

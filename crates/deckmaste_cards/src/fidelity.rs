@@ -334,7 +334,14 @@ fn strip_reminder(line: &str) -> String {
 
 /// The shared normalization (see the module docs): self-reference → `~`,
 /// whitespace collapse.
-fn normalize(line: &str, name: &str) -> String {
+///
+/// Public so a caller comparing two *independently rendered* lines against
+/// each other (not just against the oracle snapshot) — the macro-frames
+/// round's own `cargo xtask macro pilot` G3 shadow-parity gate — normalizes
+/// both sides through the exact same function this gate does, rather than
+/// growing a second, driftable copy.
+#[must_use]
+pub fn normalize(line: &str, name: &str) -> String {
     let mut s = line.replace(name, "~");
     // A legendary's short name ("Elesh Norn, Grand Cenobite" → "Elesh
     // Norn") self-references the same object.

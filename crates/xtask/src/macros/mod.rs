@@ -11,9 +11,11 @@ use clap::Args;
 use clap::Subcommand;
 
 use self::inspect::InspectArgs;
+use self::pilot::PilotArgs;
 use self::templates::TemplatesArgs;
 
 mod inspect;
+mod pilot;
 mod templates;
 
 #[derive(Debug, Args)]
@@ -30,12 +32,16 @@ enum MacroCommand {
     /// Check or rewrite a macro's `template:` field against
     /// projection(first frame).
     Templates(TemplatesArgs),
+    /// The pilot gate battery: G3 shadow parity (+ `fidelity`) and G4 ground
+    /// truth, over real canon cards.
+    Pilot(PilotArgs),
 }
 
 pub fn run(args: MacroArgs) -> anyhow::Result<()> {
     match args.command {
         MacroCommand::Inspect(args) => inspect::run(args),
         MacroCommand::Templates(args) => templates::run(args),
+        MacroCommand::Pilot(args) => pilot::run(args),
     }
 }
 

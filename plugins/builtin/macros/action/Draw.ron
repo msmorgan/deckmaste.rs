@@ -30,6 +30,22 @@
     // not divergent, regardless of this frame's exact wording. "cards" is
     // picked over "card" arbitrarily; citation normalization (Task 4) makes
     // either authoring compile to the same tree.
-    frames: ["draw <Param(0)> cards"],
+    //
+    // Task 8's own G3/G4 canon sweep found a real gap in the pilot's original
+    // single frame: "draw <Param(0)> cards" is a `HoleClass::Numeral` hole,
+    // which only ever matches a *quantity* determiner ("N cards") — the
+    // legacy `${0:card|cards}` codec's `n == 1` case ("a card", an
+    // *indefinite*-determiner nominal, a structurally different tree) has no
+    // frame at all, so `Draw(1)` — the doc comment above's own first example,
+    // and the single most common count in the corpus — silently recovered
+    // as a residual. Fixed the same way `SacrificeThis`'s own G5 finding
+    // was: a second, guarded, zero-hole literal frame for exactly that count
+    // (D8 picks it over the first frame automatically — the two never
+    // actually compete, since "a card" and "N cards" are different
+    // determiners at the parser level, not just different guard outcomes).
+    frames: [
+        "draw <Param(0)> cards",
+        (text: "draw a card", when: [(0, "Literal(1)")]),
+    ],
     body: Batch(Param(0), By(You, DrawCard)),
 )

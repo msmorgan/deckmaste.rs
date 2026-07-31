@@ -42,6 +42,7 @@
 pub mod compile;
 pub mod guard;
 pub mod lexicon;
+pub mod render;
 pub mod unify;
 pub mod view;
 pub mod witness;
@@ -56,6 +57,8 @@ pub use compile::Normalization;
 pub use compile::compile;
 pub use lexicon::Entry;
 pub use lexicon::Lexicon;
+pub use render::render_invocation;
+pub use render::render_invocation_with;
 pub use unify::Recovered;
 pub use unify::guard_holds;
 pub use unify::is_self_reference;

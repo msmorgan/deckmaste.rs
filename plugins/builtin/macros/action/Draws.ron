@@ -22,7 +22,7 @@
     template: "${0} draws ${1:card|cards}",
     kinds: [OneShotEffect, KeywordAction],
     params: [Reference, Count],
-    // Two frames: the corpus alternation this macro's own doc comment
+    // Two base frames: the corpus alternation this macro's own doc comment
     // motivates (`docs/superpowers/research/2026-07-30-macro-frames/
     // corpus-alternation.md` §3/§6 — gain/lose are stable `you`-declarative,
     // but `draw` alternates, and imperative "Draw" so dominates the
@@ -32,9 +32,23 @@
     // frame spells the subject out for every other filler. Both are excepted
     // from G2 like `Draw.ron` (checked-in template uses the `card|cards`
     // codec).
+    //
+    // Plus two more for count = 1, the same gap `Draw.ron` found and fixed
+    // (Task 8's G3/G4 canon sweep): `Count`'s `Numeral` hole only ever
+    // matches a *quantity* determiner, never "a card"'s *indefinite* one, so
+    // this doc comment's own second example ("Each player draws a card.")
+    // recovered as a residual until these two zero-hole literals — one
+    // guarding both `You` and count = 1 (mirroring `Draw.ron`'s own fix
+    // exactly, since D8 always prefers the frame binding the *most*
+    // guards), one guarding only count = 1 for every other subject — were
+    // added. D8 selects among all four with no new ambiguity: a "cards"
+    // (quantity) frame and an "a card" (indefinite) frame never both match
+    // the same target text.
     frames: [
         (text: "draw <Param(1)> cards", when: [(0, "You")], position: Main),
         "<Param(0)> draws <Param(1)> cards",
+        (text: "draw a card", when: [(0, "You"), (1, "Literal(1)")], position: Main),
+        (text: "<Param(0)> draws a card", when: [(1, "Literal(1)")]),
     ],
     body: Batch(Param(1), By(Param(0), DrawCard)),
 )
