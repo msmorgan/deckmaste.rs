@@ -66,3 +66,52 @@ than a parse or a stripping artifact. Note that reminder text is *stripped*, not
 parsed — `strip_reminder_text` removes parenthesized groups at the input
 boundary before tokenizing — so any theory involving reminder text has to
 explain an effect that survives its removal.
+
+## Completion
+
+**Both recorded refutations were wrong, and both are now corrected on the
+field.**
+
+`ComparativeWord` — the cited minimal pair was invalid twice over: the `total
+power 2 or more` witness sits inside **stripped Crew reminder text**, and the
+two sides differed in syntactic frame anyway. Frame turns out not to decide the
+word at all. **Head class does:** scalar characteristics (power, toughness, mana
+value — 884 witnesses) take `greater`/`less`; count nouns take `more`/`fewer`;
+mass magnitudes (life, damage, mana) take a third `more`/`less` pairing. Lesser
+Werewolf (`power is 1 or more`, against every other power-copular using
+`greater`) is the lone exception, so the field stays — but for a measured reason
+with a named exception rather than a bogus pair.
+
+`KeywordListSeparator` — the reminder-text story was half right, which is why it
+needed checking rather than either believing or dismissing. The 34 witnesses
+**are** correlated with inline reminder text on the final keyword, and the
+semicolon precedes and survives stripping, so it is not a stripping artifact.
+But it is **per-keyword, not universal**: comma counter-examples of identical
+shape exist for myriad, trample, haste and forestwalk. Real classification:
+idiosyncratic data curation keyed to particular keyword identities. Field stays,
+doc rewritten to say that.
+
+**Enumeration.** Every `pub struct`/`pub enum` definition in `word.rs`,
+`word/*.rs` and `numeral.rs` was read. That territory is lexicon and
+grammar-dispatch machinery — meaning-driven, structurally unlike `syntax/*` — and
+yielded no new deletable fields. `AuxiliaryInstance.contracted_negation` looked
+promising and is not one: it is the canonical negation marker, semantic.
+
+**Deleted:** the dead `RelativeMarker::Which` variant (zero construction sites).
+
+`RelativeMarker` is otherwise kept — the animacy rule holds 142/143 for `who`,
+with Tymna the Weaver the exception. `Numeral` is kept with a three-tier rule
+(construction, then magnitude ≥ 100, then head class) documented; every apparent
+counter-example traced to a misattributed nested `NumberLiteral` except one
+genuine parser defect, filed as `english-no-one-negative-pronoun`.
+
+**Coverage caveat.** Definitions were read exhaustively across those six files;
+construction-site tracing was done for the fields that looked plausible, not for
+every grammar-dispatch enum. `PredicateComplementKind`, `BareNominalAdjunct` and
+`PrepositionalRole` were read but not construction-site audited individually —
+they are meaning-driven verb-frame dispatch, the category already ruled out for
+the audited fields, so the risk of a missed deletable field there is low but not
+zero.
+
+Round-trip 31685/31685 clean, 2942 tests, recovery census byte-identical,
+clippy 0, fidelity 0 failing.

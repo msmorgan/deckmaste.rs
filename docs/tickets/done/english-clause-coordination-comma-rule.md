@@ -40,3 +40,38 @@ disagreement can mean the *tree* is wrong rather than the derivation. Read the
 witnesses before concluding the rule is free.
 
 Standard constraints apply.
+
+## Completion — field KEPT, refutation documented
+
+Measured on the corpus (re-measuring the baseline first, as the `block`
+vocabulary fix had moved it from 281):
+
+| rule | mismatches |
+|---|---|
+| unconditional `true` | 1016 |
+| count rule (exact for five sibling structs) | 303 |
+| `Then`-aware refinement | 127 |
+| conjunct length / clause-variant split | refuted, see below |
+
+Only ~12% of two-member clause coordinations take the comma, so the field is not
+a constant. The `Then` connective itself is **180/180 exact** — a clean sub-rule
+even though the whole field is not derivable.
+
+Length and complexity are refuted by minimal pairs with identical continuations
+and no AST-visible difference. For `… and its activated abilities can't be
+activated`: Gelid Shackles (`Enchanted creature can't block,`) takes the comma
+while Edifice of Authority (`target creature can't attack or block`) does not,
+though the latter's first clause is *longer* — the counterexample runs in the
+wrong direction for any length threshold. Same story for `… may spend mana as
+though it were mana of any color`: Share the Spoils, Gale's Redirection,
+Covetous Urge, Cunning Rhetoric and Mezzio Mugger take the comma; Daxos of
+Meletis, Grenzo Havoc Raiser, Hurl Through Hell, Robber of the Rich and The
+Ruinous Powers do not.
+
+This is Oracle house-style drift, not grammar. No wrong trees were found — the
+residue is genuine source inconsistency, confirmed by direct oracle-text
+comparison rather than inferred. The field stays, and the refutation with these
+counts and witnesses is recorded on `ClauseCoordination` in `syntax/clause.rs`.
+
+Doc-only change; round-trip 31685/31685 clean, 2942 tests, recovery census
+byte-identical, fidelity 0 failing.
