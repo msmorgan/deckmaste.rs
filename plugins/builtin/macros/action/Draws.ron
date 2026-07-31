@@ -22,5 +22,19 @@
     template: "${0} draws ${1:card|cards}",
     kinds: [OneShotEffect, KeywordAction],
     params: [Reference, Count],
+    // Two frames: the corpus alternation this macro's own doc comment
+    // motivates (`docs/superpowers/research/2026-07-30-macro-frames/
+    // corpus-alternation.md` §3/§6 — gain/lose are stable `you`-declarative,
+    // but `draw` alternates, and imperative "Draw" so dominates the
+    // `Param(0) = You` case that a guarded frame reproducing `Draw`'s own
+    // wording is the natural default). The guarded frame pre-binds param 0
+    // (`Reference`) to `You` and holes only param 1 (`Count`); the unguarded
+    // frame spells the subject out for every other filler. Both are excepted
+    // from G2 like `Draw.ron` (checked-in template uses the `card|cards`
+    // codec).
+    frames: [
+        (text: "draw <Param(1)> cards", when: [(0, "You")], position: Main),
+        "<Param(0)> draws <Param(1)> cards",
+    ],
     body: Batch(Param(1), By(Param(0), DrawCard)),
 )

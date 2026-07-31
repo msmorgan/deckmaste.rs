@@ -14,6 +14,7 @@
     template: "protection from ${0}",
     kinds: [KeywordAbility],
     params: [Predicate],
+    frames: ["protection from <Param(0)>"],
     body: Composite(
         name: "Protection",
         abilities: [

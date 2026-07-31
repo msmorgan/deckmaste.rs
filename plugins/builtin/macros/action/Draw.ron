@@ -24,5 +24,12 @@
     template: "draw ${0:card|cards}",
     kinds: [OneShotEffect, KeywordAction],
     params: [Count],
+    // The checked-in `template:` uses the `card|cards` pluralization codec,
+    // which `cargo xtask macro templates --check` cannot express as a
+    // projection of frame text (D10) — so this def is reported `excepted`,
+    // not divergent, regardless of this frame's exact wording. "cards" is
+    // picked over "card" arbitrarily; citation normalization (Task 4) makes
+    // either authoring compile to the same tree.
+    frames: ["draw <Param(0)> cards"],
     body: Batch(Param(0), By(You, DrawCard)),
 )

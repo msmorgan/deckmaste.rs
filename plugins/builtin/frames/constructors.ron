@@ -5,7 +5,7 @@
 // macro-schema-census.md` §6), so this catalog is most of the lexicon, not
 // an appendix.
 //
-// Loaded by `deckmaste_frames::schema::load_constructor_frames`. Each
+// Loaded by `macro_ron::frames::load_constructor_frames`. Each
 // `constructor` names a bare `deckmaste_core` variant (verified against
 // `cargo xtask map enums`, not memory — see below); `params` names each
 // positional hole's type, in the order the entry's frames reference them

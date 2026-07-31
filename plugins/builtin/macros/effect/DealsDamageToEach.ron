@@ -24,5 +24,6 @@
     template: "~ deals ${0} damage to each ${1}",
     kinds: [OneShotEffect],
     params: [Count, Predicate],
+    frames: ["~ deals <Param(0)> damage to each <Param(1)>"],
     body: Each(binder: Existing(SelectAll(Param(1))), effect: DealDamage(This, Param(0), It)),
 )

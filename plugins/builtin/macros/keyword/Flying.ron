@@ -5,11 +5,26 @@
 // invoke it INSIDE the wrapper — `Keyword(Flying)` — so keyword-ness is
 // always explicit. The engine evaluates point-wise Cant(Block) rows pairwise
 // at block submission (decide.rs DeclareBlockers -> legal::block_forbidden_by).
-KeywordAbility(
+//
+// Written directly, not through the `KeywordAbility(...)` wrapper
+// (`plugins/builtin/macros/macro/KeywordAbility.ron`) any more: that
+// meta-macro's own param signature is exactly `{name, template,
+// abilities}` with no `frames` slot, so a keyword that needs a `frames:`
+// entry has to spell its expansion out by hand — same reason
+// `Protection`/`Cycling`/etc. already skip the wrapper. This expands to the
+// byte-identical registered `MacroDef` the wrapper form produced (Task 6
+// pilot; see `docs/superpowers/research/2026-07-30-macro-frames/
+// pilot-constituency-findings.md`).
+(
     name: "Flying",
     template: "flying",
-    abilities: [Static(Cant(Block(
+    kinds: [KeywordAbility],
+    frames: ["flying"],
+    body: Composite(
+        name: "Flying",
+        abilities: [Static(Cant(Block(
             on: Ref(This),
             by: Not(Or([Has(Flying), Has(Reach)])),
         )))],
+    ),
 )

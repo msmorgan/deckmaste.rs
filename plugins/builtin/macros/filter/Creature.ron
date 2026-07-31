@@ -2,5 +2,6 @@
     name: "Creature",
     template: "creature",
     kinds: [Predicate],
+    frames: ["creature"],
     body: PermanentOfType(Creature)
 )

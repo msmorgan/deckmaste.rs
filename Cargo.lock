@@ -497,6 +497,7 @@ name = "deckmaste_frames"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deckmaste_cards",
  "deckmaste_core",
  "deckmaste_english",
  "macro_ron",

@@ -9,6 +9,7 @@
     template: "~ gets +${0}/+${1} until end of turn",
     kinds: [OneShotEffect],
     params: [Count, Count],
+    frames: ["~ gets +<Param(0)>/+<Param(1)> until end of turn"],
     body: Continuously(
         effect: Modify(This, Several([Power(Up(Param(0))), Toughness(Up(Param(1)))])),
         duration: FixedUntil(EndOfTurn),

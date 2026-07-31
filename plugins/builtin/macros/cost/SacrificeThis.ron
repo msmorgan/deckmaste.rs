@@ -1,3 +1,30 @@
+// Task 6 pilot (G5): deliberately left UNFRAMED. `"Sacrifice this permanent"`
+// itself covers only 12/1575 (0.8%) attestations of "Sacrifice this <TYPE>"
+// in the supported corpus; most cards need "this creature"/"this
+// artifact"/etc. instead, i.e. `<This>` should be a type-varying hole, not a
+// fixed literal.
+//
+// The obvious candidate — `frames: ["Sacrifice ~"]` — was authored and
+// compiles cleanly (a `HoleClass::SelfRef` hole), but is the WRONG tool: `~`
+// resolves structurally to `NounPhrase::ThisCard`, which has exactly two
+// forms (`ThisCardForm::{FullName, AbbreviatedName}`,
+// `crates/deckmaste_english/src/syntax/phrase.rs:62-78`), both rendering as
+// the card's own printed NAME (`crates/deckmaste_english/src/renderer.rs:
+// 920-921`) — never as a type-generic demonstrative. The legacy `template:`
+// renderer's own `~` handling agrees: `'~' => out.push_str(subject)`
+// (`crates/deckmaste_cards/src/render/template.rs:45`), where `subject` is
+// the invoking card's name. Concretely: this macro is invoked live by
+// `plugins/builtin/tokens/{Clue,Gold,Treasure,Food,Blood}.ron`, so rewriting
+// the checked-in `template:` to `"Sacrifice ~"` (the only way to make G2
+// agree with a `~`-framed authoring) would flip their rendered cost from
+// "Sacrifice this artifact" to "Sacrifice Clue"/"Sacrifice Gold"/etc. — a
+// real regression, not a hypothetical one.
+//
+// No hole in the current frame compiler models "this <card's own type>" —
+// the hole-constituency audit's own §4.3 remedy (a non-param, card-level
+// binding source for `<This>`) is not built. See
+// `docs/superpowers/research/2026-07-30-macro-frames/
+// pilot-constituency-findings.md` for the full finding.
 (
     name: "SacrificeThis",
     template: "Sacrifice this permanent",

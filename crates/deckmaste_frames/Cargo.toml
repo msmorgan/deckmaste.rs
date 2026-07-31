@@ -33,3 +33,9 @@ deckmaste_english = { version = "0.1.0", path = "../deckmaste_english" }
 # needs every macroable core type by name.
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 anyhow = "1.0.102"
+
+[dev-dependencies]
+# Task 6's pilot integration test (`tests/pilot.rs`) compiles every frame the
+# real `plugins/builtin` corpus loads, so it needs the plugin loader. No
+# cycle: `deckmaste_cards` does not depend on this crate.
+deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }
