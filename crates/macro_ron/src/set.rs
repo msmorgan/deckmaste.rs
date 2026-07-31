@@ -31,6 +31,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
+use deckmaste_frames::FrameSpec;
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -141,6 +142,15 @@ pub struct MacroDef {
     /// unchanged.
     #[serde(default)]
     pub plural: Option<String>,
+    /// English renderings of this macro, with the guard that decides which
+    /// applies when more than one is defined — see
+    /// [`FrameSpec`](deckmaste_frames::FrameSpec). Defaults to empty, so
+    /// every macro file predating this field still loads unchanged. A bare
+    /// string in the list (`frames: ["draw <Param(1)> cards"]`) is sugar for
+    /// an unguarded frame; `FrameSpec`'s own `Deserialize` impl resolves the
+    /// sugar, so no special handling is needed here.
+    #[serde(default)]
+    pub frames: Vec<FrameSpec>,
     /// Raw RON source with `Param(...)` holes.
     #[serde(deserialize_with = "raw_body")]
     pub(crate) body: Box<str>,
@@ -214,6 +224,11 @@ impl MacroDef {
     #[must_use]
     pub fn plural(&self) -> Option<&str> {
         self.plural.as_deref()
+    }
+
+    #[must_use]
+    pub fn frames(&self) -> &[FrameSpec] {
+        &self.frames
     }
 }
 
@@ -339,6 +354,7 @@ fn decl_def(kind: &str, name: Ident, declaration: &str) -> MacroDef {
         params: Params::default(),
         template: None,
         plural: None,
+        frames: Vec::new(),
         body: declaration.trim().into(),
     }
 }

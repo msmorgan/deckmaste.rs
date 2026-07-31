@@ -14,3 +14,9 @@ workspace = true
 # `derive` is needed by the crate's own driver as well as by callers'
 # `#[derive(Serialize)]` types fed into it.
 serde = { version = "1.0.228", features = ["derive"] }
+# `schema`'s `FrameSpec`/`ConstructorFrames` are plain data, read directly —
+# no macro expansion involved (that's `macro_ron`'s job, kept out of this
+# crate's dependency graph so `macro_ron` can depend on `schema` for
+# `MacroDef.frames` without a cycle) — so a bare `ron` read suffices.
+ron = "0.12.1"
+anyhow = "1.0.102"
