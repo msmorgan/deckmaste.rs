@@ -15,9 +15,11 @@ triggers and any damage-count consumer.
 
 The **combat** lane already filters 0 (`crates/deckmaste_engine/src/decide/mod.rs:725`); the
 one-shot lane does not — a divergence. Fix: drop 0-amount events in `occurrence_of`/at the
-`DealDamage` emit (mirror the combat filter), honoring [CR#120.8]. Note the replacement-effect
-subtlety: [CR#614.7a] — a replacement that would *increase* the damage of a source dealing 0
-still does nothing, so filter AFTER replacement, not before.
+`DealDamage` emit (mirror the combat filter), honoring [CR#120.8]. The replacement-effect
+subtlety cuts in the same direction: [CR#614.7a] says a replacement that would *increase* or
+redirect a source dealing 0 has no event to replace, so suppress the computed zero before the
+replacement window. A positive event reduced to zero by prevention is already suppressed by the
+replacement lane's `Nothing` outcome.
 
 Found while grounding `engine-act-fight-patient`; that feature deliberately does NOT depend on
 this (fight-trigger subjects are read from the body instructions, not damage events), so fixing

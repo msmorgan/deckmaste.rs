@@ -57,6 +57,12 @@ impl GameState {
             // "fight" ([CR#120.1,701.14a]).
             Action::DealDamage(source, qty, sel) => {
                 let amount = self.eval_count(qty, frame);
+                // [CR#120.8,614.7a]: zero damage is no event at all. Drop it
+                // before opening the cant/replacement window: an effect that
+                // would increase or redirect damage has nothing to replace.
+                if amount == 0 {
+                    return Vec::new();
+                }
                 let dealer = self.eval_reference(source, frame);
                 let targets = self.eval_reference_set(sel, frame);
                 let events: Vec<GameEvent> = targets
@@ -3823,6 +3829,57 @@ mod tests {
                     if *source == b && *target == a && *amount == 2
             )),
             "DamageDealt carries the explicit source b, not frame.source a"
+        );
+    }
+
+    /// [CR#120.8,614.7a]: a source dealing zero damage produces no
+    /// `DamageDealt`, and therefore opens no replacement window. A one-shot
+    /// replacement that would turn such damage into a one-life loss stays
+    /// unused and its body never runs.
+    #[test]
+    fn deal_zero_damage_emits_nothing_and_skips_replacements() {
+        use deckmaste_core::Duration;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Replacement;
+        use deckmaste_core::TurnMarker;
+
+        use crate::replace_registry::InstanceId;
+        use crate::replace_registry::ReplacementInstance;
+
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        let life_before = state.player(PlayerId(0)).life;
+        state.shields.push(ReplacementInstance {
+            id: InstanceId(1),
+            replacement: Replacement::Instead {
+                would: EventFilter::Damage {
+                    source: Predicate::Any,
+                    to: Predicate::Ref(Reference::This),
+                    combat: None,
+                    amount: None,
+                },
+                instead: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
+                    Count::Literal(1),
+                ))),
+            },
+            subject: bear,
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            one_shot: true,
+            source: bear,
+        });
+
+        let action = Action::DealDamage(Reference::This, Count::Literal(0), Reference::This);
+        assert_eq!(state.action_items(&action, &frame), Vec::<WorkItem>::new());
+
+        state.run_effect(OneShotEffect::Act(action), &frame);
+        run_injected(&mut state);
+
+        assert_eq!(state.objects.obj(bear).total_damage(), 0);
+        assert_eq!(state.player(PlayerId(0)).life, life_before);
+        assert_eq!(state.shields.len(), 1, "the replacement was not consumed");
+        assert!(
+            !logged(&state, |event| matches!(event, GameEvent::DamageDealt(_))),
+            "zero damage records no fact and cannot fire damage triggers"
         );
     }
 
