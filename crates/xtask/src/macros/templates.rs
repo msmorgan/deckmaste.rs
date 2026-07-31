@@ -42,7 +42,9 @@ pub(super) struct TemplatesArgs {
     check: bool,
 
     /// Rewrite every divergent `template:` field in place. Never touches
-    /// `frames:` — see the module doc.
+    /// `frames:` — see the module doc. Refuses (reporting the file, not
+    /// guessing) when a framed def has no existing `template: "..."` field
+    /// to rewrite — add one by hand first.
     #[arg(long)]
     write: bool,
 
@@ -165,7 +167,9 @@ fn execute(plugin_dir: &Path, mode: Mode) -> anyhow::Result<Report> {
 
         let name = def.name.as_str().to_string();
         if mode == Mode::Write {
-            match rewrite_template_field(&source, &expected) {
+            match rewrite_template_field(&source, &expected)
+                .and_then(|rewritten| verify_rewrite(&plugin, &def, &expected, rewritten))
+            {
                 Ok(rewritten) => {
                     fs::write(&path, rewritten)
                         .with_context(|| format!("writing {}", path.display()))?;
@@ -312,6 +316,68 @@ fn rewrite_template_field(source: &str, new_value: &str) -> anyhow::Result<Strin
     rewritten.push_str(&quoted);
     rewritten.push_str(&source[quote_close + 1..]);
     Ok(rewritten)
+}
+
+/// The safety net on `rewrite_template_field`'s marker search: that search
+/// is a plain substring scan with no RON-structural anchor, so it has no way
+/// to *know* it found the real `template: "..."` field rather than, say, one
+/// spelled out inside a `//` comment sitting earlier in the file. Rather than
+/// trying to make the search itself comment-aware (still no guarantee — a
+/// commented-out def, a doc example, anything with the right shape would
+/// still fool it), this re-parses the byte-patched result through `plugin`'s
+/// own macro-aware reader and confirms the patch did what it was supposed to
+/// and nothing else: `rewritten` must still parse; the `MacroDef` it parses
+/// to must report `template() == Some(expected)`; and every other field
+/// (`name`, `kinds`, `params`, `plural`, `frames`, `body`) must be identical
+/// to `original`, the def the caller already parsed from the *pre*-patch
+/// source. A wrong-span patch either breaks the parse outright or leaves the
+/// real `template:` field (elsewhere in the file, untouched) reading back as
+/// something other than `expected` — either way this turns what would
+/// otherwise be a silent corruption of a checked-in file into a loud
+/// `Err`, before a single byte reaches disk.
+///
+/// Returns `rewritten` unchanged on success, so this composes with
+/// `rewrite_template_field` via `.and_then`.
+///
+/// # Errors
+/// If `rewritten` fails to parse, its `template:` doesn't read back as
+/// `expected`, or any other field differs from `original`.
+fn verify_rewrite(
+    plugin: &Plugin,
+    original: &MacroDef,
+    expected: &str,
+    rewritten: String,
+) -> anyhow::Result<String> {
+    let reparsed: MacroDef = plugin
+        .macros
+        .read_str(&rewritten)
+        .context("post-write verification: the rewritten source no longer parses")?;
+    anyhow::ensure!(
+        reparsed.template() == Some(expected),
+        "post-write verification: rewritten `template:` reads back as {:?}, expected {:?} — \
+         the marker search likely patched the wrong `template: \"...\"` span",
+        reparsed.template(),
+        expected,
+    );
+    anyhow::ensure!(
+        defs_agree_except_template(original, &reparsed),
+        "post-write verification: rewriting `template:` changed more than `template:` — \
+         the marker search likely patched the wrong `template: \"...\"` span"
+    );
+    Ok(rewritten)
+}
+
+/// Whether `a` and `b` agree on every field but `template` — deliberately
+/// excluded, since [`verify_rewrite`] is comparing a def from *before* the
+/// rewrite against one from *after* it, where `template` is expected (and
+/// meant) to differ.
+fn defs_agree_except_template(a: &MacroDef, b: &MacroDef) -> bool {
+    a.name == b.name
+        && a.kinds == b.kinds
+        && a.params == b.params
+        && a.plural() == b.plural()
+        && a.frames() == b.frames()
+        && a.body() == b.body()
 }
 
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
@@ -660,6 +726,103 @@ mod tests {
         // The guard's sugar is untouched — still `Exactly(1)`, not expanded
         // to `Range(Some(1), Some(1))`.
         assert!(on_disk.contains(r#"when: [(0, "Exactly(1)")]"#));
+    }
+
+    // -----------------------------------------------------------------
+    // `verify_rewrite` — the post-write safety net. `rewrite_template_field`
+    // locates its marker by a plain substring search with no RON-structural
+    // anchor; these pin what catches it when that search finds the wrong
+    // `template: "..."` span.
+    // -----------------------------------------------------------------
+
+    /// The actual collision, constructed: a `//` comment spelling out the
+    /// exact marker (`template: "`) *with* its trailing quote, sitting
+    /// before the real field. A naive `rewrite_template_field` alone would
+    /// patch the comment (the first match) and leave the real field
+    /// untouched — `execute` must refuse the write outright rather than
+    /// silently corrupting the file.
+    const DECOY_COMMENT_BEFORE_REAL_FIELD: &str = r#"// see also template: "some other spelling" for context
+(
+    name: "GainLife",
+    template: "${0} gains ${1} life",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    frames: ["<Param(0)> gain <Param(1)> life"],
+    body: 0,
+)
+"#;
+
+    #[test]
+    fn write_refuses_rather_than_patch_a_decoy_comments_template_marker() {
+        let dir = tempdir_with(&[(
+            "macros/effect/GainLife.ron",
+            DECOY_COMMENT_BEFORE_REAL_FIELD,
+        )]);
+        let path = dir.path().join("macros/effect/GainLife.ron");
+        let before = std::fs::read_to_string(&path).unwrap();
+
+        let report = execute(dir.path(), Mode::Write).unwrap();
+
+        assert_eq!(
+            report.rewritten, 0,
+            "the comment's marker must not be mistaken for the real field"
+        );
+        assert_eq!(report.write_failures.len(), 1);
+        assert!(
+            format!("{:#}", report.write_failures[0].1).contains("post-write verification"),
+            "{:?}",
+            report.write_failures[0].1
+        );
+        // Still shows up as unresolved, matching `--check`'s own view.
+        assert_eq!(report.divergences.len(), 1);
+        assert_eq!(report.divergences[0].name, "GainLife");
+
+        // And, crucially: the file on disk was never touched. A caught
+        // `Err` from `verify_rewrite` must short-circuit *before*
+        // `execute` calls `fs::write`.
+        let after = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(before, after, "a refused rewrite must not touch the file");
+    }
+
+    #[test]
+    fn verify_rewrite_accepts_a_clean_rewrite() {
+        let dir = tempdir_with(&[("macros/effect/GainLife.ron", DIVERGENT)]);
+        let plugin = Plugin::load_with_sibling_prelude(dir.path()).unwrap();
+        let source =
+            std::fs::read_to_string(dir.path().join("macros/effect/GainLife.ron")).unwrap();
+        let def: MacroDef = plugin.macros.read_str(&source).unwrap();
+        let expected = project(&def.frames()[0].text);
+
+        let rewritten = rewrite_template_field(&source, &expected).unwrap();
+        let verified = verify_rewrite(&plugin, &def, &expected, rewritten.clone()).unwrap();
+        assert_eq!(verified, rewritten);
+    }
+
+    #[test]
+    fn defs_agree_except_template_ignores_only_that_field() {
+        let dir = tempdir_with(&[("macros/effect/GainLife.ron", DIVERGENT)]);
+        let plugin = Plugin::load_with_sibling_prelude(dir.path()).unwrap();
+        let source =
+            std::fs::read_to_string(dir.path().join("macros/effect/GainLife.ron")).unwrap();
+        let original: MacroDef = plugin.macros.read_str(&source).unwrap();
+
+        let same_but_template: MacroDef = plugin
+            .macros
+            .read_str(&source.replace(
+                r#"template: "${0} gains ${1} life","#,
+                r#"template: "anything else","#,
+            ))
+            .unwrap();
+        assert!(defs_agree_except_template(&original, &same_but_template));
+
+        let different_frames: MacroDef = plugin
+            .macros
+            .read_str(&source.replace(
+                r#"frames: ["<Param(0)> gain <Param(1)> life"],"#,
+                r#"frames: ["<Param(0)> gains <Param(1)> life"],"#,
+            ))
+            .unwrap();
+        assert!(!defs_agree_except_template(&original, &different_frames));
     }
 
     /// Minimal self-cleaning temp dir (avoids adding the `tempfile` crate) —
