@@ -445,6 +445,41 @@ impl Catalogs {
             }
         }
 
+        // DURABILITY: `Bands with other` is [CR#702.22b]'s own quoted name for
+        // a special form of banding; its `[quality]` argument is an ordinary
+        // noun phrase [CR#702.22c] (`bands with other legendary creatures`,
+        // `bands with other creatures named Wolves of the Hunt`). Neither
+        // `CatalogSet::from_cr` nor `add_atomic_variants` can produce this
+        // entry: `from_cr` mines only `702.NN.` CR headings (`Banding` is
+        // [CR#702.22]'s heading; "bands with other" is prose inside
+        // [CR#702.22b,702.22c], not a heading of its own), and
+        // `add_atomic_variants` mines only
+        // keywords MTGJSON's `AtomicCards` tags on real cards — no card,
+        // Vintage-legal or otherwise, carries `"Bands with other"` as a raw
+        // `keywords` entry (checked directly against `data/mtgjson/
+        // AtomicCards.json`: every witness embeds it only inside quoted
+        // ability prose), so there is nothing for that mining loop to
+        // authorize. Added here, permanently, independent of any catalog
+        // refresh — the same shape and rationale as
+        // `ABILITY_DERIVED_KEYWORD_ACTION_VERBS` below (`mutate`), just for
+        // the keyword-ability catalog instead of keyword-action verbs.
+        for canonical in HAND_CURATED_KEYWORD_ABILITY_SURFACES {
+            let canonical: Arc<str> = Arc::from(canonical);
+            let atom = CatalogAtom {
+                kind: CatalogKind::KeywordAbility,
+                canonical: Arc::clone(&canonical),
+                spelling: canonical,
+                vocab: None,
+            };
+            let id = CatalogId(entries.len());
+            indexes[CatalogKind::KeywordAbility.index()].insert(
+                atom.canonical(),
+                CatalogKind::KeywordAbility.case_policy(),
+                id,
+            );
+            entries.push(atom);
+        }
+
         for index in &mut indexes {
             index.finish();
         }
@@ -779,6 +814,14 @@ fn lowercase_word_prefix(text: &str, expected: &str) -> Option<usize> {
 /// attempted here too and reverted for an over-fire on `have exploit`; see
 /// that comment and ticket `english-ability-derived-verb-batch`.)
 const ABILITY_DERIVED_KEYWORD_ACTION_VERBS: [&str; 1] = ["mutate"];
+
+/// Keyword-ability catalog surfaces hand-curated rather than catalog-
+/// generated, for the same reason `ABILITY_DERIVED_KEYWORD_ACTION_VERBS`
+/// above is: the Comprehensive Rules define the surface, but neither
+/// generation path (`CatalogSet::from_cr`'s `702.NN.` heading scan, nor
+/// `add_atomic_variants`'s MTGJSON `keywords`-field mining) can produce it.
+/// See the durability comment at the merge site in [`Catalogs::rebuild`].
+const HAND_CURATED_KEYWORD_ABILITY_SURFACES: [&str; 1] = ["Bands with other"];
 
 /// The closed selector-label set written by
 /// [CR#702.174a,702.174d,702.174e,702.174f,702.174g,702.174h,702.174i].

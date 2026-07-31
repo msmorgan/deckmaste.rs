@@ -129,7 +129,7 @@ pub(crate) fn parse_oracle_text(
     tokens: &[Token],
     self_reference: &SelfReference,
 ) -> AbilityParse {
-    Parser::new(source, catalogs, self_reference).parse(tokens)
+    Parser::new(source, catalogs, self_reference, false).parse(tokens)
 }
 
 /// Parses the interior text of a quoted ability (`"…"`) — `source` is the run
@@ -150,7 +150,7 @@ pub(crate) fn parse_quoted_ability_fragment(
 ) -> QuotedAbility {
     let surface = lex(source);
     let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
-    let mut parser = Parser::new(source, catalogs, self_reference);
+    let mut parser = Parser::new(source, catalogs, self_reference, true);
     let initial_uppercase = parser.tokens_start_uppercase(&tokens);
     QuotedAbility {
         ability: Box::new(parser.parse_ability(&tokens)),
@@ -183,13 +183,18 @@ pub(crate) struct AbilityFragment<T> {
 ///
 /// `tokens` must already be lexed and full-name-collapsed by the caller, the
 /// same preparation [`parse_oracle_text`] receives.
+///
+/// All three fragment seams build their `Parser` with `quoted_fragment: false`:
+/// a fragment is rendered by [`crate::fragment`], never by
+/// [`crate::renderer::Renderer::quoted_ability`], so the keyword-line terminal
+/// peel that flag gates would strip a period nothing downstream reprints.
 pub(crate) fn parse_cost_fragment(
     source: &str,
     catalogs: &Catalogs,
     tokens: &[Token],
     self_reference: &SelfReference,
 ) -> AbilityFragment<Cost> {
-    let mut parser = Parser::new(source, catalogs, self_reference);
+    let mut parser = Parser::new(source, catalogs, self_reference, false);
     let value = parser.parse_cost(tokens);
     AbilityFragment {
         value,
@@ -215,7 +220,7 @@ pub(crate) fn parse_keyword_line_fragment(
     tokens: &[Token],
     self_reference: &SelfReference,
 ) -> AbilityFragment<Option<KeywordAbilityList>> {
-    let mut parser = Parser::new(source, catalogs, self_reference);
+    let mut parser = Parser::new(source, catalogs, self_reference, false);
     let value = parser.parse_keyword_list(tokens);
     AbilityFragment {
         value,
@@ -240,7 +245,7 @@ pub(crate) fn parse_ability_fragment(
     tokens: &[Token],
     self_reference: &SelfReference,
 ) -> AbilityFragment<Ability> {
-    let mut parser = Parser::new(source, catalogs, self_reference);
+    let mut parser = Parser::new(source, catalogs, self_reference, false);
     let value = parser.parse_ability(tokens);
     AbilityFragment {
         value,
@@ -254,6 +259,15 @@ struct Parser<'source, 'catalogs, 'sr> {
     self_reference: &'sr SelfReference,
     diagnostics: Vec<AbilityDiagnostic>,
     selections: Vec<AbilitySelection>,
+    /// Whether `source` is the interior of a quoted ability (`"…"`) rather
+    /// than top-level oracle text. Read only by
+    /// [`Self::parse_keyword_argument`]'s terminal-peel retry: the renderer
+    /// can reprint a keyword line's own stripped closing period only inside
+    /// [`crate::renderer::Renderer::quoted_ability`]'s terminal-quote
+    /// handling (see the retry's doc comment), so peeling must never fire
+    /// outside a quote, where nothing downstream would ever put the period
+    /// back.
+    quoted_fragment: bool,
 }
 
 impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
@@ -261,6 +275,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         source: &'source str,
         catalogs: &'catalogs Catalogs,
         self_reference: &'sr SelfReference,
+        quoted_fragment: bool,
     ) -> Self {
         Self {
             source,
@@ -268,6 +283,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self_reference,
             diagnostics: Vec::new(),
             selections: Vec::new(),
+            quoted_fragment,
         }
     }
 
@@ -1644,8 +1660,16 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
         let quoted_tokens = &tokens[open + 1..close];
         let initial_uppercase = self.tokens_start_uppercase(quoted_tokens);
+        // This recognizer reuses `self` rather than opening a fresh `Parser`
+        // (unlike `parse_quoted_ability_fragment`, the chart-lowering path
+        // for a quote in every other grammatical slot), so the interior's
+        // `quoted_fragment` bit must be set and restored by hand around the
+        // recursive call rather than at construction time.
+        let outer_quoted_fragment = std::mem::replace(&mut self.quoted_fragment, true);
+        let ability = self.parse_ability(quoted_tokens);
+        self.quoted_fragment = outer_quoted_fragment;
         let quoted = QuotedAbility {
-            ability: Box::new(self.parse_ability(quoted_tokens)),
+            ability: Box::new(ability),
             initial_uppercase,
         };
         let prefix = &tokens[..open];
@@ -2035,6 +2059,70 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.parse_shaped_argument(separator, body, in_list, carries_from, bare_object)
         {
             return Some(argument);
+        }
+        // A bare noun-phrase quality (`KeywordArgument::Qualified`) has no
+        // fixed vocabulary the `symbol_cost` peek above can recognize, so it
+        // was never eligible for that upfront peel and the attempt just
+        // above still held the terminal. Retry `parse_qualified` alone
+        // (never the full `parse_shaped_argument` cascade — see why below)
+        // with the terminal removed, but ONLY keep the retry when it makes
+        // the *whole* remaining body resolve as a noun phrase, and only
+        // inside a quoted ability, where the renderer can actually put the
+        // period back.
+        //
+        // Two failure modes ruled out the broader designs this went
+        // through first (round `kwbandsother`):
+        //
+        // - Peeling whenever the categorical surface allowed it (`Space`, `!in_list`,
+        //   `bare_object`), without checking what the stripped body actually parsed as,
+        //   silently dropped the closing period on a keyword line followed by ordinary
+        //   trailing prose on the same physical line — `Equip {3}. This ability costs
+        //   …`, `Kicker {X}. X can't be 0.`, `Splice onto Arcane—Exile four cards from
+        //   your graveyard.` — 13 unrelated faces stopped round-tripping. Trying the
+        //   retry through the *real* parse and keeping it only on success rules this
+        //   out on its own: none of those bodies resolve as one closed shape even with
+        //   the final period gone, so the terminal stays put and they fall through to
+        //   the unmodified recovery path below exactly as before.
+        // - Validating success via the *whole* `parse_shaped_argument` cascade (rather
+        //   than `parse_qualified` alone) is still unsound:
+        //   `parse_named_keyword_argument` is tried first there, and a synthetic `Gift
+        //   a Food.` strips to `a Food`, an exact `NAMED_KEYWORD_ARGUMENT_LABELS`
+        //   member — `Named`'s own license is exact-string matching, and "a Food" with
+        //   the period is deliberately *not* a licensed spelling of it (see
+        //   `named_keyword_argument_label_license_is_exact_and_keyword_independent`).
+        //   Narrowing the retry to `parse_qualified` specifically avoids that collision
+        //   entirely, rather than special-casing it away.
+        // - Even `parse_qualified` alone is unsound outside a quote: a top-level
+        //   (unquoted) `AbilityKind::Keyword` never derives its own trailing period
+        //   (`keyword_ability_list`'s doc comment) — only `Renderer::quoted_ability`'s
+        //   terminal-quote handling reprints one, and only for
+        //   `Costed(Symbols)`/`Qualified`. A bare `Gift a Food.` as a whole face's
+        //   oracle text would resolve to `Qualified` and then render as `Gift a Food` —
+        //   the period silently lost again, just past a different assertion. Gating on
+        //   `self.quoted_fragment` (set only by `parse_quoted_ability_
+        //   fragment`/`parse_quoted_sentence`, the two paths whose result reaches
+        //   `quoted_ability`) ties the peel to the one place that can actually put the
+        //   period back.
+        //
+        // `bare_object` still scopes which keywords are even eligible,
+        // matching `parse_qualified`'s own gate (an atom that has already
+        // consumed its own preposition, like `Hexproof from`, is excluded).
+        // `bands with other legendary creatures.` [CR#702.22b,702.22c] is
+        // the corpus's first witness; the retry is general to the shape,
+        // not keyed to this keyword.
+        if self.quoted_fragment
+            && separator == KeywordArgumentSeparator::Space
+            && !in_list
+            && bare_object
+            && let Some(stripped) = without_terminal
+            && stripped.len() != argument_tokens.len()
+        {
+            let (_, stripped_body) = split_keyword_argument_separator(stripped, ability_end);
+            if let Some(argument) =
+                self.attempt(|parser| parser.parse_qualified(stripped_body, in_list, bare_object))
+            {
+                return Some(argument);
+            }
         }
         // No closed shape matched. On a single keyword line, keep the argument
         // only when it opens the way a keyword argument does — a symbol-class run
@@ -2452,7 +2540,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let surface = lex(fragment);
         let tokens = collapse_full_names(fragment, surface.tokens, self.self_reference.full_name());
         let selections = {
-            let mut parser = Parser::new(fragment, self.catalogs, self.self_reference);
+            let mut parser = Parser::new(fragment, self.catalogs, self.self_reference, true);
             parser.parse_ability(&tokens);
             parser.selections
         };
@@ -5448,7 +5536,7 @@ mod tests {
         let surface = crate::surface::lex(source);
         let catalogs = shape_catalogs();
         let self_reference = crate::identity::SelfReference::default();
-        let mut parser = super::Parser::new(source, &catalogs, &self_reference);
+        let mut parser = super::Parser::new(source, &catalogs, &self_reference, false);
         assert!(
             parser
                 .parse_keyword_argument(&surface.tokens, 0, true, false, false)

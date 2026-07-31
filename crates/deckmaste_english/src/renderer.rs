@@ -2131,14 +2131,24 @@ impl<'identity> Renderer<'identity> {
             self.nested_ability(&quoted.ability, quoted.initial_uppercase, !terminal_period)?;
         // Keyword lines do not derive sentence punctuation themselves. A
         // quoted keyword ability can nevertheless take a terminal from the
-        // quote's own position, after the parser has kept it out of the argument.
+        // quote's own position, after the parser has kept it out of the
+        // argument. `Qualified` (`kwbandsother` round, `bands with other
+        // legendary creatures.` [CR#702.22b,702.22c]) joins `Costed(Symbols)`
+        // here for the same reason: neither shape's own render (see
+        // `keyword_argument` below) ever prints a period itself, unlike
+        // `Costed(Components { terminal, .. })`/`Costed(Sentence { .. })`,
+        // which track or derive their own trailing punctuation and must not
+        // have a second one appended here.
         if terminal_period
             && matches!(
                 &quoted.ability.kind,
                 AbilityKind::Keyword(list)
                     if matches!(
                         list.abilities.last().map(|ability| &ability.argument),
-                        Some(KeywordArgument::Costed(KeywordCost::Symbols(_)))
+                        Some(
+                            KeywordArgument::Costed(KeywordCost::Symbols(_))
+                                | KeywordArgument::Qualified(_)
+                        )
                     )
             )
         {
