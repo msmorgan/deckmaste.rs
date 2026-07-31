@@ -14,20 +14,22 @@
 //
 // Task 6 pilot addition, user-directed: exercises `HoleClass::FieldSlice`
 // from the side `target <Param(0)>` doesn't reach — the frame `<Param(0)>
-// you control` would claim the nominal's `complements` field and leave the
-// hole with `modifiers`+`head`, the mirror image of `target <Param(0)>`
-// (frame claims `determiner`, hole takes the rest). It does NOT compile
-// under the current frame compiler: `crates/deckmaste_frames/src/
-// compile.rs`'s `classify()` always claims all three of
-// `modifiers`/`head`/`complements` and requires `modifiers`+`complements`
-// both empty in the frame — exactly the refusal
-// `frame_material_beside_a_field_slice_hole_is_refused`
-// (`crates/deckmaste_frames/src/compile.rs`'s own test suite) already
-// covers for `target <Param(0)> you control`. Deliberately left UNFRAMED;
-// see `docs/superpowers/research/2026-07-30-macro-frames/
-// pilot-constituency-findings.md` for the confirmed error text, the
-// constituency evidence that the wording is fine at the AST level, and what
-// the compiler would need to support this shape.
+// you control` claims the nominal's `complements` field (the frame's own
+// "you control") and leaves the hole with `modifiers`+`head`, the mirror
+// image of `target <Param(0)>` (frame claims `determiner`, hole takes the
+// rest).
+//
+// This did NOT compile as originally authored in this round: `classify()`
+// (`crates/deckmaste_frames/src/compile.rs`) then only supported the
+// determiner-owning shape. The finding was escalated, and the user ruled to
+// reopen Task 4 and generalize `classify()`'s field-slice decision to a
+// `(determiner, modifiers, complements)` occupancy table — the fix landed
+// in this round (see `field_slice()` in `compile.rs`) — so this frame now
+// compiles, the hole claiming `["modifiers", "head"]`. See
+// `docs/superpowers/research/2026-07-30-macro-frames/
+// pilot-constituency-findings.md` for the resolved finding, the new
+// decision table, and the one further shape (a `modifiers`-only frame, e.g.
+// `white <Param(0)>`) the user considered generalizing to and declined.
 //
 // Named distinctly from the existing `Condition`-kind `YouControl`
 // (`plugins/builtin/macros/condition/YouControl.ron`, "you control ${0}",
@@ -50,5 +52,6 @@
     template: "${0} you control",
     kinds: [Predicate],
     params: [Predicate],
+    frames: ["<Param(0)> you control"],
     body: And([Param(0), ControlledBy(Ref(You))]),
 )

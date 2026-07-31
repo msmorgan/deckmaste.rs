@@ -1,10 +1,23 @@
 //! Task 6 integration test: every loaded macro def with a non-empty
 //! `frames:` list, plus every constructor-catalog entry, compiles clean
-//! (G1) against `plugins/builtin`. Also locks in the round's two negative G5
-//! findings — `ControlledByYou`'s attempted complement-side `FieldSlice`
-//! frame and `SacrificeThis`'s attempted `~` frame — as regression tests, so
-//! a later change to the compiler's behavior on either shape shows up here
-//! rather than only in prose.
+//! (G1) against `plugins/builtin`. Also locks in two G5 findings as
+//! regression tests, so a later change to the compiler's behavior on either
+//! shape shows up here rather than only in prose:
+//!
+//! - `ControlledByYou`'s complement-side `FieldSlice` frame — originally a
+//!   *negative* finding (`<Param(0)> you control` was refused by `classify()`),
+//!   escalated, and **resolved** in-round by a Task 4 reopen that generalized
+//!   `classify()`'s field-slice decision. The macro is now framed, and
+//!   `controlled_by_you_complement_side_field_slice_compiles` pins the positive
+//!   outcome.
+//! - `SacrificeThis`'s attempted `~` frame — still a genuine negative finding:
+//!   `~` compiles (a `SelfRef` hole) but is the wrong self-reference tool for
+//!   this position. The macro is now framed with the *literal* wording instead
+//!   (`"Sacrifice this permanent"`, which does parse and does match the
+//!   checked-in template), so `SacrificeThis` is no longer unframed — but
+//!   `sacrifice_this_self_reference_sigil_ compiles_as_self_ref` still pins
+//!   that the `~` alternative compiles to the wrong AST shape, which is why it
+//!   wasn't adopted.
 //!
 //! See `docs/superpowers/research/2026-07-30-macro-frames/
 //! pilot-constituency-findings.md` for the full writeup these tests are
@@ -121,10 +134,14 @@ fn unique_defs(plugin: &Plugin) -> Vec<&MacroDef> {
     seen.into_values().collect()
 }
 
-/// The pilot's seven framed macro names — asserted explicitly (not just
+/// The pilot's nine framed macro names — asserted explicitly (not just
 /// counted) so a name typo or an accidental drop shows up as a named
-/// failure rather than a silent count coincidence.
-const EXPECTED_FRAMED_MACROS: [&str; 7] = [
+/// failure rather than a silent count coincidence. `ControlledByYou` and
+/// `SacrificeThis` joined this list in the fix round (see the module doc):
+/// both were originally left unframed as G5 findings, and both are now
+/// framed for different reasons (the compiler gap was fixed; the literal
+/// wording turned out to be a real, reproducible constituent all along).
+const EXPECTED_FRAMED_MACROS: [&str; 9] = [
     "Flying",
     "Protection",
     "DealsDamageToEach",
@@ -132,6 +149,8 @@ const EXPECTED_FRAMED_MACROS: [&str; 7] = [
     "Draw",
     "Draws",
     "PumpThisUntilEot",
+    "ControlledByYou",
+    "SacrificeThis",
 ];
 
 #[test]
@@ -203,24 +222,43 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
     );
 }
 
-/// Documents (and pins) the two intentionally-unframed pilot additions: both
-/// macros are loaded and real, but neither carries a `frames:` field. See
-/// the G5 report and the two tests below for why each was left unframed
-/// rather than forced.
+/// Pins the exact resolved wording for the two macros the fix round framed:
+/// both started this task as G5 negative findings ("cannot be framed as
+/// directed"), and both ended up framed anyway, for two different reasons —
+/// `ControlledByYou` because the compiler gap it found got fixed;
+/// `SacrificeThis` because the literal wording (as opposed to the `~`
+/// alternative that motivated leaving it unframed in the first place) turned
+/// out to be a real, reproducible constituent. This test is what replaces
+/// the old "both are loaded but unframed" pin now that neither is unframed
+/// any more — it still asserts something real: each macro has exactly one
+/// frame, and it's the exact text this report's story depends on.
 #[test]
-fn the_two_g5_negative_findings_are_loaded_but_unframed() {
+fn controlled_by_you_and_sacrifice_this_carry_their_resolved_wording() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
-    for name in ["ControlledByYou", "SacrificeThis"] {
+    for (name, expected_text) in [
+        ("ControlledByYou", "<Param(0)> you control"),
+        ("SacrificeThis", "Sacrifice this permanent"),
+    ] {
         let def = unique_defs(&plugin)
             .into_iter()
             .find(|def| def.name.as_str() == name)
             .unwrap_or_else(|| panic!("`{name}` must be loaded from the pilot's macro files"));
-        assert!(
-            def.frames().is_empty(),
-            "`{name}` is expected to stay unframed (see the G5 report); \
-             found {:?} — update this test if that changed on purpose",
+        assert_eq!(
+            def.frames().len(),
+            1,
+            "`{name}` is expected to carry exactly one frame; found {:?}",
             def.frames()
+        );
+        assert_eq!(
+            def.frames()[0].text,
+            expected_text,
+            "`{name}`'s frame text changed out from under this pin"
+        );
+        assert!(
+            def.frames()[0].when.is_empty() && def.frames()[0].position.is_none(),
+            "`{name}`'s single frame is expected to be unguarded: {:?}",
+            def.frames()[0]
         );
     }
 }
@@ -239,9 +277,11 @@ fn the_two_g5_negative_findings_are_loaded_but_unframed() {
 /// `params` rather than a hand-rolled fixture, so it fails loudly if
 /// `ControlledByYou.ron`'s signature changes out from under it.
 ///
-/// Note `ControlledByYou` still carries no `frames:` field — authoring it is
-/// the lexicon's call, not the compiler's, and
-/// `the_two_g5_negative_findings_are_loaded_but_unframed` above still holds.
+/// `ControlledByYou` is now framed with exactly this text (see
+/// `controlled_by_you_and_sacrifice_this_carry_their_resolved_wording`
+/// above); this test independently re-derives the compile from the macro's
+/// real params rather than trusting `def.frames()[0]`, so it still catches a
+/// regression in `classify()` itself, not just in the `.ron` file's content.
 #[test]
 fn controlled_by_you_complement_side_field_slice_compiles() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
@@ -283,6 +323,13 @@ fn controlled_by_you_complement_side_field_slice_compiles() {
 /// report carries the render-side evidence (`ThisCardForm`'s two variants,
 /// the legacy `~ => subject` renderer, and the live Clue/Gold/Treasure/
 /// Food/Blood token regression risk) that the wording itself is wrong.
+///
+/// `SacrificeThis` ended up framed anyway — with the *literal* wording
+/// `"Sacrifice this permanent"` (see
+/// `controlled_by_you_and_sacrifice_this_carry_their_resolved_wording`),
+/// which is a real, if narrow (12/1575 corpus attestations), constituent —
+/// so this test's role narrowed to exactly what it says: `~` compiles, to
+/// the wrong shape, which is why it wasn't the frame adopted.
 #[test]
 fn sacrifice_this_self_reference_sigil_compiles_as_self_ref() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
