@@ -1,0 +1,16 @@
+[package]
+publish = false
+name = "deckmaste_frames"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+# `Serialize` on a macro definition or witness is a generic traversal
+# protocol here, not a serialization format: `view::of` drives the derive's
+# exhaustive, compiler-checked walk instead of hand-maintaining a visitor.
+# `derive` is needed by the crate's own driver as well as by callers'
+# `#[derive(Serialize)]` types fed into it.
+serde = { version = "1.0.228", features = ["derive"] }

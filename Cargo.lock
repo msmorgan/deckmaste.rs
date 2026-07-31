@@ -493,6 +493,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_frames"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [
