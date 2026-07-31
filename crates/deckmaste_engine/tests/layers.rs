@@ -244,6 +244,30 @@ fn static_grants_keyword() {
     );
 }
 
+/// [CR#611.3a,613.1f]: a conditional static is re-evaluated continuously
+/// against its own carrier. The testing-plugin fixture grants itself trample
+/// while untapped; changing the stored tap status makes the grant disappear on
+/// the next derived view.
+#[test]
+fn conditional_static_tracks_source_state() {
+    use deckmaste_core::KeywordAbility;
+    use deckmaste_engine::has_keyword;
+
+    let mut state = game_with_p0_cards(&["Conditional trample source"], 1);
+    let source = force_onto_battlefield(&mut state, PlayerId(0), "Conditional trample source");
+
+    assert!(
+        has_keyword(&state.layers(), source, &KeywordAbility::Trample),
+        "the untapped source satisfies its condition and gains trample"
+    );
+
+    state.objects.obj_mut(source).tapped = true;
+    assert!(
+        !has_keyword(&state.layers(), source, &KeywordAbility::Trample),
+        "tapping the source makes the conditional grant disappear"
+    );
+}
+
 /// [CR#611.3a,613.8a]: a self-referential layer-6 grant — "creatures with
 /// trample have trample" — applies exactly once. The affected set is whatever
 /// has trample when the effect applies, so the grant can't feed itself: no

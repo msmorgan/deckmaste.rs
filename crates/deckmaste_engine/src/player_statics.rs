@@ -73,11 +73,12 @@ impl GameState {
                 let Ability::Static(effect) = ability else {
                     continue;
                 };
-                // `Conditionally` statics skipped — the same seam the
-                // object-layer gather has. `ModifyPlayer` is never
+                // Conditional `ModifyPlayer` statics are a separate player-
+                // modifier seam; object-characteristic conditionals are
+                // handled by the layer gather. `ModifyPlayer` is never
                 // distributed via `Each` (its `Reference` already names the
                 // affected player directly), so only the top-level shape is
-                // matched.
+                // matched here.
                 if let StaticEffect::ModifyPlayer(reference, pmod) = effect.as_ref()
                     && let Some(p) = resolve_player_ref(reference, obj.controller)
                 {

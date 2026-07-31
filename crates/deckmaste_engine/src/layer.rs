@@ -14,6 +14,7 @@ use std::sync::Arc;
 use deckmaste_core::Ability;
 use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
+use deckmaste_core::Condition;
 use deckmaste_core::Count;
 use deckmaste_core::Countable;
 use deckmaste_core::Duration;
@@ -392,6 +393,10 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
 struct ActiveEffect {
     timestamp: Timestamp,
     is_cda: bool,
+    /// Gates wrapped around this static effect ([CR#611.3a]). Every gate is
+    /// re-evaluated against the in-progress derived map before the effect is
+    /// considered or applied; nested `Conditionally` wrappers are conjunctive.
+    conditions: Vec<Condition>,
     /// The effect's controller ([CR#611.2c]) — resolves `You` in a layer-2
     /// `SetController`. For a static ability it is the source permanent's base
     /// controller; for a registry effect it is the locked value it carries.
@@ -460,9 +465,6 @@ fn bake_counter_counts(
 /// Collect all active static `Modify` effects from battlefield permanents,
 /// plus any floating one-shot effects from `state.continuous`, plus
 /// counter-conferred `Continuous` boosts ([CR#122.1]).
-///
-/// Only unconditional effects are gathered here; `StaticEffect::Conditionally`
-/// evaluation is a documented seam for a later task.
 ///
 /// `derived` is the fixpoint hook ([CR#613.7] re-evaluation): on the FIRST
 /// iteration of the layer pass it is `None`, so the static-ability effect
@@ -534,9 +536,7 @@ fn gather(
             let Ability::Static(effect) = ability else {
                 continue;
             };
-            // `Conditionally` statics skipped — a seam for later
-            // ([CR#611.3a], see `static_effect_scope`).
-            if let Some((scope, changes)) = static_effect_scope(state, obj.id, effect) {
+            if let Some((conditions, scope, changes)) = static_effect_scope(state, obj.id, effect) {
                 effects.push(ActiveEffect {
                     timestamp,
                     // The 7a/CDA layer distinction is deferred (0 cards use
@@ -544,6 +544,7 @@ fn gather(
                     // `characteristic_defining` flag at all) — every gathered
                     // static routes through the non-CDA layers.
                     is_cda: false,
+                    conditions,
                     // A static ability's continuous effect is controlled by the
                     // permanent it is on ([CR#611.2c]); its `You` is that
                     // permanent's controller.
@@ -584,6 +585,7 @@ fn gather(
                 effects.push(ActiveEffect {
                     timestamp: obj.timestamp,
                     is_cda: false,
+                    conditions: Vec::new(),
                     controller: obj.controller,
                     scope,
                     // Flatten first (so `bake` sees the flat P/T ops), then bake
@@ -601,6 +603,7 @@ fn gather(
         effects.push(ActiveEffect {
             timestamp: ce.timestamp,
             is_cda: ce.is_cda,
+            conditions: Vec::new(),
             controller: ce.controller,
             scope: ce.scope.clone(),
             // Same single boundary: a floating one-shot's `changes` (a granted
@@ -645,27 +648,31 @@ fn static_effect_scope(
     state: &GameState,
     obj: ObjectId,
     effect: &StaticEffect,
-) -> Option<(ScopeResolved, Vec<Modification>)> {
-    #[expect(
-        clippy::match_same_arms,
-        reason = "the explicit `Conditionally` arm documents the unwired condition-gating seam ([CR#611.3a]); it coincidentally returns None like the catch-all but is kept distinct as a named TODO site"
-    )]
+) -> Option<(Vec<Condition>, ScopeResolved, Vec<Modification>)> {
     match effect {
         StaticEffect::Modify(reference, change) => Some((
+            Vec::new(),
             ScopeResolved::Locked(resolve_source_relative(state, obj, reference)),
             Modification::flatten(std::slice::from_ref(change)).to_vec(),
         )),
         StaticEffect::Each(Selection::SelectAll(filter), inner) => match inner.as_ref() {
             StaticEffect::Modify(deckmaste_core::Reference::It, change) => Some((
+                Vec::new(),
                 ScopeResolved::Floating(filter.clone()),
                 Modification::flatten(std::slice::from_ref(change)).to_vec(),
             )),
             _ => None,
         },
-        // A `Conditionally` static is not gathered yet — the condition-gating
-        // seam ([CR#611.3a]) is unwired, so it's skipped like any other
-        // non-`Modify`/non-`Each` shape.
-        StaticEffect::Conditionally(..) => None,
+        // [CR#611.3a]: keep the wrapper's predicate on the gathered effect.
+        // It is evaluated later, against the in-progress layer map, rather
+        // than here against printed values or through a recursive `layers()`.
+        // Nested wrappers form a conjunction: every enclosing condition must
+        // still hold for the innermost modification to apply.
+        StaticEffect::Conditionally(condition, inner) => {
+            let (mut conditions, scope, changes) = static_effect_scope(state, obj, inner.as_ref())?;
+            conditions.insert(0, condition.clone());
+            Some((conditions, scope, changes))
+        }
         _ => None,
     }
 }
@@ -860,6 +867,99 @@ fn resolve_scope(
     }
 }
 
+/// Evaluate a predicate against the in-progress layer map when `id` has
+/// characteristics there, falling back to the ordinary live matcher for
+/// player proxies (which deliberately have no [`DerivedObject`]).
+fn condition_predicate_matches(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    id: ObjectId,
+    filter: &Predicate,
+    watcher: Option<ObjectSource>,
+) -> bool {
+    if working.contains_key(&id) {
+        matches_derived(state, working, id, filter, watcher)
+    } else {
+        crate::target::matches_with(state, id, filter, watcher)
+    }
+}
+
+/// Evaluate one conditional-static gate against the IN-PROGRESS derived map.
+/// This is the layer-time sibling of [`GameState::condition_holds`]: it keeps
+/// the same condition meanings while routing characteristic predicates and
+/// counts through `working`, never recursively rebuilding `state.layers()`.
+fn condition_holds_derived(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    condition: &Condition,
+    watcher: Option<ObjectSource>,
+    controller: PlayerId,
+) -> bool {
+    match condition {
+        Condition::Exists(filter) => state
+            .objects
+            .iter()
+            .any(|object| condition_predicate_matches(state, working, object.id, filter, watcher)),
+        Condition::Matches(reference, filter) => {
+            resolve_count_ref(state, working, reference, watcher, controller)
+                .is_some_and(|id| condition_predicate_matches(state, working, id, filter, watcher))
+        }
+        Condition::Compare(a, op, b) => {
+            let lhs = eval_count(a, state, working, watcher, controller).max(0);
+            let rhs = eval_count(b, state, working, watcher, controller).max(0);
+            op.apply(lhs.cast_unsigned(), rhs.cast_unsigned())
+        }
+        Condition::And(conditions) => conditions.iter().all(|condition| {
+            condition_holds_derived(state, working, condition, watcher, controller)
+        }),
+        Condition::Or(conditions) => conditions.iter().any(|condition| {
+            condition_holds_derived(state, working, condition, watcher, controller)
+        }),
+        Condition::Not(condition) => {
+            !condition_holds_derived(state, working, condition, watcher, controller)
+        }
+        Condition::Expanded(expanded) => {
+            condition_holds_derived(state, working, &expanded.value, watcher, controller)
+        }
+        Condition::YourTurn => state.turn.active_player == controller,
+        Condition::TurnOf(filter) => condition_predicate_matches(
+            state,
+            working,
+            state.player(state.turn.active_player).object,
+            filter,
+            watcher,
+        ),
+        Condition::DuringPhase(phase) => state.turn.current == *phase,
+        // History and paid-cost gates do not read derived characteristics.
+        // Reuse the canonical evaluator with a bare carrier frame so their
+        // event/stack semantics do not drift from trigger and resolution use.
+        condition @ (Condition::Happened { .. }
+        | Condition::PaidCost(_)
+        | Condition::CastWith(_)) => state
+            .objects
+            .iter()
+            .find(|object| Some(object.source) == watcher)
+            .is_some_and(|source| {
+                state.condition_holds(condition, &crate::stack::Frame::bare(source.id, controller))
+            }),
+        // `LegallyAttached` needs the deontic attachment view, which cannot be
+        // rebuilt recursively while this view is in progress. A crossing gate
+        // likewise requires a triggering event's before/after frame channel.
+        // Neither has a sound layer-local value; malformed uses fizzle false.
+        Condition::LegallyAttached(_) | Condition::Crossed { .. } => false,
+    }
+}
+
+fn effect_conditions_hold(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    effect: &ActiveEffect,
+) -> bool {
+    effect.conditions.iter().all(|condition| {
+        condition_holds_derived(state, working, condition, effect.watcher, effect.controller)
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Apply
 // ---------------------------------------------------------------------------
@@ -874,13 +974,38 @@ fn resolve_scope(
 /// `0`.
 fn resolve_count_ref(
     state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
     reference: &deckmaste_core::Reference,
     watcher: Option<ObjectSource>,
+    controller: PlayerId,
 ) -> Option<ObjectId> {
-    let source = state.objects.iter().find(|o| Some(o.source) == watcher)?.id;
-    resolve_source_relative(state, source, reference)
-        .into_iter()
-        .next()
+    use deckmaste_core::Reference;
+    match reference {
+        Reference::You => Some(state.player(controller).object),
+        Reference::ControllerOf(inner) => {
+            let id = resolve_count_ref(state, working, inner, watcher, controller)?;
+            let player = working.get(&id).map_or_else(
+                || state.objects.get(id).map(|o| o.controller),
+                |d| Some(d.controller),
+            )?;
+            Some(state.player(player).object)
+        }
+        Reference::OwnerOf(inner) => {
+            let id = resolve_count_ref(state, working, inner, watcher, controller)?;
+            state
+                .objects
+                .get(id)
+                .and_then(crate::object::GameObject::card_id)
+                .map(|_| state.player(state.owner_of(id)).object)
+        }
+        Reference::Expanded(e) => resolve_count_ref(state, working, &e.value, watcher, controller),
+        _ => {
+            let source = state.objects.iter().find(|o| Some(o.source) == watcher)?.id;
+            resolve_source_relative(state, source, reference)
+                .into_iter()
+                .next()
+        }
+    }
 }
 
 /// `Count::Divide`/`Count::Half`'s shared rounded-division op — factored out
@@ -939,9 +1064,10 @@ fn eval_stat_of(
     reference: &deckmaste_core::Reference,
     stat: deckmaste_core::Stat,
     watcher: Option<ObjectSource>,
+    controller: PlayerId,
 ) -> Int {
     use deckmaste_core::Stat;
-    let Some(id) = resolve_count_ref(state, reference, watcher) else {
+    let Some(id) = resolve_count_ref(state, working, reference, watcher, controller) else {
         return 0;
     };
     let value = match stat {
@@ -987,6 +1113,7 @@ fn eval_count(
     state: &GameState,
     working: &BTreeMap<ObjectId, DerivedObject>,
     watcher: Option<ObjectSource>,
+    controller: PlayerId,
 ) -> Int {
     match n {
         Count::Literal(v) => (*v).cast_signed(),
@@ -1010,7 +1137,8 @@ fn eval_count(
             // 0 (never-crash), mirroring the other `resolve_count_ref`
             // consumers above.
             Countable::ManaSymbols(reference, pred) => {
-                let Some(id) = resolve_count_ref(state, reference, watcher) else {
+                let Some(id) = resolve_count_ref(state, working, reference, watcher, controller)
+                else {
                     return 0;
                 };
                 let Some(o) = state.objects.get(id) else {
@@ -1029,7 +1157,8 @@ fn eval_count(
             // [CR#105.2]: the cardinality of a one-object "set" — 1 when the
             // reference resolves to a real card-backed object, else 0.
             Countable::Singleton(reference) => {
-                let Some(id) = resolve_count_ref(state, reference, watcher) else {
+                let Some(id) = resolve_count_ref(state, working, reference, watcher, controller)
+                else {
                     return 0;
                 };
                 if state
@@ -1051,73 +1180,84 @@ fn eval_count(
         // `working`. Mana value / loyalty / defense are layer-stable base state
         // (read off the card face / counter map, as `resolve.rs` does). A
         // negative result counts as `0` ([CR#107.1b,613]).
-        Count::StatOf(reference, stat) => eval_stat_of(state, working, reference, *stat, watcher),
+        Count::StatOf(reference, stat) => {
+            eval_stat_of(state, working, reference, *stat, watcher, controller)
+        }
         // [CR#119.1,402.2]: a player's numeric attribute — read straight off
         // state (players have no [CR#613] layers). A non-player or unresolved
         // reference contributes 0.
-        Count::PlayerStatOf(reference, attr) => resolve_count_ref(state, reference, watcher)
-            .and_then(|id| state.objects.get(id))
-            .and_then(|o| match o.source {
-                ObjectSource::Player(p) => Some(p),
-                ObjectSource::Card(_) => None,
-            })
-            .map_or(0, |p| {
-                Int::try_from(state.player_attr(p, *attr)).expect("player attr fits Int")
-            }),
+        Count::PlayerStatOf(reference, attr) => {
+            resolve_count_ref(state, working, reference, watcher, controller)
+                .and_then(|id| state.objects.get(id))
+                .and_then(|o| match o.source {
+                    ObjectSource::Player(p) => Some(p),
+                    ObjectSource::Card(_) => None,
+                })
+                .map_or(0, |p| {
+                    Int::try_from(state.player_attr(p, *attr)).expect("player attr fits Int")
+                })
+        }
         // [CR#102.1]: how many opponents the referenced player has.
-        Count::Opponents(reference) => resolve_count_ref(state, reference, watcher)
-            .and_then(|id| state.objects.get(id))
-            .and_then(|o| match o.source {
-                ObjectSource::Player(p) => Some(p),
-                ObjectSource::Card(_) => None,
-            })
-            .map_or(0, |p| {
-                Int::try_from(state.opponent_count(p)).expect("opponent count fits Int")
-            }),
+        Count::Opponents(reference) => {
+            resolve_count_ref(state, working, reference, watcher, controller)
+                .and_then(|id| state.objects.get(id))
+                .and_then(|o| match o.source {
+                    ObjectSource::Player(p) => Some(p),
+                    ObjectSource::Card(_) => None,
+                })
+                .map_or(0, |p| {
+                    Int::try_from(state.opponent_count(p)).expect("opponent count fits Int")
+                })
+        }
         // [CR#122.1]: the count of a counter kind on the resolved object, read
         // off the raw counter map (base state — no derived/recursion). An absent
         // object or kind is `0`.
-        Count::CounterCount(reference, kind) => resolve_count_ref(state, reference, watcher)
-            .and_then(|id| state.objects.get(id))
-            .and_then(|o| o.counters.get(kind.as_str()).copied())
-            .map_or(0, |c| Int::try_from(c).expect("counter count fits Int")),
+        Count::CounterCount(reference, kind) => {
+            resolve_count_ref(state, working, reference, watcher, controller)
+                .and_then(|id| state.objects.get(id))
+                .and_then(|o| o.counters.get(kind.as_str()).copied())
+                .map_or(0, |c| Int::try_from(c).expect("counter count fits Int"))
+        }
         // [CR#120.3]: marked damage on the resolved object (base state).
-        Count::Damage(reference) => resolve_count_ref(state, reference, watcher)
-            .and_then(|id| state.objects.get(id))
-            .map_or(0, |o| {
-                Int::try_from(o.total_damage()).expect("damage fits Int")
-            }),
+        Count::Damage(reference) => {
+            resolve_count_ref(state, working, reference, watcher, controller)
+                .and_then(|id| state.objects.get(id))
+                .map_or(0, |o| {
+                    Int::try_from(o.total_damage()).expect("damage fits Int")
+                })
+        }
         // [CR#106.4]: the referenced player's total floated mana — read
         // straight off the pool (base state, no layers). A non-player or
         // unresolved reference contributes 0.
-        Count::ManaAvailable(reference) => resolve_count_ref(state, reference, watcher)
-            .and_then(|id| state.objects.get(id))
-            .and_then(|o| match o.source {
-                ObjectSource::Player(p) => Some(p),
-                ObjectSource::Card(_) => None,
-            })
-            .map_or(0, |p| {
-                Int::try_from(state.player(p).mana_pool.units().len()).expect("mana pool fits Int")
-            }),
-        // [CR#704.5q]: the lesser of two magnitudes.
-        Count::Min(a, b) => {
-            eval_count(a, state, working, watcher).min(eval_count(b, state, working, watcher))
+        Count::ManaAvailable(reference) => {
+            resolve_count_ref(state, working, reference, watcher, controller)
+                .and_then(|id| state.objects.get(id))
+                .and_then(|o| match o.source {
+                    ObjectSource::Player(p) => Some(p),
+                    ObjectSource::Card(_) => None,
+                })
+                .map_or(0, |p| {
+                    Int::try_from(state.player(p).mana_pool.units().len())
+                        .expect("mana pool fits Int")
+                })
         }
+        // [CR#704.5q]: the lesser of two magnitudes.
+        Count::Min(a, b) => eval_count(a, state, working, watcher, controller)
+            .min(eval_count(b, state, working, watcher, controller)),
         // [CR#107.1] basic value arithmetic over the derived view. `Minus`
         // floors at 0 ([CR#107.1b]); `Half` rounds per the mode on the
         // non-negative magnitude.
-        Count::Max(a, b) => {
-            eval_count(a, state, working, watcher).max(eval_count(b, state, working, watcher))
-        }
-        Count::Plus(a, b) => eval_count(a, state, working, watcher)
-            .saturating_add(eval_count(b, state, working, watcher)),
-        Count::Minus(a, b) => {
-            (eval_count(a, state, working, watcher) - eval_count(b, state, working, watcher)).max(0)
-        }
-        Count::Times(a, b) => eval_count(a, state, working, watcher)
-            .saturating_mul(eval_count(b, state, working, watcher)),
+        Count::Max(a, b) => eval_count(a, state, working, watcher, controller)
+            .max(eval_count(b, state, working, watcher, controller)),
+        Count::Plus(a, b) => eval_count(a, state, working, watcher, controller)
+            .saturating_add(eval_count(b, state, working, watcher, controller)),
+        Count::Minus(a, b) => (eval_count(a, state, working, watcher, controller)
+            - eval_count(b, state, working, watcher, controller))
+        .max(0),
+        Count::Times(a, b) => eval_count(a, state, working, watcher, controller)
+            .saturating_mul(eval_count(b, state, working, watcher, controller)),
         Count::Half(mode, inner) => {
-            let v = eval_count(inner, state, working, watcher).max(0);
+            let v = eval_count(inner, state, working, watcher, controller).max(0);
             match mode {
                 // Widened to i64 to avoid overflow near i32::MAX (signed
                 // div_ceil is unstable on stable); the quotient is bounded
@@ -1134,19 +1274,23 @@ fn eval_count(
         // (never-crash) rather than panicking on integer division.
         Count::Divide(mode, a, b) => eval_divide(
             *mode,
-            eval_count(a, state, working, watcher).max(0),
-            eval_count(b, state, working, watcher).max(0),
+            eval_count(a, state, working, watcher, controller).max(0),
+            eval_count(b, state, working, watcher, controller).max(0),
         ),
         // [CR#107.1]: remainder — parity checks. A zero divisor fizzles to 0.
         Count::Mod(a, b) => {
-            let b = eval_count(b, state, working, watcher).max(0);
-            if b == 0 { 0 } else { eval_count(a, state, working, watcher).max(0) % b }
+            let b = eval_count(b, state, working, watcher, controller).max(0);
+            if b == 0 {
+                0
+            } else {
+                eval_count(a, state, working, watcher, controller).max(0) % b
+            }
         }
         // [CR#107.1]: exponentiation — doubling effects build `Pow(2, X)`.
-        Count::Pow(base, exp) => eval_count(base, state, working, watcher)
+        Count::Pow(base, exp) => eval_count(base, state, working, watcher, controller)
             .max(0)
             .saturating_pow(
-                eval_count(exp, state, working, watcher)
+                eval_count(exp, state, working, watcher, controller)
                     .max(0)
                     .cast_unsigned(),
             ),
@@ -1169,7 +1313,8 @@ fn eval_count(
             // Embiggen's "number of card types it has" =
             // `CountDistinct(Types, Singleton(This))`.
             Countable::Singleton(reference) => {
-                let Some(id) = resolve_count_ref(state, reference, watcher) else {
+                let Some(id) = resolve_count_ref(state, working, reference, watcher, controller)
+                else {
                     return 0;
                 };
                 if state
@@ -1192,7 +1337,7 @@ fn eval_count(
             | Countable::ManaSpentMatching(..)
             | Countable::Players(..) => 0,
         },
-        Count::Expanded(e) => eval_count(&e.value, state, working, watcher),
+        Count::Expanded(e) => eval_count(&e.value, state, working, watcher, controller),
         // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
         // `EventSum`, `Noted`) is unavailable during layer derivation — those
         // need a resolution `Frame` (`resolve.rs::eval_count`), so a continuous
@@ -1320,13 +1465,13 @@ fn apply(
         // [CR#122.1a,613.4c]). The count is evaluated against `working`
         // immutably before the `get_mut`.
         Modification::Power(op) => {
-            let v = eval_numeric_op(op, state, working, watcher);
+            let v = eval_numeric_op(op, state, working, watcher, effect_controller);
             if let Some(d) = working.get_mut(&obj_id) {
                 apply_numeric(op, &mut d.characteristics.power, v);
             }
         }
         Modification::Toughness(op) => {
-            let v = eval_numeric_op(op, state, working, watcher);
+            let v = eval_numeric_op(op, state, working, watcher, effect_controller);
             if let Some(d) = working.get_mut(&obj_id) {
                 apply_numeric(op, &mut d.characteristics.toughness, v);
             }
@@ -1345,10 +1490,11 @@ fn eval_numeric_op(
     state: &GameState,
     working: &BTreeMap<ObjectId, DerivedObject>,
     watcher: Option<ObjectSource>,
+    controller: PlayerId,
 ) -> Int {
     match op {
-        NumericOp::Set(v) => eval_stat_value(v, state, working, watcher),
-        NumericOp::Up(c) | NumericOp::Down(c) => eval_count(c, state, working, watcher),
+        NumericOp::Set(v) => eval_stat_value(v, state, working, watcher, controller),
+        NumericOp::Up(c) | NumericOp::Down(c) => eval_count(c, state, working, watcher, controller),
     }
 }
 
@@ -1360,10 +1506,11 @@ fn eval_stat_value(
     state: &GameState,
     working: &BTreeMap<ObjectId, DerivedObject>,
     watcher: Option<ObjectSource>,
+    controller: PlayerId,
 ) -> Int {
     match v {
         StatValue::Number(n) => *n,
-        StatValue::Count(c) => eval_count(c, state, working, watcher),
+        StatValue::Count(c) => eval_count(c, state, working, watcher, controller),
         StatValue::Variable | StatValue::DefinedByAbility => 0,
     }
 }
@@ -1615,6 +1762,9 @@ fn effect_targets(
     working: &BTreeMap<ObjectId, DerivedObject>,
     effect: &ActiveEffect,
 ) -> Vec<ObjectId> {
+    if !effect_conditions_hold(state, working, effect) {
+        return Vec::new();
+    }
     match &effect.locked {
         Some(ids) => ids.clone(),
         None => resolve_scope(state, working, &effect.scope, effect.watcher),
@@ -1630,6 +1780,9 @@ fn apply_effect_in_layer(
     effect: &mut ActiveEffect,
     layer: Layer,
 ) {
+    if !effect_conditions_hold(state, working, effect) {
+        return;
+    }
     if effect.locked.is_none() {
         effect.locked = Some(resolve_scope(state, working, &effect.scope, effect.watcher));
     }
@@ -1685,7 +1838,7 @@ fn depends_on(
     d: &ActiveEffect,
     layer: Layer,
 ) -> bool {
-    if e.is_cda != d.is_cda || e.locked.is_some() {
+    if e.is_cda != d.is_cda || (e.locked.is_some() && e.conditions.is_empty()) {
         return false;
     }
     let before: BTreeSet<ObjectId> = effect_targets(state, working, e).into_iter().collect();
@@ -1708,7 +1861,14 @@ fn depends_on(
 /// order), so a stable effect set yields a byte-stable signature. Cardinality
 /// alone would miss a same-iteration "one static vanished, another appeared"
 /// swap; the full content tuple does not.
-type EffectSignature = Vec<(Timestamp, bool, PlayerId, ScopeSig, Vec<Modification>)>;
+type EffectSignature = Vec<(
+    Timestamp,
+    bool,
+    PlayerId,
+    Vec<Condition>,
+    ScopeSig,
+    Vec<Modification>,
+)>;
 
 /// The `Eq`-able projection of a `ScopeResolved` for the signature.
 /// `ScopeResolved` itself is not `Eq` (it is a working value), so project it.
@@ -1730,6 +1890,7 @@ fn effect_signature(effects: &[ActiveEffect]) -> EffectSignature {
                 e.timestamp,
                 e.is_cda,
                 e.controller,
+                e.conditions.clone(),
                 scope,
                 e.changes.clone(),
             )
@@ -1946,6 +2107,7 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::CollectionOp;
+    use deckmaste_core::Condition;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
     use deckmaste_core::Duration;
@@ -3167,6 +3329,45 @@ mod tests {
             "a directly-carried +2/+2 anthem applies exactly once (base 2 → 4)"
         );
         assert_eq!(view.toughness(id), Some(4), "…toughness 4, applied once");
+    }
+
+    /// A same-layer effect can make another conditional effect's predicate
+    /// true. The conditional is deliberately authored FIRST: dependency
+    /// ordering must see that the later Trample grant changes its active set,
+    /// apply that grant first, then apply the conditional Vigilance grant.
+    #[test]
+    fn same_layer_change_enables_conditional_static() {
+        let conditional_vigilance = Ability::r#static(StaticEffect::Conditionally(
+            Condition::Matches(
+                Reference::This,
+                Predicate::Characteristic(CharacteristicPredicate::Has("Trample".into())),
+            ),
+            Arc::new(StaticEffect::Modify(
+                Reference::This,
+                Modification::GainAbility(Arc::new(Ability::Keyword(KeywordAbility::Vigilance))),
+            )),
+        ));
+        let grant_trample = Ability::r#static(StaticEffect::Modify(
+            Reference::This,
+            Modification::GainAbility(Arc::new(Ability::Keyword(KeywordAbility::Trample))),
+        ));
+        let (state, id) = creature_on_field(game(), vec![conditional_vigilance, grant_trample]);
+
+        let view = state.layers();
+        assert!(
+            view.get(id)
+                .abilities
+                .iter()
+                .any(|ability| matches!(ability, Ability::Keyword(KeywordAbility::Trample))),
+            "the unconditional layer-6 grant applies"
+        );
+        assert!(
+            view.get(id)
+                .abilities
+                .iter()
+                .any(|ability| matches!(ability, Ability::Keyword(KeywordAbility::Vigilance))),
+            "the in-progress Trample grant enables the conditional Vigilance grant"
+        );
     }
 
     /// A granted-grants-granted chain still terminates and applies each link.

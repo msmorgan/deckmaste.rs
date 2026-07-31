@@ -19,6 +19,11 @@ verified against the full corpus, not vibes. Current residents:
   nothing). Pins that a layer-6 affected set is evaluated when the effect
   applies ([CR#611.3a]): no fixpoint loop, no grant to trample-less creatures,
   a redundant ([CR#702.19g]) second instance on tramplers.
+- **Conditional trample source** — a source-relative
+  `Conditionally(Matches(This, Status(Untapped)), …)` grant whose stored tap
+  state can be toggled directly. It isolates continuous re-evaluation
+  ([CR#611.3a]) without requiring another mechanic to attach/detach or otherwise
+  change the gate.
 - **Exalted Creature** / **Ward Creature** — minimal vanilla carriers of two
   evergreen keywords ([CR#702.83a], [CR#702.21a]) that no card in the canon
   corpus has. Both keywords read event provenance (`EventObject`) on a

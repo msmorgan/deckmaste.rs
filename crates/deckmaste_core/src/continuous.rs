@@ -328,9 +328,9 @@ pub enum StaticEffect {
     /// [effect]." Wraps an inner static effect with a game-state predicate; the
     /// effect applies only while the condition holds (re-checked continuously,
     /// never locked in). The `condition:` field of the deleted `StaticAbility`
-    /// struct, now a composable effect wrapper. (Engine gating is a seam,
-    /// [CR#611.3a] — currently unwired, so a `Conditionally` static is not yet
-    /// gathered.)
+    /// struct, now a composable effect wrapper. The layer engine rechecks the
+    /// condition against its in-progress derived view ([CR#611.3a]); non-layer
+    /// static consumers use the same wrapper as their collection gate.
     Conditionally(Condition, Arc<StaticEffect>),
     /// A deontic clause ([CR#101.2,601.3]): May/Cant/Must/Gate read bare
     /// in RON (`effects: [Cant(…)]`) via the flatten dispatch.

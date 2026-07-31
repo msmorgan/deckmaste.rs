@@ -431,8 +431,7 @@ fn minimal_subtype(name: &Ident) -> deckmaste_core::Subtype {
 /// `This`-scoped static `Modify` whose op (directly, or bundled in a
 /// `Several`, the Tarmogoyf pattern: `Modify(This, Several([Power(Set(...)),
 /// Toughness(Set(...))]))`) `Set`s the axis. It does NOT look inside
-/// `Conditionally` (the engine doesn't gather those yet either — see
-/// `StaticEffect::Conditionally`'s own doc comment) or `Each`. Covers only
+/// `Conditionally` or `Each`: neither shape is a P/T-defining CDA. Covers only
 /// Power/Toughness; see `retain_characteristic` for the other axes.
 /// Follow-up: `engine-copy-cda-generalize`.
 fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {

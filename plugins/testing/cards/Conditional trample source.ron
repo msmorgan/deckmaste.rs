@@ -1,0 +1,14 @@
+// A source-relative conditional layer-6 grant: the source has trample only
+// while it is untapped ([CR#611.3a,613.1f]). This deliberately exposes a
+// stored status toggle so the layer view can prove the grant appears and
+// disappears across fresh derivations.
+Normal(
+    name: "Conditional trample source",
+    mana_cost: [Generic(2), Green],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [
+        Static(Conditionally(Matches(This, Status(Untapped)), Modify(This, GainAbility(Keyword(Trample))))),
+    ],
+)
