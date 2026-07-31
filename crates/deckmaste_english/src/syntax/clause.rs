@@ -664,6 +664,39 @@ pub struct CoordinatedIndependentClause {
     pub rest: Vec<ClauseCoordination>,
 }
 
+/// **Measured, `comma` field KEPT** (surface-fact diet, 2026-07-30
+/// measurement round, re-run after the `block`-vocabulary tree fix): unlike
+/// every sibling coordination in this module, full-clause coordination
+/// *inverts* the usual pattern instead of merely under-predicting it. The
+/// count-based rule that is exact for [`PredicateObjectCoordination`],
+/// [`RestrictionCoordination`], [`ExceptionConjunct`],
+/// [`PrepositionalPhraseCoordination`](super::phrase::PrepositionalPhraseCoordination)
+/// and [`TriggerConditionCoordination`](crate::syntax::TriggerConditionCoordination)
+/// — `comma == conjunction.is_none() || rest.len() >= 2` — mismatches 303 of
+/// 31685 faces here (a plain `comma == true` constant is worse still, missing
+/// 1016: most two-member clause coordinations do *not* take a comma). Adding
+/// the `Then`-aware refinement that fixed
+/// [`CoordinationJunction`] (also force a comma whenever `conjunction ==
+/// Some(PredicateConjunction::Then)`, which is 180/180 exact here too) cuts
+/// the miss to 127 residual faces, all two-member `and`/`or` coordinations
+/// that keep the comma despite the count rule predicting none.
+///
+/// The residue is not a further structural pattern: the *same* continuation
+/// text, following a first clause of the *same* [`IndependentClause`]
+/// variant, takes the comma on one card and not another. Gelid Shackles
+/// ("Enchanted creature can't block, **and** its activated abilities can't be
+/// activated.", first clause 4 words) takes the comma; Dovin Baan ("target
+/// creature gets -3/-0 **and** its activated abilities can't be activated.",
+/// 11 words) and Edifice of Authority (10 words) do not — the opposite of
+/// what a first-conjunct length/complexity rule would predict, on the
+/// identical second conjunct. Likewise "you/they may spend mana as though it
+/// were mana of any color…" takes a comma on Share the Spoils, Gale's
+/// Redirection, Covetous Urge, Cunning Rhetoric and Mezzio Mugger but not on
+/// Daxos of Meletis, Grenzo Havoc Raiser, Hurl Through Hell, Robber of the
+/// Rich or The Ruinous Powers, again with no AST-visible distinguishing
+/// feature. This is Oracle text's own serial-comma-before-a-coordinating-
+/// conjunction styling drifting across printings/authors, not a grammar rule
+/// the parser can recover, so the bit stays stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClauseCoordination {
     pub conjunction: Option<PredicateConjunction>,
