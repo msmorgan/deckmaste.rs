@@ -176,7 +176,14 @@ impl OracleText {
 /// - `Cost` → `Renderer::cost`, which owns the `, ` joins and the
 ///   first-lexical-component capitalization.
 /// - `KeywordLine` → `Renderer::keyword_ability_list(_, suppress_final_period:
-///   false)`, the flag a non-quoted keyword line always carries.
+///   false)` followed by [`capitalize_first`]. `AbilityKind::Keyword` is the
+///   one ability kind whose renderer method does *not* take a `capitalize`
+///   flag: `Renderer::ability` applies `capitalize_first` to the finished body
+///   instead, and it is passed `capitalize: true` from every whole-card
+///   position (`Renderer::oracle_text` at ability head, `nested_ability` for a
+///   quoted or embedded one). Keyword atoms preserve their source spelling, so
+///   omitting this step would render a lowercase-initial line (`first strike,
+///   flying`) differently as a fragment than as a card.
 /// - `Ability` → `Renderer::ability(_, capitalize: true, suppress_final_period:
 ///   false)`, byte-identical to what `Renderer::oracle_text` passes for a
 ///   single-line card.
@@ -184,12 +191,14 @@ impl OracleText {
 /// # Position
 ///
 /// A fragment renders as if it stood at the head of its own ability, because
-/// that is the only position a fragment has. Capitalization above the fragment
-/// belongs to the enclosing node and is therefore absent here: a `Nominal`
-/// never capitalizes itself (a sentence-initial nominal is capitalized by
-/// `Renderer::sentence`), and a `Sentence` capitalizes as
-/// `Renderer::paragraph`'s sentences do — with the one card-internal exception
-/// that a **triggered ability's effect** paragraph passes
+/// that is the only position a fragment has. So the three kinds that *can*
+/// head an ability — `Sentence`, `KeywordLine`, `Ability` — take the
+/// capitalization a card gives them there, and `Nominal` does not, because no
+/// nominal ever heads an ability: a sentence-initial nominal is capitalized by
+/// `Renderer::sentence`, above the fragment.
+///
+/// One card-internal position differs from ability head: a **triggered
+/// ability's effect** paragraph is rendered with
 /// `capitalize_first_sentence: false`, so its first sentence stays lowercase
 /// after the `When …, ` frame. Text that occupies that position must be
 /// rendered as part of its `Ability`, not as a bare `Sentence`; the ability
@@ -212,7 +221,9 @@ pub(crate) fn render_fragment(
         Fragment::Nominal(noun_phrase) => renderer.noun_phrase(noun_phrase),
         Fragment::Sentence(sentence) => renderer.sentence(sentence, true, false),
         Fragment::Cost(cost) => renderer.cost(cost),
-        Fragment::KeywordLine(list) => renderer.keyword_ability_list(list, false),
+        Fragment::KeywordLine(list) => renderer
+            .keyword_ability_list(list, false)
+            .map(capitalize_first),
         Fragment::Ability(ability) => renderer.ability(ability, true, false),
     }
 }

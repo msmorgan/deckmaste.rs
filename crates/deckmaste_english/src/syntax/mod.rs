@@ -62,23 +62,11 @@ impl crate::fragment::Fragment {
     /// `RecoveredText`-bearing node rather than an error, and a quoted
     /// ability's interior is parsed by a nested `Parser` whose diagnostics
     /// never reach the outer report at all.
-    #[must_use]
-    pub fn recoveries(&self) -> Vec<RecoveryRef<'_>> {
-        self.walk().phrases
-    }
-
-    /// Every lexically opaque noun or flavor header inside this fragment.
     ///
-    /// Opacity is *not* a defect — an unknown noun staying explicit is the
-    /// crate's design — so it is deliberately absent from
-    /// [`crate::FragmentReport::clean`]. It is surfaced separately for callers
-    /// that want to insist a template's vocabulary is fully known.
-    #[must_use]
-    pub fn lexical_opacity(&self) -> Vec<LexicalOpacityRef<'_>> {
-        self.walk().lexical_opacity
-    }
-
-    fn walk(&self) -> RecoveryWalker<'_> {
+    /// Crate-internal: the public reader is
+    /// [`crate::FragmentReport::recoveries`], which is where a caller holding
+    /// a parse result looks.
+    pub(crate) fn recoveries(&self) -> Vec<RecoveryRef<'_>> {
         use crate::fragment::Fragment;
 
         let mut walker = RecoveryWalker::default();
@@ -89,7 +77,7 @@ impl crate::fragment::Fragment {
             Fragment::KeywordLine(list) => walker.keyword_ability_list(list, None),
             Fragment::Ability(ability) => walker.ability(ability, None),
         }
-        walker
+        walker.phrases
     }
 }
 

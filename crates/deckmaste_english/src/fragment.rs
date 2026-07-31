@@ -61,6 +61,8 @@ use crate::syntax::Sentence;
 /// [`Self::Nominal`] and [`Self::Sentence`] are chart nonterminals;
 /// [`Self::Cost`], [`Self::KeywordLine`] and [`Self::Ability`] have **no**
 /// chart rules at all and live entirely in the hand-written ability layer.
+// `Serialize` is load-bearing, not incidental: the bridge crate builds its
+// `View` tree from a fragment through `deckmaste_frames::view::of<T: Serialize>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum FragmentKind {
     /// A noun phrase — `creature you control`, `a 1/1 white Soldier creature
@@ -99,6 +101,9 @@ pub enum FragmentKind {
               position, boxed nowhere else; adding indirection solely to equalize variant \
               sizes would make a fragment a different value from the subtree it splices into"
 )]
+// `Serialize` is load-bearing, not incidental: the bridge crate builds its
+// `View` tree from a fragment through `deckmaste_frames::view::of<T: Serialize>`.
+// Every `crate::syntax` node it wraps already derives it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Fragment {
     /// See [`FragmentKind::Nominal`].
@@ -157,7 +162,13 @@ impl FragmentReport {
         self.fragment.as_ref()
     }
 
-    /// Takes the parsed subtree, dropping the diagnostics.
+    /// Takes ownership of the parsed subtree, dropping the diagnostics.
+    ///
+    /// The counterpart to
+    /// [`ParseReport::into_ast`](crate::ParseReport::into_ast), and needed for
+    /// the same reason: a frame compiler *stores* the compiled tree past the
+    /// report and past the source string, so borrowing from
+    /// [`Self::fragment`] would force a clone of the whole subtree.
     #[must_use]
     pub fn into_fragment(self) -> Option<Fragment> {
         self.fragment
@@ -173,6 +184,12 @@ impl FragmentReport {
 
     /// Every recovered span inside the parsed subtree, or empty when there is
     /// no subtree.
+    ///
+    /// This is the only channel that reports *what* went wrong when
+    /// [`Self::clean`] is false but [`Self::diagnostics`] is empty — a quoted
+    /// ability's interior is parsed by a nested parser whose diagnostics never
+    /// reach this report, so the recovered spelling is all a caller has to name
+    /// in an error message.
     #[must_use]
     pub fn recoveries(&self) -> Vec<crate::syntax::RecoveryRef<'_>> {
         self.fragment
@@ -193,10 +210,13 @@ impl FragmentReport {
     /// recovery walk catches what the diagnostic list cannot.
     ///
     /// Lexical *opacity* — an unknown noun kept explicit rather than guessed —
-    /// is deliberately not a defect here: it is how the crate represents
-    /// vocabulary it does not know, and the supported corpus is full of it.
-    /// Callers that want to insist on known vocabulary read
-    /// [`Fragment::lexical_opacity`] themselves.
+    /// is deliberately **not** a defect here: it is how the crate represents
+    /// vocabulary it does not know, and the supported corpus is full of it. A
+    /// fragment whose noun is not in the catalogs is therefore clean, and
+    /// round-trips byte-exactly. No opacity reader is exposed for a fragment
+    /// until a caller needs one; the whole-card
+    /// [`OracleText::lexical_opacity`](crate::syntax::OracleText) is the
+    /// existing precedent to follow if one does.
     #[must_use]
     pub fn clean(&self) -> bool {
         self.diagnostics.is_empty()
@@ -429,9 +449,41 @@ mod tests {
         }
     }
 
+    /// Keyword atoms preserve their source spelling, so a lowercase-initial
+    /// keyword line is the case that distinguishes "capitalized at ability
+    /// head" from "reproduced verbatim". A card capitalizes it —
+    /// `AbilityKind::Keyword` is the one kind whose renderer method takes no
+    /// `capitalize` flag, because `Renderer::ability` capitalizes the finished
+    /// body instead — and the fragment path must agree byte-for-byte.
+    #[test]
+    fn a_lowercase_initial_keyword_line_capitalizes_exactly_as_a_card_does() {
+        let catalogs = catalogs();
+        let text = "first strike, flying";
+
+        let whole_card = crate::parse_with_identity(text, &catalogs, "", false)
+            .into_ast()
+            .render("", false)
+            .expect("the whole-card path renders");
+        assert_eq!(
+            whole_card, "First strike, flying",
+            "control: a card capitalizes its keyword line"
+        );
+
+        let report = parse_fragment(text, &catalogs, FragmentKind::KeywordLine, "", false);
+        assert!(report.clean(), "{:?}", report.diagnostics());
+        let fragment = report.fragment().expect("keyword-line fragment");
+        assert_eq!(
+            render_fragment(fragment, "", false).expect("fragment renders"),
+            whole_card
+        );
+    }
+
     /// The one thing `clean` must not be is "the parser returned something".
     /// The ability layer is total, so unparseable text still yields a
     /// fragment — with a recovery inside it and a diagnostic beside it.
+    ///
+    /// Also pins what `recoveries` is *for*: naming the offending run in a
+    /// caller's error message.
     #[test]
     fn recovered_text_is_not_clean_even_though_a_fragment_exists() {
         let report = parse_fragment(
@@ -442,8 +494,30 @@ mod tests {
             false,
         );
         assert!(report.fragment().is_some());
-        assert!(!report.recoveries().is_empty());
         assert!(!report.clean());
+        let recoveries = report.recoveries();
+        let [recovery] = recoveries.as_slice() else {
+            panic!("expected exactly one recovery, got {recoveries:?}");
+        };
+        assert_eq!(recovery.role, crate::syntax::RecoveryRole::Clause);
+        assert_eq!(recovery.text, "Zzzz qqqq wwww.");
+    }
+
+    /// A compiled frame outlives the report and the source it was parsed from,
+    /// so the subtree has to be takeable rather than borrowed.
+    #[test]
+    fn a_fragment_can_be_taken_and_outlive_its_source() {
+        let source = String::from("creature you control");
+        let fragment = parse_fragment(&source, &catalogs(), FragmentKind::Nominal, "", false)
+            .into_fragment()
+            .expect("nominal fragment");
+        drop(source);
+
+        assert_eq!(fragment.kind(), FragmentKind::Nominal);
+        assert_eq!(
+            render_fragment(&fragment, "", false).expect("renders"),
+            "creature you control"
+        );
     }
 
     /// A chart category that declines has no subtree at all, and mints the
