@@ -1279,21 +1279,54 @@ mod tests {
         assert!(format!("{error:#}").contains("pre-bound"), "{error:#}");
     }
 
+    /// A frame whose guard names a non-ground constant does not compile, and
+    /// `compile` propagates the refusal rather than swallowing it.
+    ///
+    /// This is the *propagation* test; the groundness invariant itself is
+    /// carried by `guard::tests::ensure_ground_rejects_a_free_param_term`,
+    /// which drives `ensure_ground` directly. In this path the refusal comes
+    /// from `macro_ron`'s reader, one layer below `ensure_ground` — see that
+    /// function's reachability note — so the assertion is on the reader's own
+    /// wording.
+    ///
+    /// It must be on *that* wording and not on "Param": the error's context
+    /// is `in frame "draw <Param(1)> cards"`, which contains "Param" for
+    /// every failure this frame could have. The control below pins exactly
+    /// that — the same frame failing for an unrelated reason must not satisfy
+    /// the assertion.
     #[test]
-    fn a_guard_constant_must_be_ground() {
-        let error = compile(
-            &FrameSpec {
-                text: "draw <Param(1)> cards".into(),
-                when: vec![(0, "Param(0)".to_string())],
-                position: None,
-            },
-            FragmentKind::Sentence,
-            &draw_params(),
-            &Catalogs::default(),
-            &reader(),
-        )
-        .unwrap_err();
-        assert!(format!("{error:#}").contains("Param"), "{error:#}");
+    fn a_frame_whose_guard_is_not_ground_does_not_compile() {
+        const REFUSAL: &str = "outside any macro expansion";
+
+        let frame = |guard: &str, text: &str| FrameSpec {
+            text: text.into(),
+            when: vec![(0, guard.to_string())],
+            position: None,
+        };
+        let compile_one = |spec: FrameSpec| {
+            compile(
+                &spec,
+                FragmentKind::Sentence,
+                &draw_params(),
+                &Catalogs::default(),
+                &reader(),
+            )
+        };
+
+        let error = compile_one(frame("Param(0)", "draw <Param(1)> cards")).unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains(REFUSAL), "{message}");
+
+        // Control: the same frame family failing for an unrelated reason. Its
+        // message still contains "Param" (from the context), which is why the
+        // assertion above cannot be spelled that way.
+        let other = compile_one(frame("You", "draw 41 <Param(1)> cards")).unwrap_err();
+        let other = format!("{other:#}");
+        assert!(other.contains("Param"), "the context always does: {other}");
+        assert!(
+            !other.contains(REFUSAL),
+            "the assertion must not be satisfiable by an unrelated failure: {other}"
+        );
     }
 
     /// A mass-noun frame exercises the verb half of the side table on its
