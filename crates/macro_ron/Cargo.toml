@@ -15,9 +15,3 @@ elsa = "1.11.2"
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 macro_ron_derive = { version = "0.1.0", path = "../macro_ron_derive", optional = true }
-# `MacroDef.frames` is typed `Vec<FrameSpec>` from the frames crate's schema
-# module. This is the one direction that dependency arrow can point: `schema`
-# has no dependency on `macro_ron`, so no cycle, and any future frames logic
-# that needs `MacroSet` itself has to live outside `deckmaste_frames` (or in
-# a third crate) rather than here.
-deckmaste_frames = { version = "0.1.0", path = "../deckmaste_frames" }

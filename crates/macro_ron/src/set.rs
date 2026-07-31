@@ -31,7 +31,6 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use deckmaste_frames::FrameSpec;
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -45,6 +44,7 @@ use serde::de::Visitor;
 
 use crate::Ident;
 use crate::IdentSeed;
+use crate::frames::FrameSpec;
 use crate::kind::KindSet;
 use crate::param::ParamType;
 use crate::param::ParamTypeSet;
@@ -144,7 +144,7 @@ pub struct MacroDef {
     pub plural: Option<String>,
     /// English renderings of this macro, with the guard that decides which
     /// applies when more than one is defined — see
-    /// [`FrameSpec`](deckmaste_frames::FrameSpec). Defaults to empty, so
+    /// [`FrameSpec`](crate::frames::FrameSpec). Defaults to empty, so
     /// every macro file predating this field still loads unchanged. A bare
     /// string in the list (`frames: ["draw <Param(1)> cards"]`) is sugar for
     /// an unguarded frame; `FrameSpec`'s own `Deserialize` impl resolves the

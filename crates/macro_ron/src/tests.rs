@@ -1293,7 +1293,7 @@ fn frames_field_bare_string_is_unguarded() {
             frames: ["draw <Param(1)> cards"], body: Batch(Param(0), By(You, DrawCard)))"#);
     assert_eq!(
         d.frames(),
-        &[deckmaste_frames::FrameSpec::bare("draw <Param(1)> cards")]
+        &[crate::frames::FrameSpec::bare("draw <Param(1)> cards")]
     );
 }
 
@@ -1307,7 +1307,7 @@ fn frames_field_full_form_carries_guard() {
     let frame = &d.frames()[0];
     assert_eq!(frame.text, "draw <Param(1)> cards");
     assert_eq!(frame.when, vec![(0, "You".to_string())]);
-    assert_eq!(frame.position, Some(deckmaste_frames::FramePosition::Main));
+    assert_eq!(frame.position, Some(crate::frames::FramePosition::Main));
 }
 
 /// Both spellings coexist in one `frames:` list, and both round-trip.
@@ -1322,13 +1322,13 @@ fn frames_field_mixes_bare_and_full_spellings() {
     assert_eq!(d.frames().len(), 2);
     assert_eq!(
         d.frames()[0],
-        deckmaste_frames::FrameSpec::bare("draw <Param(1)> cards")
+        crate::frames::FrameSpec::bare("draw <Param(1)> cards")
     );
     assert_eq!(d.frames()[1].when, vec![(0, "You".to_string())]);
     assert_eq!(d.frames()[1].position, None);
 
     let round_tripped = options().to_string(&d.frames()[0]).unwrap();
-    let back: deckmaste_frames::FrameSpec = options().from_str(&round_tripped).unwrap();
+    let back: crate::frames::FrameSpec = options().from_str(&round_tripped).unwrap();
     assert_eq!(back, d.frames()[0]);
 }
 

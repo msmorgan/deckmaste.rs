@@ -14,9 +14,12 @@ workspace = true
 # `derive` is needed by the crate's own driver as well as by callers'
 # `#[derive(Serialize)]` types fed into it.
 serde = { version = "1.0.228", features = ["derive"] }
-# `schema`'s `FrameSpec`/`ConstructorFrames` are plain data, read directly —
-# no macro expansion involved (that's `macro_ron`'s job, kept out of this
-# crate's dependency graph so `macro_ron` can depend on `schema` for
-# `MacroDef.frames` without a cycle) — so a bare `ron` read suffices.
-ron = "0.12.1"
-anyhow = "1.0.102"
+# The frame authoring schema (`FrameSpec`, `ConstructorFrames`,
+# `load_constructor_frames`) lives in `macro_ron::frames`, not here:
+# `MacroDef.frames` needs the type, so schema lives with that data; this
+# crate is the engine that will consume it (and eventually `MacroSet`
+# itself, to expand macro bodies), so the dependency arrow points this way,
+# not the reverse — the reverse direction is what caused the cycle this
+# arrangement fixes. `deckmaste_english` and `deckmaste_core` are expected
+# additions in later tasks; not added now since nothing here needs them yet.
+macro_ron = { version = "0.1.0", path = "../macro_ron" }

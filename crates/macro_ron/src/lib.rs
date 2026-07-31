@@ -23,6 +23,7 @@ extern crate self as macro_ron;
 
 mod expand;
 mod expansion;
+pub mod frames;
 mod ident;
 mod kind;
 mod param;

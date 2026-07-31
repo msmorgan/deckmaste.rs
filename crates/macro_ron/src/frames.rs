@@ -6,27 +6,45 @@
 //! `docs/superpowers/research/2026-07-30-macro-frames/macro-schema-census.md`
 //! §6).
 //!
-//! A frame's text carries two hole sigils, read by a later stage in this
-//! crate: `~` (self-reference) and `<Param(i)>` (positional). This module
-//! only carries the strings through serde — it never parses them — so they
-//! must round-trip byte-for-byte.
+//! Lives in `macro_ron`, not the `deckmaste_frames` bridge crate: schema
+//! lives with the data (`MacroDef.frames` needs this type; see
+//! [`crate::set::MacroDef`]), and the engine (`deckmaste_frames`, which will
+//! need `macro_ron::MacroSet` itself to actually expand macro bodies)
+//! depends on the schema, not the other way around — the reverse arrow
+//! would cycle. This module has no dependency beyond `serde` and `ron`
+//! (already `macro_ron` dependencies) and no English/rendering knowledge.
+//!
+//! A frame's text carries two hole sigils, read by a later stage
+//! (`deckmaste_frames`): `~` (self-reference) and `<Param(i)>` (positional).
+//! This module only carries the strings through serde — it never parses
+//! them — so they must round-trip byte-for-byte.
 //!
 //! **The guard model.** A guard is a set of param pre-bindings (`when: [(0,
-//! "You")]` — param index paired with the *normalized RON serialization* of
-//! the required constant) plus an optional syntactic-position key. At render
-//! time the most-specific satisfied guard wins; at match time a guarded
-//! frame recovers its pre-bound params even though no hole for them surfaces
-//! in the text. This is per-macro (or per-constructor) data rather than a
-//! global rule because the alternation it encodes doesn't reduce to one: the
-//! corpus shows imperative "Gain N life" at 0 attestations against 236 "You
-//! gain N life", while imperative "Draw …" is 641 against a mere 58 "You
-//! draw" — opposite skews for verbs that look symmetric on paper (see
+//! "You")]` — param index paired with a RON spelling of the required
+//! constant) plus an optional syntactic-position key. At render time the
+//! most-specific satisfied guard wins; at match time a guarded frame
+//! recovers its pre-bound params even though no hole for them surfaces in
+//! the text. Guard satisfaction itself is defined on *fully-expanded
+//! canonical form* — parse the guard string as a RON term, run
+//! `expand_all`, and compare the resulting `View` against the card-side
+//! argument run through the same function — so the stored string may be any
+//! parseable RON spelling of the constant (`"Exactly(1)"`, not necessarily
+//! some single "normalized" text); that normalizer is a later stage's job
+//! (Task 4), not this module's — this module stores guard strings verbatim,
+//! with no semantics attached.
+//!
+//! This is per-macro (or per-constructor) data rather than a global rule
+//! because the alternation it encodes doesn't reduce to one: the corpus
+//! shows imperative "Gain N life" at 0 attestations against 236 "You gain N
+//! life", while imperative "Draw …" is 641 against a mere 58 "You draw" —
+//! opposite skews for verbs that look symmetric on paper (see
 //! `docs/superpowers/research/2026-07-30-macro-frames/corpus-alternation.md`).
 
+use std::fmt;
+use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::Context as _;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -47,9 +65,10 @@ pub enum FramePosition {
 
 /// One English rendering of a macro or constructor: `text` carries the hole
 /// sigils (`~`, `<Param(i)>`), `when` is the guard's param pre-bindings
-/// (param index paired with the normalized RON serialization of the
-/// required constant), and `position` is the guard's optional syntactic-
-/// position key. An unguarded frame has both empty/absent.
+/// (param index paired with a RON spelling of the required constant,
+/// compiled to expanded canonical form at guard-check time — see the
+/// module doc), and `position` is the guard's optional syntactic-position
+/// key. An unguarded frame has both empty/absent.
 ///
 /// Authored two ways in a `frames:` list, and both must deserialize (and
 /// round-trip) to this same struct: a bare string is sugar for an unguarded
@@ -67,7 +86,7 @@ pub enum FramePosition {
 ///
 /// The sugar is implemented by [`FrameSpecRepr`] below (an untagged serde
 /// intermediate), not by hand-parsing: `MacroDef`'s own deserialization
-/// (`macro_ron::set`) is fully serde-driven, so `#[serde(untagged)]` applies
+/// (`crate::set`) is fully serde-driven, so `#[serde(untagged)]` applies
 /// directly.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrameSpec {
@@ -152,6 +171,13 @@ impl<'de> Deserialize<'de> for FrameSpec {
     }
 }
 
+/// **Asymmetric by design, not merely permissively lenient**: an unguarded
+/// `FrameSpec` (`when` empty, `position` absent) always serializes to the
+/// bare string spelling, never the padded struct form — the guarded case is
+/// the only one that pays for the full `(text: ..., when: ..., position:
+/// ...)` shape. A reader who lands here directly (rather than via the
+/// module doc) should not expect `Serialize`/`Deserialize` to be mirror
+/// images of a single canonical shape.
 impl Serialize for FrameSpec {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         FrameSpecRepr::from(self).serialize(serializer)
@@ -163,14 +189,60 @@ impl Serialize for FrameSpec {
 /// `"GainLife"`), `params` names each positional hole's type in the order
 /// the catalog's frames reference them (`<Param(0)>` is `params[0]`, and so
 /// on), and `frames` are its English renderings, same shape and guard model
-/// as [`MacroDef::frames`](https://docs.rs/macro_ron) (`FrameSpec` is
-/// shared between the two — a guard means the same thing whether it guards
-/// a macro's frame or a constructor's).
+/// as [`MacroDef::frames`](crate::set::MacroDef) (`FrameSpec` is shared
+/// between the two — a guard means the same thing whether it guards a
+/// macro's frame or a constructor's).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ConstructorFrames {
     pub constructor: String,
     pub params: Vec<String>,
     pub frames: Vec<FrameSpec>,
+}
+
+/// Why [`load_constructor_frames`] failed: an I/O error reading a directory
+/// or file, or a RON parse error, each carrying the path it happened at.
+/// `macro_ron`-native (no `anyhow` dependency here) — implements
+/// [`std::error::Error`] so `anyhow`-using callers (every current caller)
+/// still get `?`-conversion for free via `anyhow`'s blanket `From<E: Error>`.
+#[derive(Debug)]
+pub enum LoadError {
+    Io {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Parse {
+        path: PathBuf,
+        // Boxed: `ron::error::SpannedError` is ~128 bytes, which would make
+        // `Result<_, LoadError>` itself large enough to trip
+        // `clippy::result_large_err` at every call site.
+        source: Box<ron::error::SpannedError>,
+    },
+}
+
+impl fmt::Display for LoadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LoadError::Io { path, source } => {
+                write!(f, r#"reading "{}": {source}"#, path.display())
+            }
+            LoadError::Parse { path, source } => {
+                write!(
+                    f,
+                    r#"parsing "{}" as constructor frames: {source}"#,
+                    path.display()
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for LoadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            LoadError::Io { source, .. } => source,
+            LoadError::Parse { source, .. } => source.as_ref(),
+        })
+    }
 }
 
 /// Reads every `constructors.ron`-shaped catalog file under `dir` (each file
@@ -183,13 +255,18 @@ pub struct ConstructorFrames {
 /// # Errors
 /// If `dir` exists but isn't readable, or a file under it isn't valid UTF-8
 /// or doesn't parse as `Vec<ConstructorFrames>`.
-pub fn load_constructor_frames(dir: &Path) -> anyhow::Result<Vec<ConstructorFrames>> {
+pub fn load_constructor_frames(dir: &Path) -> Result<Vec<ConstructorFrames>, LoadError> {
     let mut entries = Vec::new();
     for path in ron_files_recursive(dir)? {
-        let source = std::fs::read_to_string(&path)
-            .with_context(|| format!(r#"reading "{}""#, path.display()))?;
-        let file: Vec<ConstructorFrames> = ron::from_str(&source)
-            .with_context(|| format!(r#"parsing "{}" as constructor frames"#, path.display()))?;
+        let source = std::fs::read_to_string(&path).map_err(|source| LoadError::Io {
+            path: path.clone(),
+            source,
+        })?;
+        let file: Vec<ConstructorFrames> =
+            ron::from_str(&source).map_err(|source| LoadError::Parse {
+                path: path.clone(),
+                source: Box::new(source),
+            })?;
         entries.extend(file);
     }
     Ok(entries)
@@ -197,21 +274,31 @@ pub fn load_constructor_frames(dir: &Path) -> anyhow::Result<Vec<ConstructorFram
 
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
 /// empty. Mirrors `deckmaste_cards::plugin::ron_files_recursive` (kept as a
-/// private copy rather than a shared dependency: `deckmaste_frames` must not
-/// depend on `deckmaste_cards`, which itself depends on `macro_ron`, which
-/// depends on `deckmaste_frames` for this very schema — see the crate-level
-/// dependency note on [`load_constructor_frames`]).
-fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+/// private copy rather than a shared dependency: `macro_ron` must not
+/// depend on `deckmaste_cards`, which itself depends on `macro_ron` — that
+/// would cycle just as surely as the arrow this module's relocation was
+/// fixing).
+fn ron_files_recursive(dir: &Path) -> Result<Vec<PathBuf>, LoadError> {
     if !dir.exists() {
         return Ok(vec![]);
     }
-    let context = || format!(r#"reading "{}""#, dir.display());
+    let io_err = |source| LoadError::Io {
+        path: dir.to_path_buf(),
+        source,
+    };
     let mut files = Vec::new();
     let mut subdirs = Vec::new();
-    for entry in dir.read_dir().with_context(context)? {
-        let entry = entry.with_context(context)?;
+    for entry in dir.read_dir().map_err(io_err)? {
+        let entry = entry.map_err(io_err)?;
         let path = entry.path();
-        if entry.file_type().with_context(context)?.is_dir() {
+        if entry
+            .file_type()
+            .map_err(|source| LoadError::Io {
+                path: path.clone(),
+                source,
+            })?
+            .is_dir()
+        {
             subdirs.push(path);
         } else if path.extension().is_some_and(|ext| ext == "ron") && path.is_file() {
             files.push(path);
@@ -306,5 +393,18 @@ mod tests {
     fn load_constructor_frames_of_absent_dir_is_empty() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("does/not/exist");
         assert_eq!(load_constructor_frames(&dir).unwrap(), vec![]);
+    }
+
+    #[test]
+    fn load_error_implements_std_error_with_a_source() {
+        // The `anyhow`-free contract Ruling A's controller sub-ruling
+        // requires: callers using `anyhow::Result` still get `?` for free
+        // via `anyhow`'s blanket `From<E: std::error::Error>`.
+        fn assert_error<E: std::error::Error + 'static>() {}
+        assert_error::<LoadError>();
+
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        let err = load_constructor_frames(&dir).unwrap_err();
+        assert!(std::error::Error::source(&err).is_some());
     }
 }

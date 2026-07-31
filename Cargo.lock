@@ -496,8 +496,7 @@ dependencies = [
 name = "deckmaste_frames"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "ron",
+ "macro_ron",
  "serde",
 ]
 
@@ -861,7 +860,6 @@ dependencies = [
 name = "macro_ron"
 version = "0.1.0"
 dependencies = [
- "deckmaste_frames",
  "elsa",
  "macro_ron_derive",
  "ron",
