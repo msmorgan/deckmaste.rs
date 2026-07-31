@@ -1590,7 +1590,6 @@ impl<'identity> Renderer<'identity> {
     fn relative_clause(&self, clause: &RelativeClause) -> Result<String, RenderError> {
         let mut marker = match clause.marker {
             RelativeMarker::That => "that",
-            RelativeMarker::Which => "which",
             RelativeMarker::Who => "who",
             RelativeMarker::Zero => "",
         }

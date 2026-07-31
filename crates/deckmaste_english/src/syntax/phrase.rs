@@ -190,16 +190,46 @@ impl PowerToughness {
 /// `fewer`/`less` at or below it — is preserved here so the renderer replays
 /// the exact word rather than guessing one from the bound's direction.
 ///
-/// **Measured, field KEPT** (surface-fact diet, 2026-07-30 measurement
-/// round): direction (`more`/`greater` vs `fewer`/`less`) is semantic and was
-/// never a candidate for deletion. The within-direction lexical choice
-/// (`more` vs `greater`; `fewer` vs `less`) is not derivable from the head
-/// class and direction either: a genuine minimal pair exists on the
-/// supported corpus. `total power 2 or more` (Adventurer's Airship) and
-/// `total power 8 or greater` (Atarka Beastbreaker) share the identical head
-/// class (`total power`) and the identical floor direction, yet differ in
-/// which word is used. No head-class rule (count/mass or otherwise)
-/// predicts this; the field stays stored.
+/// **Re-measured, field KEPT** (surface-fact sweep-residue, 2026-07-30
+/// measurement round). Direction (`more`/`greater` vs `fewer`/`less`) is
+/// semantic and stays out of scope. The earlier refutation's cited minimal
+/// pair — `total power 2 or more` (Adventurer's Airship) vs `total power 8
+/// or greater` (Atarka Beastbreaker) — does **not** hold up: Adventurer's
+/// Airship's "2 or more" is inside Crew's reminder text, which is stripped
+/// before parsing and never reaches this field at all, so the two witnesses
+/// were never a same-frame pair to begin with.
+///
+/// The *frame* hypothesis this round was asked to test (qualifier `with
+/// power N or …` vs predicate `have total power N or …`) is also wrong, but
+/// informatively: both frames behave **identically**. On the supported
+/// corpus, every postnominal quantity complement attached to a scalar
+/// characteristic head — `power` (395 witnesses), `toughness` (46), mana
+/// `value` (443) — takes `greater`/`less` with **zero** exceptions,
+/// regardless of whether the phrase is a qualifier or a predicate
+/// complement. Corroborating the zero-occurrence fact this round confirmed:
+/// `with power N or more` never occurs on the corpus; `with power N or
+/// greater` is well attested. So frame is not the discriminator — **head
+/// class** is, and three classes emerge:
+/// - scalar characteristics (`power`, `toughness`, mana `value`): always
+///   `greater`/`less`, no exceptions found;
+/// - count nouns (`creatures`, `cards`, `lands`, counters, tokens, …): always
+///   `more`/`fewer`;
+/// - mass magnitudes (`life`, `damage`, `mana`): a third, hybrid pair — `more`
+///   for the floor, `less` for the ceiling — never `greater`, essentially never
+///   `fewer`.
+///
+/// This is close but not exact: Lesser Werewolf prints "this creature's
+/// power is 1 or **more**" where every other `power`-headed copular
+/// predicate in the corpus (e.g. Bloodshot Trainee's "this creature's power
+/// is 4 or **greater**") uses `greater`. Gore Vassal's "toughness is 1 or
+/// greater" rules out a floor-value-driven exception, so this one witness
+/// looks like a genuine, isolated inconsistency in printed Oracle text
+/// rather than a rule. Headless copular predicates (`X is N or greater`,
+/// `the number of Y is N or greater`) also pattern with the scalar class
+/// even with no noun in the complement itself, which is exactly why this
+/// round could not turn the head-class rule into a safe derivation: it
+/// requires tracing the antecedent across a clause boundary the renderer
+/// does not currently carry context for. Field stays stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum ComparativeWord {
     Fewer,

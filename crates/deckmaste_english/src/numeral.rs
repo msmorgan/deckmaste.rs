@@ -48,6 +48,52 @@ const ROMAN_PARTS: [(u32, &str); 13] = [
 ];
 
 /// The notation used to format an integer.
+///
+/// **Measured, field KEPT** (surface-fact sweep-residue, 2026-07-30
+/// measurement round). On the supported corpus `NumberLiteral.numeral` takes
+/// three values: 8,197 `Cardinal`, 7,948 `Arabic(false)`, 643 `Roman`
+/// (Saga/omen chapter numbers; exact, no exceptions). `Ordinal` and
+/// `Arabic(true)` (comma-grouped digits) are zero-witness in this field —
+/// not dead code (both are live parse candidates tried at every numeral
+/// slot, `Arabic(true)` is proptested in this module), just unexercised:
+/// ordinal-shaped text is captured by the separate `Adjective::Ordinal(i32)`
+/// shape instead, which carries no `Numeral` at all and always renders via
+/// hardcoded ordinal-word formatting, and no supported card writes a number
+/// ≥ 1,000.
+///
+/// The Cardinal/Arabic(false) split does **not** follow the value alone —
+/// both notations occur at nearly every value from 1 to 15. It is governed,
+/// in priority order, by:
+/// - **construction**: several fixed slots are notation-locked regardless of
+///   value or head — keyword-ability argument counts (`argument.Counted`, e.g.
+///   `Fading 3`) and roll-row/Class-level/Station-threshold numbers are always
+///   `Arabic`, Saga chapters always `Roman`;
+/// - **magnitude**: every witnessed value ≥ 100 is `Arabic` regardless of head
+///   class (Battle of Wits' "200 or more cards", Helix Pinnacle's "100 or more
+///   tower counters" — normally a `Cardinal`-class head);
+/// - **head class**, otherwise: scalar characteristics (`life`, `damage`,
+///   `power`, `toughness`, singular mana `value`) are `Arabic`; discrete count
+///   nouns (`card`, `creature`, `counter`, `land`, `token`, `mana` as a spent
+///   amount, …) are `Cardinal`. This split is exact wherever a head is
+///   structurally reachable — apparent counter-examples turned out to be a
+///   different `NumberLiteral` entirely (an arithmetic `N times X` coefficient,
+///   a nested `up to N target`/partitive `N of your opponents` count, or the
+///   `Plural` "N different mana **values**" sense, which is itself a count
+///   noun) sitting near a scalar head in the tree.
+///
+/// Two things block turning this into a safe derivation rather than a
+/// documented refutation: a large residual population where the quantity is
+/// a bare, headless `NounPhrase::Quantity` (a copular complement or modal
+/// count with no noun in the same phrase) mixes both notations exactly like
+/// [`crate::syntax::ComparativeWord`]'s headless bucket, requiring the same
+/// unimplemented antecedent-tracing across a clause boundary. And Plague of
+/// Vermin's "for each 1 life they paid this way" is stored as `Cardinal`
+/// despite the printed digit `1` — not a language exception but a
+/// **misparse**: `cargo xtask english inspect` shows "no one pays life" read
+/// as `no` + numeral `one` + noun `pays` + head `life`, an unrelated
+/// sentence, not the "each 1 life" clause at all (that sentence fails to
+/// parse completely and survives only as `RecoveredText`). Reported as a
+/// parser defect, not fixed this round. Field stays stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Numeral {
     /// Lowercase English cardinal words.

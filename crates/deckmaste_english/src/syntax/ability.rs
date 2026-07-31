@@ -593,23 +593,44 @@ pub struct PredicatedQuality {
     pub quality: Phrase,
 }
 
-/// **Measured, field KEPT** (surface-fact sweep, 2026-07-30): "always Comma"
-/// misses 34 of the 51 supported faces that print a semicolon anywhere (the
-/// other 17 have their semicolon outside a keyword list). All 34 witnesses —
-/// e.g. Longbow Archer's `First strike; reach`, Kjeldoran Skycaptain's
-/// `Flying; first strike; banding` — are classified as genuine `WotC`
-/// semicolon style, not typos or stale snapshots: neither keyword in
-/// Longbow Archer's line has an internal comma that would need
-/// disambiguating from the list separator, so nothing *visible in this AST*
-/// explains the choice. The likely real cause is invisible here: `WotC`'s
-/// print convention turns every separator in a keyword line to a semicolon
-/// when reminder text follows, and reminder text is stripped before this
-/// grammar ever sees the surface (`cargo xtask english inspect` on Longbow
-/// Archer shows the parsed/rendered text as bare `First strike; reach`, no
-/// parenthetical). So this field stores a real echo of the *original,
-/// unstripped* print that nothing else in the current AST retains. Field
-/// stays stored; recovering reminder-text context in a later round could
-/// make it derivable.
+/// **Re-measured, field KEPT** (surface-fact sweep-residue, 2026-07-30
+/// measurement round). The prior round's causal story — "genuine `WotC`
+/// semicolon style, likely tied to now-stripped reminder text" — was never
+/// checked against the actual 34 faces; it turns out to be half right.
+///
+/// All 34 witnesses (e.g. Longbow Archer's `First strike; reach`, Kjeldoran
+/// Skycaptain's `Flying; first strike; banding`) have the *pre-strip* source
+/// text confirmed by hand: in every one, the semicolon-joined list's final
+/// keyword is immediately followed by that keyword's own inline reminder
+/// parenthetical (`reach (This creature can block creatures with flying.)`,
+/// `banding (Any creatures with banding, and up to one without, …)`). This
+/// is not a stripping artifact — `strip_reminder_text` removes only the
+/// parenthesized group, so the semicolon (which precedes it) is a separate
+/// token that survives stripping intact and reaches this field unchanged.
+///
+/// But "reminder-bearing final keyword ⟹ semicolon" is not a rule the corpus
+/// supports: `Trample, myriad (Whenever this creature attacks, …)` (Elturel
+/// Survivors, Polygoyf), `Vigilance, trample (Attacking doesn't cause…)`
+/// (Spider-Man, Miles Morales), `Trample, haste (This creature can deal
+/// excess…)` (Spark Elemental), and `Swampwalk, forestwalk (This creature
+/// can't be blocked…)` (Stalker Hag) are the identical shape — a final
+/// keyword with its own inline reminder — joined with a plain comma. The
+/// real split is per-keyword: `banding`, `flanking`, `horsemanship`,
+/// `rampage`, `fear`, `bushido`, `reach`, `menace`, `convoke`, and the
+/// landwalk family never take a comma when reminder-bearing in this corpus
+/// (e.g. zero occurrences of `, banding` anywhere, vs. eleven of `;
+/// banding`), while `myriad`, `trample`, `haste`, and `forestwalk` never
+/// take a semicolon. Most of the semicolon set are long-retired mechanics
+/// (banding, flanking, rampage, horsemanship) whose "keyword + reminder"
+/// Oracle-text block looks frozen from an older print era, but `menace` and
+/// `convoke` are modern keywords with exactly one semicolon witness each, so
+/// "old keyword" is not the full story either. This looks like genuine,
+/// idiosyncratic `WotC` Oracle-text curation keyed to specific keyword
+/// identities — language, not a parser or stripping defect — but the
+/// governing fact (which keyword's canonical reminder block was authored
+/// with a leading semicolon) is external to anything this grammar retains
+/// post-strip, so it cannot be derived from the current AST. Field stays
+/// stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum KeywordListSeparator {
     Comma,

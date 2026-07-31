@@ -441,10 +441,33 @@ pub struct RelativeClause {
     pub body: RelativeBody,
 }
 
+/// The `that`/`who`/zero choice heading a subject-gap relative clause
+/// (object-gap relatives are always [`Self::Zero`] — see the
+/// `RelativeObject`/`RelativeObjectContractedSubject` lowering arms — and a
+/// contracted-subject-auxiliary relative is hardcoded to [`Self::That`]).
+///
+/// **Measured, field KEPT** (surface-fact sweep-residue, 2026-07-30
+/// measurement round). Counted on the supported corpus: 10,352 `Zero`, 1,209
+/// `That`, 143 `Who`. The raised animacy hypothesis holds almost exactly:
+/// every `Who` witness but one has a `player`/`opponent`/`players`/
+/// `opponents` antecedent (90 + 67 + 3 + 11), and all but one `player`-class
+/// antecedent among the `That` witnesses instead takes `who` (e.g. Braids,
+/// Arisen Nightmare's "each opponent **who** doesn't", Admiral Beckett
+/// Brass's "a player **who** was dealt combat damage"). The sole exception:
+/// Tymna the Weaver's "the number of opponents **that** were dealt combat
+/// damage this turn" — a near-word-for-word match to Admiral Beckett Brass's
+/// `who` phrasing, differing only in the marker. Close but not exact; field
+/// stays stored.
+///
+/// `Which` was a fourth variant with **zero construction sites** — the
+/// lexicon only ever scans `who`/`that` into this slot (see
+/// `EnglishLexicalSlot::RelativeMarker`'s surface list and its
+/// `zip([RelativeMarker::Who, RelativeMarker::That])` in `grammar/mod.rs`) —
+/// so it has been removed; the renderer's match no longer needs an arm for
+/// it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum RelativeMarker {
     That,
-    Which,
     Who,
     Zero,
 }
