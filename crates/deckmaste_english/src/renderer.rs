@@ -158,6 +158,65 @@ impl OracleText {
     }
 }
 
+/// Renders one [`Fragment`] through the production renderer, at the same
+/// method the whole-card path reaches for that node kind.
+///
+/// The dispatch lives here, next to the private `Renderer`, so no render logic
+/// is duplicated outside this module and no renderer internal has to widen its
+/// visibility. Each arm's flags are the ones the whole-card path passes when
+/// the node stands at the head of its ability:
+///
+/// - `Nominal` → `Renderer::noun_phrase`, the seam every nominal position
+///   already routes through; a noun phrase never capitalizes itself.
+/// - `Sentence` → `Renderer::sentence(_, capitalize: true, force_no_period:
+///   false)`, matching `Renderer::paragraph`'s first sentence at ability top
+///   level. The terminal period stays derived, so a sentence whose tail absorbs
+///   it (a closing quoted ability, an Aura enchant line) renders without one
+///   exactly as it does inside a card.
+/// - `Cost` → `Renderer::cost`, which owns the `, ` joins and the
+///   first-lexical-component capitalization.
+/// - `KeywordLine` → `Renderer::keyword_ability_list(_, suppress_final_period:
+///   false)`, the flag a non-quoted keyword line always carries.
+/// - `Ability` → `Renderer::ability(_, capitalize: true, suppress_final_period:
+///   false)`, byte-identical to what `Renderer::oracle_text` passes for a
+///   single-line card.
+///
+/// # Position
+///
+/// A fragment renders as if it stood at the head of its own ability, because
+/// that is the only position a fragment has. Capitalization above the fragment
+/// belongs to the enclosing node and is therefore absent here: a `Nominal`
+/// never capitalizes itself (a sentence-initial nominal is capitalized by
+/// `Renderer::sentence`), and a `Sentence` capitalizes as
+/// `Renderer::paragraph`'s sentences do — with the one card-internal exception
+/// that a **triggered ability's effect** paragraph passes
+/// `capitalize_first_sentence: false`, so its first sentence stays lowercase
+/// after the `When …, ` frame. Text that occupies that position must be
+/// rendered as part of its `Ability`, not as a bare `Sentence`; the ability
+/// renderer already threads the flag.
+///
+/// # Errors
+///
+/// Returns an error when the fragment requests a grammatical form its
+/// vocabulary identity does not define, the same conditions
+/// [`OracleText::render`] reports.
+pub(crate) fn render_fragment(
+    fragment: &crate::fragment::Fragment,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    use crate::fragment::Fragment;
+
+    let renderer = Renderer::new(name, is_legendary);
+    match fragment {
+        Fragment::Nominal(noun_phrase) => renderer.noun_phrase(noun_phrase),
+        Fragment::Sentence(sentence) => renderer.sentence(sentence, true, false),
+        Fragment::Cost(cost) => renderer.cost(cost),
+        Fragment::KeywordLine(list) => renderer.keyword_ability_list(list, false),
+        Fragment::Ability(ability) => renderer.ability(ability, true, false),
+    }
+}
+
 impl Determiner {
     /// Renders a determiner that does not require card-name context.
     ///

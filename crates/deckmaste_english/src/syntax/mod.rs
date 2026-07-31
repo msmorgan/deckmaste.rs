@@ -52,6 +52,47 @@ impl OracleText {
     }
 }
 
+impl crate::fragment::Fragment {
+    /// Every recovered span inside this fragment, the same census
+    /// [`OracleText::recoveries`] reports for a whole card.
+    ///
+    /// A fragment's recoveries are what make
+    /// [`crate::FragmentReport::clean`] more than "the parser returned
+    /// something": the ability layer is total, so an unparsed run becomes a
+    /// `RecoveredText`-bearing node rather than an error, and a quoted
+    /// ability's interior is parsed by a nested `Parser` whose diagnostics
+    /// never reach the outer report at all.
+    #[must_use]
+    pub fn recoveries(&self) -> Vec<RecoveryRef<'_>> {
+        self.walk().phrases
+    }
+
+    /// Every lexically opaque noun or flavor header inside this fragment.
+    ///
+    /// Opacity is *not* a defect — an unknown noun staying explicit is the
+    /// crate's design — so it is deliberately absent from
+    /// [`crate::FragmentReport::clean`]. It is surfaced separately for callers
+    /// that want to insist a template's vocabulary is fully known.
+    #[must_use]
+    pub fn lexical_opacity(&self) -> Vec<LexicalOpacityRef<'_>> {
+        self.walk().lexical_opacity
+    }
+
+    fn walk(&self) -> RecoveryWalker<'_> {
+        use crate::fragment::Fragment;
+
+        let mut walker = RecoveryWalker::default();
+        match self {
+            Fragment::Nominal(noun_phrase) => walker.noun_phrase(noun_phrase, None),
+            Fragment::Sentence(sentence) => walker.sentence(sentence, None),
+            Fragment::Cost(cost) => walker.cost(cost, Some(RecoveryRole::ActivationCost)),
+            Fragment::KeywordLine(list) => walker.keyword_ability_list(list, None),
+            Fragment::Ability(ability) => walker.ability(ability, None),
+        }
+        walker
+    }
+}
+
 #[derive(Default, serde::Serialize)]
 struct RecoveryWalker<'syntax> {
     phrases: Vec<RecoveryRef<'syntax>>,
@@ -131,15 +172,21 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.paragraph(&mode.body, context);
                 }
             }
-            AbilityKind::Keyword(list) => {
-                for keyword in &list.abilities {
-                    self.keyword_argument(&keyword.argument, context);
-                }
-                if let Some(trailing) = &list.trailing {
-                    self.paragraph(trailing, context);
-                }
-            }
+            AbilityKind::Keyword(list) => self.keyword_ability_list(list, context),
             AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph, context),
+        }
+    }
+
+    fn keyword_ability_list(
+        &mut self,
+        list: &'syntax KeywordAbilityList,
+        context: Option<RecoveryRole>,
+    ) {
+        for keyword in &list.abilities {
+            self.keyword_argument(&keyword.argument, context);
+        }
+        if let Some(trailing) = &list.trailing {
+            self.paragraph(trailing, context);
         }
     }
 
@@ -227,20 +274,24 @@ impl<'syntax> RecoveryWalker<'syntax> {
             });
         }
         for sentence in &paragraph.sentences {
-            match &sentence.body {
-                SentenceBody::Independent(clause) => self.independent_clause(clause, context),
-                SentenceBody::Choice(choice) => self.choice_instruction(choice, context),
-                SentenceBody::PowerToughness(_) => {}
-                SentenceBody::Triggered(triggered) => {
-                    self.trigger_event(&triggered.trigger.event, context);
-                    if let Some(condition) = &triggered.trigger.intervening_condition {
-                        self.dependent_clause(condition, context);
-                    }
-                    self.independent_clause(&triggered.effect, context);
+            self.sentence(sentence, context);
+        }
+    }
+
+    fn sentence(&mut self, sentence: &'syntax Sentence, context: Option<RecoveryRole>) {
+        match &sentence.body {
+            SentenceBody::Independent(clause) => self.independent_clause(clause, context),
+            SentenceBody::Choice(choice) => self.choice_instruction(choice, context),
+            SentenceBody::PowerToughness(_) => {}
+            SentenceBody::Triggered(triggered) => {
+                self.trigger_event(&triggered.trigger.event, context);
+                if let Some(condition) = &triggered.trigger.intervening_condition {
+                    self.dependent_clause(condition, context);
                 }
-                SentenceBody::Recovered(unknown) => {
-                    self.push(unknown, RecoveryRole::Clause, context);
-                }
+                self.independent_clause(&triggered.effect, context);
+            }
+            SentenceBody::Recovered(unknown) => {
+                self.push(unknown, RecoveryRole::Clause, context);
             }
         }
     }

@@ -158,6 +158,96 @@ pub(crate) fn parse_quoted_ability_fragment(
     }
 }
 
+/// One ability-layer category parsed on its own, with the diagnostics the
+/// private [`Parser`] accumulated while parsing it.
+///
+/// The ability layer is total — it recovers rather than failing — so the value
+/// is always present and a failure shows up as a
+/// [`AbilityDiagnosticKind::NoCompleteParse`] diagnostic beside a
+/// `RecoveredText`-bearing node. [`crate::fragment`] surfaces both.
+#[derive(Debug)]
+pub(crate) struct AbilityFragment<T> {
+    pub(crate) value: T,
+    pub(crate) diagnostics: Vec<AbilityDiagnostic>,
+}
+
+/// Parses a bare activation-cost line (`{2}{W}, Sacrifice this artifact`) with
+/// no enclosing ability, wrapping the private `Parser::parse_cost`.
+///
+/// Shaped exactly like [`parse_quoted_ability_fragment`], the crate's existing
+/// precedent for exposing an ability-layer method: build a throwaway `Parser`,
+/// call the method, and hand back what it accumulated. `Cost`,
+/// `KeywordAbilityList` and `Ability` have no chart nonterminal
+/// (`Nonterminal::{Cost, KeywordAbility, KeywordAbilityList, Ability}` carry
+/// zero rules), so this layer is the only seam for them.
+///
+/// `tokens` must already be lexed and full-name-collapsed by the caller, the
+/// same preparation [`parse_oracle_text`] receives.
+pub(crate) fn parse_cost_fragment(
+    source: &str,
+    catalogs: &Catalogs,
+    tokens: &[Token],
+    self_reference: &SelfReference,
+) -> AbilityFragment<Cost> {
+    let mut parser = Parser::new(source, catalogs, self_reference);
+    let value = parser.parse_cost(tokens);
+    AbilityFragment {
+        value,
+        diagnostics: parser.diagnostics,
+    }
+}
+
+/// Parses a bare keyword line (`Flying`, `Flying, first strike`) with no
+/// enclosing ability, wrapping the private `Parser::parse_keyword_list`.
+///
+/// Unlike the other two ability-layer seams this one is partial: the method
+/// returns `None` when the line is not a keyword line at all, and that decline
+/// is not a diagnostic — it is the ability layer's ordinary "try the next
+/// frame" signal. [`crate::fragment::FragmentReport`] turns a decline into a
+/// [`crate::DiagnosticKind::NoCompleteParse`] so an unclean fragment is
+/// unclean for one uniform reason.
+///
+/// See [`parse_cost_fragment`] for the shared wrapper shape and the `tokens`
+/// contract.
+pub(crate) fn parse_keyword_line_fragment(
+    source: &str,
+    catalogs: &Catalogs,
+    tokens: &[Token],
+    self_reference: &SelfReference,
+) -> AbilityFragment<Option<KeywordAbilityList>> {
+    let mut parser = Parser::new(source, catalogs, self_reference);
+    let value = parser.parse_keyword_list(tokens);
+    AbilityFragment {
+        value,
+        diagnostics: parser.diagnostics,
+    }
+}
+
+/// Parses one whole ability — the unit a single oracle-text line holds —
+/// wrapping the private `Parser::parse_ability`, the same method
+/// [`parse_quoted_ability_fragment`] calls for a quoted interior.
+///
+/// This is the ability-layer entry *below* [`parse_oracle_text`]'s line
+/// splitting: it accepts one line's tokens, never a multi-line body, so a
+/// modal frame's bulleted modes and a level band's stat rows are out of scope
+/// here exactly as they are for a quoted interior.
+///
+/// See [`parse_cost_fragment`] for the shared wrapper shape and the `tokens`
+/// contract.
+pub(crate) fn parse_ability_fragment(
+    source: &str,
+    catalogs: &Catalogs,
+    tokens: &[Token],
+    self_reference: &SelfReference,
+) -> AbilityFragment<Ability> {
+    let mut parser = Parser::new(source, catalogs, self_reference);
+    let value = parser.parse_ability(tokens);
+    AbilityFragment {
+        value,
+        diagnostics: parser.diagnostics,
+    }
+}
+
 struct Parser<'source, 'catalogs, 'sr> {
     source: &'source str,
     catalogs: &'catalogs Catalogs,
