@@ -301,7 +301,7 @@ pub fn compile(
 
     let mut agreement = agreement_deps(&tree, &placed);
     relocate(&mut tree, &placed);
-    normalize_all(&mut tree, &mut agreement);
+    normalize_all(&mut tree, &mut agreement, Side::Frame);
 
     let holes = placed
         .into_iter()
@@ -848,6 +848,22 @@ struct Removal {
     index: usize,
 }
 
+/// Which tree citation normalization is being applied to.
+///
+/// The rewrites are the same on both sides — that is the whole point of
+/// sharing this code with the unifier rather than letting it grow its own
+/// copy — but one rule needs to know where it is. Lifting a count out of a
+/// nominal's `modifiers` has to identify *which* modifier is the count, and
+/// on a frame that is "the one bearing this hole". A card-side tree has no
+/// holes, so there it is "the one and only quantity modifier".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Side {
+    /// A compiled frame's tree, with [`View::Hole`] nodes in it.
+    Frame,
+    /// A card-side tree being neutralized before comparison.
+    Card,
+}
+
 /// Runs citation normalization over every agreement site, keeping the whole
 /// side table's paths valid as it goes.
 ///
@@ -860,11 +876,11 @@ struct Removal {
 /// start pointing at its neighbour: `normalize_citation` would find the wrong
 /// node shape, bail, record nothing, and two authorings of the same frame
 /// would compile to different trees with no error raised.
-fn normalize_all(tree: &mut View, agreement: &mut [AgreementDep]) {
+pub(crate) fn normalize_all(tree: &mut View, agreement: &mut [AgreementDep], side: Side) {
     for index in 0..agreement.len() {
-        let site = agreement[index].site.clone();
+        let at = agreement[index].site.clone();
         let kind = agreement[index].kind;
-        let (applied, removal) = normalize_citation(tree, &site, kind);
+        let (applied, removal) = normalize_citation(tree, &at, kind, side);
         agreement[index].normalized = applied;
         if let Some(removal) = removal {
             for dep in agreement.iter_mut() {
@@ -881,15 +897,16 @@ fn normalize_citation(
     tree: &mut View,
     at: &TreePath,
     kind: AgreeKind,
+    side: Side,
 ) -> (Vec<Normalization>, Option<Removal>) {
     let mut applied = Vec::new();
     let mut removal = None;
-    let Some(site) = at.resolve_mut(tree) else {
+    let Some(node) = at.resolve_mut(tree) else {
         return (applied, None);
     };
     match kind {
         AgreeKind::VerbWithHole(_) => {
-            let View::Node { fields, .. } = site else {
+            let View::Node { fields, .. } = node else {
                 return (applied, None);
             };
             let Some((_, View::Node { fields: slot, .. })) =
@@ -925,10 +942,10 @@ fn normalize_citation(
             }
         }
         AgreeKind::NounNumberFromHole(hole) => {
-            let View::Node { fields, .. } = site else {
+            let View::Node { fields, .. } = node else {
                 return (applied, None);
             };
-            if let Some((moved, at_index)) = take_quantity_modifier(fields, hole) {
+            if let Some((moved, at_index)) = take_quantity_modifier(fields, hole, side) {
                 set_field(fields, "determiner", moved);
                 applied.push(Normalization::QuantityToDeterminer);
                 removal = Some(Removal {
@@ -952,12 +969,19 @@ fn normalize_citation(
     (applied, removal)
 }
 
-/// Takes the sole `NominalModifier::Quantity` bearing hole `hole` out of a
-/// nominal's `modifiers`, if its `determiner` is empty, and returns it
-/// re-wrapped as a `Determiner::Quantity`, with the index it came from.
+/// Takes the sole hole-bearing `NominalModifier::Quantity` out of a nominal's
+/// `modifiers`, if its `determiner` is empty, and returns it re-wrapped as a
+/// `Determiner::Quantity`, with the index it came from.
+///
+/// On [`Side::Card`] there is no hole to key off — a card's tree is holeless
+/// by construction — so the modifier is identified by being a quantity at
+/// all. The two readings coincide on every frame the compiler produces: a
+/// nominal whose number is hole-driven has exactly one count in it, which is
+/// precisely why the agreement dependency was recorded for it.
 fn take_quantity_modifier(
     fields: &mut [(&'static str, View)],
     hole: usize,
+    side: Side,
 ) -> Option<(View, usize)> {
     let determiner_is_empty = fields
         .iter()
@@ -972,10 +996,11 @@ fn take_quantity_modifier(
     let at = items.iter().position(|item| {
         item.type_name() == Some("NominalModifier")
             && item.variant_name() == Some("Quantity")
-            && item
-                .walk()
-                .iter()
-                .any(|(_, node)| matches!(node, View::Hole { index, .. } if *index == hole))
+            && (side == Side::Card
+                || item
+                    .walk()
+                    .iter()
+                    .any(|(_, node)| matches!(node, View::Hole { index, .. } if *index == hole)))
     })?;
     let View::Newtype { inner, .. } = items.remove(at) else {
         return None;
@@ -1594,7 +1619,7 @@ mod tests {
             },
         ];
 
-        normalize_all(&mut tree, &mut agreement);
+        normalize_all(&mut tree, &mut agreement, Side::Frame);
 
         // The outer nominal normalized: count lifted, head singularized.
         assert!(

@@ -32,9 +32,17 @@
 //!   [`guard::normalized`] is deliberately the *only* definition of "canonical"
 //!   in the round: compile time, match time, and render time all call it, so a
 //!   guard cannot be satisfied by one and missed by another.
+//!
+//! [`lexicon`] and [`unify`] are the matching half: every compiled frame in
+//! one place, and the walk that finds which one a piece of real English is,
+//! reading its holes' fillers back out as the arguments of the invocation
+//! that would render it. Matching is total — anything uncovered comes back
+//! as [`Recovered::Residual`] rather than as an error.
 
 pub mod compile;
 pub mod guard;
+pub mod lexicon;
+pub mod unify;
 pub mod view;
 pub mod witness;
 
@@ -46,6 +54,12 @@ pub use compile::Hole;
 pub use compile::HoleClass;
 pub use compile::Normalization;
 pub use compile::compile;
+pub use lexicon::Entry;
+pub use lexicon::Lexicon;
+pub use unify::Recovered;
+pub use unify::guard_holds;
+pub use unify::is_self_reference;
+pub use unify::unify;
 pub use view::PathStep;
 pub use view::TreePath;
 pub use view::View;
