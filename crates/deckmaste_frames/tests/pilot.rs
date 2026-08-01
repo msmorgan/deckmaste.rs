@@ -134,14 +134,19 @@ fn unique_defs(plugin: &Plugin) -> Vec<&MacroDef> {
     seen.into_values().collect()
 }
 
-/// The pilot's nine framed macro names — asserted explicitly (not just
+/// The pilot's ten framed macro names — asserted explicitly (not just
 /// counted) so a name typo or an accidental drop shows up as a named
 /// failure rather than a silent count coincidence. `ControlledByYou` and
 /// `SacrificeThis` joined this list in the fix round (see the module doc):
 /// both were originally left unframed as G5 findings, and both are now
 /// framed for different reasons (the compiler gap was fixed; the literal
 /// wording turned out to be a real, reproducible constituent all along).
-const EXPECTED_FRAMED_MACROS: [&str; 9] = [
+/// `Player` joined in Task 8's own fix round: it already existed
+/// (`kinds: [Predicate]`, used elsewhere) but had no `frames:`, exactly
+/// `Creature`'s pre-Task-6 gap — closed the same way (see
+/// `docs/superpowers/research/2026-07-30-macro-frames/
+/// pilot-constituency-findings.md`'s "Task 8, fix round 1" section).
+const EXPECTED_FRAMED_MACROS: [&str; 10] = [
     "Flying",
     "Protection",
     "DealsDamageToEach",
@@ -151,6 +156,7 @@ const EXPECTED_FRAMED_MACROS: [&str; 9] = [
     "PumpThisUntilEot",
     "ControlledByYou",
     "SacrificeThis",
+    "Player",
 ];
 
 #[test]

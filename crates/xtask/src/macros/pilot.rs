@@ -32,19 +32,35 @@
 //! cost list — sees zero coverage from this sweep; that is a disclosed gap,
 //! not a hidden one.
 //!
-//! A line is "covered" for either gate only when [`unify`] recovers a
-//! top-level [`Recovered::Invocation`] AND (for G4 specifically) every
-//! filler in that tree is itself an `Invocation` or `Literal` — never a
-//! `Residual` — because a residual carries only a captured `View` with no
-//! RON spelling ([`recovered_to_ron`] refuses it outright, honestly, rather
-//! than guessing). G3's own coverage additionally requires
-//! [`render_invocation_with`] to succeed, which fails for the identical
-//! reason (see `deckmaste_frames::render`'s own module doc). A gate's
-//! `covered`/`checked` denominator is therefore smaller than "every canon
-//! line that mentions a pilot macro" — this is the honest boundary the round
-//! ships with today, not a threshold this command loosens to manufacture a
-//! green run.
+//! **Every swept line lands in exactly one bucket per gate — nothing is
+//! silently dropped.** [`report_g3`]/[`report_g4`] print a full
+//! [`ExclusionReason`] census alongside the equal/mismatch(diverged) counts,
+//! and a debug assertion in each ties the two together
+//! (`checked/covered + excluded == lines swept`), so a line disappearing
+//! from the numbers the way a whole macro's canon coverage once did (this
+//! command's own fix-round Critical finding: every `Keyword(Flying)` line
+//! was swept, then excluded with no record at all — see the G5 findings file
+//! for the root cause and fix) cannot happen again unnoticed.
+//!
+//! G4's population is exactly the brief's literal wording: top-level
+//! `Recovered::Invocation`, any origin, full stop — **not** "and every
+//! nested filler is RON-spellable too" (a fix-round correction: it used to
+//! additionally require that, silently narrowing the denominator). A line
+//! that recovers a non-`Residual` top level but leaves an unspellable
+//! residual filler is *covered* and counted `Diverged` (with
+//! `recovered_ron: None`, see [`G4Outcome::Diverged`]) — a recovery that is
+//! provably incomplete is not asserted equal to the authored value, so it is
+//! a real divergence, not an exclusion.
+//!
+//! G3's own population is the brief's other, narrower wording — "canon usage
+//! of a pilot *macro*" — so a top-level `Origin::Constructor` match, or one
+//! [`render_invocation_with`] itself cannot render (the identical residual
+//! limitation, one level up — see `deckmaste_frames::render`'s own module
+//! doc), is excluded from G3 specifically ([`ExclusionReason::NotMacroOrigin`]/
+//! [`ExclusionReason::RenderFailed`]), recorded in its own census rather than
+//! silently dropped.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -354,23 +370,62 @@ fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
 // Per-line evaluation
 // ---------------------------------------------------------------------------
 
+/// Why one line is excluded from a gate's checked/covered population —
+/// every exit that is *not* a genuine equal/mismatch/diverged verdict has
+/// one of these, and [`report_g3`]/[`report_g4`] print a full census of
+/// them so no line disappears silently (the structural half of the fix-round
+/// Critical finding: a whole macro's canon coverage vanished into an
+/// unrecorded `NotCovered` exit).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+enum ExclusionReason {
+    /// The legacy-rendered text itself does not parse cleanly — a
+    /// `deckmaste_english` grammar gap, not this gate's concern. Shared by
+    /// G3 and G4 (neither can proceed past this point).
+    ParseFailed,
+    /// `unify` returned `Recovered::Residual` at the top level — the line
+    /// does not use any lexicon entry at all. Shared by G3 and G4 (the
+    /// brief's own G4 population line: "unify's to a non-Residual").
+    NotAnInvocation,
+    /// (G3 only.) The top-level recovered entry is a raw constructor
+    /// (`Origin::Constructor`), not a pilot *macro* — outside G3's own
+    /// population by the brief's literal wording ("canon usage of a pilot
+    /// macro").
+    NotMacroOrigin,
+    /// (G3 only.) `render_invocation_with` itself returned `Err` — most
+    /// commonly an unreconstructable residual filler (see
+    /// `deckmaste_frames::render`'s own module doc).
+    RenderFailed,
+}
+
+impl ExclusionReason {
+    const fn label(self) -> &'static str {
+        match self {
+            ExclusionReason::ParseFailed => "parse-failed",
+            ExclusionReason::NotAnInvocation => "not-an-invocation",
+            ExclusionReason::NotMacroOrigin => "not-macro-origin",
+            ExclusionReason::RenderFailed => "render-failed",
+        }
+    }
+}
+
 enum G3Outcome {
-    /// Not a pilot-*macro* usage, or one this sweep cannot fully render —
-    /// excluded from G3's population entirely (see the module doc).
-    NotCovered,
+    Excluded(ExclusionReason),
     Equal,
-    Mismatch {
-        rendered: String,
-    },
+    Mismatch { rendered: String },
 }
 
 enum G4Outcome {
-    /// Top-level `Residual`, or a filler this sweep cannot spell as RON —
-    /// excluded from G4's population entirely (see the module doc).
-    NotCovered,
+    Excluded(ExclusionReason),
     Equal,
     Diverged {
-        recovered_ron: String,
+        /// `None` when the recovered tree itself could not be spelled as
+        /// RON at all (a nested residual filler blocked
+        /// [`recovered_to_ron`]) — this is *still* a divergence, not an
+        /// exclusion (see [`evaluate_g4`]'s doc): the brief's population is
+        /// "unify's to a non-Residual" at the top level, full stop, and a
+        /// recovery that is provably incomplete cannot be asserted equal to
+        /// the authored value.
+        recovered_ron: Option<String>,
         reason: String,
     },
 }
@@ -397,11 +452,12 @@ fn evaluate_line<'a>(
     if !report.clean() {
         // The legacy renderer produced text the parser itself declines —
         // not this gate's concern (a `deckmaste_english` grammar gap), so
-        // the line is simply out of both populations.
+        // the line is simply out of both populations. Recorded (not
+        // silently dropped) via `ExclusionReason::ParseFailed`.
         return LineResult {
             line,
-            g3: G3Outcome::NotCovered,
-            g4: G4Outcome::NotCovered,
+            g3: G3Outcome::Excluded(ExclusionReason::ParseFailed),
+            g4: G4Outcome::Excluded(ExclusionReason::ParseFailed),
         };
     }
     let fragment = report
@@ -415,22 +471,36 @@ fn evaluate_line<'a>(
     LineResult { line, g3, g4 }
 }
 
+/// G4's population is exactly the brief's own wording: a top-level
+/// `Recovered::Invocation` (any origin — macro or constructor), full stop.
+/// A nested filler that cannot be spelled as RON does **not** narrow that
+/// population (a fix-round correction: it used to, silently) — it is
+/// reported as `Diverged` with `recovered_ron: None`, because recovery is
+/// then *provably incomplete*, which cannot be asserted equal to the fully
+/// concrete authored value.
 fn evaluate_g4(recovered: &Recovered, line: &Line, macros: &MacroSet) -> G4Outcome {
     let Recovered::Invocation { .. } = recovered else {
-        return G4Outcome::NotCovered;
+        return G4Outcome::Excluded(ExclusionReason::NotAnInvocation);
     };
-    let Ok(ron_text) = recovered_to_ron(recovered) else {
-        return G4Outcome::NotCovered;
-    };
-    match guard::normalize_source(macros, line.ron_type, &ron_text) {
-        Ok(recovered_view) if recovered_view == line.authored_view => G4Outcome::Equal,
-        Ok(_) => G4Outcome::Diverged {
-            recovered_ron: ron_text,
-            reason: "expands to a different normal form than the authored RON".to_string(),
+    match recovered_to_ron(recovered) {
+        Ok(ron_text) => match guard::normalize_source(macros, line.ron_type, &ron_text) {
+            Ok(recovered_view) if recovered_view == line.authored_view => G4Outcome::Equal,
+            Ok(_) => G4Outcome::Diverged {
+                recovered_ron: Some(ron_text),
+                reason: "expands to a different normal form than the authored RON".to_string(),
+            },
+            Err(error) => G4Outcome::Diverged {
+                recovered_ron: Some(ron_text),
+                reason: format!("failed to expand as `{}`: {error:#}", line.ron_type),
+            },
         },
         Err(error) => G4Outcome::Diverged {
-            recovered_ron: ron_text,
-            reason: format!("failed to expand as `{}`: {error:#}", line.ron_type),
+            recovered_ron: None,
+            reason: format!(
+                "recovered as a non-residual invocation, but a nested filler could not be \
+                 spelled as RON ({error:#}) — recovery is provably incomplete, so it cannot be \
+                 asserted equal to the authored value"
+            ),
         },
     }
 }
@@ -442,31 +512,33 @@ fn evaluate_g3(
     catalogs: &Catalogs,
 ) -> G3Outcome {
     let Recovered::Invocation { entry, .. } = recovered else {
-        return G3Outcome::NotCovered;
+        return G3Outcome::Excluded(ExclusionReason::NotAnInvocation);
     };
     let is_macro = lexicon
         .entries()
         .iter()
         .any(|candidate| candidate.name == *entry && candidate.origin == Origin::Macro);
     if !is_macro {
-        return G3Outcome::NotCovered;
+        return G3Outcome::Excluded(ExclusionReason::NotMacroOrigin);
     }
-    let Ok(rendered) = render_invocation_with(
+    match render_invocation_with(
         recovered,
         lexicon,
         FramePosition::Main,
         catalogs,
         &line.name,
         line.is_legendary,
-    ) else {
-        return G3Outcome::NotCovered;
-    };
-    let normalized_rendered = fidelity::normalize(&rendered, &line.name);
-    let normalized_legacy = fidelity::normalize(&line.text, &line.name);
-    if normalized_rendered == normalized_legacy {
-        G3Outcome::Equal
-    } else {
-        G3Outcome::Mismatch { rendered }
+    ) {
+        Ok(rendered) => {
+            let normalized_rendered = fidelity::normalize(&rendered, &line.name);
+            let normalized_legacy = fidelity::normalize(&line.text, &line.name);
+            if normalized_rendered == normalized_legacy {
+                G3Outcome::Equal
+            } else {
+                G3Outcome::Mismatch { rendered }
+            }
+        }
+        Err(_) => G3Outcome::Excluded(ExclusionReason::RenderFailed),
     }
 }
 
@@ -501,67 +573,116 @@ fn recovered_to_ron(recovered: &Recovered) -> anyhow::Result<String> {
 // Reporting
 // ---------------------------------------------------------------------------
 
+/// A per-reason exclusion tally, printed alongside every gate's verdict so
+/// every swept line is accounted for somewhere in the output — the
+/// structural half of the fix-round Critical finding. `BTreeMap` keeps the
+/// printed order stable (alphabetical by reason label) run to run.
+fn census(reasons: impl Iterator<Item = ExclusionReason>) -> BTreeMap<&'static str, usize> {
+    let mut counts = BTreeMap::new();
+    for reason in reasons {
+        *counts.entry(reason.label()).or_insert(0usize) += 1;
+    }
+    counts
+}
+
+fn format_census(counts: &BTreeMap<&'static str, usize>) -> String {
+    if counts.is_empty() {
+        return "(none)".to_string();
+    }
+    counts
+        .iter()
+        .map(|(label, count)| format!("{label}: {count}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn report_g3(results: &[LineResult]) -> bool {
-    let mut checked = 0usize;
     let mut equal = 0usize;
     let mut mismatches: Vec<(&str, &str, &str)> = Vec::new();
+    let excluded = census(results.iter().filter_map(|result| match &result.g3 {
+        G3Outcome::Excluded(reason) => Some(*reason),
+        _ => None,
+    }));
     for result in results {
         match &result.g3 {
-            G3Outcome::NotCovered => {}
-            G3Outcome::Equal => {
-                checked += 1;
-                equal += 1;
-            }
+            G3Outcome::Excluded(_) => {}
+            G3Outcome::Equal => equal += 1,
             G3Outcome::Mismatch { rendered } => {
-                checked += 1;
                 mismatches.push((&result.line.label, &result.line.text, rendered));
             }
         }
     }
     for (label, legacy, rendered) in &mismatches {
         println!("G3 MISMATCH {label}");
-        println!("  legacy render:   {legacy}");
-        println!("  render_invocation: {rendered}");
+        println!("  legacy render:      {legacy}");
+        println!("  render_invocation:  {rendered}");
     }
+    let checked = equal + mismatches.len();
+    let excluded_total: usize = excluded.values().sum();
     let pass = mismatches.is_empty();
     println!(
-        "G3 shadow parity: {}: {checked} canon pilot-macro usage(s) checked, {equal} equal, {} mismatched",
+        "G3 shadow parity: {}: {checked} canon pilot-macro usage(s) checked ({equal} equal, {} \
+         mismatched)",
         if pass { "PASS" } else { "FAIL" },
         mismatches.len(),
+    );
+    println!(
+        "  exclusion census: {excluded_total} excluded of {} line(s) swept — {}",
+        results.len(),
+        format_census(&excluded),
+    );
+    debug_assert_eq!(
+        checked + excluded_total,
+        results.len(),
+        "every swept line must land in exactly one G3 bucket"
     );
     pass
 }
 
 fn report_g4(results: &[LineResult]) -> bool {
-    let mut covered = 0usize;
     let mut equal = 0usize;
-    let mut diverged: Vec<(&str, &str, &str)> = Vec::new();
+    let mut diverged: Vec<(&str, &Option<String>, &str)> = Vec::new();
+    let excluded = census(results.iter().filter_map(|result| match &result.g4 {
+        G4Outcome::Excluded(reason) => Some(*reason),
+        _ => None,
+    }));
     for result in results {
         match &result.g4 {
-            G4Outcome::NotCovered => {}
-            G4Outcome::Equal => {
-                covered += 1;
-                equal += 1;
-            }
+            G4Outcome::Excluded(_) => {}
+            G4Outcome::Equal => equal += 1,
             G4Outcome::Diverged {
                 recovered_ron,
                 reason,
-            } => {
-                covered += 1;
-                diverged.push((&result.line.label, recovered_ron, reason));
-            }
+            } => diverged.push((&result.line.label, recovered_ron, reason)),
         }
     }
     for (label, recovered_ron, reason) in &diverged {
         println!("G4 DIVERGED {label}");
-        println!("  recovered RON: {recovered_ron}");
+        println!(
+            "  recovered RON: {}",
+            recovered_ron
+                .as_deref()
+                .unwrap_or("(unspellable — see reason)")
+        );
         println!("  {reason}");
     }
+    let covered = equal + diverged.len();
+    let excluded_total: usize = excluded.values().sum();
     let pass = diverged.is_empty();
     println!(
         "G4 ground truth: {}: {covered} covered / {equal} equal / {} diverged",
         if pass { "PASS" } else { "FAIL" },
         diverged.len(),
+    );
+    println!(
+        "  exclusion census: {excluded_total} excluded of {} line(s) swept — {}",
+        results.len(),
+        format_census(&excluded),
+    );
+    debug_assert_eq!(
+        covered + excluded_total,
+        results.len(),
+        "every swept line must land in exactly one G4 bucket"
     );
     pass
 }

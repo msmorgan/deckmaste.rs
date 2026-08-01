@@ -43,9 +43,18 @@
     // (D8 picks it over the first frame automatically — the two never
     // actually compete, since "a card" and "N cards" are different
     // determiners at the parser level, not just different guard outcomes).
+    //
+    // Guarded on the bare canonical spelling `"1"`, not `"Literal(1)"`: a
+    // `Count` literal serializes bare and the `Literal(…)` wrapper is
+    // deliberately noise that never appears in real RON
+    // (`crates/deckmaste_core/src/count.rs`'s own doc) — canon authors write
+    // `Draw(1)`, not `Draw(Literal(1))`. A fix-round finding (G3's guard
+    // comparison is now `guard::normalize_source`/`normalized`, the single
+    // authority, so either spelling is *accepted* — but the canonical one is
+    // what a reviewer reading this file alongside real corpus RON expects).
     frames: [
         "draw <Param(0)> cards",
-        (text: "draw a card", when: [(0, "Literal(1)")]),
+        (text: "draw a card", when: [(0, "1")]),
     ],
     body: Batch(Param(0), By(You, DrawCard)),
 )

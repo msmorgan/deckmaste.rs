@@ -2,5 +2,14 @@
     name: "Player",
     template: "player",
     kinds: [Predicate],
+    // A fix-round finding: `DealsDamageToEach`'s own second param is exactly
+    // this macro's `Predicate` type (`body: Each(binder: Existing(SelectAll(
+    // Param(1))), ...)`), and "each player" (Flame Rift, [CR#608.2d]) is a
+    // real, common canon recipient class — but with no `frames:` here,
+    // nothing in the pilot lexicon could recover "player" past a residual,
+    // exactly the `Creature`/`filter/Creature.ron` gap Task 6 already closed
+    // for the sibling type. Mirrors that fix precisely: one bare-noun frame,
+    // no guard, no hole.
+    frames: ["player"],
     body: Kind(Player),
 )

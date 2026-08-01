@@ -60,18 +60,22 @@
 //! generality is exactly the `View → Fragment` problem the module doc above
 //! explains has no solution available to this crate.
 
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 
 use deckmaste_english::Catalogs;
 use deckmaste_english::Numeral;
 use deckmaste_english::parse_fragment;
 use deckmaste_english::render_fragment;
+use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 
 use crate::AgreeKind;
 use crate::Hole;
 use crate::HoleClass;
 use crate::View;
+use crate::compile::CompiledGuard;
+use crate::guard;
 use crate::lexicon::Entry;
 use crate::lexicon::Lexicon;
 use crate::unify::Recovered;
@@ -157,27 +161,26 @@ pub fn render_invocation_with(
 /// Picks the frame [`render_invocation_with`] (or a recursive filler render)
 /// substitutes into: every lexicon entry named `entry_name`, filtered to
 /// those whose `position` key (if any) matches, then to those whose every
-/// guard `args` satisfies — comparing the argument's own recovered spelling
-/// against the guard's authored `source` textually, which is sound and total
-/// for every argument [`crate::unify::recover_argument`] can produce: a
-/// guard-recovered argument is *always* [`Recovered::Literal`] holding that
-/// very guard's own `source` verbatim, so a round-tripped invocation compares
-/// equal to itself; anything else (a different literal, an invocation, a
-/// residual) simply fails the guard rather than erroring, exactly mirroring
-/// [`crate::guard_holds`]'s own "a non-ground/mismatched argument fails
-/// rather than errors" contract, one level up.
+/// guard `args` satisfies — through [`guard_satisfied`], the single
+/// authority ([`crate::guard::normalize_source`]/`normalized`), exactly the
+/// comparison [`crate::guard_holds`] makes one level up. A non-`Literal`
+/// argument, or a `Literal` that fails to parse or expand at the guard's own
+/// declared type, simply fails the guard rather than erroring — selection
+/// falls through to a less-specific frame, never a mid-render error, exactly
+/// [`crate::guard_holds`]'s own documented contract.
 ///
-/// Among the survivors, [D8](../index.html)'s specificity order picks the one
-/// whose guard bindings are a superset of every rival's — for the guard
-/// counts every frame in this round's lexicon actually carries (0 or 1), that
-/// reduces to "prefer a guarded match over an unguarded one," so this ranks
-/// by guard count descending, tie-broken by assembly order (the order
-/// `lexicon.entries()` already iterates in), the same tie-break
-/// [`crate::unify::unify`] uses.
+/// Among the survivors, [D8](../index.html) requires the *unique*
+/// most-specific candidate: the one whose satisfied guard params are a
+/// superset of every rival's. This is computed as an actual set relation
+/// (not a bare guard *count*, which cannot tell two same-sized but
+/// incomparable guard sets apart), and a non-unique result — two or more
+/// candidates each maximal, dominating neither the other — is reported as an
+/// error rather than resolved silently by assembly order.
 ///
 /// # Errors
-/// If no entry is named `entry_name` at `position`, or none of those has
-/// every guard satisfied.
+/// If no entry is named `entry_name` at `position`; if none of those has
+/// every guard satisfied; or if more than one viable candidate is maximal
+/// (no unique most-specific frame).
 fn select_frame<'lexicon>(
     entry_name: &str,
     args: &[Recovered],
@@ -201,14 +204,23 @@ fn select_frame<'lexicon>(
         "no lexicon entry named `{entry_name}` is registered at position {position:?}"
     );
 
-    let mut viable: Vec<&Entry> = candidates
+    let macros = lexicon.macros();
+    // Each viable candidate's *satisfied guard-param set* — `guards.len()`
+    // params exactly, since a candidate only survives here when every one of
+    // its guards holds; kept as the set (not just the count) because D8's
+    // specificity order is a superset relation, not a size comparison.
+    let viable: Vec<(&Entry, BTreeSet<usize>)> = candidates
         .into_iter()
-        .filter(|candidate| {
+        .filter_map(|candidate| {
             candidate
                 .frame
                 .guards
                 .iter()
-                .all(|guard| guard_satisfied(guard, args.get(guard.param)))
+                .map(|guard| {
+                    guard_satisfied(guard, args.get(guard.param), macros).then_some(guard.param)
+                })
+                .collect::<Option<BTreeSet<usize>>>()
+                .map(|satisfied| (candidate, satisfied))
         })
         .collect();
     anyhow::ensure!(
@@ -216,14 +228,69 @@ fn select_frame<'lexicon>(
         "no frame named `{entry_name}` has every guard satisfied by the recovered argument(s) \
          {args:?}"
     );
-    viable.sort_by_key(|candidate| std::cmp::Reverse(candidate.frame.guards.len()));
-    Ok(viable[0])
+
+    // The maximal element(s) of `viable` under the ⊆ order on guard-param
+    // sets. A finite nonempty partial order always has at least one.
+    let maximal: Vec<(&Entry, &BTreeSet<usize>)> = viable
+        .iter()
+        .filter(|(_, set)| {
+            !viable
+                .iter()
+                .any(|(_, other)| other.len() > set.len() && other.is_superset(set))
+        })
+        .map(|(entry, set)| (*entry, set))
+        .collect();
+
+    // More than one maximal candidate splits into two genuinely different
+    // situations, and only one of them is the ambiguity D8 cares about.
+    // Candidates whose satisfied guard-param sets are literally EQUAL are
+    // not competing over what argument the selection is sensitive to at
+    // all — either the very same authored frame, registered once per
+    // `FragmentKind` it parses cleanly at (`Target`/`DealDamage`, tried at
+    // every category — see `lexicon::compile_constructor_frame`), or two
+    // frames that guard the identical param(s) to the identical value(s)
+    // (`Flying`'s two casing-only frames, both unguarded — `{} == {}`). A
+    // guard's own *value* already had to match for either to be viable at
+    // all, so equal sets can only arise from redundant/interchangeable
+    // authoring, not from two candidates disagreeing about the argument —
+    // resolved by assembly order, the exact tie-break `unify::unify` uses
+    // for its own equivalent case ("two registrations of one authored frame
+    // are one reading, not an ambiguity"). Only a tie between UNEQUAL
+    // (incomparable) sets — one candidate guards param 0, another guards
+    // param 1, and neither's set contains the other's — is the real D8
+    // ambiguity: the candidates disagree about which argument selection
+    // should turn on, and no order is more "assembled first" than semantic.
+    let (first, first_set) = maximal[0];
+    let incomparable = maximal.iter().any(|(_, set)| *set != first_set);
+    anyhow::ensure!(
+        !incomparable,
+        "no unique most-specific frame named `{entry_name}` at position {position:?}: {} \
+         candidate(s) tie on incomparable guard specificity: {}",
+        maximal.len(),
+        maximal
+            .iter()
+            .map(|(entry, _)| entry.label())
+            .collect::<Vec<_>>()
+            .join(", "),
+    );
+    Ok(first)
 }
 
 /// Whether `argument` (the recovered value at the guard's own param index)
-/// spells exactly the guard's authored constant.
-fn guard_satisfied(guard: &crate::compile::CompiledGuard, argument: Option<&Recovered>) -> bool {
-    matches!(argument, Some(Recovered::Literal(text)) if *text == guard.source)
+/// satisfies `guard` — the single authority
+/// ([`guard::normalize_source`]/[`guard::normalized`]'s expanded canonical
+/// form), never a textual comparison against `guard.source`: two spellings
+/// of the same constant (`"Literal(1)"` and `"1"`, `"Exactly(1)"` and
+/// `"Range(Some(1), Some(1))"`) must both satisfy the same guard, exactly as
+/// [`crate::guard_holds`] promises one level up. Only a [`Recovered::Literal`]
+/// can ever satisfy a guard (an invocation or residual has no RON spelling
+/// to read at the guard's declared type); a `Literal` that fails to parse or
+/// expand at that type simply does not satisfy it, never an error.
+fn guard_satisfied(guard: &CompiledGuard, argument: Option<&Recovered>, macros: &MacroSet) -> bool {
+    let Some(Recovered::Literal(text)) = argument else {
+        return false;
+    };
+    guard::normalize_source(macros, &guard.param_type, text).is_ok_and(|view| view == guard.value)
 }
 
 /// Substitutes `chosen`'s own frame text for the arguments filling its
@@ -711,6 +778,37 @@ mod tests {
         );
     }
 
+    /// The fix-round regression test for G3's Critical finding: real canon
+    /// text is *never* the lowercase citation spelling the test above feeds
+    /// back in (that only round-trips the frame's own convention) — a solo
+    /// keyword line is always capitalized, line-initial, on a real card.
+    /// `CatalogAtom.spelling` preserves the matched text's own case, so
+    /// without `Flying.ron`'s second, capitalized frame this recovers as a
+    /// residual (`unify` never reaches an `Invocation` at all), exactly the
+    /// gap that made every canon `Keyword(Flying)` line silently invisible
+    /// to G3/G4.
+    #[test]
+    fn a_keyword_line_matches_the_real_capitalized_corpus_spelling() {
+        let recovered = recover("Flying", FragmentKind::KeywordLine, "");
+        assert!(
+            matches!(recovered, Recovered::Invocation { ref entry, .. } if entry == "Flying"),
+            "capitalized, line-initial spelling must recover as `Flying`, not a residual: \
+             {recovered:#?}"
+        );
+        assert_eq!(
+            render_invocation_with(
+                &recovered,
+                &fixture().lexicon,
+                FramePosition::Main,
+                &fixture().catalogs,
+                "",
+                false,
+            )
+            .unwrap(),
+            "Flying",
+        );
+    }
+
     /// A residual this module cannot honestly reconstruct (a determinerful
     /// nominal, here "any target") makes the whole render fail rather than
     /// guess — the render-direction mirror of `unify`'s own totality: a gap
@@ -733,5 +831,127 @@ mod tests {
         )
         .unwrap_err();
         assert!(format!("{error:#}").contains("residual"), "{error:#}");
+    }
+
+    // -- fix-round regression tests (guard comparison, D8 superset) --------
+
+    /// The fix-round's exact counterexample: a `Recovered` argument spelled
+    /// differently from the guard's own authored constant, but denoting the
+    /// same value, must still satisfy it. `crates/deckmaste_core/src/
+    /// count.rs` documents `Literal(1)` as accepted "for leniency" even
+    /// though `Count` never emits it (a bare `1` is canonical) — a textual
+    /// comparison against the guard's own `"1"` would miss this spelling,
+    /// fall through to `Draws`'s unguarded plural frame, and spell
+    /// "draw one cards" instead of "Draw a card." — the exact wrong output a
+    /// textual guard comparison produces and a canonical-form one does not.
+    #[test]
+    fn a_guard_matches_any_ground_spelling_of_its_constant_not_just_its_own() {
+        let tagged = Recovered::Invocation {
+            entry: "Draws".to_string(),
+            args: vec![
+                Recovered::Literal("You".to_string()),
+                Recovered::Literal("Literal(1)".to_string()),
+            ],
+            ambiguities: Vec::new(),
+        };
+        assert_eq!(
+            render_invocation(&tagged, &fixture().lexicon, FramePosition::Main).unwrap(),
+            "Draw a card.",
+            "a differently-spelled but equal argument must still satisfy the guard, not fall \
+             through to the wrong frame"
+        );
+    }
+
+    /// The ruling's fall-through consequence, exercised end to end with a
+    /// hand-built `Recovered` (not one `unify` happened to produce): a
+    /// `Literal` argument that does *not* satisfy a more specific frame's
+    /// guard makes selection fall through to a less specific one — never a
+    /// mid-render error.
+    #[test]
+    fn a_mismatched_guard_falls_through_to_a_less_specific_frame_rather_than_erroring() {
+        let recovered = Recovered::Invocation {
+            entry: "Draw".to_string(),
+            args: vec![Recovered::Literal("2".to_string())],
+            ambiguities: Vec::new(),
+        };
+        assert_eq!(
+            render_invocation(&recovered, &fixture().lexicon, FramePosition::Main).unwrap(),
+            "Draw two cards.",
+            "count = 2 fails the count-1-guarded frame and must fall through to the \
+             unguarded plural frame, not error"
+        );
+    }
+
+    /// D8's real ambiguity, distinguished from the benign kind (equal guard
+    /// sets — redundant/interchangeable authoring, resolved by assembly
+    /// order, see `select_frame`'s own doc): two candidates whose satisfied
+    /// guard-param sets are UNEQUAL and neither contains the other (one
+    /// guards param 0, the other guards param 1) must be reported as a tie,
+    /// not resolved silently by whichever the lexicon happened to assemble
+    /// first.
+    #[test]
+    fn incomparable_guards_are_reported_rather_than_resolved_silently() {
+        let macros = fixture().lexicon.macros();
+        let params: Vec<String> = vec!["Reference".to_string(), "Count".to_string()];
+        let frame_a = crate::compile(
+            &macro_ron::frames::FrameSpec {
+                text: "draw <Param(1)> cards".to_string(),
+                when: vec![(0, "You".to_string())],
+                position: None,
+            },
+            FragmentKind::Sentence,
+            &params,
+            &fixture().catalogs,
+            macros,
+        )
+        .unwrap_or_else(|error| panic!("compiling frame A: {error:#}"));
+        let frame_b = crate::compile(
+            &macro_ron::frames::FrameSpec {
+                text: "<Param(0)> draws a card".to_string(),
+                when: vec![(1, "1".to_string())],
+                position: None,
+            },
+            FragmentKind::Sentence,
+            &params,
+            &fixture().catalogs,
+            macros,
+        )
+        .unwrap_or_else(|error| panic!("compiling frame B: {error:#}"));
+        let lexicon = Lexicon::from_entries(
+            vec![
+                Entry {
+                    name: "Ambiguous".to_string(),
+                    params: params.clone(),
+                    frame_index: 0,
+                    origin: crate::lexicon::Origin::Macro,
+                    frame: frame_a,
+                },
+                Entry {
+                    name: "Ambiguous".to_string(),
+                    params: params.clone(),
+                    frame_index: 1,
+                    origin: crate::lexicon::Origin::Macro,
+                    frame: frame_b,
+                },
+            ],
+            macros.clone(),
+        );
+        // Satisfies BOTH guards at once (subject = You, count = 1) — with no
+        // third, dominating frame (unlike the real `Draws`), neither
+        // candidate's guard-param set contains the other's.
+        let recovered = Recovered::Invocation {
+            entry: "Ambiguous".to_string(),
+            args: vec![
+                Recovered::Literal("You".to_string()),
+                Recovered::Literal("1".to_string()),
+            ],
+            ambiguities: Vec::new(),
+        };
+        let error = render_invocation(&recovered, &lexicon, FramePosition::Main).unwrap_err();
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("no unique most-specific") && message.contains("incomparable"),
+            "{message}"
+        );
     }
 }

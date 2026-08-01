@@ -930,13 +930,18 @@ mod tests {
     /// A one-frame lexicon, for the shapes the pilot corpus deliberately does
     /// not author (the `~` self-reference cost frame, a non-linear frame).
     fn sole(name: &str, frame: CompiledFrame, params: &[&str]) -> Lexicon {
-        Lexicon::from_entries(vec![crate::Entry {
-            name: name.to_string(),
-            params: params.iter().map(|param| (*param).to_string()).collect(),
-            frame_index: 0,
-            origin: Origin::Macro,
-            frame,
-        }])
+        Lexicon::from_entries(
+            vec![crate::Entry {
+                name: name.to_string(),
+                params: params.iter().map(|param| (*param).to_string()).collect(),
+                frame_index: 0,
+                origin: Origin::Macro,
+                frame,
+            }],
+            // None of these hand-built fixture frames carry a guard, so the
+            // bare core reader (no plugin macros) is enough.
+            guard::core_reader().clone(),
+        )
     }
 
     fn invocation(recovered: &Recovered) -> (&str, &[Recovered]) {
@@ -1344,8 +1349,13 @@ mod tests {
     /// from a frame at a different category.
     #[test]
     fn a_subtree_hole_recurses_into_a_nested_entry() {
+        // "artifact", not "player": a fix-round finding gave `Player` its own
+        // frame (`filter/Player.ron` — `DealsDamageToEach`'s own recipient
+        // param needed it to recover "each player" at all), so "player" no
+        // longer demonstrates a residual — "artifact" still does, and
+        // exercises the exact same field-slice recursion path.
         let target = parse(
-            "Target player draws three cards.",
+            "Target artifact draws three cards.",
             FragmentKind::Sentence,
             "",
         );
@@ -1356,8 +1366,8 @@ mod tests {
         let (subject, subject_args) = invocation(&args[0]);
         assert_eq!(subject, "Target");
         assert_eq!(subject_args[0], literal("Exactly(1)"));
-        // "player" has no frame in the pilot lexicon, so it stays residual —
-        // and the residual is the *partial* node the slice bound, carrying
+        // "artifact" has no frame in the pilot lexicon, so it stays residual
+        // — and the residual is the *partial* node the slice bound, carrying
         // only the fields the hole claimed.
         let Recovered::Residual(rest) = &subject_args[1] else {
             panic!("{:#?}", subject_args[1]);
@@ -1367,6 +1377,29 @@ mod tests {
         let names: Vec<&str> = fields.iter().map(|(field, _)| *field).collect();
         assert_eq!(names, ["modifiers", "head", "complements"]);
         assert_eq!(args[1], literal("3"));
+    }
+
+    /// The positive case the rename above leaves untested otherwise:
+    /// "player" now recovers cleanly through its own pro-form-like `Player`
+    /// frame (`filter/Player.ron`), the same way `Creature` already did.
+    #[test]
+    fn player_now_recovers_through_its_own_frame() {
+        let target = parse(
+            "Target player draws three cards.",
+            FragmentKind::Sentence,
+            "",
+        );
+        let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
+        let (entry, args) = invocation(&recovered);
+        assert_eq!(entry, "Draws");
+        let (subject, subject_args) = invocation(&args[0]);
+        assert_eq!(subject, "Target");
+        assert_eq!(
+            invocation(&subject_args[1]),
+            ("Player", [].as_slice()),
+            "{recovered:#?}"
+        );
+        assert!(!recovered.has_residual(), "{recovered:#?}");
     }
 
     /// A zero-hole frame at a category that needs a populated catalog.
@@ -1472,8 +1505,20 @@ mod tests {
                 "Draws[1]@Sentence",
                 "Draws[2]@Sentence",
                 "Draws[3]@Sentence",
+                // `Flying[1]`/`Protection[1]`: a fix-round finding (G3's
+                // Critical) — `frames[0]`'s lowercase citation spelling
+                // compiles but can never actually match a real card's
+                // `CatalogAtom.spelling` (always capitalized: a solo keyword
+                // line is always line-initial). See `Flying.ron`'s own
+                // comment for the full reasoning.
                 "Flying[0]@KeywordLine",
+                "Flying[1]@KeywordLine",
+                // `Player[0]`: a fix-round finding — `filter/Player.ron`
+                // already existed (used elsewhere) but had no `frames:`,
+                // exactly `Creature`'s pre-Task-6 gap; added the same way.
+                "Player[0]@Nominal",
                 "Protection[0]@KeywordLine",
+                "Protection[1]@KeywordLine",
                 "PumpThisUntilEot[0]@Sentence",
                 "SacrificeThis[0]@Cost",
             ],

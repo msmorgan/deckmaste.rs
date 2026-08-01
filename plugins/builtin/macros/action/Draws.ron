@@ -44,11 +44,14 @@
     // added. D8 selects among all four with no new ambiguity: a "cards"
     // (quantity) frame and an "a card" (indefinite) frame never both match
     // the same target text.
+    //
+    // Guarded on the bare canonical spelling `"1"`, not `"Literal(1)"` — see
+    // `Draw.ron`'s own comment on this same fix-round finding.
     frames: [
         (text: "draw <Param(1)> cards", when: [(0, "You")], position: Main),
         "<Param(0)> draws <Param(1)> cards",
-        (text: "draw a card", when: [(0, "You"), (1, "Literal(1)")], position: Main),
-        (text: "<Param(0)> draws a card", when: [(1, "Literal(1)")]),
+        (text: "draw a card", when: [(0, "You"), (1, "1")], position: Main),
+        (text: "<Param(0)> draws a card", when: [(1, "1")]),
     ],
     body: Batch(Param(1), By(Param(0), DrawCard)),
 )

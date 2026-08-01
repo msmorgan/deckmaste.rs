@@ -78,9 +78,20 @@ impl Entry {
 }
 
 /// Every frame the unifier may match against.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Lexicon {
     entries: Vec<Entry>,
+    /// The macro set every frame here was compiled against — retained so a
+    /// *render-time* guard comparison can reach it too, not just a
+    /// compile-time one. `render::guard_satisfied` is the reason this exists:
+    /// guard satisfaction is defined on fully-expanded canonical form
+    /// (`crate::guard::normalized`/`normalize_source`, the round's one
+    /// authority), and expanding a guard's readable macro sugar (the seeded
+    /// `Target` entry's `Exactly(1)`) needs a `MacroSet` that knows it — the
+    /// same one `assemble` already required to compile the lexicon's own
+    /// guards in the first place. Cloned once, here, rather than re-threading
+    /// a `&MacroSet` through every render call site.
+    macros: MacroSet,
 }
 
 impl Lexicon {
@@ -172,7 +183,10 @@ impl Lexicon {
             }
         }
 
-        Ok(Lexicon { entries })
+        Ok(Lexicon {
+            entries,
+            macros: defs.clone(),
+        })
     }
 
     /// A lexicon over frames compiled elsewhere.
@@ -180,15 +194,27 @@ impl Lexicon {
     /// [`assemble`](Self::assemble) is the corpus path; this is for a caller
     /// that already holds the frames it wants to match against — a narrowed
     /// lexicon for one category, a single hand-compiled frame under test.
+    /// `macros` is what any guard on those frames is expanded through at
+    /// render time (see [`Lexicon::macros`]) — pass the same set they were
+    /// compiled against, or [`crate::guard::core_reader`] for a guard-free
+    /// fixture.
     #[must_use]
-    pub fn from_entries(entries: Vec<Entry>) -> Lexicon {
-        Lexicon { entries }
+    pub fn from_entries(entries: Vec<Entry>, macros: MacroSet) -> Lexicon {
+        Lexicon { entries, macros }
     }
 
     /// Every compiled frame, in assembly order.
     #[must_use]
     pub fn entries(&self) -> &[Entry] {
         &self.entries
+    }
+
+    /// The macro set every frame here was compiled against — see the field
+    /// doc. Guard satisfaction at render time (`crate::render`) reads through
+    /// this, never a second, independently-loaded `MacroSet`.
+    #[must_use]
+    pub fn macros(&self) -> &MacroSet {
+        &self.macros
     }
 
     /// How many frames the lexicon holds — one per authored frame, not per
