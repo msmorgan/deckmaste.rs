@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::AggregateOp;
 use crate::Count;
 use crate::Expansion;
@@ -32,6 +34,18 @@ pub enum Selection {
     /// Idris `Union`. Order-preserving concatenation of the member groups; an
     /// object in more than one member appears once (first position wins).
     Union(Vec<Selection>),
+    /// The elements of a selection, sequenced by a player's CHOICE — the
+    /// ordered-selection combinator for iterations whose order is
+    /// game-visible. The second field names the chooser (not a filter).
+    ///
+    /// Explicit grammar is needed because order otherwise EMERGES from the
+    /// underlying group rather than being chosen: a library window is
+    /// top → down, an announce slot is announce order. [CR#603.3b]'s
+    /// controller-ordering is trigger-specific, so it does not cover
+    /// [CR#707.10d]'s "in the order of their controller's choice". Ordinary
+    /// [`Each`](crate::Each)es stay order-invisible — wrap only where the
+    /// sequence is observable.
+    InChosenOrder(Arc<Selection>, Reference),
     /// A random selection of a quantity of matching objects.
     Random(Quantity, Predicate),
     /// A choice from among a PREVIOUSLY COMPUTED set ("exile two of them",
@@ -58,6 +72,20 @@ pub enum Selection {
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         whose: Reference,
     },
+    /// A WHOLE library as one group, top → bottom (ordered) — the whole-zone
+    /// term the slice family [`TopOfLibrary`](Self::TopOfLibrary) /
+    /// [`BottomOfLibrary`](Self::BottomOfLibrary) lacks. The [`Reference`]
+    /// names the library's player.
+    ///
+    /// Exists because [CR#701.24a] names a library as one of shuffle's two
+    /// own objects — "to shuffle **a library** or a face-down pile of cards"
+    /// — and a `count`-bearing slice cannot spell "a library". The pile half
+    /// rides [`PilesOf`](Self::PilesOf).
+    ///
+    /// No bare default `whose`, unlike the slice family: a whole-library read
+    /// always names whose library it is, so there is no dominant filler to
+    /// elide.
+    LibraryOf(Reference),
     /// The top `count` cards of a graveyard, top → down (an ORDERED set —
     /// [CR#404.2] a graveyard is a single face-up pile in a fixed order).
     /// `of` names the graveyard's player; the default `You` writes bare, like
@@ -84,6 +112,28 @@ pub enum Selection {
     /// Kind-disambiguated from [`Predicate::Targets`](crate::Predicate) and
     /// `Count::TargetsOf` by position — no parse ambiguity.
     Targets(usize),
+    /// Everything legal for EVERY target slot of a stack object at once —
+    /// [CR#707.10d]'s same-object rule. That rule copies a spell "for each
+    /// player or object it could target", requires that "each of its targets
+    /// must be the same player or object", and withholds the copy entirely for
+    /// one that "isn't a legal target for each instance of the word 'target'".
+    /// So the per-slot legal sets are INTERSECTED, never unioned.
+    ///
+    /// Players are in scope, not just objects: they ride the same player-proxy
+    /// representation every other object-valued term reads.
+    ///
+    /// The [`Reference`] names the stack object whose slots are read; one that
+    /// is not a live stack entry reads as the empty group (never-crash).
+    ///
+    /// A pure READ of targeting legality, like
+    /// [`Targets`](Selection::Targets) — it never announces or re-announces,
+    /// and a single-slot spell degenerates to that slot's legal set.
+    ///
+    /// The [CR#707.10d] for-each-could-target family is COMPOSED from this
+    /// rather than built in as a copy mode:
+    /// `Each(InChosenOrder(ValidTargetsFor(s), You), CopySpell(You, s,
+    /// TargetsThat(It)))`.
+    ValidTargetsFor(Reference),
     /// The PLURAL anaphor — "they"/"them": the nearest Many antecedent on
     /// the antecedent stack, any sort (R1 nearest-compatible,
     /// R2 uniqueness gate). Pushed by a many-binder
@@ -274,5 +324,44 @@ mod tests {
                 ..
             },
         ));
+    }
+
+    /// `LibraryOf(whose)` — the whole-zone library group, shuffle's own object
+    /// ([CR#701.24a]) — round-trips. Unlike the `TopOfLibrary` slice family it
+    /// has NO bare default: `whose` is always spelled, so `LibraryOf(You)`
+    /// stays written out.
+    #[test]
+    fn library_of_round_trips() {
+        let you = Selection::LibraryOf(crate::Reference::You);
+        assert_eq!(read("LibraryOf(You)"), you);
+        assert_eq!(to_string(&you), "LibraryOf(You)");
+        assert_eq!(read(&to_string(&you)), you);
+
+        let opp = Selection::LibraryOf(crate::Reference::Opponent);
+        assert_eq!(read("LibraryOf(Opponent)"), opp);
+        assert_eq!(read(&to_string(&opp)), opp);
+    }
+
+    /// `ValidTargetsFor(spell)` — [CR#707.10d]'s could-target read — names the
+    /// stack object by `Reference` and round-trips.
+    #[test]
+    fn valid_targets_for_round_trips() {
+        let v = Selection::ValidTargetsFor(crate::Reference::Target(0));
+        assert_eq!(read("ValidTargetsFor(Target(0))"), v);
+        assert_eq!(read(&to_string(&v)), v);
+    }
+
+    /// `InChosenOrder(selection, by)` nests a `Selection` and names its
+    /// chooser. Round-tripped over `ValidTargetsFor` — the exact composition
+    /// [CR#707.10d]'s for-each-could-target family uses — so the nesting is
+    /// pinned, not just the shallow shape.
+    #[test]
+    fn in_chosen_order_round_trips() {
+        let v = Selection::InChosenOrder(
+            Arc::new(Selection::ValidTargetsFor(crate::Reference::Target(0))),
+            crate::Reference::You,
+        );
+        assert_eq!(read("InChosenOrder(ValidTargetsFor(Target(0)), You)"), v);
+        assert_eq!(read(&to_string(&v)), v);
     }
 }

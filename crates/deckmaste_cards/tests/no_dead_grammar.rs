@@ -851,6 +851,28 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             greatest power') shares AggregateOp::MinOf/MaxOf, which stay deferred until a real card \
             spells an extremal fold or Pick — see AggregateOp::MinOf above.",
         ),
+        (
+            n("Selection", "LibraryOf"),
+            "SHELL: the whole-zone library group is grammar landed one task AHEAD of its \
+            consumer — [CR#701.24a] names a library as one of shuffle's two own objects, and \
+            the Shuffle(Selection) reshape that spells it is the next task of the same \
+            core-pay-player-action effort. Retire this entry when that lands.",
+        ),
+        (
+            n("Selection", "InChosenOrder"),
+            "DEFERRED: the ordered-selection combinator ('in the order of their controller's \
+            choice', [CR#707.10d]) exists so the for-each-could-target copy family stays \
+            COMPOSED rather than becoming a bespoke copy mode; no covered real card spells that \
+            family. The chooser-driven sequence is itself a recorded engine seam — membership is \
+            exact, the order degrades to the inner group's.",
+        ),
+        (
+            n("Selection", "ValidTargetsFor"),
+            "DEFERRED: [CR#707.10d]'s could-target read is fully engine-wired (per-slot legal \
+            sets folded by the same-object INTERSECTION, unit-tested against a two-slot spell), \
+            but no covered real card spells the for-each-could-target family it composes — the \
+            same family as InChosenOrder above.",
+        ),
         // --- filter.rs ---
         (
             n("ObjectKind", "CardCopy"),

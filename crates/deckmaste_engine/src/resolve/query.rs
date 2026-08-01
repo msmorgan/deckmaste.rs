@@ -98,12 +98,48 @@ impl GameState {
         })
     }
 
+    /// [CR#707.10d]'s could-target set for the stack entry `spell` names —
+    /// [`Selection::ValidTargetsFor`]'s whole computation, extracted so the
+    /// selection dispatch stays a flat one-line-per-arm match.
+    ///
+    /// The entry's per-slot legal sets INTERSECTED (the same-object rule),
+    /// keeping the first slot's candidate order. Reads the COMMITTED entry's
+    /// stored specs — never re-derived from a possibly-changed source — through
+    /// the same `Cant(Target)` + `AsThough` layering announce-time targeting
+    /// uses, so hexproof and protection are honored identically here.
+    ///
+    /// `None` when the reference names no live stack entry (the caller
+    /// fizzles). An entry with no target slots yields the EMPTY set: it could
+    /// target nothing.
+    fn could_target_set(&self, spell: &Reference, frame: &Frame) -> Option<Vec<ObjectId>> {
+        let id = self.eval_reference(spell, frame);
+        let entry = self.stack.iter().find(|e| e.id == id)?;
+        let view = self.layers();
+        let specs = self.stack_object_target_specs(&view, &entry.object);
+        let per_slot = self.legal_targets_for_specs(&specs, entry.id);
+        let Some((first, rest)) = per_slot.split_first() else {
+            return Some(Vec::new());
+        };
+        let mut acc = first.clone();
+        for slot in rest {
+            acc.retain(|c| slot.contains(c));
+        }
+        Some(acc)
+    }
+
     /// A selection (a GROUP) resolved to its full set ([CR#608.2d]) — the
     /// home of plurality now that verbs take a single [`Reference`].
     /// `Predicate` enumerates the matching set;
     /// `They`/`TheGroup`/`TopOfLibrary` name an already-bound group. A
     /// per-object instruction runs over this set via an enclosing `Each`/
     /// `Distribute`/`With`, never the verb itself.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the flat one-arm-per-Selection-variant dispatch clippy.toml's threshold note \
+                  blesses: the bulk is per-variant CR documentation, and carving arms out would \
+                  scatter the taxonomy across helpers that each have exactly one caller. The one \
+                  genuinely multi-step arm is already extracted to `could_target_set`."
+    )]
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             // Thread the carrier (like `Pick`) so a carrier-relative predicate
@@ -191,6 +227,37 @@ impl GameState {
             // announce list. Never resolves over the antecedent stack: a target
             // is an indexed entry, not an anaphor.
             Selection::Targets(n) => self.live_target_slot(frame, *n),
+            // [CR#707.10d]: every object the named spell could target — the
+            // per-slot legal sets INTERSECTED (the same-object rule), so a
+            // multi-slot spell yields only the objects legal in every slot at
+            // once. Reads the COMMITTED entry's stored specs (never re-derived
+            // from a possibly-changed source) through the same `Cant(Target)`
+            // + `AsThough` layering that announce-time targeting uses, so
+            // hexproof and protection are honored identically here.
+            //
+            // A reference naming no live stack entry fizzles to the empty
+            // group; a spell with no target slots reads empty too (it could
+            // target nothing).
+            Selection::ValidTargetsFor(spell) => {
+                self.could_target_set(spell, frame).unwrap_or_else(|| {
+                    Self::unbound_group(sel, "ValidTargetsFor names no live stack entry")
+                })
+            }
+            // The elements of the inner group, sequenced by `_by`'s choice
+            // ([CR#707.10d]). The GROUP is exact; the chooser-driven SEQUENCE
+            // is a recorded seam — no canon consumer demands it yet (the
+            // for-each-could-target family this exists for is itself
+            // unauthored), and the decision machinery is only reachable from a
+            // binder that can surface a pending choice, which a bare selection
+            // read has no channel for.
+            //
+            // Degrades to the inner group's natural order rather than to the
+            // empty group: every ordering is a legal outcome of a free choice,
+            // so an arbitrary one is a far weaker claim than "nothing
+            // happens", and only the player-visible SEQUENCE is lost, never a
+            // member. Wiring the choice replaces this arm's body, not its
+            // shape.
+            Selection::InChosenOrder(inner, _by) => self.eval_selection_set(inner, frame),
             // The ordered plural group bound by the enclosing many-binder
             // (`OneShotEffect::With`/`Each`/`Distribute`). Reads the `(Many, k)`
             // `that` slot, order-preserved exactly as bound (top→down for a
@@ -270,6 +337,21 @@ impl GameState {
                     .take(n)
                     .copied()
                     .collect()
+            }
+            // The WHOLE of `whose`'s library, top→bottom — the un-sliced twin
+            // of `TopOfLibrary`, and shuffle's own object ([CR#701.24a]).
+            // Like `TopOfGraveyard` below (and unlike the panicking slice
+            // family), a `whose` that fails to resolve to a player proxy
+            // fizzles to the empty group: an authoring mistake must never
+            // crash the engine.
+            Selection::LibraryOf(whose) => {
+                let proxy = self.eval_reference(whose, frame);
+                match self.objects.get(proxy).map(|o| o.source) {
+                    Some(ObjectSource::Player(p)) => {
+                        self.zones.libraries[p.index()].iter().copied().collect()
+                    }
+                    _ => Vec::new(),
+                }
             }
             // The top `count` cards of `of`'s graveyard, top→down
             // ([CR#404.2] — a graveyard is a single face-up pile in a fixed
@@ -1095,6 +1177,192 @@ mod tests {
             state.eval_reference(&Reference::EventPatient, &player_patient),
             state.player(PlayerId(1)).object,
             "a player patient resolves to the player proxy"
+        );
+    }
+
+    /// `LibraryOf(whose)` reads the WHOLE library, top→bottom — the un-sliced
+    /// twin of `TopOfLibrary` and shuffle's own object ([CR#701.24a]). Checked
+    /// against the zone itself (order-exact, not merely set-equal) and against
+    /// the slice family, whose read must be this one's prefix.
+    #[test]
+    fn library_of_reads_the_whole_library_top_to_bottom() {
+        let (state, _bear) = bear_on_field();
+        let frame = frame_for(&state, PlayerId(0));
+
+        let expected: Vec<_> = state.zones.libraries[PlayerId(0).index()]
+            .iter()
+            .copied()
+            .collect();
+        assert!(
+            expected.len() > 2,
+            "fixture must leave a multi-card library for an order check"
+        );
+        assert_eq!(
+            state.eval_selection_set(&Selection::LibraryOf(Reference::You), &frame),
+            expected,
+            "LibraryOf(You) is the whole library, in zone order"
+        );
+        assert_eq!(
+            state.eval_selection_set(
+                &Selection::TopOfLibrary {
+                    count: deckmaste_core::Count::Literal(2),
+                    whose: Reference::You,
+                },
+                &frame,
+            ),
+            expected[..2].to_vec(),
+            "the slice family reads a prefix of the same ordered zone"
+        );
+
+        // A `whose` that is not a player proxy fizzles to the empty group
+        // rather than panicking — the `TopOfGraveyard` convention, not the
+        // slice family's panic (authoring mistakes never crash the engine).
+        assert!(
+            state
+                .eval_selection_set(&Selection::LibraryOf(Reference::It), &frame)
+                .is_empty(),
+            "an unresolvable whose fizzles, never panics"
+        );
+    }
+
+    /// `InChosenOrder(sel, by)` is a pure ORDERING wrapper — membership is
+    /// exactly the inner group's. The chooser-driven sequence is a recorded
+    /// seam ([CR#707.10d]), so today it degrades to the inner order rather
+    /// than to the empty group: the player-visible sequence is lost, never a
+    /// member.
+    #[test]
+    fn in_chosen_order_preserves_the_inner_group_pending_the_choice_seam() {
+        let (state, _bear) = bear_on_field();
+        let frame = frame_for(&state, PlayerId(0));
+
+        let inner = Selection::LibraryOf(Reference::You);
+        let direct = state.eval_selection_set(&inner, &frame);
+        assert!(!direct.is_empty(), "fixture leaves a non-empty library");
+        assert_eq!(
+            state.eval_selection_set(
+                &Selection::InChosenOrder(Arc::new(inner), Reference::You),
+                &frame,
+            ),
+            direct,
+            "the wrapper changes no members while the choice is unwired"
+        );
+    }
+
+    /// [CR#707.10d]: `ValidTargetsFor` INTERSECTS the spell's per-slot legal
+    /// sets — "each object that the spell could target" means legal in EVERY
+    /// slot at once, not in any one of them.
+    ///
+    /// The board holds two creatures and one land; the spell announces two
+    /// slots, one admitting creatures and one admitting anything on the
+    /// battlefield. A union would yield all three objects and a first-slot-only
+    /// read would coincidentally also yield the creatures — so the land is what
+    /// discriminates: it is legal for slot 1 and must still be absent.
+    #[test]
+    fn valid_targets_for_intersects_slots_rather_than_unioning_them() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+        use deckmaste_core::TargetSpec;
+        use deckmaste_core::Targeted;
+        use deckmaste_core::Type;
+
+        use crate::object::ObjectSource;
+        use crate::stack::StackEntry;
+        use crate::stack::StackObject;
+
+        let (mut state, bear_a, bear_b) = two_permanents_on_field();
+        let land = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Test Land".into(),
+                types: vec![Type::Land.def()],
+                ..CardFace::default()
+            }),
+        );
+
+        let face = CardFace {
+            name: "Two-Slot Spell".into(),
+            types: vec![Type::Instant.def()],
+            abilities: vec![Ability::Spell(Arc::new(SpellAbility {
+                ability_word: None,
+                effect: OneShotEffect::Targeted(Targeted::new(
+                    vec![
+                        // Slot 0: creatures only.
+                        TargetSpec::Target(Quantity::one(), Predicate::creature()),
+                        // Slot 1: anything on the battlefield — a strict superset.
+                        TargetSpec::Target(
+                            Quantity::one(),
+                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        ),
+                    ]
+                    .into(),
+                    // The body is irrelevant to the read under test; any
+                    // slot-referencing action keeps the wrapper well-formed.
+                    OneShotEffect::Act(Action::deal_damage(
+                        Reference::Target(0),
+                        deckmaste_core::Count::Literal(1),
+                    )),
+                )),
+            }))],
+            ..CardFace::default()
+        };
+        let cid = state.cards.push(Arc::new(Card::Normal(face)), PlayerId(0));
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+            paid_costs: Vec::new(),
+            copy: false,
+        });
+
+        // Premise check. Without it the intersection assertion below could pass
+        // vacuously: a land legal for NEITHER slot would also be absent from
+        // the result, proving nothing about the fold. Pin that the land really
+        // is legal for slot 1, so a union would demonstrably admit it.
+        let view = state.layers();
+        let specs = state.stack_object_target_specs(&view, &StackObject::Spell(spell));
+        let per_slot = state.legal_targets_for_specs(&specs, spell);
+        assert_eq!(per_slot.len(), 2, "the spell announces two slots");
+        assert!(
+            !per_slot[0].contains(&land),
+            "slot 0 admits creatures only, so it excludes the land"
+        );
+        assert!(
+            per_slot[1].contains(&land),
+            "slot 1 admits the whole battlefield INCLUDING the land — this is what \
+             makes the intersection assertion discriminating"
+        );
+
+        // `This` names the spell itself off the frame's source.
+        let frame = crate::test_support::frame_src(spell);
+        let mut got =
+            state.eval_selection_set(&Selection::ValidTargetsFor(Reference::This), &frame);
+        got.sort_unstable();
+        let mut want = vec![bear_a, bear_b];
+        want.sort_unstable();
+        assert_eq!(
+            got, want,
+            "the intersection is the creatures; the land is legal for slot 1 only and must drop"
+        );
+        assert!(
+            !got.contains(&land),
+            "a union fold would have admitted the land"
+        );
+
+        // A reference naming no live stack entry fizzles to the empty group.
+        let bare = frame_for(&state, PlayerId(0));
+        assert!(
+            state
+                .eval_selection_set(&Selection::ValidTargetsFor(Reference::It), &bare)
+                .is_empty(),
+            "ValidTargetsFor over a non-stack reference fizzles, never panics"
         );
     }
 }

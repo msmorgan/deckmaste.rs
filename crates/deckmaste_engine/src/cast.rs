@@ -1992,11 +1992,11 @@ impl GameState {
     ///
     /// Delegates filter extraction to `resolve::target_spec_filter` so that
     /// announce-time and resolution-time `TargetSpec` handling stay in sync.
-    ///
-    /// # Panics
-    ///
-    /// Panics on `TargetSpec` variants other than `Target` or `Expanded` —
-    /// only those are wired for Stage 2.
+    /// That helper is a TOTAL match over all three `TargetSpec` variants
+    /// (`Distinct` peels to its inner `Target`'s predicate, `Expanded` to the
+    /// remembered invocation's), so this function is panic-free — the former
+    /// "panics on variants other than Target or Expanded" note described a
+    /// partial match that no longer exists.
     #[must_use]
     pub(crate) fn legal_targets(
         &self,

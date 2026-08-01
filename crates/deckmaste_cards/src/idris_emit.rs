@@ -1273,6 +1273,30 @@ fn emit_selection(s: &Selection) -> R {
             "bottomFrom",
             vec![emit_count(count)?, emit_reference(whose)?].into(),
         ),
+        // Additive Rust-side terms with no Idris counterpart YET. Each lands
+        // in `Core.idr` with its first consumer, not before: `LibraryOf` with
+        // `Shuffle(Selection)` ([CR#701.24a]'s own object), `InChosenOrder` /
+        // `ValidTargetsFor` with the [CR#707.10d] for-each-could-target copy
+        // family they compose. Reported as gaps meanwhile, exactly as
+        // `AmongNoted` and `PilesOf` are — no canon card spells them, so the
+        // re-emit gate stays green.
+        Selection::LibraryOf(_) => {
+            return Err(gap(
+                "Selection::LibraryOf has no Idris counterpart yet (lands with Shuffle)",
+            ));
+        }
+        Selection::InChosenOrder(..) => {
+            return Err(gap(
+                "Selection::InChosenOrder has no Idris counterpart yet (lands with the \
+                 for-each-could-target copy family)",
+            ));
+        }
+        Selection::ValidTargetsFor(_) => {
+            return Err(gap(
+                "Selection::ValidTargetsFor has no Idris counterpart yet (lands with the \
+                 for-each-could-target copy family)",
+            ));
+        }
         // Unlike `TopOfLibrary`/`BottomOfLibrary`'s `topFrom`/`bottomFrom`
         // helpers (baking a `{default You}` implicit arg), Idris
         // `TopOfGraveyard`'s `whose` is EXPLICIT — emits as a direct `app`,
