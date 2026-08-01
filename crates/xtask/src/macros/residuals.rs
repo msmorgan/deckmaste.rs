@@ -959,6 +959,10 @@ fn print_ranked(rows: &[Row], sites: usize) {
         rows.len(),
         PRINTED_ROWS.min(rows.len()),
     );
+    println!(
+        "  a row's site count is a CEILING on what one frame could absorb: rows group by \
+         signature key, and one key can cover more than one shape"
+    );
     for (rank, row) in rows.iter().take(PRINTED_ROWS).enumerate() {
         println!("  {:>3}. {}x {}", rank + 1, row.count, row.signature.key);
         println!("       cards: {}", row.examples.join("; "));
@@ -988,6 +992,10 @@ fn report(census: &Census, rows: &[Row]) -> String {
         "{} residual site(s) in {} distinct shape(s).\n",
         census.residual_sites,
         rows.len(),
+    );
+    out.push_str(
+        "A row's `sites` count is a **ceiling** on what one frame could absorb, not a promise: \
+         rows group by signature key, and one key can cover more than one shape.\n\n",
     );
     out.push_str("| rank | sites | signature | cards | pre-typed holes |\n");
     out.push_str("| ---: | ----: | --- | --- | --- |\n");

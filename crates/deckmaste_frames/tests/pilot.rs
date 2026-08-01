@@ -1,13 +1,12 @@
-//! Task 6 integration test: every loaded macro def with a non-empty
+//! Pilot integration test: every loaded macro def with a non-empty
 //! `frames:` list, plus every constructor-catalog entry, compiles clean
 //! (G1) against `plugins/builtin`. Also locks in two G5 findings as
 //! regression tests, so a later change to the compiler's behavior on either
 //! shape shows up here rather than only in prose:
 //!
-//! - `ControlledByYou`'s complement-side `FieldSlice` frame — originally a
-//!   *negative* finding (`<Param(0)> you control` was refused by `classify()`),
-//!   escalated, and **resolved** in-round by a Task 4 reopen that generalized
-//!   `classify()`'s field-slice decision. The macro is now framed, and
+//! - `ControlledByYou`'s complement-side `FieldSlice` frame — a finding that
+//!   was **resolved** rather than merely recorded: `classify()`'s field-slice
+//!   decision covers `<Param(0)> you control`, the macro is framed, and
 //!   `controlled_by_you_complement_side_field_slice_compiles` pins the positive
 //!   outcome.
 //! - `SacrificeThis`'s attempted `~` frame — still a genuine negative finding:
@@ -112,15 +111,14 @@ fn unique_defs(plugin: &Plugin) -> Vec<&MacroDef> {
 /// The pilot's ten framed macro names — asserted explicitly (not just
 /// counted) so a name typo or an accidental drop shows up as a named
 /// failure rather than a silent count coincidence. `ControlledByYou` and
-/// `SacrificeThis` joined this list in the fix round (see the module doc):
-/// both were originally left unframed as G5 findings, and both are now
-/// framed for different reasons (the compiler gap was fixed; the literal
-/// wording turned out to be a real, reproducible constituent all along).
-/// `Player` joined in Task 8's own fix round: it already existed
-/// (`kinds: [Predicate]`, used elsewhere) but had no `frames:`, exactly
-/// `Creature`'s pre-Task-6 gap — closed the same way (see
+/// `SacrificeThis` are here for the reasons the module doc gives: both were
+/// once left unframed as G5 findings, and both are framed now for different
+/// reasons (the compiler gap was fixed; the literal wording turned out to be
+/// a real, reproducible constituent all along). `Player` is here because it
+/// already existed (`kinds: [Predicate]`, used elsewhere) with no `frames:`
+/// — exactly `Creature`'s original gap, closed the same way (see
 /// `docs/superpowers/research/2026-07-30-macro-frames/
-/// pilot-constituency-findings.md`'s "Task 8, fix round 1" section).
+/// pilot-constituency-findings.md`).
 const EXPECTED_FRAMED_MACROS: [&str; 10] = [
     "Flying",
     "Protection",
@@ -265,11 +263,11 @@ fn controlled_by_you_and_sacrifice_this_carry_their_resolved_wording() {
     }
 }
 
-/// The G5 finding this test was minted to lock in has been **resolved**, by
-/// the user ruling that reopened Task 4: `<Param(0)> you control` — the frame
-/// directed for `ControlledByYou`, exercising `FieldSlice` from the side
-/// `target <Param(0)>` doesn't reach — now compiles, with the hole claiming
-/// `modifiers`+`head` and the frame keeping its `complements`.
+/// The G5 finding this test was minted to lock in is **resolved**:
+/// `<Param(0)> you control` — the frame directed for `ControlledByYou`,
+/// exercising `FieldSlice` from the side `target <Param(0)>` doesn't reach —
+/// compiles, with the hole claiming `modifiers`+`head` and the frame keeping
+/// its `complements`.
 ///
 /// The test is inverted rather than deleted, and this is what its previous
 /// self asked for: it recorded that if the shape ever compiled, "the compiler

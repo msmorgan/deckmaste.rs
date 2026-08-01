@@ -10,7 +10,7 @@
 //!
 //! 1. **Which English category a frame is parsed at.** A `MacroDef` names its
 //!    *macro* kinds (`kinds: [OneShotEffect]`), not a [`FragmentKind`] — see
-//!    [`macro_fragment_kind`], the first production instance of that table.
+//!    [`macro_fragment_kind`], which is where that table lives.
 //! 2. **What a frame belongs to.** An [`Entry`] pairs a compiled frame with the
 //!    RON head symbol it renders (`"Draws"`, `"Target"`) and that symbol's
 //!    declared param types, which is what lets the unifier turn a successful
@@ -349,15 +349,16 @@ impl Lexicon {
 /// The English category a macro's frames are parsed at, from its declared
 /// macro `kinds:`.
 ///
-/// **The first production instance of this table.** Until now the mapping
-/// lived only in Task 6's pilot integration test
-/// (`crates/deckmaste_frames/tests/pilot.rs`), because nothing in production
-/// needed it: `cargo xtask macro inspect` takes `--kind` on the command line.
-/// A lexicon cannot, so the table has to exist somewhere, and this is the
-/// crate that owns the macro-to-English bridge.
+/// **The single definition of that mapping.** `cargo xtask macro inspect`
+/// takes a `--kind` on the command line for the one parse it is asked for,
+/// but a lexicon has no command line to take one from: an entry's
+/// registration category has to be derivable from the macro itself. This is
+/// the crate that owns the macro-to-English bridge, so the derivation lives
+/// here rather than in either endpoint, and every caller reads it from here
+/// instead of keeping a second copy.
 ///
 /// It is a *heuristic over kind names*, not a total function on the kind
-/// space — the pilot's own nine macros are what it is verified against. The
+/// space — the pilot's own framed macros are what it is verified against. The
 /// order matters: `Draw` is both `OneShotEffect` and `KeywordAction` and must
 /// come out `Sentence`, while `SacrificeThis` is `CostComponent` and must
 /// come out `Cost`, so the more specific kinds are tested first and the
@@ -396,6 +397,22 @@ const CONSTRUCTOR_KINDS: [FragmentKind; 5] = [
     FragmentKind::Ability,
 ];
 
+/// Whether `kind` is one [`CONSTRUCTOR_KINDS`] covers. Exhaustive on purpose:
+/// a new [`FragmentKind`] variant must fail to compile here rather than
+/// silently escape [`selection_is_unambiguous`]'s per-kind narrowing sweep
+/// and sort last through [`kind_rank`]'s fallthrough. Both of those read the
+/// table, and neither can tell a category it was never given from one that
+/// does not exist.
+const fn kind_is_swept(kind: FragmentKind) -> bool {
+    match kind {
+        FragmentKind::Nominal
+        | FragmentKind::Sentence
+        | FragmentKind::Cost
+        | FragmentKind::KeywordLine
+        | FragmentKind::Ability => true,
+    }
+}
+
 /// A total order over [`FragmentKind`], for [`Lexicon::assemble`]'s sort.
 ///
 /// Public because it is the *only* definition of that order, and a tool that
@@ -407,11 +424,12 @@ const CONSTRUCTOR_KINDS: [FragmentKind; 5] = [
 /// which this round must not modify, so it carries no `Ord` to derive from.
 /// [`CONSTRUCTOR_KINDS`] already enumerates every category a frame can be
 /// registered at, so its index is a total, stable key. The `usize::MAX`
-/// fallthrough cannot be reached today (a macro frame's category comes from
-/// [`macro_fragment_kind`], whose whole range is in the table, and a
-/// constructor frame's from its declared `kind:`) and exists only so a
-/// future `FragmentKind` variant sorts last instead of failing to compile a
-/// sort that has no business gating on the kind space.
+/// fallthrough is unreachable — every category a frame can carry is in the
+/// table (a macro frame's comes from [`macro_fragment_kind`], a constructor
+/// frame's from its declared `kind:`), and [`kind_is_swept`] is what keeps
+/// that true, by refusing to compile against a `FragmentKind` the table has
+/// not been extended for. It exists only because `position` returns an
+/// `Option` and this function is total.
 #[must_use]
 pub fn kind_rank(kind: FragmentKind) -> usize {
     CONSTRUCTOR_KINDS
@@ -569,6 +587,7 @@ const fn position_is_swept(position: FramePosition) -> bool {
 /// Naming both tied frames, the assignment that ties them, and the position.
 fn selection_is_unambiguous(entries: &[Entry]) -> anyhow::Result<()> {
     debug_assert!(POSITIONS.iter().copied().all(position_is_swept));
+    debug_assert!(CONSTRUCTOR_KINDS.iter().copied().all(kind_is_swept));
     let mut names: Vec<&str> = entries.iter().map(|entry| entry.name.as_str()).collect();
     names.sort_unstable();
     names.dedup();

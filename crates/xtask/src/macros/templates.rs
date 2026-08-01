@@ -578,12 +578,12 @@ mod tests {
     /// macro-schema-census.md` §3's independently-derived count: "21 macros
     /// total carry a D10-relevant feature". Scans every `template:` in the
     /// real corpus (not just framed defs — the census counted by template
-    /// content, not by `frames:`, which is empty everywhere today) and
+    /// content, independently of whether a def carries `frames:`) and
     /// asserts the same 21 names. Ignored by default because the corpus is
-    /// living data (Task 6+ will add real `frames:`, new macros will be
-    /// added) and a hard-coded name list tied to it would go stale exactly
-    /// the way the round's own tests are told not to depend on repo
-    /// content; run with `cargo test -p xtask --lib -- --ignored
+    /// living data — frames and macros are both still being added — and a
+    /// hard-coded name list tied to it would go stale exactly the way a test
+    /// that depends on repo content always does; run with
+    /// `cargo test -p xtask --lib -- --ignored
     /// macro_schema_census_count_matches_21` to re-verify by hand.
     #[test]
     #[ignore = "cross-checks the live corpus against the census; run on demand"]

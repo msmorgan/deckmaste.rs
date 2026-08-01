@@ -1841,7 +1841,8 @@ mod tests {
     }
 
     /// The two supported asymmetries claim *different* field sets — the
-    /// contract Tasks 7 and 8 must read rather than assume.
+    /// contract a consumer of a `FieldSlice` hole must read rather than
+    /// assume.
     #[test]
     fn the_two_supported_asymmetries_claim_different_sets() {
         let determiner_side = compile_filter("target <Param(0)>").unwrap();
@@ -1897,8 +1898,8 @@ mod tests {
         }
     }
 
-    /// The frame catalog's own seeded entries have to compile, or Task 6 has
-    /// nothing to author against.
+    /// The frame catalog's own entries have to compile, or there is nothing
+    /// for further entries to be authored against.
     #[test]
     fn the_seeded_constructor_catalog_compiles() {
         let dir =

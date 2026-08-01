@@ -1095,7 +1095,7 @@ mod tests {
     /// oracle text against. Load-bearing rather than incidental:
     /// `Catalogs::default()` has zero entries in every catalog, so
     /// `KeywordLine` frames and catalog nouns such as "creature" cannot parse
-    /// against it (see Task 6's G5 finding 3).
+    /// against it at all.
     fn real_catalogs() -> Catalogs {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
         let load = |name: &str| -> Vec<String> {
@@ -1489,8 +1489,8 @@ mod tests {
     /// nominal, not a `ThisCard` leaf, and a `SelfRef` hole must accept it.
     ///
     /// Driven against a hand-compiled `Sacrifice ~` because the pilot
-    /// deliberately frames `SacrificeThis` with the literal wording instead —
-    /// Task 6's G5 finding 2. That finding is about *authoring*; matching has
+    /// deliberately frames `SacrificeThis` with the literal wording instead.
+    /// That is an *authoring* choice; matching has
     /// to cope with the form either way, since 99.2% of the corpus's
     /// "Sacrifice this `<TYPE>`" lines are spelled this way.
     #[test]
@@ -1832,21 +1832,21 @@ mod tests {
                 "Creature[0]@Nominal",
                 "DealsDamageToEach[0]@Sentence",
                 "Draw[0]@Sentence",
-                // `Draw[1]`/`Draws[2]`/`Draws[3]`: Task 8's own G3/G4 canon
-                // sweep found "draw a card" (indefinite, the corpus's most
-                // common count) had no frame at all — a `Numeral` hole only
-                // ever matches a *quantity* determiner — and added a
-                // zero-hole literal per macro, guarded on count = 1
-                // (`Draw.ron`/`Draws.ron` carry the full story).
+                // `Draw[1]`/`Draws[2]`/`Draws[3]`: "draw a card" (indefinite,
+                // the corpus's most common count) reaches no hole-bearing
+                // frame — a `Numeral` hole only ever matches a *quantity*
+                // determiner — so each macro carries a zero-hole literal
+                // guarded on count = 1 (`Draw.ron`/`Draws.ron` carry the
+                // full story).
                 "Draw[1]@Sentence",
                 "Draws[0]@Sentence",
                 "Draws[1]@Sentence",
                 "Draws[2]@Sentence",
                 "Draws[3]@Sentence",
                 "Flying[0]@KeywordLine",
-                // `Player[0]`: a fix-round finding — `filter/Player.ron`
-                // already existed (used elsewhere) but had no `frames:`,
-                // exactly `Creature`'s pre-Task-6 gap; added the same way.
+                // `Player[0]`: `filter/Player.ron` already existed (used
+                // elsewhere) with no `frames:` — exactly `Creature`'s
+                // original gap, closed the same way.
                 "Player[0]@Nominal",
                 "Protection[0]@KeywordLine",
                 "PumpThisUntilEot[0]@Sentence",

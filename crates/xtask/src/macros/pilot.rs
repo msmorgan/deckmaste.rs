@@ -162,12 +162,13 @@ struct Coverage {
 /// and so does *any* regression that shrinks the population instead of
 /// breaking a comparison.
 ///
-/// That is not a hypothetical for this round. `ParseFailed` and
+/// The exposure is structural, not hypothetical. `ParseFailed` and
 /// `NotAnInvocation` are exclusions shared by **both** gates
-/// ([`evaluate_line`]'s early return): if an english change made G4's 8
-/// currently-divergent lines fail to parse, they would leave the covered
-/// population entirely, `diverged` would empty, and G4 would print PASS —
-/// applauding the regression as a fix. G3's own denominator has the same
+/// ([`evaluate_line`]'s early return): an english change that stops a
+/// covered line from parsing drops that line out of the covered population
+/// entirely, and a line no gate reaches a verdict on can never land in
+/// `diverged` — so the regression shrinks the population and G4 prints PASS
+/// over ground it no longer walks. G3's own denominator has the same
 /// exposure one layer along, through [`ExclusionReason::RenderFailed`] (0
 /// today): a render regression turns a checked line into an exclusion while
 /// G3 keeps printing PASS. Pinning `g3_checked`/`g4_covered` is what closes

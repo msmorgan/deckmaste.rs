@@ -17,8 +17,12 @@
 //!   [`scan_macro_dir`]'s doc).
 //! - **per-gate pilot status** — [`super::pilot::gate_status`], the same G3/G4
 //!   verdicts `cargo xtask macro pilot` computes, condensed to one line each.
-//!   Never fails this command: a red G4 is this round's honest, disclosed
-//!   result (see the G5 findings file pilot itself names), not a census error.
+//!   This command **reports every population and gates on none**: a red verdict
+//!   here is printed, never turned into a non-zero exit, and the command that
+//!   owns those verdicts — and does fail on them — is `cargo xtask macro
+//!   pilot`. A status that cannot be computed at all is printed as such for the
+//!   same reason, so an unrelated breakage costs one line of the reading rather
+//!   than all of it.
 //! - **excepted-template count, corpus-wide** —
 //!   [`super::templates::corpus_wide_excepted_names`], scanning every
 //!   `template:` field in `plugins/builtin` (not just framed defs — see that

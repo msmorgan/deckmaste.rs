@@ -35,9 +35,9 @@
 //! `expand_all`, and compare the resulting `View` against the card-side
 //! argument run through the same function — so the stored string may be any
 //! parseable RON spelling of the constant (`"Exactly(1)"`, not necessarily
-//! some single "normalized" text); that normalizer is a later stage's job
-//! (Task 4), not this module's — this module stores guard strings verbatim,
-//! with no semantics attached.
+//! some single "normalized" text); that normalizer is a later stage's job,
+//! not this module's — this module stores guard strings verbatim, with no
+//! semantics attached.
 //!
 //! This is per-macro (or per-constructor) data rather than a global rule
 //! because the alternation it encodes doesn't reduce to one: the corpus
@@ -143,9 +143,10 @@ impl FrameSpec {
         }
     }
 
-    /// Whether this frame carries no guard at all — the condition under
-    /// which [`Serialize`] takes the bare-string spelling instead of the
-    /// full struct form.
+    /// Whether this frame carries no guard at all — no `when` pre-bindings
+    /// and no `position` key. Not on its own the condition [`Serialize`]
+    /// takes the bare-string spelling under: an unguarded frame with
+    /// announced holes still serializes in the full struct form.
     ///
     /// Public because a guard also decides whether a frame is a *complete*
     /// rendering: a guarded frame pre-binds params, so its text omits them
@@ -231,12 +232,13 @@ impl<'de> Deserialize<'de> for FrameSpec {
     }
 }
 
-/// **Asymmetric by design, not merely permissively lenient**: an unguarded
-/// `FrameSpec` (`when` empty, `position` absent) always serializes to the
-/// bare string spelling, never the padded struct form — the guarded case is
-/// the only one that pays for the full `(text: ..., when: ..., position:
-/// ...)` shape. A reader who lands here directly (rather than via the
-/// module doc) should not expect `Serialize`/`Deserialize` to be mirror
+/// **Asymmetric by design, not merely permissively lenient**: a `FrameSpec`
+/// carrying nothing but its text — `when` empty, `position` absent,
+/// `announced` empty — always serializes to the bare string spelling, never
+/// the padded struct form. Only a frame with something the bare string
+/// cannot carry pays for the full `(text: ..., when: ..., position: ...,
+/// announced: ...)` shape. A reader who lands here directly (rather than via
+/// the module doc) should not expect `Serialize`/`Deserialize` to be mirror
 /// images of a single canonical shape.
 impl Serialize for FrameSpec {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -317,20 +319,39 @@ pub struct ConstructorFrames {
     )]
     pub body: Option<String>,
     /// Whether an invocation of this entry **is a target announcement** — a
-    /// `TargetSpec` or the `AnyTarget` pro-form, the things a `targets:` list
-    /// holds [CR#601.2c].
+    /// `TargetSpec`, or a pro-form standing for one, of the kind a `targets:`
+    /// list holds [CR#601.2c].
     ///
     /// Read by the filler discipline [`FrameSpec::announced`] describes: this
     /// flag is what makes a constituent count as an announcement, so the
     /// class is catalog data rather than a hardcoded English node shape.
     /// `false` for everything else, which is why it defaults.
     ///
-    /// Constructor entries only. A macro definition has no field for it and
-    /// this round adds none (`MacroDef` gains frame metadata only when a
-    /// frame demonstrably needs it), so a macro's frames are never
-    /// announcements; the two pro-forms that are — `Target` and `AnyTarget` —
-    /// are both catalog entries.
-    #[serde(default)]
+    /// **Declared, never inferred.** An entry is an announcement only by
+    /// carrying `announcement: true` — not by its `constructor` spelling, not
+    /// by its declared param types, not by its frame text containing the word
+    /// "target". The failure mode of a missing declaration is silent, and it
+    /// bites the *other* entry: a hole marked
+    /// [`announced`](FrameSpec::announced) accepts only a filler some
+    /// declared entry covers, so a frame that marks a hole whose intended
+    /// filler is undeclared never matches at all. Nothing diagnoses that —
+    /// the wording is simply unreachable, and the catalog still assembles.
+    ///
+    /// Declaring one is a commitment in both directions, so an entry that
+    /// *could* be an announcement is not declared one on sight: an unmarked
+    /// hole rejects announcement fillers, so as a filler a declared entry's
+    /// English fits marked holes and no others. Declare an entry in the same
+    /// step as the announce-list wording that receives its fillers — the
+    /// catalog pairs the `"any target"` pro-form with the announced
+    /// damage entry's `announced: [2]`, and leaves `"target <predicate>"`
+    /// undeclared precisely because no announce-list wording covers the
+    /// effects it appears in, so declaring it would put those nominals out of
+    /// reach of the plain holes that recover them today.
+    ///
+    /// Constructor entries only. A macro definition has no field for it
+    /// (`MacroDef` gains frame metadata only when a frame demonstrably needs
+    /// it), so a macro's frames are never announcements.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     pub announcement: bool,
 }
 
@@ -760,6 +781,19 @@ mod tests {
             catalog_of(r#"(constructor: "This", params: [], kind: Nominal, frames: ["~"])"#);
         assert!(!plain.announcement);
         assert_eq!(plain.frames[0].announced, Vec::<usize>::new());
+
+        // The defaulted `false` leaves no field behind either, so a generated
+        // entry copied into a hand-authored catalog carries no noise in; a
+        // declared `true` is data and always survives the round trip.
+        let text = opts().to_string(&plain).unwrap();
+        assert!(!text.contains("announcement"), "{text}");
+        assert_eq!(opts().from_str::<ConstructorFrames>(&text).unwrap(), plain);
+        let text = opts().to_string(&pro_form).unwrap();
+        assert!(text.contains("announcement:true"), "{text}");
+        assert_eq!(
+            opts().from_str::<ConstructorFrames>(&text).unwrap(),
+            pro_form
+        );
     }
 
     /// An announced hole is part of the frame's identity, so the bare-string
