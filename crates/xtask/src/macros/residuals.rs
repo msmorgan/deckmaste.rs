@@ -329,6 +329,39 @@ fn check_floor(observed: &Population) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// The corpus-wide `Full` share alone: how many swept lines the top-level
+/// entry recovered whole, out of every line swept — the same sweep and
+/// classification [`run`] itself drives, so a caller wanting only the
+/// headline share does not run a second, independently-derived count that
+/// could drift from this one.
+///
+/// Kept separate from [`Population`]/[`RESIDUAL_FLOOR`]: a headline share is
+/// not a ratchet, and a caller that only wants the number should not pull in
+/// the floor-check contract along with it.
+///
+/// # Errors
+/// If the lexicon or canon corpus fails to load.
+pub(super) fn corpus_full_share(
+    plugin_dir: &Path,
+    canon_dir: &Path,
+) -> anyhow::Result<(usize, usize)> {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let plugin = Plugin::load_with_sibling_prelude(plugin_dir)?;
+    let catalogs = real_catalogs(&workspace_root)?;
+    let constructors = load_constructor_frames(&plugin_dir.join("frames"))?;
+    let lexicon = Lexicon::assemble(&plugin.macros, &constructors, &catalogs)?;
+
+    let canon_plugin = Plugin::load_with_sibling_prelude(canon_dir)?;
+    let swept = collect_lines(canon_dir, &canon_plugin.macros)?;
+    let outcomes: Vec<LineOutcome> = swept
+        .lines
+        .iter()
+        .map(|line| classify(line, &lexicon, &catalogs))
+        .collect();
+    let census = Census::of(&swept.lines, &outcomes);
+    Ok((census.full, census.lines))
+}
+
 // ---------------------------------------------------------------------------
 // Corpus loading
 // ---------------------------------------------------------------------------
@@ -815,7 +848,7 @@ fn kind_label(kind: FragmentKind) -> &'static str {
     }
 }
 
-fn percent(part: usize, whole: usize) -> String {
+pub(super) fn percent(part: usize, whole: usize) -> String {
     if whole == 0 {
         return "n/a".to_string();
     }

@@ -7,7 +7,7 @@
 //! the corpus-wide count of `template:` fields the legacy mini-language
 //! [`project`](super::templates) can't express.
 //!
-//! Three populations this command reports, deliberately kept distinct in
+//! Four populations this command reports, deliberately kept distinct in
 //! the printed output — conflating them reads as a regression when none
 //! occurred:
 //! - **framed / true definitions** — this module's own scan
@@ -26,6 +26,12 @@
 //!   macro templates --check`'s own `excepted` count, which is scoped to framed
 //!   defs only — printed side by side with each count's scope named, so a
 //!   reader never mistakes one for the other.
+//! - **corpus residual `Full` share** —
+//!   [`super::residuals::corpus_full_share`], the same whole-corpus sweep and
+//!   classification `cargo xtask macro residuals` itself runs, not an
+//!   independently-derived count of this command's own. A different population
+//!   again from the two above: those count `.ron` macro-definition *files*,
+//!   this counts rendered rules *lines*.
 
 use std::fs;
 use std::path::Path;
@@ -75,6 +81,18 @@ pub(super) fn run(args: CensusArgs) -> anyhow::Result<()> {
         builtin_dir.display(),
         excepted.len(),
     );
+
+    match super::residuals::corpus_full_share(&builtin_dir, &canon_dir) {
+        Ok((full, lines)) => {
+            println!(
+                "corpus residual sweep, whole-line recovery: Full {full} / {lines} line(s) ({})",
+                super::residuals::percent(full, lines),
+            );
+        }
+        Err(error) => {
+            println!("corpus residual sweep: could not compute ({error:#})");
+        }
+    }
 
     match super::pilot::gate_status(&builtin_dir, &canon_dir) {
         Ok(status) => {
