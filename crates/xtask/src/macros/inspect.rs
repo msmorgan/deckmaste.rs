@@ -248,7 +248,7 @@ mod tests {
     }
 
     const PRECEDENCE_CONSTRUCTOR: &str = r#"[
-    (constructor: "Foo", params: ["Reference"], frames: ["<Param(0)> constructor-wins"]),
+    (constructor: "Foo", params: ["Reference"], frames: ["<Param(0)> constructor-wins"], kind: Sentence),
 ]
 "#;
 
@@ -328,7 +328,7 @@ mod tests {
     #[test]
     fn resolve_refuses_a_constructor_catalog_entry_with_no_frames_yet() {
         let source = r#"[
-    (constructor: "Empty", params: [], frames: []),
+    (constructor: "Empty", params: [], frames: [], kind: Sentence),
 ]
 "#;
         let dir = tempdir_with(&[("frames/constructors.ron", source)]);

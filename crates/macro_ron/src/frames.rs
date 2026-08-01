@@ -2,9 +2,7 @@
 //! holes, plus the guard that decides when one applies) and
 //! [`ConstructorFrames`] (the parallel catalog for raw `deckmaste_core`
 //! constructors — canon RON is 83.5% raw constructors, so this catalog is
-//! most of the lexicon, not an appendix; see
-//! `docs/superpowers/research/2026-07-30-macro-frames/macro-schema-census.md`
-//! §6).
+//! most of the lexicon, not an appendix).
 //!
 //! Lives in `macro_ron`, not the `deckmaste_frames` bridge crate: schema
 //! lives with the data (`MacroDef.frames` needs this type; see
@@ -192,19 +190,46 @@ impl Serialize for FrameSpec {
     }
 }
 
+/// The English category a constructor entry's frames are parsed at and
+/// registered under. A schema-owned mirror of
+/// `deckmaste_english::FragmentKind` — duplicated, not imported, because
+/// this module has no dependency beyond `serde`/`ron` (see the module doc)
+/// and must not gain one merely to name the category a frame belongs to.
+/// The bridge crate carries the exhaustive conversion
+/// (`deckmaste_frames::lexicon::fragment_kind_of`; not a `From` impl —
+/// both this type and `FragmentKind` are foreign to that crate, and to
+/// every crate that could host one); this module never interprets the
+/// variant, only carries it through serde, exactly as it already does for
+/// hole sigils and guard spellings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum FrameKind {
+    Nominal,
+    Sentence,
+    Cost,
+    KeywordLine,
+    Ability,
+}
+
 /// One raw `deckmaste_core` constructor's entry in the frame catalog:
 /// `constructor` is the bare variant name as written in RON (`"DealDamage"`,
 /// `"GainLife"`), `params` names each positional hole's type in the order
 /// the catalog's frames reference them (`<Param(0)>` is `params[0]`, and so
-/// on), and `frames` are its English renderings, same shape and guard model
+/// on), `frames` are its English renderings, same shape and guard model
 /// as [`MacroDef::frames`](crate::set::MacroDef) (`FrameSpec` is shared
 /// between the two — a guard means the same thing whether it guards a
-/// macro's frame or a constructor's).
+/// macro's frame or a constructor's), and `kind` is the single category this
+/// entry's frames register at. `kind` is required, not defaulted: a
+/// constructor entry has no macro `kinds:` to read a category off (unlike
+/// [`MacroDef`](crate::set::MacroDef)), so there is nothing to guess it
+/// from, and registering an entry at every category it happens to parse
+/// cleanly at costs several entries where one is meant — see
+/// `deckmaste_frames::lexicon::Lexicon::assemble`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ConstructorFrames {
     pub constructor: String,
     pub params: Vec<String>,
     pub frames: Vec<FrameSpec>,
+    pub kind: FrameKind,
 }
 
 /// Why [`load_constructor_frames`] failed: an I/O error reading a directory
@@ -373,7 +398,7 @@ mod tests {
     fn constructor_frames_catalog_entry_deserializes() {
         let source = r#"[
             (constructor: "DealDamage", params: ["Reference", "Count", "Reference"],
-             frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"]),
+             frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"], kind: Sentence),
         ]"#;
         let catalog: Vec<ConstructorFrames> = opts().from_str(source).unwrap();
         assert_eq!(catalog.len(), 1);
@@ -384,6 +409,27 @@ mod tests {
             vec![FrameSpec::bare(
                 "<Param(0)> deals <Param(1)> damage to <Param(2)>"
             )]
+        );
+        assert_eq!(catalog[0].kind, FrameKind::Sentence);
+    }
+
+    /// `kind:` narrows a catalog entry to one registration category (an
+    /// unscoped entry costs several entries where one is meant), so it must
+    /// be required, not defaulted — an entry authored without it is a
+    /// build-time mistake, not a legal "no preference" reading.
+    #[test]
+    fn constructor_frames_missing_kind_fails_to_deserialize() {
+        let source = r#"[
+            (constructor: "DealDamage", params: ["Reference", "Count", "Reference"],
+             frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"]),
+        ]"#;
+        let error = opts()
+            .from_str::<Vec<ConstructorFrames>>(source)
+            .expect_err("an entry with no `kind:` field must fail to deserialize");
+        let message = error.to_string();
+        assert!(
+            message.to_lowercase().contains("kind"),
+            "expected a field-naming error mentioning `kind`, got: {message}"
         );
     }
 

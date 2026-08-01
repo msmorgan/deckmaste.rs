@@ -373,13 +373,17 @@ fn unify_at(target: &View, lexicon: &Lexicon, position: FramePosition, depth: us
     };
 
     // Two *registrations of one authored frame* are not an ambiguity — they
-    // are one reading reached twice. A constructor frame is registered at
-    // every category that accepts it (see `lexicon`), so `~` enters the
-    // lexicon as both `This`@Nominal and `This`@Cost; at the depth a pro-form
-    // matches, the two patterns are the identical bare hole and would report a
-    // tie against themselves. An ambiguity is two frames disagreeing about
-    // what the English *is*, so the report is built from the rivals that name
-    // a different authored frame.
+    // are one reading reached twice. Every entry an assembled lexicon holds
+    // registers at exactly one category (see `lexicon::Lexicon::assemble`),
+    // so this can only ever distinguish two genuinely different authored
+    // frames that happen to match the same target equally well; the
+    // same-identity case it exists to swallow is live only against a
+    // hand-built `Lexicon::from_entries` lexicon that does not enforce
+    // assembly's uniqueness (two entries deliberately sharing `(name,
+    // frame_index, origin)` at different categories would otherwise report
+    // a tie against themselves). An ambiguity is two frames disagreeing
+    // about what the English *is*, so the report is built from the rivals
+    // that name a different authored frame.
     let rivals: Vec<usize> = (0..matches.len())
         .filter(|order| *order != best && !same_authored_frame(lexicon, &matches, *order, best))
         .collect();
@@ -429,11 +433,15 @@ fn recover_argument(
     Recovered::Residual(View::Absent)
 }
 
-/// Whether two matches came from the same authored frame, registered twice.
+/// Whether two matches came from the same authored frame.
 ///
 /// Identity is the authoring, not the compiled entry: same owner name, same
-/// slot in its `frames:` list, same origin. Only the per-category
-/// registration can differ.
+/// slot in its `frames:` list, same origin — the same triple
+/// `render::same_authored_frame` keys on, the render-direction sibling of
+/// this question. An assembled lexicon never holds two entries sharing that
+/// triple (see `lexicon::Lexicon::assemble`), so within one this only ever
+/// compares an entry against itself; a hand-built `Lexicon::from_entries`
+/// lexicon is the one place two distinct entries can still share it.
 fn same_authored_frame(lexicon: &Lexicon, matches: &[Matched], left: usize, right: usize) -> bool {
     let entry = |order: usize| &lexicon.entries()[matches[order].entry];
     let (left, right) = (entry(left), entry(right));
@@ -1523,10 +1531,14 @@ mod tests {
                  {left:?} does not precede {right:?}"
             );
         }
-        // Non-vacuous: the corpus really does exercise every tier of the key
-        // — both origins, several names each, several frames under one name,
-        // and several categories under one constructor frame.
-        assert!(entries.len() > 20, "{} entries", entries.len());
+        // Non-vacuous: the corpus really does exercise the key's higher
+        // tiers — both origins, several names each, several frames under
+        // one name (`Draws`). `kind` never actually breaks a tie in this
+        // fixture: a constructor entry's required `kind:` and invariant 1
+        // (`(name, frame_index, origin)` is unique) together mean no two
+        // entries ever share every earlier tier, so it stays in the key
+        // only to keep the ordering total if that ever stopped holding.
+        assert!(entries.len() > 15, "{} entries", entries.len());
         assert_eq!(entries[0].origin, Origin::Macro, "macros sort first");
         assert_eq!(
             entries[entries.len() - 1].origin,
@@ -1584,14 +1596,14 @@ mod tests {
         );
     }
 
-    /// A constructor entry declares no category, and no order of trials can
-    /// recover one: `target <Param(1)>` is as good an imperative sentence as
-    /// a nominal, and the damage clause is as good a reduced relative as a
-    /// sentence. So each constructor frame is registered at every category
-    /// that accepts it and the target's own category picks — which is why
-    /// `target creature` still recovers `Target` and not something else.
+    /// A constructor entry's required `kind:` field picks its one
+    /// registration category — `DealDamage`'s frame parses cleanly at four
+    /// of the five categories, but it registers only at its declared
+    /// `Sentence`, not all four (an unnarrowed registration costs 4-5x
+    /// entries and makes `try_entry` `O(lexicon × tree)` against categories
+    /// the target could never actually be rooted at).
     #[test]
-    fn a_constructor_frame_is_registered_at_every_category_that_accepts_it() {
+    fn a_constructor_frame_is_registered_only_at_its_declared_kind() {
         let lexicon = &fixture().lexicon;
         let kinds = |name: &str| {
             let mut kinds: Vec<String> = lexicon
@@ -1603,20 +1615,11 @@ mod tests {
             kinds.sort();
             kinds
         };
-        assert_eq!(
-            kinds("DealDamage"),
-            ["Ability", "Cost", "Nominal", "Sentence"]
-        );
-        assert_eq!(kinds("GainLife"), ["Ability", "Cost", "Sentence"]);
-        assert_eq!(kinds("Target"), ["Ability", "Cost", "Nominal", "Sentence"]);
-        // The pro-form: a lone `~` is a noun phrase or a cost line and
-        // nothing else, which is why the two registrations it does get are
-        // the same bare hole and must not read as an ambiguity.
-        assert_eq!(kinds("This"), ["Cost", "Nominal"]);
+        assert_eq!(kinds("DealDamage"), ["Sentence"]);
+        assert_eq!(kinds("GainLife"), ["Sentence"]);
+        assert_eq!(kinds("Target"), ["Nominal"]);
+        assert_eq!(kinds("This"), ["Nominal"]);
 
-        // The whole point of not guessing: only the `Nominal` registration of
-        // `Target` can align with a nominal target, so the extra ones are
-        // inert rather than competing.
         let recovered = unify(
             &parse("target creature", FragmentKind::Nominal, ""),
             lexicon,
@@ -1624,7 +1627,7 @@ mod tests {
         );
         assert!(
             recovered.ambiguities().is_empty(),
-            "the other registrations are rooted at other categories: {recovered:#?}"
+            "a single Nominal registration of `Target` must not report an ambiguity: {recovered:#?}"
         );
     }
 }

@@ -137,16 +137,18 @@ pub fn render_invocation(
 /// `kind` is both the category candidate frames are filtered to and the
 /// category [`parse_fragment`] reads the substituted text back at — one
 /// value, so those two can no longer disagree. Reading it off the *winning
-/// entry* instead (`chosen.frame.kind`, what this used to do) is wrong for a
-/// constructor entry: `lexicon::compile_constructor_frame` registers one
-/// authored frame at every category it parses cleanly at, all sharing an
-/// identity under `same_authored_frame`, so the D8 tie check finds no rival
-/// and simply takes the first — `Nominal`, first in `CONSTRUCTOR_KINDS`.
-/// Rendering a recovered `DealDamage` then parsed "Lightning Bolt deals 3
-/// damage to any target" as a *noun phrase*: no leading capital, no terminal
-/// period. The caller always knows the category (the gate tooling has the
-/// canon line's own; a nested filler has no category at all, see
-/// [`select_frame`]), so it supplies it.
+/// entry* instead (`chosen.frame.kind`) would trust an accident of the D8
+/// tie-break rather than a guarantee: [`select_frame`]'s specificity ranking
+/// picks among candidates purely by which guard params they satisfy and
+/// never looks at `frame.kind` at all, so nothing about that ranking stops
+/// it from preferring a same-named entry from the wrong category — identity
+/// checks at assembly time are per-origin (see
+/// `lexicon::Lexicon::assemble`), so nothing rules out a macro and a
+/// constructor entry sharing `entry_name` under different kinds. Filtering
+/// candidates to the caller's `kind` *before* that ranking runs is what
+/// keeps the two values from disagreeing. The caller always knows the
+/// category (the gate tooling has the canon line's own; a nested filler has
+/// no category at all, see [`select_frame`]), so it supplies it.
 ///
 /// # Errors
 /// See [`render_invocation`].
@@ -290,24 +292,28 @@ fn select_frame<'lexicon>(
     // situations, and only one of them is the ambiguity D8 cares about. A
     // rival is benign — not a real tie — only when it is *the same authored
     // frame* as the first (same name, `frame_index`, and origin — the
-    // identical identity `unify::same_authored_frame` keys on), registered a
-    // second time purely because a constructor frame is compiled at every
-    // `FragmentKind` it parses cleanly at
-    // (`lexicon::compile_constructor_frame`, e.g. `Target`/`DealDamage`).
-    // Those registrations share not just a guard-param set but the exact
-    // same `spec.text`/holes, so picking whichever the lexicon assembled
-    // first changes nothing about what gets rendered. Any OTHER rival — a
-    // genuinely different authored frame (different `frame_index`, i.e.
-    // different text) whose guard-param set merely happens to be equal or
-    // incomparable to the first's — is a real D8 ambiguity: two different
-    // wordings both claim to be the most specific match for these
-    // arguments, and no order is more "assembled first" than semantic. (A
-    // narrower carve-out than an earlier version of this function used: a
-    // one-off pair of frames differing only in surface casing — since
-    // fixed a different way, see `crate::unify::surface_only_fields` — would
-    // have been wrongly swallowed by an equal-guard-set-only check; keying
-    // on frame identity catches exactly the multi-`FragmentKind`-registration
-    // case it exists for and nothing broader.)
+    // identical identity `unify::same_authored_frame` keys on), registered
+    // twice under different categories. `Lexicon::assemble` cannot produce
+    // that today: a macro definition's frames register at the one category
+    // its `kinds:` resolve to, and a constructor entry's frames register at
+    // the one category its required `kind:` names
+    // (`lexicon::fragment_kind_of`), so no two entries an assembled lexicon
+    // holds ever share `(name, frame_index, origin)`. The check still
+    // guards a lexicon built by hand (`Lexicon::from_entries`, which does
+    // not enforce that invariant) against exactly this: two entries
+    // deliberately given the same authored identity but different `kind`s
+    // would otherwise report a spurious ambiguity between "two readings"
+    // that are really one. Any OTHER rival — a genuinely different
+    // authored frame (different `frame_index`, i.e. different text) whose
+    // guard-param set merely happens to be equal or incomparable to the
+    // first's — is a real D8 ambiguity: two different wordings both claim
+    // to be the most specific match for these arguments, and no order is
+    // more "assembled first" than semantic. (A narrower carve-out than
+    // keying on equal guard-param sets alone: a one-off pair of frames
+    // differing only in surface casing — fixed a different way, see
+    // `crate::unify::surface_only_fields` — would have been wrongly
+    // swallowed by an equal-guard-set-only check; keying on frame identity
+    // catches exactly the same-authored-frame case and nothing broader.)
     let (first, _) = maximal[0];
     let rivals: Vec<&Entry> = maximal
         .iter()
@@ -333,9 +339,14 @@ fn select_frame<'lexicon>(
 /// `frame_index`, and `origin` — as opposed to two different frames that
 /// merely happen to be equally (or incomparably) specific. Mirrors
 /// `unify::same_authored_frame` exactly (the match-direction sibling of this
-/// same identity question): a constructor frame is registered once per
-/// `FragmentKind` it parses cleanly at, so several `Entry`s can share this
-/// identity while differing only in `frame.kind`.
+/// same identity question). An assembled lexicon never holds two `Entry`s
+/// sharing this identity at different `frame.kind`s — every macro and
+/// constructor entry registers at exactly one category (see
+/// `lexicon::Lexicon::assemble`) — so within a lexicon built that way this
+/// only ever compares an entry against itself; the general case (two
+/// distinct entries actually sharing an identity) is reachable only through
+/// a hand-built `lexicon::Lexicon::from_entries` that does not enforce
+/// assembly's uniqueness.
 fn same_authored_frame(a: &Entry, b: &Entry) -> bool {
     a.name == b.name && a.frame_index == b.frame_index && a.origin == b.origin
 }
@@ -439,9 +450,10 @@ fn render_argument_text(
         Recovered::Literal(text) if spell_count => spelled_count(text),
         Recovered::Literal(text) => Ok(text.clone()),
         Recovered::Invocation { entry, args, .. } => {
-            // `None`: a nested filler contributes only its substituted text,
-            // which is the same for every category one authored frame is
-            // registered at — see `select_frame`'s own doc.
+            // `None`: a nested filler contributes only its substituted text
+            // (`render_frame_text` reads `spec.text`, never `frame.kind`),
+            // so no category is needed to pick among registrations of one
+            // authored frame — see `select_frame`'s own doc.
             let chosen = select_frame(entry, args, lexicon, position, None)?;
             render_frame_text(chosen, args, lexicon, position, name)
         }
@@ -922,22 +934,23 @@ mod tests {
     }
 
     /// The caller's category, not the lexicon's assembly order, decides what
-    /// the substituted text is parsed back as.
+    /// the substituted text is parsed back as — and whether an entry is
+    /// found at all.
     ///
-    /// `DealDamage` is a *constructor* entry, so
-    /// `lexicon::compile_constructor_frame` registers its one authored frame
-    /// at every category it parses cleanly at — `Nominal`, `Sentence`,
-    /// `Cost`, `Ability`. All four share an identity under
-    /// `same_authored_frame`, so the D8 tie check finds no rival and takes
-    /// the first; before this fix `select_frame` ignored `frame.kind`
-    /// entirely and `parse_fragment` ran at whatever the winner happened to
-    /// carry, which is `Nominal` (first in `CONSTRUCTOR_KINDS`) — a sentence
-    /// rendered as a noun phrase, with no leading capital and no terminal
-    /// period.
+    /// `DealDamage` is a *constructor* entry; its catalog entry declares
+    /// `kind: Sentence` (`plugins/builtin/frames/constructors.ron`), so it
+    /// registers at `Sentence` only. Rendering the recovered invocation at
+    /// `Sentence` succeeds, capitalized and terminated; rendering the
+    /// identical invocation at `Nominal` finds no `DealDamage` entry
+    /// registered there and fails outright, rather than silently reusing the
+    /// `Sentence` frame's text under the wrong category (which is what
+    /// reading the category off whichever entry a category-blind selection
+    /// happened to prefer would risk — see `render_invocation_with`'s own
+    /// doc).
     ///
-    /// Both halves are asserted, so this cannot pass vacuously: the two
-    /// categories must produce *different* text, and the `Sentence` one must
-    /// be the sentence.
+    /// Both halves are asserted, so this cannot pass vacuously: `Sentence`
+    /// must actually succeed with the exact expected wording, and `Nominal`
+    /// must actually fail, naming the entry it could not find.
     #[test]
     fn the_callers_category_decides_how_a_constructor_render_is_parsed_back() {
         let this = || Recovered::Invocation {
@@ -960,19 +973,17 @@ mod tests {
                 "Lightning Bolt",
                 false,
             )
-            .ok()
         };
-        let sentence = render(FragmentKind::Sentence);
         assert_eq!(
-            sentence.as_deref(),
-            Some("Lightning Bolt deals 3 damage to Lightning Bolt."),
+            render(FragmentKind::Sentence).unwrap(),
+            "Lightning Bolt deals 3 damage to Lightning Bolt.",
             "a Sentence render must be capitalized and terminated"
         );
-        assert_ne!(
-            sentence,
-            render(FragmentKind::Nominal),
-            "the same invocation rendered at a different category must not come out the same \
-             way — otherwise this test could not see the category being honored at all"
+        let error = render(FragmentKind::Nominal).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("no lexicon entry named"),
+            "a category `DealDamage` is not registered at must fail outright, not silently \
+             reuse its `Sentence`-registered text: {error:#}"
         );
     }
 

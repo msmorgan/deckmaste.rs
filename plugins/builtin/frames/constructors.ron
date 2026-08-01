@@ -11,16 +11,18 @@
     // `Action::DealDamage(Reference, Count, Reference)`
     // (`crates/deckmaste_core/src/action.rs:145`): the third field is a
     // plain `Reference` (the damage's patient object/player), same as the
-    // first.
+    // first. Registers as a sentence: the frame is a full imperative/
+    // declarative clause, not a noun phrase.
     (constructor: "DealDamage", params: ["Reference", "Count", "Reference"],
-     frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"]),
+     frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"], kind: Sentence),
 
     // `PlayerAction::GainLife(Count)` (`action.rs:306`) is arity-1;
     // `Action::By`'s `#[macro_ron(embed)]` marker means authored
     // `GainLife(N)` is really `By(You, GainLife(N))` with the subject
     // defaulted, so `params` here targets that surface (subject, count).
+    // Registers as a sentence, same as `DealDamage`.
     (constructor: "GainLife", params: ["Reference", "Count"],
-     frames: ["<Param(0)> gains <Param(1)> life"]),
+     frames: ["<Param(0)> gains <Param(1)> life"], kind: Sentence),
 
     // `TargetSpec::Target(Quantity, Predicate)` (`target_spec.rs:33`) is
     // arity-2 with no default sugar on either field. The singular "target
@@ -29,8 +31,10 @@
     // the `TargetOne` macro
     // (`plugins/builtin/macros/target/TargetOne.ron`) invokes for the same
     // idiom — while only Param(1) (`Predicate`) appears in the frame text.
+    // Registers as a nominal: the frame is a noun phrase (a targeting
+    // clause's argument position), not a clause of its own.
     (constructor: "Target", params: ["Quantity", "Predicate"],
-     frames: [(text: "target <Param(1)>", when: [(0, "Exactly(1)")])]),
+     frames: [(text: "target <Param(1)>", when: [(0, "Exactly(1)")])], kind: Nominal),
 
     // `Reference::This` — the nullary pro-form entry. Every other entry
     // here renders a constructor that takes arguments; this one renders a
@@ -50,6 +54,8 @@
     // No `params`, so no `<Param(i)>` may appear in the text; recovery is
     // the nullary invocation `This` — the same shape the `Creature`
     // predicate macro already recovers as.
+    // Registers as a nominal, same as `Target`: a self-reference fills a
+    // noun-phrase argument position.
     (constructor: "This", params: [],
-     frames: ["~"]),
+     frames: ["~"], kind: Nominal),
 ]

@@ -28,6 +28,7 @@ use macro_ron::MacroDef;
 use macro_ron::MacroSet;
 use macro_ron::Params;
 use macro_ron::frames::ConstructorFrames;
+use macro_ron::frames::FrameKind;
 
 use crate::CompiledFrame;
 use crate::compile;
@@ -118,12 +119,17 @@ impl Lexicon {
     /// compiling, or a two-kind macro's frames would enter the lexicon twice
     /// and every match against them would report a spurious ambiguity.
     ///
-    /// A macro's category comes from [`macro_fragment_kind`]. A constructor
-    /// entry declares none, so — rather than guessing one, which
-    /// [`compile_constructor_frame`] shows cannot be done soundly — its frame
-    /// is registered at *every* category it parses cleanly at, and the
-    /// target's own category picks at match time. One constructor frame can
-    /// therefore contribute several entries.
+    /// A macro's category comes from [`macro_fragment_kind`]; a constructor
+    /// entry's comes from its required `kind:` field
+    /// ([`ConstructorFrames::kind`], converted via [`fragment_kind_of`]), so a
+    /// constructor frame contributes exactly one entry, same as a
+    /// single-kind macro definition. Registering at every category an entry
+    /// happens to parse cleanly at (most parse cleanly at three or four of
+    /// the five, since e.g. an imperative reads as a nominal too) was
+    /// considered and rejected: it inflates the lexicon 4-5x per entry, and
+    /// `try_entry` is `O(lexicon × tree)`, so every extra entry costs a
+    /// unification attempt against a category the target could never
+    /// actually be rooted at.
     ///
     /// # Authored identity is checked, and the result is sorted
     ///
@@ -195,22 +201,22 @@ impl Lexicon {
         }
 
         for catalog_entry in constructors {
+            let kind = fragment_kind_of(catalog_entry.kind);
             for (frame_index, spec) in catalog_entry.frames.iter().enumerate() {
-                let compiled =
-                    compile_constructor_frame(spec, &catalog_entry.params, catalogs, defs)
-                        .map_err(|error| {
-                            error.context(format!(
-                                "compiling frame [{frame_index}] of constructor `{}`",
-                                catalog_entry.constructor
-                            ))
-                        })?;
-                entries.extend(compiled.into_iter().map(|frame| Entry {
+                let frame = compile::compile(spec, kind, &catalog_entry.params, catalogs, defs)
+                    .map_err(|error| {
+                        error.context(format!(
+                            "compiling frame [{frame_index}] of constructor `{}` at {kind:?}",
+                            catalog_entry.constructor
+                        ))
+                    })?;
+                entries.push(Entry {
                     name: catalog_entry.constructor.clone(),
                     params: catalog_entry.params.clone(),
                     frame_index,
                     origin: Origin::Constructor,
                     frame,
-                }));
+                });
             }
         }
 
@@ -325,7 +331,11 @@ pub fn macro_fragment_kind(def: &MacroDef) -> FragmentKind {
     }
 }
 
-/// Every category a constructor frame is offered at.
+/// Every category a constructor frame can declare via `kind:`, in the fixed
+/// order [`kind_rank`] keys its sort on. Not every-category registration —
+/// a constructor entry registers at exactly its declared `kind:` (see
+/// [`Lexicon::assemble`]) — just the total space `FrameKind`/`FragmentKind`
+/// range over.
 const CONSTRUCTOR_KINDS: [FragmentKind; 5] = [
     FragmentKind::Nominal,
     FragmentKind::Sentence,
@@ -341,9 +351,10 @@ const CONSTRUCTOR_KINDS: [FragmentKind; 5] = [
 /// [`CONSTRUCTOR_KINDS`] already enumerates every category a frame can be
 /// registered at, so its index is a total, stable key. The `usize::MAX`
 /// fallthrough cannot be reached today (a macro frame's category comes from
-/// [`macro_fragment_kind`], whose whole range is in the table) and exists
-/// only so a future `FragmentKind` variant sorts last instead of failing to
-/// compile a sort that has no business gating on the kind space.
+/// [`macro_fragment_kind`], whose whole range is in the table, and a
+/// constructor frame's from its declared `kind:`) and exists only so a
+/// future `FragmentKind` variant sorts last instead of failing to compile a
+/// sort that has no business gating on the kind space.
 pub(crate) fn kind_rank(kind: FragmentKind) -> usize {
     CONSTRUCTOR_KINDS
         .iter()
@@ -351,78 +362,30 @@ pub(crate) fn kind_rank(kind: FragmentKind) -> usize {
         .unwrap_or(usize::MAX)
 }
 
-/// Compiles a constructor-catalog frame at **every** category it parses
-/// cleanly at, rather than guessing one.
+/// The schema-to-engine bridge for a constructor entry's declared category:
+/// [`FrameKind`] is `macro_ron`'s dependency-free mirror of this crate's
+/// [`FragmentKind`] (see [`FrameKind`]'s own doc for why the duplication),
+/// so something on this side has to say what each variant means. Exhaustive
+/// on purpose — a `FrameKind` variant with no arm here must fail the build,
+/// not silently fall through to some default category.
 ///
-/// # Why there is no single answer to guess
-///
-/// A `MacroDef` names its macro `kinds:`, which [`macro_fragment_kind`] can
-/// read a category off. A [`ConstructorFrames`] entry carries only
-/// `constructor`, `params` and `frames` — a raw `deckmaste_core` constructor
-/// has no macro definition behind it, so there is nothing to read. Task 6's
-/// pilot test papered over this with a `constructor == "Target"` special
-/// case, which is fine in a test and not fine in a lexicon.
-///
-/// The obvious repair — try the categories in a fixed order and keep the
-/// first clean compile — is **unsound**, and measurably so rather than in
-/// principle. Every one of the three seeded entries parses at three or four
-/// of the five categories:
-///
-/// | entry | parses cleanly at |
-/// |---|---|
-/// | `<Param(0)> deals <Param(1)> damage to <Param(2)>` | Nominal, Sentence, Cost, Ability |
-/// | `<Param(0)> gains <Param(1)> life` | Sentence, Cost, Ability |
-/// | `target <Param(1)>` | Nominal, Sentence, Cost, Ability |
-///
-/// `target zzhole1` is an imperative sentence as readily as a nominal
-/// (`target` is a verb), and the damage clause is a reduced relative as
-/// readily as a sentence — so *no* fixed order gets both right, and the one
-/// that reads most natural (Nominal first) silently compiles `DealDamage`
-/// as a noun phrase.
-///
-/// # What this does instead
-///
-/// It compiles the frame at each accepting category and registers them all.
-/// Nothing is guessed: a target's *own* category picks, because a frame's
-/// tree is rooted in its `Fragment::<kind>` wrapper and the unifier only
-/// aligns roots that agree. The extra entries are inert — a `Cost`-rooted
-/// `target <Param(1)>` can only ever match a cost line that reads "target
-/// …", which oracle text does not contain — and where two do compete, the
-/// tie lands in
-/// [`Recovered::ambiguities`](crate::unify::Recovered::Invocation::ambiguities)
-/// like any other.
-///
-/// A `kind:` field on the catalog entry would let this pick exactly one, and
-/// is worth a follow-up: `macro_ron::frames` could carry it verbatim as an
-/// opaque string, the same way it already carries hole sigils and guard
-/// spellings it never interprets, without learning anything about English.
-///
-/// # Errors
-/// If the frame compiles at no category at all, reporting every refusal — a
-/// broken authoring must fail the build, not go silently missing from the
-/// lexicon.
-fn compile_constructor_frame(
-    spec: &macro_ron::frames::FrameSpec,
-    params: &[String],
-    catalogs: &Catalogs,
-    macros: &MacroSet,
-) -> anyhow::Result<Vec<CompiledFrame>> {
-    let mut compiled = Vec::new();
-    let mut refusals = Vec::new();
-    for kind in CONSTRUCTOR_KINDS {
-        match compile::compile(spec, kind, params, catalogs, macros) {
-            Ok(frame) => compiled.push(frame),
-            Err(error) => refusals.push(format!("{kind:?}: {error:#}")),
-        }
+/// A plain function, not `impl From<FrameKind> for FragmentKind`: both types
+/// are foreign to this crate (`FrameKind` to `macro_ron`, `FragmentKind` to
+/// `deckmaste_english`), and `From` is foreign too, so that impl is an
+/// orphan-rule violation no matter which of the three crates it is written
+/// in — the two owning crates can't take the impl either, without a
+/// dependency arrow this round has already ruled out (`macro_ron` gains no
+/// new dependency; `deckmaste_english` stays a leaf). This function is the
+/// exhaustive conversion in the one place that already depends on both
+/// types.
+fn fragment_kind_of(kind: FrameKind) -> FragmentKind {
+    match kind {
+        FrameKind::Nominal => FragmentKind::Nominal,
+        FrameKind::Sentence => FragmentKind::Sentence,
+        FrameKind::Cost => FragmentKind::Cost,
+        FrameKind::KeywordLine => FragmentKind::KeywordLine,
+        FrameKind::Ability => FragmentKind::Ability,
     }
-    anyhow::ensure!(
-        !compiled.is_empty(),
-        "frame {:?} parses cleanly at none of the {} fragment categories:\n  {}",
-        spec.text,
-        CONSTRUCTOR_KINDS.len(),
-        refusals.join("\n  "),
-    );
-    Ok(compiled)
 }
 
 /// Every framed macro definition in `defs`, once each, with
@@ -511,6 +474,7 @@ fn positional_params(def: &MacroDef) -> anyhow::Result<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
+    use macro_ron::frames::FrameKind;
     use macro_ron::frames::FrameSpec;
 
     use super::*;
@@ -587,6 +551,55 @@ mod tests {
         );
     }
 
+    /// Registering a constructor entry at every category it happens to
+    /// parse cleanly at (rather than only its declared `kind:`) costs
+    /// several entries where one is meant. `DealDamage`'s own frame text is
+    /// the demonstrating case: it parses cleanly at four of the five
+    /// categories (Nominal, Sentence, Cost, Ability), so adding one such
+    /// entry must move the `Lexicon`'s entry count at its declared category
+    /// only — every other category's count is unchanged by adding it.
+    #[test]
+    fn assemble_registers_a_constructor_entry_at_its_declared_kind_only() {
+        let empty = Lexicon::assemble(crate::guard::core_reader(), &[], &Catalogs::default())
+            .unwrap_or_else(|error| panic!("assembling empty catalog: {error:#}"));
+        let before: Vec<(FragmentKind, usize)> = CONSTRUCTOR_KINDS
+            .iter()
+            .map(|&kind| (kind, empty.at(kind).count()))
+            .collect();
+
+        let catalog = [ConstructorFrames {
+            constructor: "DealDamage".to_string(),
+            params: vec![
+                "Reference".to_string(),
+                "Count".to_string(),
+                "Reference".to_string(),
+            ],
+            frames: vec![FrameSpec::bare(
+                "<Param(0)> deals <Param(1)> damage to <Param(2)>",
+            )],
+            kind: FrameKind::Sentence,
+        }];
+        let with_entry =
+            Lexicon::assemble(crate::guard::core_reader(), &catalog, &Catalogs::default())
+                .unwrap_or_else(|error| panic!("assembling one-entry catalog: {error:#}"));
+
+        for &(kind, before_count) in &before {
+            let after_count = with_entry.at(kind).count();
+            if kind == FragmentKind::Sentence {
+                assert_eq!(
+                    after_count,
+                    before_count + 1,
+                    "declared category Sentence should gain exactly one entry"
+                );
+            } else {
+                assert_eq!(
+                    after_count, before_count,
+                    "category {kind:?} must be unchanged by adding a Sentence-only entry"
+                );
+            }
+        }
+    }
+
     /// Invariant 1, constructor half. `load_constructor_frames` walks a
     /// directory with no uniqueness check, so this is the only thing
     /// standing between a second `DealDamage` catalog entry and a silently
@@ -598,11 +611,13 @@ mod tests {
                 constructor: "DealDamage".to_string(),
                 params: vec!["Reference".to_string()],
                 frames: vec![FrameSpec::bare("<Param(0)> is dealt damage")],
+                kind: FrameKind::Sentence,
             },
             ConstructorFrames {
                 constructor: "DealDamage".to_string(),
                 params: vec!["Reference".to_string()],
                 frames: vec![FrameSpec::bare("damage is dealt to <Param(0)>")],
+                kind: FrameKind::Sentence,
             },
         ];
         let error = Lexicon::assemble(crate::guard::core_reader(), &catalog, &Catalogs::default())
