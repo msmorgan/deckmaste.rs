@@ -3,8 +3,8 @@ needs: []
 ---
 **Mixed-introducer trigger conditions (`At the beginning of your upkeep and
 whenever you cast a black spell, …`).** 39 groups / 39 occurrences / 829
-words (Shrine cycle, Tombstone Stairwell; enumerated at
-`recovery-harness/out/coordevent-A-mixed-introducer.txt`). The design
+words (Shrine cycle, Tombstone Stairwell; re-enumerable with
+`cargo xtask english unknown`). The design
 question is SETTLED (round coordevent, 2026-07-25): a triggered ability may
 have more than one trigger condition [CR#603.1b], and the canonical shape
 is one ability [CR#603.1] — so `TriggeredAbility` should carry a

@@ -14,12 +14,11 @@ this ticket previously carried as outstanding:
 - **Stage 3 (`any number of` notional plural concord) — LANDED**, 37 clause
   spans / 596 source tokens, plus one newly exposed embedded-rules span.
 - **Stage 1 (sentence-initial cardinal case) — LANDED as a redesign.** The
-  fix specified in `qfloat-plan.md` §3 was *not* used; see §2 below.
+  fix round qfloat originally specified was *not* used; see §2 below.
 
 Counts below are unresolved rows against the post-`anof` census: clause
 3342 / 63162, structural total 3477 spans / **3117 faces (9.8375%)**, noun
-opacity 964. The designs are on disk at `recovery-harness/out/qfloat-plan.md`
-(§3, §5) and `recovery-harness/out/anof-brief.md`.
+opacity 964.
 
 ## 1. Stage 3 landed — scope it by predicate shape, not by a verb regex
 
@@ -41,9 +40,9 @@ is the second consecutive round in this family where a verb-regex inventory
 under-counted; `qfloat`'s Stage 2 did the same. **Scope work in this area by
 the finite-predicate shape.**
 
-## 2. Stage 1 landed, but NOT as `qfloat-plan.md` §3 specified
+## 2. Stage 1 landed, but NOT as originally planned
 
-**Do not re-apply plan §3, and do not make `Numeral::parse` case-insensitive.**
+**Do not resurrect the originally-planned fix — do not make `Numeral::parse` case-insensitive.**
 `numeral.rs` is a strict canonical notation codec — `canonical()` accepts only
 input its own `format` reproduces — and that contract is deliberate and
 property-tested. It was left untouched.

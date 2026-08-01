@@ -24,9 +24,9 @@ sibling derivations, and if not is that latent fragility itself worth fixing
 (b) is there a narrower attachment point than a bare
 `N::Nominal = N::Nominal N::VerbPhrase` production (e.g. the postnominal slot
 relative clauses use). The reverted implementation (AST variant, gate,
-renderer, walker) is fully described in
-`recovery-harness/out/dealtdmg-mechanic-report.md` §4 and the design in
-`out/dealtdmg-plan.md` §3 — reuse, do not re-derive.
+renderer, walker) survives in the repo history as round dealtdmg's
+landed-then-reverted change — recover it from there; reuse, do not
+re-derive.
 
 ## Completion
 

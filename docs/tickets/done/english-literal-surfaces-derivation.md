@@ -16,9 +16,7 @@ the dispatch consuming it merely relocates the drift. Caution from litaudit:
 membership is semantic, not mechanical — `out` must NOT be reserved (an
 existing test depends on its opaque-noun fallback for unlicensed verb pairs)
 and `you've` has second-order `retain` blast radius — so the derivation must
-support per-slot opt-out with a stated reason, not blanket enrollment. See
-`recovery-harness/out/litaudit-plan.md` §2 and `litaudit-mechanic-report.md`
-§3.
+support per-slot opt-out with a stated reason, not blanket enrollment.
 
 ## Completion
 

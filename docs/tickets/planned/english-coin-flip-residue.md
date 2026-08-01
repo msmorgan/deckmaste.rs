@@ -42,7 +42,7 @@ unknown 5468).
 5. **`Repeat this process until ...`, `You and target opponent each flip a
    coin.`, and the remaining coin-adjacent rows** fail on coordinated subjects
    with post-subject `each` and on other host shapes outside the coin
-   procedure. Attributed in `recovery-harness/out/chance-plan.md` Appendix A;
+   procedure. Attributed during round chance;
    none of them are coin-procedure work.
 
 **Standing caution for anything touching this area:** `tail` is an ordinary

@@ -16,7 +16,7 @@ the `Sentence` goal's extra layer selects a lowerable one. Fixed at the
 one witnessed call site by `parse_trigger_effect` staging Clause →
 Sentence (the `parse_cost_component` idiom); clause −177/−2843. The core
 defect is ticketed separately as english-single-root-lowering. Residue
-after this round: 28 multi/coordinated-effect groups (midtrigger §2.3
-discount) and the 332 content-blocked coordinated-EVENT groups
-(`recovery-harness/out/midtrigger-initial.txt`) — event-side gaps, now
-the largest remaining trigger diagnosis.
+after this round: 28 multi/coordinated-effect groups and the 332
+content-blocked coordinated-EVENT groups (round midtrigger;
+re-enumerable with `cargo xtask english unknown`) — event-side gaps,
+now the largest remaining trigger diagnosis.

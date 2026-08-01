@@ -23,7 +23,7 @@ the label slot needs a shape.
 
 1. **The `Starting with you, each player votes for <choices>` procedure —
    22 rows, the largest remaining piece.** A designed stage for this was
-   written (`recovery-harness/out/chance-plan.md` §1.3, §2 "C1", §3 "C1") and
+   written during round chance and
    **dropped on a falsified premise**: the plan asserted "`start` is only a
    noun in the TSV", and prescribed adding `Vocab::Start` as a regular verb.
    In fact `regular-vocabulary.tsv` already carries BOTH `start<TAB>noun_count`
@@ -32,7 +32,7 @@ the label slot needs a shape.
    a competing nominal reading in exactly the slot the new production wanted.
    The plan's structural direction (a vote-scoped `VotePrelude` production
    plus a structured `VoteChoiceList` predicted only at the final slot, rather
-   than a generic fronted-gerund production) is still worth reading; its
+   than a generic fronted-gerund production) remains sound; its
    lexical foundation is not. **Redesign from the real TSV state**, and settle
    the `starting` noun entry first — it is very likely a word-bank artifact,
    and whether it can be removed is the round's opening question.

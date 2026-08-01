@@ -3,8 +3,7 @@ needs: []
 ---
 **`When`/`Whenever` trigger clauses fail to parse when they do not open
 their ability's effect paragraph.** Diagnosed 2026-07-25 (round nextcast,
-measured not assumed — `recovery-harness/out/nextcast-mechanic-report.md`
-"Diagnosis correction"): a trigger sentence parses when it is the first
+measured not assumed): a trigger sentence parses when it is the first
 sentence of a standalone effect, but the byte-identical sentence yields
 `NoCompleteParse` when preceded by an activation-cost colon (`{T}: …`), a
 loyalty-cost header (`[−2]: …`), an ability-word or Saga-chapter header, or

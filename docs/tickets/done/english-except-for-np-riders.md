@@ -17,8 +17,8 @@ rider shape. Design needs: a rider form taking a coordinated NP list (Oxford
 comma), an attachment-site ruling (clause-level vs object-NP-level — semantics
 differ), renderer inverse, and interaction with NP coordination. The `not
 <participle> this way` reduced-relative family (Celestial Judgment, Thunderwave,
-`not cast this way` ×5) is a sibling gap, distinct machinery. See
-`recovery-harness` round records (pluralposs) for per-face attribution.
+`not cast this way` ×5) is a sibling gap, distinct machinery. Re-derive
+per-face attribution from a fresh `cargo xtask english unknown` dump.
 
 **Scope narrowed 2026-07-27 (round exrider).** The `except` population splits
 into six constructions, not one. Round exrider took the largest — `except by

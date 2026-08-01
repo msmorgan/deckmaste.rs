@@ -2,8 +2,7 @@
 needs: []
 ---
 **Remaining single-word opacity families (post-litaudit census: noun cell
-393).** Diagnosed 2026-07-25 (round litaudit, `out/litaudit-plan.md` §1.3/§8,
-`litaudit-mechanic-report.md` §11); four distinct classes, each needing its
+393).** Diagnosed 2026-07-25 (round litaudit); four distinct classes, each needing its
 own treatment — none is a `has_known_word` literal omission:
 
 1. **Zero-exposure literal class, individually unmeasured** — `both`, `half`,

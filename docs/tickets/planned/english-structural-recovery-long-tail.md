@@ -74,11 +74,11 @@ composition:
 - and generally, machinery that makes the grammar's existing coverage compose,
   instead of adding coverage.
 
-This matches what `recovery-harness/out/tractability-read.md` predicted after
-nine rounds ("roughly ten more rounds from now the remaining work becomes
-design-heavy machinery rather than family sweeps"). **This measurement is the
+This matches the campaign's own mid-course tractability prediction, made
+after nine rounds: that roughly ten rounds later the remaining work becomes
+design-heavy machinery rather than family sweeps. **This measurement is the
 first hard evidence for that prediction**, and it arrived roughly on the
-schedule that document guessed.
+predicted schedule.
 
 ## Scoping guidance for whatever replaces family rounds
 
@@ -99,6 +99,34 @@ bite harder here than they did on family rounds:
 - **A byte-identical render is not evidence of a correct tree.** Long composed
   sentences round-trip just as happily when mis-bracketed, and there are far more
   ways to mis-bracket a 30-word sentence than an 8-word one.
+
+## Format scope of the residue (measured 2026-07-31)
+
+Joining a post-`anof` `cargo xtask english unknown --limit 100000` dump
+(structural total 3477 spans / 3117 faces / 3111 distinct card names) against
+the MTGJSON snapshot's `legalities` and `SetList` set types (`5.3.0+20260707`):
+
+- **Current Modern (`legalities.modern == "Legal"`): 1860 names / 2065 spans**
+  — 60% of the residue, failing at 8.5% of the 21,993 Modern-legal supported
+  names. 13 further failing names are Modern-banned. 405 of the 1860 are also
+  currently Standard-legal.
+- **Ever-Standard, by core/expansion-printing proxy: 2117 names**, plus 89
+  whose core/expansion printings all predate Ice Age — the Type 2
+  inception-ambiguity window, including Camouflage, Word of Command, and
+  Chains of Mephistopheles — with zero overlap with Modern. Exact
+  ever-legality is not reconstructible from local data: MTGJSON legalities
+  are current-only.
+- **No core/expansion printing at all: 905 names** (set types, overlapping:
+  commander 513, draft_innovation 364, promo 202, masters 134, funny 12, …) —
+  including the two longest failures in the dump (Captain Rex Nebula and
+  Magar of the Magic Strings, both Unfinity).
+
+The scoped residue keeps the full tail's shape — 96% clause-role spans, ~85%
+singleton texts, concentrated at 11–40 words — so format scoping changes
+which zero is declarable, not the machinery needed to get there. The fail
+rate is nearly flat across scopes (8.5–10%): parse difficulty tracks text
+density, not card age. A declarable Modern-scoped gate is ticketed as
+`english-recovery-modern-gate`.
 
 ## Not in scope here
 
