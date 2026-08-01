@@ -184,7 +184,10 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
         // not the catalog's own resolution of `entry.kind` to
         // `FragmentKind` (that conversion is `deckmaste_frames::lexicon`
         // internal); picking by name keeps this test independent of it.
-        let kind = if matches!(entry.constructor.as_str(), "Target" | "This") {
+        let kind = if matches!(
+            entry.constructor.as_str(),
+            "Target" | "This" | "You" | "AnyTarget"
+        ) {
             FragmentKind::Nominal
         } else {
             FragmentKind::Sentence
@@ -202,12 +205,21 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
     constructor_names.sort_unstable();
     assert_eq!(
         constructor_names,
-        // `This` joined the three seeded entries in Task 7's review addendum:
-        // the nullary pro-form entry that lets a card's own subject recover
-        // as the RON constant `This` instead of as an unmatched residual. It
-        // compiles clean here like any other entry, which is this test's job;
-        // the matching side is covered in `deckmaste_frames::unify`'s suite.
-        vec!["DealDamage", "GainLife", "Target", "This"],
+        // The two nullary pro-forms (`This`, `You`) let a card's own subject
+        // or the pronoun "you" recover as a RON constant instead of an
+        // unmatched residual; `AnyTarget` is the announce-list pro-form and
+        // `TargetedDealDamage` its accompanying body entry. All compile
+        // clean here like any other entry, which is this test's job; the
+        // matching side is covered in `deckmaste_frames::unify`'s suite.
+        vec![
+            "AnyTarget",
+            "DealDamage",
+            "GainLife",
+            "Target",
+            "TargetedDealDamage",
+            "This",
+            "You",
+        ],
         "constructor catalog entry set changed"
     );
 }

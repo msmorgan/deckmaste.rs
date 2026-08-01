@@ -937,15 +937,14 @@ mod tests {
         );
     }
 
-    /// A residual this module cannot honestly reconstruct (a determinerful
-    /// nominal, here "any target") makes the whole render fail rather than
-    /// guess — the render-direction mirror of `unify`'s own totality: a gap
-    /// in coverage is a graceful error, never a panic or a fabricated
-    /// answer.
+    /// A residual this module cannot honestly reconstruct (a bare pronoun,
+    /// here "it") makes the whole render fail rather than guess — the
+    /// render-direction mirror of `unify`'s own totality: a gap in coverage
+    /// is a graceful error, never a panic or a fabricated answer.
     #[test]
     fn an_unreconstructable_residual_fails_the_render_rather_than_guessing() {
         let recovered = recover(
-            "Lightning Bolt deals 3 damage to any target.",
+            "Lightning Bolt deals 3 damage to it.",
             FragmentKind::Sentence,
             "Lightning Bolt",
         );

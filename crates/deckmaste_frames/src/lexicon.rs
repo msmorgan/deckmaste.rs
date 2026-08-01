@@ -413,7 +413,7 @@ pub(crate) fn kind_rank(kind: FragmentKind) -> usize {
 /// new dependency; `deckmaste_english` stays a leaf). This function is the
 /// exhaustive conversion in the one place that already depends on both
 /// types.
-fn fragment_kind_of(kind: FrameKind) -> FragmentKind {
+pub(crate) fn fragment_kind_of(kind: FrameKind) -> FragmentKind {
     match kind {
         FrameKind::Nominal => FragmentKind::Nominal,
         FrameKind::Sentence => FragmentKind::Sentence,

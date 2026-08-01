@@ -1097,7 +1097,7 @@ mod tests {
     }
 
     /// The real pilot lexicon, assembled once: ten framed macros (fourteen
-    /// authored frames — `Draw` has two and `Draws` four) plus the four
+    /// authored frames — `Draw` has two and `Draws` four) plus the seven
     /// constructor-catalog entries.
     fn fixture() -> &'static Fixture {
         static FIXTURE: LazyLock<Fixture> = LazyLock::new(|| {
@@ -1222,21 +1222,15 @@ mod tests {
     /// The constructor catalog's three-hole sentence frame, recovered whole:
     /// a `Subtree` subject, a `Numeral` count, and a `Subtree` recipient.
     ///
-    /// The recipient is "any target" rather than "target creature" on
-    /// purpose. `to target creature` does not parse as a prepositional
-    /// phrase at all — `target` is a verb in the grammar, so the parser reads
-    /// `to target …` as an infinitive clause, and no `DealDamage`-shaped tree
-    /// exists for it. "any target" is the wording the round's own brief names
-    /// and it does parse as `to` + a nominal.
-    ///
     /// Argument 0 is the card naming itself and recovers as the RON constant
     /// `This`, through the catalog's nullary pro-form entry. Argument 2 comes
-    /// back as a residual because nothing in the pilot lexicon frames "any
-    /// target" — recovery is still total, which is the point.
+    /// back as a residual because nothing in the pilot lexicon frames the
+    /// bare pronoun "it" as a `Reference` — recovery is still total, which is
+    /// the point.
     #[test]
     fn deal_damage_recovers_all_three_args() {
         let target = parse(
-            "Lightning Bolt deals 3 damage to any target.",
+            "Lightning Bolt deals 3 damage to it.",
             FragmentKind::Sentence,
             "Lightning Bolt",
         );
@@ -1256,8 +1250,8 @@ mod tests {
             recipient
                 .walk()
                 .iter()
-                .any(|(_, node)| node.variant_name() == Some("Any")),
-            "arg 2 is the whole `any target` nominal: {recipient:#?}"
+                .any(|(_, node)| node.variant_name() == Some("Pronoun")),
+            "arg 2 is the whole `it` nominal: {recipient:#?}"
         );
     }
 
@@ -2028,12 +2022,20 @@ mod tests {
         ]
     }
 
-    /// A lexicon that declares no announcements has no discipline to enforce:
-    /// the mark is catalog data, so the shipped catalog matches exactly as it
-    /// did before the mechanism existed.
+    /// The shipped catalog declares exactly one announcement — `AnyTarget`,
+    /// the only pro-form the four `DealDamage`-arg-2 lines need. `Target`
+    /// (`target <predicate>`) is deliberately left undeclared: `Draws`'s
+    /// unmarked subject hole still recovers whole "target <predicate>"
+    /// nominals directly, and declaring `Target` here would need a matching
+    /// `TargetedDraws` body first.
     #[test]
-    fn the_shipped_catalog_declares_no_announcements_yet() {
-        assert_eq!(fixture().lexicon.announcements().count(), 0);
+    fn the_shipped_catalog_declares_exactly_any_target_as_an_announcement() {
+        let names: Vec<&str> = fixture()
+            .lexicon
+            .announcements()
+            .map(|entry| entry.name.as_str())
+            .collect();
+        assert_eq!(names, ["AnyTarget"], "{names:?}");
     }
 
     /// A `body:` must hole every param its entry declares, or a recovered

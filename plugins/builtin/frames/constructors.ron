@@ -1,10 +1,13 @@
-// The constructor frame catalog: English renderings for raw `deckmaste_core`
-// constructors, parallel to macro definitions' own `frames:` field
-// (`crates/macro_ron/src/set.rs`, `MacroDef.frames`).
+// The constructor frame catalog: English renderings for constructor-position
+// entries — whatever each one resolves to (see below) — parallel in role to
+// macro definitions' own `frames:` field (`crates/macro_ron/src/set.rs`,
+// `MacroDef.frames`).
 //
-// Loaded by `macro_ron::frames::load_constructor_frames`. Each
-// `constructor` names a bare `deckmaste_core` variant (verified against
-// `cargo xtask map enums`, not memory); `params` names each positional
+// Loaded by `macro_ron::frames::load_constructor_frames`. `constructor`
+// names the entry, not a promise of a bare `deckmaste_core` variant of that
+// spelling: it may resolve to one (verified against `cargo xtask map enums`,
+// not memory), to a macro of the same name, or — if the entry carries a
+// `body:` — to whatever that body denotes. `params` names each positional
 // hole's type, in the order the entry's frames reference them
 // (`<Param(0)>` is `params[0]`).
 [
@@ -13,6 +16,11 @@
     // plain `Reference` (the damage's patient object/player), same as the
     // first. Registers as a sentence: the frame is a full imperative/
     // declarative clause, not a noun phrase.
+    //
+    // Unmarked holes reject announcement fillers; the announce-list entry's
+    // `announced: [2]` (`TargetedDealDamage`, below) takes them instead. A
+    // targeted recipient is always announced [CR#601.2c], so the two
+    // wordings never describe one effect.
     (constructor: "DealDamage", params: ["Reference", "Count", "Reference"],
      frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"], kind: Sentence),
 
@@ -20,9 +28,12 @@
     // `Action::By`'s `#[macro_ron(embed)]` marker means authored
     // `GainLife(N)` is really `By(You, GainLife(N))` with the subject
     // defaulted, so `params` here targets that surface (subject, count).
-    // Registers as a sentence, same as `DealDamage`.
-    (constructor: "GainLife", params: ["Reference", "Count"],
-     frames: ["<Param(0)> gains <Param(1)> life"], kind: Sentence),
+    // The body re-exposes the subject constituent the English states overtly
+    // but the repr defaults away. Registers as a sentence, same as
+    // `DealDamage`.
+    (constructor: "GainLife", params: ["Reference", "Count"], kind: Sentence,
+     body: By(Param(0), GainLife(Param(1))),
+     frames: ["<Param(0)> gains <Param(1)> life"]),
 
     // `TargetSpec::Target(Quantity, Predicate)` (`target_spec.rs:33`) is
     // arity-2 with no default sugar on either field. The singular "target
@@ -33,12 +44,17 @@
     // idiom — while only Param(1) (`Predicate`) appears in the frame text.
     // Registers as a nominal: the frame is a noun phrase (a targeting
     // clause's argument position), not a clause of its own.
+    //
+    // Not declared an announcement: `Draws`'s unmarked subject hole recovers
+    // whole "target <predicate>" nominals directly today; declaring this
+    // entry needs a matching `TargetedDraws` body first, or that recovery is
+    // lost.
     (constructor: "Target", params: ["Quantity", "Predicate"],
      frames: [(text: "target <Param(1)>", when: [(0, "Exactly(1)")])], kind: Nominal),
 
-    // `Reference::This` — the nullary pro-form entry. Every other entry
-    // here renders a constructor that takes arguments; this one renders a
-    // bare constant, and its whole frame text is the self-reference sigil.
+    // `Reference::This` — the nullary pro-form entry whose whole frame text
+    // is the self-reference sigil `~`, not a plain literal like `You`'s or
+    // `AnyTarget`'s.
     //
     // `This` is what a card's own subject is in RON (`DealsDamageToEach`'s
     // body is `DealDamage(This, Param(0), It)`); the `~` sigil covers
@@ -58,4 +74,28 @@
     // noun-phrase argument position.
     (constructor: "This", params: [],
      frames: ["~"], kind: Nominal),
+
+    // `Reference::You` — the pronoun pro-form, parallel to `This`: a nullary
+    // constant, not a constructor taking arguments. Registers as a nominal,
+    // same as `This`.
+    (constructor: "You", params: [], kind: Nominal,
+     frames: ["you"]),
+
+    // "any target" [CR#115.4] as a nominal pro-form, and the one thing this
+    // catalog declares to be a target announcement — a `TargetSpec` the
+    // `targets:` list holds [CR#601.2c]. Registers as a nominal, same as
+    // `Target`.
+    (constructor: "AnyTarget", params: [], kind: Nominal, announcement: true,
+     frames: ["any target"]),
+
+    // Announced single-target damage: English states the target inline; RON
+    // hoists it to the announce list and reads it back positionally as
+    // `Target(0)` [CR#601.2c]. `params[2]` is declared `Reference` (matching
+    // `DealDamage`'s own patient field) even though the body places it in a
+    // `TargetSpec` position — the declared type only drives witness
+    // selection and guards, and no guard binds it here.
+    (constructor: "TargetedDealDamage",
+     params: ["Reference", "Count", "Reference"], kind: Sentence,
+     body: Targeted(targets: [Param(2)], effect: DealDamage(Param(0), Param(1), Target(0))),
+     frames: [(text: "<Param(0)> deals <Param(1)> damage to <Param(2)>", announced: [2])]),
 ]

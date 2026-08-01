@@ -1908,22 +1908,21 @@ mod tests {
         let macros = reader();
         for entry in &catalog {
             for spec in &entry.frames {
-                // `Target` and the `This` pro-form are noun phrases; the two
-                // effect constructors are sentences. Picked by name because
-                // the catalog schema carries no category — Task 7 found that
-                // inferring one from "the first category that parses cleanly"
-                // is unsound, and its `Lexicon` registers each frame at every
-                // accepting category instead of guessing.
-                let kind = if matches!(entry.constructor.as_str(), "Target" | "This") {
-                    FragmentKind::Nominal
-                } else {
-                    FragmentKind::Sentence
-                };
+                // Read off the entry's own declared, required `kind:`
+                // (`ConstructorFrames::kind`'s own doc: there is nothing to
+                // guess it from, and registering at every category a frame
+                // happens to parse cleanly at costs several entries where one
+                // is meant) through the one schema-to-engine bridge, rather
+                // than guessing a category from the constructor's name.
+                let kind = crate::lexicon::fragment_kind_of(entry.kind);
                 let frame = compile(spec, kind, &entry.params, &Catalogs::default(), &macros)
                     .unwrap_or_else(|error| panic!("{}: {error:#}", entry.constructor));
+                // A hole-free literal frame is legitimate (the `Player`
+                // macro's bare "player" is the existing precedent); only a
+                // holed entry is required to have compiled at least one.
                 assert!(
-                    !frame.holes.is_empty(),
-                    "{} compiled with no holes",
+                    entry.params.is_empty() || !frame.holes.is_empty(),
+                    "{} declares params but compiled with no holes",
                     entry.constructor
                 );
                 assert_sites_resolve(&frame);
