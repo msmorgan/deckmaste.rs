@@ -157,11 +157,11 @@ fn any_target_expansion_carries_its_template() {
     }
 }
 
-/// Mana Leak (hand-written canon) exercises the resolution-time `MustPay`
-/// punisher over the full `Cost` algebra: "counter target spell unless its
-/// controller pays {3}" ([CR#118.12a]). The body reads to a `Targeted` wrapper
-/// over `MustPay { actor: ControllerOf(Target(0)), cost: {3}, or_else: Counter
-/// }`.
+/// Mana Leak (hand-written canon) exercises the collapsed `May(Pay(cost))`
+/// `MustPay` shape over the full `Cost` algebra: "counter target spell unless
+/// its controller pays {3}" ([CR#118.12a]). The body reads to a `Targeted`
+/// wrapper over `May { who: ControllerOf(Target(0)), effect: Pay({3}),
+/// if_not: Counter }`.
 #[test]
 fn mana_leak_reads_to_a_must_pay_punisher() {
     use deckmaste_core::Cost;
@@ -180,16 +180,19 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     let OneShotEffect::Targeted(ref te) = spell.effect else {
         panic!("expected a Targeted wrapper, got {:?}", spell.effect);
     };
-    let OneShotEffect::MustPay(ref m) = *te.effect else {
-        panic!("expected MustPay, got {:?}", te.effect);
+    let OneShotEffect::May(ref m) = *te.effect else {
+        panic!("expected May, got {:?}", te.effect);
     };
     assert_eq!(
-        m.actor,
+        m.who,
         Reference::ControllerOf(Arc::new(Reference::Target(0))),
         "the payer is the targeted spell's controller"
     );
+    let OneShotEffect::Act(Action::Pay(ref cost)) = *m.effect else {
+        panic!("expected Act(Pay(cost)), got {:?}", m.effect);
+    };
     assert_eq!(
-        m.cost,
+        *cost,
         Cost(
             vec![CostComponent::Mana(ManaCost::from(
                 Arc::<[ManaSymbol]>::from(vec![ManaSymbol::Simple(SimpleManaSymbol::Generic(3)),])
@@ -198,8 +201,15 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
         ),
         "the toll is the full {{3}} Cost"
     );
+    assert!(
+        m.if_did.is_none(),
+        "no positive branch — this is the punisher shape"
+    );
+    let Some(ref if_not) = m.if_not else {
+        panic!("expected if_not, got None");
+    };
     assert_eq!(
-        *m.or_else,
+        **if_not,
         OneShotEffect::Act(Action::Counter(Reference::Target(0))),
         "unpaid → counter the spell"
     );

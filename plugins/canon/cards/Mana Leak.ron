@@ -1,8 +1,9 @@
-// Hand-written canon entry (see docs/card-data.md): exercises the resolution-
-// time `MustPay` punisher over the full `Cost` algebra — "counter target spell
-// unless its controller pays {3}" ([CR#118.12a]). `MustPay` supersedes the
-// bare-component `Unless` sugar the pipeline still emits; the parser has no
-// MustPay production yet, so this body is authored directly.
+// Hand-written canon entry (see docs/card-data.md): exercises the collapsed
+// `May(Pay(cost))` MustPay shape (`if_did` absent) over the full `Cost`
+// algebra — "counter target spell unless its controller pays {3}"
+// ([CR#118.12a]). The migrations parser has no production for a non-`You`
+// payer over this node yet, so this body is authored directly rather than
+// through the `Unless` macro sugar.
 Normal(
   name: "Mana Leak",
   mana_cost: [
@@ -16,10 +17,10 @@ Normal(
     Spell(
       effect: Targeted(
         targets: [TargetOne(Spell)],
-        effect: MustPay(
-          actor: ControllerOf(Target(0)),
-          cost: [Mana([Generic(3)])],
-          or_else: Counter(Target(0)),
+        effect: May(
+          who: ControllerOf(Target(0)),
+          effect: Pay([Mana([Generic(3)])]),
+          if_not: Counter(Target(0)),
         ),
       ),
     ),

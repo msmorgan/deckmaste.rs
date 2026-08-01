@@ -417,14 +417,14 @@ pub(crate) fn unless_cost_action(
             "engine-resolve-effects seam: an aggregate-stat (tap-total) 'unless' cost \
              ([CR#118.12a,702.122a]) needs a payment-time subset choice"
         ),
-        // The `Unless`/`MayPay` continuations route `Mana` components to
-        // `WorkItem::TollMana` (see `toll_item`) before this walk; a caller
-        // that reaches here with one (the `AdditionalCost` arm) is still the
-        // announce-slot-bound seam, like "equal to its mana cost"
-        // ([CR#202.1]).
+        // The `MayPayCost` continuation (the collapsed `May(Pay(cost))`
+        // shape) routes `Mana` components to `WorkItem::TollMana` (see
+        // `toll_item`) before this walk; a caller that reaches here with one
+        // (the `AdditionalCost` arm) is still the announce-slot-bound seam,
+        // like "equal to its mana cost" ([CR#202.1]).
         CostComponent::Mana(_) | CostComponent::ManaCostOf(_) => todo!(
             "engine-resolve-effects seam: a mid-resolution mana cost outside the \
-             Unless/MayPay toll path ([CR#118.12a]) — announce-slot-bound"
+             May(Pay)/MayPayCost toll path ([CR#118.12a]) — announce-slot-bound"
         ),
     }
 }
@@ -455,7 +455,7 @@ pub(crate) fn toll_item(
 
 /// One cost component rendered as the effect `who` runs to pay it
 /// ([CR#118.12a,601.2b]) — the entry point every cost-to-effect payment walk
-/// (the `Unless`/`MayPay` continuations, the `AdditionalCost` arm, and the
+/// (the `MayPayCost` continuation, the `AdditionalCost` arm, and the
 /// activation cost-`With` step) uses. Most components are a single payer
 /// `Action`, so they wrap [`unless_cost_action`] in [`OneShotEffect::Act`]; a
 /// cost-side [`With`](deckmaste_core::CostComponent::With) is a choose-then-pay

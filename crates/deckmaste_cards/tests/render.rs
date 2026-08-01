@@ -77,9 +77,10 @@ fn renders_spell_lightning_bolt() {
     );
 }
 
-/// `MustPay(actor: ControllerOf(Target(0)), …)` renders the derived-player
-/// reference as "its controller" ([CR#109.4]), not a debug marker — the
-/// canonical Mana Leak punisher ([CR#118.12a]).
+/// The collapsed `May(who: ControllerOf(Target(0)), effect: Pay(…), …)`
+/// `MustPay` shape renders the derived-player reference as "its controller"
+/// ([CR#109.4]), not a debug marker — the canonical Mana Leak punisher
+/// ([CR#118.12a]).
 #[test]
 fn renders_must_pay_controller_of_mana_leak() {
     let r = render_card_face(&face("Mana Leak"));
@@ -91,11 +92,12 @@ fn renders_must_pay_controller_of_mana_leak() {
     );
 }
 
-/// `MustPay(actor: Coalesce([ControllerOf(Target(0)), Target(0)]), …)` — the
-/// Rhystic-toll payer ([CR#118.12a]) derived from an `AnyTarget` slot
-/// ([CR#115.4]) — renders the coalesced first-non-null payer as the single
-/// player anaphor "that player" ([CR#109.4]), not a debug marker. The
-/// `Reference::Coalesce` accept fixture (`Rhystic-toll DealDamage`).
+/// The collapsed `May(who: Coalesce([ControllerOf(Target(0)), Target(0)]),
+/// effect: Pay(…), …)` — the Rhystic-toll payer ([CR#118.12a]) derived from
+/// an `AnyTarget` slot ([CR#115.4]) — renders the coalesced first-non-null
+/// payer as the single player anaphor "that player" ([CR#109.4]), not a
+/// debug marker. The `Reference::Coalesce` accept fixture (`Rhystic-toll
+/// DealDamage`).
 #[test]
 fn renders_must_pay_coalesce_rhystic_toll() {
     let r = render_card_face(&testing_face("Rhystic-toll DealDamage"));

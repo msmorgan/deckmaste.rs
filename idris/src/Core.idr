@@ -2459,6 +2459,11 @@ mutual
       -- `agent` rolls the (Planechase) planar die as a special action ([CR#901.9]); NO numeric result
       -- ([CR#901.9d]) so unlike `RollDice`/`FlipCoins` this introduces nothing for `ThatMany`.
       RollPlanarDie : Reference b APlayer -> Action b
+      -- pay a cost as an action ([CR#118.12]) — a slotless `Cost` -> `Action` adapter; the payer is
+      -- rule-forced by every legal host, never a slot (`May.who` for the collapsed `MayPay`/`MustPay`
+      -- shape [CR#118.12a], `AdditionalCost`'s controller [CR#601.2b]). Bare effect-position `Pay` has
+      -- no legal host and is unspellable. Rust: Action::Pay.
+      Pay : Cost b -> Action b
 
   -- the event-anaphor caps the PAYMENT of a cost-action supplies its `AdditionalCost` body — the cost-side
   -- twin of `eventKindCaps`, for the object-moving cost verbs. Sacrifice/Discard bind the moved object
@@ -2497,6 +2502,10 @@ mutual
   actionEventCaps (Action.RollDice _ _ _)     = eventKindCaps RollDice
   actionEventCaps (Action.FlipCoins _ _ _)    = eventKindCaps (FlipCoin Nothing)
   actionEventCaps (Action.RollPlanarDie _)    = eventKindCaps (RollPlanarDie Nothing)
+  -- a payment's own event caps are never read through THIS channel (`Pay` is
+  -- never a cost-side `Do` component — it has no legal host there); `NoCaps`
+  -- keeps the enumeration total without a forward reference to `costCaps`.
+  actionEventCaps (Action.Pay _)              = NoCaps
 
   -- the caps a COST's payment supplies its `AdditionalCost` body: an action pays via its event; a composite
   -- `Costs […]` UNIONS (any object-moving component binds), `Scaled` rides its inner cost; pure mana binds
@@ -2607,19 +2616,20 @@ mutual
       -- and the May's right siblings (`introduces`) — see the inner effect's introductions
       -- (the Through the Breach shape: "You may put a creature card … THAT creature gains
       -- haste"); a DECLINED May's products are runtime-skipped, not scope-blocked ([CR#701.23b]).
-      -- Rust: OneShotEffect::May.
-      May : (effect : OneShotEffect b) -> {default Nothing ifDid : Maybe (OneShotEffect (intro effect b))} -> {default Nothing ifNot : Maybe (OneShotEffect b)} -> OneShotEffect b
+      -- `who` (default You, [CR#608.2d]) is the decider; every plain-`May` call site keeps `who`
+      -- implicit (Idris's pre-existing simplification — Rust's `who` is required, Law 2), but the
+      -- collapsed cost-payment shape below needs it spelled (Mana Leak's non-You payer). Rust:
+      -- OneShotEffect::May.
+      May : (effect : OneShotEffect b) -> {default You who : Reference b APlayer} -> {default Nothing ifDid : Maybe (OneShotEffect (intro effect b))} -> {default Nothing ifNot : Maybe (OneShotEffect b)} -> OneShotEffect b
       -- "if [cond], [thenDo]; otherwise [else]". Rust: OneShotEffect::If.
       If : Condition b -> (thenDo : OneShotEffect b) -> {default Nothing otherwise : Maybe (OneShotEffect b)} -> OneShotEffect b
-      -- COST-payment DECISIONS — a player chooses whether to pay (the common decider slice; the
-      -- full `Cost` algebra rides both). Rust: OneShotEffect::MayPay / OneShotEffect::MustPay.
-      --  • `MayPay`  — "[actor] MAY pay [cost]; if they do → `and_then`; if not → optional `or_else`."
-      --  • `MustPay` — "[actor] must pay [cost], OR ELSE `or_else`" — the resolution-stage punisher
-      --    (Mana Leak: "counter target spell unless its controller pays {2}"; supersedes `Unless`).
-      -- the "if they do" branch reads the PAYMENT like an `AdditionalCost` body
-      -- ([CR#608.2d,601.2f]): the cost's caps + role antecedents; "or else" runs unpaid, in the plain context.
-      MayPay  : {default You actor : Reference b APlayer} -> (cost : Cost b) -> (and_then : OneShotEffect (bindEvent (costCaps cost) (costRoles (costCaps cost)) b)) -> {default Nothing or_else : Maybe (OneShotEffect b)} -> OneShotEffect b
-      MustPay : {default You actor : Reference b APlayer} -> Cost b -> (or_else : OneShotEffect b) -> OneShotEffect b
+      -- COST-payment DECISIONS collapse into `May (Act (Pay cost))` ([CR#118.12a] — the CR itself
+      -- defines the punisher as `May`-without-`ifDid`): "[who] MAY pay [cost]; if they do → `ifDid`; if
+      -- not → optional `ifNot`" is `mayPayCostBy who (Act (Pay cost)) ifDid ifNot`; the Mana Leak
+      -- punisher ("counter target spell unless its controller pays {2}") is the same shape with
+      -- `ifDid` absent. `intro`'s own `Pay` arm (below) types the "if you do" branch over the PAYMENT,
+      -- like an `AdditionalCost` body ([CR#608.2d,601.2f]): the cost's caps + role antecedents; the
+      -- "if you don't" branch runs unpaid, in the plain context.
       -- "As an additional cost, [pay]." Mirrors the printed additional-cost CLAUSE: the payment is an EVENT, so
       -- `body` reads the sacrificed/exiled object through the SAME `EventObject`/`EventActor`/`EventAmount`
       -- anaphors a trigger uses ("the sacrificed creature's power" = `StatOf EventObject Power`; Fling/Momentous
@@ -2766,6 +2776,11 @@ mutual
   actionIntro (Action.RollDice _ _ _) = [amountAnte]
   actionIntro (Action.FlipCoins _ _ _) = [amountAnte]
   actionIntro (Action.RollPlanarDie _) = []
+  -- the payment's own event-role antecedents ([CR#118.12a]) — dead for the
+  -- `May (Act (Pay cost))` path (`intro`'s own `Pay` arm below wins there via
+  -- `bindEvent`, which ALSO wipes stale event-role antecedents); kept for
+  -- totality and any other right-sibling context reaching a bare `Pay`.
+  actionIntro (Action.Pay cost) = costRoles (costCaps cost)
 
   -- the antecedents an effect INTRODUCES for its right siblings
   -- ([CR#608.2d]): a clause's products, a `May`'s inner introductions, a
@@ -2786,8 +2801,16 @@ mutual
   seqIntro (e :: es) = introduces e ++ seqIntro es
 
   -- the telescope STEP: the context a clause's right sibling elaborates in.
+  -- [CR#118.12a]: `May (Act (Pay cost))`'s "if you do" branch reads the
+  -- PAYMENT like an `AdditionalCost` body — `bindEvent` (not the generic
+  -- `pushAntes`) so it ALSO wipes stale event-role antecedents ("filter
+  -- notEventRoleA" hygiene) before the payment's own roles land, exactly
+  -- like `AdditionalCost`'s body typing (`bindEvent (costCaps pay) (costRoles
+  -- (costCaps pay))`). The ONE special arm; every other effect keeps the
+  -- generic antecedent push.
   public export
   intro : OneShotEffect b -> Ctx -> Ctx
+  intro (Act (Pay cost)) = bindEvent (costCaps cost) (costRoles (costCaps cost))
   intro e = pushAntes (introduces e)
 
   -- one option of a modal effect: an effect plus an optional extra cost. Rust: Mode.
@@ -3359,15 +3382,18 @@ mayWith : (effect : OneShotEffect b) -> Maybe (OneShotEffect (intro effect b))
        -> Maybe (OneShotEffect b) -> OneShotEffect b
 mayWith e did notd = May e {ifDid = did} {ifNot = notd}
 
+-- The collapsed `MayPay`/`MustPay` shape ([CR#118.12a]): `who` MAY pay `cost`;
+-- if they do -> `ifDid` (typed over the payment, like an `AdditionalCost`
+-- body); if not -> `ifNot`. `who` is required (Law 2, no default) — mirrors
+-- Rust's `May.who`, unlike `May`'s OWN implicit default (every other `May`
+-- stays implicitly You). The MustPay punisher is `ifDid = Nothing`; a
+-- branchless `May (Pay cost)` is `ifDid = Nothing, ifNot = Nothing` — one
+-- smart constructor for all three, replacing the old `mayPayFull`/`mustPayBy`.
 public export
-mayPayFull : Reference b APlayer -> (cost : Cost b)
-          -> (and_then : OneShotEffect (bindEvent (costCaps cost) (costRoles (costCaps cost)) b))
-          -> Maybe (OneShotEffect b) -> OneShotEffect b
-mayPayFull a c at oe = MayPay {actor = a} c at {or_else = oe}
-
-public export
-mustPayBy : Reference b APlayer -> Cost b -> (or_else : OneShotEffect b) -> OneShotEffect b
-mustPayBy a c oe = MustPay {actor = a} c oe
+mayPayCostBy : Reference b APlayer -> (cost : Cost b)
+            -> Maybe (OneShotEffect (bindEvent (costCaps cost) (costRoles (costCaps cost)) b))
+            -> Maybe (OneShotEffect b) -> OneShotEffect b
+mayPayCostBy w cost did notd = May (Act (Pay cost)) {who = w} {ifDid = did} {ifNot = notd}
 
 public export
 mkChooseSpecRep : Quantity b -> Bool -> ChooseSpec b

@@ -215,48 +215,31 @@ impl DecisionHandler for YesNo {
                 let index = if yes && repeatable { index } else { index + 1 };
                 g.schedule_front(vec![WorkItem::AnnounceOptionalCosts { index }]);
             }
-            // [CR#118.12a,608.2d]: `OneShotEffect::Unless` — yes pays the cost
-            // (each component as the payer's action) and `effect` is
-            // skipped; no runs `effect`.
-            crate::state::ChoiceContinuation::Unless {
-                effect,
+            // [CR#118.12a,118.12,603,608]: the collapsed `May(Pay(cost))`
+            // shape — yes pays `cost` (each component as `who`'s action) then
+            // runs `if_did` (if any); no runs `if_not` (or nothing).
+            // Front-scheduled in order so the payment precedes `if_did`. The
+            // old `Unless` (no `if_did`) and `MayPay` (`if_did` required)
+            // continuations are this one node — `if_did`/`if_not` are both
+            // plain `Option`s now, so one arm serves every branch shape.
+            crate::state::ChoiceContinuation::MayPayCost {
                 who,
-                unless,
+                cost,
+                if_did,
+                if_not,
                 frame,
             } => {
                 let items: Vec<WorkItem> = if yes {
                     let payer = g.acting_player(&who, &frame);
-                    unless
-                        .iter()
-                        .map(|c| crate::decide::toll_item(c, &who, payer, &frame))
-                        .collect()
-                } else {
-                    vec![WorkItem::RunEffect { effect, frame }]
-                };
-                g.schedule_front(items);
-            }
-            // [CR#603,608]: `OneShotEffect::MayPay` — yes pays the cost (each
-            // component as `actor`'s action) THEN runs `and_then`; no
-            // runs `or_else` (or nothing). Front-scheduled in order so
-            // the payment precedes `and_then`.
-            crate::state::ChoiceContinuation::MayPay {
-                actor,
-                cost,
-                and_then,
-                or_else,
-                frame,
-            } => {
-                let items: Vec<WorkItem> = if yes {
-                    let payer = g.acting_player(&actor, &frame);
                     cost.iter()
-                        .map(|c| crate::decide::toll_item(c, &actor, payer, &frame))
-                        .chain(std::iter::once(WorkItem::RunEffect {
-                            effect: and_then,
+                        .map(|c| crate::decide::toll_item(c, &who, payer, &frame))
+                        .chain(if_did.into_iter().map(|effect| WorkItem::RunEffect {
+                            effect,
                             frame: frame.clone(),
                         }))
                         .collect()
                 } else {
-                    or_else
+                    if_not
                         .into_iter()
                         .map(|effect| WorkItem::RunEffect {
                             effect,

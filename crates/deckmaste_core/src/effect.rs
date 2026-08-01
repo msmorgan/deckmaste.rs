@@ -91,21 +91,15 @@ pub enum OneShotEffect {
     /// chosen pile bound as a Many antecedent
     /// ([`Selection::Them`](crate::Selection::Them)`(Pile)`).
     ChoosePile(ChoosePile),
-    /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't".
+    /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't". The
+    /// may-pay/must-pay family collapses into this node ([CR#118.12a]):
+    /// `effect: Act(Pay(cost))` plus `if_did`/`if_not` is the resolution-time
+    /// kicker/punisher over the full [`Cost`] algebra. The English "[do]
+    /// unless [who] pays [cost]" order is the builtin `Unless` MACRO — a
+    /// render name over this node; core keeps only the `May` form.
     May(May),
     /// "If [condition], [then]; otherwise [else]" ([CR#603.4]-style branch).
     If(If),
-    /// "[actor] may pay [cost]; if they do, [`and_then`], else [`or_else`]"
-    /// ([CR#603,608]) — a resolution-time kicker over the full [`Cost`] algebra
-    /// (the may-pay→branch shape [`MustPay`](OneShotEffect::MustPay) can't
-    /// spell).
-    MayPay(MayPay),
-    /// "[actor] must pay [cost], or else [`or_else`]" ([CR#118.12a]) — the
-    /// resolution-time punisher (Mana Leak's "counter target spell unless its
-    /// controller pays {N}") over the full [`Cost`] algebra. The English
-    /// "[do] unless [who] pays [cost]" order is the builtin `Unless` MACRO —
-    /// a render name over this node; core keeps only the CR-family form.
-    MustPay(MustPay),
     /// "As an additional cost, [pay]; then [body]" ([CR#601.2f,118.8]) —
     /// imposes an additional cost whose paid object the body reads through
     /// the event references (`EventObject`/`EventActor`/`EventPatient`):
@@ -268,10 +262,13 @@ impl Targeted {
 /// `effect`. `who` is the decider ([CR#608.2d]; Browbeat's decider ≠
 /// performer — "Any player may have Browbeat deal 5 damage to them" — proves
 /// the slot is not derivable, Law 3), spelling today's implicit "you may"
-/// decider (no read-time default, Law 2). Branch semantics (`if_did`/
-/// `if_not` invoking [CR#118.12] cost semantics on `effect`) stay unwired —
-/// grammar only; collapsing `MayPay`/`MustPay` into this node is a later
-/// task.
+/// decider (no read-time default, Law 2). Branch semantics: when `effect` is
+/// `Act(Pay(cost))`, `if_did`/`if_not` invoke [CR#118.12] cost semantics — the
+/// collapsed `MayPay`/`MustPay` shape (the doer decides whether they PAID,
+/// "regardless of what events actually occurred", the Dermoplasm clause).
+/// Any other `effect` takes the plain [CR#608.2]-family branch (yes runs
+/// `effect` then `if_did`; no runs `if_not`). A branchless `May` (`if_did`/
+/// `if_not` both `None`) is the same node either way — one node serves both.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct May {
     pub who: Reference,
@@ -310,44 +307,13 @@ fn ref_is_you(r: &Reference) -> bool {
     matches!(r, Reference::You)
 }
 
-/// `MayPay { actor, cost, and_then, or_else }` — "[actor] may pay [cost]; if
-/// they do, [`and_then`]; if they don't, [`or_else`]" ([CR#603,608]): a
-/// resolution-time kicker over the full [`Cost`] algebra. `actor` is the paying
-/// player ("you" unless the text names another); it defaults to `You` and is
-/// omitted from RON when it is. `or_else` (the "if you don't" branch) is
-/// omitted when absent.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct MayPay {
-    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-    pub actor: Reference,
-    pub cost: Cost,
-    pub and_then: Arc<OneShotEffect>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub or_else: Option<Arc<OneShotEffect>>,
-}
-
-/// `MustPay { actor, cost, or_else }` — "[actor] must pay [cost], or else
-/// [`or_else`]" ([CR#118.12a]): the resolution-time punisher (Mana Leak's
-/// "counter target spell unless its controller pays {N}") over the full
-/// [`Cost`] algebra. The English-order spelling
-/// `Unless(effect: or_else, who: actor, unless: cost)` is the builtin
-/// `Unless` macro, which expands to exactly this node. `actor` defaults to
-/// `You` and is omitted from RON when it is.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct MustPay {
-    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-    pub actor: Reference,
-    pub cost: Cost,
-    pub or_else: Arc<OneShotEffect>,
-}
-
 /// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run
 /// [body]" ([CR#601.2f,118.8]). The payment is an event, so `body` reads the
 /// sacrificed/exiled object through the event references
 /// (`EventObject`/`EventActor`/`EventPatient`) — the cost-side twin of a
 /// trigger's event bindings ("the sacrificed creature's power" =
-/// `StatOf(EventObject, Power)`, Fling/Momentous Fall). Unlike
-/// [`MayPay`]/[`MustPay`] there is no `actor`: an additional cost is always
+/// `StatOf(EventObject, Power)`, Fling/Momentous Fall). Unlike `May`'s
+/// `Act(Pay(cost))` shape there is no `who`: an additional cost is always
 /// paid by the spell/ability's controller ([CR#601.2b]). `body` is boxed to
 /// break the `OneShotEffect` → `AdditionalCost` → `OneShotEffect` size cycle
 /// (mirrors [`May`]).
@@ -654,55 +620,49 @@ mod tests {
         }
     }
 
-    /// `MustPay` reads flat over the full `Cost` algebra, defaults `actor` to
-    /// `You` (omitted on write), and round-trips — the Mana Leak shape
-    /// ([CR#118.12a]); the English "unless" order is the `Unless` macro.
+    /// The collapsed `MustPay` shape — `May { who, effect: Act(Pay(cost)),
+    /// if_not }`, no `if_did` — reads flat over the full `Cost` algebra and
+    /// round-trips: the Mana Leak punisher ([CR#118.12a]); the English
+    /// "unless" order is the `Unless` macro. `who` is required (Law 2) —
+    /// always spelled, never defaulted.
     #[test]
-    fn must_pay_defaults_actor_and_round_trips() {
+    fn may_pay_reads_the_must_pay_shape_and_round_trips() {
         // Mana Leak: "counter target spell unless its controller pays {3}".
-        let mana_leak =
-            "MustPay(actor:ControllerOf(It),cost:[Mana([Generic(3)])],or_else:Counter(It))";
+        let mana_leak = "May(who:ControllerOf(It),effect:Pay([Mana([Generic(3)])]),\
+                          if_not:Counter(It))";
         let parsed = read(mana_leak);
-        let OneShotEffect::MustPay(m) = &parsed else {
-            panic!("expected MustPay, got {parsed:?}");
+        let OneShotEffect::May(m) = &parsed else {
+            panic!("expected May, got {parsed:?}");
         };
-        assert_eq!(m.actor, Reference::ControllerOf(Arc::new(Reference::It)));
-        assert_eq!(
-            m.cost.0.len(),
-            1,
-            "the full Cost carries the {{3}} component"
-        );
+        assert_eq!(m.who, Reference::ControllerOf(Arc::new(Reference::It)));
+        let OneShotEffect::Act(Action::Pay(cost)) = m.effect.as_ref() else {
+            panic!("expected Act(Pay(cost)), got {:?}", m.effect);
+        };
+        assert_eq!(cost.0.len(), 1, "the full Cost carries the {{3}} component");
+        assert!(m.if_did.is_none());
         assert_eq!(write(&parsed), mana_leak, "Mana Leak shape round-trips");
-
-        // Default actor (You) is omitted on write.
-        let omitted = "MustPay(cost:[Mana([Generic(2)])],or_else:ChangeLife(You,Down(1)))";
-        let parsed = read(omitted);
-        let OneShotEffect::MustPay(m) = &parsed else {
-            panic!("expected MustPay");
-        };
-        assert_eq!(m.actor, Reference::You, "omitted actor defaults to You");
-        assert_eq!(write(&parsed), omitted, "default actor is omitted on write");
     }
 
-    /// `MayPay` reads flat, omits the default `actor` and the absent `or_else`,
-    /// and round-trips with and without the "if you don't" branch
-    /// ([CR#603,608]).
+    /// The collapsed `MayPay` shape — `May { who, effect: Act(Pay(cost)),
+    /// if_did, if_not }` — reads flat and round-trips with and without the
+    /// "if you don't" branch ([CR#603,608]).
     #[test]
-    fn may_pay_round_trips_with_and_without_or_else() {
-        // No "if you don't" branch — `or_else` omitted.
-        let bare = "MayPay(cost:[Mana([Generic(1)])],and_then:ChangeLife(You,Up(1)))";
+    fn may_pay_reads_the_may_pay_shape_with_and_without_if_not() {
+        // No "if you don't" branch — `if_not` omitted.
+        let bare = "May(who:You,effect:Pay([Mana([Generic(1)])]),\
+                     if_did:ChangeLife(You,Up(1)))";
         let parsed = read(bare);
-        let OneShotEffect::MayPay(m) = &parsed else {
-            panic!("expected MayPay, got {parsed:?}");
+        let OneShotEffect::May(m) = &parsed else {
+            panic!("expected May, got {parsed:?}");
         };
-        assert_eq!(m.actor, Reference::You);
-        assert!(m.or_else.is_none());
-        assert_eq!(write(&parsed), bare, "bare MayPay round-trips");
+        assert_eq!(m.who, Reference::You);
+        assert!(m.if_not.is_none());
+        assert_eq!(write(&parsed), bare, "bare May(Pay) round-trips");
 
-        // With an explicit actor and an "if you don't" branch.
-        let full = "MayPay(actor:It,cost:[Mana([Generic(2)])],and_then:ChangeLife(You,Up(2)),\
-                     or_else:ChangeLife(You,Down(1)))";
-        assert_eq!(write(&read(full)), full, "full MayPay round-trips");
+        // With an explicit `who` and an "if you don't" branch too.
+        let full = "May(who:It,effect:Pay([Mana([Generic(2)])]),\
+                     if_did:ChangeLife(You,Up(2)),if_not:ChangeLife(You,Down(1)))";
+        assert_eq!(write(&read(full)), full, "full May(Pay) round-trips");
     }
 
     /// `AdditionalCost { pay, body }` reads flat over the full `Cost` algebra

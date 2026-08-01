@@ -204,12 +204,12 @@ pub enum WorkItem {
         amount: deckmaste_core::Uint,
         riders: Vec<deckmaste_core::ManaRider>,
     },
-    /// [CR#118.12a]: a mid-resolution mana toll — a `MustPay`/`MayPay`
+    /// [CR#118.12a]: a mid-resolution mana toll — a `MayPayCost`
     /// continuation's `Mana(...)` cost component, paid by `player` from
     /// their pool. Surfaces a `PayMana` decision; `subject` is the
     /// resolving ability's source (a `SpendOnly` rider judges it). A ward
     /// toll's cost arrives here already priced ([CR#702.21b] — `{X}`
-    /// resolved through `where_x` at `MustPay` execution).
+    /// resolved through `where_x` at `May(Pay)` execution).
     TollMana {
         player: crate::player::PlayerId,
         cost: deckmaste_core::ManaCost,

@@ -387,10 +387,10 @@ tPreventNext = Continuously UntilEndOfTurn
 
 -- Ward {2} ([CR#702.21a]): NO new machinery — a triggered ability over existing parts. When an opponent
 -- casts a spell targeting This, that player (`EventActor`) MAY pay {2}; if not, the spell (`EventObject`)
--- is countered. Targets / MayPay (the unless-pay) / Counter were all already here.
+-- is countered. Targets / the collapsed May(Pay) (the unless-pay, [CR#118.12a]) / Counter were all already here.
 tWard : Ability Base
 tWard = Triggered (MkEventQuery [Begins Cast] [Patient (Targets (SameAs This)), Actor opponent])
-  (MayPay {actor = EventActor} (Mana [^2]) (Sequentially []) {or_else = Just (Act (Counter EventObject))})
+  (mayPayCostBy EventActor (Mana [^2]) Nothing (Just (Act (Counter EventObject))))
 
 tIndestructible : Ability Base
 tIndestructible = keyword Indestructible
@@ -548,14 +548,15 @@ tActivated : Ability Base
 tActivated = Activated (Costs [Mana [^2], Do (Tap This), Do (LoseLife (Literal 1))])
                        (Act (Draw (^1)))
 
--- cost-payment DECISIONS (supersede `Unless`): MAY-pay (optional, reward + downside) and
--- MUST-pay (pay or be punished). The full `Cost` algebra rides both (here life / mana);
--- the MayPay "if they do" branch runs in the PAYMENT's caps ([CR#601.2f]).
+-- cost-payment DECISIONS, the collapsed `May (Act (Pay cost))` shape ([CR#118.12a]): MAY-pay
+-- (optional, reward + downside) and MUST-pay (pay or be punished) are the same node, `ifDid`
+-- present vs absent. The full `Cost` algebra rides both (here life / mana); the MayPay "if
+-- they do" branch runs in the PAYMENT's caps ([CR#601.2f], `intro`'s `Pay` arm).
 tMayPay : OneShotEffect Base
-tMayPay = MayPay (Do (LoseLife (Literal 2))) (Act (Draw (^1))) {or_else = Just (Act (LoseLife (^1)))}
+tMayPay = mayPayCostBy You (Do (LoseLife (Literal 2))) (Just (Act (Draw (^1)))) (Just (Act (LoseLife (^1))))
 
 tMustPay : OneShotEffect Base
-tMustPay = MustPay (Mana [^2]) (Act (Counter (Only (IsKind Spell))))
+tMustPay = mayPayCostBy You (Mana [^2]) Nothing (Just (Act (Counter (Only (IsKind Spell)))))
 
 -- scaled cost: "{2} for each creature" — `Scaled` pays the inner cost once per the count.
 tScaledCost : Cost Base

@@ -127,13 +127,10 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         OneShotEffect::Simultaneously(parts) => exchange_control_phrase(parts, ctx)
             .or_else(|| exchange_life_phrase(parts, ctx))
             .unwrap_or_else(|| format!("[unrendered: {e:?}].")),
-        // [CR#608.2d]: "You may [effect]." — the bare optional-effect wrapper
-        // (distinct from `MayPay`'s pay-a-cost kicker; this rule's own
-        // example, "You may sacrifice a creature. If you don't, you lose 4
-        // life.", is this exact "may … if you don't" shape). `if_did`/
-        // `if_not` are unused by any current fixture; the base "You may …"
-        // form is the
-        // only shape rendered so far.
+        // [CR#608.2d]: "You may [effect]." — the bare optional-effect wrapper.
+        // The collapsed `MayPay`/`MustPay` shape (`effect` is `Pay(cost)`)
+        // renders as the may-pay kicker / must-pay punisher instead — see
+        // `render_may`.
         OneShotEffect::May(m) => render_may(m, ctx),
         // The multi-part spelling of `Continuously` ([CR#611.2c] — a list of
         // static parts sharing one duration, the Boros Charm mode-2 shape).
@@ -160,41 +157,6 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         OneShotEffect::Targeted(t) => {
             let named = Cell::new(0);
             effect(&t.effect, &ctx.with_targets(&t.targets, &named))
-        }
-        // [CR#118.12a]: "[or_else] unless [actor] pays [cost]" — the resolution-
-        // time punisher (Mana Leak). Starts with the rendered punisher effect
-        // (already capitalized). Declines structurally if the cost has no symbol
-        // rendering (e.g. a `Do(...)` verb cost).
-        OneShotEffect::MustPay(m) => {
-            let payer = fragment::reference(&m.actor, ctx);
-            let (_, _, pays) = payer_verbs(&payer);
-            match super::template::render_cost(&m.cost.0) {
-                Some(c) => format!(
-                    "{} unless {payer} {pays} {c}.",
-                    trim_period(&effect(&m.or_else, ctx))
-                ),
-                None => format!("[unrendered: {m:?}]."),
-            }
-        }
-        // [CR#603,608]: "[actor] may pay [cost]. If [actor] does, [and_then];
-        // if [actor] doesn't, [or_else]" — a resolution-time kicker.
-        OneShotEffect::MayPay(m) => {
-            let payer = fragment::reference(&m.actor, ctx);
-            let (does, doesnt, _) = payer_verbs(&payer);
-            match super::template::render_cost(&m.cost.0) {
-                Some(c) => {
-                    let did = super::ability::lower_first(&trim_period(&effect(&m.and_then, ctx)));
-                    let tail = m.or_else.as_ref().map_or_else(String::new, |or_else| {
-                        let didnt =
-                            super::ability::lower_first(&trim_period(&effect(or_else, ctx)));
-                        format!("; if {payer} {doesnt}, {didnt}")
-                    });
-                    fragment::capitalize(&format!(
-                        "{payer} may pay {c}. If {payer} {does}, {did}{tail}."
-                    ))
-                }
-                None => format!("[unrendered: {m:?}]."),
-            }
         }
         // [CR#601.2f,118.8]: "As an additional cost to cast ~, [pay]. [body]"
         // — the printed additional-cost clause whose body reads the paid
@@ -2198,6 +2160,46 @@ fn player_action(action: &Action, ctx: &Ctx) -> String {
 /// inner effect supplies, so it stands capitalized after the base clause.
 fn render_may(m: &deckmaste_core::May, ctx: &Ctx) -> String {
     use std::fmt::Write as _;
+    // [CR#118.12a,118.12,603,608]: the collapsed `MayPay`/`MustPay` shape —
+    // `effect` is `Pay(cost)`, so `if_did`/`if_not` read as cost semantics
+    // (the may-pay kicker / must-pay punisher) instead of the plain
+    // "You may [effect]." wrapper below. Declines structurally (falls to
+    // `[unrendered]`) if the cost has no symbol rendering (e.g. a `Do(...)`
+    // verb cost).
+    if let OneShotEffect::Act(Action::Pay(cost)) = m.effect.as_ref() {
+        let payer = fragment::reference(&m.who, ctx);
+        return match super::template::render_cost(&cost.0) {
+            Some(c) => match (&m.if_did, &m.if_not) {
+                // MustPay shape (no `if_did`): "[if_not] unless [who] pays
+                // [cost]." — the resolution-time punisher (Mana Leak).
+                (None, Some(if_not)) => {
+                    let (_, _, pays) = payer_verbs(&payer);
+                    format!(
+                        "{} unless {payer} {pays} {c}.",
+                        trim_period(&effect(if_not, ctx))
+                    )
+                }
+                // MayPay shape: "[who] may pay [cost]. If [who] does,
+                // [if_did][; if [who] doesn't, [if_not]]." — the
+                // resolution-time kicker.
+                (Some(if_did), if_not) => {
+                    let (does, doesnt, _) = payer_verbs(&payer);
+                    let did = super::ability::lower_first(&trim_period(&effect(if_did, ctx)));
+                    let tail = if_not.as_ref().map_or_else(String::new, |not| {
+                        let didnt = super::ability::lower_first(&trim_period(&effect(not, ctx)));
+                        format!("; if {payer} {doesnt}, {didnt}")
+                    });
+                    fragment::capitalize(&format!(
+                        "{payer} may pay {c}. If {payer} {does}, {did}{tail}."
+                    ))
+                }
+                // Branchless `May(Pay(cost))` ([CR#608.2] optionality, no
+                // kicker/punisher tail): "[who] may pay [cost]."
+                (None, None) => fragment::capitalize(&format!("{payer} may pay {c}.")),
+            },
+            None => format!("[unrendered: {m:?}]."),
+        };
+    }
     let inner = super::ability::lower_first(&trim_period(&effect(&m.effect, ctx)));
     let mut out = format!("You may {inner}.");
     if let Some(did) = &m.if_did {
@@ -2747,17 +2749,17 @@ mod tests {
         );
     }
 
-    /// `MayPay`/`MustPay` agree the payer's verb with its grammatical person
-    /// ([CR#603,608,118.12a]): the default `you` actor takes second-person
-    /// "do / don't / pay", a third-person actor ("that player") takes "does /
-    /// doesn't / pays". Regression for the hardcoded third-person forms that
-    /// rendered the ungrammatical "if you **does**, …" / "unless you **pays**".
+    /// The collapsed `May(Pay(cost))` shape agrees the payer's verb with its
+    /// grammatical person ([CR#603,608,118.12a]): the default `you` payer
+    /// takes second-person "do / don't / pay", a third-person payer ("that
+    /// player") takes "does / doesn't / pays". Regression for the hardcoded
+    /// third-person forms that rendered the ungrammatical "if you **does**,
+    /// …" / "unless you **pays**".
     #[test]
     fn pay_clauses_agree_verb_person_with_payer() {
         use deckmaste_core::Cost;
         use deckmaste_core::CostComponent;
-        use deckmaste_core::MayPay;
-        use deckmaste_core::MustPay;
+        use deckmaste_core::May;
 
         let ctx = Ctx {
             subject: "it",
@@ -2765,7 +2767,11 @@ mod tests {
             that: None,
             named: None,
         };
-        let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())].into());
+        let pay = || {
+            Arc::new(OneShotEffect::Act(Action::Pay(Cost(
+                vec![CostComponent::Mana("{1}".parse().unwrap())].into(),
+            ))))
+        };
         let draw = || Arc::new(kw("Draw(1)"));
         let lose = || {
             Arc::new(OneShotEffect::Act(Action::ChangeLife(
@@ -2774,58 +2780,60 @@ mod tests {
             )))
         };
 
-        // -- MayPay: "[payer] may pay {1}. If [payer] do(es), draw a card; if
-        //    [payer] do(esn't), [lose]." --
-        let may_you = OneShotEffect::MayPay(MayPay {
-            actor: Reference::You,
-            cost: one(),
-            and_then: draw(),
-            or_else: Some(lose()),
+        // -- MayPay shape: "[payer] may pay {1}. If [payer] do(es), draw a
+        //    card; if [payer] do(esn't), [lose]." --
+        let may_you = OneShotEffect::May(May {
+            who: Reference::You,
+            effect: pay(),
+            if_did: Some(draw()),
+            if_not: Some(lose()),
         });
         let rendered = effect(&may_you, &ctx);
         assert!(
             rendered.contains("If you do, ") && rendered.contains("; if you don't, "),
-            "second-person MayPay: {rendered}"
+            "second-person MayPay shape: {rendered}"
         );
         assert!(
             !rendered.contains("you does") && !rendered.contains("you doesn't"),
             "no third-person -s for the `you` payer: {rendered}"
         );
 
-        let may_them = OneShotEffect::MayPay(MayPay {
-            actor: Reference::EventActor,
-            cost: one(),
-            and_then: draw(),
-            or_else: Some(lose()),
+        let may_them = OneShotEffect::May(May {
+            who: Reference::EventActor,
+            effect: pay(),
+            if_did: Some(draw()),
+            if_not: Some(lose()),
         });
         let rendered = effect(&may_them, &ctx);
         assert!(
             rendered.contains("If that player does, ")
                 && rendered.contains("; if that player doesn't, "),
-            "third-person MayPay: {rendered}"
+            "third-person MayPay shape: {rendered}"
         );
 
-        // -- MustPay: "[or_else] unless [payer] pay(s) {1}." --
-        let must_you = OneShotEffect::MustPay(MustPay {
-            actor: Reference::You,
-            cost: one(),
-            or_else: lose(),
+        // -- MustPay shape: "[if_not] unless [payer] pay(s) {1}." --
+        let must_you = OneShotEffect::May(May {
+            who: Reference::You,
+            effect: pay(),
+            if_did: None,
+            if_not: Some(lose()),
         });
         let rendered = effect(&must_you, &ctx);
         assert!(
             rendered.contains("unless you pay {1}") && !rendered.contains("unless you pays"),
-            "second-person MustPay: {rendered}"
+            "second-person MustPay shape: {rendered}"
         );
 
-        let must_them = OneShotEffect::MustPay(MustPay {
-            actor: Reference::EventActor,
-            cost: one(),
-            or_else: lose(),
+        let must_them = OneShotEffect::May(May {
+            who: Reference::EventActor,
+            effect: pay(),
+            if_did: None,
+            if_not: Some(lose()),
         });
         let rendered = effect(&must_them, &ctx);
         assert!(
             rendered.contains("unless that player pays {1}"),
-            "third-person MustPay: {rendered}"
+            "third-person MustPay shape: {rendered}"
         );
     }
 

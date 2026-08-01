@@ -381,8 +381,8 @@ fn registries_load_with_their_index_columns() {
 fn wave_macros_expand_to_their_blessed_bodies() {
     let plugin = builtin();
 
-    // Unless — the English order over MustPay ([CR#118.12a]): actor
-    // defaults to You, the cost splices flat.
+    // Unless — the English order over the collapsed `May(Pay(cost))` MustPay
+    // shape ([CR#118.12a]): who defaults to You, the cost splices flat.
     let unless: OneShotEffect = plugin
         .macros
         .read_str("Unless(effect: Draw(1), unless: [Mana([Generic(2)])])")
@@ -391,17 +391,21 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         panic!("expected a remembered Unless expansion, got {unless:?}");
     };
     assert_eq!(exp.name.as_str(), "Unless");
-    let OneShotEffect::MustPay(m) = exp.value.as_ref() else {
-        panic!("Unless must expand to MustPay, got {:?}", exp.value);
+    let OneShotEffect::May(m) = exp.value.as_ref() else {
+        panic!("Unless must expand to May, got {:?}", exp.value);
     };
-    assert_eq!(m.actor, Reference::You, "the payer defaults to You");
+    assert_eq!(m.who, Reference::You, "the payer defaults to You");
+    assert!(
+        m.if_did.is_none(),
+        "no positive branch — this is the punisher shape"
+    );
+    let Some(if_not) = m.if_not.as_ref() else {
+        panic!("expected if_not, got None");
+    };
     // `Draw(1)` is the `Draw` macro, so the unpaid branch is its remembered
     // `Expanded` wrapping the `Batch(1, Act(By(You, DrawCard)))`.
-    let OneShotEffect::Expanded(draw_exp) = m.or_else.as_ref() else {
-        panic!(
-            "or_else should be the remembered Draw expansion, got {:?}",
-            m.or_else
-        );
+    let OneShotEffect::Expanded(draw_exp) = if_not.as_ref() else {
+        panic!("if_not should be the remembered Draw expansion, got {if_not:?}");
     };
     assert_eq!(draw_exp.name.as_str(), "Draw");
     // `Draw(1)` is `Batch(1, Act(DrawCard(You)))`: the `Batch` is the

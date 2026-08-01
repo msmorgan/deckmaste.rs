@@ -177,26 +177,18 @@ pub enum ChoiceContinuation {
         modes: Vec<deckmaste_core::Mode>,
         frame: crate::stack::Frame,
     },
-    /// A `YesNo` answer for `OneShotEffect::Unless` ([CR#118.12a,608.2d]): yes
-    /// → pay the `unless` cost (skipping `effect`); no → run `effect`.
-    /// `who` is the paying player, so each cost component runs as that
-    /// player's action.
-    Unless {
-        effect: Arc<deckmaste_core::OneShotEffect>,
+    /// A `YesNo` answer for the collapsed `May(Pay(cost))` shape
+    /// ([CR#118.12a,118.12,608.2d]) — the old `Unless`/`MayPay` continuations
+    /// merged into one node (branchless when `if_did`/`if_not` are both
+    /// `None`): yes pays `cost` (each component as `who`'s action, already
+    /// normalized/priced) then runs `if_did` (if any); no runs `if_not` (or
+    /// nothing). `who` is the paying player ([CR#118.12a] — the doer
+    /// decides).
+    MayPayCost {
         who: deckmaste_core::Reference,
-        unless: Vec<deckmaste_core::CostComponent>,
-        frame: crate::stack::Frame,
-    },
-    /// A `YesNo` answer for `OneShotEffect::MayPay` ([CR#603,608]): yes → pay
-    /// the `cost` (each component as `actor`'s action) then run `and_then`;
-    /// no → run `or_else` (or nothing). `actor` is the paying player.
-    /// Unlike `Unless`, the PAID branch also runs an effect (`and_then`) —
-    /// the resolution-time kicker.
-    MayPay {
-        actor: deckmaste_core::Reference,
         cost: Vec<deckmaste_core::CostComponent>,
-        and_then: Arc<deckmaste_core::OneShotEffect>,
-        or_else: Option<Arc<deckmaste_core::OneShotEffect>>,
+        if_did: Option<Arc<deckmaste_core::OneShotEffect>>,
+        if_not: Option<Arc<deckmaste_core::OneShotEffect>>,
         frame: crate::stack::Frame,
     },
     /// [CR#401.4]: walking the post-pick arrange decisions — `current` is the

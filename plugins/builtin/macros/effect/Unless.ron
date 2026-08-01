@@ -1,13 +1,14 @@
-// "Unless" — the ENGLISH ORDER over the `MustPay` punisher ([CR#118.12a]):
-// "[effect] unless [who] pays [cost]" is `MustPay { actor: who, cost,
-// or_else: effect }`, exactly. Core keeps only the CR-family `MustPay`
-// node; this macro is the render name the corpus's unless-order spellings
-// (Mana Leak's "counter target spell unless its controller pays {3}",
-// the upkeep-toll "sacrifice ~ unless you pay …") read and write through —
-// the parser's counter/sacrifice emitters keep emitting `Unless(...)`
-// invocations, which expand to `MustPay` at read time.
+// "Unless" — the ENGLISH ORDER over the collapsed `May(Pay(cost))` MustPay
+// shape ([CR#118.12a] — the CR itself defines the punisher as
+// `May`-without-`if_did`): "[effect] unless [who] pays [cost]" is
+// `May { who, effect: Pay(cost), if_not: effect }`, exactly. Core keeps only
+// the `May` node; this macro is the render name the corpus's unless-order
+// spellings (Mana Leak's "counter target spell unless its controller pays
+// {3}", the upkeep-toll "sacrifice ~ unless you pay …") read and write
+// through — the parser's counter/sacrifice emitters keep emitting
+// `Unless(...)` invocations, which expand to `May(Pay(...))` at read time.
 //
-// Rendering rides the structural `MustPay` arm (which conjugates the payer
+// Rendering rides the structural `May` arm (which conjugates the payer
 // verb — "unless you pay" / "unless its controller pays"); the template
 // documents the surface order.
 (
@@ -15,9 +16,9 @@
     template: "${effect} unless ${who} pays ${unless}",
     kinds: [OneShotEffect],
     params: { "effect": OneShotEffect, "who": Default(Reference, You), "unless": Cost },
-    body: MustPay(
-        actor: Param(who),
-        cost: [Splice(Param(unless))],
-        or_else: Param(effect),
+    body: May(
+        who: Param(who),
+        effect: Pay([Splice(Param(unless))]),
+        if_not: Param(effect),
     ),
 )

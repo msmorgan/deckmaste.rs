@@ -2283,7 +2283,7 @@ mod tests {
         use deckmaste_core::CostComponent;
         use deckmaste_core::ManaCost;
         use deckmaste_core::ManaSymbol;
-        use deckmaste_core::MustPay;
+        use deckmaste_core::May;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::PhaseStep;
         use deckmaste_core::SimpleManaSymbol;
@@ -2322,22 +2322,23 @@ mod tests {
             "At the beginning of your upkeep, sacrifice this creature."
         );
 
-        // The "unless you pay <mana>" toll (`MustPay`, the `Unless` macro's
-        // read-time expansion, [CR#118.12a]) — Aura Flux's real Oracle text,
-        // verbatim.
+        // The "unless you pay <mana>" toll (the collapsed `May(Pay(cost))`
+        // `MustPay` shape, the `Unless` macro's read-time expansion,
+        // [CR#118.12a]) — Aura Flux's real Oracle text, verbatim.
         let toll = bare(
             event,
-            OneShotEffect::MustPay(MustPay {
-                actor: Reference::You,
-                cost: Cost(
+            OneShotEffect::May(May {
+                who: Reference::You,
+                effect: Arc::new(OneShotEffect::Act(Action::Pay(Cost(
                     vec![CostComponent::Mana(ManaCost::from(
                         Arc::<[ManaSymbol]>::from(vec![ManaSymbol::Simple(
                             SimpleManaSymbol::Generic(2),
                         )]),
                     ))]
                     .into(),
-                ),
-                or_else: Arc::new(sacrifice_this()),
+                )))),
+                if_did: None,
+                if_not: Some(Arc::new(sacrifice_this())),
             }),
         );
         let enchantment_view = CardView {

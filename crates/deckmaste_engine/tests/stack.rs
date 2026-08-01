@@ -566,7 +566,8 @@ fn ward_game_with(seed: u64, ward_name: &str) -> GameState {
 }
 
 /// [CR#702.21a,601.2c]: Ward reads the event provenance of a `BecameTarget`
-/// fact (NOT a zone change) — the `MustPay` toll's `Counter(EventObject)`
+/// fact (NOT a zone change) — the collapsed `May(Pay)` toll's
+/// `Counter(EventObject)`
 /// must counter the targeting SPELL ("counter that spell or ability"), which
 /// the engine binds as the event object (the agent = the source on the
 /// stack), with the warded permanent the patient. The toll's payer is

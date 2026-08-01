@@ -163,9 +163,9 @@ fn parse_rhystic_damage(line: &str) -> Option<ParsedEffect> {
         functional_zone: None,
         targets: vec!["AnyTarget".to_owned()],
         effect: format!(
-            "MayPay(actor: Coalesce([ControllerOf(Target(0)), Target(0)]), cost: [{}], \
-             and_then: DealDamage(This, {low}, Target(0)), \
-             or_else: DealDamage(This, {high}, Target(0)))",
+            "May(who: Coalesce([ControllerOf(Target(0)), Target(0)]), effect: Pay([{}]), \
+             if_did: DealDamage(This, {low}, Target(0)), \
+             if_not: DealDamage(This, {high}, Target(0)))",
             cost.join(", ")
         ),
     })
@@ -666,14 +666,15 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect
 /// recovered; today both sentences fail and the whole line stays `Unparsed`.
 ///
 /// Two node shapes, chosen by the offer:
-/// - `you may pay <cost>. If you do, <did>` -> `MayPay { cost, and_then }` (the
-///   dominant form; `actor` defaults to `You`, omitted from RON). The [`Cost`]
+/// - `you may pay <cost>. If you do, <did>` -> the collapsed `May(who: You,
+///   effect: Pay(cost), if_did: and_then)` `MayPay` shape (the dominant form;
+///   `who` is spelled `You` always — Law 2, no read-time default). The [`Cost`]
 ///   is read off the BARE post-`pay ` symbol string, so an energy `pay {E}{E}`
 ///   — whose cost renders WITH a leading `Pay` word, which would double in the
 ///   `may pay …` render frame — declines here rather than mis-round-tripping.
-///   v1 emits no `or_else`: the `MayPay` render spells the negative branch with
-///   a `"; if you don't"` semicolon, which cannot round-trip the oracle `". If
-///   you don't"`, so a pay offer carrying a negative tail declines.
+///   v1 emits no `if_not`: the render spells the negative branch with a `"; if
+///   you don't"` semicolon, which cannot round-trip the oracle `". If you
+///   don't"`, so a pay offer carrying a negative tail declines.
 /// - `you may <verb-phrase>. If you do/don't, <branch>` -> `May { effect,
 ///   if_did, if_not }`; the verb phrase and each present branch re-enter
 ///   [`parse_clause`]. The `May` render is period-separated, so BOTH branches
@@ -724,9 +725,10 @@ fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Pa
 
     let (targets, effect, functional_zone) = if let Some(cost_body) = strip_prefix_ci(offer, "pay ")
     {
-        // MayPay path. `and_then` is required (a pay offer with only a negative
-        // branch declines above via not-without-did); the cost is read bare, so
-        // energy (`Pay {E}…`) and any other "Pay"-worded macro cost declines.
+        // The collapsed `May(Pay(cost))` MayPay path. `if_did` is required (a
+        // pay offer with only a negative branch declines above via
+        // not-without-did); the cost is read bare, so energy (`Pay {E}…`) and
+        // any other "Pay"-worded macro cost declines.
         let Some(did_text) = did_text else {
             return Ok(None);
         };
@@ -749,7 +751,7 @@ fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Pa
         (
             Vec::new(),
             format!(
-                "MayPay(cost: [{}], and_then: {})",
+                "May(who: You, effect: Pay([{}]), if_did: {})",
                 cost.join(", "),
                 and_then.effect
             ),
@@ -2803,15 +2805,16 @@ mod tests {
     }
 
     /// `you may pay {cost}. If you do, <effect>` folds the offer and its "if
-    /// you do" continuation into one [`MayPay`] node — the dominant reflexive
-    /// form. `actor` defaults to `You` (omitted); no `or_else` (positive form).
+    /// you do" continuation into one collapsed `May(Pay(cost))` node — the
+    /// dominant reflexive form. `who` is always spelled `You` (Law 2, no
+    /// read-time default); no `if_not` (positive form).
     #[test]
     fn may_pay_reflexive_folds_to_may_pay() {
         assert_eq!(
             parsed_with_macros("you may pay {2}. If you do, draw a card."),
             Some((
                 String::new(),
-                "MayPay(cost: [Mana([Generic(2)])], and_then: Draw(1))".to_owned(),
+                "May(who: You, effect: Pay([Mana([Generic(2)])]), if_did: Draw(1))".to_owned(),
             ))
         );
     }
@@ -2885,8 +2888,8 @@ mod tests {
             parsed_with_macros("you may pay {2}. If you do, draw a card. Draw two cards."),
             Some((
                 String::new(),
-                "MayPay(cost: [Mana([Generic(2)])], \
-                 and_then: Sequentially([Draw(1), Draw(2)]))"
+                "May(who: You, effect: Pay([Mana([Generic(2)])]), \
+                 if_did: Sequentially([Draw(1), Draw(2)]))"
                     .to_owned(),
             ))
         );
@@ -2895,7 +2898,8 @@ mod tests {
     /// v1 declines the cases whose render cannot round-trip the oracle: an
     /// energy `pay {E}{E}` (cost renders WITH a "Pay" word, doubling in the
     /// "may pay" frame) and a pay offer carrying a negative `If you don't`
-    /// branch (`MayPay` renders that branch with a "; if you don't" semicolon).
+    /// branch (the render spells that branch with a "; if you don't"
+    /// semicolon).
     #[test]
     fn may_pay_reflexive_declines_unroundtrippable() {
         assert!(parsed_with_macros("you may pay {E}{E}. If you do, draw a card.").is_none());
@@ -2977,7 +2981,7 @@ mod tests {
             parsed("~ deals 4 damage to any target unless that permanent's controller or that player pays {2}. If they do, ~ deals 2 damage to the permanent or player."),
             Some((
                 "AnyTarget".to_owned(),
-                "MayPay(actor: Coalesce([ControllerOf(Target(0)), Target(0)]), cost: [Mana([Generic(2)])], and_then: DealDamage(This, 2, Target(0)), or_else: DealDamage(This, 4, Target(0)))".to_owned(),
+                "May(who: Coalesce([ControllerOf(Target(0)), Target(0)]), effect: Pay([Mana([Generic(2)])]), if_did: DealDamage(This, 2, Target(0)), if_not: DealDamage(This, 4, Target(0)))".to_owned(),
             ))
         );
     }

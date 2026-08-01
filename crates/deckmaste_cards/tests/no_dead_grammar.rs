@@ -186,12 +186,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             Noting/AmongNoted below.",
         ),
         (
-            n("OneShotEffect", "MayPay"),
-            "DEFERRED: no covered real card uses the resolution-time \
-            optional-cost-kicker shape (canon's Mana Leak uses the punisher MustPay instead); a \
-            real candidate (e.g. a 'you may pay {2}; if you do, ...' spell) is buildable.",
-        ),
-        (
             n("OneShotEffect", "Noting"),
             "BLOCKED: 'for each nontoken creature destroyed this way' (Blood \
             Money) needs a way to re-read a noted PRODUCT group filtered further; \

@@ -474,8 +474,9 @@ card_WallOfOmens = Normal $ ^:
 
 -- HIGH-COVERAGE cards (exercise multiple subsystems at once) -------------------
 
--- Mana Leak — the cost-payment DECIDER on a card: the spell's CONTROLLER `MustPay` {3}, OR ELSE
--- it's countered. Exercises MustPay / ControllerOf (the targeted spell's controller) / a spell target.
+-- Mana Leak — the cost-payment DECIDER on a card: the spell's CONTROLLER must pay {3} (the
+-- collapsed `May(Pay)` MustPay shape, [CR#118.12a]), OR ELSE it's countered. Exercises
+-- mayPayCostBy / ControllerOf (the targeted spell's controller) / a spell target.
 export
 card_ManaLeak : Card
 card_ManaLeak = Normal $ ^:
@@ -484,8 +485,8 @@ card_ManaLeak = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) (IsKind Spell)]
-          (MustPay {actor = ControllerOf (Target 0)} (Mana [^3])
-            (Act (Counter (Target 0))))) ]        -- canon: ControllerOf(It) / Counter(It)
+          (mayPayCostBy (ControllerOf (Target 0)) (Mana [^3]) Nothing
+            (Just (Act (Counter (Target 0)))))) ]        -- canon: ControllerOf(It) / Counter(It)
   }
 
 -- Invisible Stalker — a DEONTIC-KEYWORD creature: `keyword (Hexproof Nothing)` is a `Composite`

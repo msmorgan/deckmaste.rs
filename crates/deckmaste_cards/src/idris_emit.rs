@@ -2047,11 +2047,13 @@ fn emit_action(a: &Action) -> R {
         Action::Shuffle(sel) => Ok(app("Shuffle", vec![emit_selection(sel)?].into())),
         Action::Reveal { what, .. } => Ok(app("Reveal", vec![emit_reference(what)?].into())),
         Action::RemoveDamage(r) => Ok(app("RemoveDamage", vec![emit_reference(r)?].into())),
-        // T3 scope (collapsing MayPay/MustPay into `May(Pay)`) — Idris mints no
-        // `Pay` constructor this task; bare effect-position `Pay` is
-        // unspellable in Rust too ([CR#118.12]'s own doc), so no canon card
-        // reaches this arm.
-        Action::Pay(_) => Err(gap("Action::Pay has no Idris counterpart yet (T3 scope)")),
+        // [CR#118.12]: the slotless `Cost` -> `Action` adapter. Bare
+        // effect-position `Pay` is unspellable (no legal host), so in
+        // practice this is only reached through the `May` arm's own direct
+        // `mayPayCostBy` emission below — never via generic recursion — but
+        // `Action` is total-by-enumeration on the Idris side too, so this
+        // stays a real arm rather than a gap.
+        Action::Pay(cost) => Ok(app("Pay", vec![emit_cost(cost)?].into())),
         Action::Expanded(_) => Err(gap(
             "unexpanded Action macro invocation remained after expand_all",
         )),
@@ -3443,15 +3445,31 @@ fn emit_effect(e: &OneShotEffect) -> R {
         }
         OneShotEffect::SeparatePiles(sp) => emit_separate_piles(sp)?,
         OneShotEffect::ChoosePile(cp) => emit_choose_pile(cp)?,
-        // `mayWith` takes the (default-`Nothing`) `ifDid`/`ifNot` positionally.
-        // `m.who` (the offeree, required — Law 2, no read-time default) has no
-        // Idris slot on `May` at all; a non-`You` offeree is a gap rather than
+        // The collapsed `MayPay`/`MustPay` shape ([CR#118.12a]): `effect` is
+        // `Pay(cost)`, so it routes through `mayPayCostBy`, which carries
+        // `who` as a required positional arg (mirroring Rust's `May.who`,
+        // Law 2) — the MustPay punisher is `ifDid: None`; a branchless
+        // `May(Pay(cost))` is both `None`, same smart constructor either way.
+        // Every OTHER `May` takes `mayWith`, whose (default-`Nothing`)
+        // `ifDid`/`ifNot` are positional; `who` has no Idris slot there at
+        // all (every other `May` stays implicitly You, Idris's pre-existing
+        // simplification), so a non-`You` offeree is a gap rather than
         // silently dropped.
-        OneShotEffect::May(m) => {
-            if !matches!(m.who, Reference::You) {
+        OneShotEffect::May(m) => match m.effect.as_ref() {
+            OneShotEffect::Act(Action::Pay(cost)) => app(
+                "mayPayCostBy",
+                vec![
+                    emit_reference(&m.who)?,
+                    emit_cost(cost)?,
+                    opt_effect(&m.if_did)?,
+                    opt_effect(&m.if_not)?,
+                ]
+                .into(),
+            ),
+            _ if !matches!(m.who, Reference::You) => {
                 return Err(gap("OneShotEffect::May has no Idris `who` slot"));
             }
-            app(
+            _ => app(
                 "mayWith",
                 vec![
                     emit_effect(&m.effect)?,
@@ -3459,8 +3477,8 @@ fn emit_effect(e: &OneShotEffect) -> R {
                     opt_effect(&m.if_not)?,
                 ]
                 .into(),
-            )
-        }
+            ),
+        },
         // `ifElse` takes the (default-`Nothing`) `otherwise` positionally.
         OneShotEffect::If(i) => app(
             "ifElse",
@@ -3468,26 +3486,6 @@ fn emit_effect(e: &OneShotEffect) -> R {
                 emit_condition(&i.condition)?,
                 emit_effect(&i.then)?,
                 opt_effect(&i.otherwise)?,
-            ]
-            .into(),
-        ),
-        // `mayPayFull`/`mustPayBy` take the (default-`You`) actor positionally.
-        OneShotEffect::MayPay(m) => app(
-            "mayPayFull",
-            vec![
-                emit_reference(&m.actor)?,
-                emit_cost(&m.cost)?,
-                emit_effect(&m.and_then)?,
-                opt_effect(&m.or_else)?,
-            ]
-            .into(),
-        ),
-        OneShotEffect::MustPay(m) => app(
-            "mustPayBy",
-            vec![
-                emit_reference(&m.actor)?,
-                emit_cost(&m.cost)?,
-                emit_effect(&m.or_else)?,
             ]
             .into(),
         ),

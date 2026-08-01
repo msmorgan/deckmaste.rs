@@ -2,12 +2,13 @@
 // becomes the target of a spell or ability an opponent controls, counter
 // that spell or ability unless that player pays [cost]." A TRIGGERED
 // ability over the becomes-target event ([CR#601.2c] announce-time),
-// resolving to the `MustPay` punisher: the payer is the targeting stack
-// object's controller ("that player"), and the unpaid branch counters
-// that stack object. The engine binds the targeting spell-or-ability as
-// the event OBJECT (`EventObject`), so both reads land on the source on
-// the stack, never the warded permanent. Any cost-shaped/"toll" ward
-// home is deleted — this is the only spelling.
+// resolving to the collapsed `May(Pay(cost))` punisher: the payer
+// (`who`) is the targeting stack object's controller ("that player"),
+// and the unpaid (`if_not`) branch counters that stack object. The
+// engine binds the targeting spell-or-ability as the event OBJECT
+// (`EventObject`), so both reads land on the source on the stack, never
+// the warded permanent. Any cost-shaped/"toll" ward home is deleted —
+// this is the only spelling.
 //
 // Ward {X} ([CR#702.21b]): the optional `where_x` param carries the X
 // definition ("ward {X}, where X is the number of experience counters
@@ -35,10 +36,10 @@
                 by: ControlledBy(OpponentOf(Ref(You))),
             ),
             where_x: Param(where_x),
-            effect: MustPay(
-                actor: ControllerOf(EventObject),
-                cost: [Splice(Param(cost))],
-                or_else: Counter(EventObject),
+            effect: May(
+                who: ControllerOf(EventObject),
+                effect: Pay([Splice(Param(cost))]),
+                if_not: Counter(EventObject),
             ),
         ))],
     ),
