@@ -64,6 +64,7 @@ use std::collections::BTreeSet;
 use std::collections::HashMap;
 
 use deckmaste_english::Catalogs;
+use deckmaste_english::FragmentKind;
 use deckmaste_english::Numeral;
 use deckmaste_english::parse_fragment;
 use deckmaste_english::render_fragment;
@@ -81,7 +82,7 @@ use crate::lexicon::Lexicon;
 use crate::unify::Recovered;
 
 /// Renders the invocation a successful [`crate::unify::unify`] recovered,
-/// back to English.
+/// back to English, as a whole [`FragmentKind::Sentence`].
 ///
 /// Uses the anonymous identity `("", false)` — see the module doc's
 /// discussion of self-reference. A [`Recovered`] tree containing a `~` site
@@ -90,29 +91,62 @@ use crate::unify::Recovered;
 /// to parse); [`render_invocation_with`] takes a real identity for a caller
 /// — such as the round's own gate tooling — that has one.
 ///
+/// The category is fixed at `Sentence` for the same reason the identity and
+/// the catalogs are fixed: this is the brief's three-argument wrapper, and
+/// three arguments leave nowhere to say which category the text is wanted
+/// at. Every other category needs [`render_invocation_with`] — a keyword
+/// line needs a populated [`Catalogs`] anyway (G5 finding 3), and a
+/// `Nominal`/`Cost` render is by definition part of some larger line whose
+/// caller knows the category.
+///
 /// # Errors
 /// If `inv` is not [`Recovered::Invocation`]; if no lexicon entry named its
-/// head symbol has every guard satisfied by `inv`'s own arguments; if a
-/// filler is (or recursively contains) a [`Recovered::Residual`] this module
-/// cannot honestly reconstruct text for (see the module doc); or if the
-/// fully substituted text does not parse cleanly at the winning frame's
-/// category, or [`render_fragment`] itself refuses it.
+/// head symbol is registered at `Sentence` with every guard satisfied by
+/// `inv`'s own arguments; if a filler is (or recursively contains) a
+/// [`Recovered::Residual`] this module cannot honestly reconstruct text for
+/// (see the module doc); or if the fully substituted text does not parse
+/// cleanly at `Sentence`, or [`render_fragment`] itself refuses it.
 pub fn render_invocation(
     inv: &Recovered,
     lexicon: &Lexicon,
     position: FramePosition,
 ) -> anyhow::Result<String> {
-    render_invocation_with(inv, lexicon, position, &Catalogs::default(), "", false)
+    render_invocation_with(
+        inv,
+        lexicon,
+        position,
+        FragmentKind::Sentence,
+        &Catalogs::default(),
+        "",
+        false,
+    )
 }
 
-/// [`render_invocation`], generalized: a real card identity (needed for any
-/// frame containing `~`) and a populated [`Catalogs`] (needed for a
-/// `KeywordLine` frame — an empty catalog can never recognize a keyword atom
-/// at all, per the round's own G5 finding 3). [`render_invocation`] is the
-/// thin, brief-mandated wrapper over this with the anonymous placeholders;
-/// this is the primitive it is built from, and the one the round's gate
-/// tooling (G3/G4, in `xtask`) calls directly so it can test against real
-/// canon cards under their own name and a real catalog set.
+/// [`render_invocation`], generalized: the English category to render at, a
+/// real card identity (needed for any frame containing `~`) and a populated
+/// [`Catalogs`] (needed for a `KeywordLine` frame — an empty catalog can
+/// never recognize a keyword atom at all, per the round's own G5 finding 3).
+/// [`render_invocation`] is the thin, brief-mandated wrapper over this with
+/// the anonymous placeholders; this is the primitive it is built from, and
+/// the one the round's gate tooling (G3/G4, in `xtask`) calls directly so it
+/// can test against real canon cards under their own name, category and
+/// catalog set.
+///
+/// # Why `kind` is the caller's to supply
+///
+/// `kind` is both the category candidate frames are filtered to and the
+/// category [`parse_fragment`] reads the substituted text back at — one
+/// value, so those two can no longer disagree. Reading it off the *winning
+/// entry* instead (`chosen.frame.kind`, what this used to do) is wrong for a
+/// constructor entry: `lexicon::compile_constructor_frame` registers one
+/// authored frame at every category it parses cleanly at, all sharing an
+/// identity under `same_authored_frame`, so the D8 tie check finds no rival
+/// and simply takes the first — `Nominal`, first in `CONSTRUCTOR_KINDS`.
+/// Rendering a recovered `DealDamage` then parsed "Lightning Bolt deals 3
+/// damage to any target" as a *noun phrase*: no leading capital, no terminal
+/// period. The caller always knows the category (the gate tooling has the
+/// canon line's own; a nested filler has no category at all, see
+/// [`select_frame`]), so it supplies it.
 ///
 /// # Errors
 /// See [`render_invocation`].
@@ -126,6 +160,7 @@ pub fn render_invocation_with(
     inv: &Recovered,
     lexicon: &Lexicon,
     position: FramePosition,
+    kind: FragmentKind,
     catalogs: &Catalogs,
     name: &str,
     is_legendary: bool,
@@ -135,20 +170,13 @@ pub fn render_invocation_with(
             "cannot render {inv:?}: only Recovered::Invocation is renderable at the top level"
         );
     };
-    let chosen = select_frame(entry, args, lexicon, position)?;
+    let chosen = select_frame(entry, args, lexicon, position, Some(kind))?;
     let substituted = render_frame_text(chosen, args, lexicon, position, name)?;
-    let report = parse_fragment(
-        &substituted,
-        catalogs,
-        chosen.frame.kind,
-        name,
-        is_legendary,
-    );
+    let report = parse_fragment(&substituted, catalogs, kind, name, is_legendary);
     anyhow::ensure!(
         report.clean(),
         "rendering `{entry}`: substituted text {substituted:?} does not parse cleanly at \
-         {:?}: {:?}",
-        chosen.frame.kind,
+         {kind:?}: {:?}",
         report.diagnostics(),
     );
     let fragment = report
@@ -160,6 +188,7 @@ pub fn render_invocation_with(
 
 /// Picks the frame [`render_invocation_with`] (or a recursive filler render)
 /// substitutes into: every lexicon entry named `entry_name`, filtered to
+/// those registered at `kind` (when the caller has one — see below) and
 /// those whose `position` key (if any) matches, then to those whose every
 /// guard `args` satisfies — through [`guard_satisfied`], the single
 /// authority ([`crate::guard::normalize_source`]/`normalized`), exactly the
@@ -168,6 +197,19 @@ pub fn render_invocation_with(
 /// declared type, simply fails the guard rather than erroring — selection
 /// falls through to a less-specific frame, never a mid-render error, exactly
 /// [`crate::guard_holds`]'s own documented contract.
+///
+/// # Why `kind` is optional
+///
+/// `Some(kind)` is the top-level render, where the substituted text is
+/// parsed back at exactly that category and picking an entry registered at
+/// another one is the bug [`render_invocation_with`]'s own doc describes.
+/// `None` is a *nested filler* render, which never parses: it calls
+/// [`render_frame_text`] and stops, and the only thing that reads is
+/// `spec.text` — identical across every registration of one authored frame,
+/// since they all compile the same authored string. So a nested filler has
+/// no category to be wrong about, and demanding one would break the common
+/// case outright: a `Nominal`-only filler entry (`Creature`, `Player`) is a
+/// perfectly good filler inside a `Sentence`-category frame.
 ///
 /// Among the survivors, [D8](../index.html) requires the *unique*
 /// most-specific candidate: the one whose satisfied guard params are a
@@ -178,19 +220,21 @@ pub fn render_invocation_with(
 /// error rather than resolved silently by assembly order.
 ///
 /// # Errors
-/// If no entry is named `entry_name` at `position`; if none of those has
-/// every guard satisfied; or if more than one viable candidate is maximal
-/// (no unique most-specific frame).
+/// If no entry is named `entry_name` at `kind` and `position`; if none of
+/// those has every guard satisfied; or if more than one viable candidate is
+/// maximal (no unique most-specific frame).
 fn select_frame<'lexicon>(
     entry_name: &str,
     args: &[Recovered],
     lexicon: &'lexicon Lexicon,
     position: FramePosition,
+    kind: Option<FragmentKind>,
 ) -> anyhow::Result<&'lexicon Entry> {
     let candidates: Vec<&Entry> = lexicon
         .entries()
         .iter()
         .filter(|candidate| candidate.name == entry_name)
+        .filter(|candidate| kind.is_none_or(|wanted| candidate.frame.kind == wanted))
         .filter(|candidate| {
             candidate
                 .frame
@@ -201,7 +245,8 @@ fn select_frame<'lexicon>(
         .collect();
     anyhow::ensure!(
         !candidates.is_empty(),
-        "no lexicon entry named `{entry_name}` is registered at position {position:?}"
+        "no lexicon entry named `{entry_name}` is registered at {}position {position:?}",
+        kind.map_or_else(String::new, |kind| format!("category {kind:?}, ")),
     );
 
     let macros = lexicon.macros();
@@ -394,7 +439,10 @@ fn render_argument_text(
         Recovered::Literal(text) if spell_count => spelled_count(text),
         Recovered::Literal(text) => Ok(text.clone()),
         Recovered::Invocation { entry, args, .. } => {
-            let chosen = select_frame(entry, args, lexicon, position)?;
+            // `None`: a nested filler contributes only its substituted text,
+            // which is the same for every category one authored frame is
+            // registered at — see `select_frame`'s own doc.
+            let chosen = select_frame(entry, args, lexicon, position, None)?;
             render_frame_text(chosen, args, lexicon, position, name)
         }
         Recovered::Residual(view) => render_residual_text(view)
@@ -641,8 +689,6 @@ mod tests {
 
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_english::CatalogKind;
-    use deckmaste_english::FragmentKind;
-    use deckmaste_english::parse_fragment;
     use macro_ron::frames::load_constructor_frames;
 
     use super::*;
@@ -765,6 +811,7 @@ mod tests {
                 &recovered,
                 &fixture().lexicon,
                 FramePosition::Main,
+                FragmentKind::Sentence,
                 &fixture().catalogs,
                 "Lightning Bolt",
                 false,
@@ -775,19 +822,38 @@ mod tests {
     }
 
     /// A `KeywordLine` frame needs a populated catalog to parse the
-    /// substituted text back — `render_invocation`'s own `Catalogs::default()`
-    /// cannot recognize any keyword atom at all (G5 finding 3), so
-    /// `render_invocation_with`, given the real catalogs, is what a caller
-    /// actually needs for this category.
+    /// substituted text back — `Catalogs::default()` cannot recognize any
+    /// keyword atom at all (G5 finding 3), so `render_invocation_with`,
+    /// given the real catalogs, is what a caller actually needs for this
+    /// category.
+    ///
+    /// The negative half deliberately calls `render_invocation_with` with
+    /// the empty catalogs rather than `render_invocation`: the wrapper now
+    /// fixes the category at `Sentence`, so it would fail here for an
+    /// entirely different reason (`Flying` is registered only at
+    /// `KeywordLine`) and this test would pass without ever exercising the
+    /// catalog gap it is named for.
     #[test]
     fn a_keyword_line_frame_needs_a_populated_catalog() {
         let recovered = recover("flying", FragmentKind::KeywordLine, "");
-        assert!(render_invocation(&recovered, &fixture().lexicon, FramePosition::Main).is_err());
+        assert!(
+            render_invocation_with(
+                &recovered,
+                &fixture().lexicon,
+                FramePosition::Main,
+                FragmentKind::KeywordLine,
+                &Catalogs::default(),
+                "",
+                false,
+            )
+            .is_err()
+        );
         assert_eq!(
             render_invocation_with(
                 &recovered,
                 &fixture().lexicon,
                 FramePosition::Main,
+                FragmentKind::KeywordLine,
                 &fixture().catalogs,
                 "",
                 false,
@@ -820,6 +886,7 @@ mod tests {
                 &recovered,
                 &fixture().lexicon,
                 FramePosition::Main,
+                FragmentKind::KeywordLine,
                 &fixture().catalogs,
                 "",
                 false,
@@ -845,12 +912,68 @@ mod tests {
             &recovered,
             &fixture().lexicon,
             FramePosition::Main,
+            FragmentKind::Sentence,
             &fixture().catalogs,
             "Lightning Bolt",
             false,
         )
         .unwrap_err();
         assert!(format!("{error:#}").contains("residual"), "{error:#}");
+    }
+
+    /// The caller's category, not the lexicon's assembly order, decides what
+    /// the substituted text is parsed back as.
+    ///
+    /// `DealDamage` is a *constructor* entry, so
+    /// `lexicon::compile_constructor_frame` registers its one authored frame
+    /// at every category it parses cleanly at — `Nominal`, `Sentence`,
+    /// `Cost`, `Ability`. All four share an identity under
+    /// `same_authored_frame`, so the D8 tie check finds no rival and takes
+    /// the first; before this fix `select_frame` ignored `frame.kind`
+    /// entirely and `parse_fragment` ran at whatever the winner happened to
+    /// carry, which is `Nominal` (first in `CONSTRUCTOR_KINDS`) — a sentence
+    /// rendered as a noun phrase, with no leading capital and no terminal
+    /// period.
+    ///
+    /// Both halves are asserted, so this cannot pass vacuously: the two
+    /// categories must produce *different* text, and the `Sentence` one must
+    /// be the sentence.
+    #[test]
+    fn the_callers_category_decides_how_a_constructor_render_is_parsed_back() {
+        let this = || Recovered::Invocation {
+            entry: "This".to_string(),
+            args: Vec::new(),
+            ambiguities: Vec::new(),
+        };
+        let recovered = Recovered::Invocation {
+            entry: "DealDamage".to_string(),
+            args: vec![this(), Recovered::Literal("3".to_string()), this()],
+            ambiguities: Vec::new(),
+        };
+        let render = |kind| {
+            render_invocation_with(
+                &recovered,
+                &fixture().lexicon,
+                FramePosition::Main,
+                kind,
+                &fixture().catalogs,
+                "Lightning Bolt",
+                false,
+            )
+            .ok()
+        };
+        let sentence = render(FragmentKind::Sentence);
+        assert_eq!(
+            sentence.as_deref(),
+            Some("Lightning Bolt deals 3 damage to Lightning Bolt."),
+            "a Sentence render must be capitalized and terminated"
+        );
+        assert_ne!(
+            sentence,
+            render(FragmentKind::Nominal),
+            "the same invocation rendered at a different category must not come out the same \
+             way — otherwise this test could not see the category being honored at all"
+        );
     }
 
     // -- fix-round regression tests (guard comparison, D8 superset) --------

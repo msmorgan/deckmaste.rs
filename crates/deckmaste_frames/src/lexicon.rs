@@ -16,10 +16,10 @@
 //!    declared param types, which is what lets the unifier turn a successful
 //!    match back into an invocation.
 //!
-//! One entry per *frame*, not per macro: `Draws` has two frames (the
-//! `You`-guarded imperative and the declarative), and they compete as
-//! independent candidates at match time, exactly as the guard model
-//! intends.
+//! One entry per *frame*, not per macro: `Draws` has four frames (the
+//! `You`-guarded imperative, the declarative, and a count-1 literal of
+//! each), and they compete as independent candidates at match time, exactly
+//! as the guard model intends.
 
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
@@ -33,7 +33,12 @@ use crate::CompiledFrame;
 use crate::compile;
 
 /// Where an entry's frames were authored.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// `Ord` is load-bearing, not incidental: it is the first key
+/// [`Lexicon::assemble`] sorts entries by, so macro entries always precede
+/// constructor entries in the assembled order every specificity tiebreak
+/// falls back on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Origin {
     /// A `MacroDef`'s own `frames:` list.
     Macro,
@@ -120,9 +125,39 @@ impl Lexicon {
     /// target's own category picks at match time. One constructor frame can
     /// therefore contribute several entries.
     ///
+    /// # Authored identity is checked, and the result is sorted
+    ///
+    /// Two invariants the rest of the crate reads off the returned lexicon,
+    /// established here because this is the only place that can:
+    ///
+    /// 1. **`(name, frame_index, origin)` uniquely names an authored frame.**
+    ///    Both directions key on that triple to tell "one authored frame
+    ///    registered at several categories" (benign) from "two different
+    ///    wordings tied on specificity" (an error):
+    ///    `unify::same_authored_frame` uses it to suppress a spurious ambiguity
+    ///    report, and `render::select_frame` uses it to decide a D8 tie is
+    ///    benign and render `first` anyway — so a *collision* there is not a
+    ///    lost diagnostic but a silently wrong render. Nothing else enforces
+    ///    it: [`load_constructor_frames`](macro_ron::frames::load_constructor_frames)
+    ///    has no uniqueness check at all, and [`MacroSet`] deliberately permits
+    ///    one name under several kinds (`Draw`, `Draws` and `Creature` all do
+    ///    it in the live corpus, harmlessly — only one of each pair carries
+    ///    `frames:`). Two *framed* defs sharing a name, or two catalog entries
+    ///    sharing a `constructor`, are rejected here.
+    /// 2. **Entry order is deterministic.** [`MacroSet::iter`] documents its
+    ///    own order as unspecified (it follows the backing hash maps), and
+    ///    `unify`'s specificity ranking falls back to assembly order as its
+    ///    final tiebreak — so without a sort, which frame wins a tie varies
+    ///    between processes, which is exactly what the round's own G5 finding 4
+    ///    observed from the other end. Entries are therefore sorted by
+    ///    `(origin, name, frame_index, kind)` before the lexicon is built.
+    ///    Sorting last, over the finished vector, is what keeps every
+    ///    `Matched.entry` index consistent.
+    ///
     /// # Errors
     /// If any frame fails to compile — for a constructor frame, if it
-    /// compiles at no category at all.
+    /// compiles at no category at all — or if two framed macro definitions
+    /// share a name, or two catalog entries share a `constructor`.
     pub fn assemble(
         defs: &MacroSet,
         constructors: &[ConstructorFrames],
@@ -130,19 +165,15 @@ impl Lexicon {
     ) -> anyhow::Result<Lexicon> {
         let mut entries = Vec::new();
 
-        let mut seen: Vec<(&str, Vec<&str>)> = Vec::new();
-        for (_, def) in defs.iter() {
-            if def.frames().is_empty() {
-                continue;
-            }
-            let mut kinds: Vec<&str> = def.kinds.iter().map(Ident::as_str).collect();
-            kinds.sort_unstable();
-            let identity = (def.name.as_str(), kinds);
-            if seen.contains(&identity) {
-                continue;
-            }
-            seen.push(identity);
+        // Identity first, compiling second: invariant 1 is a fact about the
+        // *authoring*, so it is checked over the whole input before a single
+        // frame is compiled. A collision would otherwise be reported only
+        // after (and could be masked by) an unrelated compile failure in
+        // whichever definition `MacroSet::iter` happened to yield first.
+        let framed = framed_definitions(defs)?;
+        constructor_names_are_unique(constructors)?;
 
+        for def in framed {
             let params = positional_params(def)?;
             let kind = macro_fragment_kind(def);
             for (frame_index, spec) in def.frames().iter().enumerate() {
@@ -182,6 +213,26 @@ impl Lexicon {
                 }));
             }
         }
+
+        // Invariant 2 above. `FragmentKind` is `deckmaste_english`'s and is
+        // corpus-gated (no `Ord` to derive on it, and this crate may not add
+        // one), so the category key is `kind_rank`'s position in
+        // `CONSTRUCTOR_KINDS` — a total, stable order over exactly the five
+        // categories a frame can be registered at.
+        entries.sort_by(|left, right| {
+            (
+                left.origin,
+                &left.name,
+                left.frame_index,
+                kind_rank(left.frame.kind),
+            )
+                .cmp(&(
+                    right.origin,
+                    &right.name,
+                    right.frame_index,
+                    kind_rank(right.frame.kind),
+                ))
+        });
 
         Ok(Lexicon {
             entries,
@@ -283,6 +334,23 @@ const CONSTRUCTOR_KINDS: [FragmentKind; 5] = [
     FragmentKind::Ability,
 ];
 
+/// A total order over [`FragmentKind`], for [`Lexicon::assemble`]'s sort.
+///
+/// `FragmentKind` belongs to the corpus-gated `deckmaste_english` crate,
+/// which this round must not modify, so it carries no `Ord` to derive from.
+/// [`CONSTRUCTOR_KINDS`] already enumerates every category a frame can be
+/// registered at, so its index is a total, stable key. The `usize::MAX`
+/// fallthrough cannot be reached today (a macro frame's category comes from
+/// [`macro_fragment_kind`], whose whole range is in the table) and exists
+/// only so a future `FragmentKind` variant sorts last instead of failing to
+/// compile a sort that has no business gating on the kind space.
+pub(crate) fn kind_rank(kind: FragmentKind) -> usize {
+    CONSTRUCTOR_KINDS
+        .iter()
+        .position(|candidate| *candidate == kind)
+        .unwrap_or(usize::MAX)
+}
+
 /// Compiles a constructor-catalog frame at **every** category it parses
 /// cleanly at, rather than guessing one.
 ///
@@ -357,6 +425,70 @@ fn compile_constructor_frame(
     Ok(compiled)
 }
 
+/// Every framed macro definition in `defs`, once each, with
+/// [`Lexicon::assemble`]'s invariant 1 checked over the whole set.
+///
+/// [`MacroSet::iter`] yields one pair *per kind*, so a multi-kind definition
+/// appears several times and is deduplicated by `(name, sorted kinds)` — the
+/// real identity of a definition. Two *different* definitions sharing a name
+/// are the collision: they would produce entries indistinguishable under
+/// `(name, frame_index, origin)`.
+///
+/// # Errors
+/// If two different framed definitions share a name.
+fn framed_definitions(defs: &MacroSet) -> anyhow::Result<Vec<&MacroDef>> {
+    let mut seen: Vec<(&str, Vec<&str>)> = Vec::new();
+    let mut unique = Vec::new();
+    for (_, def) in defs.iter() {
+        if def.frames().is_empty() {
+            continue;
+        }
+        let mut kinds: Vec<&str> = def.kinds.iter().map(Ident::as_str).collect();
+        kinds.sort_unstable();
+        let identity = (def.name.as_str(), kinds);
+        if seen.contains(&identity) {
+            continue;
+        }
+        if let Some((_, other_kinds)) = seen.iter().find(|(name, _)| *name == identity.0) {
+            anyhow::bail!(
+                "two different framed macro definitions are both named `{}` (kinds {:?} and \
+                 {:?}); an entry's authored identity is `(name, frame_index, origin)`, which \
+                 both the match and the render direction rely on being unique — see \
+                 `Lexicon::assemble`'s own doc. Rename one, or drop its `frames:` list.",
+                identity.0,
+                other_kinds,
+                identity.1,
+            );
+        }
+        seen.push(identity);
+        unique.push(def);
+    }
+    Ok(unique)
+}
+
+/// [`Lexicon::assemble`]'s invariant 1 for the constructor catalog:
+/// `load_constructor_frames` reads a directory of RON files with no
+/// uniqueness check of its own, so two entries — in one file or across two —
+/// can name the same constructor.
+///
+/// # Errors
+/// If two catalog entries share a `constructor` name.
+fn constructor_names_are_unique(constructors: &[ConstructorFrames]) -> anyhow::Result<()> {
+    let mut seen: Vec<&str> = Vec::new();
+    for entry in constructors {
+        anyhow::ensure!(
+            !seen.contains(&entry.constructor.as_str()),
+            "two constructor catalog entries are both named `{}`; an entry's authored identity \
+             is `(name, frame_index, origin)`, which both the match and the render direction \
+             rely on being unique — see `Lexicon::assemble`'s own doc. Merge their `frames:` \
+             lists into one entry.",
+            entry.constructor,
+        );
+        seen.push(&entry.constructor);
+    }
+    Ok(())
+}
+
 /// A macro's positional param type names, in index order.
 ///
 /// # Errors
@@ -374,5 +506,108 @@ fn positional_params(def: &MacroDef) -> anyhow::Result<Vec<String>> {
              or give it a positional signature",
             def.name.as_str()
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use macro_ron::frames::FrameSpec;
+
+    use super::*;
+
+    /// A `MacroSet` holding exactly the two definitions below, both framed.
+    /// `guard::core_reader` supplies the registered kind space (`Predicate`
+    /// and `Selection` are both real `deckmaste_core` macro kinds) with no
+    /// macros in it, so nothing but the fixture is in scope.
+    fn two_framed_defs_named(name: &str) -> MacroSet {
+        let mut macros = crate::guard::core_reader().clone();
+        for source in [
+            format!(
+                r#"(name: "{name}", kinds: [Predicate], frames: ["creature"], body: PermanentOfType(Creature))"#
+            ),
+            format!(
+                r#"(name: "{name}", kinds: [Selection], frames: ["creature"], body: SelectAll(Creature))"#
+            ),
+        ] {
+            let def: MacroDef = macros
+                .read_str(&source)
+                .unwrap_or_else(|error| panic!("reading fixture {source}: {error}"));
+            macros
+                .insert(&def)
+                .unwrap_or_else(|error| panic!("inserting fixture {source}: {error:?}"));
+        }
+        macros
+    }
+
+    /// Invariant 1, macro half. `MacroSet` deliberately permits one name
+    /// under several kinds, so nothing below this function rejects it — and
+    /// two entries colliding on `(name, frame_index, origin)` do not merely
+    /// lose a diagnostic: `render::select_frame` treats a collision as "the
+    /// same authored frame registered twice" and renders one of the two
+    /// wordings silently.
+    #[test]
+    fn assemble_rejects_two_framed_macro_definitions_sharing_a_name() {
+        let macros = two_framed_defs_named("DuplicateFixture");
+        let error = Lexicon::assemble(&macros, &[], &Catalogs::default())
+            .expect_err("two framed defs named `DuplicateFixture` must be rejected");
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("both named `DuplicateFixture`"),
+            "{message}"
+        );
+    }
+
+    /// The control for the test above: one framed definition under *two*
+    /// kinds at once is the legal case `MacroSet::iter`'s per-kind yield
+    /// produces, and must still assemble. Without it the rejection test
+    /// could pass against a check that refused every multi-kind corpus macro
+    /// (`Draw`/`Draws` are both `OneShotEffect` + `KeywordAction`).
+    #[test]
+    fn assemble_accepts_one_framed_definition_registered_under_two_kinds() {
+        let mut macros = crate::guard::core_reader().clone();
+        let def: MacroDef = macros
+            .read_str(
+                r#"(name: "MultiKindFixture", kinds: [Predicate, Selection],
+                    frames: ["creature"], body: PermanentOfType(Creature))"#,
+            )
+            .unwrap_or_else(|error| panic!("reading fixture: {error}"));
+        macros
+            .insert(&def)
+            .unwrap_or_else(|error| panic!("inserting fixture: {error:?}"));
+        // `Catalogs::default()` cannot parse the catalog noun "creature", so
+        // the compile refuses — but it must be the *compile* that refuses,
+        // not the identity check.
+        let message = Lexicon::assemble(&macros, &[], &Catalogs::default())
+            .err()
+            .map(|error| format!("{error:#}"))
+            .unwrap_or_default();
+        assert!(
+            !message.contains("both named"),
+            "a single two-kind definition is not a duplicate: {message}"
+        );
+    }
+
+    /// Invariant 1, constructor half. `load_constructor_frames` walks a
+    /// directory with no uniqueness check, so this is the only thing
+    /// standing between a second `DealDamage` catalog entry and a silently
+    /// wrong render.
+    #[test]
+    fn assemble_rejects_two_constructor_entries_sharing_a_name() {
+        let catalog = [
+            ConstructorFrames {
+                constructor: "DealDamage".to_string(),
+                params: vec!["Reference".to_string()],
+                frames: vec![FrameSpec::bare("<Param(0)> is dealt damage")],
+            },
+            ConstructorFrames {
+                constructor: "DealDamage".to_string(),
+                params: vec!["Reference".to_string()],
+                frames: vec![FrameSpec::bare("damage is dealt to <Param(0)>")],
+            },
+        ];
+        let error = Lexicon::assemble(crate::guard::core_reader(), &catalog, &Catalogs::default())
+            .expect_err("two catalog entries named `DealDamage` must be rejected");
+        let message = format!("{error:#}");
+        assert!(message.contains("both named `DealDamage`"), "{message}");
     }
 }

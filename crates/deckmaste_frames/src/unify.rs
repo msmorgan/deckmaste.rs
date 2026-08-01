@@ -897,8 +897,9 @@ mod tests {
         lexicon: Lexicon,
     }
 
-    /// The real pilot lexicon, assembled once: nine framed macros (ten
-    /// frames — `Draws` has two) plus the three constructor-catalog entries.
+    /// The real pilot lexicon, assembled once: ten framed macros (fourteen
+    /// authored frames — `Draw` has two and `Draws` four) plus the four
+    /// constructor-catalog entries.
     fn fixture() -> &'static Fixture {
         static FIXTURE: LazyLock<Fixture> = LazyLock::new(|| {
             let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
@@ -1489,8 +1490,53 @@ mod tests {
 
     // -- assembly -----------------------------------------------------------
 
+    /// [`unify`]'s specificity order ends in "assembly order, so the answer
+    /// is deterministic", and [`Recovered::Invocation::ambiguities`]'s own
+    /// doc promises "one frame still wins, deterministically". Neither was
+    /// true while `Lexicon::assemble` consumed `MacroSet::iter` unsorted:
+    /// that iterator documents its order as unspecified (it follows the
+    /// backing hash maps), so which frame won a tie varied between
+    /// processes — the same non-determinism the round's own G5 finding 4
+    /// observed from the tooling end.
+    ///
+    /// `assemble` therefore sorts by `(origin, name, frame_index, kind)`.
+    /// Asserting the whole entry list is sorted under that key is what makes
+    /// the two doc claims above true, and is stronger than re-assembling and
+    /// comparing: two assemblies in *one* process read the same `MacroSet`
+    /// and so would agree even unsorted.
+    #[test]
+    fn assembled_entry_order_is_total_and_deterministic() {
+        let entries = fixture().lexicon.entries();
+        let key = |entry: &Entry| {
+            (
+                entry.origin,
+                entry.name.clone(),
+                entry.frame_index,
+                crate::lexicon::kind_rank(entry.frame.kind),
+            )
+        };
+        for pair in entries.windows(2) {
+            let (left, right) = (key(&pair[0]), key(&pair[1]));
+            assert!(
+                left < right,
+                "entries must be strictly ordered by (origin, name, frame_index, kind); \
+                 {left:?} does not precede {right:?}"
+            );
+        }
+        // Non-vacuous: the corpus really does exercise every tier of the key
+        // — both origins, several names each, several frames under one name,
+        // and several categories under one constructor frame.
+        assert!(entries.len() > 20, "{} entries", entries.len());
+        assert_eq!(entries[0].origin, Origin::Macro, "macros sort first");
+        assert_eq!(
+            entries[entries.len() - 1].origin,
+            Origin::Constructor,
+            "constructors sort last"
+        );
+    }
+
     /// A macro contributes one entry per *frame* at the one category its
-    /// `kinds:` resolve to — `Draws` two, and a macro registered under
+    /// `kinds:` resolve to — `Draws` four, and a macro registered under
     /// several macro kinds still only once.
     #[test]
     fn assemble_registers_each_macro_frame_once_at_its_resolved_category() {

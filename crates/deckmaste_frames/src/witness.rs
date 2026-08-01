@@ -160,10 +160,19 @@ pub fn lexeme(param_type: &str, param: usize) -> Witness {
 /// (`Zzframeself`, `zzhole0`, and any future witness family all start with
 /// it); a reserved numeral is matched as a whole digit run, so `410` and
 /// `141` are fine and a bare `41` is not.
+///
+/// The case fold is deliberately **ASCII-only**: the byte offset `find`
+/// returns is applied back to `text`, so the fold has to be
+/// length-preserving. [`str::to_lowercase`] is not — `İ` lowercases to 3
+/// bytes from 2 and `ẞ` to 2 from 3 — and a frame text carrying either
+/// before a `zz` would shift the offset off a `char` boundary and panic the
+/// build. `WITNESS_PREFIX` is `zz`, pure ASCII, so
+/// [`str::to_ascii_lowercase`] recognizes exactly the same set of carriers
+/// with no such hazard.
 #[must_use]
 pub fn reserved_tokens(text: &str) -> Vec<String> {
     let mut found = Vec::new();
-    let lowered = text.to_lowercase();
+    let lowered = text.to_ascii_lowercase();
     if let Some(at) = lowered.find(WITNESS_PREFIX) {
         let run: String = text[at..]
             .chars()
@@ -212,6 +221,21 @@ mod tests {
             reserved_tokens("gets +47/+53"),
             vec!["47".to_string(), "53".to_string()]
         );
+    }
+
+    /// The case fold has to be length-preserving, because the byte offset it
+    /// produces is applied back to the *original* text. `İ` (U+0130) is 2
+    /// bytes and `str::to_lowercase`s to 3; `ẞ` (U+1E9E) is 3 and lowercases
+    /// to 2. Under the old `to_lowercase()` both of these shifted the `zz`
+    /// offset off a `char` boundary and panicked. Verified non-vacuous by
+    /// construction: each string below places a witness carrier *after* a
+    /// non-length-preserving character, which is the only arrangement that
+    /// can trip the slice.
+    #[test]
+    fn a_case_fold_that_is_not_length_preserving_does_not_panic_the_slice() {
+        assert_eq!(reserved_tokens("İ zzhole0"), vec!["zzhole0".to_string()]);
+        assert_eq!(reserved_tokens("ẞ zzhole0"), vec!["zzhole0".to_string()]);
+        assert_eq!(reserved_tokens("İẞİ no carrier"), Vec::<String>::new());
     }
 
     #[test]

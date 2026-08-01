@@ -2,13 +2,15 @@
 //! canon cards:
 //!
 //! - **G3 shadow parity**: for every canon usage of a pilot *macro* (an
-//!   `Origin::Macro` lexicon entry — not the three raw constructor entries),
-//!   does [`render_invocation_with`] reproduce, byte-for-byte after
-//!   `fidelity`-style normalization, the same text the legacy per-ability
-//!   renderer ([`deckmaste_cards::render`]) already prints for that ability?
-//!   AND does `cargo xtask fidelity` still report 73 clean / 7 waived / 0
-//!   failing — this command re-runs that exact check rather than asking a
-//!   caller to remember to run both.
+//!   `Origin::Macro` lexicon entry — not the raw constructor entries), does
+//!   [`render_invocation_with`] reproduce, byte-for-byte after `fidelity`-style
+//!   normalization, the same text the legacy per-ability renderer
+//!   ([`deckmaste_cards::render`]) already prints for that ability? AND does
+//!   `cargo xtask fidelity` still hold at its established figure — this command
+//!   re-runs that exact check rather than asking a caller to remember to run
+//!   both. (The plan states that figure as canon's 73 clean / 7 waived / 0
+//!   failing; the total this command prints sums all four covered plugins, 78 /
+//!   7 / 0, and is what [`COVERAGE_FLOOR`] pins.)
 //! - **G4 ground truth**: for every canon ability line whose parse `unify`s to
 //!   a non-`Residual` under the pilot lexicon, does the recovered structure —
 //!   reconstructed as RON text and expanded — equal the card's own authored
@@ -45,8 +47,8 @@
 //! never became a swept `Line` at all — out of scope, an `ability_word`, or
 //! a multi-line render), and
 //! [`report_g3`]/[`report_g4`] print a further [`ExclusionReason`] census
-//! for every swept line that is not equal/mismatched/diverged, with a debug
-//! assertion in each tying its own two numbers together
+//! for every swept line that is not equal/mismatched/diverged, each with an
+//! `ensure!` tying its own two numbers together
 //! (`checked/covered + excluded == lines swept`). So the population story
 //! runs end to end — canon ability lines seen → swept → gated — and a line
 //! disappearing from the numbers the way a whole macro's canon coverage
@@ -54,6 +56,15 @@
 //! `Keyword(Flying)` line was swept, then excluded with no record at all —
 //! see the G5 findings file for the root cause and fix) cannot happen again
 //! unnoticed, at either layer.
+//!
+//! **And the population itself is pinned, not merely printed.** Those two
+//! partition checks are tautologies about bucketing, not about size — each
+//! [`LineResult`] holds exactly one [`G3Outcome`] and one [`G4Outcome`] by
+//! construction, so they hold however few lines there are, and they cannot
+//! see a line lost *before* the results were built. Every gate verdict is an
+//! `is_empty()`, which passes vacuously over an empty bucket. So the census
+//! figures are compared against [`COVERAGE_FLOOR`] and **any decrease fails
+//! the run** — read that constant before trusting a PASS from any gate here.
 //!
 //! G4's population is exactly the brief's literal wording: top-level
 //! `Recovered::Invocation`, any origin, full stop — **not** "and every
@@ -115,6 +126,64 @@ use macro_ron::frames::load_constructor_frames;
 pub(super) const G5_FINDINGS_FILE: &str =
     "docs/superpowers/research/2026-07-30-macro-frames/pilot-constituency-findings.md";
 
+/// Every population figure the gate verdicts below are only meaningful
+/// *relative to* — see [`COVERAGE_FLOOR`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Coverage {
+    /// Canon abilities visited at all.
+    seen: usize,
+    /// Of those, the ones that became a gated [`Line`].
+    swept: usize,
+    /// Of those, the ones G3 reached a real verdict on (equal or mismatch).
+    g3_checked: usize,
+    /// Of those, the ones G4 reached a real verdict on (equal or diverged).
+    g4_covered: usize,
+    /// `cargo xtask fidelity`'s clean total across the four covered plugins.
+    fidelity_clean: usize,
+    /// Its waived total. A *ceiling*, not a floor — see [`COVERAGE_FLOOR`].
+    fidelity_waived: usize,
+}
+
+/// The census this pilot observed at round 1's exit, pinned.
+///
+/// **This is a floor, not a target.** Every gate verdict below is
+/// `is_empty()` over a bucket — "no mismatches", "no divergences", "nothing
+/// failing" — which says nothing at all about how many lines were in the
+/// bucket to begin with. An empty corpus therefore prints `G3 PASS (0
+/// checked)`, `G4 PASS (0 covered)` and exits 0
+/// (`cargo xtask macro pilot --canon-dir /tmp/does-not-exist` reproduces it),
+/// and so does *any* regression that shrinks the population instead of
+/// breaking a comparison.
+///
+/// That is not a hypothetical for this round. `ParseFailed` and
+/// `NotAnInvocation` are exclusions shared by **both** gates
+/// ([`evaluate_line`]'s early return): if an english change made G4's 8
+/// currently-divergent lines fail to parse, they would leave the covered
+/// population entirely, `diverged` would empty, and G4 would print PASS —
+/// applauding the regression as a fix. G3's own denominator has the same
+/// exposure one layer along, through [`ExclusionReason::RenderFailed`] (0
+/// today): a render regression turns a checked line into an exclusion while
+/// G3 keeps printing PASS. Pinning `g3_checked`/`g4_covered` is what closes
+/// both, because an exclusion of any kind lowers them.
+///
+/// So the numbers are compared, not just printed, and **any decrease fails
+/// the run** ([`check_coverage`]). `fidelity_waived` is the one inverted
+/// entry — a *ceiling*: the design exists to retire waivers, so a newly
+/// waived card must fail here exactly as a newly failing one does, which
+/// `total_failing == 0` alone cannot see.
+///
+/// A round that legitimately grows coverage raises these deliberately, in
+/// the same commit that grows it. They are not to be lowered to make a run
+/// green.
+const COVERAGE_FLOOR: Coverage = Coverage {
+    seen: 104,
+    swept: 61,
+    g3_checked: 10,
+    g4_covered: 18,
+    fidelity_clean: 78,
+    fidelity_waived: 7,
+};
+
 #[derive(Debug, Args)]
 pub(super) struct PilotArgs {
     /// The plugin the pilot lexicon (frames + macros) is assembled from.
@@ -174,22 +243,82 @@ pub(super) fn run(args: PilotArgs) -> anyhow::Result<()> {
         sweep_elapsed.as_secs_f64()
     );
 
-    let g3_pass = report_g3(&results);
-    let fidelity_pass = report_fidelity(&workspace_root, &oracle_path)?;
-    let g4_pass = report_g4(&results);
+    let g3 = report_g3(&results)?;
+    let fidelity = report_fidelity(&workspace_root, &oracle_path)?;
+    let g4 = report_g4(&results)?;
+
+    // The coverage floor first: a verdict over a shrunken population is not
+    // a verdict, so "the numbers moved" outranks "the comparison held" and
+    // has to be reported even when a gate also failed.
+    check_coverage(&Coverage {
+        seen: swept.seen(),
+        swept: swept.lines.len(),
+        g3_checked: g3.counted,
+        g4_covered: g4.counted,
+        fidelity_clean: fidelity.clean,
+        fidelity_waived: fidelity.waived,
+    })?;
 
     anyhow::ensure!(
-        g3_pass && fidelity_pass && g4_pass,
+        g3.pass && fidelity.pass && g4.pass,
         "macro pilot: {}",
         [
-            (!g3_pass).then_some("G3 shadow parity failed"),
-            (!fidelity_pass).then_some("fidelity regressed"),
-            (!g4_pass).then_some("G4 ground truth failed"),
+            (!g3.pass).then_some("G3 shadow parity failed"),
+            (!fidelity.pass).then_some("fidelity regressed"),
+            (!g4.pass).then_some("G4 ground truth failed"),
         ]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()
         .join("; ")
+    );
+    Ok(())
+}
+
+/// Compares `observed` against [`COVERAGE_FLOOR`], reporting **every**
+/// breach at once rather than the first — a shrinking population usually
+/// shrinks several figures together, and seeing which ones moved is most of
+/// the diagnosis.
+///
+/// # Errors
+/// If any pinned figure decreased (or, for `fidelity_waived`, increased).
+fn check_coverage(observed: &Coverage) -> anyhow::Result<()> {
+    let mut breaches: Vec<String> = [
+        ("canon abilities seen", observed.seen, COVERAGE_FLOOR.seen),
+        ("lines swept", observed.swept, COVERAGE_FLOOR.swept),
+        (
+            "G3 usages checked",
+            observed.g3_checked,
+            COVERAGE_FLOOR.g3_checked,
+        ),
+        (
+            "G4 lines covered",
+            observed.g4_covered,
+            COVERAGE_FLOOR.g4_covered,
+        ),
+        (
+            "fidelity cards clean",
+            observed.fidelity_clean,
+            COVERAGE_FLOOR.fidelity_clean,
+        ),
+    ]
+    .into_iter()
+    .filter(|(_, observed, floor)| observed < floor)
+    .map(|(label, observed, floor)| format!("{label}: {observed}, floor {floor}"))
+    .collect();
+    if observed.fidelity_waived > COVERAGE_FLOOR.fidelity_waived {
+        breaches.push(format!(
+            "fidelity cards waived: {}, ceiling {} (a waiver is what this design exists to \
+             retire, so gaining one is a regression)",
+            observed.fidelity_waived, COVERAGE_FLOOR.fidelity_waived,
+        ));
+    }
+    anyhow::ensure!(
+        breaches.is_empty(),
+        "macro pilot: coverage floor breached — every gate verdict above is over a smaller \
+         population than the one they were established on, so a PASS from any of them means \
+         nothing. Fix the shrinkage; do not lower `COVERAGE_FLOOR`. {}",
+        breaches.join("; "),
     );
     Ok(())
 }
@@ -650,12 +779,16 @@ fn evaluate_g4(recovered: &Recovered, line: &Line, macros: &MacroSet) -> G4Outco
                 reason: format!("failed to expand as `{}`: {error:#}", line.ron_type),
             },
         },
+        // The error names the argument position and shows what the
+        // unrecovered `View` held — see `recovered_to_ron_at`. Without that
+        // this arm printed identically for every divergence it produced,
+        // and it currently produces *all* of them.
         Err(error) => G4Outcome::Diverged {
             recovered_ron: None,
             reason: format!(
                 "recovered as a non-residual invocation, but a nested filler could not be \
-                 spelled as RON ({error:#}) — recovery is provably incomplete, so it cannot be \
-                 asserted equal to the authored value"
+                 spelled as RON — recovery is provably incomplete, so it cannot be asserted \
+                 equal to the authored value: {error:#}"
             ),
         },
     }
@@ -681,6 +814,11 @@ fn evaluate_g3(
         recovered,
         lexicon,
         FramePosition::Main,
+        // The canon line's own category — the same one `evaluate_line`
+        // parsed it at, so the render is checked against the category the
+        // legacy text was actually written in rather than whichever one the
+        // lexicon happened to register the winning frame at first.
+        line.kind,
         catalogs,
         &line.name,
         line.is_legendary,
@@ -706,22 +844,71 @@ fn evaluate_g3(
 /// no RON spelling to fall back on (see the module doc).
 ///
 /// # Errors
-/// If `recovered` is, or contains, a `Residual`.
+/// If `recovered` is, or contains, a `Residual`. The error **names the
+/// argument position and shows the captured `View`** — see
+/// [`recovered_to_ron_at`] for why that matters.
 fn recovered_to_ron(recovered: &Recovered) -> anyhow::Result<String> {
+    recovered_to_ron_at(recovered, &mut Vec::new())
+}
+
+/// [`recovered_to_ron`], tracking the argument path it is currently under so
+/// a refusal can say *where*.
+///
+/// This is not decoration. Every one of G4's 8 divergences today takes the
+/// residual arm, and without a path they printed byte-identically — one
+/// opaque bucket in which the round's two *known* gaps (`GainLife`'s
+/// pronoun subject, `DealDamage`'s "any target" recipient) were
+/// indistinguishable from each other and from any third, unrelated lexicon
+/// gap that happened to land here. With the path, `GainLife arg 0` and
+/// `DealDamage arg 2` split apart, and a new gap is visibly new.
+///
+/// `path` is a stack of `entry arg i` steps, joined with ` -> ` for a nested
+/// filler. It is only ever read on the error path, so the pushes cost
+/// nothing that matters; on failure the stack is simply dropped along with
+/// the borrow.
+///
+/// # Errors
+/// If `recovered` is, or contains, a `Residual`.
+fn recovered_to_ron_at(recovered: &Recovered, path: &mut Vec<String>) -> anyhow::Result<String> {
     match recovered {
         Recovered::Literal(text) => Ok(text.clone()),
         Recovered::Invocation { entry, args, .. } => {
             if args.is_empty() {
                 Ok(entry.clone())
             } else {
-                let parts = args
-                    .iter()
-                    .map(recovered_to_ron)
-                    .collect::<anyhow::Result<Vec<_>>>()?;
+                let mut parts = Vec::with_capacity(args.len());
+                for (index, argument) in args.iter().enumerate() {
+                    path.push(format!("{entry} arg {index}"));
+                    parts.push(recovered_to_ron_at(argument, path)?);
+                    path.pop();
+                }
                 Ok(format!("{entry}({})", parts.join(", ")))
             }
         }
-        Recovered::Residual(_) => anyhow::bail!("a residual filler has no RON spelling"),
+        Recovered::Residual(view) => anyhow::bail!(
+            "a residual filler at {} has no RON spelling; the unrecovered View was {}",
+            if path.is_empty() { "the top level".to_string() } else { path.join(" -> ") },
+            truncated_debug(view),
+        ),
+    }
+}
+
+/// How much of a captured [`View`] a divergence line shows: enough to
+/// recognize *which* constituent went unrecovered (its node type and head
+/// word are near the front of the `Debug`), not the whole subtree — one
+/// unrecovered nominal debug-prints to several hundred lines, and eight of
+/// them would bury the census under it.
+const RESIDUAL_DEBUG_BUDGET: usize = 240;
+
+/// A one-line, length-capped `Debug` of `view`. Truncation is by
+/// `char_indices`, never a byte slice, so a multi-byte character straddling
+/// the budget cannot panic.
+fn truncated_debug(view: &View) -> String {
+    let full = format!("{view:?}");
+    let flattened = full.split_whitespace().collect::<Vec<_>>().join(" ");
+    match flattened.char_indices().nth(RESIDUAL_DEBUG_BUDGET) {
+        Some((at, _)) => format!("{}… ({} chars total)", &flattened[..at], flattened.len()),
+        None => flattened,
     }
 }
 
@@ -752,7 +939,15 @@ fn format_census(counts: &BTreeMap<&'static str, usize>) -> String {
         .join(", ")
 }
 
-fn report_g3(results: &[LineResult]) -> bool {
+/// One gate's verdict and the size of the population it was reached over —
+/// the pair [`check_coverage`] needs, since the verdict alone cannot
+/// distinguish "nothing was wrong" from "nothing was checked".
+struct GateReport {
+    pass: bool,
+    counted: usize,
+}
+
+fn report_g3(results: &[LineResult]) -> anyhow::Result<GateReport> {
     let mut equal = 0usize;
     let mut mismatches: Vec<(&str, &str, &str)> = Vec::new();
     let excluded = census(results.iter().filter_map(|result| match &result.g3 {
@@ -787,15 +982,23 @@ fn report_g3(results: &[LineResult]) -> bool {
         results.len(),
         format_census(&excluded),
     );
-    debug_assert_eq!(
-        checked + excluded_total,
+    // An `ensure!`, not a `debug_assert!`: this runs once per gate over a
+    // `Vec` length, so the cost is nil, and a broken partition means the
+    // printed census does not account for every swept line — which is a
+    // gate failure, not a debug-build panic that vanishes in release.
+    anyhow::ensure!(
+        checked + excluded_total == results.len(),
+        "every swept line must land in exactly one G3 bucket, but {checked} checked + \
+         {excluded_total} excluded != {} swept",
         results.len(),
-        "every swept line must land in exactly one G3 bucket"
     );
-    pass
+    Ok(GateReport {
+        pass,
+        counted: checked,
+    })
 }
 
-fn report_g4(results: &[LineResult]) -> bool {
+fn report_g4(results: &[LineResult]) -> anyhow::Result<GateReport> {
     let mut equal = 0usize;
     let mut diverged: Vec<(&str, &Option<String>, &str)> = Vec::new();
     let excluded = census(results.iter().filter_map(|result| match &result.g4 {
@@ -840,19 +1043,38 @@ fn report_g4(results: &[LineResult]) -> bool {
         results.len(),
         format_census(&excluded),
     );
-    debug_assert_eq!(
-        covered + excluded_total,
+    // See `report_g3`'s own note: an `ensure!`, not a `debug_assert!`.
+    anyhow::ensure!(
+        covered + excluded_total == results.len(),
+        "every swept line must land in exactly one G4 bucket, but {covered} covered + \
+         {excluded_total} excluded != {} swept",
         results.len(),
-        "every swept line must land in exactly one G4 bucket"
     );
-    pass
+    Ok(GateReport {
+        pass,
+        counted: covered,
+    })
+}
+
+/// A fidelity run's verdict and the two totals [`COVERAGE_FLOOR`] pins.
+struct FidelityReport {
+    pass: bool,
+    clean: usize,
+    waived: usize,
 }
 
 /// Re-runs `cargo xtask fidelity`'s own gate over the four covered plugins
 /// and reports whether it still holds at the round's established figure —
 /// see the module doc: G3 is defined to include this, not just the
 /// per-macro text comparison, so a caller never has to remember to run both.
-fn report_fidelity(workspace_root: &Path, oracle_path: &Path) -> anyhow::Result<bool> {
+///
+/// The `pass` this returns is still just `failing == 0`; the *figure* half
+/// of the plan's G3 ("still reports 73 clean / 7 waived / 0 failing") is
+/// enforced by [`check_coverage`] against [`COVERAGE_FLOOR`], which is where
+/// every other population number is pinned too. Without it, a regression
+/// that converted a clean card into a *waived* one passed silently — and a
+/// waiver is exactly what this design exists to retire.
+fn report_fidelity(workspace_root: &Path, oracle_path: &Path) -> anyhow::Result<FidelityReport> {
     const COVERED: [(&str, bool); 4] = [
         ("builtin", false),
         ("canon", true),
@@ -893,5 +1115,228 @@ fn report_fidelity(workspace_root: &Path, oracle_path: &Path) -> anyhow::Result<
          failing (total across builtin/canon/testing/demo)",
         if pass { "PASS" } else { "FAIL" },
     );
-    Ok(pass)
+    Ok(FidelityReport {
+        pass,
+        clean: total_clean,
+        waived: total_waived,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------
+    // The coverage floor — the round's own Critical, at the verdict layer.
+    // -----------------------------------------------------------------
+
+    /// The reproduction from the review, run as a test: point the sweep at a
+    /// directory that does not exist and every gate reports PASS over an
+    /// empty population. Before the floor, this exited 0 — "G3 PASS (0
+    /// checked), G4 PASS (0 covered)" — which is the same shape any
+    /// regression that shrinks coverage takes, including one that "closes"
+    /// G4's 8 divergences by making them fail to parse.
+    ///
+    /// It runs the whole command, not just [`check_coverage`], because the
+    /// defect was never in the arithmetic: the census closed correctly at
+    /// every printed level and the verdicts still read `is_empty()`. Only an
+    /// end-to-end run can show that a shrunken population now fails.
+    #[test]
+    fn an_absent_corpus_breaches_the_floor_instead_of_printing_pass() {
+        let error = run(PilotArgs {
+            plugin_dir: None,
+            canon_dir: Some(PathBuf::from("/tmp/definitely-not-a-corpus-dir")),
+            oracle: None,
+        })
+        .expect_err("an empty corpus must not pass");
+        let message = format!("{error:#}");
+        assert!(message.contains("coverage floor breached"), "{message}");
+        // Every population figure, not just the first one that dropped.
+        for expected in [
+            "canon abilities seen: 0",
+            "lines swept: 0",
+            "G3 usages checked: 0",
+            "G4 lines covered: 0",
+        ] {
+            assert!(message.contains(expected), "missing {expected}: {message}");
+        }
+    }
+
+    #[test]
+    fn the_pinned_census_itself_satisfies_the_floor() {
+        check_coverage(&COVERAGE_FLOOR).expect("the floor must not breach itself");
+    }
+
+    /// Each figure is checked independently, so a single shrinking
+    /// population cannot hide behind the others holding.
+    #[test]
+    fn any_single_decrease_breaches_the_floor() {
+        for (label, mutate) in [
+            (
+                "canon abilities seen",
+                (|c: &mut Coverage| c.seen -= 1) as fn(&mut Coverage),
+            ),
+            ("lines swept", |c: &mut Coverage| c.swept -= 1),
+            ("G3 usages checked", |c: &mut Coverage| c.g3_checked -= 1),
+            ("G4 lines covered", |c: &mut Coverage| c.g4_covered -= 1),
+            ("fidelity cards clean", |c: &mut Coverage| {
+                c.fidelity_clean -= 1;
+            }),
+        ] {
+            let mut observed = COVERAGE_FLOOR;
+            mutate(&mut observed);
+            let message = format!(
+                "{:#}",
+                check_coverage(&observed).expect_err("a decrease must breach the floor")
+            );
+            assert!(message.contains(label), "expected {label} in: {message}");
+        }
+    }
+
+    /// `fidelity_waived` is the inverted entry: a card moving from clean to
+    /// waived leaves `failing == 0` untouched, so `report_fidelity`'s own
+    /// verdict cannot see it — and a waiver is exactly what the frames
+    /// design exists to retire.
+    #[test]
+    fn a_newly_waived_card_breaches_the_ceiling() {
+        let observed = Coverage {
+            fidelity_clean: COVERAGE_FLOOR.fidelity_clean - 1,
+            fidelity_waived: COVERAGE_FLOOR.fidelity_waived + 1,
+            ..COVERAGE_FLOOR
+        };
+        let message = format!(
+            "{:#}",
+            check_coverage(&observed).expect_err("a new waiver must breach the ceiling")
+        );
+        assert!(message.contains("fidelity cards waived"), "{message}");
+        assert!(message.contains("fidelity cards clean"), "{message}");
+    }
+
+    /// Growth is not a breach — a later round that legitimately widens the
+    /// sweep must not have to touch the constant to stay green.
+    #[test]
+    fn growth_above_the_floor_is_not_a_breach() {
+        check_coverage(&Coverage {
+            seen: COVERAGE_FLOOR.seen + 20,
+            swept: COVERAGE_FLOOR.swept + 20,
+            g3_checked: COVERAGE_FLOOR.g3_checked + 5,
+            g4_covered: COVERAGE_FLOOR.g4_covered + 5,
+            fidelity_clean: COVERAGE_FLOOR.fidelity_clean + 7,
+            fidelity_waived: 0,
+        })
+        .expect("more coverage and fewer waivers must pass");
+    }
+
+    // -----------------------------------------------------------------
+    // Divergence discrimination.
+    // -----------------------------------------------------------------
+
+    fn invocation(entry: &str, args: Vec<Recovered>) -> Recovered {
+        Recovered::Invocation {
+            entry: entry.to_string(),
+            args,
+            ambiguities: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_fully_recovered_tree_still_spells_as_ron() {
+        assert_eq!(
+            recovered_to_ron(&invocation(
+                "DealDamage",
+                vec![
+                    invocation("This", Vec::new()),
+                    Recovered::Literal("3".to_string()),
+                    invocation("Creature", Vec::new()),
+                ],
+            ))
+            .unwrap(),
+            "DealDamage(This, 3, Creature)"
+        );
+    }
+
+    /// The finding: all 8 of G4's divergences take this arm, and before the
+    /// path they printed byte-identically — the round's two known gaps and
+    /// any third, unrelated one were one opaque bucket. Two residuals at
+    /// *different* argument positions must now produce different text.
+    #[test]
+    fn a_residual_names_its_argument_position_and_shows_what_it_held() {
+        let deal_damage = recovered_to_ron(&invocation(
+            "DealDamage",
+            vec![
+                invocation("This", Vec::new()),
+                Recovered::Literal("3".to_string()),
+                Recovered::Residual(View::Unit {
+                    name: "Determiner",
+                    variant: Some("Any"),
+                }),
+            ],
+        ))
+        .unwrap_err();
+        let gain_life = recovered_to_ron(&invocation(
+            "GainLife",
+            vec![
+                Recovered::Residual(View::Unit {
+                    name: "Pronoun",
+                    variant: Some("You"),
+                }),
+                Recovered::Literal("2".to_string()),
+            ],
+        ))
+        .unwrap_err();
+
+        let deal_damage = format!("{deal_damage:#}");
+        let gain_life = format!("{gain_life:#}");
+        assert!(deal_damage.contains("DealDamage arg 2"), "{deal_damage}");
+        assert!(deal_damage.contains("Any"), "{deal_damage}");
+        assert!(gain_life.contains("GainLife arg 0"), "{gain_life}");
+        assert!(gain_life.contains("You"), "{gain_life}");
+        assert_ne!(
+            deal_damage, gain_life,
+            "two different gaps must not print identically — that is the whole finding"
+        );
+    }
+
+    #[test]
+    fn a_nested_residual_reports_the_whole_argument_path() {
+        let error = recovered_to_ron(&invocation(
+            "DealsDamageToEach",
+            vec![
+                Recovered::Literal("4".to_string()),
+                invocation("ControlledByYou", vec![Recovered::Residual(View::Absent)]),
+            ],
+        ))
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("DealsDamageToEach arg 1 -> ControlledByYou arg 0"),
+            "{error:#}"
+        );
+    }
+
+    #[test]
+    fn a_top_level_residual_says_so_rather_than_naming_an_argument() {
+        let error = recovered_to_ron(&Recovered::Residual(View::Absent)).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("at the top level"),
+            "{error:#}"
+        );
+    }
+
+    /// The `Debug` of one unrecovered nominal runs to hundreds of
+    /// characters; eight of them would bury the census. Truncation is by
+    /// `char_indices`, so a multi-byte character straddling the budget
+    /// cannot panic the slice — this feeds one that does straddle it.
+    #[test]
+    fn a_long_residual_debug_is_truncated_on_a_char_boundary() {
+        let view = View::Scalar {
+            kind: "str",
+            repr: "é".repeat(RESIDUAL_DEBUG_BUDGET * 2),
+        };
+        let printed = truncated_debug(&view);
+        assert!(printed.ends_with("chars total)"), "{printed}");
+        assert!(
+            printed.chars().count() < RESIDUAL_DEBUG_BUDGET + 40,
+            "{printed}"
+        );
+    }
 }

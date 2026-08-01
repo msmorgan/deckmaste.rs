@@ -24,6 +24,11 @@
 //! `${prefix#name#suffix}` conditional, a `${slot*{literal}}` repeat, or a
 //! named `${name}` slot) is reported as `excepted`, not failed — see
 //! [`has_mini_language_exception`].
+//!
+//! A macro whose `frames[0]` is **guarded** is `refused`, and fails the run
+//! in either mode: a guard pre-binds params, so a guarded frame's text omits
+//! them and its projection is a *partial* rendering that can never be the
+//! right `template:` target. See [`GuardedProjection`].
 
 use std::fs;
 use std::path::Path;
@@ -63,12 +68,13 @@ pub(super) fn run(args: TemplatesArgs) -> anyhow::Result<()> {
     let report = execute(&plugin_dir, mode)?;
 
     println!(
-        "{}: {} framed def(s) checked, {} excepted, {} rewritten, {} divergent",
+        "{}: {} framed def(s) checked, {} excepted, {} rewritten, {} divergent, {} refused",
         plugin_dir.display(),
         report.checked,
         report.excepted,
         report.rewritten,
         report.divergences.len(),
+        report.guarded_projections.len(),
     );
     for divergence in &report.divergences {
         eprintln!(
@@ -79,13 +85,25 @@ pub(super) fn run(args: TemplatesArgs) -> anyhow::Result<()> {
             divergence.expected,
         );
     }
+    for refused in &report.guarded_projections {
+        eprintln!(
+            "{}: `{}` frames[0] is guarded ({:?}), so it is a partial rendering — it omits every \
+             pre-bound param, and projecting it would compare (or, under --write, overwrite) \
+             `template:` against a wording that drops them. Reorder `frames:` so an unguarded \
+             frame is first, or give this def a `template:` the projection cannot express.",
+            refused.path.display(),
+            refused.name,
+            refused.text,
+        );
+    }
     for (path, error) in &report.write_failures {
         eprintln!("{}: {error:#}", path.display());
     }
     anyhow::ensure!(
-        report.divergences.is_empty(),
-        "{} `template:` divergence(s)",
-        report.divergences.len()
+        report.divergences.is_empty() && report.guarded_projections.is_empty(),
+        "{} `template:` divergence(s), {} guarded first frame(s) refused",
+        report.divergences.len(),
+        report.guarded_projections.len(),
     );
     Ok(())
 }
@@ -104,6 +122,24 @@ struct Divergence {
     expected: String,
 }
 
+/// A framed def whose `frames[0]` is **guarded**, so [`project`]ing it can
+/// never be the right `template:` target.
+///
+/// A guard pre-binds params, which is precisely a promise that the frame's
+/// text does *not* spell them: `Draws.ron`'s `frames[0]` is the `You`-guarded
+/// imperative `"draw <Param(1)> cards"`, projecting to `"draw ${1}"`, while
+/// its checked-in template is `"${0} draws ${1:card|cards}"` — the guarded
+/// frame is a *partial* rendering by construction and omits the subject.
+/// Comparing against it would report a spurious divergence; `--write`ing it
+/// would silently delete a param from a checked-in file. Neither is a thing
+/// to guess at, so this is reported and the run fails.
+#[derive(Debug)]
+struct GuardedProjection {
+    path: PathBuf,
+    name: String,
+    text: String,
+}
+
 #[derive(Debug, Default)]
 struct Report {
     /// Framed defs seen (non-empty `frames:`) — the population `--check`
@@ -117,6 +153,10 @@ struct Report {
     /// Files still divergent after this run: every one, under `Mode::Check`;
     /// under `Mode::Write`, only the ones a rewrite attempt failed on.
     divergences: Vec<Divergence>,
+    /// Framed defs whose first frame is guarded, so there is no honest
+    /// projection to compare or write — see [`GuardedProjection`]. Empty in
+    /// the current corpus; a non-empty list fails the run in either mode.
+    guarded_projections: Vec<GuardedProjection>,
     /// Why a `Mode::Write` rewrite attempt failed, alongside its file.
     write_failures: Vec<(PathBuf, anyhow::Error)>,
 }
@@ -155,12 +195,29 @@ fn execute(plugin_dir: &Path, mode: Mode) -> anyhow::Result<Report> {
         }
         report.checked += 1;
 
-        let expected = project(&def.frames()[0].text);
         let actual = def.template().map(str::to_owned);
         if actual.as_deref().is_some_and(has_mini_language_exception) {
             report.excepted += 1;
             continue;
         }
+        // Only past the exception gate is the projection actually *consumed*
+        // — compared under `--check`, written to disk under `--write`. So the
+        // guard refusal below sits here, not above it: an excepted def's
+        // projection is never read, and refusing one would report a hazard
+        // that structurally cannot fire. (This is exactly `Draws.ron`'s
+        // situation today, and the whole reason the defect was latent: its
+        // `${1:card|cards}` codec excepts it before its guarded `frames[0]`
+        // can do any damage.)
+        let first = &def.frames()[0];
+        if !first.is_unguarded() {
+            report.guarded_projections.push(GuardedProjection {
+                path: path.clone(),
+                name: def.name.as_str().to_string(),
+                text: first.text.clone(),
+            });
+            continue;
+        }
+        let expected = project(&first.text);
         if actual.as_deref() == Some(expected.as_str()) {
             continue;
         }
@@ -667,6 +724,38 @@ mod tests {
 )
 "#;
 
+    /// `Draws.ron`'s real shape, minus the codec that excepts it today: the
+    /// `You`-guarded imperative is `frames[0]`, so `project`ing it yields
+    /// `"draw ${1}"` — the subject `${0}` is gone, because a guard pre-binds
+    /// it and the frame therefore never spells it.
+    const GUARDED_FIRST_FRAME: &str = r#"(
+    name: "Draws",
+    template: "${0} draws ${1} cards",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    frames: [
+        (text: "draw <Param(1)> cards", when: [(0, "You")], position: Main),
+        "<Param(0)> draws <Param(1)> cards",
+    ],
+    body: 0,
+)
+"#;
+
+    /// The same def with an excepting `${1:card|cards}` codec — the live
+    /// corpus's actual state, and the reason the defect above is latent.
+    const GUARDED_FIRST_FRAME_EXCEPTED: &str = r#"(
+    name: "Draws",
+    template: "${0} draws ${1:card|cards}",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    frames: [
+        (text: "draw <Param(1)> cards", when: [(0, "You")], position: Main),
+        "<Param(0)> draws <Param(1)> cards",
+    ],
+    body: 0,
+)
+"#;
+
     #[test]
     fn check_passes_when_every_framed_def_matches_its_projection() {
         let dir = tempdir_with(&[
@@ -689,6 +778,47 @@ mod tests {
         assert_eq!(divergence.name, "GainLife");
         assert_eq!(divergence.expected, "${0} gain ${1} life");
         assert_eq!(divergence.actual.as_deref(), Some("${0} gains ${1} life"));
+    }
+
+    /// A guarded `frames[0]` is a *partial* rendering: projecting it drops
+    /// every pre-bound param. `--check` must refuse it rather than report a
+    /// spurious divergence, and — the reason this is loud rather than a
+    /// silent skip — `--write` must refuse it rather than overwrite a
+    /// checked-in `template:` with a wording that has lost its subject.
+    #[test]
+    fn a_guarded_first_frame_is_refused_rather_than_projected() {
+        for mode in [Mode::Check, Mode::Write] {
+            let dir = tempdir_with(&[("macros/action/Draws.ron", GUARDED_FIRST_FRAME)]);
+            let report = execute(dir.path(), mode).unwrap();
+            assert_eq!(report.checked, 1);
+            assert_eq!(report.guarded_projections.len(), 1, "{mode:?}");
+            assert_eq!(report.guarded_projections[0].name, "Draws");
+            assert_eq!(
+                report.guarded_projections[0].text, "draw <Param(1)> cards",
+                "the report must name the guarded frame it refused"
+            );
+            assert!(report.divergences.is_empty(), "{mode:?}");
+            assert_eq!(report.rewritten, 0, "{mode:?}");
+            // The file on disk is untouched — the whole point of refusing.
+            let after =
+                std::fs::read_to_string(dir.path().join("macros/action/Draws.ron")).unwrap();
+            assert_eq!(after, GUARDED_FIRST_FRAME, "{mode:?}");
+        }
+    }
+
+    /// The ordering half of the fix, pinned so it cannot be reordered back:
+    /// the mini-language exception is decided *before* the guard refusal,
+    /// because an excepted def's projection is never consumed at all. This
+    /// is the live corpus's `Draws.ron`, which must stay `excepted` — the
+    /// figure `cargo xtask macro templates --check` reports today.
+    #[test]
+    fn an_excepted_template_is_excepted_even_when_its_first_frame_is_guarded() {
+        let dir = tempdir_with(&[("macros/action/Draws.ron", GUARDED_FIRST_FRAME_EXCEPTED)]);
+        let report = execute(dir.path(), Mode::Check).unwrap();
+        assert_eq!(report.checked, 1);
+        assert_eq!(report.excepted, 1);
+        assert!(report.guarded_projections.is_empty());
+        assert!(report.divergences.is_empty());
     }
 
     #[test]
@@ -724,6 +854,13 @@ mod tests {
         assert!(rechecked.divergences.is_empty(), "now idempotent");
     }
 
+    /// The guard sits on `frames[1]`, not `frames[0]`: a guarded *first*
+    /// frame is refused outright (see
+    /// `a_guarded_first_frame_is_refused_rather_than_projected`), so it can
+    /// never reach a write at all, and the property this test exists for —
+    /// that the byte-surgical rewrite leaves a guard's stored sugar
+    /// untouched, never expanding `Exactly(1)` to
+    /// `Range(Some(1), Some(1))` — needs a def a write actually happens on.
     #[test]
     fn write_never_expands_a_guards_stored_spelling() {
         let source = r#"(
@@ -731,7 +868,10 @@ mod tests {
     template: "target any target",
     kinds: [TargetSpec],
     params: [Predicate],
-    frames: [(text: "target <Param(0)>", when: [(0, "Exactly(1)")])],
+    frames: [
+        "target <Param(0)>",
+        (text: "target <Param(0)>", when: [(0, "Exactly(1)")]),
+    ],
     body: 0,
 )
 "#;

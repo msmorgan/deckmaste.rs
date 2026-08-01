@@ -111,7 +111,15 @@ impl FrameSpec {
     /// Whether this frame carries no guard at all — the condition under
     /// which [`Serialize`] takes the bare-string spelling instead of the
     /// full struct form.
-    fn is_unguarded(&self) -> bool {
+    ///
+    /// Public because a guard also decides whether a frame is a *complete*
+    /// rendering: a guarded frame pre-binds params, so its text omits them
+    /// by construction (`Draws`'s `You`-guarded `"draw <Param(1)> cards"`
+    /// never spells the subject). Any consumer that projects a frame's text
+    /// as if it were the whole rendering — `cargo xtask macro templates`'s
+    /// D10 projection is the one in tree — must consult this first.
+    #[must_use]
+    pub fn is_unguarded(&self) -> bool {
         self.when.is_empty() && self.position.is_none()
     }
 }
