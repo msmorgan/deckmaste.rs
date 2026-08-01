@@ -13,10 +13,10 @@ Normal(
     abilities: [
         Triggered(
             event: ThisEnters,
-            effect: GainLife(Aggregate(SumOf, (
+            effect: ChangeLife(You, Up(Aggregate(SumOf, (
                 of: Objects(And([Permanent, ControlledBy(Ref(You))])),
                 by: CountOf(ManaSymbols(It, CountsAs(Green))),
-            ))),
+            )))),
         ),
     ],
 )

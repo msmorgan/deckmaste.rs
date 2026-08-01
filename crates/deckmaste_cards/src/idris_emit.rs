@@ -59,6 +59,7 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Condition;
 use deckmaste_core::CopyException;
+use deckmaste_core::CopyRetarget;
 use deckmaste_core::CopySource;
 use deckmaste_core::CopySpec;
 use deckmaste_core::Cost;
@@ -80,6 +81,7 @@ use deckmaste_core::EnterRider;
 use deckmaste_core::EventFilter;
 use deckmaste_core::Ident;
 use deckmaste_core::KeywordAbility;
+use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaProduction;
 use deckmaste_core::ManaSpec;
@@ -89,7 +91,6 @@ use deckmaste_core::Normalize;
 use deckmaste_core::NumericOp;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PhaseStep;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Predicate;
@@ -97,6 +98,7 @@ use deckmaste_core::Property;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
+use deckmaste_core::RetargetMode;
 use deckmaste_core::Selection;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Sort;
@@ -1273,18 +1275,14 @@ fn emit_selection(s: &Selection) -> R {
             "bottomFrom",
             vec![emit_count(count)?, emit_reference(whose)?].into(),
         ),
-        // Additive Rust-side terms with no Idris counterpart YET. Each lands
-        // in `Core.idr` with its first consumer, not before: `LibraryOf` with
-        // `Shuffle(Selection)` ([CR#701.24a]'s own object), `InChosenOrder` /
-        // `ValidTargetsFor` with the [CR#707.10d] for-each-could-target copy
+        // The whole library as one collection ([CR#701.24a]) — lands here with
+        // its first consumer, `Shuffle(Selection)`.
+        Selection::LibraryOf(who) => app("LibraryOf", vec![emit_reference(who)?].into()),
+        // Additive Rust-side terms with no Idris counterpart YET. `InChosenOrder`/
+        // `ValidTargetsFor` land with the [CR#707.10d] for-each-could-target copy
         // family they compose. Reported as gaps meanwhile, exactly as
         // `AmongNoted` and `PilesOf` are — no canon card spells them, so the
         // re-emit gate stays green.
-        Selection::LibraryOf(_) => {
-            return Err(gap(
-                "Selection::LibraryOf has no Idris counterpart yet (lands with Shuffle)",
-            ));
-        }
         Selection::InChosenOrder(..) => {
             return Err(gap(
                 "Selection::InChosenOrder has no Idris counterpart yet (lands with the \
@@ -1501,9 +1499,9 @@ fn emit_with_cost_as_predicate_verb(binder: &deckmaste_core::Binder, body: &Cost
     }
     match &normalized[0] {
         CostComponent::Do(action) => match action.as_ref() {
-            Action::By(_, PlayerAction::Sacrifice(Reference::That(_))) => {
+            Action::Sacrifice(_, Reference::That(_)) => {
                 let sac = app(
-                    "sacrificeBy",
+                    "Sacrifice",
                     vec![emit_reference(by)?, emit_filter(filter)?].into(),
                 );
                 Ok(app("Do", vec![sac].into()))
@@ -1543,6 +1541,18 @@ fn emit_arrangement(a: &Arrangement) -> String {
     .to_string()
 }
 
+/// The [CR#115.7a..115.7d] four-way `Action::Retarget` discriminant — a 1:1
+/// rename match with Idris's `RetargetMode`.
+fn emit_retarget_mode(m: &RetargetMode) -> String {
+    match m {
+        RetargetMode::ChangeAll => "ChangeAll",
+        RetargetMode::ChangeOne => "ChangeOne",
+        RetargetMode::ChangeAny => "ChangeAny",
+        RetargetMode::ChooseNew => "ChooseNew",
+    }
+    .to_string()
+}
+
 /// Only an empty rider list, or a single `Attacking(Some(_))` rider, has an
 /// Idris counterpart (`enteringAttacking`); anything else is a gap.
 fn enter_riders_as_attacking(riders: &[EnterRider]) -> Result<Option<String>, Gap> {
@@ -1563,7 +1573,7 @@ fn enter_riders_as_attacking(riders: &[EnterRider]) -> Result<Option<String>, Ga
              emitted (idris-copy-asenters-carrier)",
         )),
         _ => Err(gap(
-            "EnterRider list has no Idris Move/MoveArranged counterpart beyond a lone Attacking(Some(_))",
+            "EnterRider list has no Idris Move/MoveGroup counterpart beyond a lone Attacking(Some(_))",
         )),
     }
 }
@@ -1586,7 +1596,7 @@ fn emit_counter_spec(c: &CounterSpec) -> R {
 }
 
 // ===========================================================================
-// Action / PlayerAction
+// Action
 // ===========================================================================
 
 /// Peel a remembered macro invocation to its expanded value — the coordinate
@@ -1720,15 +1730,19 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
 
 /// `emit_action`, gated for the two entry points that call into `Action`
 /// directly rather than through `emit_effect` (`CostComponent::Do`,
-/// `Binder::Produce`). `emit_effect`'s own `OneShotEffect::Act(Create(_,
-/// TokenSpec::Copy(_), _))` arm is the ONE place that Batch-wraps a count>1
-/// token-copy's multiplicity — `emit_player_action`'s `Create` arm never
-/// reads `count` for the `TokenSpec::Copy` case (the `Copy` Action itself
-/// carries no multiplicity slot, [CR#707.2]), relying entirely on that outer
-/// `Batch`. Reached off that path, a count != 1 would silently emit a single
-/// `Copy`, dropping the multiplier — gap instead of guessing.
+/// `Binder::Produce`). `emit_effect`'s own `OneShotEffect::Act(Create { token:
+/// TokenSpec::Copy(_), .. })` arm is the ONE place that Batch-wraps a count>1
+/// token-copy's multiplicity — `emit_action`'s `Create` arm never reads
+/// `count` for the `TokenSpec::Copy` case (the `Copy` Action itself carries
+/// no multiplicity slot, [CR#707.2]), relying entirely on that outer `Batch`.
+/// Reached off that path, a count != 1 would silently emit a single `Copy`,
+/// dropping the multiplier — gap instead of guessing.
 fn emit_action_off_effect_path(action: &Action) -> R {
-    if let Action::By(_, PlayerAction::Create(count, TokenSpec::Copy(_), _)) = action
+    if let Action::Create {
+        count,
+        token: TokenSpec::Copy(_),
+        ..
+    } = action
         && count.literal_value() != Some(1)
     {
         return Err(gap(
@@ -1739,53 +1753,53 @@ fn emit_action_off_effect_path(action: &Action) -> R {
     emit_action(action)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one match arm per verb; splitting would scatter the verb→Idris-constructor mapping this function documents as a whole"
+)]
 fn emit_action(a: &Action) -> R {
-    Ok(match a {
-        // `dealDamageFrom` exposes the required `source` positionally.
-        Action::DealDamage(source, count, patient) => app(
-            "dealDamageFrom",
+    match a {
+        Action::DealDamage(source, count, patient) => Ok(app(
+            "DealDamage",
             vec![
                 emit_reference(source)?,
-                emit_reference_anykind(patient)?,
                 emit_count(count)?,
+                emit_reference_anykind(patient)?,
             ]
             .into(),
-        ),
+        )),
         // Destroy is not a bespoke verb — it emits through the `Composite` arm
         // below (`Composite (Destroy r) (Act (moveAttacking r Graveyard))`).
-        Action::Counter(r) => app("Counter", vec![emit_reference(r)?].into()),
-        Action::Transform(r) => app("Transform", vec![emit_reference(r)?].into()),
+        Action::Counter(r) => Ok(app("Counter", vec![emit_reference(r)?].into())),
+        Action::Transform(r) => Ok(app("Transform", vec![emit_reference(r)?].into())),
         // core-copy-grammar Task 5: the cease-to-exist verb the copy-cease
         // SBA now speaks through (`sba.rs`) — engine-internal only, never
         // authored on a card face, so it has no Idris counterpart, same
         // deferred-gap shape as `ExtraPhase`/`CreateReplacement` below.
-        Action::Cease(_) => return Err(gap("Action::Cease has no Idris counterpart")),
-        Action::Attach { what, to } => app(
+        Action::Cease(_) => Err(gap("Action::Cease has no Idris counterpart")),
+        Action::Attach { what, to } => Ok(app(
             "Attach",
             vec![emit_reference(what)?, emit_reference(to)?].into(),
-        ),
-        Action::Unattach(r) => app("Unattach", vec![emit_reference(r)?].into()),
+        )),
+        Action::Unattach(r) => Ok(app("Unattach", vec![emit_reference(r)?].into())),
         // `moveAttacking` exposes the (default-`Nothing`) `enteringAttacking`
         // positionally as a plain `Maybe`; it does NOT forward `from` (no
         // Idris counterpart in its own signature). The unguarded default
         // (`from = None`) keeps this terse wrapper call untouched — `Move`'s
         // own `{default Nothing from}` applies unspoken; a guard bypasses the
         // wrapper for the raw `Move` constructor with BOTH named fields
-        // spelled explicitly, following `ChooseNewTargets`'s `{by = ...}`
-        // default-arg-elision precedent below (`emit_player_action`):
-        // terse/positional for the default, named-field on the raw
-        // constructor otherwise ([CR#701.8a,701.9a,701.17a]).
+        // spelled explicitly ([CR#701.8a,701.9a,701.17a]).
         Action::Move(r, dest, riders, from) => {
             let r_ = emit_reference(r)?;
             let dest_ = emit_destination(dest)?;
             let ea = attacking_maybe(riders)?;
-            match from {
+            Ok(match from {
                 None => app("moveAttacking", vec![r_, dest_, ea].into()),
                 Some(z) => format!(
                     "(Move {r_} {dest_} {{enteringAttacking = {ea}}} {{from = (Just {})}})",
                     emit_zone(*z)
                 ),
-            }
+            })
         }
         Action::MoveGroup {
             group,
@@ -1796,29 +1810,23 @@ fn emit_action(a: &Action) -> R {
             if !riders.is_empty() {
                 return Err(gap("MoveGroup riders not yet mapped"));
             }
-            app(
-                "MoveArranged",
+            Ok(app(
+                "MoveGroup",
                 vec![
                     emit_selection(group)?,
                     emit_arrangement(arrangement),
                     emit_destination(to)?,
                 ]
                 .into(),
-            )
+            ))
         }
-        Action::GainControl(..) => {
-            return Err(gap(
-                "Action::GainControl has no Idris one-shot Action counterpart (only the continuous Modification)",
-            ));
-        }
-        Action::ExtraPhase(..) => return Err(gap("Action::ExtraPhase has no Idris counterpart")),
-        Action::BecomeDay | Action::BecomeNight => {
-            return Err(gap("day/night has no Idris counterpart"));
-        }
-        Action::TheRingTempts(_) => {
-            return Err(gap("Action::TheRingTempts has no Idris counterpart"));
-        }
-        Action::MoveCounters(spec, from, to) => app(
+        Action::GainControl(..) => Err(gap(
+            "Action::GainControl has no Idris one-shot Action counterpart (only the continuous Modification)",
+        )),
+        Action::ExtraPhase(..) => Err(gap("Action::ExtraPhase has no Idris counterpart")),
+        Action::BecomeDay | Action::BecomeNight => Err(gap("day/night has no Idris counterpart")),
+        Action::TheRingTempts(_) => Err(gap("Action::TheRingTempts has no Idris counterpart")),
+        Action::MoveCounters(spec, from, to) => Ok(app(
             "MoveCounters",
             vec![
                 emit_counter_spec(spec)?,
@@ -1826,9 +1834,9 @@ fn emit_action(a: &Action) -> R {
                 emit_reference(to)?,
             ]
             .into(),
-        ),
+        )),
         Action::CreateReplacement { .. } => {
-            return Err(gap("Action::CreateReplacement has no Idris counterpart"));
+            Err(gap("Action::CreateReplacement has no Idris counterpart"))
         }
         // `Composite <spec> body` ([CR#701]): the named keyword action —
         // `Composite (Scry You 2) (Each …)` etc. The `KeywordAction` atom enum
@@ -1839,49 +1847,42 @@ fn emit_action(a: &Action) -> R {
         // this arm inside the `Batch`. `Fateseal` has no Idris spec yet — a gap.
         Action::Composite { name, body } => {
             let spec = emit_keyword_spec(name.as_str(), body)?;
-            app("Composite", vec![spec, emit_effect(body)?].into())
+            Ok(app("Composite", vec![spec, emit_effect(body)?].into()))
         }
-        Action::By(actor, pa) => emit_player_action(pa, actor)?,
-    })
-}
-
-#[expect(
-    clippy::too_many_lines,
-    reason = "one match arm per player verb; splitting would scatter the verb→Idris-constructor mapping this function documents as a whole"
-)]
-fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
-    // The player verbs whose Idris constructor carries a `{default You actor}`
-    // are emitted through the positional `<verb>By` helper, always passing the
-    // actor. The verbs whose Idris constructor has NO actor slot
-    // (`Reveal`/`PutCounters`/`Tap`/`Untap`/…) can only be the default `You`,
-    // so a non-`You` actor there is a gap.
-    match pa {
-        PlayerAction::GainLife(c) => Ok(app(
-            "gainLifeBy",
-            vec![emit_reference(actor)?, emit_count(c)?].into(),
+        // [CR#104.2b,104.3e]: win/lose ride `Action::{WinGame,LoseGame}` in
+        // Rust, but Idris keeps them OUTSIDE the `Action` data type — a
+        // sibling `Outcome` wrapped by `Conclude : Outcome b -> OneShotEffect
+        // b`, never an `Act`. This arm builds `(Conclude (WinGame/LoseGame
+        // patient))` whole; `emit_effect`'s `Act` arm must not re-wrap it (see
+        // its own anti-double-wrap carve-out, right next to this comment's twin).
+        Action::WinGame(patient) => Ok(app(
+            "Conclude",
+            vec![app("WinGame", vec![emit_reference(patient)?].into())].into(),
         )),
-        PlayerAction::LoseLife(c) => Ok(app(
-            "loseLifeBy",
-            vec![emit_reference(actor)?, emit_count(c)?].into(),
+        Action::LoseGame(patient) => Ok(app(
+            "Conclude",
+            vec![app("LoseGame", vec![emit_reference(patient)?].into())].into(),
         )),
-        // ONE card ([CR#121.1,121.2]) — a bare per-card draw reached OFF the
-        // `Batch` path, so the count is 1 here. `Batch(n, Act(By(who, Draw)))`
-        // is folded to `Act (drawBy who n)` by `emit_effect` instead, because
-        // Idris's `Action.Draw` carries the count on the verb.
-        PlayerAction::DrawCard => Ok(app(
-            "drawBy",
-            vec![
-                emit_reference(actor)?,
-                emit_count(&deckmaste_core::Count::Literal(1))?,
-            ]
-            .into(),
-        )),
-        PlayerAction::AddMana(count, production) => {
+        // change a player's life total ([CR#119.3,119.9]) — the merged
+        // `GainLife`/`LoseLife`/`SetLifeTo` family; Idris mirrors the merge
+        // one-for-one with its own `ChangeLife`/`LifeOp`.
+        Action::ChangeLife(patient, op) => {
+            let life_op = match op {
+                LifeOp::Set(c) => app("Set", vec![emit_count(c)?].into()),
+                LifeOp::Up(c) => app("Up", vec![emit_count(c)?].into()),
+                LifeOp::Down(c) => app("Down", vec![emit_count(c)?].into()),
+            };
+            Ok(app(
+                "ChangeLife",
+                vec![emit_reference(patient)?, life_op].into(),
+            ))
+        }
+        Action::AddMana(recipient, count, production) => {
             let (mana, riders) = emit_mana_production(production)?;
             Ok(app(
                 "addManaFull",
                 vec![
-                    emit_reference(actor)?,
+                    emit_reference(recipient)?,
                     emit_count(count)?,
                     mana,
                     ilist(riders),
@@ -1889,165 +1890,170 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
                 .into(),
             ))
         }
-        PlayerAction::Create(count, spec, riders) => {
-            // CreateToken has no `actor` field in Idris; the creator is
-            // implicit.
-            if !matches!(actor, Reference::You) {
-                return Err(gap("Create has no Idris actor slot"));
-            }
+        Action::Create {
+            agent,
+            count,
+            token,
+            riders,
+        } => {
             // A token copy is the `Copy` Action, not `createTokenAttacking` —
             // `emit_create_token_copy` builds the per-unit copy; the `count`
-            // rides a `Batch` in `emit_effect`, not this arm.
-            if let TokenSpec::Copy(cs) = spec {
+            // rides a `Batch` in `emit_effect`, not this arm. `Copy` has no
+            // Idris creator slot.
+            if let TokenSpec::Copy(cs) = token {
+                if !matches!(agent, Reference::You) {
+                    return Err(gap("token-copy Create has no Idris agent slot"));
+                }
                 return emit_create_token_copy(cs, riders);
             }
             Ok(app(
                 "createTokenAttacking",
                 vec![
+                    emit_reference(agent)?,
                     emit_count(count)?,
-                    emit_token_spec(spec)?,
+                    emit_token_spec(token)?,
                     attacking_maybe(riders)?,
                 ]
                 .into(),
             ))
         }
-        PlayerAction::Sacrifice(r) => Ok(app(
-            "sacrificeBy",
-            vec![emit_reference(actor)?, reference_as_predicate(r)?].into(),
+        Action::Sacrifice(agent, what) => Ok(app(
+            "Sacrifice",
+            vec![emit_reference(agent)?, reference_as_predicate(what)?].into(),
         )),
-        PlayerAction::Move(r, dest, riders) => {
-            if !matches!(actor, Reference::You) {
-                return Err(gap("Move has no Idris actor slot"));
+        // ONE card ([CR#121.1,121.2]) — a bare per-card draw reached OFF the
+        // `Batch` path, so the count is 1 here. `Batch(n, Act(DrawCard(who)))`
+        // is folded to `Act (DrawCard who n)` by `emit_effect` instead (via
+        // `emit_batched_draw`), because Idris's `Action.DrawCard` carries the
+        // count on the verb.
+        Action::DrawCard(who) => Ok(app(
+            "DrawCard",
+            vec![
+                emit_reference(who)?,
+                emit_count(&deckmaste_core::Count::Literal(1))?,
+            ]
+            .into(),
+        )),
+        Action::VentureIntoDungeon(_)
+        | Action::GetEmblem(_, _)
+        | Action::GetDesignation(_, _)
+        | Action::ChooseValue(_, _, _)
+        | Action::RestartGame => Err(gap(format!(
+            "{a:?} not yet mapped (no Idris counterpart or not implemented)"
+        ))),
+        Action::Tap(r) => Ok(app("Tap", vec![emit_reference(r)?].into())),
+        Action::Untap(r) => Ok(app("Untap", vec![emit_reference(r)?].into())),
+        // A stack copy ([CR#707.10]) lowers to the shared `Copy` Action (source
+        // + copiable-value exceptions, same helpers the token-copy `Create`
+        // path uses). `controller`/`retarget` have no Idris slot — a non-`You`
+        // controller, or a retarget mode beyond `AsIs`, is a gap.
+        Action::CopySpell {
+            controller,
+            spec,
+            retarget,
+        } => {
+            if !matches!(controller, Reference::You) {
+                return Err(gap("Action::CopySpell has no Idris controller slot"));
             }
-            // `PlayerAction::Move` has no `from` fizzle-guard slot of its own.
-            emit_action(&Action::Move(r.clone(), dest.clone(), riders.clone(), None))
+            if !matches!(retarget, CopyRetarget::AsIs) {
+                return Err(gap(
+                    "Action::CopySpell retarget modes beyond AsIs have no Idris counterpart",
+                ));
+            }
+            Ok(app(
+                "Copy",
+                vec![
+                    emit_copy_source(&spec.source)?,
+                    ilist(emit_copy_exception_mods(&spec.exceptions)?),
+                ]
+                .into(),
+            ))
         }
-        PlayerAction::Tap(r) => Ok(app("Tap", vec![emit_reference(r)?].into())),
-        PlayerAction::Untap(r) => Ok(app("Untap", vec![emit_reference(r)?].into())),
-        PlayerAction::PutCounters(r, kind, count) => {
-            if !matches!(actor, Reference::You) {
-                return Err(gap("PutCounters has no Idris actor slot"));
-            }
+        // [CR#608.2g]: casting a referenced card as a resolution effect. The
+        // Idris north-star `Core.idr` has no resolution-time `Cast` effect verb
+        // (casting there rides the 601 deontic-permission pipeline, `Enact
+        // Cast`), so the probe records this as an unmapped gap rather than
+        // data-fying an intrinsic it doesn't model.
+        Action::Cast(..) => Err(gap(
+            "Action::Cast (resolution-time cast-as-effect, [CR#608.2g]) has no Idris \
+             OneShotEffect counterpart — Idris casts via the 601 permission pipeline",
+        )),
+        // [CR#707.12]: casting a COPY of an object as a resolution effect — the
+        // same class of gap as `Action::Cast` above. Idris has no
+        // resolution-time cast verb (casting rides the 601 deontic-permission
+        // pipeline, `Enact Cast`), so the copy-cast has no `OneShotEffect`
+        // counterpart either; the `CopySpec` it carries has no cast verb to
+        // attach to. Its own arm (not the generic catch-all) so the reason is
+        // explicit.
+        Action::CastCopy(..) => Err(gap(
+            "Action::CastCopy (cast-a-copy-as-effect, [CR#707.12]) has no Idris \
+             OneShotEffect counterpart — Idris casts via the 601 permission pipeline, with no \
+             resolution-time cast verb (same class as Action::Cast)",
+        )),
+        // `mode`/`of`/`by` are all plain positional now (Law 2 stripped `by`'s
+        // `{default You}`), so this is a direct `app` — no default-arg-elision
+        // special-casing needed any more.
+        Action::Retarget { mode, of, by } => Ok(app(
+            "Retarget",
+            vec![
+                emit_retarget_mode(mode),
+                emit_reference(of)?,
+                emit_reference(by)?,
+            ]
+            .into(),
+        )),
+        // [CR#705.1,706.1,901.9]: `agent` is now a real, non-defaulted slot on
+        // all three (it used to arrive only via the deleted `By` wrapper, and
+        // Idris's own constructors carried no actor slot at all).
+        Action::FlipCoins(agent, count, called) => Ok(app(
+            "FlipCoins",
+            vec![
+                emit_reference(agent)?,
+                emit_count(count)?,
+                if *called { "True" } else { "False" }.to_string(),
+            ]
+            .into(),
+        )),
+        Action::RollDice(agent, count, sides) => Ok(app(
+            "RollDice",
+            vec![
+                emit_reference(agent)?,
+                emit_count(count)?,
+                sides.to_string(),
+            ]
+            .into(),
+        )),
+        Action::RollPlanarDie(agent) => {
+            Ok(app("RollPlanarDie", vec![emit_reference(agent)?].into()))
+        }
+        Action::PutCounters(r, kind, count) => {
             let k = counter_ref_idris(kind.as_str())?;
             Ok(app(
                 "PutCounters",
                 vec![k, emit_count(count)?, emit_reference(r)?].into(),
             ))
         }
-        PlayerAction::RemoveCounters(r, kind, count) => {
+        Action::RemoveCounters(r, kind, count) => {
             let k = counter_ref_idris(kind.as_str())?;
             Ok(app(
                 "RemoveCounters",
                 vec![k, emit_count(count)?, emit_reference(r)?].into(),
             ))
         }
-        PlayerAction::Shuffle => Ok(app("shuffleBy", vec![emit_reference(actor)?].into())),
-        PlayerAction::SetLife(c) => Ok(app(
-            "setLifeToBy",
-            vec![emit_reference(actor)?, emit_count(c)?].into(),
-        )),
-        PlayerAction::Reveal { what, .. } => {
-            if !matches!(actor, Reference::You) {
-                return Err(gap("Reveal has no Idris actor slot"));
-            }
-            Ok(app("Reveal", vec![emit_reference(what)?].into()))
-        }
-        PlayerAction::RemoveDamage(r) => {
-            Ok(app("RemoveAllDamage", vec![emit_reference(r)?].into()))
-        }
-        PlayerAction::WinGame => Ok(app(
-            "Conclude",
-            vec![app("WinGame", vec![emit_reference(actor)?].into())].into(),
-        )),
-        PlayerAction::LoseGame => Ok(app(
-            "Conclude",
-            vec![app("LoseGame", vec![emit_reference(actor)?].into())].into(),
-        )),
-        // [CR#705.1,706.1,901.9]: Idris's `RollDice`/`FlipCoins`/
-        // `RollPlanarDie` carry NO actor slot at all (unlike
-        // `Draw`/`GainLife`/…'s `{default You actor}`) — a non-`You` agent
-        // is a gap, matching the `Tap`/`Untap`/`PutCounters`/`Create` family
-        // above.
-        PlayerAction::FlipCoins(count, called) => {
-            if !matches!(actor, Reference::You) {
-                return Err(gap("FlipCoins has no Idris actor slot"));
-            }
-            Ok(app(
-                "FlipCoins",
-                vec![
-                    emit_count(count)?,
-                    if *called { "True" } else { "False" }.to_string(),
-                ]
-                .into(),
-            ))
-        }
-        PlayerAction::RollDice(count, sides) => {
-            if !matches!(actor, Reference::You) {
-                return Err(gap("RollDice has no Idris actor slot"));
-            }
-            Ok(app(
-                "RollDice",
-                vec![emit_count(count)?, sides.to_string()].into(),
-            ))
-        }
-        PlayerAction::RollPlanarDie => {
-            if !matches!(actor, Reference::You) {
-                return Err(gap("RollPlanarDie has no Idris actor slot"));
-            }
-            Ok("RollPlanarDie".to_string())
-        }
-        // A stack copy ([CR#707.10]) carries no copiable-value alterations —
-        // the modification list is empty (`Copy r []`). Exception-bearing
-        // copies are the token/becomes/enters sites, not `CopySpell`.
-        PlayerAction::CopySpell(what) => Ok(app(
-            "Copy",
-            vec![emit_reference(what)?, "[]".to_string()].into(),
-        )),
-        // [CR#608.2g]: casting a referenced card as a resolution effect. The
-        // Idris north-star `Core.idr` has no resolution-time `Cast` effect verb
-        // (casting there rides the 601 deontic-permission pipeline, `Enact
-        // Cast`), so the probe records this as an unmapped gap rather than
-        // data-fying an intrinsic it doesn't model.
-        PlayerAction::Cast(..) => Err(gap(
-            "PlayerAction::Cast (resolution-time cast-as-effect, [CR#608.2g]) has no Idris \
-             OneShotEffect counterpart — Idris casts via the 601 permission pipeline",
-        )),
-        // [CR#707.12]: casting a COPY of an object as a resolution effect — the
-        // same class of gap as `PlayerAction::Cast` above. Idris has no
-        // resolution-time cast verb (casting rides the 601 deontic-permission
-        // pipeline, `Enact Cast`), so the copy-cast has no `OneShotEffect`
-        // counterpart either; the `CopySpec` it carries has no cast verb to
-        // attach to. Its own arm (not the generic catch-all) so the reason is
-        // explicit.
-        PlayerAction::CastCopy(_) => Err(gap(
-            "PlayerAction::CastCopy (cast-a-copy-as-effect, [CR#707.12]) has no Idris \
-             OneShotEffect counterpart — Idris casts via the 601 permission pipeline, with no \
-             resolution-time cast verb (same class as PlayerAction::Cast)",
-        )),
-        // `{default You by}` on the Idris side: the terse positional form
-        // when `by` is the default `You` (mirrors the `Tap`/`Untap`-style
-        // bare `app` calls above); named-field syntax to override it
-        // otherwise, following `MayCastFor`'s `{from = ..., tag = ...}`
-        // direct-named-field precedent above.
-        PlayerAction::ChooseNewTargets { of, by } => {
-            let of_ = emit_reference(of)?;
-            Ok(match by {
-                Reference::You => app("ChooseNewTargets", vec![of_].into()),
-                other => format!(
-                    "(ChooseNewTargets {of_} {{by = {}}})",
-                    emit_reference(other)?
-                ),
-            })
-        }
-        PlayerAction::VentureIntoDungeon
-        | PlayerAction::GetEmblem(_)
-        | PlayerAction::GetDesignation(_)
-        | PlayerAction::ChooseAndNote(..)
-        | PlayerAction::RestartGame => Err(gap(format!(
-            "{pa:?} not yet mapped (no Idris counterpart or not implemented)"
-        ))),
-        PlayerAction::Expanded(_) => Err(gap(
-            "unexpanded PlayerAction macro invocation remained after expand_all",
+        // "shuffle a collection" ([CR#701.24a]) — the ACTOR CONCEPT IS GONE,
+        // replaced by the collection argument (Law 3). Only `LibraryOf` has an
+        // Idris counterpart so far (added alongside this verb); any other
+        // `Selection` is a gap via `emit_selection`.
+        Action::Shuffle(sel) => Ok(app("Shuffle", vec![emit_selection(sel)?].into())),
+        Action::Reveal { what, .. } => Ok(app("Reveal", vec![emit_reference(what)?].into())),
+        Action::RemoveDamage(r) => Ok(app("RemoveDamage", vec![emit_reference(r)?].into())),
+        // T3 scope (collapsing MayPay/MustPay into `May(Pay)`) — Idris mints no
+        // `Pay` constructor this task; bare effect-position `Pay` is
+        // unspellable in Rust too ([CR#118.12]'s own doc), so no canon card
+        // reaches this arm.
+        Action::Pay(_) => Err(gap("Action::Pay has no Idris counterpart yet (T3 scope)")),
+        Action::Expanded(_) => Err(gap(
+            "unexpanded Action macro invocation remained after expand_all",
         )),
     }
 }
@@ -2121,7 +2127,7 @@ fn emit_token_spec(spec: &TokenSpec) -> R {
             })?
             .into(),
         // A token copy ([CR#707.2]) does NOT go through this characteristics
-        // emitter: the `PlayerAction::Create` arm intercepts `TokenSpec::Copy`
+        // emitter: the `Action::Create` arm intercepts `TokenSpec::Copy`
         // upstream and emits the `Copy` Action (source + copiable-value
         // exceptions) instead of `createTokenAttacking`. This arm is thus
         // unreachable in the Create path; kept for match exhaustiveness.
@@ -2352,7 +2358,7 @@ fn emit_copy_modification(cs: &CopySpec) -> R {
     Ok(app("ApplyAll", vec![ilist(mods.into())].into()))
 }
 
-/// A token copy ([CR#707.2]) inside `PlayerAction::Create`: the `Copy` Action
+/// A token copy ([CR#707.2]) inside `Action::Create`: the `Copy` Action
 /// carrying the source plus its "except …" copiable-value changes ([CR#707.9])
 /// in its own modification-list arg — NOT `createTokenAttacking`, and NO
 /// `BecomeCopyOf` wrapper (the `Copy` verb itself is the copy). It has no count
@@ -3347,9 +3353,9 @@ fn merge_one_of(fs: &[EventFilter]) -> Result<KindsAndFacets, Gap> {
 // OneShotEffect
 // ===========================================================================
 
-/// Fold `Batch(n, Act(By(who, DrawCard)))` into Idris's count-carrying
-/// `Action.Draw` — `Act (drawBy who n)`. `None` for any other `Batch` body,
-/// which then emits the ordinary shell form.
+/// Fold `Batch(n, Act(DrawCard(who)))` into Idris's count-carrying
+/// `Action.DrawCard` — `Act (DrawCard who n)`. `None` for any other `Batch`
+/// body, which then emits the ordinary shell form.
 ///
 /// Rust models "draw N" as N SEQUENTIAL single-card draws, because the
 /// individual card draw is the replaceable unit ([CR#121.2]) and the `Batch` is
@@ -3363,13 +3369,13 @@ fn merge_one_of(fs: &[EventFilter]) -> Result<KindsAndFacets, Gap> {
 /// [CR#121], not one of the keyword actions [CR#701] enumerates, and [CR#121.5]
 /// makes it irreducible — there is no body to reconstruct coordinates from.)
 fn emit_batched_draw(n: &Count, body: &OneShotEffect) -> Result<Option<String>, Gap> {
-    let OneShotEffect::Act(Action::By(who, PlayerAction::DrawCard)) = peel_os(body) else {
+    let OneShotEffect::Act(Action::DrawCard(who)) = peel_os(body) else {
         return Ok(None);
     };
     Ok(Some(app(
         "Act",
         vec![app(
-            "drawBy",
+            "DrawCard",
             vec![emit_reference(who)?, emit_count(n)?].into(),
         )]
         .into(),
@@ -3378,23 +3384,25 @@ fn emit_batched_draw(n: &Count, body: &OneShotEffect) -> Result<Option<String>, 
 
 fn emit_effect(e: &OneShotEffect) -> R {
     Ok(match e {
-        // [CR#104.2b,104.3e]: win/lose live in Rust as `PlayerAction::
-        // {WinGame,LoseGame}` (an `Action`, reached via `Act`), but Idris's
+        // [CR#104.2b,104.3e]: win/lose live in Rust as `Action::
+        // {WinGame,LoseGame}` (reached via `Act`), but Idris's
         // `Conclude : Outcome b -> OneShotEffect b` is its OWN top-level
         // `OneShotEffect` constructor, never wrapped in `Act` — the bridge
-        // `emit_player_action`'s own `WinGame`/`LoseGame` arms already build
-        // `(Conclude (WinGame/LoseGame actor))` whole; this arm must not
+        // `emit_action`'s own `WinGame`/`LoseGame` arms already build
+        // `(Conclude (WinGame/LoseGame patient))` whole; this arm must not
         // re-wrap that in `Act`.
-        OneShotEffect::Act(a @ Action::By(_, PlayerAction::WinGame | PlayerAction::LoseGame)) => {
-            emit_action(a)?
-        }
+        OneShotEffect::Act(a @ (Action::WinGame(_) | Action::LoseGame(_))) => emit_action(a)?,
         // Token copy ([CR#707.2]): the `Copy` Action carries no multiplicity of
         // its own (unlike `createTokenAttacking`'s count arg), so "create N
         // copies" wraps the single-copy `Act` in a `Batch` — the Mill/Draw
-        // per-unit precedent. `emit_player_action` (via `emit_action`) builds
-        // the bare `(Copy src mods)`; count == 1 needs no `Batch`.
+        // per-unit precedent. `emit_action` builds the bare `(Copy src mods)`;
+        // count == 1 needs no `Batch`.
         OneShotEffect::Act(
-            a @ Action::By(_, PlayerAction::Create(count, TokenSpec::Copy(_), _)),
+            a @ Action::Create {
+                count,
+                token: TokenSpec::Copy(_),
+                ..
+            },
         ) => {
             let single = app("Act", vec![emit_action(a)?].into());
             if count.literal_value() == Some(1) {
@@ -3436,15 +3444,23 @@ fn emit_effect(e: &OneShotEffect) -> R {
         OneShotEffect::SeparatePiles(sp) => emit_separate_piles(sp)?,
         OneShotEffect::ChoosePile(cp) => emit_choose_pile(cp)?,
         // `mayWith` takes the (default-`Nothing`) `ifDid`/`ifNot` positionally.
-        OneShotEffect::May(m) => app(
-            "mayWith",
-            vec![
-                emit_effect(&m.effect)?,
-                opt_effect(&m.if_did)?,
-                opt_effect(&m.if_not)?,
-            ]
-            .into(),
-        ),
+        // `m.who` (the offeree, required — Law 2, no read-time default) has no
+        // Idris slot on `May` at all; a non-`You` offeree is a gap rather than
+        // silently dropped.
+        OneShotEffect::May(m) => {
+            if !matches!(m.who, Reference::You) {
+                return Err(gap("OneShotEffect::May has no Idris `who` slot"));
+            }
+            app(
+                "mayWith",
+                vec![
+                    emit_effect(&m.effect)?,
+                    opt_effect(&m.if_did)?,
+                    opt_effect(&m.if_not)?,
+                ]
+                .into(),
+            )
+        }
         // `ifElse` takes the (default-`Nothing`) `otherwise` positionally.
         OneShotEffect::If(i) => app(
             "ifElse",
@@ -3946,37 +3962,33 @@ mod tests {
         );
     }
 
-    /// `ChooseNewTargets { by: You }` (the default) uses the terse bare
-    /// positional form — no `{by = ...}` field — mirroring the `Tap`/`Untap`
-    /// style `app` calls it sits beside ([CR#115.7d,707.10c]).
+    /// `Action::Retarget { mode, of, by }` emits as a fully positional
+    /// `(Retarget <mode> <of> <by>)` — Law 2 stripped `by`'s old
+    /// `{default You}`, so there is no more terse/named-field split; every
+    /// call is the same shape regardless of `by` ([CR#115.7d,707.10c]).
     #[test]
-    fn choose_new_targets_you_emits_bare_positional() {
-        let action = PlayerAction::ChooseNewTargets {
+    fn retarget_you_emits_fully_positional() {
+        let action = Action::Retarget {
+            mode: RetargetMode::ChooseNew,
             of: Reference::This,
             by: Reference::You,
         };
-        let out = emit_player_action(&action, &Reference::You)
-            .expect("ChooseNewTargets with default `by` should emit");
-        assert_eq!(out, "(ChooseNewTargets This)");
-        assert!(
-            !out.contains("by"),
-            "default `by = You` shouldn't surface a `{{by = ...}}` field, got: {out}"
-        );
+        let out = emit_action(&action).expect("Retarget with `by = You` should emit");
+        assert_eq!(out, "(Retarget ChooseNew This You)");
     }
 
     /// A non-default `by` (e.g. an opponent picking new targets, à la Bolt
-    /// Bend) falls back to the named-field `{by = ...}` form, following
-    /// `MayCastFor`'s `{from = ..., tag = ...}` direct-named-field precedent
-    /// ([CR#115.7d,707.10c]).
+    /// Bend) emits the exact same positional shape — no named-field fallback
+    /// needed any more ([CR#115.7d,707.10c]).
     #[test]
-    fn choose_new_targets_other_emits_named_by_field() {
-        let action = PlayerAction::ChooseNewTargets {
+    fn retarget_other_emits_fully_positional() {
+        let action = Action::Retarget {
+            mode: RetargetMode::ChangeOne,
             of: Reference::This,
             by: Reference::Opponent,
         };
-        let out = emit_player_action(&action, &Reference::You)
-            .expect("ChooseNewTargets with a non-default `by` should emit");
-        assert_eq!(out, "(ChooseNewTargets This {by = (Only OpponentOf)})");
+        let out = emit_action(&action).expect("Retarget with a non-default `by` should emit");
+        assert_eq!(out, "(Retarget ChangeOne This (Only OpponentOf))");
     }
 
     /// A `TopOfLibrary`-slice body for a slice/reorder verb
@@ -4014,14 +4026,14 @@ mod tests {
     }
 
     /// Draw does NOT go through `KeywordActionSpec`: it is [CR#121], not a
-    /// keyword action ([CR#701]), so `By(who, DrawCard)` emits the Idris
-    /// `Action.Draw` player verb via the positional `drawBy` helper. A bare
-    /// per-unit draw reached off the `Batch` path carries count 1 ([CR#121.2]).
+    /// keyword action ([CR#701]), so `DrawCard(who)` emits the Idris
+    /// `Action.DrawCard` verb directly. A bare per-unit draw reached off the
+    /// `Batch` path carries count 1 ([CR#121.2]).
     #[test]
     fn draw_emits_the_player_verb_not_a_keyword_spec() {
         let draw = emit_action(&Action::draw_one(Reference::You)).expect("draw should emit");
         assert!(
-            draw.contains("drawBy") && draw.contains("You"),
+            draw.contains("DrawCard") && draw.contains("You"),
             "draw emits the player verb with its actor: {draw}"
         );
         assert!(
@@ -4030,8 +4042,8 @@ mod tests {
         );
     }
 
-    /// [CR#121.2a]: `Batch(n, Act(By(who, DrawCard)))` FOLDS into Idris's
-    /// count-carrying `Action.Draw`, because `actionIntro` derives the
+    /// [CR#121.2a]: `Batch(n, Act(DrawCard(who)))` FOLDS into Idris's
+    /// count-carrying `Action.DrawCard`, because `actionIntro` derives the
     /// card/amount anaphora from that count ("draw three cards, then gain THAT
     /// MUCH life") — an enclosing `Batch` would leave the anaphora at 1.
     #[test]
@@ -4042,7 +4054,7 @@ mod tests {
         ))
         .expect("a batched draw should emit");
         assert!(
-            out.contains("drawBy") && out.contains("Literal 3"),
+            out.contains("DrawCard") && out.contains("Literal 3"),
             "the Batch count folds onto the verb: {out}"
         );
         assert!(
@@ -4125,8 +4137,7 @@ mod tests {
     /// [CR#701.8a,701.9a,701.17a]: a guarded `Move` (`from: Some(_)`) can't
     /// route through `moveAttacking` — that wrapper's own Idris signature has
     /// no `from` slot to name — so it bypasses the wrapper for the raw `Move`
-    /// constructor with BOTH named fields spelled explicitly, mirroring
-    /// `ChooseNewTargets`'s `{by = ...}` precedent for a non-default value.
+    /// constructor with BOTH named fields spelled explicitly.
     #[test]
     fn move_from_guard_emits_named_field_on_the_raw_constructor() {
         let action = deckmaste_core::Action::move_if_in(
@@ -4213,10 +4224,12 @@ mod tests {
     }
 
     fn token_copy_effect(count: Count, cs: CopySpec) -> OneShotEffect {
-        OneShotEffect::Act(Action::By(
-            Reference::You,
-            PlayerAction::Create(count, TokenSpec::Copy(cs.into()), [].into()),
-        ))
+        OneShotEffect::Act(Action::Create {
+            agent: Reference::You,
+            count,
+            token: TokenSpec::Copy(cs.into()),
+            riders: [].into(),
+        })
     }
 
     /// [CR#707.2]: a bare single token copy is the `Copy` Action with an empty
@@ -4262,16 +4275,14 @@ mod tests {
     /// `Copy`, dropping the multiplier.
     #[test]
     fn token_copy_count_gt_one_via_cost_do_gaps() {
-        let action = Action::By(
-            Reference::You,
-            PlayerAction::Create(
-                Count::Literal(2),
-                TokenSpec::Copy(
-                    copy_spec(CopySource::Object(Reference::Target(0)), [].into()).into(),
-                ),
-                [].into(),
+        let action = Action::Create {
+            agent: Reference::You,
+            count: Count::Literal(2),
+            token: TokenSpec::Copy(
+                copy_spec(CopySource::Object(Reference::Target(0)), [].into()).into(),
             ),
-        );
+            riders: [].into(),
+        };
         let err = emit_cost_component(&CostComponent::Do(Arc::new(action)))
             .expect_err("a count>1 token-copy Do should gap, not silently drop the multiplier");
         assert!(
@@ -4285,16 +4296,14 @@ mod tests {
     /// wrapper must not regress the count==1 case's plain `Copy` emission.
     #[test]
     fn token_copy_count_one_via_cost_do_still_emits() {
-        let action = Action::By(
-            Reference::You,
-            PlayerAction::Create(
-                Count::Literal(1),
-                TokenSpec::Copy(
-                    copy_spec(CopySource::Object(Reference::Target(0)), [].into()).into(),
-                ),
-                [].into(),
+        let action = Action::Create {
+            agent: Reference::You,
+            count: Count::Literal(1),
+            token: TokenSpec::Copy(
+                copy_spec(CopySource::Object(Reference::Target(0)), [].into()).into(),
             ),
-        );
+            riders: [].into(),
+        };
         let out = emit_cost_component(&CostComponent::Do(Arc::new(action)))
             .expect("a count==1 token-copy Do should still emit");
         assert_eq!(out, "(Do (Copy (Target 0) []))");
@@ -4404,13 +4413,10 @@ mod tests {
     /// own gap arm (not the generic catch-all), citing the reason.
     #[test]
     fn cast_copy_gaps_with_its_own_reason() {
-        let err = emit_player_action(
-            &PlayerAction::CastCopy(copy_spec(
-                CopySource::Object(Reference::Target(0)),
-                [].into(),
-            )),
-            &Reference::You,
-        )
+        let err = emit_action(&Action::CastCopy(
+            Reference::You,
+            copy_spec(CopySource::Object(Reference::Target(0)), [].into()),
+        ))
         .expect_err("CastCopy should gap");
         let msg = err.to_string();
         assert!(

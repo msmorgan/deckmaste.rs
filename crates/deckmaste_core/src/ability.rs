@@ -128,15 +128,16 @@ pub(crate) fn is_false(b: &bool) -> bool {
     !*b
 }
 
-/// How a modal spell or ability's modes are chosen ([CR#700.2]). `count` is a
-/// [`Quantity`](crate::Quantity) — "choose one" = `Exactly(1)`, escalate's
-/// printed "one or more" = `AtLeast(1)`. `up_to` is the "up to N" form
-/// ([CR#700.2]); `repeats` allows choosing the same mode more than once
-/// ([CR#700.2d]); `chooser` names who chooses ("An opponent chooses one —",
-/// [CR#700.2] — default `You`, omitted on write). Modes and optional-cost
-/// intentions are announced at mode choice ([CR#601.2b]); per-mode targets are
-/// chosen only for chosen modes ([CR#601.2c]); the total cost locks at
-/// [CR#601.2f].
+/// How a modal spell or ability's modes are chosen ([CR#700.2]) — `Modal`'s
+/// decider (spec §7 "Modal gains who"; [CR#700.2e], Fatal Lore "An opponent
+/// chooses one —") and payload rows. `count` is a [`Quantity`](crate::Quantity)
+/// — "choose one" = `Exactly(1)`, escalate's printed "one or more" =
+/// `AtLeast(1)`. `up_to` is the "up to N" form ([CR#700.2]); `repeats` allows
+/// choosing the same mode more than once ([CR#700.2d]); `chooser` names who
+/// chooses — always spelled (Law 2: no read-time default on a decider slot).
+/// Modes and optional-cost intentions are announced at mode choice
+/// ([CR#601.2b]); per-mode targets are chosen only for chosen modes
+/// ([CR#601.2c]); the total cost locks at [CR#601.2f].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ChooseSpec {
     pub count: crate::Quantity,
@@ -144,22 +145,9 @@ pub struct ChooseSpec {
     pub up_to: bool,
     #[serde(default, skip_serializing_if = "is_false")]
     pub repeats: bool,
-    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub chooser: crate::Reference,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rider: Option<ModalCostRider>,
-}
-
-/// serde default for [`ChooseSpec::chooser`] — the choosing player is the
-/// spell/ability's controller ([CR#700.2]).
-fn ref_you() -> crate::Reference {
-    crate::Reference::You
-}
-
-/// `skip_serializing_if` predicate for [`ChooseSpec::chooser`]: the default
-/// `You` is omitted from RON.
-fn ref_is_you(r: &crate::Reference) -> bool {
-    matches!(r, crate::Reference::You)
 }
 
 /// A cost rider on a modal choose spec — the entwine/escalate family
@@ -307,7 +295,7 @@ mod tests {
     use crate::Count;
     use crate::Reference;
     use crate::action::Action;
-    use crate::action::PlayerAction;
+    use crate::action::LifeOp;
     use crate::cost::CostComponent;
     use crate::effect::OneShotEffect;
 
@@ -317,7 +305,7 @@ mod tests {
 
     #[test]
     fn activated_ability_parses() {
-        let ability = read_ability("Activated(cost: [Tap], effect: GainLife(Literal(1)))");
+        let ability = read_ability("Activated(cost: [Tap], effect: ChangeLife(You, Up(1)))");
         assert_eq!(
             ability,
             Ability::activated(ActivatedAbility {
@@ -327,9 +315,9 @@ mod tests {
                 cost: crate::Cost(vec![CostComponent::Tap].into()),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::ChangeLife(
                     Reference::You,
-                    PlayerAction::GainLife(Count::Literal(1))
+                    LifeOp::Up(Count::Literal(1))
                 )),
             })
         );
@@ -363,7 +351,7 @@ mod tests {
     fn activated_from_zone_defaults_battlefield_and_reads_hand() {
         // omitted `from` → None (the battlefield default), omitted on write.
         let parsed: ActivatedAbility = crate::ron::options()
-            .from_str("(cost: [Tap], effect: GainLife(Literal(1)))")
+            .from_str("(cost: [Tap], effect: ChangeLife(You, Up(1)))")
             .unwrap();
         assert_eq!(parsed.from, None);
         let written = crate::ron::options().to_string(&parsed).unwrap();
@@ -371,7 +359,7 @@ mod tests {
 
         // `from: Hand` reads as Some(Hand) and round-trips.
         let from_hand: ActivatedAbility = crate::ron::options()
-            .from_str("(cost: [Tap], from: Hand, effect: GainLife(Literal(1)))")
+            .from_str("(cost: [Tap], from: Hand, effect: ChangeLife(You, Up(1)))")
             .unwrap();
         assert_eq!(from_hand.from, Some(crate::Zone::Hand));
         let reser = crate::ron::options().to_string(&from_hand).unwrap();
@@ -385,16 +373,16 @@ mod tests {
     #[test]
     fn triggered_ability_parses() {
         let ability = read_ability(
-            "Triggered(event: ZoneChange(what: Ref(This), to: Graveyard), effect: GainLife(Literal(1)))",
+            "Triggered(event: ZoneChange(what: Ref(This), to: Graveyard), effect: ChangeLife(You, Up(1)))",
         );
         let Ability::Triggered(triggered) = ability else {
             panic!("expected a triggered ability");
         };
         assert_eq!(
             triggered.effect,
-            OneShotEffect::Act(Action::By(
+            OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(1))
+                LifeOp::Up(Count::Literal(1))
             ))
         );
         assert!(triggered.condition.is_none());
@@ -410,7 +398,7 @@ mod tests {
     fn triggered_from_zone_defaults_battlefield_and_reads_graveyard() {
         let omitted: TriggeredAbility = crate::ron::options()
             .from_str(
-                "(event: ZoneChange(what: Ref(This), to: Graveyard), effect: GainLife(Literal(1)))",
+                "(event: ZoneChange(what: Ref(This), to: Graveyard), effect: ChangeLife(You, Up(1)))",
             )
             .unwrap();
         assert_eq!(omitted.from, None);
@@ -418,7 +406,9 @@ mod tests {
         assert!(!written.contains("from"), "absent from omitted: {written}");
 
         let from_gy: TriggeredAbility = crate::ron::options()
-            .from_str("(event: Cast(who: Ref(You)), from: Graveyard, effect: GainLife(Literal(1)))")
+            .from_str(
+                "(event: Cast(who: Ref(You)), from: Graveyard, effect: ChangeLife(You, Up(1)))",
+            )
             .unwrap();
         assert_eq!(from_gy.from, Some(crate::Zone::Graveyard));
         let reser = crate::ron::options().to_string(&from_gy).unwrap();
@@ -576,30 +566,34 @@ mod tests {
         );
     }
 
-    /// `ChooseSpec` carries a `Quantity` count, defaults `chooser` to `You`
-    /// (omitted on write) and `rider` to `None`, and round-trips with the
-    /// entwine/escalate riders ([CR#700.2,702.42a,702.120a]).
+    /// `ChooseSpec` carries a `Quantity` count, a spelled `chooser` (Law 2:
+    /// no read-time default — the decider is always spelled), a defaulted
+    /// `rider` (`None`), and round-trips with the entwine/escalate riders
+    /// ([CR#700.2,702.42a,702.120a]).
     #[test]
     fn choose_spec_quantity_chooser_and_rider_round_trip() {
         use crate::Count;
         use crate::Quantity;
 
-        // Bare "choose one": count only; chooser/rider omitted on write.
+        // Bare "choose one": count + chooser; rider omitted on write.
         let one: ChooseSpec = crate::ron::options()
-            .from_str("(count: Range(1, 1))")
+            .from_str("(count: Range(1, 1), chooser: You)")
             .unwrap();
         assert_eq!(one.count, Quantity::one());
         assert_eq!(one.chooser, crate::Reference::You);
         assert!(one.rider.is_none());
         let written = crate::ron::options().to_string(&one).unwrap();
         assert!(
-            !written.contains("chooser") && !written.contains("rider"),
-            "defaults omitted: {written}"
+            !written.contains("rider"),
+            "rider default omitted: {written}"
         );
+        assert!(written.contains("You"), "chooser is spelled: {written}");
 
         // Escalate: "one or more" + the per-extra-mode cost ([CR#702.120a]).
         let escalate: ChooseSpec = crate::ron::options()
-            .from_str("(count: Range(1, None), rider: Escalate([Mana([Generic(1)])]))")
+            .from_str(
+                "(count: Range(1, None), chooser: You, rider: Escalate([Mana([Generic(1)])]))",
+            )
             .unwrap();
         assert_eq!(
             escalate.count,
@@ -628,14 +622,14 @@ mod tests {
     fn sacrifice_this_reads_flat() {
         // Confirms the new flattened Selection (`This`, not `That(This)`).
         let ability = read_ability(
-            "Activated(cost: [Tap, Do(Sacrifice(This))], effect: AddMana(Literal(1), AnyColor))",
+            "Activated(cost: [Tap, Do(Sacrifice(You, This))], effect: AddMana(You, Literal(1), AnyColor))",
         );
         let Ability::Activated(activated) = ability else {
             panic!("expected an activated ability");
         };
         assert_eq!(
             activated.cost[1],
-            CostComponent::do_(PlayerAction::Sacrifice(Reference::This))
+            CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This))
         );
     }
 }

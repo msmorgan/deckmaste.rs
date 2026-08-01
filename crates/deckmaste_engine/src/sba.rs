@@ -811,7 +811,6 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::Count;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::Token;
 
@@ -828,10 +827,12 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Create(Count::Literal(1), token.into(), vec![].into()),
-            )),
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: token.into(),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // TokenCreated applies
@@ -970,12 +971,12 @@ mod tests {
     /// no `AbilityCountered` fires for it and the object survives.
     #[test]
     fn battlefield_token_copy_survives_the_copy_cease_sweep() {
+        use deckmaste_core::Action;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
         use deckmaste_core::Count;
         use deckmaste_core::ObjectKind;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
 
         use crate::event::AbilityCountered;
@@ -983,17 +984,18 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = crate::stack::Frame::bare(bear, PlayerId(0));
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
                         source: CopySource::Object(Reference::This),
                         exceptions: vec![],
                     }
                     .into(),
                 ),
-                vec![].into(),
-            )),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // TokenCreated applies
@@ -1333,7 +1335,6 @@ mod tests {
         use deckmaste_core::Cmp;
         use deckmaste_core::Count;
         use deckmaste_core::Countable;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::StatePredicate;
 
@@ -1366,9 +1367,9 @@ mod tests {
         );
         let ascend = Ability::r#static(StaticEffect::Sba {
             when: Arc::new(gate),
-            then: Arc::new(OneShotEffect::Act(Action::By(
+            then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
                 Reference::You,
-                PlayerAction::GetDesignation(name),
+                name,
             ))),
         });
         let _ascender = on_field(
@@ -1426,7 +1427,6 @@ mod tests {
         use deckmaste_core::Cmp;
         use deckmaste_core::Count;
         use deckmaste_core::Countable;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::StatePredicate;
 
@@ -1462,9 +1462,9 @@ mod tests {
                     ]
                     .into(),
                 )),
-                then: Arc::new(OneShotEffect::Act(Action::By(
+                then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
                     Reference::You,
-                    PlayerAction::GetDesignation(name),
+                    name,
                 ))),
             })
         };

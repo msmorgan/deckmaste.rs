@@ -228,7 +228,9 @@ mod tests {
     fn pay_life_cost() {
         assert_eq!(
             act("{1}{B}, Pay 2 life: Draw a card.").as_deref(),
-            Some("Activated(cost: [Mana([Generic(1),Black]), Do(LoseLife(2))], effect: Draw(1))")
+            Some(
+                "Activated(cost: [Mana([Generic(1),Black]), Do(ChangeLife(You, Down(2)))], effect: Draw(1))"
+            )
         );
     }
 
@@ -264,7 +266,7 @@ mod tests {
         assert_eq!(
             act("{10}, {T}, Sacrifice ~: You gain 15 life.").as_deref(),
             Some(
-                "Activated(cost: [Mana([Generic(10)]), Tap, SacrificeThis], effect: GainLife(15))"
+                "Activated(cost: [Mana([Generic(10)]), Tap, SacrificeThis], effect: ChangeLife(You, Up(15)))"
             )
         );
     }
@@ -275,7 +277,7 @@ mod tests {
             act("Sacrifice a creature: ~ deals 1 damage to any target.").as_deref(),
             Some(
                 "Activated(cost: [With(binder: ChooseOne(filter: Creature), \
-                 body: [Do(Sacrifice(That(Permanent)))])], \
+                 body: [Do(Sacrifice(You, That(Permanent)))])], \
                  effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, Target(0))))"
             )
         );
@@ -293,7 +295,7 @@ mod tests {
             Some(
                 "Activated(cost: [With(binder: ChooseOne(filter: \
                  And([Permanent, Subtype(Goblin), Not(Ref(This))])), \
-                 body: [Do(Sacrifice(That(Permanent)))])], effect: Draw(1))"
+                 body: [Do(Sacrifice(You, That(Permanent)))])], effect: Draw(1))"
             )
         );
     }
@@ -305,7 +307,7 @@ mod tests {
             act("Sacrifice two creatures: Draw a card.").as_deref(),
             Some(
                 "Activated(cost: [With(binder: Choose(quantity: Exactly(2), filter: Creature), \
-                 body: [Do(Sacrifice(That(Permanent)))])], \
+                 body: [Do(Sacrifice(You, That(Permanent)))])], \
                  effect: Draw(1))"
             )
         );
@@ -446,7 +448,7 @@ mod tests {
         assert_eq!(
             act("{2}: You may return ~ from your graveyard to your hand.").as_deref(),
             Some(
-                "Activated(cost: [Mana([Generic(2)])], from: Graveyard, effect: May(effect: Move(This, Hand)))"
+                "Activated(cost: [Mana([Generic(2)])], from: Graveyard, effect: May(who: You, effect: Move(This, Hand)))"
             )
         );
         assert_eq!(

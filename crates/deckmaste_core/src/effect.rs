@@ -14,17 +14,17 @@ use crate::SupportsMacros;
 use crate::TargetSpec;
 use crate::ability::TriggeredAbility;
 use crate::action::Action;
-use crate::action::PlayerAction;
 use crate::continuous::Duration;
 use crate::continuous::StaticEffect;
 use crate::reference::Reference;
 
 /// An effect an ability produces ([CR#608]). Compartmentalized in Rust; flat in
-/// RON (`Draw(1)`, never `Act(By(You, Draw(1)))`): the `Act` tag never appears
-/// in text. Its `#[macro_ron(flatten)]` marker lifts [`Action`]'s accepted
-/// names into `OneShotEffect`'s dispatch — transitively through `Action::By`'s
-/// embed, so a bare player verb (`Draw(1)`) reads at an effect slot as the
-/// implicit-`You` default `Act(By(You, …))` — and the write is transparent.
+/// RON (`DrawCard(You)`, never `Act(DrawCard(You))`): the `Act` tag never
+/// appears in text. Its `#[macro_ron(flatten)]` marker lifts [`Action`]'s
+/// accepted names into `OneShotEffect`'s dispatch, so a player verb
+/// (`DrawCard(You)`) reads at an effect slot exactly like a source-agent verb
+/// — the agent is spelled, never a read-time default — and the write is
+/// transparent.
 ///
 /// A single instruction stands bare (`effect: DealDamage(This, 3, It)`); the
 /// structural forms (`Sequentially`, `May`, `If`, …) are the corpus's
@@ -206,13 +206,6 @@ pub enum OneShotEffect {
 }
 
 impl OneShotEffect {
-    /// A bare player verb in the implicit-"you" default — `Act(By(You, …))`,
-    /// the form a player verb written bare in an effect slot reads as.
-    #[must_use]
-    pub fn act_by_you(action: PlayerAction) -> OneShotEffect {
-        OneShotEffect::Act(Action::by_you(action))
-    }
-
     /// "`who` mills `count`" ([CR#701.17a]) — a slice-family keyword action:
     /// [`Batch`](OneShotEffect::Batch) over the per-unit [`Action::mill_one`],
     /// so a count-doubling replacement (Bruvac, [CR#121.2a,616.1g]) bites the
@@ -271,9 +264,17 @@ impl Targeted {
     }
 }
 
-/// `May { do, if_did, if_not }` — `do` is a keyword, so the field is `effect`.
+/// `May { who, do, if_did, if_not }` — `do` is a keyword, so the field is
+/// `effect`. `who` is the decider ([CR#608.2d]; Browbeat's decider ≠
+/// performer — "Any player may have Browbeat deal 5 damage to them" — proves
+/// the slot is not derivable, Law 3), spelling today's implicit "you may"
+/// decider (no read-time default, Law 2). Branch semantics (`if_did`/
+/// `if_not` invoking [CR#118.12] cost semantics on `effect`) stay unwired —
+/// grammar only; collapsing `MayPay`/`MustPay` into this node is a later
+/// task.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct May {
+    pub who: Reference,
     pub effect: Arc<OneShotEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub if_did: Option<Arc<OneShotEffect>>,
@@ -461,7 +462,7 @@ pub enum PileSource {
 mod tests {
     use super::*;
     use crate::Count;
-    use crate::action::PlayerAction;
+    use crate::action::LifeOp;
     use crate::mana::ManaSpec;
     use crate::reference::Reference;
     use crate::selection::Selection;
@@ -473,41 +474,43 @@ mod tests {
         crate::ron::options().to_string(effect).unwrap()
     }
 
-    /// Wraps a bare player action in the implicit-you default — the form a
-    /// player verb written bare in an effect slot reads as.
-    fn act_by_you(pa: PlayerAction) -> OneShotEffect {
-        OneShotEffect::Act(Action::By(Reference::You, pa))
-    }
-
-    /// Bare player verbs read flat as `By(You, …)`; source verbs read native.
+    /// Bare player verbs read flat with the agent spelled; source verbs read
+    /// native.
     #[test]
     fn verbs_read_flat() {
         assert_eq!(
-            read("LoseLife(Literal(1))"),
-            act_by_you(PlayerAction::LoseLife(Count::Literal(1))),
+            read("ChangeLife(You, Down(1))"),
+            OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(1))
+            )),
         );
         assert_eq!(
-            read("GainLife(Literal(3))"),
-            act_by_you(PlayerAction::GainLife(Count::Literal(3))),
+            read("ChangeLife(You, Up(3))"),
+            OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Up(Count::Literal(3))
+            )),
         );
         assert_eq!(
-            read("Sacrifice(This)"),
-            act_by_you(PlayerAction::Sacrifice(Reference::This)),
+            read("Sacrifice(You, This)"),
+            OneShotEffect::Act(Action::Sacrifice(Reference::You, Reference::This)),
         );
         assert_eq!(
             read("DealDamage(This, Literal(3), It)"),
             OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
         );
         assert_eq!(
-            read("AddMana(Literal(1), AnyColor)"),
-            act_by_you(PlayerAction::AddMana(
+            read("AddMana(You, Literal(1), AnyColor)"),
+            OneShotEffect::Act(Action::AddMana(
+                Reference::You,
                 Count::Literal(1),
                 ManaSpec::AnyColor.into()
             )),
         );
     }
 
-    /// The source verbs read native; the player verbs read as `By(You, …)`.
+    /// The source verbs read native; the player verbs spell their agent.
     /// Verb patients are now a single bare [`Reference`].
     #[test]
     fn new_verbs_read_flat() {
@@ -519,7 +522,7 @@ mod tests {
         );
         assert_eq!(
             read("Tap(This)"),
-            act_by_you(PlayerAction::Tap(Reference::This)),
+            OneShotEffect::Act(Action::Tap(Reference::This)),
         );
         // Discard is now the `Composite { name, body }` the `Action::discard`
         // ctor builds ([CR#701.9]), like Destroy — the struct-variant spelling
@@ -555,39 +558,49 @@ mod tests {
         );
     }
 
-    /// An explicit player agent reads native — `By(It, Draw(3))`.
+    /// A non-`You` player agent reads native.
     #[test]
     fn explicit_agent_reads_flat() {
         assert_eq!(
-            read("By(It, GainLife(Literal(3)))"),
-            OneShotEffect::Act(Action::By(
+            read("ChangeLife(It, Up(3))"),
+            OneShotEffect::Act(Action::ChangeLife(
                 Reference::It,
-                PlayerAction::GainLife(Count::Literal(3)),
+                LifeOp::Up(Count::Literal(3)),
             )),
         );
     }
 
     /// Structural forms read flat (the inner-struct delegation) and the
-    /// Option fields default to None.
+    /// Option fields default to None. `May.who` is always spelled (Law 2).
     #[test]
     fn structural_forms_read_flat() {
         assert_eq!(
-            read("Sequentially([GainLife(Literal(1)), GainLife(Literal(1))])"),
+            read("Sequentially([ChangeLife(You, Up(1)), ChangeLife(You, Up(1))])"),
             OneShotEffect::Sequentially(
                 vec![
-                    act_by_you(PlayerAction::GainLife(Count::Literal(1))),
-                    act_by_you(PlayerAction::GainLife(Count::Literal(1))),
+                    OneShotEffect::Act(Action::ChangeLife(
+                        Reference::You,
+                        LifeOp::Up(Count::Literal(1))
+                    )),
+                    OneShotEffect::Act(Action::ChangeLife(
+                        Reference::You,
+                        LifeOp::Up(Count::Literal(1))
+                    )),
                 ]
                 .into()
             ),
         );
-        let may = read("May(effect: GainLife(Literal(1)))");
+        let may = read("May(who: You, effect: ChangeLife(You, Up(1)))");
         let OneShotEffect::May(may) = may else {
             panic!("expected May");
         };
+        assert_eq!(may.who, Reference::You);
         assert_eq!(
             *may.effect,
-            act_by_you(PlayerAction::GainLife(Count::Literal(1)))
+            OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Up(Count::Literal(1))
+            ))
         );
         assert!(may.if_did.is_none() && may.if_not.is_none());
     }
@@ -596,28 +609,31 @@ mod tests {
     fn act_serializes_flat() {
         // A `Count` literal writes bare — `1`, never `Literal(1)`.
         assert_eq!(
-            write(&act_by_you(PlayerAction::GainLife(Count::Literal(1)))),
-            "GainLife(1)"
+            write(&OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Up(Count::Literal(1))
+            ))),
+            "ChangeLife(You,Up(1))"
         );
     }
 
     #[test]
     fn effects_round_trip() {
         let cases = [
-            "GainLife(Literal(1))",
-            "GainLife(Literal(3))",
-            "Sacrifice(This)",
-            "By(It,GainLife(Literal(3)))",
+            "ChangeLife(You,Up(1))",
+            "ChangeLife(You,Up(3))",
+            "Sacrifice(You,This)",
+            "ChangeLife(It,Up(3))",
             "DealDamage(This,Literal(3),It)",
-            "AddMana(Literal(1),AnyColor)",
+            "AddMana(You,Literal(1),AnyColor)",
             // Destroy is the `Composite { name, body }` the `Action::destroy`
             // ctor builds; the struct-variant spelling round-trips through RON.
             "Composite(name:Destroy,body:Move(This,Graveyard))",
-            "Sequentially([GainLife(Literal(1)),GainLife(Literal(1))])",
-            "May(effect:GainLife(Literal(1)))",
+            "Sequentially([ChangeLife(You,Up(1)),ChangeLife(You,Up(1))])",
+            "May(who:You,effect:ChangeLife(You,Up(1)))",
             // `Each.binder` is a many-`Binder` (the set of all creatures wrapped
             // in `Existing`), binding `It` per element.
-            "Each(binder:Existing(SelectAll(Supertype(Basic))),effect:GainLife(Literal(1)))",
+            "Each(binder:Existing(SelectAll(Supertype(Basic))),effect:ChangeLife(You,Up(1)))",
             // Brainstorm's shape in the new model: choose 2 cards (a many-binder
             // `With`), then `Each` over the bound group (`Existing(They)`), moving
             // each onto the library via the `It` element. Core reader has no
@@ -629,7 +645,7 @@ mod tests {
             // `Batch` is `Repeat`'s BATCHING twin ([CR#616.1g]) — in THIS
             // task shell-equivalent to `Repeat`, so it round-trips the same
             // `(Count, Arc<OneShotEffect>)` shape.
-            "Batch(Literal(2),GainLife(Literal(1)))",
+            "Batch(Literal(2),ChangeLife(You,Up(1)))",
         ];
         for source in cases {
             let parsed = read(source);
@@ -659,7 +675,7 @@ mod tests {
         assert_eq!(write(&parsed), mana_leak, "Mana Leak shape round-trips");
 
         // Default actor (You) is omitted on write.
-        let omitted = "MustPay(cost:[Mana([Generic(2)])],or_else:LoseLife(1))";
+        let omitted = "MustPay(cost:[Mana([Generic(2)])],or_else:ChangeLife(You,Down(1)))";
         let parsed = read(omitted);
         let OneShotEffect::MustPay(m) = &parsed else {
             panic!("expected MustPay");
@@ -674,7 +690,7 @@ mod tests {
     #[test]
     fn may_pay_round_trips_with_and_without_or_else() {
         // No "if you don't" branch — `or_else` omitted.
-        let bare = "MayPay(cost:[Mana([Generic(1)])],and_then:GainLife(1))";
+        let bare = "MayPay(cost:[Mana([Generic(1)])],and_then:ChangeLife(You,Up(1)))";
         let parsed = read(bare);
         let OneShotEffect::MayPay(m) = &parsed else {
             panic!("expected MayPay, got {parsed:?}");
@@ -684,8 +700,8 @@ mod tests {
         assert_eq!(write(&parsed), bare, "bare MayPay round-trips");
 
         // With an explicit actor and an "if you don't" branch.
-        let full =
-            "MayPay(actor:It,cost:[Mana([Generic(2)])],and_then:GainLife(2),or_else:LoseLife(1))";
+        let full = "MayPay(actor:It,cost:[Mana([Generic(2)])],and_then:ChangeLife(You,Up(2)),\
+                     or_else:ChangeLife(You,Down(1)))";
         assert_eq!(write(&read(full)), full, "full MayPay round-trips");
     }
 
@@ -696,7 +712,7 @@ mod tests {
     /// its power", over the core primitives — no card-layer macros).
     #[test]
     fn additional_cost_reads_and_round_trips() {
-        let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(This,StatOf(EventObject,Power),It))";
+        let src = "AdditionalCost(pay:[Do(Sacrifice(You,This))],body:DealDamage(This,StatOf(EventObject,Power),It))";
         let parsed = read(src);
         let OneShotEffect::AdditionalCost(ac) = &parsed else {
             panic!("expected AdditionalCost, got {parsed:?}");
@@ -800,7 +816,7 @@ mod tests {
     #[test]
     fn each_binds_via_binder() {
         let v =
-            read("Each(binder:Existing(SelectAll(Supertype(Basic))),effect:GainLife(Literal(1)))");
+            read("Each(binder:Existing(SelectAll(Supertype(Basic))),effect:ChangeLife(You,Up(1)))");
         let OneShotEffect::Each(e) = &v else {
             panic!("expected Each, got {v:?}");
         };

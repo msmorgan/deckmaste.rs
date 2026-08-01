@@ -1,6 +1,6 @@
 // "Draw N" ([CR#121.1]): the imperative you-form draw — you draw N cards,
 // one at a time ([CR#121.2] — a per-card sequence, not a simultaneous batch
-// like mill). A `Batch(N, ...)` over the per-unit `By(You, DrawCard)`. The
+// like mill). A `Batch(N, ...)` over the per-unit `DrawCard(You)`. The
 // `Batch` gives a count-doubling replacement (Alhammarret's Archive,
 // [CR#121.2a,616.1g]) one aggregate window; the engine then runs the N
 // contained draws sequentially — each binds the library top late and
@@ -12,10 +12,12 @@
 // action. Drawing is also irreducible, so there is no body to store:
 // [CR#121.5] states that a library -> Hand move made without the word
 // "draw" is not a draw, so such a body would denote a different event. The
-// performer rides `By`'s own agent slot. (This macro keeps the
-// `KeywordAction` macro kind: that kind is the English verb registry — the
-// conjugation data the renderer needs — not a [CR#701] claim. See
-// `Mill.ron` for a body that is its verb's meaning.)
+// performer rides `DrawCard`'s own agent slot — same position, but distinct
+// arity+type from this macro's own `Count` argument, so `DrawCard(You)` the
+// variant and `Draw(1)` the macro invocation never collide. (This macro
+// keeps the `KeywordAction` macro kind: that kind is the English verb
+// registry — the conjugation data the renderer needs — not a [CR#701]
+// claim. See `Mill.ron` for a body that is its verb's meaning.)
 //
 // The declarative-subject form ("Target player draws N cards.") is the
 // `Draws(who, n)` macro; this is the bare you-imperative.
@@ -47,5 +49,5 @@
         "draw <Param(0)> cards",
         (text: "draw a card", when: [(0, "1")]),
     ],
-    body: Batch(Param(0), By(You, DrawCard)),
+    body: Batch(Param(0), DrawCard(You)),
 )

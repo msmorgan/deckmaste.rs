@@ -370,8 +370,6 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
     use deckmaste_core::Cost;
     use deckmaste_core::Count;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
-    use deckmaste_core::Reference;
     use deckmaste_core::Timing;
     use deckmaste_core::ron::options as ron_options;
 
@@ -411,13 +409,8 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
     );
 
     // (3) OneShotEffect puts one +1/+1 counter on THIS creature ([CR#122.1a]).
-    // PutCounters is a player verb — `By(You, PutCounters(…))`, the implicit-you
-    // default an effect-slot player verb reads as.
-    let OneShotEffect::Act(Action::By(
-        Reference::You,
-        PlayerAction::PutCounters(_, counter, count),
-    )) = &act.effect
-    else {
+    // PutCounters is agent-silent ([CR#122.1..122.6]).
+    let OneShotEffect::Act(Action::PutCounters(_, counter, count)) = &act.effect else {
         panic!("outlast's effect is PutCounters; got {:?}", act.effect);
     };
     assert_eq!(
@@ -590,7 +583,6 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::TargetSpec;
@@ -651,13 +643,8 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
         "reinforce targets a creature; got {filter:?}"
     );
     // Inner effect places N (= Param(0) = 2) +1/+1 counters on the target.
-    // PutCounters is a player verb ([CR#122.1]) — the implicit-you default
-    // reads as `Act(By(You, PutCounters(…)))`.
-    let OneShotEffect::Act(Action::By(
-        Reference::You,
-        PlayerAction::PutCounters(sel, counter, count),
-    )) = &*t.effect
-    else {
+    // PutCounters is agent-silent ([CR#122.1]).
+    let OneShotEffect::Act(Action::PutCounters(sel, counter, count)) = &*t.effect else {
         panic!(
             "reinforce's inner effect is PutCounters; got {:?}",
             t.effect
@@ -695,7 +682,6 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
     use deckmaste_core::TargetSpec;
@@ -762,9 +748,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     let TargetSpec::Target(_, _) = &t.targets[0] else {
         panic!("expected a Target spec; got {:?}", t.targets[0]);
     };
-    let OneShotEffect::Act(Action::By(Reference::You, PlayerAction::PutCounters(sel, kind, count))) =
-        &*t.effect
-    else {
+    let OneShotEffect::Act(Action::PutCounters(sel, kind, count)) = &*t.effect else {
         panic!(
             "scavenge's inner effect puts counters on a player verb; got {:?}",
             t.effect
@@ -912,7 +896,6 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     use deckmaste_core::Count;
     use deckmaste_core::EventFilter;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::StatValue;
     use deckmaste_core::TokenSpec;
@@ -942,12 +925,13 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
         "afterlife triggers on dies; got {:?}",
         trig.event
     );
-    // Create is a player verb ([CR#111.1]) — `By(You, Create(…))`, the
-    // implicit-you default an effect-slot player verb reads as.
-    let OneShotEffect::Act(Action::By(
-        Reference::You,
-        PlayerAction::Create(count, TokenSpec::Token(token), _),
-    )) = &trig.effect
+    // Create's agent is spelled ([CR#111.1]).
+    let OneShotEffect::Act(Action::Create {
+        agent: Reference::You,
+        count,
+        token: TokenSpec::Token(token),
+        ..
+    }) = &trig.effect
     else {
         panic!(
             "afterlife's effect creates inline tokens; got {:?}",

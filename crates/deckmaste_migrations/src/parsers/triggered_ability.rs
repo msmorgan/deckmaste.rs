@@ -761,7 +761,7 @@ mod tests {
     fn whenever_a_creature_dies_lose_life() {
         assert_eq!(
             trig("Whenever a creature dies, you lose 1 life.").as_deref(),
-            Some("Triggered(event: Dies(Creature), effect: LoseLife(1))")
+            Some("Triggered(event: Dies(Creature), effect: ChangeLife(You, Down(1)))")
         );
     }
 
@@ -802,7 +802,7 @@ mod tests {
             trig("Whenever another creature you control dies, you lose 1 life.").as_deref(),
             Some(
                 "Triggered(event: Dies(And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), \
-                 effect: LoseLife(1))"
+                 effect: ChangeLife(You, Down(1)))"
             )
         );
     }
@@ -840,7 +840,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: LeavesBattlefield(And([Creature, Not(Ref(This)), \
-                 ControlledBy(Ref(You))])), effect: LoseLife(1))"
+                 ControlledBy(Ref(You))])), effect: ChangeLife(You, Down(1)))"
             )
         );
     }
@@ -988,8 +988,8 @@ mod tests {
             trig("Whenever ~ attacks, you gain 1 life for each attacking Elf you control.")
                 .as_deref(),
             Some(
-                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(Objects(And([Permanent, Subtype(Elf), \
-                 Attacking, ControlledBy(Ref(You))])))))"
+                "Triggered(event: ThisAttacks, effect: ChangeLife(You, Up(CountOf(Objects(And([Permanent, Subtype(Elf), \
+                 Attacking, ControlledBy(Ref(You))]))))))"
             )
         );
     }
@@ -1156,7 +1156,7 @@ mod tests {
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
                  what: And([Kind(Spell), Subtype(Elf)])), \
-                 effect: May(effect: Create(1, Token(color_indicator: [Green], types: [Creature], \
+                 effect: May(who: You, effect: Create(agent: You, count: 1, token: Token(color_indicator: [Green], types: [Creature], \
                  subtypes: [Elf, Warrior], power: 1, toughness: 1))))"
             )
         );
@@ -1369,7 +1369,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: StepBegins(at: Combat(BeginningOfCombat), whose: Your), \
-                 effect: Create(1, Token(color_indicator: [Red], types: [Creature], \
+                 effect: Create(agent: You, count: 1, token: Token(color_indicator: [Red], types: [Creature], \
                  subtypes: [Goblin], abilities: [Keyword(Haste)], power: 1, toughness: 1)))"
             )
         );
@@ -1392,7 +1392,7 @@ mod tests {
             trig("At the beginning of your upkeep, sacrifice ~ unless you pay {G}{G}.").as_deref(),
             Some(
                 "Triggered(event: StepBegins(at: Beginning(Upkeep), whose: Your), \
-                 effect: Unless(effect: Sacrifice(This), unless: [Mana([Green,Green])]))"
+                 effect: Unless(effect: Sacrifice(You, This), unless: [Mana([Green,Green])]))"
             )
         );
     }
@@ -1407,7 +1407,7 @@ mod tests {
             trig("At the beginning of your upkeep, sacrifice ~.").as_deref(),
             Some(
                 "Triggered(event: StepBegins(at: Beginning(Upkeep), whose: Your), \
-                 effect: Sacrifice(This))"
+                 effect: Sacrifice(You, This))"
             )
         );
     }
@@ -1440,7 +1440,7 @@ mod tests {
             trig("At the beginning of the end step, sacrifice ~.").as_deref(),
             Some(
                 "Triggered(event: StepBegins(at: Ending(End), whose: EachPlayers), \
-                 effect: Sacrifice(This))"
+                 effect: Sacrifice(You, This))"
             )
         );
     }
@@ -1464,7 +1464,7 @@ mod tests {
         // ability, sacrifice it." => BecomesTarget(what: Ref(This)) + Sacrifice.
         assert_eq!(
             trig("When ~ becomes the target of a spell or ability, sacrifice it.").as_deref(),
-            Some("Triggered(event: BecomesTarget(what: Ref(This)), effect: Sacrifice(This))")
+            Some("Triggered(event: BecomesTarget(what: Ref(This)), effect: Sacrifice(You, This))")
         );
     }
 
@@ -1591,7 +1591,7 @@ mod tests {
             .as_deref(),
             Some(
                 "Triggered(event: DealsCombatDamage(And([Creature, ControlledBy(Ref(You))]), \
-                 Player), effect: GainLife(1))"
+                 Player), effect: ChangeLife(You, Up(1)))"
             )
         );
     }

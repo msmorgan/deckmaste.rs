@@ -13,7 +13,7 @@ Normal(
     mana_cost: [Generic(2), Black],
     types: [Enchantment],
     abilities: [
-        Triggered(event: Dies(OtherCreatureYouControl), effect: GainLife(1)),
-        Triggered(event: LeavesBattlefield(OtherCreatureYouControl), effect: GainLife(1)),
+        Triggered(event: Dies(OtherCreatureYouControl), effect: ChangeLife(You, Up(1))),
+        Triggered(event: LeavesBattlefield(OtherCreatureYouControl), effect: ChangeLife(You, Up(1))),
     ],
 )

@@ -298,7 +298,7 @@ pub enum StaticEffect {
     /// source + "except" exceptions [CR#707.9] the other three copy
     /// delivery sites carry: [`crate::TokenSpec::Copy`],
     /// [`crate::action::EnterRider::AsCopy`],
-    /// [`crate::action::PlayerAction::CastCopy`]).
+    /// [`crate::Action::CastCopy`]).
     ///
     /// NOT a [`Modification`]: [`Layer`](crate::layer) — see
     /// `deckmaste_engine::layer::Layer` — has no L1 variant, since layer 1

@@ -18,6 +18,7 @@ Normal(
       effect: Modal(
         choose: (
           count: AtLeast(1),
+          chooser: You,
           rider: Escalate([Mana([Green])]),
         ),
         modes: [

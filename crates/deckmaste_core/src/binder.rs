@@ -301,9 +301,10 @@ mod tests {
     /// omitted on write; a present branch reads flat and round-trips.
     #[test]
     fn search_if_none_defaults_and_round_trips() {
+        use crate::Action;
         use crate::Count;
+        use crate::LifeOp;
         use crate::OneShotEffect;
-        use crate::PlayerAction;
 
         let creature =
             Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic));
@@ -324,13 +325,14 @@ mod tests {
             by: Reference::You,
             whose: Reference::You,
             from: vec![Zone::Library].into(),
-            if_none: Some(Arc::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
-                Count::Literal(1),
+            if_none: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(1)),
             )))),
         };
         assert_eq!(read(&to_string(&whiff)), whiff);
         assert_eq!(
-            read("SearchOne(filter: Supertype(Basic), if_none: LoseLife(1))"),
+            read("SearchOne(filter: Supertype(Basic), if_none: ChangeLife(You, Down(1)))"),
             whiff,
         );
     }

@@ -8,6 +8,6 @@ Normal(
   ],
   abilities: [
     Static(ModifyPlayer(You, NoMax(HandSizeLimit))),
-    Activated(cost: [Tap], effect: AddMana(1, Colorless)),
+    Activated(cost: [Tap], effect: AddMana(You, 1, Colorless)),
   ],
 )

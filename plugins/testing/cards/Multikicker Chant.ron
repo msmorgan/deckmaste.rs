@@ -8,6 +8,6 @@ Normal(
     types: [Instant],
     abilities: [
         Keyword(Multikicker([Mana([Generic(1)])])),
-        Spell(effect: GainLife(TimesPaid(Kicker))),
+        Spell(effect: ChangeLife(You, Up(TimesPaid(Kicker)))),
     ],
 )

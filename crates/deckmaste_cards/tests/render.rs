@@ -451,8 +451,8 @@ fn renders_synthesized_lose_life_and_destroy() {
     use deckmaste_core::Action;
     use deckmaste_core::CardFace;
     use deckmaste_core::Count;
+    use deckmaste_core::LifeOp;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
@@ -465,9 +465,9 @@ fn renders_synthesized_lose_life_and_destroy() {
         types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::LoseLife(Count::Literal(3)),
+                LifeOp::Down(Count::Literal(3)),
             )),
         })],
         ..CardFace::default()
@@ -507,7 +507,6 @@ fn renders_named_predefined_token() {
     use deckmaste_core::Action;
     use deckmaste_core::Count;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::TokenName;
     use deckmaste_core::TokenSpec;
@@ -517,14 +516,12 @@ fn renders_named_predefined_token() {
         types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::spell(deckmaste_core::SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Create(
-                    Count::Literal(1),
-                    TokenSpec::Named(TokenName::from("Treasure")),
-                    vec![].into(),
-                ),
-            )),
+            effect: OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: TokenSpec::Named(TokenName::from("Treasure")),
+                riders: vec![].into(),
+            }),
         })],
         ..CardFace::default()
     };
@@ -538,14 +535,12 @@ fn renders_named_predefined_token() {
         types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::spell(deckmaste_core::SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Create(
-                    Count::Literal(2),
-                    TokenSpec::Named(TokenName::from("Food")),
-                    vec![].into(),
-                ),
-            )),
+            effect: OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(2),
+                token: TokenSpec::Named(TokenName::from("Food")),
+                riders: vec![].into(),
+            }),
         })],
         ..CardFace::default()
     };
@@ -891,7 +886,6 @@ fn renders_create_one_token() {
     use deckmaste_core::Color;
     use deckmaste_core::Count;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
     use deckmaste_core::StatValue;
@@ -917,14 +911,12 @@ fn renders_create_one_token() {
         types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Create(
-                    Count::Literal(1),
-                    TokenSpec::Token(token.into()),
-                    vec![].into(),
-                ),
-            )),
+            effect: OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: TokenSpec::Token(token.into()),
+                riders: vec![].into(),
+            }),
         })],
         ..CardFace::default()
     };
@@ -940,7 +932,6 @@ fn renders_create_two_tokens() {
     use deckmaste_core::Color;
     use deckmaste_core::Count;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
     use deckmaste_core::StatValue;
@@ -966,14 +957,12 @@ fn renders_create_two_tokens() {
         types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Create(
-                    Count::Literal(2),
-                    TokenSpec::Token(token.into()),
-                    vec![].into(),
-                ),
-            )),
+            effect: OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(2),
+                token: TokenSpec::Token(token.into()),
+                riders: vec![].into(),
+            }),
         })],
         ..CardFace::default()
     };
@@ -1019,7 +1008,6 @@ fn renders_get_designation() {
     use deckmaste_core::CardFace;
     use deckmaste_core::Ident;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
     use deckmaste_core::Type;
@@ -1028,9 +1016,9 @@ fn renders_get_designation() {
         types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::GetDesignation(
                 Reference::You,
-                PlayerAction::GetDesignation(Ident::from("CitysBlessing")),
+                Ident::from("CitysBlessing"),
             )),
         })],
         ..CardFace::default()
@@ -1049,7 +1037,6 @@ fn renders_get_emblem() {
     use deckmaste_core::Action;
     use deckmaste_core::CardFace;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
     use deckmaste_core::Type;
@@ -1068,9 +1055,9 @@ fn renders_get_emblem() {
         types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::GetEmblem(
                 Reference::You,
-                PlayerAction::GetEmblem(vec![emblem_ability].into()),
+                vec![emblem_ability].into(),
             )),
         })],
         ..CardFace::default()

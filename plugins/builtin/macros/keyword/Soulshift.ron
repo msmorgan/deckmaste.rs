@@ -43,7 +43,7 @@
         name: "Soulshift",
         abilities: [Triggered(
             event: ThisDies,
-            effect: May(effect: Targeted(
+            effect: May(who: You, effect: Targeted(
                 targets: [Target(Exactly(1), And([
                     Subtype(Spirit),
                     InZone(Graveyard),

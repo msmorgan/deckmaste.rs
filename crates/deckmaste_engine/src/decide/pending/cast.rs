@@ -156,24 +156,24 @@ impl DecisionHandler for ChooseTargets {
 }
 
 /// [CR#707.10c,115.7d]: re-target a COMMITTED stack entry — surface a
-/// `ChooseNewTargets` decision whose per-slot legal set is the fresh
+/// `Retarget` decision whose per-slot legal set is the fresh
 /// legal candidates PLUS the current target (leaving a slot unchanged
 /// is always allowed, even when the current target is illegal; a
 /// CHANGED slot must be legal).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ChooseNewTargets {
+pub struct Retarget {
     pub player: PlayerId,
     pub entry: ObjectId,
     pub spec: Vec<deckmaste_core::TargetSpec>,
     pub legal: Vec<Vec<ObjectId>>,
 }
 
-impl DecisionHandler for ChooseNewTargets {
+impl DecisionHandler for Retarget {
     fn resolve(self, g: &mut GameState, answer: Decision) -> Result<(), DecisionError> {
         let Decision::Targets(chosen) = answer else {
             return Err(DecisionError::WrongKind);
         };
-        let ChooseNewTargets {
+        let Retarget {
             player: _,
             entry,
             spec,

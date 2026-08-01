@@ -26,10 +26,10 @@ pub use macro_ron::Params;
 /// (core's grammar stays strict); `Selection::kind()` remembers its own
 /// macros (`Expanded`) but is a group-only type — verb patients are single
 /// `Reference`s now, so a bare `This`/`Target(0)` reads at a `Reference` slot,
-/// not a Selection one; and `Action::kind()` — no `Expanded` variant, so no
-/// macros of its own — only embeds `PlayerAction` untagged, so a bare
-/// `Draw(1)`/`Tap(This)` reads as `Action::By(You, ...)`, the implicit-you
-/// default.
+/// not a Selection one; and `Action::kind()` remembers its own macros
+/// (`Expanded`) — every player verb is a native `Action` variant now (the
+/// `PlayerAction`/`By` split and its untagged embed are gone), so a bare
+/// `Draw(1)`/`Tap(This)` reads as an ordinary `Action` variant.
 ///
 /// The struct kinds `CardFace`, `Subtype`, and `Macro` are name-erasing:
 /// `Subtype` already self-names; nothing engine-meaningful invokes `CardFace`
@@ -103,7 +103,6 @@ pub fn param_types() -> ParamTypeSet {
     // The numeric-axis op (`Up`/`Down`/`Set`) — a macro arg for the arity-2
     // power+toughness building block `PowerAndToughness(op, op)`.
     param_types.add_typed::<dc::NumericOp>("NumericOp");
-    param_types.add_typed::<dc::PlayerAction>("PlayerAction");
     param_types.add_typed::<dc::Quantity>("Quantity");
     param_types.add_typed::<dc::Reference>("Reference");
     param_types.add_typed::<dc::Replacement>("Replacement");
@@ -151,6 +150,7 @@ mod tests {
     use deckmaste_core::Destination;
     use deckmaste_core::EventFilter;
     use deckmaste_core::KeywordAbility;
+    use deckmaste_core::LifeOp;
     use deckmaste_core::ManaProduction;
     use deckmaste_core::ManaRider;
     use deckmaste_core::ManaSpec;
@@ -158,7 +158,6 @@ mod tests {
     use deckmaste_core::Modification;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
@@ -221,7 +220,6 @@ mod tests {
             name_of::<ManaSymbol>(),
             name_of::<StatValue>(),
             name_of::<Modification>(),
-            name_of::<PlayerAction>(),
             name_of::<Preference>(),
             name_of::<Quantity>(),
             name_of::<Reference>(),
@@ -799,32 +797,29 @@ mod tests {
         );
     }
 
-    /// A bare `PlayerAction` at an `Action` slot reads through the untagged
-    /// embed — no `By(...)` wrapper in the source — and wraps in
-    /// `Action::By(You, …)`, the implicit-you default. The macro layer's
-    /// `embeds_untagged` hook routes the non-Action identifier through
-    /// `Action`'s `visit_newtype_struct`.
+    /// A player verb at an `Action` slot reads NATIVELY — `PlayerAction`/`By`
+    /// are gone, so `Sacrifice`/`Tap` are ordinary `Action` variants like any
+    /// source-agent verb; the agent is spelled, never defaulted (Law 2).
     #[test]
-    fn bare_player_action_embeds_at_action_slot() {
+    fn player_verb_reads_natively_at_action_slot() {
         let macros = macro_set();
         assert_eq!(
-            macros.read_str::<Action>("Sacrifice(This)").unwrap(),
-            Action::by_you(PlayerAction::Sacrifice(Reference::This)),
+            macros.read_str::<Action>("Sacrifice(You, This)").unwrap(),
+            Action::Sacrifice(Reference::You, Reference::This),
         );
         assert_eq!(
             macros.read_str::<Action>("Tap(This)").unwrap(),
-            Action::by_you(PlayerAction::Tap(Reference::This)),
+            Action::Tap(Reference::This),
         );
     }
 
-    /// An explicit different agent (`By(It, GainLife(3))`) reads natively
-    /// through `Action`'s own variants, not the embed.
+    /// A non-`You` agent reads natively too — no special-cased embed path.
     #[test]
     fn explicit_agent_reads_natively_at_action_slot() {
         let macros = macro_set();
         assert_eq!(
-            macros.read_str::<Action>("By(It, GainLife(3))").unwrap(),
-            Action::By(Reference::It, PlayerAction::GainLife(Count::Literal(3))),
+            macros.read_str::<Action>("ChangeLife(It, Up(3))").unwrap(),
+            Action::ChangeLife(Reference::It, LifeOp::Up(Count::Literal(3))),
         );
     }
 
@@ -841,25 +836,30 @@ mod tests {
         );
     }
 
-    /// A `PlayerAction` *macro* invoked at an `Action` slot routes through the
-    /// embed to `PlayerAction`'s own reader: it expands, is remembered as a
-    /// `PlayerAction::Expanded`, then wraps in `Action::By(You, …)`.
+    /// An `Action` *macro* invoked at an `Action` slot routes through
+    /// `Action`'s OWN `Expanded` variant (mirrors `OneShotEffect`/
+    /// `Selection`'s own-macro reader — the `By`-embed fallthrough tier
+    /// `PlayerAction::Expanded` used to inherit is gone; `Action` now
+    /// remembers its own macros directly).
     #[test]
-    fn player_action_macro_embeds_at_action_slot() {
+    fn action_macro_expands_at_action_slot() {
         let mut macros = macro_set();
         macros
             .insert(&def(r#"(
                     name: "GainTwo",
-                    kinds: [PlayerAction],
-                    body: GainLife(2),
+                    kinds: [Action],
+                    body: ChangeLife(You, Up(2)),
                 )"#))
             .unwrap();
         let action: Action = macros.read_str("GainTwo").unwrap();
-        let Action::By(Reference::You, PlayerAction::Expanded(expanded)) = action else {
-            panic!("expected By(You, PlayerAction::Expanded(..)), got {action:?}");
+        let Action::Expanded(expanded) = action else {
+            panic!("expected Action::Expanded(..), got {action:?}");
         };
         assert_eq!(expanded.name, "GainTwo");
-        assert_eq!(*expanded.value, PlayerAction::GainLife(Count::Literal(2)));
+        assert_eq!(
+            *expanded.value,
+            Action::ChangeLife(Reference::You, LifeOp::Up(Count::Literal(2)))
+        );
     }
 
     /// Same pin for the `TargetSpec` positions (the announce-list type).
@@ -915,7 +915,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "SacThis",
                     kinds: [CostComponent],
-                    body: Do(Sacrifice(This)),
+                    body: Do(Sacrifice(You, This)),
                 )"#))
             .unwrap();
         let cost: CostComponent = macros.read_str("SacThis").unwrap();
@@ -925,7 +925,7 @@ mod tests {
         assert_eq!(expanded.name, "SacThis");
         assert_eq!(
             *expanded.value,
-            CostComponent::do_(PlayerAction::Sacrifice(Reference::This))
+            CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This))
         );
     }
 
@@ -1018,7 +1018,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "GainTwo",
                     kinds: [OneShotEffect],
-                    body: GainLife(2),
+                    body: ChangeLife(You, Up(2)),
                 )"#))
             .unwrap();
         let effect: OneShotEffect = macros.read_str("Sequentially([GainTwo])").unwrap();
@@ -1031,8 +1031,9 @@ mod tests {
         assert_eq!(
             expanded,
             OneShotEffect::Sequentially(
-                vec![OneShotEffect::act_by_you(PlayerAction::GainLife(
-                    Count::Literal(2),
+                vec![OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Up(Count::Literal(2)),
                 ))]
                 .into()
             )
@@ -1040,7 +1041,7 @@ mod tests {
         let written = deckmaste_core::ron::options().to_string(&expanded).unwrap();
         assert!(!written.contains("GainTwo"), "macro name leaked: {written}");
         // A `Count` literal writes bare — `2`, never `Literal(2)`.
-        assert_eq!(written, "Sequentially([GainLife(2)])");
+        assert_eq!(written, "Sequentially([ChangeLife(You,Up(2))])");
     }
 
     /// The literal sugar applies to `Count` through the glue's registry:
@@ -1118,7 +1119,6 @@ mod tests {
             "KeywordAbility",
             "ManaRider",
             "Modification",
-            "PlayerAction",
             "Quantity",
             "Reference",
             "Replacement",

@@ -2296,7 +2296,6 @@ mod tests {
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Property;
         use deckmaste_core::Reference;
         use deckmaste_core::Subtype;
@@ -2315,14 +2314,12 @@ mod tests {
                     window: None,
                     condition: None,
                     limits: vec![].into(),
-                    effect: OneShotEffect::Act(deckmaste_core::Action::By(
+                    effect: OneShotEffect::Act(deckmaste_core::Action::AddMana(
                         Reference::You,
-                        PlayerAction::AddMana(
-                            Count::Literal(1),
-                            ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
-                                deckmaste_core::Color::Blue,
-                            ))),
-                        ),
+                        Count::Literal(1),
+                        ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
+                            deckmaste_core::Color::Blue,
+                        ))),
                     )),
                 },
             )))]

@@ -8,7 +8,7 @@
 // Pieces (all representable over existing primitives):
 //   - trigger:        `ThisDies` — the `ZoneChange(what: Ref(This), from:
 //                     Battlefield, to: Graveyard)` macro ([CR#700.4]).
-//   - resolution:     `Create(Param(0), Token(…))` — create N token permanents
+//   - resolution:     `Create(agent: You, count: Param(0), token: Token(…))` — create N token permanents
 //                     ([CR#111.1]) of an INLINE creature token whose defined
 //                     characteristics ([CR#111.3]) are: color White ∧ Black via
 //                     a color indicator ([CR#202.2e] — a token has no mana cost,
@@ -37,7 +37,7 @@
         name: "Afterlife",
         abilities: [Triggered(
             event: ThisDies,
-            effect: Create(Param(0), Token(
+            effect: Create(agent: You, count: Param(0), token: Token(
                 color_indicator: [White, Black],
                 types: [Creature],
                 subtypes: [Spirit],

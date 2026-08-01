@@ -5,7 +5,7 @@ Normal(
   ],
   abilities: [
     Static(Replacement(AsEnters(Tap(This)))),
-    Triggered(event: ThisEnters, effect: GainLife(2)),
-    Activated(cost: [Tap], effect: AddMana(1, White)),
+    Triggered(event: ThisEnters, effect: ChangeLife(You, Up(2))),
+    Activated(cost: [Tap], effect: AddMana(You, 1, White)),
   ],
 )

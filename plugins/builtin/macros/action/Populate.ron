@@ -4,7 +4,7 @@
 // empty candidate set makes no choice, so the inner `Create` never runs (a copy
 // of nothing creates nothing, the same fizzle `token_copy_nonexistent_source`
 // exercises). A composite keyword action ([CR#701.36]): it names no new engine
-// primitive, decomposing into the copy grammar's `Create(1, Copy(...))` under a
+// primitive, decomposing into the copy grammar's `Create(agent: You, count: 1, token: Copy(...))` under a
 // `With(ChooseOne(...))` binder — the "choose a … you control" shape.
 //
 // The filter is `Kind(Token) ∧ Creature ∧ you control` — a creature token you
@@ -29,6 +29,6 @@
             Type(Creature),
             ControlledBy(Ref(You)),
         ])),
-        body: Create(1, Copy(source: Object(That(Token)), exceptions: [])),
+        body: Create(agent: You, count: 1, token: Copy(source: Object(That(Token)), exceptions: [])),
     ),
 )

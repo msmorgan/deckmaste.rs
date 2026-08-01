@@ -11,11 +11,13 @@
 
 use std::sync::Arc;
 
+use deckmaste_core::Action;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
+use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
-use deckmaste_core::PlayerAction;
+use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
 
 /// One concrete reading of a multi-way mana symbol ([CR#601.2b]).
@@ -146,9 +148,10 @@ pub fn concretize(
                     SymbolChoice::Mana(sym) => mana.push(ManaSymbol::Simple(sym)),
                     // [CR#107.4f]: 2 life in place of the colored mana.
                     SymbolChoice::Life => {
-                        verbs.push(CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
-                            2,
-                        ))));
+                        verbs.push(CostComponent::do_action(Action::ChangeLife(
+                            Reference::You,
+                            LifeOp::Down(Count::Literal(2)),
+                        )));
                     }
                 }
             }
@@ -253,9 +256,10 @@ mod tests {
         assert!(mana.is_empty());
         assert_eq!(
             verbs,
-            vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
-                2
-            )))]
+            vec![CostComponent::do_action(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(2))
+            ))]
         );
 
         // Pay the color: {W}, no verbs.
@@ -297,9 +301,10 @@ mod tests {
         assert_eq!(mana, parse_cost("{1}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
-                2
-            )))]
+            vec![CostComponent::do_action(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(2))
+            ))]
         );
     }
 
@@ -421,9 +426,10 @@ mod tests {
         assert_eq!(mana, parse_cost("{U}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
-                2
-            )))]
+            vec![CostComponent::do_action(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(2))
+            ))]
         );
 
         // Color for {W/P}, Life for {U/P}: one concrete mana, one verb (order
@@ -438,9 +444,10 @@ mod tests {
         assert_eq!(mana, parse_cost("{W}"));
         assert_eq!(
             verbs,
-            vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
-                2
-            )))]
+            vec![CostComponent::do_action(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(2)),
+            ))]
         );
     }
 }

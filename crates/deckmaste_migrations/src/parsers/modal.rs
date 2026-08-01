@@ -146,7 +146,7 @@ fn render_modal(shape: ChooseShape, modes: &[ParsedEffect]) -> String {
         choose.push_str(", repeats: true");
     }
     let modes = modes.iter().map(render_mode).collect::<Vec<_>>().join(", ");
-    format!("Spell(effect: Modal(choose: ChooseSpec({choose}), modes: [{modes}]))")
+    format!("Spell(effect: Modal(choose: ChooseSpec(chooser: You, {choose}), modes: [{modes}]))")
 }
 
 /// The face-level modal pre-pass. Finds the first modal header among `face`'s
@@ -278,8 +278,8 @@ mod tests {
         );
         assert_eq!(
             parsed(&face, 0),
-            "Spell(effect: Modal(choose: ChooseSpec(count: Exactly(1)), modes: [\
-             Mode(effect: GainLife(3)), Mode(effect: Draw(2))]))"
+            "Spell(effect: Modal(choose: ChooseSpec(chooser: You, count: Exactly(1)), modes: [\
+             Mode(effect: ChangeLife(You, Up(3))), Mode(effect: Draw(2))]))"
         );
     }
 
@@ -294,9 +294,9 @@ mod tests {
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert_eq!(
             parsed(&face, 0),
-            "Spell(effect: Modal(choose: ChooseSpec(count: Exactly(1)), modes: [\
+            "Spell(effect: Modal(choose: ChooseSpec(chooser: You, count: Exactly(1)), modes: [\
              Mode(effect: Targeted(targets: [TargetOne(Type(Artifact))], effect: Destroy(Target(0)))), \
-             Mode(effect: GainLife(3))]))"
+             Mode(effect: ChangeLife(You, Up(3)))]))"
         );
     }
 
@@ -309,7 +309,7 @@ mod tests {
             "\u{2022} Draw two cards.",
         ]);
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
-        assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(2))"));
+        assert!(parsed(&face, 0).contains("ChooseSpec(chooser: You, count: Exactly(2))"));
     }
 
     /// "Choose one or both —" emits `up_to: true`.
@@ -321,7 +321,9 @@ mod tests {
             "\u{2022} Draw two cards.",
         ]);
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
-        assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(2), up_to: true)"));
+        assert!(
+            parsed(&face, 0).contains("ChooseSpec(chooser: You, count: Exactly(2), up_to: true)")
+        );
     }
 
     /// "Choose one or more —" (escalate) emits `up_to` over the mode count.
@@ -334,7 +336,9 @@ mod tests {
             "\u{2022} Draw one card.",
         ]);
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
-        assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(3), up_to: true)"));
+        assert!(
+            parsed(&face, 0).contains("ChooseSpec(chooser: You, count: Exactly(3), up_to: true)")
+        );
     }
 
     /// The repeat sentence form emits `repeats: true`.
@@ -347,7 +351,7 @@ mod tests {
         ]);
         assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert!(
-            parsed(&face, 0).contains("ChooseSpec(count: Exactly(3), repeats: true)"),
+            parsed(&face, 0).contains("ChooseSpec(chooser: You, count: Exactly(3), repeats: true)"),
             "{}",
             parsed(&face, 0)
         );

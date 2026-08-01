@@ -15,5 +15,5 @@
     template: "Sacrifice this permanent",
     kinds: [CostComponent],
     frames: ["Sacrifice this permanent"],
-    body: Do(Sacrifice(This)),
+    body: Do(Sacrifice(You, This)),
 )

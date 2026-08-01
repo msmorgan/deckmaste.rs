@@ -16,14 +16,15 @@
 //               the "other" — and a spell cast in RESPONSE, a later cast the
 //               turn tally still holds ([CR#603.3]), is excluded. This is why
 //               a plain `EventCount(Cast, ThisTurn)` is wrong.
-//   - effect:   `Repeat(<count>, CopySpell(This))` ([CR#707.10]) — put that
+//   - effect:   `Repeat(<count>, CopySpell(controller: You, spec: (source:
+//               Object(This)), retarget: AsIs))` ([CR#707.10]) — put that
 //               many copies of the storm spell onto the stack.
 //
 // The reminder's "you may choose new targets for any of the copies" rider is
-// OMITTED: it is a "may" ([CR#707.10c]) — a copy keeps the original's targets
-// by default, which is always legal — and `Repeat` binds no per-copy
-// reference for `ChooseNewTargets` to name. The copy count (the substantive
-// storm behavior) is fully modeled.
+// OMITTED: it is a "may" ([CR#707.10c]) — `retarget: AsIs` keeps the
+// original's targets, which is always legal — and `Repeat` binds no per-copy
+// reference for a `MayChooseNew`/retarget rider to name. The copy count (the
+// substantive storm behavior) is fully modeled.
 KeywordAbility(
     name: "Storm",
     template: "storm",
@@ -31,7 +32,7 @@ KeywordAbility(
         event: Cast(what: Ref(This)),
         effect: Repeat(
             EventCount(AllOf([Cast(who: Any, what: Any), Before(This)]), ThisTurn),
-            CopySpell(This),
+            CopySpell(controller: You, spec: (source: Object(This)), retarget: AsIs),
         ),
     )],
 )

@@ -659,9 +659,9 @@ mod tests {
     use deckmaste_core::CardFace;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
+    use deckmaste_core::LifeOp;
     use deckmaste_core::Lookback;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
@@ -1551,7 +1551,10 @@ mod tests {
             OneShotEffect::Sequentially(
                 vec![
                     OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
-                    OneShotEffect::act_by_you(PlayerAction::GainLife(Count::ThatMuch)),
+                    OneShotEffect::Act(Action::ChangeLife(
+                        Reference::You,
+                        LifeOp::Up(Count::ThatMuch),
+                    )),
                 ]
                 .into(),
             ),
@@ -1778,9 +1781,10 @@ mod tests {
             let frame = frame_src(source);
             let before = state.zones.battlefield.len();
             state.run_effect(
-                OneShotEffect::act_by_you(PlayerAction::Create(
-                    Count::CountOf(Countable::Objects(Arc::new(parsed))),
-                    deckmaste_core::Token {
+                OneShotEffect::Act(Action::Create {
+                    agent: Reference::You,
+                    count: Count::CountOf(Countable::Objects(Arc::new(parsed))),
+                    token: deckmaste_core::Token {
                         name: None,
                         color_indicator: vec![].into(),
                         supertypes: vec![].into(),
@@ -1791,8 +1795,8 @@ mod tests {
                         toughness: Some(deckmaste_core::StatValue::Number(1)),
                     }
                     .into(),
-                    vec![].into(),
-                )),
+                    riders: vec![].into(),
+                }),
                 &frame,
             );
             // Drain the queued work (the TokenCreated batch + per-token enters).

@@ -11,7 +11,6 @@ use deckmaste_core::Destination;
 use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
 use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
@@ -322,8 +321,8 @@ impl GameState {
     ///
     /// Panics on any `OneShotEffect` variant not wired for Stage 3.
     /// [CR#608.2g]: if `may`'s body is a bare `Cast(<ref>)` verb, resolve the
-    /// caster (the `By` agent, `You` by default) and the referent object it
-    /// would cast — so the `May` arm can gate the "yes" offer on
+    /// caster (`Cast`'s own agent slot) and the referent object it would
+    /// cast — so the `May` arm can gate the "yes" offer on
     /// [`can_cast_as_effect`](Self::can_cast_as_effect). `None` for any other
     /// `May` body (the ordinary "you may [do]", offered unconditionally). The
     /// referent id may be null/stale; the gate treats that as uncastable.
@@ -337,7 +336,7 @@ impl GameState {
         Option<deckmaste_core::Cost>,
     )> {
         match peel_effect(&may.effect) {
-            OneShotEffect::Act(Action::By(actor, PlayerAction::Cast(what, for_cost))) => Some((
+            OneShotEffect::Act(Action::Cast(actor, what, for_cost)) => Some((
                 self.acting_player(actor, frame),
                 self.eval_reference(what, frame),
                 for_cost.clone(),
@@ -1214,7 +1213,7 @@ impl GameState {
             // matches, binding the found card as `It` and the passed-over
             // prefix as `They` (the Idris `bindFound`/`bindIt`+`bindThat`),
             // then run `body`. GENUINELY ABSENT SUBSYSTEM — but NOT the
-            // single-reveal seam, which is now built: `PlayerAction::Reveal` /
+            // single-reveal seam, which is now built: `Action::Reveal` /
             // `GameEvent::Revealed` are live (the `Explore` keyword action
             // [CR#701.44a] reveals its top card through them), and the
             // predicate-match (`target::matches`) plus `It`/`They`
@@ -1535,7 +1534,7 @@ impl GameState {
                 continue;
             };
             let reference = match pa.as_ref() {
-                Action::By(_, PlayerAction::Sacrifice(r) | PlayerAction::Move(r, _, _)) => Some(r),
+                Action::Sacrifice(_, r) | Action::Move(r, _, _, _) => Some(r),
                 // The bound discard form ("discard this card") names its
                 // moved card in the body's single-move head.
                 Action::Composite { name, body } if name.as_str() == "Discard" => {
@@ -1660,13 +1659,13 @@ impl GameState {
         }
     }
 
-    /// Whether a move verb (source- or player-agent) relocates to an ordered
-    /// [`Destination::Library`] position; `Composite` looks through to its
+    /// Whether a move verb relocates to an ordered [`Destination::Library`]
+    /// position (the former player-agent `Move` twin was DELETED — merged
+    /// into this one, agent-silent, verb); `Composite` looks through to its
     /// body.
     fn action_moves_to_library(a: &Action) -> bool {
         match a {
-            Action::Move(_, Destination::Library(_), _, _)
-            | Action::By(_, PlayerAction::Move(_, Destination::Library(_), _)) => true,
+            Action::Move(_, Destination::Library(_), _, _) => true,
             Action::Composite { body, .. } => Self::body_repositions_ordered(body),
             _ => false,
         }
@@ -1766,7 +1765,7 @@ fn for_this_event_rider(effect: &OneShotEffect) -> Option<&[StaticEffect]> {
 /// - [`Composite`](BatchUnit::Composite) — a keyword action ([CR#701]), whose
 ///   coordinates are read off its stored body.
 /// - [`Draw`](BatchUnit::Draw) — a game action ([CR#121.1]) carried by
-///   [`Action::By`], whose performer is the `By` agent itself. Drawing is
+///   [`Action::DrawCard`], whose performer is its own agent slot. Drawing is
 ///   irreducible ([CR#121.5]: a Library → Hand move made without the word
 ///   "draw" is not a draw), so it has no body to read.
 enum BatchUnit<'a> {
@@ -1781,7 +1780,7 @@ fn batch_act_unit(unit: &OneShotEffect) -> Option<BatchUnit<'_>> {
         OneShotEffect::Act(Action::Composite { name, body }) => {
             Some(BatchUnit::Composite(name, body))
         }
-        OneShotEffect::Act(Action::By(who, PlayerAction::DrawCard)) => Some(BatchUnit::Draw(who)),
+        OneShotEffect::Act(Action::DrawCard(who)) => Some(BatchUnit::Draw(who)),
         _ => None,
     }
 }
@@ -1886,11 +1885,12 @@ mod tests {
     use deckmaste_core::Action;
     use deckmaste_core::Binder;
     use deckmaste_core::Card;
+    use deckmaste_core::ChosenValueKind;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
+    use deckmaste_core::LifeOp;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
@@ -2137,7 +2137,10 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
 
-        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(2)));
+        let body = OneShotEffect::Act(Action::ChangeLife(
+            Reference::You,
+            LifeOp::Up(Count::Literal(2)),
+        ));
         state.run_effect(
             OneShotEffect::Repeat(Count::Literal(3), Arc::new(body)),
             &frame,
@@ -2162,7 +2165,10 @@ mod tests {
         let life0 = state.player(p0).life;
         let agenda_before = state.agenda.len();
 
-        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(2)));
+        let body = OneShotEffect::Act(Action::ChangeLife(
+            Reference::You,
+            LifeOp::Up(Count::Literal(2)),
+        ));
         state.run_effect(
             OneShotEffect::Repeat(Count::Literal(0), Arc::new(body)),
             &frame,
@@ -2209,8 +2215,10 @@ mod tests {
 
         let may_gain_3 = || {
             OneShotEffect::May(deckmaste_core::May {
-                effect: Arc::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
-                    Count::Literal(3),
+                who: Reference::You,
+                effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Up(Count::Literal(3)),
                 ))),
                 if_did: None,
                 if_not: None,
@@ -2262,7 +2270,10 @@ mod tests {
         let frame = frame_for(&state, p0);
         let agenda_before = state.agenda.len();
 
-        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(1)));
+        let body = OneShotEffect::Act(Action::ChangeLife(
+            Reference::You,
+            LifeOp::Up(Count::Literal(1)),
+        ));
         state.run_effect(
             OneShotEffect::Repeat(Count::Literal(1_000_000), Arc::new(body)),
             &frame,
@@ -2311,7 +2322,10 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
 
-        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(1)));
+        let body = OneShotEffect::Act(Action::ChangeLife(
+            Reference::You,
+            LifeOp::Up(Count::Literal(1)),
+        ));
         state.run_effect(
             OneShotEffect::Batch(Count::Literal(2), Arc::new(body)),
             &frame,
@@ -2347,7 +2361,10 @@ mod tests {
         let life0 = state.player(p0).life;
         let agenda_before = state.agenda.len();
 
-        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(2)));
+        let body = OneShotEffect::Act(Action::ChangeLife(
+            Reference::You,
+            LifeOp::Up(Count::Literal(2)),
+        ));
         state.run_effect(
             OneShotEffect::Batch(Count::Literal(0), Arc::new(body)),
             &frame,
@@ -2581,9 +2598,10 @@ mod tests {
                             on: Predicate::Any,
                             cause: None,
                         },
-                        effect: OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(
-                            1,
-                        ))),
+                        effect: OneShotEffect::Act(Action::ChangeLife(
+                            Reference::You,
+                            LifeOp::Up(Count::Literal(1)),
+                        )),
                     },
                 )],
                 ..deckmaste_core::CardFace::default()
@@ -2776,7 +2794,7 @@ mod tests {
     }
 
     /// [CR#702.85,701.57] `RevealUntil` fizzles to a graceful no-op — the
-    /// Reveal seam (`PlayerAction::Reveal`/`GameEvent::Revealed`) is
+    /// Reveal seam (`Action::Reveal`/`GameEvent::Revealed`) is
     /// genuinely unbuilt (see the doc comment on this arm in `run_effect`),
     /// so `body` never runs and nothing is scheduled — never a panic,
     /// matching the CRITICAL never-crash ruling.
@@ -2790,8 +2808,9 @@ mod tests {
         let effect = OneShotEffect::RevealUntil(deckmaste_core::RevealUntil {
             whose: Reference::You,
             matches: Predicate::creature(),
-            body: Arc::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
-                Count::Literal(99),
+            body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Up(Count::Literal(99)),
             ))),
         });
         state.run_effect(effect, &frame);
@@ -2823,9 +2842,10 @@ mod tests {
         let key = deckmaste_core::Ident::from("n");
         let effect = OneShotEffect::Sequentially(
             vec![
-                OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+                OneShotEffect::Act(Action::ChooseValue(
+                    Reference::You,
+                    ChosenValueKind::Number,
                     key,
-                    deckmaste_core::NotedKind::Number,
                 )),
                 OneShotEffect::mill(deckmaste_core::Reference::You, Count::Noted(key)),
             ]
@@ -2922,63 +2942,6 @@ mod tests {
         );
     }
 
-    /// [CR#607.2a,608.2d] `ChooseAndNote(Objects)`: the picks are recorded into
-    /// the fact-backed `noted` product group (live members), and
-    /// `Selection::AmongNoted` reads them back. The grammar carries no
-    /// narrowing predicate, so the chooser's domain is the battlefield-wide
-    /// default (choose any number).
-    #[test]
-    fn choose_and_note_objects_writes_group_read_by_among_noted() {
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-
-        let (mut state, a, _b) = two_permanents_on_field();
-        let key = deckmaste_core::Ident::from("chosen");
-        let effect = OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
-            key,
-            deckmaste_core::NotedKind::Objects,
-        ));
-        let frame = frame_src(a);
-        state.run_effect(effect, &frame);
-        run_injected(&mut state);
-
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
-            player,
-            candidates,
-            min,
-            max,
-        })) = state.pending.clone()
-        else {
-            panic!("expected ChooseObjects, got {:?}", state.pending);
-        };
-        assert_eq!(player, PlayerId(0));
-        assert_eq!(
-            (min, max),
-            (0, 2),
-            "battlefield-wide domain, choose any number of the two permanents"
-        );
-        assert!(candidates.contains(&a));
-
-        state
-            .submit_decision(Decision::Chosen(vec![a]))
-            .expect("a is a battlefield candidate");
-
-        // The pick is recorded into the `noted` group, live.
-        let group = &state.noted[&key];
-        assert_eq!(group.len(), 1);
-        assert_eq!(group[0].now, Some(a));
-
-        // AmongNoted (unconstrained) reads the whole live group back.
-        assert_eq!(
-            state.eval_selection_set(
-                &Selection::AmongNoted(key, deckmaste_core::Quantity::Range(None, None)),
-                &frame,
-            ),
-            vec![a],
-            "AmongNoted reads the noted objects back"
-        );
-    }
-
     /// [CR#607.2a,608.2d] a CONSTRAINING `AmongNoted` quantity ("destroy one of
     /// them") surfaces a `ChooseObjects` chooser over the noted group's LIVE
     /// members, honors the quantity's bounds, and binds the picks into the
@@ -3051,21 +3014,22 @@ mod tests {
 
     /// [CR#607.2] note kinds without readers stay loud per-kind.
     #[test]
-    #[should_panic(expected = "ChooseAndNote(Color)")]
-    fn choose_and_note_color_is_a_loud_seam() {
+    #[should_panic(expected = "ChooseValue(Color)")]
+    fn choose_value_color_is_a_loud_seam() {
         let (mut state, a) = bear_on_field();
         let frame = frame_src(a);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+            OneShotEffect::Act(Action::ChooseValue(
+                Reference::You,
+                ChosenValueKind::Color,
                 deckmaste_core::Ident::from("c"),
-                deckmaste_core::NotedKind::Color,
             )),
             &frame,
         );
     }
 
     #[test]
-    fn choose_and_note_card_name_records_the_choice() {
+    fn choose_value_card_name_records_the_choice() {
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
 
@@ -3073,9 +3037,10 @@ mod tests {
         let frame = frame_src(a);
         let key = deckmaste_core::Ident::from("cn");
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+            OneShotEffect::Act(Action::ChooseValue(
+                Reference::You,
+                ChosenValueKind::CardName,
                 key,
-                deckmaste_core::NotedKind::CardName,
             )),
             &frame,
         );
@@ -3092,20 +3057,6 @@ mod tests {
             Some(&crate::state::NotedValue::CardName(
                 "Grizzly Bears".to_owned()
             ))
-        );
-    }
-
-    #[test]
-    #[should_panic(expected = "ChooseAndNote(Piles)")]
-    fn choose_and_note_piles_is_a_loud_seam() {
-        let (mut state, a) = bear_on_field();
-        let frame = frame_src(a);
-        state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
-                deckmaste_core::Ident::from("p"),
-                deckmaste_core::NotedKind::Piles,
-            )),
-            &frame,
         );
     }
 
@@ -3727,8 +3678,8 @@ mod tests {
         use deckmaste_core::Deontic;
         use deckmaste_core::DeonticAction;
         use deckmaste_core::Duration;
+        use deckmaste_core::LifeOp;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
         use deckmaste_core::StaticEffect;
@@ -3737,7 +3688,10 @@ mod tests {
         let frame = frame_src(src);
         let seq = OneShotEffect::Sequentially(
             vec![
-                OneShotEffect::Act(Action::by_you(PlayerAction::GainLife(Count::Literal(1)))),
+                OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Up(Count::Literal(1)),
+                )),
                 OneShotEffect::Until(
                     Duration::ForThisEvent,
                     vec![StaticEffect::Deontic(Deontic::Cant(
@@ -4181,9 +4135,9 @@ mod tests {
         let yes = Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(0));
         let no = Condition::Compare(Count::Literal(0), Cmp::AtLeast, Count::Literal(1));
         let gain = |n| {
-            OneShotEffect::Act(Action::By(
+            OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(n)),
+                LifeOp::Up(Count::Literal(n)),
             ))
         };
 
@@ -4293,9 +4247,9 @@ mod tests {
         state.run_effect(
             OneShotEffect::Each(Each {
                 binder: Binder::Existing(Selection::SelectAll(creatures)),
-                effect: Arc::new(OneShotEffect::Act(Action::By(
+                effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
                     Reference::You,
-                    PlayerAction::GainLife(Count::Literal(1)),
+                    LifeOp::Up(Count::Literal(1)),
                 ))),
             }),
             &frame,
@@ -4319,12 +4273,13 @@ mod tests {
         use crate::decide::PendingDecision;
 
         let gain = |n| {
-            OneShotEffect::Act(Action::By(
+            OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(n)),
+                LifeOp::Up(Count::Literal(n)),
             ))
         };
         let may = || May {
+            who: Reference::You,
             effect: Arc::new(gain(3)),
             if_did: Some(Arc::new(gain(10))),
             if_not: Some(Arc::new(gain(1))),
@@ -4362,6 +4317,7 @@ mod tests {
         let life0 = state.player(p0).life;
         state.run_effect(
             OneShotEffect::May(May {
+                who: Reference::You,
                 effect: Arc::new(gain(3)),
                 if_did: None,
                 if_not: None,
@@ -4387,9 +4343,9 @@ mod tests {
         use crate::decide::PendingDecision;
 
         let gain_mode = |n| Mode {
-            effect: OneShotEffect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(n)),
+                LifeOp::Up(Count::Literal(n)),
             )),
             cost: None,
         };
@@ -4483,14 +4439,15 @@ mod tests {
         let must_pay = || MustPay {
             actor: Reference::You,
             cost: Cost(
-                vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
-                    2,
-                )))]
+                vec![CostComponent::do_action(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Down(Count::Literal(2)),
+                ))]
                 .into(),
             ),
-            or_else: Arc::new(OneShotEffect::Act(Action::By(
+            or_else: Arc::new(OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(10)),
+                LifeOp::Up(Count::Literal(10)),
             ))),
         };
 
@@ -4540,18 +4497,19 @@ mod tests {
         let may_pay = || MayPay {
             actor: Reference::You,
             cost: Cost(
-                vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
-                    2,
-                )))]
+                vec![CostComponent::do_action(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Down(Count::Literal(2)),
+                ))]
                 .into(),
             ),
-            and_then: Arc::new(OneShotEffect::Act(Action::By(
+            and_then: Arc::new(OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(10)),
+                LifeOp::Up(Count::Literal(10)),
             ))),
-            or_else: Some(Arc::new(OneShotEffect::Act(Action::By(
+            or_else: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(1)),
+                LifeOp::Up(Count::Literal(1)),
             )))),
         };
 
@@ -4611,10 +4569,18 @@ mod tests {
         state.run_effect(
             OneShotEffect::AdditionalCost(AdditionalCost {
                 pay: Cost(
-                    vec![CostComponent::do_(PlayerAction::Sacrifice(Reference::This))].into(),
+                    vec![CostComponent::do_action(Action::Sacrifice(
+                        Reference::You,
+                        Reference::This,
+                    ))]
+                    .into(),
                 ),
-                body: Arc::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
-                    Count::CounterCount(Arc::new(Reference::EventObject), "P1P1Counter".into()),
+                body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Up(Count::CounterCount(
+                        Arc::new(Reference::EventObject),
+                        "P1P1Counter".into(),
+                    )),
                 ))),
             }),
             &frame,
@@ -4700,7 +4666,8 @@ mod tests {
             vec![
                 OneShotEffect::If(If {
                     condition: ascend_gate(),
-                    then: Arc::new(OneShotEffect::act_by_you(PlayerAction::GetDesignation(
+                    then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
+                        Reference::You,
                         "CitysBlessing".into(),
                     ))),
                     otherwise: None,

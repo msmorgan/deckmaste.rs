@@ -12,6 +12,6 @@ Normal(
     power: 1,
     toughness: 1,
     abilities: [
-        Activated(cost: [Tap], effect: Targeted(targets: [TargetOne(Kind(Ability))], effect: CopySpell(Target(0)))),
+        Activated(cost: [Tap], effect: Targeted(targets: [TargetOne(Kind(Ability))], effect: CopySpell(controller: You, spec: (source: Object(Target(0))), retarget: AsIs))),
     ],
 )

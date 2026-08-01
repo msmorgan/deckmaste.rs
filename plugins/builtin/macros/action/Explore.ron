@@ -25,7 +25,7 @@
                     then: Move(It, Hand),
                     otherwise: Sequentially([
                         PutCounters(This, P1P1Counter, 1),
-                        May(effect: Move(It, Graveyard)),
+                        May(who: You, effect: Move(It, Graveyard)),
                     ]),
                 ),
             ]),

@@ -17,11 +17,11 @@ Normal(
   abilities: [
     Triggered(
       event: StepBegins(at: Beginning(Upkeep), whose: Your),
-      effect: May(effect: Targeted(
+      effect: May(who: You, effect: Targeted(
         targets: [TargetOne(Player), TargetOne(Player)],
         effect: Simultaneously([
-          By(Target(0), SetLife(PlayerStatOf(Target(1), Life))),
-          By(Target(1), SetLife(PlayerStatOf(Target(0), Life))),
+          ChangeLife(Target(0), Set(PlayerStatOf(Target(1), Life))),
+          ChangeLife(Target(1), Set(PlayerStatOf(Target(0), Life))),
         ]),
       )),
     ),

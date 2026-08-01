@@ -20,7 +20,6 @@ use deckmaste_core::Duration;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Property;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
@@ -51,12 +50,10 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                 cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::AddMana(
                     Reference::You,
-                    PlayerAction::AddMana(
-                        Count::Literal(1),
-                        ManaSpec::Specific(ColorOrColorless::Color(color)).into(),
-                    ),
+                    Count::Literal(1),
+                    ManaSpec::Specific(ColorOrColorless::Color(color)).into(),
                 )),
             },
         )))]
@@ -407,7 +404,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         );
     };
     assert_eq!(draw_exp.name.as_str(), "Draw");
-    // `Draw(1)` is `Batch(1, Act(By(You, DrawCard)))`: the `Batch` is the
+    // `Draw(1)` is `Batch(1, Act(DrawCard(You)))`: the `Batch` is the
     // instruction level a count-referring replacement bites ([CR#121.2a]) and
     // each element is one individual card draw ([CR#121.2]). NOT a `Composite`
     // — drawing is [CR#121], not a keyword action ([CR#701]), and [CR#121.5]
@@ -418,7 +415,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     assert!(
         matches!(
             draw_inner.as_ref(),
-            OneShotEffect::Act(Action::By(who, deckmaste_core::PlayerAction::DrawCard))
+            OneShotEffect::Act(Action::DrawCard(who))
                 if *who == Reference::You
         ),
         "or_else carries the unpaid Draw batch, got {draw_inner:?}"
@@ -576,7 +573,6 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
     use deckmaste_core::Cost;
     use deckmaste_core::CostComponent;
     use deckmaste_core::CounterRef;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Timing;
     use deckmaste_core::UseLimit;
 
@@ -609,11 +605,11 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
             CostComponent::Do(action)
                 if matches!(
                     action.as_ref(),
-                    deckmaste_core::Action::By(_, PlayerAction::PutCounters(
+                    deckmaste_core::Action::PutCounters(
                         deckmaste_core::Reference::This,
                         counter,
                         _,
-                    )) if *counter == CounterRef::from("LoyaltyCounter")
+                    ) if *counter == CounterRef::from("LoyaltyCounter")
                 )
         )),
         "LoyaltyPlus pays with a PutCounters(This, LoyaltyCounter, N) verb, got {components:?}"
@@ -638,11 +634,11 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
             CostComponent::Do(action)
                 if matches!(
                     action.as_ref(),
-                    deckmaste_core::Action::By(_, PlayerAction::RemoveCounters(
+                    deckmaste_core::Action::RemoveCounters(
                         deckmaste_core::Reference::This,
                         counter,
                         _,
-                    )) if *counter == CounterRef::from("LoyaltyCounter")
+                    ) if *counter == CounterRef::from("LoyaltyCounter")
                 )
         )),
         "LoyaltyMinus pays with a RemoveCounters(This, LoyaltyCounter, N) verb, got {components:?}"
@@ -694,10 +690,11 @@ fn amass_decomposes_into_core_primitives() {
         "the guard is `Not(Exists(Army creature you control))`, got {:?}",
         guard.condition,
     );
-    let OneShotEffect::Act(Action::By(
-        Reference::You,
-        PlayerAction::Create(_, TokenSpec::Token(tok), _),
-    )) = guard.then.as_ref()
+    let OneShotEffect::Act(Action::Create {
+        agent: Reference::You,
+        token: TokenSpec::Token(tok),
+        ..
+    }) = guard.then.as_ref()
     else {
         panic!("the guard creates a token, got {:?}", guard.then);
     };
@@ -738,13 +735,10 @@ fn amass_decomposes_into_core_primitives() {
     // Step 3: "Put N +1/+1 counters on that creature."
     assert_eq!(
         body[0],
-        OneShotEffect::Act(Action::By(
-            Reference::You,
-            PlayerAction::PutCounters(
-                Reference::That(Sort::OfType(Type::Creature)),
-                CounterRef::from("P1P1Counter"),
-                Count::Literal(1),
-            ),
+        OneShotEffect::Act(Action::PutCounters(
+            Reference::That(Sort::OfType(Type::Creature)),
+            CounterRef::from("P1P1Counter"),
+            Count::Literal(1),
         )),
         "N +1/+1 counters on the chosen Army (bound as That, not It)",
     );

@@ -16,7 +16,7 @@ Normal(
         Triggered(
             event: StepBegins(at: Beginning(Upkeep), whose: Your),
             condition: Compare(CounterCount(This, LuckCounter), AtLeast, 10),
-            effect: WinGame,
+            effect: WinGame(You),
         ),
     ],
 )

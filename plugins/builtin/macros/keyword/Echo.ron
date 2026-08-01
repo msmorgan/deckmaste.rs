@@ -29,7 +29,7 @@
             ),
             effect: MustPay(
                 cost: [Splice(Param(0))],
-                or_else: Sacrifice(This),
+                or_else: Sacrifice(You, This),
             ),
         )],
     ),

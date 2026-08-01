@@ -218,9 +218,9 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
 }
 
 /// A keyword cost argument -> its rendered cost list (`[Mana([Generic(2)])]`,
-/// `[Do(LoseLife(3))]`, …): the shared cost grammar over the ", "-separated
-/// clause. The worded form's trailing period is stripped; `{X}` is allowed
-/// (the printed cost carries it — what X equals is announced by the
+/// `[Do(ChangeLife(You, Down(3)))]`, …): the shared cost grammar over the ",
+/// "-separated clause. The worded form's trailing period is stripped; `{X}` is
+/// allowed (the printed cost carries it — what X equals is announced by the
 /// controller or stated by the card, [CR#107.3a,702.21b]).
 pub(crate) fn cost_arg(text: &str) -> anyhow::Result<Option<String>> {
     let trimmed = text.trim();
@@ -388,7 +388,7 @@ mod tests {
     fn word_costs_after_the_em_dash() {
         assert_eq!(
             bare("Ward—Pay 3 life.").as_deref(),
-            Some("Keyword(Ward(cost: [Do(LoseLife(3))]))")
+            Some("Keyword(Ward(cost: [Do(ChangeLife(You, Down(3)))]))")
         );
         assert_eq!(
             bare("Cycling—Discard a card.").as_deref(),
@@ -400,7 +400,7 @@ mod tests {
             bare("Ward—Sacrifice a creature.").as_deref(),
             Some(
                 "Keyword(Ward(cost: [With(binder: ChooseOne(filter: Creature), \
-                 body: [Do(Sacrifice(That(Permanent)))])]))"
+                 body: [Do(Sacrifice(You, That(Permanent)))])]))"
             )
         );
         assert_eq!(
@@ -410,7 +410,7 @@ mod tests {
         // A comma-separated cost list mixes mana and word costs.
         assert_eq!(
             bare("Ward—{2}, Pay 2 life.").as_deref(),
-            Some("Keyword(Ward(cost: [Mana([Generic(2)]), Do(LoseLife(2))]))")
+            Some("Keyword(Ward(cost: [Mana([Generic(2)]), Do(ChangeLife(You, Down(2)))]))")
         );
     }
 
@@ -472,7 +472,7 @@ mod tests {
             )
             .unwrap()
             .as_deref(),
-            Some("Keyword(Ward(cost: [Mana([Generic(2)]), Do(LoseLife(2))]))")
+            Some("Keyword(Ward(cost: [Mana([Generic(2)]), Do(ChangeLife(You, Down(2)))]))")
         );
     }
 

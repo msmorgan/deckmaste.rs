@@ -43,7 +43,7 @@
                 Subtype(Army),
                 ControlledBy(Ref(You)),
             ]))),
-            then: Create(1, Token(
+            then: Create(agent: You, count: 1, token: Token(
                 color_indicator: [Black],
                 types: [Creature],
                 subtypes: [

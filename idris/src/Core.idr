@@ -1636,6 +1636,10 @@ mutual
       They : {auto 0 prf : resolveThey Nothing (stack b) = Bound k} -> Selection b k
       Them : (w : Sort) -> {auto 0 prf : resolveThey (Just w) (stack b) = Bound k} -> Selection b k
       Random : Quantity b -> Predicate b k -> Selection b k
+      -- the whole library as one collection ([CR#701.24a]) — shuffle's own object
+      -- (`Action.Shuffle`); `whose` is ALWAYS spelled (Law 2 — no bare default), so
+      -- "shuffle your library" is `LibraryOf You`, never a bare `LibraryOf`.
+      LibraryOf : Reference b APlayer -> Selection b AnObject
       TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
       BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
       -- the top `count` card(s) of `whose` GRAVEYARD ([CR#404.1,404.2] — cards are put on top of an
@@ -1862,7 +1866,7 @@ mutual
   -- an ORDERED zone is only a destination AT A POSITION ([CR#401.4] — bare
   -- Library is unanchored), and the stack is never a `Move` destination
   -- ([CR#405.1] — casting puts a spell there, not a move). Demanded by
-  -- `Move`/`MoveArranged`.
+  -- `Move`/`MoveGroup`.
   public export
   DestinationOk : Destination b -> Type
   DestinationOk (ToZone Library) = Void
@@ -1874,7 +1878,7 @@ mutual
   -- [CR#401.4] "any order" default; `RandomOrder` = shuffled into place ([MTR 3.10], a randomized pile
   -- is the same kind of object as a shuffled library); `SameOrder` = preserve the source order (only
   -- meaningful from an already-ordered source). A single object has no internal order, so only
-  -- `MoveArranged` (a group) carries it. The `…Order` suffix keeps `RandomOrder` distinct from the
+  -- `MoveGroup` (a group) carries it. The `…Order` suffix keeps `RandomOrder` distinct from the
   -- `Selection.Random` constructor ("N random objects").
   namespace Arrangement
     public export
@@ -2088,6 +2092,7 @@ mutual
   selectionSort : {k : RefKind} -> Selection b k -> Sort
   selectionSort (SelectAll p) = filterSort p
   selectionSort (Random _ p) = filterSort p
+  selectionSort (LibraryOf _) = Card
   selectionSort (TopOfLibrary c) = Card
   selectionSort (BottomOfLibrary c) = Card
   selectionSort (TopOfGraveyard _ _) = Card
@@ -2131,7 +2136,7 @@ mutual
       -- the numeric `ManaValueOf`. "The flashback cost is equal to its mana cost" (Snapcaster's granted flashback).
       ManaCostOf : Reference b AnObject -> Cost b
       -- pay a cost by PERFORMING an action ([CR#118.3]): "{T}" = `Do (Tap This)`, "Pay N life" =
-      -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifice (SameAs This))`, "Pay {E}×N" =
+      -- `Do (ChangeLife You (Down (^N)))`, "Sacrifice this" = `Do (Sacrifice You (SameAs This))`, "Pay {E}×N" =
       -- `Do (RemoveCounters energy (^N) You)` (energy is a player counter — no dedicated `PayEnergy` verb),
       -- loyalty "+N"/"−N" = `Do (PutCounters/RemoveCounters loyaltyCounter (^N) This)`. UNRESTRICTED — ANY action
       -- (even scry/shuffle as a cost is legal); a senseless cost just no-ops, and nonsense is the grammar
@@ -2198,7 +2203,7 @@ mutual
   -- A DELIBERATELY LENIENT well-formedness floor ([CR#109.3]): an object has ≥1 card type. That's
   -- the only safe universal — printed stats can't be pinned to types (a Vehicle is an Artifact with
   -- P/T; Tarmogoyf is a Creature whose P/T come from a CDA, not printed fields), and `name` is
-  -- optional. Demanded at `Normal` and `CreateToken`.
+  -- optional. Demanded at `Normal` and `Create`.
   public export
   CharacteristicsOk : Characteristics b -> Type
   CharacteristicsOk c = NonEmpty (types c)
@@ -2268,8 +2273,8 @@ mutual
     --    (Drawing is NOT here: [CR#701] does not list it — it is [CR#121], a
     --    game action — and it is irreducible ([CR#121.5]: a library → hand move
     --    made without the word "draw" is not a draw), so it has no body to read
-    --    coordinates off. Draw is the `Action.Draw` verb below, carrying its own
-    --    actor and count; Rust's twin is `By(who, PlayerAction::Draw)`.)
+    --    coordinates off. Draw is the `Action.DrawCard` verb below, carrying its own
+    --    actor and count; Rust's twin is `DrawCard(who)` under a `Batch`.)
     --  * `Discard` ([CR#701.9a]) is a CHOICE verb: the affected cards live in the
     --    body's `With (Choose ..) ..`/`With (Existing (Random ..)) ..` decision
     --    (the [CR#701.9b] batch choice, or the bound single `Move` for "discard
@@ -2295,16 +2300,42 @@ mutual
       Destroy  : Reference b AnObject -> KeywordActionSpec b
       Fight    : Reference b AnObject -> Reference b AnObject -> KeywordActionSpec b
 
-  -- The verbs ([CR#701]). `OneShotEffect::Act` wraps these. Object verbs carry an object
-  -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
+  -- The operand of `Action.ChangeLife` ([CR#119.3,119.5]) — mirrors the merged Rust `LifeOp`
+  -- (`Set`/`Up`/`Down`): `Set` carries a plain `Count` (resolves as the gain/loss of the
+  -- necessary difference, [CR#119.5]), `Up`/`Down` a plain gain/loss ([CR#119.3]). Paying life
+  -- is losing life ([CR#119.4]) — cost position spells `Down`.
+  namespace LifeOp
+    public export
+    data LifeOp : Ctx -> Type where
+      Set : Count b -> LifeOp b
+      Up : Count b -> LifeOp b
+      Down : Count b -> LifeOp b
+
+  -- The [CR#115.7a..115.7d] four-way discriminant `Action.Retarget` collapses — Bolt Bend and
+  -- Redirect are different modes of the same verb, not different verbs. Mirrors the Rust
+  -- `RetargetMode`.
+  namespace RetargetMode
+    public export
+    data RetargetMode : Type where
+      ChangeAll : RetargetMode
+      ChangeOne : RetargetMode
+      ChangeAny : RetargetMode
+      ChooseNew : RetargetMode
+
+  -- The verbs ([CR#701]). `OneShotEffect::Act` wraps these — merged with the former
+  -- `PlayerAction` (the action-role-reshape design, 2026-08-01): a verb whose CR rule names a
+  -- performer/patient carries that reference as an explicit, non-defaulted positional argument
+  -- (Law 2 — no read-time default on any role slot); a verb whose CR rule is agent-silent
+  -- carries none.
   namespace Action
     public export
     data Action : Ctx -> Type where
       -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
-      -- `source` object is the agent. "Deals N to EACH …" is a `Each` over the recipients.
+      -- `source` object is the agent, ALWAYS spelled (`This` for the ability's source object / the
+      -- resolving spell). "Deals N to EACH …" is a `Each` over the recipients.
       -- fields in printed-sentence order: `source` deals `amount` to `recipient`
       -- (`source, amount, target`, matching the RON `DealDamage` verb).
-      DealDamage : {default This source : Reference b AnObject} -> Count b -> Reference b k -> Action b
+      DealDamage : Reference b AnObject -> Count b -> Reference b k -> Action b
       -- (divided damage — "N damage divided as you choose among [a group]" — is the general `Distribute`
       --  effect: `Distribute (^n) group (Act (DealDamage Allotment It))`, not a bespoke action.)
       -- a plain zone change [CR#400.7]; owner-relative, control implicit. `enteringAttacking` ([CR#508.4],
@@ -2325,31 +2356,29 @@ mutual
       -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
       Tap : Reference b AnObject -> Action b
       Untap : Reference b AnObject -> Action b
-      RemoveAllDamage : Reference b AnObject -> Action b    -- remove all damage marked on r (regeneration's heal, [CR#701.19])
-      RemoveFromCombat : Reference b AnObject -> Action b   -- remove r from combat ([CR#506.4])
+      RemoveDamage : Reference b AnObject -> Action b    -- remove all damage marked on r (regeneration's heal, [CR#701.19])
       Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#701.27])
-      PhaseOut : Reference b AnObject -> Action b     -- phase a permanent out ([CR#702.26]); phasing back in is the engine's turn-based action
-      -- "[r] becomes/gets the designation" — the target's kind follows `designationKindScope` (you become the
-      -- monarch; this creature becomes monstrous). Single-holder eviction (monarch) is the engine's.
-      GrantDesignation : (d : Designation) -> Reference b (designationKindScope d) -> Action b
       Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
       Unattach : Reference b AnObject -> Action b
-      -- a player verb: the `actor` draws n cards ([CR#121.1]). Rust's twin is
-      -- `By(actor, PlayerAction::Draw)` under a `Batch` count ([CR#121.2] — the
+      -- `agent` draws a card ([CR#121.1]) — exactly ONE card ([CR#121.2]). Rust's twin is
+      -- `DrawCard(agent)` under a `Batch` count ([CR#121.2] — the
       -- individual card draw is the replaceable unit there); the emitter folds that
       -- `Batch` into this `Count`, since `actionIntro` derives the card/amount
       -- anaphora from it ("draw three cards, then gain THAT MUCH life").
       -- Deliberately NOT a `KeywordActionSpec`: [CR#701] does not list drawing, and
       -- [CR#121.5] makes it irreducible, so there is no `Composite` body for it.
-      Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
-      -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
-      GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
+      DrawCard : Reference b APlayer -> Count b -> Action b
+      -- change a player's life total ([CR#119.3,119.9]) — the merged `GainLife`/`LoseLife`/
+      -- `SetLifeTo` family (Rust: `Action::ChangeLife`, the funnel criterion: every route into
+      -- the life total is a gain or a loss, [CR#119.2,119.4,119.5,119.7,119.8]). `patient` is the
+      -- player whose total changes; `LifeOp` carries the direction.
+      ChangeLife : Reference b APlayer -> LifeOp b -> Action b
       -- put a GROUP at an ordered position with an `Arrangement` ([CR#401.4]): "put the top three on the
-      -- bottom in any order" = `MoveArranged (TopOfLibrary (^3)) ChosenOrder (ToLibrary (FromBottom (^0)))`;
+      -- bottom in any order" = `MoveGroup (TopOfLibrary (^3)) ChosenOrder (ToLibrary (FromBottom (^0)))`;
       -- "...in a random order" = `… RandomOrder …`. Distinct from single `Move` — order
       -- only EMERGES for a simultaneous group landing in an ordered zone. (Per `DealDamage`-single +
       -- group-via-`Each` house style, single moves stay `Move`; this is the group verb.)
-      MoveArranged : Selection b AnObject -> Arrangement -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> Action b
+      MoveGroup : Selection b AnObject -> Arrangement -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> Action b
       -- put / remove counters ([CR#122]). `RemoveCounters` is symmetric with `PutCounters` (a `Count`);
       -- "remove all of a kind" is `RemoveCounters c (CountersOn c r) r`. Loyalty/counter COSTS reuse these via
       -- `Do` (e.g. "−2" = `Do (RemoveCounters loyaltyCounter (^2) This)`), so there is no duplicate counter-cost verb.
@@ -2359,36 +2388,49 @@ mutual
       -- says which: `Some c n` (Power Conduit, Leech Bonder) or `AllKinds` (Ozolith). Both ends are objects
       -- (counters don't move between players), so no `counterKindScope` indexing — a senseless kind just no-ops.
       MoveCounters : CounterSpec b -> (from : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
-      -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
-      Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
-      LoseLife : {default You actor : Reference b APlayer} -> Count b -> Action b
-      -- SET a player's life to N ([CR#119.5] — the player GAINS or LOSES the difference to reach N, so this DOES
-      -- fire life-change triggers; it's distinct from `GainLife`/`LoseLife` only in naming the target total). Biorhythm.
-      SetLifeTo : {default You actor : Reference b APlayer} -> Count b -> Action b
-      Sacrifice : {default You actor : Reference b APlayer} -> Predicate b AnObject -> Action b   -- "sacrifices a [pred]" (the actor chooses which; defaults to You)
+      -- `agent` sacrifices a permanent matching `pred` ([CR#701.21a] — a player can sacrifice only
+      -- what they control, so `agent` is that permanent's controller). Rust's `Sacrifice(Reference,
+      -- Reference)` resolves "what" to a single reference before this verb runs; the emitter
+      -- re-derives an equivalent Idris `Predicate` off that reference (`SameAs`).
+      Sacrifice : Reference b APlayer -> Predicate b AnObject -> Action b
       -- further keyword-action verbs ([CR#701]). The interactive bits (reorder, search choice, copy
       -- characteristics) are the engine's; the grammar names the verb. Scry/Surveil/Mill/Fight are NOT
       -- primitive verbs — they COMPOSITE over these primitives (`Each`/`With`/`Modal`/`Move`/`DealDamage`)
       -- as macros in `Macros.idr`, then wrap that desugaring in `Composite` (below) so the engine still
       -- RECOGNIZES the action — exactly the keyword ABILITIES' `Bare`/`Composite` split, on the verb side.
+      -- (A bare, non-composite `Discard` verb no longer exists — [CR#701.9] discard is always the
+      -- `Composite (Discard by n) body` shape now, matching Rust's `Action::discard`/`discard_what`.)
       Reveal : Reference b AnObject -> Action b
-      Shuffle : {default You actor : Reference b APlayer} -> Action b
-      -- "[player] takes an extra turn after this one" ([CR#500.7]) — Time Walk.
-      ExtraTurn : {default You actor : Reference b APlayer} -> Action b
+      -- shuffle a collection ([CR#701.24a]: "a library or a face-down pile of cards") — the
+      -- collection is the PATIENT, not an agent; the owner is derivable from the collection term
+      -- (Law 3). Rust: `Shuffle(Selection)` — `LibraryOf(who)` names a whole library.
+      Shuffle : Selection b AnObject -> Action b
+      -- "[player] takes an extra turn after this one" ([CR#500.7]) — Time Walk. (Rust: `ExtraPhase`;
+      -- no Idris/Rust bridge exists for this verb — see `idris_emit.rs`'s `Action::ExtraPhase` gap.)
+      ExtraTurn : (actor : Reference b APlayer) -> Action b
       -- "you control [whom] during their next turn" ([CR#723]) — Mindslaver: you make all of their
-      -- decisions. The next-turn duration is the standard one the engine applies.
+      -- decisions. The next-turn duration is the standard one the engine applies. (Rust:
+      -- `GainControl`; no Idris/Rust bridge exists for this verb either — see the `Action::
+      -- GainControl` gap.)
       ControlPlayer : (whom : Reference b APlayer) -> Action b
-      -- the token's full characteristics (P/T may be a `Count b`); `enteringAttacking` ([CR#508.4], default
-      -- `Nothing`) = create it ATTACKING the named player (Myriad/Encore's "attacking that [opponent]").
-      CreateToken : Count b -> (c : Characteristics b) -> {auto 0 wf : CharacteristicsOk c} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
+      -- `agent` creates the token(s) ([CR#111.1,701.7,701.7a] — "target player creates" is real
+      -- information). The token's full characteristics (P/T may be a `Count b`); `enteringAttacking`
+      -- ([CR#508.4], default `Nothing`) = create it ATTACKING the named player (Myriad/Encore's
+      -- "attacking that [opponent]"). Rust: `Action::Create { agent, count, token, riders }`.
+      Create : Reference b APlayer -> Count b -> (c : Characteristics b) -> {auto 0 wf : CharacteristicsOk c} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
       -- "copy [r], except <mods>" — a spell/ability copy on the stack ([CR#707.10]) or a token copy of a permanent
       -- ([CR#707.2]). The `List (Modification b)` carries the copiable-value alterations ([CR#707.9] — "a copy, except it's
       -- a 4/4"), each a SIBLING higher-layer mod (never bundled INTO the copy, same doctrine as `BecomeCopyOf` below); it is
       -- `[]` for a bare copy (`Copy r []`). A permanent BECOMING a copy is `BecomeCopyOf`. Copies carry the original's
-      -- modes/targets/X; "you may choose new targets" is a separate `ChooseNewTargets`
+      -- modes/targets/X; "you may choose new targets" is a separate `Retarget`. Also the Idris
+      -- target of Rust's `CopySpell { controller, spec, retarget }` (a stack-object copy,
+      -- [CR#707.10]) — the token-copy and stack-copy sites share this one constructor.
       Copy : Reference b AnObject -> List (Modification b) -> Action b
-      ChangeTarget : (of_ : Reference b AnObject) -> (to : Reference b AnObject) -> Action b  -- redirect [of_]'s target to the NAMED [to] (Spellskite → `This`); engine leaves it unchanged if [to] isn't a legal target ([CR#115.7a])
-      ChooseNewTargets : (of_ : Reference b AnObject) -> {default You by : Reference b APlayer} -> Action b  -- [by] PICKS new legal targets for [of_], bound by the original targetspec (Bolt Bend, Redirect, copy-with-new-targets) ([CR#115.7d])
+      -- `by` picks new targets for the stack object `of`, bound by its original targetspec
+      -- ([CR#115.7a..115.7d,707.10c] — Bolt Bend, Redirect, copy-with-new-targets). `mode` carries
+      -- the four-way discriminant (`RetargetMode`) — Bolt Bend (`ChangeOne`) and Redirect
+      -- (`ChangeAny`) are different modes, not the same verb. Rust: `Action::Retarget { mode, of, by }`.
+      Retarget : RetargetMode -> (of_ : Reference b AnObject) -> (by : Reference b APlayer) -> Action b
       -- "add mana" (a mana-ability effect; pool/paying is engine) ([CR#106.1,106.4]). ONE verb (merges the
       -- old `AddMana` + `AddManaFor`): `amount` copies of one `ProducedMana`, so fixed "{C}" (`amount = ^1`),
       -- {X}/devotion/count-scaled production (Gaea's Cradle, Karametra's Acolyte), and a producer-chosen
@@ -2396,7 +2438,7 @@ mutual
       -- [CR#106.6] applied to each of the `amount` mana ([CR#106.6a]) — Cavern: a chosen color, only to cast
       -- the chosen creature type, uncounterable. (Fixed HETEROGENEOUS production — "add {R}{G}" — is a
       -- `Sequentially` of `AddMana`s, so the old per-action list is gone.)
-      AddMana : {default You actor : Reference b APlayer} -> (amount : Count b) -> ProducedMana b
+      AddMana : (recipient : Reference b APlayer) -> (amount : Count b) -> ProducedMana b
                 -> {default [] riders : List (ManaRider b)} -> Action b
       -- a COMPOSITE keyword action ([CR#701]): `tag` NAMES the verb, `body` is its primitive desugaring
       -- (`Each`/`With`/`Modal`/`Sequentially` over the verbs above). The action-side twin of
@@ -2406,17 +2448,17 @@ mutual
       -- the RON grammar macros (e.g. `Fight`, `plugins/builtin/macros/effect/Fight.ron`).
       -- Rust: Action::Composite(KeywordAction, Box<OneShotEffect>), reached via the flattened `Act`.
       Composite : KeywordActionSpec b -> OneShotEffect b -> Action b
-      -- roll `sides`-sided dice ([CR#706.1]) `count` times; the RESULT rides the pushed
+      -- `agent` rolls `sides`-sided dice ([CR#706.1]) `count` times; the RESULT rides the pushed
       -- `amountAnte` antecedent (a later `Compare ThatMany …` reads it, [CR#706.2]).
-      RollDice : (count : Count b) -> (sides : Nat) -> Action b
-      -- flip `count` coins ([CR#705.1]); the win/loss RESULT rides the pushed `amountAnte`
+      RollDice : Reference b APlayer -> (count : Count b) -> (sides : Nat) -> Action b
+      -- `agent` flips `count` coins ([CR#705.1]); the win/loss RESULT rides the pushed `amountAnte`
       -- antecedent, like `RollDice`. `called` splits [CR#705.2]'s two kinds: True = the flipper
       -- calls heads/tails and wins or loses the flip; False = the effect reads only
       -- heads/tails and NO player wins or loses.
-      FlipCoins : (count : Count b) -> (called : Bool) -> Action b
-      -- roll the (Planechase) planar die as a special action ([CR#901.9]); NO numeric result
+      FlipCoins : Reference b APlayer -> (count : Count b) -> (called : Bool) -> Action b
+      -- `agent` rolls the (Planechase) planar die as a special action ([CR#901.9]); NO numeric result
       -- ([CR#901.9d]) so unlike `RollDice`/`FlipCoins` this introduces nothing for `ThatMany`.
-      RollPlanarDie : Action b
+      RollPlanarDie : Reference b APlayer -> Action b
 
   -- the event-anaphor caps the PAYMENT of a cost-action supplies its `AdditionalCost` body — the cost-side
   -- twin of `eventKindCaps`, for the object-moving cost verbs. Sacrifice/Discard bind the moved object
@@ -2426,41 +2468,35 @@ mutual
   -- NEW verb forces a decision here rather than silently binding nothing.
   public export
   actionEventCaps : Action b -> EventCaps
-  actionEventCaps (Action.Sacrifice _)        = eventKindCaps Sacrifice
-  actionEventCaps (Action.Discard _)          = eventKindCaps Discard
+  actionEventCaps (Action.Sacrifice _ _)      = eventKindCaps Sacrifice
   actionEventCaps (Action.Move _ _)           = eventKindCaps (ZoneChanged Nothing Nothing)
   actionEventCaps (Action.Tap _)              = eventKindCaps (Becomes Tapped)
   actionEventCaps (Action.Untap _)            = eventKindCaps (Becomes Untapped)
-  actionEventCaps (Action.LoseLife _)         = eventKindCaps LoseLife
+  actionEventCaps (Action.ChangeLife _ (LifeOp.Down _)) = eventKindCaps LoseLife
+  actionEventCaps (Action.ChangeLife _ _)     = NoCaps
   actionEventCaps (Action.RemoveCounters _ _ _) = eventKindCaps RemoveCounters
   actionEventCaps (Action.Reveal _)           = NoCaps   -- reveals bind nothing ([CR#701.20a])
-  actionEventCaps (Action.DealDamage _ _)     = NoCaps
+  actionEventCaps (Action.DealDamage _ _ _)   = NoCaps
   actionEventCaps (Action.Counter _)          = NoCaps
-  actionEventCaps (Action.RemoveAllDamage _)  = NoCaps
-  actionEventCaps (Action.RemoveFromCombat _) = NoCaps
+  actionEventCaps (Action.RemoveDamage _)     = NoCaps
   actionEventCaps (Action.Transform _)        = NoCaps
-  actionEventCaps (Action.PhaseOut _)         = NoCaps
-  actionEventCaps (Action.GrantDesignation _ _) = NoCaps
   actionEventCaps (Action.Attach _ _)         = NoCaps
   actionEventCaps (Action.Unattach _)         = NoCaps
-  actionEventCaps (Action.Draw _)             = NoCaps
-  actionEventCaps (Action.GainLife _)         = NoCaps
-  actionEventCaps (Action.MoveArranged _ _ _) = NoCaps
+  actionEventCaps (Action.DrawCard _ _)       = NoCaps
+  actionEventCaps (Action.MoveGroup _ _ _)    = NoCaps
   actionEventCaps (Action.PutCounters _ _ _)  = NoCaps
   actionEventCaps (Action.MoveCounters _ _ _) = NoCaps
-  actionEventCaps (Action.SetLifeTo _)        = NoCaps
-  actionEventCaps Action.Shuffle              = NoCaps
-  actionEventCaps Action.ExtraTurn            = NoCaps
+  actionEventCaps (Action.Shuffle _)          = NoCaps
+  actionEventCaps (Action.ExtraTurn _)        = NoCaps
   actionEventCaps (Action.ControlPlayer _)    = NoCaps
-  actionEventCaps (Action.CreateToken _ _)    = NoCaps
+  actionEventCaps (Action.Create _ _ _)       = NoCaps
   actionEventCaps (Action.Copy _ _)           = NoCaps
-  actionEventCaps (Action.ChangeTarget _ _)   = NoCaps
-  actionEventCaps (Action.ChooseNewTargets _) = NoCaps
-  actionEventCaps (Action.AddMana _ _)        = NoCaps
+  actionEventCaps (Action.Retarget _ _ _)     = NoCaps
+  actionEventCaps (Action.AddMana _ _ _)      = NoCaps
   actionEventCaps (Action.Composite _ _)      = NoCaps
-  actionEventCaps (Action.RollDice _ _)       = eventKindCaps RollDice
-  actionEventCaps (Action.FlipCoins _ _)      = eventKindCaps (FlipCoin Nothing)
-  actionEventCaps Action.RollPlanarDie        = eventKindCaps (RollPlanarDie Nothing)
+  actionEventCaps (Action.RollDice _ _ _)     = eventKindCaps RollDice
+  actionEventCaps (Action.FlipCoins _ _ _)    = eventKindCaps (FlipCoin Nothing)
+  actionEventCaps (Action.RollPlanarDie _)    = eventKindCaps (RollPlanarDie Nothing)
 
   -- the caps a COST's payment supplies its `AdditionalCost` body: an action pays via its event; a composite
   -- `Costs […]` UNIONS (any object-moving component binds), `Scaled` rides its inner cost; pure mana binds
@@ -2698,42 +2734,38 @@ mutual
   public export
   actionIntro : Action b -> List Ant
   actionIntro (Action.Move r d) = refIntro r ++ [MkAnt (destSort d) AnObject One Product (Just (destZone d)) Nothing]
-  actionIntro (Action.MoveArranged g _ d) = [MkAnt (destSort d) AnObject Many Product (Just (destZone d)) Nothing]
-  actionIntro (Action.CreateToken n c) = [MkAnt Token AnObject (countCard n) Product (Just Battlefield) Nothing]
-  actionIntro (Action.Draw n) = [MkAnt Card AnObject (countCard n) Product (Just Hand) Nothing, amountAnte]
-  actionIntro (Action.Discard n) = [MkAnt Card AnObject (countCard n) Product (Just Graveyard) Nothing, amountAnte]
+  actionIntro (Action.MoveGroup g _ d) = [MkAnt (destSort d) AnObject Many Product (Just (destZone d)) Nothing]
+  actionIntro (Action.Create _ n c) = [MkAnt Token AnObject (countCard n) Product (Just Battlefield) Nothing]
+  actionIntro (Action.DrawCard _ n) = [MkAnt Card AnObject (countCard n) Product (Just Hand) Nothing, amountAnte]
+  -- (Discard's card/amount anaphora is now derived from the Composite body's
+  -- own coordinates, not a bare Action.Discard row — see the Composite arm.)
   -- (the DealDamage recipient's kind is an erased index — no `A` push there;
   -- damage recipients are targets or loop elements, never indefinites)
-  actionIntro (Action.DealDamage n r) = [amountAnte]
-  actionIntro (Action.GainLife n) = [amountAnte]
-  actionIntro (Action.LoseLife n) = [amountAnte]
+  actionIntro (Action.DealDamage _ n _) = [amountAnte]
+  actionIntro (Action.ChangeLife _ (LifeOp.Set _)) = []
+  actionIntro (Action.ChangeLife _ _) = [amountAnte]
   actionIntro (Action.Counter r) = refIntro r
   actionIntro (Action.Tap r) = refIntro r
   actionIntro (Action.Untap r) = refIntro r
-  actionIntro (Action.RemoveAllDamage r) = refIntro r
-  actionIntro (Action.RemoveFromCombat r) = refIntro r
+  actionIntro (Action.RemoveDamage r) = refIntro r
   actionIntro (Action.Transform r) = refIntro r
-  actionIntro (Action.PhaseOut r) = refIntro r
-  actionIntro (Action.GrantDesignation _ r) = refIntro r
   actionIntro (Action.Attach w t) = refIntro w ++ refIntro t
   actionIntro (Action.Unattach r) = refIntro r
   actionIntro (Action.Reveal r) = refIntro r
   actionIntro (Action.Copy r _) = refIntro r
-  actionIntro (Action.ChangeTarget o t) = refIntro o ++ refIntro t
-  actionIntro (Action.ChooseNewTargets o) = refIntro o
+  actionIntro (Action.Retarget _ o _) = refIntro o
   actionIntro (Action.PutCounters _ _ r) = refIntro r
   actionIntro (Action.RemoveCounters _ _ r) = refIntro r
   actionIntro (Action.MoveCounters _ f t) = refIntro f ++ refIntro t
-  actionIntro (Action.Sacrifice _) = []
-  actionIntro (Action.SetLifeTo _) = []
-  actionIntro Action.Shuffle = []
-  actionIntro Action.ExtraTurn = []
+  actionIntro (Action.Sacrifice _ _) = []
+  actionIntro (Action.Shuffle _) = []
+  actionIntro (Action.ExtraTurn _) = []
   actionIntro (Action.ControlPlayer r) = refIntro r
-  actionIntro (Action.AddMana _ _) = []
+  actionIntro (Action.AddMana _ _ _) = []
   actionIntro (Action.Composite _ _) = []   -- composite tags introduce nothing (no intro row)
-  actionIntro (Action.RollDice _ _) = [amountAnte]
-  actionIntro (Action.FlipCoins _ _) = [amountAnte]
-  actionIntro Action.RollPlanarDie = []
+  actionIntro (Action.RollDice _ _ _) = [amountAnte]
+  actionIntro (Action.FlipCoins _ _ _) = [amountAnte]
+  actionIntro (Action.RollPlanarDie _) = []
 
   -- the antecedents an effect INTRODUCES for its right siblings
   -- ([CR#608.2d]): a clause's products, a `May`'s inner introductions, a
@@ -2925,7 +2957,7 @@ mutual
       -- distinct from `CostModifier`'s base modify; that distinction is carried HERE, by the consumer, so the
       -- cost list needs no `AltCost` wrapper). `costs` is the swapped-in cost ([] = "without paying its mana
       -- cost"). `from` defaults to Hand; a non-default zone is the cast-from-zone family ([CR#702.34] flashback =
-      -- `{from = [Graveyard]}`; escape/jump-start add a rider). Force of Will = `MayCastFor [Do (LoseLife (^1)), …]`.
+      -- `{from = [Graveyard]}`; escape/jump-start add a rider). Force of Will = `MayCastFor [Do (ChangeLife You (Down (^1))), …]`.
       -- `tag` (default `Nothing`) NAMES the alt cost so a rider can ask `WasCastWith tag` ("if its dash cost was
       -- paid", Dash/Evoke/Blitz); `when` (default `Nothing`) is an AVAILABILITY guard ([CR#702.76a],[CR#702.137a])
       -- — the permission only exists if the condition holds (Prowl = combat damage dealt; Spectacle = an opponent
@@ -3281,50 +3313,26 @@ chooseBy : Reference b APlayer -> Quantity b -> Predicate b k -> Bindable b Many
 chooseBy by q p = Choose {by} q p
 
 public export
-dealDamageFrom : Reference b AnObject -> Reference b k -> Count b -> Action b
-dealDamageFrom src r c = DealDamage {source = src} c r
-
-public export
 moveAttacking : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d}
              -> Maybe (Reference b APlayer) -> Action b
 moveAttacking r d ea = Move r d {enteringAttacking = ea}
 
-public export
-drawBy : Reference b APlayer -> Count b -> Action b
-drawBy a c = Draw {actor = a} c
-
-public export
-gainLifeBy : Reference b APlayer -> Count b -> Action b
-gainLifeBy a c = GainLife {actor = a} c
-
-public export
-discardBy : Reference b APlayer -> Count b -> Action b
-discardBy a c = Discard {actor = a} c
-
-public export
-loseLifeBy : Reference b APlayer -> Count b -> Action b
-loseLifeBy a c = LoseLife {actor = a} c
-
-public export
-setLifeToBy : Reference b APlayer -> Count b -> Action b
-setLifeToBy a c = SetLifeTo {actor = a} c
-
-public export
-sacrificeBy : Reference b APlayer -> Predicate b AnObject -> Action b
-sacrificeBy a p = Sacrifice {actor = a} p
-
-public export
-shuffleBy : Reference b APlayer -> Action b
-shuffleBy a = Shuffle {actor = a}
+-- `dealDamageFrom`/`drawBy`/`gainLifeBy`/`discardBy`/`loseLifeBy`/`setLifeToBy`/`sacrificeBy`/
+-- `shuffleBy` are GONE: they existed only to expose an emitter-overridden actor POSITIONALLY
+-- past a `{default You actor}` implicit — now that the action-role-reshape merge (2026-08-01)
+-- strips every role default (Law 2), the raw constructors (`DealDamage`/`DrawCard`/`ChangeLife`/
+-- `Sacrifice`/`Shuffle`) already take that argument positionally, so the emitter calls them
+-- directly. `discardBy` in particular has no raw constructor left to alias — the bare `Discard`
+-- verb is gone; discard is always the `Composite (Discard by n) body` shape.
 
 public export
 addManaFull : Reference b APlayer -> Count b -> ProducedMana b -> List (ManaRider b) -> Action b
-addManaFull a amt pm rs = AddMana {actor = a} amt pm {riders = rs}
+addManaFull a amt pm rs = AddMana a amt pm {riders = rs}
 
 public export
-createTokenAttacking : Count b -> (c : Characteristics b) -> {auto 0 wf : CharacteristicsOk c}
+createTokenAttacking : Reference b APlayer -> Count b -> (c : Characteristics b) -> {auto 0 wf : CharacteristicsOk c}
                     -> Maybe (Reference b APlayer) -> Action b
-createTokenAttacking n c ea = CreateToken n c {enteringAttacking = ea}
+createTokenAttacking a n c ea = Create a n c {enteringAttacking = ea}
 
 public export
 costOptionRep : String -> List (Cost b) -> Bool -> StaticEffect b

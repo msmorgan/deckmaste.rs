@@ -216,16 +216,16 @@ pub enum WorkItem {
         subject: crate::object::ObjectId,
     },
     /// [CR#707.10c,115.7d]: re-target a COMMITTED stack entry — surface a
-    /// `ChooseNewTargets` decision whose per-slot legal set is the fresh
+    /// `Retarget` decision whose per-slot legal set is the fresh
     /// legal candidates PLUS the current target (leaving a slot unchanged
     /// is always allowed, even when the current target is illegal; a
     /// CHANGED slot must be legal).
-    ChooseNewTargets {
+    Retarget {
         player: crate::player::PlayerId,
         entry: crate::object::ObjectId,
     },
-    /// [CR#608.2c,608.2d]: a resolving `ChooseAndNote(key, NotedKind::Number)`
-    /// — surface a resolution-time NUMBER choice for `player`, whose answer is
+    /// [CR#608.2c,608.2d]: a resolving `ChooseValue(who, Number, key)` —
+    /// surface a resolution-time NUMBER choice for `player`, whose answer is
     /// stored in `resolution_notes[key]` (`Count::Noted` reads it back). The
     /// verb (`&self`) can only schedule this; the handler (`&mut self`)
     /// surfaces the decision.
@@ -233,17 +233,8 @@ pub enum WorkItem {
         player: crate::player::PlayerId,
         key: deckmaste_core::Ident,
     },
-    /// A resolving `ChooseAndNote(key, CardName)` choice.
+    /// A resolving `ChooseValue(who, CardName, key)` choice.
     ChooseNoteCardName {
-        player: crate::player::PlayerId,
-        key: deckmaste_core::Ident,
-    },
-    /// [CR#607.2a,608.2d]: a resolving `ChooseAndNote(key, NotedKind::Objects)`
-    /// — surface a `ChooseObjects` pick for `player`; the submit records the
-    /// chosen objects into the `noted` product group under `key` (read back by
-    /// `Selection::AmongNoted`). The grammar carries no narrowing predicate,
-    /// so the candidate domain is derived by the handler.
-    ChooseNoteObjects {
         player: crate::player::PlayerId,
         key: deckmaste_core::Ident,
     },

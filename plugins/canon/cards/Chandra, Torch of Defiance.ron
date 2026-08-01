@@ -8,9 +8,10 @@
 //   If you don't, ~ deals 2 damage to each opponent." The top card is exiled
 //   and its product bound as `That(Card)` (`Produce(Move(It, Exile))`, the
 //   Cavern-of-Souls exile-and-bind, [CR#400.7j] chase-through-remint); the
-//   `May { effect: Cast(That(Card)), if_not: … }` offers the cast only when a
-//   legal, payable cast exists ([CR#608.2g] — else the `if_not` deal-2 runs).
-//   `Cast(That(Card))` casts the exiled card during resolution via the
+//   `May { who: You, effect: Cast(You, That(Card)), if_not: … }` offers the
+//   cast only when a legal, payable cast exists ([CR#608.2g] — else the
+//   `if_not` deal-2 runs). `Cast(You, That(Card))` casts the exiled card
+//   during resolution via the
 //   [CR#601.2] pipeline, no priority granted ([CR#608.2g]).
 //   [+1] mana — "Add {R}{R}." (`AddMana`).
 //   [−3] — "~ deals 4 damage to target creature." (`Targeted`, read back as
@@ -48,14 +49,15 @@ Normal(
       effect: With(
         binder: Produce(Move(It, Exile)),
         body: May(
-          effect: Cast(That(Card)),
+          who: You,
+          effect: Cast(You, That(Card)),
           if_not: DealsDamageToEach(2, OpponentOf(Ref(You))),
         ),
       ),
     )),
-    LoyaltyPlus(n: 1, effect: AddMana(2, Red)),
+    LoyaltyPlus(n: 1, effect: AddMana(You, 2, Red)),
     LoyaltyMinus(n: 3, effect: Targeted(targets: [TargetOne(Creature)], effect: DealDamage(This, 4, Target(0)))),
-    LoyaltyMinus(n: 7, effect: GetEmblem([
+    LoyaltyMinus(n: 7, effect: GetEmblem(You, [
       Triggered(
         event: Cast(who: Ref(You)),
         effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 5, Target(0))),

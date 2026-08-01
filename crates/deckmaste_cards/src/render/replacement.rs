@@ -5,7 +5,6 @@ use deckmaste_core::Count;
 use deckmaste_core::CounterRef;
 use deckmaste_core::EventFilter;
 use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
@@ -90,7 +89,7 @@ fn is_this_enters(e: &EventFilter) -> bool {
 fn is_tap_this(e: &OneShotEffect) -> bool {
     match e {
         OneShotEffect::Expanded(exp) => is_tap_this(&exp.value),
-        OneShotEffect::Act(Action::By(_, PlayerAction::Tap(Reference::This))) => true,
+        OneShotEffect::Act(Action::Tap(Reference::This)) => true,
         _ => false,
     }
 }
@@ -100,10 +99,9 @@ fn is_tap_this(e: &OneShotEffect) -> bool {
 fn put_counters_on_this(e: &OneShotEffect) -> Option<(&CounterRef, &Count)> {
     match e {
         OneShotEffect::Expanded(exp) => put_counters_on_this(&exp.value),
-        OneShotEffect::Act(Action::By(
-            _,
-            PlayerAction::PutCounters(Reference::This, kind, count),
-        )) => Some((kind, count)),
+        OneShotEffect::Act(Action::PutCounters(Reference::This, kind, count)) => {
+            Some((kind, count))
+        }
         _ => None,
     }
 }

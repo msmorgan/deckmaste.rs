@@ -24,7 +24,7 @@ Normal(
         // "{3}, Sacrifice this artifact: Creatures you control gain hexproof
         // until end of turn and can't be blocked this turn."
         Activated(
-            cost: [Mana([Generic(3)]), Do(Sacrifice(This))],
+            cost: [Mana([Generic(3)]), Do(Sacrifice(You, This))],
             effect: Until(FixedUntil(EndOfTurn), [
                 Each(
                     SelectAll(And([Type(Creature), ControlledBy(Ref(You))])),

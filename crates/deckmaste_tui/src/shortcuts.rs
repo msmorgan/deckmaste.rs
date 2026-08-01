@@ -34,11 +34,11 @@ pub fn single_each<T: Copy>(legal: &[Vec<T>]) -> Option<Vec<T>> {
 #[must_use]
 pub fn auto_answer(pending: &PendingDecision) -> Option<Decision> {
     match pending {
-        // [CR#707.10c]: a `ChooseNewTargets` slot is force-single exactly like
+        // [CR#707.10c]: a `Retarget` slot is force-single exactly like
         // a `ChooseTargets` one when its unioned `legal` set collapses to one
         // candidate (e.g. the current target is the only object in play).
         PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. })
-        | PendingDecision::ChooseNewTargets(deckmaste_engine::ChooseNewTargets { legal, .. }) => {
+        | PendingDecision::Retarget(deckmaste_engine::Retarget { legal, .. }) => {
             single_each(legal)
             // Each forced slot becomes a singleton chosen set ([CR#601.2c]).
             .map(|picks| Decision::Targets(picks.into_iter().map(|p| vec![p]).collect()))

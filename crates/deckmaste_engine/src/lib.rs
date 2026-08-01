@@ -43,7 +43,6 @@ pub use decide::pending::ChooseCostOptions;
 pub use decide::pending::ChooseManaColor;
 pub use decide::pending::ChooseManaMode;
 pub use decide::pending::ChooseModes;
-pub use decide::pending::ChooseNewTargets;
 pub use decide::pending::ChooseNoteCardName;
 pub use decide::pending::ChooseNoteNumber;
 pub use decide::pending::ChooseObjects;
@@ -61,6 +60,7 @@ pub use decide::pending::OrderTriggers;
 pub use decide::pending::PayMana;
 pub use decide::pending::PreGame;
 pub use decide::pending::Priority;
+pub use decide::pending::Retarget;
 pub use decide::pending::Vote;
 pub use decide::pending::YesNo;
 

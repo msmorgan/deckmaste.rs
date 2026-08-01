@@ -1994,7 +1994,6 @@ mod tests {
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         Ability::activated(ActivatedAbility {
             ability_word: None,
             from: None,
@@ -2002,12 +2001,10 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::AddMana(
                 Reference::You,
-                PlayerAction::AddMana(
-                    Count::Literal(1),
-                    ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Colorless)),
-                ),
+                Count::Literal(1),
+                ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Colorless)),
             )),
         })
     }
@@ -2881,8 +2878,8 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::ActivatedAbility;
         use deckmaste_core::Count;
+        use deckmaste_core::LifeOp;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         Ability::activated(ActivatedAbility {
             ability_word: None,
             from: None,
@@ -2890,9 +2887,9 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(1)),
+                LifeOp::Up(Count::Literal(1)),
             )),
         })
     }

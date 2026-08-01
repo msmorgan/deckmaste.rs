@@ -13,7 +13,7 @@
             from: Graveyard,
             cost: [Splice(Param(0)), Do(Move(This, Exile))],
             window: SorcerySpeed,
-            effect: Create(1, Copy(source: SelfCard, exceptions: [
+            effect: Create(agent: You, count: 1, token: Copy(source: SelfCard, exceptions: [
                 Modify(Colors(Set([White]))),
                 Modify(Subtypes(Add(Zombie))),
             ])),

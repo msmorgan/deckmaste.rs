@@ -21,7 +21,7 @@
             Triggered(
                 event: ThisEnters,
                 condition: CastWith(Evoke),
-                effect: Sacrifice(This),
+                effect: Sacrifice(You, This),
             ),
         ],
     ),

@@ -1,7 +1,7 @@
 // "[subject] draws N" ([CR#121.1]): the declarative-subject draw — that
 // player draws N cards, one at a time ([CR#121.2] — a per-card sequence,
 // not a simultaneous batch like mill). `Draws` is `Draw`'s twin: a
-// `Batch(N, ...)` over the per-unit `By(who, Draw)`. The engine runs the N
+// `Batch(N, ...)` over the per-unit `DrawCard(who)`. The engine runs the N
 // contained draws sequentially, each binding the library top late and
 // empty-checking before its move, so an empty library loses the game
 // ([CR#121.4,104.3c]).
@@ -11,10 +11,10 @@
 // no body. See `Draw.ron` for why the `KeywordAction` macro kind stays (it
 // is the English verb registry, not a CR claim).
 //
-// `who` (Param(0)) is `By`'s agent — a real slot, not a coordinate scraped
-// off a body selection. The template renders the subject context-aware
-// ("Target player draws two cards.", "Each player draws a card."); the
-// count spells its noun via the `card|cards` modifier.
+// `who` (Param(0)) is `DrawCard`'s own agent slot — a real slot, not a
+// coordinate scraped off a body selection. The template renders the subject
+// context-aware ("Target player draws two cards.", "Each player draws a
+// card."); the count spells its noun via the `card|cards` modifier.
 //
 // Usage: Draws(It, 1) (the announced player target / Each-bound player,
 // Jace Beleren) / Draws(Target(0), 2).
@@ -34,5 +34,5 @@
         (text: "draw a card", when: [(0, "You"), (1, "1")], position: Main),
         (text: "<Param(0)> draws a card", when: [(1, "1")]),
     ],
-    body: Batch(Param(1), By(Param(0), DrawCard)),
+    body: Batch(Param(1), DrawCard(Param(0))),
 )

@@ -209,14 +209,14 @@ pub(super) fn parse_tap_ability(
 /// production, a `Sequentially` for a heterogeneous run.
 fn render_production(production: &Production) -> anyhow::Result<String> {
     Ok(match production {
-        Production::AnyColor => "AddMana(1, AnyColor)".to_owned(),
+        Production::AnyColor => "AddMana(You, 1, AnyColor)".to_owned(),
         Production::OneOf(colors) => {
             let inner = colors
                 .iter()
                 .map(to_string_pretty)
                 .collect::<Result<Vec<_>, _>>()?
                 .join(", ");
-            format!("AddMana(1, OneOf([{inner}]))")
+            format!("AddMana(You, 1, OneOf([{inner}]))")
         }
         Production::OneOfRuns(runs) => {
             let options = runs
@@ -231,12 +231,17 @@ fn render_production(production: &Production) -> anyhow::Result<String> {
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?
                 .join(", ");
-            format!("AddMana(1, OneOfRuns([{options}]))")
+            format!("AddMana(You, 1, OneOfRuns([{options}]))")
         }
         Production::Fixed(runs) => {
             let adds = runs
                 .iter()
-                .map(|(count, spec)| Ok(format!("AddMana({count}, {})", to_string_pretty(spec)?)))
+                .map(|(count, spec)| {
+                    Ok(format!(
+                        "AddMana(You, {count}, {})",
+                        to_string_pretty(spec)?
+                    ))
+                })
                 .collect::<anyhow::Result<Vec<_>>>()?;
             if adds.len() == 1 {
                 adds.into_iter().next().unwrap()
@@ -245,7 +250,7 @@ fn render_production(production: &Production) -> anyhow::Result<String> {
             }
         }
         Production::Scaled(count, spec) => {
-            format!("AddMana({count}, {})", to_string_pretty(spec)?)
+            format!("AddMana(You, {count}, {})", to_string_pretty(spec)?)
         }
     })
 }
@@ -333,32 +338,35 @@ mod tests {
 
     #[test]
     fn single_symbol() {
-        assert_eq!(effect("{C}"), "AddMana(1, Colorless)");
-        assert_eq!(effect("{G}"), "AddMana(1, Green)");
+        assert_eq!(effect("{C}"), "AddMana(You, 1, Colorless)");
+        assert_eq!(effect("{G}"), "AddMana(You, 1, Green)");
     }
 
     #[test]
     fn homogeneous_run_uses_a_count() {
-        assert_eq!(effect("{C}{C}"), "AddMana(2, Colorless)");
-        assert_eq!(effect("{C}{C}{C}"), "AddMana(3, Colorless)");
+        assert_eq!(effect("{C}{C}"), "AddMana(You, 2, Colorless)");
+        assert_eq!(effect("{C}{C}{C}"), "AddMana(You, 3, Colorless)");
     }
 
     #[test]
     fn heterogeneous_run_is_a_sequence() {
         assert_eq!(
             effect("{W}{U}"),
-            "Sequentially([AddMana(1, White), AddMana(1, Blue)])"
+            "Sequentially([AddMana(You, 1, White), AddMana(You, 1, Blue)])"
         );
         assert_eq!(
             effect("{G}{G}{W}"),
-            "Sequentially([AddMana(2, Green), AddMana(1, White)])"
+            "Sequentially([AddMana(You, 2, Green), AddMana(You, 1, White)])"
         );
     }
 
     #[test]
     fn one_of_and_any_color() {
-        assert_eq!(effect("{W} or {U}"), "AddMana(1, OneOf([White, Blue]))");
-        assert_eq!(effect("one mana of any color"), "AddMana(1, AnyColor)");
+        assert_eq!(
+            effect("{W} or {U}"),
+            "AddMana(You, 1, OneOf([White, Blue]))"
+        );
+        assert_eq!(effect("one mana of any color"), "AddMana(You, 1, AnyColor)");
     }
 
     /// The Oxford-comma three-color choice ([CR#106.1b]): one mana, color
@@ -367,11 +375,11 @@ mod tests {
     fn one_of_three_colors() {
         assert_eq!(
             effect("{U}, {B}, or {R}"),
-            "AddMana(1, OneOf([Blue, Black, Red]))"
+            "AddMana(You, 1, OneOf([Blue, Black, Red]))"
         );
         assert_eq!(
             effect("{W}, {U}, {B}, {R}, or {G}"),
-            "AddMana(1, OneOf([White, Blue, Black, Red, Green]))"
+            "AddMana(You, 1, OneOf([White, Blue, Black, Red, Green]))"
         );
     }
 
@@ -381,17 +389,17 @@ mod tests {
     fn one_of_multi_symbol_is_a_run_choice() {
         assert_eq!(
             effect("{W}{W}, {W}{U}, or {U}{U}"),
-            "AddMana(1, OneOfRuns([[White, White], [White, Blue], [Blue, Blue]]))"
+            "AddMana(You, 1, OneOfRuns([[White, White], [White, Blue], [Blue, Blue]]))"
         );
         // The two-item form (bare " or ") promotes too.
         assert_eq!(
             effect("{C}{C} or {U}{U}"),
-            "AddMana(1, OneOfRuns([[Colorless, Colorless], [Blue, Blue]]))"
+            "AddMana(You, 1, OneOfRuns([[Colorless, Colorless], [Blue, Blue]]))"
         );
         // A mixed choice — one single symbol, one run — is still a run choice.
         assert_eq!(
             effect("{W} or {U}{U}"),
-            "AddMana(1, OneOfRuns([[White], [Blue, Blue]]))"
+            "AddMana(You, 1, OneOfRuns([[White], [Blue, Blue]]))"
         );
     }
 
@@ -403,7 +411,7 @@ mod tests {
             ability("{W/U}, {T}: Add {W}{W}, {W}{U}, or {U}{U}."),
             Some(
                 "Activated(cost: [Mana([Hybrid(White,Blue)]), Tap], effect: \
-                 AddMana(1, OneOfRuns([[White, White], [White, Blue], [Blue, Blue]])))"
+                 AddMana(You, 1, OneOfRuns([[White, White], [White, Blue], [Blue, Blue]])))"
                     .to_owned()
             )
         );
@@ -417,25 +425,27 @@ mod tests {
             ability("{1}, {T}: Add {W}{U}."),
             Some(
                 "Activated(cost: [Mana([Generic(1)]), Tap], effect: \
-                 Sequentially([AddMana(1, White), AddMana(1, Blue)]))"
+                 Sequentially([AddMana(You, 1, White), AddMana(You, 1, Blue)]))"
                     .to_owned()
             )
         );
         assert_eq!(
             ability("{1}, {T}: Add one mana of any color."),
             Some(
-                "Activated(cost: [Mana([Generic(1)]), Tap], effect: AddMana(1, AnyColor))"
+                "Activated(cost: [Mana([Generic(1)]), Tap], effect: AddMana(You, 1, AnyColor))"
                     .to_owned()
             )
         );
         assert_eq!(
             ability("{T}, Sacrifice ~: Add {B}{B}."),
-            Some("Activated(cost: [Tap, SacrificeThis], effect: AddMana(2, Black))".to_owned())
+            Some(
+                "Activated(cost: [Tap, SacrificeThis], effect: AddMana(You, 2, Black))".to_owned()
+            )
         );
         assert_eq!(
             ability("{T}, Pay 1 life: Add one mana of any color."),
             Some(
-                "Activated(cost: [Tap, Do(LoseLife(1))], effect: AddMana(1, AnyColor))".to_owned()
+                "Activated(cost: [Tap, Do(ChangeLife(You, Down(1)))], effect: AddMana(You, 1, AnyColor))".to_owned()
             )
         );
     }
@@ -448,7 +458,7 @@ mod tests {
             ability("{T}: Add {W} or {B}. ~ deals 1 damage to you."),
             Some(
                 "Activated(cost: [Tap], effect: \
-                 Sequentially([AddMana(1, OneOf([White, Black])), DealDamage(This, 1, You)]))"
+                 Sequentially([AddMana(You, 1, OneOf([White, Black])), DealDamage(This, 1, You)]))"
                     .to_owned()
             )
         );
@@ -476,12 +486,12 @@ mod tests {
         // for one extra mana).
         assert_eq!(
             effect("{G} for each Elf you control"),
-            "AddMana(CountOf(Objects(And([Permanent, Subtype(Elf), ControlledBy(Ref(You))]))), Green)"
+            "AddMana(You, CountOf(Objects(And([Permanent, Subtype(Elf), ControlledBy(Ref(You))]))), Green)"
         );
         // Priest of Titania (battlefield scope, made explicit on the head).
         assert_eq!(
             effect("{G} for each Elf on the battlefield"),
-            "AddMana(CountOf(Objects(And([Permanent, Subtype(Elf)]))), Green)"
+            "AddMana(You, CountOf(Objects(And([Permanent, Subtype(Elf)]))), Green)"
         );
     }
 
@@ -524,7 +534,7 @@ mod tests {
             )
             .unwrap()
             .as_deref(),
-            Some("Activated(cost: [Tap], effect: AddMana(1, Green))")
+            Some("Activated(cost: [Tap], effect: AddMana(You, 1, Green))")
         );
         assert_eq!(
             resolve_line(
@@ -551,7 +561,7 @@ mod tests {
             .unwrap()
             .as_deref(),
             Some(
-                "Activated(cost: [Tap], effect: Sequentially([AddMana(1, White), AddMana(1, Blue)]))"
+                "Activated(cost: [Tap], effect: Sequentially([AddMana(You, 1, White), AddMana(You, 1, Blue)]))"
             )
         );
     }

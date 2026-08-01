@@ -6,13 +6,13 @@ Normal(
     types: [Enchantment],
     subtypes: [Saga],
     abilities: [
-        Chapter(n: [1], effect: GainLife(1)),
-        Chapter(n: [2, 3], effect: GainLife(2)),
+        Chapter(n: [1], effect: ChangeLife(You, Up(1))),
+        Chapter(n: [2, 3], effect: ChangeLife(You, Up(2))),
         // [CR#714.4]: sacrifice once the lore total reaches the final chapter
         // number (3 here, [CR#714.2d]).
         Static(Sba(
             when: Compare(CounterCount(This, LoreCounter), AtLeast, 3),
-            then: Sacrifice(This),
+            then: Sacrifice(You, This),
         )),
     ],
 )

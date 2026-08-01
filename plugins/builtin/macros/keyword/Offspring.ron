@@ -3,7 +3,7 @@
 // cost was paid, create a 1/1 token copy of it." Two abilities — Kicker's
 // optional-additional-cost static ([CR#702.33a]) plus Undying's shape of
 // intervening-if ETB triggered ability ([CR#603.4]) — over the copy grammar's
-// `Create(1, Copy(...))`.
+// `Create(agent: You, count: 1, token: Copy(...))`.
 //
 // Pieces (all over existing primitives — no engine gap):
 //   - the optional cost: `Static(CostOption(components: Param(0), tag: Offspring))`
@@ -13,7 +13,7 @@
 //   - the ETB trigger: `Triggered(event: ThisEnters, condition: PaidCost(Offspring),
 //     effect: ...)` — "when this permanent enters, if its offspring cost was
 //     paid" ([CR#603.4] intervening-if reading the [CR#702.33d]-style tag).
-//   - the effect: `Create(1, Copy(source: SelfCard, ...))` — a token copy of
+//   - the effect: `Create(agent: You, count: 1, token: Copy(source: SelfCard, ...))` — a token copy of
 //     the entering permanent ([CR#707.1]) EXCEPT it's 1/1 (`Power(Set(1))` +
 //     `Toughness(Set(1))`, [CR#707.9d]).
 (
@@ -28,7 +28,7 @@
             Triggered(
                 event: ThisEnters,
                 condition: PaidCost(Offspring),
-                effect: Create(1, Copy(source: SelfCard, exceptions: [
+                effect: Create(agent: You, count: 1, token: Copy(source: SelfCard, exceptions: [
                     Modify(Power(Set(1))),
                     Modify(Toughness(Set(1))),
                 ])),

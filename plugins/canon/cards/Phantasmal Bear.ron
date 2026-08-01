@@ -16,7 +16,7 @@ Normal(
   abilities: [
     Triggered(
       event: BecomesTarget(what: Ref(This)),
-      effect: Sacrifice(This),
+      effect: Sacrifice(You, This),
     ),
   ],
   power: 2,

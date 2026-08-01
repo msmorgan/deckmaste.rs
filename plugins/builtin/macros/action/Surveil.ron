@@ -12,7 +12,7 @@
         body: Each(
             binder: Existing(TopOfLibrary(count: Param(0))),
             effect: Modal(
-                choose: (count: Range(Literal(1), Literal(1))),
+                choose: (count: Range(Literal(1), Literal(1)), chooser: You),
                 modes: [
                     (effect: Move(It, Library(FromTop(0)))),
                     (effect: Move(It, Graveyard)),

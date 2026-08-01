@@ -437,28 +437,9 @@ impl DecisionHandler for ChooseObjects {
                 frame.anaphora.chosen = Some(chosen);
                 g.schedule_front(vec![WorkItem::RunEffect { effect, frame }]);
             }
-            // [CR#607.2a,608.2d]: a `ChooseAndNote(_, Objects)` write —
-            // record the picks into the fact-backed `noted` group under
-            // `key` (each a live `NotedMember`, mirroring `note_enacted`'s
-            // shape: LKI snapshot + post-move identity, here the object's
-            // own live id). No effect re-runs; the resolution continues.
-            // A pick that has since left play (or is a player proxy) is
-            // skipped — never a snapshot panic (authoring mistakes never
-            // crash).
-            crate::state::ChoiceContinuation::NoteObjects { key } => {
-                let members: Vec<crate::state::NotedMember> = chosen
-                    .iter()
-                    .filter(|&&id| g.objects.get(id).is_some_and(|o| o.zone.is_some()))
-                    .map(|&id| crate::state::NotedMember {
-                        snapshot: crate::lki::LkiSnapshot::capture(g, id),
-                        now: Some(id),
-                    })
-                    .collect();
-                g.noted.insert(key, members);
-            }
             other => {
                 unreachable!(
-                    "a ChooseObjects decision stashes a BindChoice/NoteObjects \
+                    "a ChooseObjects decision stashes a BindChoice \
                      continuation, got {other:?}"
                 )
             }

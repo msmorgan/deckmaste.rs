@@ -88,11 +88,11 @@ fn cost_macro(text: &str, index: Option<&TemplateIndex>) -> anyhow::Result<Optio
     Ok(m.map(|m| m.invocation))
 }
 
-/// `Pay N life` -> `Do(LoseLife(N))`: paying life is losing that much life
-/// [CR#119.4].
+/// `Pay N life` -> `Do(ChangeLife(You, Down(N)))`: paying life is losing that
+/// much life [CR#119.4].
 fn pay_life(text: &str) -> Option<String> {
     let n = effect::number_word(text.strip_prefix("Pay ")?.strip_suffix(" life")?)?;
-    Some(format!("Do(LoseLife({n}))"))
+    Some(format!("Do(ChangeLife(You, Down({n})))"))
 }
 
 /// `Discard a card` / `Discard N cards` -> `DiscardCards(N)` — the
@@ -110,10 +110,10 @@ fn discard(text: &str) -> Option<String> {
 
 /// `Sacrifice <subject>` (non-self) -> the cost-side choose-then-pay `With`
 /// step ([CR#601.2b]): `With(binder: ChooseOne(filter: <filter>), body:
-/// [Do(Sacrifice(That(Permanent)))])` for one, or `With(binder:
+/// [Do(Sacrifice(You, That(Permanent)))])` for one, or `With(binder:
 /// Choose(quantity: Exactly(N), filter: <filter>), body:
-/// [Do(Sacrifice(That(Permanent)))])` for N>1. The binder makes the choice
-/// (bound as `That`) and `Sacrifice(That(Permanent))` pays against
+/// [Do(Sacrifice(You, That(Permanent)))])` for N>1. The binder makes the choice
+/// (bound as `That`) and `Sacrifice(You, That(Permanent))` pays against
 /// it — choosing kept OUT of the verb (a verb takes a single [`Reference`]).
 /// The implicit "you control" restriction is the Sacrifice verb's own
 /// ([CR#701.21a]), not part of the printed-text filter — matching the
@@ -137,7 +137,7 @@ fn sacrifice(text: &str) -> Option<String> {
         format!("Choose(quantity: Exactly({count}), filter: {filter})")
     };
     Some(format!(
-        "With(binder: {binder}, body: [Do(Sacrifice(That(Permanent)))])"
+        "With(binder: {binder}, body: [Do(Sacrifice(You, That(Permanent)))])"
     ))
 }
 

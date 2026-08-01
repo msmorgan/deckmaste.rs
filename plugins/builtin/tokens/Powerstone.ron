@@ -6,7 +6,7 @@ Token(
     abilities: [
         Activated(
             cost: [Tap],
-            effect: AddMana(1, WithRiders(
+            effect: AddMana(You, 1, WithRiders(
                 mana: Colorless,
                 riders: [SpendOnly(Not(And([Kind(Spell), Not(Type(Artifact))])))],
             )),

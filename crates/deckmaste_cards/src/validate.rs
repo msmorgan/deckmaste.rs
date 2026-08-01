@@ -6,7 +6,7 @@
 //! same macro scope and todo-skipping as cards.
 //!
 //! **Cost-eligibility lint**: for every parsed Card face and Token, every
-//! `CostComponent::Do(action)` must satisfy `PlayerAction::is_cost_eligible()`.
+//! `CostComponent::Do(action)` must satisfy `Action::is_cost_eligible()`.
 //! Violations surface as [`Validation::lint_failures`] entries with a plain
 //! message, separate from the parse-error [`Validation::failures`] vec (which
 //! carries [`ron::error::SpannedError`] values that can't be constructed by
@@ -392,9 +392,9 @@ mod tests {
     use deckmaste_core::Expansion;
     use deckmaste_core::ExpansionArgs;
     use deckmaste_core::Ident;
+    use deckmaste_core::LifeOp;
     use deckmaste_core::ManaSpec;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::StaticEffect;
@@ -403,12 +403,13 @@ mod tests {
     use deckmaste_core::Type;
     use deckmaste_core::TypeDef;
 
-    /// `OneShotEffect::Act(By(You, AddMana(1, AnyColor)))` — the produced-mana
-    /// effect the test tokens carry, in the new player-agent shape.
+    /// `OneShotEffect::Act(AddMana(You, 1, AnyColor))` — the produced-mana
+    /// effect the test tokens carry.
     fn add_one_any() -> OneShotEffect {
-        OneShotEffect::Act(Action::By(
+        OneShotEffect::Act(Action::AddMana(
             Reference::You,
-            PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor.into()),
+            Count::Literal(1),
+            ManaSpec::AnyColor.into(),
         ))
     }
 
@@ -421,7 +422,8 @@ mod tests {
         PathBuf::from("test/dummy.ron")
     }
 
-    /// A non-cost-eligible player action (`GainLife`) in a Do cost is flagged.
+    /// A non-cost-eligible action (`DrawCard`: no printed "draw a card" cost
+    /// exists, [CR#601.2b..601.2c]) in a Do cost is flagged.
     #[test]
     fn lint_flags_ineligible_action_in_do_cost() {
         let token = Token {
@@ -434,8 +436,8 @@ mod tests {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: Arc::<[CostComponent]>::from(vec![CostComponent::do_(
-                    PlayerAction::GainLife(Count::Literal(1)),
+                cost: Arc::<[CostComponent]>::from(vec![CostComponent::do_action(
+                    Action::DrawCard(Reference::You),
                 )])
                 .into(),
                 condition: None,
@@ -450,9 +452,46 @@ mod tests {
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
         assert_eq!(failures.len(), 1, "expected exactly one lint failure");
         assert!(
-            failures[0].1.contains("GainLife"),
+            failures[0].1.contains("DrawCard"),
             "message should mention the action: {}",
             failures[0].1
+        );
+    }
+
+    /// [CR#119.7] The whole `ChangeLife` family is cost-eligible — gain-life
+    /// costs are printed (Invigorate: "rather than pay this spell's mana
+    /// cost, you may have an opponent gain 3 life"), not just the losing
+    /// direction (pay-life). Supersedes the former `GainLife`-is-ineligible
+    /// pin: the reshape widened eligibility to the whole consolidated verb.
+    #[test]
+    fn lint_allows_change_life_gain_in_do_cost() {
+        let token = Token {
+            name: None,
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
+            abilities: vec![Ability::activated(ActivatedAbility {
+                ability_word: None,
+                from: None,
+                window: None,
+                cost: Arc::<[CostComponent]>::from(vec![CostComponent::do_action(
+                    Action::ChangeLife(Reference::You, LifeOp::Up(Count::Literal(3))),
+                )])
+                .into(),
+                condition: None,
+                limits: vec![].into(),
+                effect: add_one_any(),
+            })]
+            .into(),
+            power: None,
+            toughness: None,
+        };
+        let mut failures = Vec::new();
+        lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
+        assert!(
+            failures.is_empty(),
+            "ChangeLife(Up) should not be flagged: {failures:?}"
         );
     }
 
@@ -471,7 +510,7 @@ mod tests {
                 window: None,
                 cost: Arc::<[CostComponent]>::from(vec![
                     CostComponent::Tap,
-                    CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
+                    CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This)),
                 ])
                 .into(),
                 condition: None,
@@ -506,9 +545,7 @@ mod tests {
                     name: "BadCost".into(),
                     args: ExpansionArgs::none(),
                     template: None,
-                    value: Box::new(CostComponent::do_(PlayerAction::GainLife(Count::Literal(
-                        1,
-                    )))),
+                    value: Box::new(CostComponent::do_action(Action::DrawCard(Reference::You))),
                 })])
                 .into(),
                 condition: None,
@@ -526,7 +563,7 @@ mod tests {
             1,
             "expected the inner ineligible action to be flagged"
         );
-        assert!(failures[0].1.contains("GainLife"), "{}", failures[0].1);
+        assert!(failures[0].1.contains("DrawCard"), "{}", failures[0].1);
     }
 
     /// Non-activated abilities are ignored by the lint.

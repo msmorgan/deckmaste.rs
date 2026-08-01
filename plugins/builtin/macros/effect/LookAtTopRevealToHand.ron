@@ -30,7 +30,7 @@
         binder: Existing(TopOfLibrary(count: 1)),
         effect: If(
             condition: Matches(It, Param(0)),
-            then: May(effect: Sequentially([
+            then: May(who: You, effect: Sequentially([
                 Reveal(what: It),
                 Move(It, Hand),
             ])),

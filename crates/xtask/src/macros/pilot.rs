@@ -798,10 +798,11 @@ fn evaluate_line<'a>(
 /// are equal, which they must be: an entry's emission is its body term with the
 /// recovered arguments filled ([`Recovered::to_ron`]), and a body exists
 /// precisely because the value's RON shape is not the flat application of the
-/// entry's name. `GainLife(3)` on the card and `By(You, GainLife(3))` from the
-/// recovery are the same `OneShotEffect`; a string comparison would call them
-/// different, and did. The recovered RON text survives only as something to
-/// *print*.
+/// entry's name. `ChangeLife(You, Up(3))` on the card and `ChangeLife(You,
+/// Up(Literal(3)))` from the recovery are the same `OneShotEffect`
+/// (`Literal(…)` is `Count`'s leniently-readable, never-written tagged spelling
+/// of a bare numeral); a string comparison would call them different, and did.
+/// The recovered RON text survives only as something to *print*.
 ///
 /// The one thing a value comparison still cannot do is compare against a
 /// non-value: a recovery holding a `Recovered::Residual` denotes nothing at
@@ -1280,15 +1281,16 @@ mod tests {
     }
 
     /// The gate's own comparison, on the family it was changed for: a
-    /// recovery through a `body:` entry emits `By(You, GainLife(3))`, the
-    /// card says `GainLife(3)`, and they are the same `OneShotEffect`.
+    /// recovery through a `body:` entry emits
+    /// `ChangeLife(You, Up(Literal(3)))`, the card says
+    /// `ChangeLife(You, Up(3))`, and they are the same `OneShotEffect`.
     ///
     /// The control is the point — the two **spellings** genuinely differ, so
     /// a comparison on text would have called this a divergence, and did.
     #[test]
     fn g4_compares_expanded_values_not_spellings() {
         let recovered = Recovered::Invocation {
-            entry: "GainLife".to_string(),
+            entry: "GainsLife".to_string(),
             args: vec![
                 Recovered::Invocation {
                     entry: "You".to_string(),
@@ -1298,16 +1300,19 @@ mod tests {
                 },
                 Recovered::Literal("3".to_string()),
             ],
-            body: Some("By(Param(0), GainLife(Param(1)))".to_string()),
+            body: Some("ChangeLife(Param(0), Up(Literal(Param(1))))".to_string()),
             ambiguities: Vec::new(),
         };
         let emitted = recovered
             .to_ron(guard::core_reader())
             .expect("a fully recovered tree emits");
-        assert_eq!(emitted, "By(You, GainLife(3))");
-        assert_ne!(emitted, "GainLife(3)", "the spellings really do differ");
+        assert_eq!(emitted, "ChangeLife(You, Up(Literal(3)))");
+        assert_ne!(
+            emitted, "ChangeLife(You, Up(3))",
+            "the spellings really do differ"
+        );
 
-        let line = line_authored("OneShotEffect", "GainLife(3)");
+        let line = line_authored("OneShotEffect", "ChangeLife(You, Up(3))");
         assert!(
             matches!(
                 evaluate_g4(&recovered, &line, guard::core_reader()),
@@ -1319,7 +1324,7 @@ mod tests {
 
         // And it is a comparison, not an acceptance: a recovery denoting a
         // different value still diverges.
-        let other = line_authored("OneShotEffect", "GainLife(4)");
+        let other = line_authored("OneShotEffect", "ChangeLife(You, Up(4))");
         assert_eq!(
             g4_label(&evaluate_g4(&recovered, &other, guard::core_reader())),
             "diverged: expands to a different normal form than the authored RON",
@@ -1332,7 +1337,7 @@ mod tests {
     #[test]
     fn an_incomplete_recovery_diverges_with_no_value_to_show() {
         let recovered = Recovered::Invocation {
-            entry: "GainLife".to_string(),
+            entry: "GainsLife".to_string(),
             args: vec![
                 Recovered::Residual(View::Unit {
                     name: "Pronoun",
@@ -1340,10 +1345,10 @@ mod tests {
                 }),
                 Recovered::Literal("3".to_string()),
             ],
-            body: Some("By(Param(0), GainLife(Param(1)))".to_string()),
+            body: Some("ChangeLife(Param(0), Up(Literal(Param(1))))".to_string()),
             ambiguities: Vec::new(),
         };
-        let line = line_authored("OneShotEffect", "GainLife(3)");
+        let line = line_authored("OneShotEffect", "ChangeLife(You, Up(3))");
         let G4Outcome::Diverged {
             recovered_ron,
             reason,
@@ -1352,7 +1357,7 @@ mod tests {
             panic!("an incomplete recovery must diverge");
         };
         assert_eq!(recovered_ron, None, "there is no value to show");
-        assert!(reason.contains("GainLife arg 0"), "{reason}");
+        assert!(reason.contains("GainsLife arg 0"), "{reason}");
     }
 
     fn g4_label(outcome: &G4Outcome) -> String {

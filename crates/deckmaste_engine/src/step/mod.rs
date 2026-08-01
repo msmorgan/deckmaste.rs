@@ -143,10 +143,10 @@ pub enum Progress {
     /// [CR#601.2c]: targets were announced for the in-flight spell (a
     /// `ChooseTargets` decision surfaces when `specs > 0`).
     TargetsAnnounced { specs: Uint },
-    /// [CR#707.10c]: a `ChooseNewTargets` work item ran, re-targeting a
+    /// [CR#707.10c]: a `Retarget` work item ran, re-targeting a
     /// committed stack entry. `specs` is the entry's target-spec count (0 =
     /// no decision surfaced — the entry was already gone, or its ability has
-    /// no targets; > 0 = a `ChooseNewTargets` decision is now pending).
+    /// no targets; > 0 = a `Retarget` decision is now pending).
     NewTargetsOpened { specs: Uint },
     /// [CR#601.2b]: the in-flight cost's hybrid/Phyrexian symbols were
     /// concretized. `surfaced` is true when a `ChooseCostOptions` decision
@@ -240,9 +240,7 @@ impl GameState {
                 let specs = self.announce_targets();
                 Progress::TargetsAnnounced { specs }
             }
-            WorkItem::ChooseNewTargets { player, entry } => {
-                self.open_choose_new_targets(player, entry)
-            }
+            WorkItem::Retarget { player, entry } => self.open_choose_new_targets(player, entry),
             WorkItem::ChooseCostOptions => {
                 let surfaced = self.choose_cost_options();
                 Progress::CostOptionsChosen { surfaced }
@@ -299,9 +297,6 @@ impl GameState {
                     crate::decide::pending::ChooseNoteCardName { player, key },
                 ));
                 Progress::NoteChoiceOpened
-            }
-            WorkItem::ChooseNoteObjects { player, key } => {
-                self.open_choose_note_objects(player, key)
             }
             WorkItem::Resolve(obj) => {
                 self.resolve_object(obj);
@@ -1723,7 +1718,7 @@ impl GameState {
         }
     }
 
-    /// [CR#707.10c,115.7d]: surface a `ChooseNewTargets` decision re-targeting
+    /// [CR#707.10c,115.7d]: surface a `Retarget` decision re-targeting
     /// the COMMITTED stack entry `entry`. Re-derives the entry's target specs
     /// via `stack_object_target_specs` (shared with the announce slot) and
     /// their fresh legal candidates via `legal_targets_for_specs` (shared
@@ -1760,8 +1755,8 @@ impl GameState {
             }
         }
         let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
-        self.pending = Some(PendingDecision::ChooseNewTargets(
-            crate::decide::pending::ChooseNewTargets {
+        self.pending = Some(PendingDecision::Retarget(
+            crate::decide::pending::Retarget {
                 player,
                 entry,
                 spec: specs,
@@ -1783,42 +1778,6 @@ impl GameState {
         self.pending = Some(PendingDecision::ChooseNoteNumber(
             crate::decide::pending::ChooseNoteNumber { player, key },
         ));
-        Progress::NoteChoiceOpened
-    }
-
-    /// [CR#607.2a,608.2d]: surface the OBJECT choice for a
-    /// `ChooseAndNote(key, NotedKind::Objects)`, whose picks the submit records
-    /// into the fact-backed `noted` group (read back by `AmongNoted`).
-    ///
-    /// The grammar carries NO narrowing predicate ([CR#607.2] — a bare "note
-    /// these objects" slot), so the writer defaults to the battlefield-wide
-    /// domain: every permanent, choose any number ([CR#608.2d] "as many as
-    /// able" — min 0, max = candidate count). A predicate-carrying variant is
-    /// future grammar, not this ticket; this default keeps the
-    /// write→`AmongNoted` round-trip exercisable without inventing a richer
-    /// selection policy. Player proxies have no zone, so the battlefield filter
-    /// excludes them for free.
-    fn open_choose_note_objects(
-        &mut self,
-        player: PlayerId,
-        key: deckmaste_core::Ident,
-    ) -> Progress {
-        let candidates: Vec<ObjectId> = self
-            .objects
-            .iter()
-            .filter(|o| o.zone == Some(deckmaste_core::Zone::Battlefield))
-            .map(|o| o.id)
-            .collect();
-        let max = Uint::try_from(candidates.len()).expect("battlefield object count fits Uint");
-        self.pending = Some(PendingDecision::ChooseObjects(
-            crate::decide::pending::ChooseObjects {
-                player,
-                candidates,
-                min: 0,
-                max,
-            },
-        ));
-        self.choice = Some(crate::state::ChoiceContinuation::NoteObjects { key });
         Progress::NoteChoiceOpened
     }
 

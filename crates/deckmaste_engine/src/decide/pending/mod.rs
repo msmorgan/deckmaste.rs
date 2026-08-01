@@ -17,10 +17,10 @@ mod priority;
 
 pub use cast::ChooseCostOptions;
 pub use cast::ChooseModes;
-pub use cast::ChooseNewTargets;
 pub use cast::ChooseTargets;
 pub use cast::ChooseXValue;
 pub use cast::PayMana;
+pub use cast::Retarget;
 pub use choice::ArrangePile;
 pub use choice::CallFlip;
 pub use choice::ChooseNoteCardName;

@@ -30,10 +30,11 @@ use crate::state::GameState;
 
 impl GameState {
     /// The `Emit` work item(s) a single-instruction `Action` produces. The
-    /// source verbs (`DealDamage`, …) act with the source object as agent; the
-    /// player verbs live under `By(who, …)`, where `who` resolves to the acting
-    /// player and replaces the previously hard-coded `frame.controller`. Damage
-    /// to a multi-valued selection is one simultaneous `Batch` (a later task);
+    /// source verbs (`DealDamage`, …) act with the source object as agent,
+    /// handled directly below; the former-`PlayerAction` family (each
+    /// carrying its own agent/patient/recipient slot now, no more `By`
+    /// wrapper) falls through to `player_action_items`. Damage to a
+    /// multi-valued selection is one simultaneous `Batch` (a later task);
     /// drawing N is N sequential `Single`s ([CR#121.2] — drawn one at a time).
     #[expect(
         clippy::too_many_lines,
@@ -84,14 +85,6 @@ impl GameState {
             // ctor / `Destroy` macro builds, handled by the `Composite` arm
             // above (which reads the body facet off the stored move and commits
             // it atomically on the one `Act(Destroy)` event).
-            // The named player performs the verb: resolve `who` to the acting
-            // player, then dispatch the `PlayerAction`. `By(You, …)` (the
-            // implicit-you default) resolves to `frame.controller` — identical
-            // to the previous hard-coded behavior.
-            Action::By(who, pa) => {
-                let actor = self.acting_player(who, frame);
-                self.player_action_items(pa, actor, frame)
-            }
             // [CR#701.6a]: countering cancels an object on the stack — it
             // never resolves. A countered SPELL is put into its owner's
             // graveyard (reminted off the stack, [CR#400.7]), cause-tagged
@@ -451,13 +444,17 @@ impl GameState {
                 }
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
+            // Every former-`PlayerAction` verb (an explicit agent/patient/
+            // recipient slot, or none for the agent-silent family), plus
+            // `Pay`/`Expanded` — `player_action_items` resolves each verb's
+            // OWN role slot inline now that the `By` wrapper is gone.
+            _ => self.player_action_items(action, frame),
         }
     }
 
-    /// The work item(s) a plain relocation ([CR#400.7]) produces — shared by
-    /// the source-agent [`Action::Move`] and the player-agent
-    /// [`PlayerAction::Move`] (both cause-free; the latter has no fizzle-guard
-    /// slot, so it always calls here with `guard: None`). A card moving to a
+    /// The work item(s) a plain relocation ([CR#400.7]) produces — used by
+    /// [`Action::Move`] (agent-silent, the player-agent twin was DELETED and
+    /// merged into this one, [CR#400.7]). A card moving to a
     /// [`Destination::Library`] anchor that it ALREADY occupies is a same-zone
     /// REPOSITION ([CR#401.7]) — a `RepositionLibrary` work item that keeps the
     /// `ObjectId` and fires no zone change (scry never removes a card from the
@@ -963,11 +960,11 @@ mod tests {
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
+    use deckmaste_core::LifeOp;
     use deckmaste_core::Lookback;
     use deckmaste_core::Modification;
     use deckmaste_core::NumericOp;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
@@ -1638,9 +1635,10 @@ mod tests {
                             on: Predicate::Any,
                             cause: None,
                         },
-                        instead: OneShotEffect::Act(Action::by_you(PlayerAction::GainLife(
-                            Count::Literal(3),
-                        ))),
+                        instead: OneShotEffect::Act(Action::ChangeLife(
+                            Reference::You,
+                            LifeOp::Up(Count::Literal(3)),
+                        )),
                     },
                 )))],
                 ..CardFace::default()
@@ -1793,7 +1791,7 @@ mod tests {
 
         // By(You, Tap(This)) -> one Single(Tapped(src)) carrying the
         // effect-instruction cause triple (events.md §3).
-        let items = state.action_items(&Action::by_you(PlayerAction::Tap(Reference::This)), &frame);
+        let items = state.action_items(&Action::Tap(Reference::This), &frame);
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped(
@@ -1824,7 +1822,7 @@ mod tests {
 
         // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3})
         let items = state.action_items(
-            &Action::by_you(PlayerAction::LoseLife(Count::Literal(3))),
+            &Action::ChangeLife(Reference::You, LifeOp::Down(Count::Literal(3))),
             &frame,
         );
         assert_eq!(
@@ -1846,7 +1844,7 @@ mod tests {
         let (mut state, src) = bear_on_field();
         state.objects.obj_mut(src).tapped = true;
         let frame = frame_src(src);
-        let items = state.action_items(&Action::by_you(PlayerAction::Tap(Reference::This)), &frame);
+        let items = state.action_items(&Action::Tap(Reference::This), &frame);
         assert_eq!(
             items,
             vec![],
@@ -1860,10 +1858,7 @@ mod tests {
     fn untap_effect_skips_already_untapped() {
         let (state, src) = bear_on_field();
         let frame = frame_src(src);
-        let items = state.action_items(
-            &Action::by_you(PlayerAction::Untap(Reference::This)),
-            &frame,
-        );
+        let items = state.action_items(&Action::Untap(Reference::This), &frame);
         assert_eq!(
             items,
             vec![],
@@ -2481,9 +2476,10 @@ mod tests {
                     },
                     condition: None,
                     limits: Vec::new().into(),
-                    effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
-                        Count::Literal(2),
-                    ))),
+                    effect: OneShotEffect::Act(Action::ChangeLife(
+                        Reference::You,
+                        LifeOp::Down(Count::Literal(2)),
+                    )),
                 })],
                 ..CardFace::default()
             }),
@@ -3071,7 +3067,10 @@ mod tests {
             },
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(Count::Literal(2)))),
+            effect: OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(2)),
+            )),
         });
         state.conferral_rules = vec![ConferralRule {
             scope: Predicate::Characteristic(CharacteristicPredicate::Named("Trigger Host".into())),
@@ -3562,7 +3561,7 @@ mod tests {
                     },
                     condition: None,
                     limits: Vec::new().into(),
-                    effect: OneShotEffect::act_by_you(PlayerAction::PutCounters(
+                    effect: OneShotEffect::Act(Action::PutCounters(
                         Reference::EventObject,
                         deckmaste_core::CounterRef::from("P1P1Counter"),
                         Count::Literal(2),
@@ -3728,9 +3727,10 @@ mod tests {
                     },
                     condition: None,
                     limits: Vec::new().into(),
-                    effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
-                        Count::Literal(2),
-                    ))),
+                    effect: OneShotEffect::Act(Action::ChangeLife(
+                        Reference::You,
+                        LifeOp::Down(Count::Literal(2)),
+                    )),
                 })],
                 ..CardFace::default()
             }),
@@ -3858,9 +3858,10 @@ mod tests {
                     combat: None,
                     amount: None,
                 },
-                instead: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
-                    Count::Literal(1),
-                ))),
+                instead: OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Down(Count::Literal(1)),
+                )),
             },
             subject: bear,
             duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
@@ -3893,7 +3894,7 @@ mod tests {
         let frame = frame_src(src);
 
         let items = state.action_items(
-            &Action::by_you(PlayerAction::GainLife(Count::Literal(3))),
+            &Action::ChangeLife(Reference::You, LifeOp::Up(Count::Literal(3))),
             &frame,
         );
         assert_eq!(
@@ -3906,10 +3907,7 @@ mod tests {
             )))]
         );
 
-        let items = state.action_items(
-            &Action::by_you(PlayerAction::Untap(Reference::This)),
-            &frame,
-        );
+        let items = state.action_items(&Action::Untap(Reference::This), &frame);
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(src)))]
@@ -3929,11 +3927,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let frame = frame_src(bear);
         let items = state.action_items(
-            &Action::by_you(PlayerAction::PutCounters(
-                Reference::This,
-                "P1P1Counter".into(),
-                Count::Literal(2),
-            )),
+            &Action::PutCounters(Reference::This, "P1P1Counter".into(), Count::Literal(2)),
             &frame,
         );
         assert_eq!(
@@ -3961,11 +3955,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let frame = frame_src(bear);
         let items = state.action_items(
-            &Action::by_you(PlayerAction::PutCounters(
-                Reference::This,
-                "P1P1Counter".into(),
-                Count::Literal(0),
-            )),
+            &Action::PutCounters(Reference::This, "P1P1Counter".into(), Count::Literal(0)),
             &frame,
         );
         assert_eq!(items, vec![]);
@@ -3984,7 +3974,7 @@ mod tests {
             .insert("P1P1Counter".into(), 1);
         let frame = frame_src(bear);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::PutCounters(
+            OneShotEffect::Act(Action::PutCounters(
                 Reference::This,
                 "P1P1Counter".into(),
                 Count::Literal(2),
@@ -4015,7 +4005,7 @@ mod tests {
         let proxy = state.player(PlayerId(0)).object;
         let frame = frame_src(bear); // controller is player 0, so `You` = P0's proxy
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::PutCounters(
+            OneShotEffect::Act(Action::PutCounters(
                 Reference::You,
                 "Energy".into(),
                 Count::Literal(2),
@@ -4036,7 +4026,7 @@ mod tests {
 
         // A second "get {E}" sums with the first.
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::PutCounters(
+            OneShotEffect::Act(Action::PutCounters(
                 Reference::You,
                 "Energy".into(),
                 Count::Literal(1),
@@ -4079,7 +4069,7 @@ mod tests {
             .insert("P1P1Counter".into(), 1);
         let frame = frame_src(bear);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::RemoveCounters(
+            OneShotEffect::Act(Action::RemoveCounters(
                 Reference::This,
                 "P1P1Counter".into(),
                 Count::Literal(2),
@@ -4105,7 +4095,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Sacrifice(Reference::This)),
+            OneShotEffect::Act(Action::Sacrifice(Reference::You, Reference::This)),
             &frame,
         );
         // Sacrificed → future-form ZoneChange → past-form ZoneChange.
@@ -4154,7 +4144,7 @@ mod tests {
 
         let frame = frame_src(gob);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Sacrifice(Reference::This)),
+            OneShotEffect::Act(Action::Sacrifice(Reference::You, Reference::This)),
             &frame,
         );
         for _ in 0..10 {
@@ -4179,10 +4169,11 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Move(
+            OneShotEffect::Act(Action::Move(
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Exile),
                 vec![].into(),
+                None,
             )),
             &frame,
         );
@@ -4202,10 +4193,11 @@ mod tests {
         state.zones.graveyards[0].push(card);
         let frame = frame_src(card);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Move(
+            OneShotEffect::Act(Action::Move(
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Exile),
                 vec![].into(),
+                None,
             )),
             &frame,
         );
@@ -4982,9 +4974,9 @@ mod tests {
         let mut state = game();
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
-        let pa = deckmaste_core::PlayerAction::GetDesignation("CitysBlessing".into());
+        let act = deckmaste_core::Action::GetDesignation(Reference::You, "CitysBlessing".into());
 
-        let items = state.player_action_items(&pa, p0, &frame);
+        let items = state.player_action_items(&act, &frame);
         assert_eq!(items.len(), 1, "first grant emits exactly one fact");
 
         // Grant it for real, then re-run: no event.
@@ -4992,7 +4984,7 @@ mod tests {
             .designations
             .players
             .insert((p0, "CitysBlessing".into()), DesignationValue::Flag);
-        let items = state.player_action_items(&pa, p0, &frame);
+        let items = state.player_action_items(&act, &frame);
         assert!(items.is_empty(), "already-held designation emits nothing");
     }
 
@@ -5015,9 +5007,9 @@ mod tests {
                 )),
             ),
         )];
-        let pa = deckmaste_core::PlayerAction::GetEmblem(abilities.clone().into());
+        let act = deckmaste_core::Action::GetEmblem(Reference::You, abilities.clone().into());
 
-        let items = state.player_action_items(&pa, p0, &frame);
+        let items = state.player_action_items(&act, &frame);
         assert_eq!(items.len(), 1, "GetEmblem emits exactly one fact");
         match &items[0] {
             crate::agenda::WorkItem::Emit(Occurrence::Single(GameEvent::EmblemCreated(

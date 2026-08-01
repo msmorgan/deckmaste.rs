@@ -131,7 +131,7 @@ pub fn is_interactive(pending: &PendingDecision) -> bool {
     match pending {
         PendingDecision::Priority(deckmaste_engine::Priority { .. })
         | PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { .. })
-        | PendingDecision::ChooseNewTargets(deckmaste_engine::ChooseNewTargets { .. }) => true,
+        | PendingDecision::Retarget(deckmaste_engine::Retarget { .. }) => true,
         PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
             legal,
             legal_targets,
@@ -165,7 +165,7 @@ impl Interaction {
             // pick-one-per-spec interaction as an initial `ChooseTargets` —
             // `legal[i]` already includes the entry's current target, so
             // "leave it as-is" is always a candidate.
-            | PendingDecision::ChooseNewTargets(deckmaste_engine::ChooseNewTargets { legal, .. }) => Interaction::Targets {
+            | PendingDecision::Retarget(deckmaste_engine::Retarget { legal, .. }) => Interaction::Targets {
                 legal: legal.clone(),
                 chosen: vec![Vec::new(); legal.len()],
                 active: 0,

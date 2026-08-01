@@ -24,15 +24,17 @@
     (constructor: "DealDamage", params: ["Reference", "Count", "Reference"],
      frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"], kind: Sentence),
 
-    // `PlayerAction::GainLife(Count)` (`action.rs:306`) is arity-1;
-    // `Action::By`'s `#[macro_ron(embed)]` marker means authored
-    // `GainLife(N)` is really `By(You, GainLife(N))` with the subject
-    // defaulted, so `params` here targets that surface (subject, count).
-    // The body re-exposes the subject constituent the English states overtly
-    // but the repr defaults away. Registers as a sentence, same as
-    // `DealDamage`.
+    // `Action::ChangeLife(Reference, LifeOp)` (the merged `GainLife`/
+    // `LoseLife`/`SetLife` family, action-role-reshape spec §6) is the
+    // consolidated verb; this entry selects its `Up` direction. `params`
+    // targets the printed surface (subject, count) — the delta-constructor
+    // selection (`Up` vs the sibling `LosesLife` entry's `Down`) is genuine
+    // nesting D8 guards can't pre-bind (guards bind constants;
+    // `Up(Param(1))` isn't one), so a structural `body:` is PERMANENT here
+    // (spec §12), not a bygone bridge over deleted `By`/bare-`GainLife`
+    // grammar. Registers as a sentence, same as `DealDamage`.
     (constructor: "GainLife", params: ["Reference", "Count"], kind: Sentence,
-     body: By(Param(0), GainLife(Param(1))),
+     body: ChangeLife(Param(0), Up(Param(1))),
      frames: ["<Param(0)> gains <Param(1)> life"]),
 
     // `TargetSpec::Target(Quantity, Predicate)` (`target_spec.rs:33`) is

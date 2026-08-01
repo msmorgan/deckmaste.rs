@@ -21,8 +21,8 @@ use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
 use deckmaste_core::Duration;
 use deckmaste_core::EventFilter;
+use deckmaste_core::LifeOp;
 use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
@@ -298,15 +298,12 @@ fn find_in_graveyard(state: &GameState, player: PlayerId, card_id: CardId) -> Op
 /// The registry intercepts the `Act(Destroy)` SBA and redirects to exile.
 #[test]
 fn instead_redirects_destruction_to_exile() {
-    // The `instead` body: Move(This, Zone(Exile)) is a `PlayerAction`; By(You, ...)
-    // is the implicit agent sugar.
-    let instead_body = OneShotEffect::Act(Action::By(
-        Reference::You,
-        PlayerAction::Move(
-            Reference::This,
-            deckmaste_core::Destination::Zone(Zone::Exile),
-            vec![].into(),
-        ),
+    // The `instead` body: Move(This, Zone(Exile)) is agent-silent.
+    let instead_body = OneShotEffect::Act(Action::Move(
+        Reference::This,
+        deckmaste_core::Destination::Zone(Zone::Exile),
+        vec![].into(),
+        None,
     ));
     let (mut state, id) = creature_with_replacement(Replacement::Instead {
         would: destroyed_self(),
@@ -584,15 +581,9 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
     let instead = OneShotEffect::Sequentially(
         vec![
             // [CR#701.19a]: remove all damage from That (the regenerated permanent).
-            OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::RemoveDamage(Reference::EventObject),
-            )),
+            OneShotEffect::Act(Action::RemoveDamage(Reference::EventObject)),
             // [CR#701.19a]: its controller taps it.
-            OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Tap(Reference::EventObject),
-            )),
+            OneShotEffect::Act(Action::Tap(Reference::EventObject)),
         ]
         .into(),
     );
@@ -898,10 +889,9 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     let instead_body = OneShotEffect::Sequentially(
         vec![
             // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
-            OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::RemoveDamage(Reference::AttachHostOf(Arc::new(Reference::This))),
-            )),
+            OneShotEffect::Act(Action::RemoveDamage(Reference::AttachHostOf(Arc::new(
+                Reference::This,
+            )))),
             // [CR#702.89a]: destroy this Aura.
             OneShotEffect::Act(Action::destroy(Reference::This)),
         ]
@@ -1111,9 +1101,9 @@ fn lifegain_replaced_by_draw() {
         who: Predicate::Any,
         amount: None,
     };
-    let instead_body = OneShotEffect::Act(deckmaste_core::Action::By(
+    let instead_body = OneShotEffect::Act(deckmaste_core::Action::ChangeLife(
         Reference::You,
-        PlayerAction::LoseLife(deckmaste_core::Count::Literal(1)),
+        LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
     let (mut state, _src) = creature_with_non_destroy_replacement(Replacement::Instead {
         would,
@@ -1288,10 +1278,7 @@ fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) ->
         combat: None,
         amount: None,
     };
-    let instead = OneShotEffect::Act(Action::By(
-        Reference::You,
-        PlayerAction::PutCounters(recipient, kind.into(), Count::ThatMuch),
-    ));
+    let instead = OneShotEffect::Act(Action::PutCounters(recipient, kind.into(), Count::ThatMuch));
     Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Instead {
         would,
         instead,

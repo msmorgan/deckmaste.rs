@@ -3669,7 +3669,6 @@ mod tests {
         use deckmaste_core::If;
         use deckmaste_core::May;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Selection;
         use deckmaste_core::StatValue;
 
@@ -3743,9 +3742,10 @@ mod tests {
                     ),
                 ),
                 then: Arc::new(OneShotEffect::May(May {
+                    who: Reference::You,
                     effect: Arc::new(OneShotEffect::Sequentially(
                         vec![
-                            OneShotEffect::act_by_you(PlayerAction::Reveal {
+                            OneShotEffect::Act(Action::Reveal {
                                 what: top_ref(),
                                 to: None,
                             }),
@@ -3845,7 +3845,6 @@ mod tests {
         use deckmaste_core::EventFilter;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::PhaseStep;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::StatValue;
         use deckmaste_core::Token;
@@ -3875,10 +3874,12 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::Act(Action::By(
-                    Reference::You,
-                    PlayerAction::Create(Count::Literal(1), goblin_token.into(), vec![].into()),
-                )),
+                effect: OneShotEffect::Act(Action::Create {
+                    agent: Reference::You,
+                    count: Count::Literal(1),
+                    token: goblin_token.into(),
+                    riders: vec![].into(),
+                }),
             })],
             ..CardFace::default()
         })
@@ -5180,8 +5181,8 @@ mod tests {
         use deckmaste_core::CardFace;
         use deckmaste_core::Count;
         use deckmaste_core::EventFilter;
+        use deckmaste_core::LifeOp;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::StatValue;
         use deckmaste_core::TriggeredAbility;
@@ -5202,9 +5203,9 @@ mod tests {
                 },
                 condition: None,
                 limits: limits.into(),
-                effect: OneShotEffect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::ChangeLife(
                     Reference::You,
-                    PlayerAction::GainLife(Count::Literal(1)),
+                    LifeOp::Up(Count::Literal(1)),
                 )),
             })],
             power: Some(StatValue::Number(2)),
@@ -5271,8 +5272,8 @@ mod tests {
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
         use deckmaste_core::Count;
+        use deckmaste_core::LifeOp;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::StatValue;
         use deckmaste_core::TriggeredAbility;
 
@@ -5291,9 +5292,9 @@ mod tests {
                 },
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::ChangeLife(
                     Reference::You,
-                    PlayerAction::GainLife(Count::ThatMuch),
+                    LifeOp::Up(Count::ThatMuch),
                 )),
             })],
             power: Some(StatValue::Number(2)),
@@ -5595,7 +5596,7 @@ mod tests {
     ) -> (ObjectId, ObjectSource) {
         let source = format!(
             "Normal(name: \"Refinement Watcher\", types: [Enchantment], abilities: [\
-                 Triggered(event: {event}, effect: GainLife(1)),\
+                 Triggered(event: {event}, effect: ChangeLife(You, Up(1))),\
              ])"
         );
         let card = Arc::new(
@@ -5794,7 +5795,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let abilities = emblem_abilities(
             "Triggered(event: ZoneChange(what: Type(Creature), from: Battlefield, \
-             to: Graveyard), effect: GainLife(1))",
+             to: Graveyard), effect: ChangeLife(You, Up(1)))",
         );
         state.apply_emblem_created(PlayerId(0), abilities);
         let emblem = *state.zones.command.last().unwrap();
@@ -5847,7 +5848,7 @@ mod tests {
             };
             let source = format!(
                 "Normal(name: \"Batch Watcher\", types: [Enchantment], abilities: [\
-                     Triggered(event: {event}, effect: GainLife(1)),\
+                     Triggered(event: {event}, effect: ChangeLife(You, Up(1))),\
                  ])"
             );
             Arc::new(
@@ -5908,7 +5909,7 @@ mod tests {
     /// already-crossed thresholds never re-fire.
     #[test]
     fn saga_chapters_fire_on_crossed_thresholds_from_one_batch_fact() {
-        let chapter = |n: u32| format!("Chapter(n: [{n}], effect: GainLife(1))");
+        let chapter = |n: u32| format!("Chapter(n: [{n}], effect: ChangeLife(You, Up(1)))");
         let source = format!(
             "Normal(name: \"Test Saga\", types: [Enchantment], abilities: [{}, {}, {}])",
             chapter(1),
@@ -5985,7 +5986,7 @@ mod tests {
     #[test]
     fn dies_trigger_fires_on_a_sacrifice() {
         let source = "Normal(name: \"Death Watcher\", types: [Enchantment], abilities: [\
-             Triggered(event: Dies(Type(Creature)), effect: GainLife(1)),\
+             Triggered(event: Dies(Type(Creature)), effect: ChangeLife(You, Up(1))),\
          ])";
         let card = Arc::new(
             canon()

@@ -165,13 +165,6 @@ pub enum ChoiceContinuation {
         effect: Arc<deckmaste_core::OneShotEffect>,
         frame: crate::stack::Frame,
     },
-    /// A `ChooseObjects` answer for `PlayerAction::ChooseAndNote(_,
-    /// NotedKind::Objects)` ([CR#607.2a,608.2d]): instead of binding the
-    /// picks as `chosen`, record them into the fact-backed `noted` product
-    /// group under `key` (each pick captured as a live `NotedMember`), so a
-    /// later `Selection::AmongNoted`/`Reference::Linked` reads them. No
-    /// effect re-runs — the resolution simply continues.
-    NoteObjects { key: deckmaste_core::Ident },
     /// A `YesNo` answer for `OneShotEffect::May` ([CR#118.12]): true → `effect`
     /// then `if_did`; false → `if_not` (or nothing).
     May {

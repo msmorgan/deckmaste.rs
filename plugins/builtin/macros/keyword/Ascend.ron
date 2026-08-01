@@ -14,6 +14,6 @@ KeywordAbility(
             Compare(CountOf(Objects(And([InZone(Battlefield), ControlledBy(Ref(You))]))), AtLeast, 10),
             Not(Matches(You, Designated("CitysBlessing"))),
         ]),
-        then: GetDesignation("CitysBlessing"),
+        then: GetDesignation(You, "CitysBlessing"),
     ))],
 )

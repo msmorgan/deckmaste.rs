@@ -15,7 +15,6 @@ use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Uint;
 
 use crate::object::ObjectId;
@@ -373,15 +372,12 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
                 && **a.cost == [CostComponent::Tap] =>
         {
             match &a.effect {
-                // The produced-mana effect is a bare `AddMana` in RON, which
-                // reads as `By(You, AddMana(…))` (the implicit-you default);
-                // the agent is irrelevant for tap-for-mana derivation.
-                OneShotEffect::Act(Action::By(
+                // The produced-mana effect is a bare `AddMana` in RON; the
+                // agent is irrelevant for tap-for-mana derivation.
+                OneShotEffect::Act(Action::AddMana(
                     _,
-                    PlayerAction::AddMana(
-                        Count::Literal(n),
-                        deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
-                    ),
+                    Count::Literal(n),
+                    deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
                 )) => Some((*m, *n)),
                 _ => None,
             }

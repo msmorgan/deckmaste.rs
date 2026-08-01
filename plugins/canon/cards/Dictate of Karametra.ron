@@ -8,7 +8,7 @@ Normal(
         Keyword(Flash),
         Triggered(
             event: TapForMana(),
-            effect: By(EventActor, AddMana(1, ProducedByEvent)),
+            effect: AddMana(EventActor, 1, ProducedByEvent),
         ),
     ],
 )

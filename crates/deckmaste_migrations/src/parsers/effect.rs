@@ -408,28 +408,30 @@ fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Opt
     // so route by the macro KIND that matches (no per-verb arms). Full-line
     // consumption and same-kind ambiguity are judged inside the matcher itself.
     //
-    // The bare `PlayerAction` verbs (discard, gain/lose life) take no subject
-    // slot: the acting player is supplied by the `By(It, …)` wrapper. The
-    // CR-701 keyword actions that became `OneShotEffect` `Composite` macros
-    // (mill, draw) instead carry the actor as their own leading `${0}`
-    // Reference, so re-attach the `It` anaphor and let the macro read it as that
-    // slot — the invocation is already `Mills(It, N)` / `Draws(It, N)`, needing
-    // no `By` wrapper.
-    let (inv, wrap_by) = if let Some(m) =
+    // Both families now carry the actor as their own leading `${0}` Reference,
+    // so the subject is SPLICED POSITIONALLY: re-attach the `It` anaphor to the
+    // verb phrase and let the macro read it as that slot, yielding
+    // `GainsLife(It, N)` / `Mills(It, N)` / `Draws(It, N)` directly.
+    //
+    // The former `PlayerAction` verbs (gain/lose life) used to take no subject
+    // slot — the acting player came from a `By(It, …)` wrapper this function
+    // spliced on afterward. The action role reshape deleted `By` and gave those
+    // macros a real subject param, so the wrap is gone and the two branches
+    // differ only in which macro KIND they search.
+    let with_subject = format!("it {verb_phrase}");
+    let body = if let Some(m) =
         ctx.index
-            .match_with("PlayerAction", verb_phrase, player_verb_slot_reader)?
+            .match_with("Action", &with_subject, player_verb_slot_reader)?
     {
-        (m.invocation, true)
-    } else if let Some(m) = ctx.index.match_with(
-        "OneShotEffect",
-        &format!("it {verb_phrase}"),
-        player_verb_slot_reader,
-    )? {
-        (m.invocation, false)
+        m.invocation
+    } else if let Some(m) =
+        ctx.index
+            .match_with("OneShotEffect", &with_subject, player_verb_slot_reader)?
+    {
+        m.invocation
     } else {
         return Ok(None);
     };
-    let body = if wrap_by { format!("By(It, {inv})") } else { inv };
     Ok(Some(match subject {
         PlayerSubject::Target(spec) => ParsedEffect {
             functional_zone: None,
@@ -636,12 +638,12 @@ fn parse_if(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>
 }
 
 /// `you may <effect>` -> the inner effect wrapped in a `May` frame
-/// ([CR#603,608] optional-do): `May(effect: <inner>)`. The inner clause is
-/// re-parsed by [`parse_clause`], carrying through any targets it declares — so
-/// the whole production declines if the inner effect isn't itself parseable.
-/// Every inner production accepts a lowercase (mid-sentence) lead, so the
-/// stripped clause re-enters them directly. Case-insensitive lead ("You may"
-/// opens a trigger effect; "you may" follows a comma).
+/// ([CR#603,608] optional-do): `May(who: You, effect: <inner>)`. The inner
+/// clause is re-parsed by [`parse_clause`], carrying through any targets it
+/// declares — so the whole production declines if the inner effect isn't itself
+/// parseable. Every inner production accepts a lowercase (mid-sentence) lead,
+/// so the stripped clause re-enters them directly. Case-insensitive lead ("You
+/// may" opens a trigger effect; "you may" follows a comma).
 fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
     let Some(inner) = strip_prefix_ci(line, "you may ") else {
         return Ok(None);
@@ -652,7 +654,7 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect
     Ok(Some(ParsedEffect {
         functional_zone: parsed.functional_zone,
         targets: parsed.targets,
-        effect: format!("May(effect: {})", parsed.effect),
+        effect: format!("May(who: You, effect: {})", parsed.effect),
     }))
 }
 
@@ -786,7 +788,10 @@ fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Pa
         };
         (
             offer_parsed.targets,
-            format!("May(effect: {}{did_frag}{not_frag})", offer_parsed.effect),
+            format!(
+                "May(who: You, effect: {}{did_frag}{not_frag})",
+                offer_parsed.effect
+            ),
             offer_parsed.functional_zone.or(did_zone).or(not_zone),
         )
     };
@@ -1283,8 +1288,8 @@ fn parse_destroy_macro_target(
 
 /// Self-sacrifice productions ([CR#701.16], the "sacrifice it/~" family that
 /// rides trigger bodies):
-/// - `Sacrifice it.` / `Sacrifice ~.` -> `Sacrifice(This)`, no target. The "it"
-///   anaphor in a trigger body is the resolving source ([CR#113.7] — the
+/// - `Sacrifice it.` / `Sacrifice ~.` -> `Sacrifice(You, This)`, no target. The
+///   "it" anaphor in a trigger body is the resolving source ([CR#113.7] — the
 ///   permanent whose ability triggered), the same `This` the `~` self-reference
 ///   names; both normalize to the source. This is the resolution of "When ~
 ///   becomes the target …, sacrifice it." and "At the beginning of the end
@@ -1296,7 +1301,7 @@ fn parse_destroy_macro_target(
 ///   default `You` (the controller — the trigger fires on your own upkeep).
 ///   Only a single mana cost is modeled (the overwhelmingly common upkeep tax);
 ///   a richer toll declines. Mirrors the kw-echo macro's `Unless(effect:
-///   Sacrifice(This), unless: Param(0))` resolution shape.
+///   Sacrifice(You, This), unless: Param(0))` resolution shape.
 ///
 /// A non-self sacrifice ("Sacrifice a creature", "Sacrifice another …") is a
 /// chosen-permanent cost handled in the cost grammar, not here — this body
@@ -1317,7 +1322,7 @@ fn parse_sacrifice(line: &str) -> Option<ParsedEffect> {
         return Some(ParsedEffect {
             functional_zone: None,
             targets: Vec::new(),
-            effect: "Sacrifice(This)".to_owned(),
+            effect: "Sacrifice(You, This)".to_owned(),
         });
     };
     // "unless you pay <cost>." — the controller's optional mana toll.
@@ -1333,7 +1338,7 @@ fn parse_sacrifice(line: &str) -> Option<ParsedEffect> {
         functional_zone: None,
         targets: Vec::new(),
         effect: format!(
-            "Unless(effect: Sacrifice(This), unless: [{}])",
+            "Unless(effect: Sacrifice(You, This), unless: [{}])",
             cost.join(", ")
         ),
     })
@@ -1668,9 +1673,9 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
 /// for <filter>[, reveal <pronoun>], put <pronoun> <destination>[ tapped],
 /// then shuffle.` -> `With(binder: SearchOne(filter: <predicate>), body:
 /// Sequentially([Reveal(what: That(Card))?, Move(That(Card), <zone>,
-/// <riders>), Shuffle]))`. `SearchOne`'s `by`/`whose`/`from` all stay
-/// defaulted (`You`/`You`/`[Library]`) — every card this production covers
-/// is a self-search of one's own library; a foreign subject ("its
+/// <riders>), Shuffle(LibraryOf(You))]))`. `SearchOne`'s `by`/`whose`/`from`
+/// all stay defaulted (`You`/`You`/`[Library]`) — every card this production
+/// covers is a self-search of one's own library; a foreign subject ("its
 /// controller may search their library …") is a distinct `Binder::by`/`by:
 /// EventActor` shape this production doesn't attempt, and a graveyard-search
 /// twin (`from`) likewise declines.
@@ -1697,7 +1702,7 @@ fn parse_search_library(line: &str) -> Option<ParsedEffect> {
         parts.push("Reveal(what: That(Card))".to_owned());
     }
     parts.push(format!("Move(That(Card), {zone}, {riders})"));
-    parts.push("Shuffle".to_owned());
+    parts.push("Shuffle(LibraryOf(You))".to_owned());
     Some(ParsedEffect {
         functional_zone: None,
         targets: Vec::new(),
@@ -1972,9 +1977,9 @@ fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
 ///
 /// DEFERRED (not built here): `Return ~/target <subject> to its owner's
 /// library.` with NO top/bottom qualifier is a shuffle-in move (a different,
-/// Shuffle-bearing shape — the library position isn't fixed, so it needs a
-/// shuffle) — out of scope. Parameterized/non-zero anchors ("the second from
-/// the top", "Nth from the top", "X cards from the top") and
+/// Shuffle(LibraryOf(You))-bearing shape — the library position isn't fixed, so
+/// it needs a shuffle) — out of scope. Parameterized/non-zero anchors ("the
+/// second from the top", "Nth from the top", "X cards from the top") and
 /// owner-vs-controller disambiguation are likewise unbuilt.
 fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
     let body = strip_prefix_ci(line, "put ")?.strip_suffix('.')?;
@@ -2032,8 +2037,8 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
 }
 
 /// `Tap target <subject>.` / `Untap target <subject>.` -> the
-/// [`Tap`](deckmaste_core::PlayerAction::Tap) /
-/// [`Untap`](deckmaste_core::PlayerAction::Untap) verbs ([CR#701.26a..701.26b])
+/// [`Tap`](deckmaste_core::Action::Tap) /
+/// [`Untap`](deckmaste_core::Action::Untap) verbs ([CR#701.26a..701.26b])
 /// over a single target. The subject is parsed by [`object_target_filter`].
 /// Riders ("It doesn't untap …", "It gets …") leave trailing text past the
 /// period-terminated single sentence, so they decline cleanly here (each is a
@@ -2392,7 +2397,7 @@ fn parse_lose_life(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         functional_zone: None,
         targets: Vec::new(),
-        effect: format!("LoseLife({amount})"),
+        effect: format!("ChangeLife(You, Down({amount}))"),
     })
 }
 
@@ -2403,7 +2408,7 @@ fn parse_gain_life(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         functional_zone: None,
         targets: Vec::new(),
-        effect: format!("GainLife({amount})"),
+        effect: format!("ChangeLife(You, Up({amount}))"),
     })
 }
 
@@ -2429,12 +2434,13 @@ fn life_amount(text: &str) -> Option<String> {
 /// "Create a Treasure token.", "Create two Food tokens.". The name is one of
 /// the rules-defined tokens deckmaste builds (`Treasure`, `Food`, `Gold`,
 /// `Clue`, `Blood`); the creating effect defines no characteristics of its own
-/// — the rules do — so it emits `Create(<count>, Named(<Name>))`, the
-/// bare-ident `TokenSpec::Named` position. Fixed counts only (the bare numeral
-/// = reader sugar for `Count::Literal`, like the sibling creature-token /
-/// `Draw` productions). A `tapped` modifier, a dynamic count (`X`, "that many",
-/// "a number of …"), an unbuilt predefined token (Powerstone, Map, …), or any
-/// trailing clause declines — those are richer than this v1 production.
+/// — the rules do — so it emits `Create(agent: You, count: <count>, token:
+/// Named(<Name>))`, the bare-ident `TokenSpec::Named` position. Fixed counts
+/// only (the bare numeral = reader sugar for `Count::Literal`, like the sibling
+/// creature-token / `Draw` productions). A `tapped` modifier, a dynamic count
+/// (`X`, "that many", "a number of …"), an unbuilt predefined token
+/// (Powerstone, Map, …), or any trailing clause declines — those are richer
+/// than this v1 production.
 fn parse_create_predefined_token(line: &str) -> Option<ParsedEffect> {
     let body = strip_prefix_ci(line, "create ")?.strip_suffix('.')?;
     // The terminator is the bare "token[s]" noun (plural first). A "creature
@@ -2454,11 +2460,11 @@ fn parse_create_predefined_token(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         functional_zone: None,
         targets: Vec::new(),
-        effect: format!("Create({count}, Named({name}))"),
+        effect: format!("Create(agent: You, count: {count}, token: Named({name}))"),
     })
 }
 
-/// `You get an emblem with "<ability>".` -> `GetEmblem([<ability RON>])`.
+/// `You get an emblem with "<ability>".` -> `GetEmblem(You, [<ability RON>])`.
 /// The player gets an emblem whose only characteristics are the quoted
 /// abilities ([CR#114.1,114.3]); the quoted text is ONE full ability line, so
 /// it re-resolves through the whole frame REGISTRY (an emblem can carry any
@@ -2488,7 +2494,7 @@ fn parse_get_emblem(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Parse
             return Ok(Some(ParsedEffect {
                 functional_zone: None,
                 targets: Vec::new(),
-                effect: format!("GetEmblem([{ability}])"),
+                effect: format!("GetEmblem(You, [{ability}])"),
             }));
         }
     }
@@ -2577,7 +2583,10 @@ fn parse_create_token(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         functional_zone: None,
         targets: Vec::new(),
-        effect: format!("Create({count}, Token({}))", fields.join(", ")),
+        effect: format!(
+            "Create(agent: You, count: {count}, token: Token({}))",
+            fields.join(", ")
+        ),
     })
 }
 
@@ -2815,7 +2824,7 @@ mod tests {
             parsed_with_macros("you may draw a card. If you do, discard a card."),
             Some((
                 String::new(),
-                "May(effect: Draw(1), if_did: Discard(1))".to_owned(),
+                "May(who: You, effect: Draw(1), if_did: Discard(1))".to_owned(),
             ))
         );
     }
@@ -2828,7 +2837,8 @@ mod tests {
             parsed_with_macros("you may discard a card. If you don't, put a +1/+1 counter on ~."),
             Some((
                 String::new(),
-                "May(effect: Discard(1), if_not: PutCounters(This, P1P1Counter, 1))".to_owned(),
+                "May(who: You, effect: Discard(1), if_not: PutCounters(This, P1P1Counter, 1))"
+                    .to_owned(),
             ))
         );
     }
@@ -2842,7 +2852,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "May(effect: Draw(1), if_did: Discard(1), if_not: PutCounters(This, P1P1Counter, 1))"
+                "May(who: You, effect: Draw(1), if_did: Discard(1), if_not: PutCounters(This, P1P1Counter, 1))"
                     .to_owned(),
             ))
         );
@@ -2860,7 +2870,7 @@ mod tests {
             Some((
                 String::new(),
                 "Sequentially([PutCounters(This, P1P1Counter, 1), \
-                 May(effect: Draw(1), if_not: Draw(2))])"
+                 May(who: You, effect: Draw(1), if_not: Draw(2))])"
                     .to_owned(),
             ))
         );
@@ -2904,7 +2914,7 @@ mod tests {
     fn may_reflexive_ignores_bare_may() {
         assert_eq!(
             parsed_with_macros("you may draw a card."),
-            Some((String::new(), "May(effect: Draw(1))".to_owned()))
+            Some((String::new(), "May(who: You, effect: Draw(1))".to_owned()))
         );
     }
 
@@ -2924,7 +2934,7 @@ mod tests {
     }
 
     /// `You get an emblem with "<ability>".` re-resolves the quoted ability
-    /// through the whole frame registry and wraps it in `GetEmblem([…])`
+    /// through the whole frame registry and wraps it in `GetEmblem(You, […])`
     /// ([CR#114.1,114.3]) — here the anthem static, via the static-ability
     /// frame parser.
     #[test]
@@ -2933,7 +2943,7 @@ mod tests {
             parsed(r#"You get an emblem with "Creatures you control get +1/+1.""#),
             Some((
                 String::new(),
-                "GetEmblem([Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+                "GetEmblem(You, [Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
                  Modify(It, Several([Power(Up(1)), Toughness(Up(1))]))))])"
                     .to_owned(),
             ))
@@ -3008,7 +3018,7 @@ mod tests {
             parsed_with_macros("Target opponent loses 2 life."),
             Some((
                 "TargetOne(OpponentOf(Ref(You)))".to_owned(),
-                "By(It, LosesLife(2))".to_owned()
+                "LosesLife(It, 2)".to_owned()
             ))
         );
         assert_eq!(
@@ -3602,19 +3612,19 @@ mod tests {
     fn lose_and_gain_life() {
         assert_eq!(
             parsed("You lose 1 life."),
-            Some((String::new(), "LoseLife(1)".to_owned()))
+            Some((String::new(), "ChangeLife(You, Down(1))".to_owned()))
         );
         assert_eq!(
             parsed("you lose 2 life."),
-            Some((String::new(), "LoseLife(2)".to_owned()))
+            Some((String::new(), "ChangeLife(You, Down(2))".to_owned()))
         );
         assert_eq!(
             parsed("You gain 3 life."),
-            Some((String::new(), "GainLife(3)".to_owned()))
+            Some((String::new(), "ChangeLife(You, Up(3))".to_owned()))
         );
         assert_eq!(
             parsed("you gain three life."),
-            Some((String::new(), "GainLife(3)".to_owned()))
+            Some((String::new(), "ChangeLife(You, Up(3))".to_owned()))
         );
     }
 
@@ -3630,14 +3640,14 @@ mod tests {
             parsed("Create three 1/1 red Goblin creature tokens."),
             Some((
                 String::new(),
-                "Create(3, Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
+                "Create(agent: You, count: 3, token: Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
         assert_eq!(
             parsed("Create a 1/1 red Goblin creature token."),
             Some((
                 String::new(),
-                "Create(1, Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
+                "Create(agent: You, count: 1, token: Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
     }
@@ -3647,33 +3657,54 @@ mod tests {
         // [CR#111.10]: a predefined token by bare name -> `Named(<Name>)`.
         assert_eq!(
             parsed("Create a Treasure token."),
-            Some((String::new(), "Create(1, Named(Treasure))".to_owned()))
+            Some((
+                String::new(),
+                "Create(agent: You, count: 1, token: Named(Treasure))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("create a Food token."),
-            Some((String::new(), "Create(1, Named(Food))".to_owned()))
+            Some((
+                String::new(),
+                "Create(agent: You, count: 1, token: Named(Food))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("Create two Treasure tokens."),
-            Some((String::new(), "Create(2, Named(Treasure))".to_owned()))
+            Some((
+                String::new(),
+                "Create(agent: You, count: 2, token: Named(Treasure))".to_owned()
+            ))
         );
         // Gold, Clue, Blood are also built.
         assert_eq!(
             parsed("create a Gold token."),
-            Some((String::new(), "Create(1, Named(Gold))".to_owned()))
+            Some((
+                String::new(),
+                "Create(agent: You, count: 1, token: Named(Gold))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("create a Blood token."),
-            Some((String::new(), "Create(1, Named(Blood))".to_owned()))
+            Some((
+                String::new(),
+                "Create(agent: You, count: 1, token: Named(Blood))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("create a Clue token."),
-            Some((String::new(), "Create(1, Named(Clue))".to_owned()))
+            Some((
+                String::new(),
+                "Create(agent: You, count: 1, token: Named(Clue))".to_owned()
+            ))
         );
         // [CR#111.10w] Vibranium is built (indestructible + restricted {C}).
         assert_eq!(
             parsed("create a Vibranium token."),
-            Some((String::new(), "Create(1, Named(Vibranium))".to_owned()))
+            Some((
+                String::new(),
+                "Create(agent: You, count: 1, token: Named(Vibranium))".to_owned()
+            ))
         );
     }
 
@@ -3702,14 +3733,14 @@ mod tests {
             parsed("create a 1/1 red Goblin creature token with haste."),
             Some((
                 String::new(),
-                "Create(1, Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], abilities: [Keyword(Haste)], power: 1, toughness: 1))".to_owned()
+                "Create(agent: You, count: 1, token: Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], abilities: [Keyword(Haste)], power: 1, toughness: 1))".to_owned()
             ))
         );
         assert_eq!(
             parsed("Create a 2/2 white Cat creature token with flying and vigilance."),
             Some((
                 String::new(),
-                "Create(1, Token(color_indicator: [White], types: [Creature], subtypes: [Cat], abilities: [Keyword(Flying), Keyword(Vigilance)], power: 2, toughness: 2))".to_owned()
+                "Create(agent: You, count: 1, token: Token(color_indicator: [White], types: [Creature], subtypes: [Cat], abilities: [Keyword(Flying), Keyword(Vigilance)], power: 2, toughness: 2))".to_owned()
             ))
         );
     }
@@ -3720,7 +3751,7 @@ mod tests {
             parsed("Create two 1/1 black and green Elf Warrior creature tokens."),
             Some((
                 String::new(),
-                "Create(2, Token(color_indicator: [Black, Green], types: [Creature], subtypes: [Elf, Warrior], power: 1, toughness: 1))".to_owned()
+                "Create(agent: You, count: 2, token: Token(color_indicator: [Black, Green], types: [Creature], subtypes: [Elf, Warrior], power: 1, toughness: 1))".to_owned()
             ))
         );
     }
@@ -3731,7 +3762,7 @@ mod tests {
             parsed("Create a 1/1 colorless Eldrazi Scion creature token."),
             Some((
                 String::new(),
-                "Create(1, Token(types: [Creature], subtypes: [Eldrazi, Scion], power: 1, toughness: 1))".to_owned()
+                "Create(agent: You, count: 1, token: Token(types: [Creature], subtypes: [Eldrazi, Scion], power: 1, toughness: 1))".to_owned()
             ))
         );
     }
@@ -3742,7 +3773,7 @@ mod tests {
             parsed("Create a 1/1 red creature token."),
             Some((
                 String::new(),
-                "Create(1, Token(color_indicator: [Red], types: [Creature], power: 1, toughness: 1))".to_owned()
+                "Create(agent: You, count: 1, token: Token(color_indicator: [Red], types: [Creature], power: 1, toughness: 1))".to_owned()
             ))
         );
     }
@@ -3793,7 +3824,7 @@ mod tests {
             parsed("Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."),
             Some((
                 String::new(),
-                "Create(CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))), \
+                "Create(agent: You, count: CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))), token: \
                  Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -3809,7 +3840,7 @@ mod tests {
             parsed("Create a 1/1 red Goblin creature token for each Goblin you control."),
             Some((
                 String::new(),
-                "Create(CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))), \
+                "Create(agent: You, count: CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))), token: \
                  Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -3821,7 +3852,7 @@ mod tests {
             parsed("Create a number of 1/1 white Soldier creature tokens equal to the number of creatures you control."),
             Some((
                 String::new(),
-                "Create(CountOf(Objects(And([Creature, ControlledBy(Ref(You))]))), \
+                "Create(agent: You, count: CountOf(Objects(And([Creature, ControlledBy(Ref(You))]))), token: \
                  Token(color_indicator: [White], types: [Creature], subtypes: [Soldier], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -4043,14 +4074,14 @@ mod tests {
             parsed("you gain 1 life for each attacking Elf you control."),
             Some((
                 String::new(),
-                "GainLife(CountOf(Objects(And([Permanent, Subtype(Elf), Attacking, ControlledBy(Ref(You))]))))"
+                "ChangeLife(You, Up(CountOf(Objects(And([Permanent, Subtype(Elf), Attacking, ControlledBy(Ref(You))])))))"
                     .to_owned()
             ))
         );
         // Fixed life is still a bare numeral (regression).
         assert_eq!(
             parsed("You gain 3 life."),
-            Some((String::new(), "GainLife(3)".to_owned()))
+            Some((String::new(), "ChangeLife(You, Up(3))".to_owned()))
         );
         // A non-unit base under "for each" has no Count product form -> declines.
         assert!(declines(
@@ -4065,7 +4096,7 @@ mod tests {
             parsed("you may create a 1/1 green Elf Warrior creature token."),
             Some((
                 String::new(),
-                "May(effect: Create(1, Token(color_indicator: [Green], types: [Creature], \
+                "May(who: You, effect: Create(agent: You, count: 1, token: Token(color_indicator: [Green], types: [Creature], \
                  subtypes: [Elf, Warrior], power: 1, toughness: 1)))"
                     .to_owned()
             ))
@@ -4073,7 +4104,7 @@ mod tests {
         // A `you may` over a targeted effect carries the inner target through.
         assert_eq!(
             parsed("You may draw a card."),
-            Some((String::new(), "May(effect: Draw(1))".to_owned()))
+            Some((String::new(), "May(who: You, effect: Draw(1))".to_owned()))
         );
     }
 
@@ -4108,7 +4139,10 @@ mod tests {
     fn macro_effect_under_may_rider() {
         assert_eq!(
             parsed_with_macros("you may investigate."),
-            Some((String::new(), "May(effect: Investigate)".to_owned()))
+            Some((
+                String::new(),
+                "May(who: You, effect: Investigate)".to_owned()
+            ))
         );
     }
 
@@ -4165,11 +4199,11 @@ mod tests {
         // "it" and "~" both name the resolving source.
         assert_eq!(
             parsed("Sacrifice it."),
-            Some((String::new(), "Sacrifice(This)".to_owned()))
+            Some((String::new(), "Sacrifice(You, This)".to_owned()))
         );
         assert_eq!(
             parsed("Sacrifice ~."),
-            Some((String::new(), "Sacrifice(This)".to_owned()))
+            Some((String::new(), "Sacrifice(You, This)".to_owned()))
         );
     }
 
@@ -4179,14 +4213,14 @@ mod tests {
             parsed("Sacrifice ~ unless you pay {2}."),
             Some((
                 String::new(),
-                "Unless(effect: Sacrifice(This), unless: [Mana([Generic(2)])])".to_owned()
+                "Unless(effect: Sacrifice(You, This), unless: [Mana([Generic(2)])])".to_owned()
             ))
         );
         assert_eq!(
             parsed("Sacrifice it unless you pay {W}{W}."),
             Some((
                 String::new(),
-                "Unless(effect: Sacrifice(This), unless: [Mana([White,White])])".to_owned()
+                "Unless(effect: Sacrifice(You, This), unless: [Mana([White,White])])".to_owned()
             ))
         );
     }
@@ -4407,7 +4441,7 @@ mod tests {
         assert_eq!(parsed.targets, vec!["TargetOne(Spell)".to_owned()]);
         assert_eq!(
             parsed.effect,
-            "Sequentially([Counter(Target(0)), GainLife(5)])"
+            "Sequentially([Counter(Target(0)), ChangeLife(You, Up(5))])"
         );
     }
 
@@ -4769,7 +4803,8 @@ mod tests {
     #[test]
     fn bounce_to_library_declines_deferred_shapes() {
         // Bare "to its owner's library" (no top/bottom qualifier) is a
-        // shuffle-in move — a different, Shuffle-bearing shape, deferred.
+        // shuffle-in move — a different, Shuffle(LibraryOf(You))-bearing shape,
+        // deferred.
         assert!(declines("Return target creature to its owner's library."));
         assert!(declines("Return ~ to its owner's library."));
         // Parameterized/non-zero anchors aren't modeled here.
@@ -4795,7 +4830,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: And([Type(Land), Supertype(Basic)])), body: \
-                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
+                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4815,7 +4850,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: Kind(Card)), body: Sequentially([Move(That(Card), \
-                 Hand, []), Shuffle]))"
+                 Hand, []), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4832,7 +4867,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: And([Type(Land), Supertype(Basic)])), body: \
-                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4843,7 +4878,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: And([Type(Land), Supertype(Basic)])), body: \
-                 Sequentially([Move(That(Card), Battlefield, []), Shuffle]))"
+                 Sequentially([Move(That(Card), Battlefield, []), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4866,7 +4901,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: Kind(Card)), body: Sequentially([Move(That(Card), \
-                 Graveyard, []), Shuffle]))"
+                 Graveyard, []), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4884,7 +4919,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: Type(Creature)), body: \
-                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
+                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4895,7 +4930,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: Type(Land)), body: \
-                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4907,7 +4942,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: And([Type(Creature), ColorIs(Green)])), body: \
-                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
+                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4921,7 +4956,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: And([Type(Creature), Colorless])), body: \
-                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
+                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4946,7 +4981,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: Subtype(Forest)), body: \
-                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4959,7 +4994,7 @@ mod tests {
                 String::new(),
                 "With(binder: SearchOne(filter: Subtype(Equipment)), \
                  body: Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), \
-                 Shuffle]))"
+                 Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4974,7 +5009,7 @@ mod tests {
                 String::new(),
                 "With(binder: SearchOne(filter: Subtype(Goblin)), \
                  body: Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), \
-                 Shuffle]))"
+                 Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -4988,7 +5023,7 @@ mod tests {
                 String::new(),
                 "With(binder: SearchOne(filter: Or([Subtype(Swamp), \
                  Subtype(Mountain)])), body: Sequentially([Move(That(Card), Battlefield, \
-                 [Tapped]), Shuffle]))"
+                 [Tapped]), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -5030,7 +5065,7 @@ mod tests {
                 String::new(),
                 "With(binder: SearchOne(filter: And([Supertype(Basic), \
                  Subtype(Plains)])), body: Sequentially([Move(That(Card), Battlefield, \
-                 [Tapped]), Shuffle]))"
+                 [Tapped]), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -5044,7 +5079,7 @@ mod tests {
                 String::new(),
                 "With(binder: SearchOne(filter: And([Supertype(Basic), \
                  Or([Subtype(Plains), Subtype(Swamp), Subtype(Forest)])])), body: \
-                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -5057,7 +5092,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: And([Type(Land), Supertype(Snow)])), body: \
-                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );
@@ -5081,7 +5116,7 @@ mod tests {
                 String::new(),
                 "With(binder: SearchOne(filter: Or([And([Type(Land), Supertype(Basic)]), \
                  Subtype(Desert)])), body: \
-                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle(LibraryOf(You))]))"
                     .to_owned()
             ))
         );

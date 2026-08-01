@@ -50,7 +50,7 @@
             Triggered(
                 event: Enters(And([Creature, Not(Ref(This))])),
                 condition: Compare(CounterCount(This, P1P1Counter), Greater, Literal(0)),
-                effect: May(effect: Sequentially([
+                effect: May(who: You, effect: Sequentially([
                     RemoveCounters(This, P1P1Counter, 1),
                     PutCounters(EventObject, P1P1Counter, 1),
                 ])),

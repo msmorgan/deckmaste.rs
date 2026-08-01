@@ -502,17 +502,14 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         }
         // [CR#707.10c]: keeping every current target is always legal (the
         // union rule) — the headless strategy re-targets nothing.
-        PendingDecision::ChooseNewTargets(crate::decide::pending::ChooseNewTargets {
-            entry,
-            spec,
-            legal,
-            ..
+        PendingDecision::Retarget(crate::decide::pending::Retarget {
+            entry, spec, legal, ..
         }) => Decision::Targets(keep_current_targets(state, *entry, spec, legal)),
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
 
-/// [CR#707.10c]: answer a `ChooseNewTargets` re-target by keeping every
+/// [CR#707.10c]: answer a `Retarget` re-target by keeping every
 /// current target — the union rule makes "leave every slot unchanged" always
 /// legal, so no strategy ever re-targets a committed entry. Reads the stack
 /// entry's current targets directly; if the entry has since left the stack (a
@@ -581,10 +578,7 @@ pub(crate) fn pending_player(pending: &PendingDecision) -> PlayerId {
             player,
             ..
         })
-        | PendingDecision::ChooseNewTargets(crate::decide::pending::ChooseNewTargets {
-            player,
-            ..
-        })
+        | PendingDecision::Retarget(crate::decide::pending::Retarget { player, .. })
         | PendingDecision::LegendRule(crate::decide::pending::LegendRule { player, .. })
         | PendingDecision::CallFlip(crate::decide::pending::CallFlip { player }) => *player,
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),

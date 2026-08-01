@@ -11,8 +11,8 @@ Normal(
         Keyword(Kicker([Mana([Generic(2)])])),
         Spell(effect: If(
             condition: PaidCost(Kicker),
-            then: GainLife(4),
-            otherwise: GainLife(2),
+            then: ChangeLife(You, Up(4)),
+            otherwise: ChangeLife(You, Up(2)),
         )),
     ],
 )

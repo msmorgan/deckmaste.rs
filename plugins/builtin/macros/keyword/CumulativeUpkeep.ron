@@ -11,7 +11,7 @@
 //                 `Matches(This, InZone(Battlefield))`.
 //   - resolution: a `Sequentially` — first `PutCounters(This, AgeCounter, 1)` (the
 //                 new age counter, [CR#702.24a], a player action by you), then
-//                 `MustPay(cost: <cost>, or_else: Sacrifice(This))` — the same
+//                 `MustPay(cost: <cost>, or_else: Sacrifice(You, This))` — the same
 //                 resolution toll shape Echo threads the printed [cost] into
 //                 [CR#118.12a]. The printed [cost] is the macro's `Cost`
 //                 param (`CumulativeUpkeep([Mana(...)])`, the list shape the
@@ -49,7 +49,7 @@
                 PutCounters(This, AgeCounter, 1),
                 MustPay(
                     cost: [Splice(Param(0))],
-                    or_else: Sacrifice(This),
+                    or_else: Sacrifice(You, This),
                 ),
             ]),
         )],

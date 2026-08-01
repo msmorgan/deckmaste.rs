@@ -41,7 +41,7 @@
             // [CR#702.43a]: dies → may migrate its +1/+1 counters.
             Triggered(
                 event: ThisDies,
-                effect: May(effect: Targeted(
+                effect: May(who: You, effect: Targeted(
                     targets: [Target(Exactly(1), And([Type(Artifact), Type(Creature)]))],
                     effect: PutCounters(
                         Target(0),

@@ -50,7 +50,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     // ([CR#605.1a] excludes them — it uses the stack), but "Add …" is not an
     // effect-grammar production, so the body borrows the mana-ability
     // module's shared `Add` reader (canon Chandra, Torch of Defiance's
-    // `LoyaltyPlus(n: 1, effect: AddMana(2, Red))` is this shape).
+    // `LoyaltyPlus(n: 1, effect: AddMana(You, 2, Red))` is this shape).
     if let Some(add) = crate::parsers::mana_ability::parse_add_effect(effect_clause)? {
         let parsed = ParsedEffect {
             functional_zone: None,
@@ -122,7 +122,7 @@ mod tests {
     fn plus_gains_life_like_ajani_goldmane() {
         assert_eq!(
             loyalty("[+1]: You gain 2 life.").as_deref(),
-            Some("LoyaltyPlus(n: 1, effect: GainLife(2))")
+            Some("LoyaltyPlus(n: 1, effect: ChangeLife(You, Up(2)))")
         );
     }
 
@@ -168,16 +168,16 @@ mod tests {
     /// A mana-adding loyalty body routes through the mana-ability module's
     /// shared `Add` production reader — the emitted invocation matches canon
     /// Chandra, Torch of Defiance's authored `LoyaltyPlus(n: 1, effect:
-    /// AddMana(2, Red))` byte for byte.
+    /// AddMana(You, 2, Red))` byte for byte.
     #[test]
     fn mana_adding_body_like_chandra_torch() {
         assert_eq!(
             loyalty("[+1]: Add {R}{R}.").as_deref(),
-            Some("LoyaltyPlus(n: 1, effect: AddMana(2, Red))")
+            Some("LoyaltyPlus(n: 1, effect: AddMana(You, 2, Red))")
         );
         assert_eq!(
             loyalty("[0]: Add {C}{C}{C}.").as_deref(),
-            Some("LoyaltyZero(effect: AddMana(3, Colorless))")
+            Some("LoyaltyZero(effect: AddMana(You, 3, Colorless))")
         );
         // A trailing clause that isn't the painland rider (here a targeted
         // damage tail) declines the `Add` reader, and "Add …" is no effect

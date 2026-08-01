@@ -1932,8 +1932,8 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::ActivatedAbility;
         use deckmaste_core::Cost;
+        use deckmaste_core::LifeOp;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Timing;
         use deckmaste_core::UseLimit;
 
@@ -1950,9 +1950,9 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
-                PlayerAction::GainLife(Count::Literal(1)),
+                LifeOp::Up(Count::Literal(1)),
             )),
         };
 
@@ -2286,7 +2286,6 @@ mod tests {
         use deckmaste_core::MustPay;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::PhaseStep;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::SimpleManaSymbol;
         use deckmaste_core::WhoseTurn;
 
@@ -2294,12 +2293,8 @@ mod tests {
             at: PhaseStep::Beginning(BeginningStep::Upkeep),
             whose: WhoseTurn::Your,
         };
-        let sacrifice_this = || {
-            OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Sacrifice(Reference::This),
-            ))
-        };
+        let sacrifice_this =
+            || OneShotEffect::Act(Action::Sacrifice(Reference::You, Reference::This));
         let bare = |event: EventFilter, effect: OneShotEffect| TriggeredAbility {
             ability_word: None,
             event,
@@ -2372,7 +2367,6 @@ mod tests {
         use deckmaste_core::BeginningStep;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::PhaseStep;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::UseLimit;
         use deckmaste_core::WhoseTurn;
 
@@ -2380,10 +2374,7 @@ mod tests {
             at: PhaseStep::Beginning(BeginningStep::Upkeep),
             whose: WhoseTurn::Your,
         };
-        let sacrifice_this = OneShotEffect::Act(Action::By(
-            Reference::You,
-            PlayerAction::Sacrifice(Reference::This),
-        ));
+        let sacrifice_this = OneShotEffect::Act(Action::Sacrifice(Reference::You, Reference::This));
         let view = CardView {
             name: "Test Enchantment",
             mana_cost: None,

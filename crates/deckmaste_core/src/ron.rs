@@ -55,7 +55,6 @@ pub fn kinds() -> KindSet {
     // `changes: [...]` positions to a `Several` bundle, flattened away before
     // the engine.
     kinds.add(crate::Modification::kind());
-    kinds.add(crate::PlayerAction::kind());
     kinds.add(crate::Quantity::kind());
     kinds.add(crate::Reference::kind());
     kinds.add(crate::Replacement::kind());

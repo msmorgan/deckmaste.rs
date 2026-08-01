@@ -10,16 +10,17 @@ use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
+use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::Expansion;
 use deckmaste_core::ExpansionArgs;
+use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Subtype;
@@ -44,7 +45,10 @@ fn sacrifice_this() -> CostComponent {
         name: "SacrificeThis".into(),
         args: ExpansionArgs::none(),
         template: None,
-        value: Box::new(CostComponent::do_(PlayerAction::Sacrifice(Reference::This))),
+        value: Box::new(CostComponent::do_action(Action::Sacrifice(
+            Reference::You,
+            Reference::This,
+        ))),
     })
 }
 
@@ -76,7 +80,8 @@ fn treasure_token_parses() {
                     .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
+                effect: OneShotEffect::Act(Action::AddMana(
+                    Reference::You,
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
@@ -140,7 +145,10 @@ fn food_token_parses() {
                 .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
+                effect: OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Up(Count::Literal(3))
+                )),
             })]
             .into(),
             power: None,
@@ -168,7 +176,8 @@ fn gold_token_parses() {
                 cost: Arc::<[CostComponent]>::from(vec![sacrifice_this()]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
+                effect: OneShotEffect::Act(Action::AddMana(
+                    Reference::You,
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
@@ -261,7 +270,8 @@ fn vibranium_token_parses() {
     }));
     // "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The
     // SpendOnly rider admits everything EXCEPT a nonartifact spell.
-    let restricted_mana = OneShotEffect::act_by_you(PlayerAction::AddMana(
+    let restricted_mana = OneShotEffect::Act(Action::AddMana(
+        Reference::You,
         Count::Literal(1),
         ManaProduction::WithRiders {
             mana: ManaSpec::Specific(ColorOrColorless::Colorless),

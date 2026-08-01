@@ -16,7 +16,7 @@ Normal(
   abilities: [
     Triggered(
       event: BlockDeclared(of: Ref(This)),
-      effect: GainLife(2),
+      effect: ChangeLife(You, Up(2)),
     ),
   ],
   power: 2,

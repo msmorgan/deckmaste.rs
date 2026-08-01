@@ -20,11 +20,11 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
+use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PhaseStep;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
@@ -1131,9 +1131,9 @@ fn pinger_fizzles_when_target_dies() {
 /// A nondescript no-target effect: gain 0 life. Resolving it mutates nothing,
 /// so a test can isolate the *cost* being performed from the effect.
 fn gain_zero() -> OneShotEffect {
-    OneShotEffect::Act(CoreAction::By(
+    OneShotEffect::Act(CoreAction::ChangeLife(
         Reference::You,
-        PlayerAction::GainLife(Count::Literal(0)),
+        LifeOp::Up(Count::Literal(0)),
     ))
 }
 
@@ -1235,7 +1235,7 @@ fn activated_ability_pays_self_sacrifice_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
+            CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This)),
         ],
     );
     let mut state = cost_game(7, &card);
@@ -1272,7 +1272,10 @@ fn activated_ability_pays_life_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::do_(PlayerAction::LoseLife(Count::Literal(2))),
+            CostComponent::do_action(CoreAction::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(2)),
+            )),
         ],
     );
     let mut state = cost_game(7, &card);
@@ -1322,7 +1325,7 @@ fn activated_ability_pays_loyalty_plus_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::do_(PlayerAction::PutCounters(
+            CostComponent::do_action(CoreAction::PutCounters(
                 Reference::This,
                 "LoyaltyCounter".into(),
                 Count::Literal(2),
@@ -1366,7 +1369,7 @@ fn activated_ability_pays_loyalty_minus_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::do_(PlayerAction::RemoveCounters(
+            CostComponent::do_action(CoreAction::RemoveCounters(
                 Reference::This,
                 "LoyaltyCounter".into(),
                 Count::Literal(2),
@@ -1412,7 +1415,7 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::do_(PlayerAction::RemoveCounters(
+            CostComponent::do_action(CoreAction::RemoveCounters(
                 Reference::This,
                 "LoyaltyCounter".into(),
                 Count::X,
@@ -1502,7 +1505,8 @@ fn activated_ability_pays_choose_sacrifice_cost() {
                     by: Reference::You,
                 }),
                 body: deckmaste_core::Cost(
-                    vec![CostComponent::do_(PlayerAction::Sacrifice(
+                    vec![CostComponent::do_action(CoreAction::Sacrifice(
+                        Reference::You,
                         Reference::That(deckmaste_core::Sort::Permanent),
                     ))]
                     .into(),

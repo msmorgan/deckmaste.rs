@@ -20,7 +20,7 @@ Normal(
     Instant,
   ],
   abilities: [
-    Spell(effect: GainLife(3)),
+    Spell(effect: ChangeLife(You, Up(3))),
     Keyword(Storm),
   ],
 )

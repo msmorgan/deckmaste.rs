@@ -147,9 +147,8 @@ pub fn additional_riders(exceptions: &[CopyException]) -> Vec<EnterRider> {
 }
 
 /// Whether an [`EnterRider`] list holds anything the ETB-rider machinery
-/// (the seam guarding `Action::Move`/
-/// `Action::MoveGroup`/`PlayerAction::Move`/`PlayerAction::Create`) still
-/// needs built. [`EnterRider::AsCopy`] is deliberately EXCLUDED from this
+/// (the seam guarding `Action::Move`/`Action::MoveGroup`/`Action::Create`)
+/// still needs built. [`EnterRider::AsCopy`] is deliberately EXCLUDED from this
 /// check: it's a layer-1a copy INPUT ([CR#707.5]), and applying it —
 /// deriving and installing the copiable values — is
 /// handled by `layer::base_values`, not this function. So a rider list holding

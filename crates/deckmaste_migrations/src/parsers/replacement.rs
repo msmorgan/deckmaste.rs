@@ -484,7 +484,7 @@ mod tests {
             rep("If a creature you control would die, you gain 1 life instead.").as_deref(),
             Some(
                 "Static(Replacement(Instead(would: \
-                 Dies(And([Creature, ControlledBy(Ref(You))])), instead: GainLife(1))))"
+                 Dies(And([Creature, ControlledBy(Ref(You))])), instead: ChangeLife(You, Up(1)))))"
             )
         );
     }

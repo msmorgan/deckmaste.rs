@@ -1858,21 +1858,30 @@ mod tests {
 
     // -- entry bodies -------------------------------------------------------
 
-    /// The embed-sugar family. `Action::By` carries a `#[macro_ron(embed)]`
-    /// default subject, so the authored surface of "You gain 3 life." is the
-    /// one-argument `GainLife(3)` — the two-argument `GainLife(You, 3)` does
-    /// not parse at all. The English has two constituents either way, so the
-    /// entry declares two params and a `body:` says how they assemble.
+    /// A multi-param entry whose `body:` says how its constituents ASSEMBLE
+    /// into a verb whose slot order differs from the English's.
     ///
-    /// Asserted on the **value**, not the spelling: the recovery emits
-    /// `By(You, GainLife(3))` and the card says `GainLife(3)`, which are the
-    /// same `OneShotEffect` and different strings.
+    /// This used to be the embed-sugar test: `Action::By` carried a
+    /// `#[macro_ron(embed)]` default subject, so "You gain 3 life." authored
+    /// as the one-argument `GainLife(3)` while the recovery emitted the
+    /// two-argument `By(You, GainLife(3))` — same value, different strings.
+    /// The action role reshape deleted `By` and, with it, defaulted role slots
+    /// entirely (Law 2: one canonical spelling per role value), so that
+    /// asymmetry no longer exists anywhere in the grammar — the surviving
+    /// `#[macro_ron(embed)]` users (`ColorOrColorless::Color`,
+    /// `ManaSpec::Specific`, `StatValue::Count`) are transparent single-payload
+    /// embeds with no defaulted head.
+    ///
+    /// What still needs covering is the half that outlived it: the English has
+    /// two constituents, the verb nests one inside a `LifeOp`, and the `body:`
+    /// is what bridges them. Mirrors the real catalog entry at
+    /// `plugins/builtin/frames/constructors.ron`.
     #[test]
-    fn body_entry_matches_embed_sugar_authoring() {
+    fn body_entry_assembles_params_into_the_canonical_spelling() {
         let lexicon = lexicon_over(&[
             catalog_entry(
                 r#"(constructor: "GainLife", params: ["Reference", "Count"], kind: Sentence,
-                    body: By(Param(0), GainLife(Param(1))),
+                    body: ChangeLife(Param(0), Up(Param(1))),
                     frames: ["<Param(0)> gains <Param(1)> life"])"#,
             ),
             catalog_entry(r#"(constructor: "You", params: [], kind: Nominal, frames: ["you"])"#),
@@ -1891,13 +1900,15 @@ mod tests {
 
         assert_eq!(
             recovered.to_ron(&fixture().macros).unwrap(),
-            "By(You, GainLife(3))",
-            "the emission is the body with its params filled, not `GainLife(You, 3)`"
+            "ChangeLife(You, Up(3))",
+            "the emission is the body with its params filled — the count nests \
+             inside the LifeOp, it is not a flat second argument"
         );
         assert_eq!(
             recovered_value(&recovered, "OneShotEffect"),
-            value_of("OneShotEffect", "GainLife(3)"),
-            "the emission and the authored sugar are one value"
+            value_of("OneShotEffect", "ChangeLife(You, Up(3))"),
+            "the emission and the authored spelling are one value — and now, \
+             with no defaulted role slot, also one string"
         );
     }
 

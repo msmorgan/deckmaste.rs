@@ -12,9 +12,9 @@ use deckmaste_core::ActivatedAbility;
 use deckmaste_core::Cmp;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
+use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Stat;
@@ -64,11 +64,9 @@ pub(crate) fn is_loyalty_ability(cost: &deckmaste_core::Cost) -> bool {
     summary.verbs.iter().any(|v| {
         matches!(
             v,
-            Action::By(
-                _,
-                PlayerAction::PutCounters(Reference::This, counter, _)
-                    | PlayerAction::RemoveCounters(Reference::This, counter, _),
-            ) if *counter == loyalty
+            Action::PutCounters(Reference::This, counter, _)
+                | Action::RemoveCounters(Reference::This, counter, _)
+                if *counter == loyalty
         )
     })
 }
@@ -83,11 +81,11 @@ pub(crate) struct CostSummary {
     pub tap: bool,
     pub untap: bool,
     /// Cost-eligible verb components ([`Action::is_cost_eligible`]): the
-    /// player verbs (Sacrifice, Exile, Tap, Untap, `LoseLife`,
-    /// `RemoveCounters`, Reveal — as implicit-you `By` actions) and the
-    /// discard keyword-action composite ("Discard a card:", [CR#701.9]).
-    /// Collected for payment; non-eligible `Do(_)` causes `cost_summary` to
-    /// return `None`.
+    /// player verbs (Sacrifice, Exile, Tap, Untap, `ChangeLife`,
+    /// `RemoveCounters`, Reveal — agent slots spelled `You` in cost context)
+    /// and the discard keyword-action composite ("Discard a card:",
+    /// [CR#701.9]). Collected for payment; non-eligible `Do(_)` causes
+    /// `cost_summary` to return `None`.
     pub verbs: Vec<Action>,
     /// `ManaCostOf(reference)` components: pay mana equal to the referenced
     /// object's printed mana cost ([CR#202.1]). The reference can only be
@@ -659,13 +657,61 @@ impl GameState {
     /// forbidden), while the bound "discard this card" form
     /// ([CR#702.29a]) always names its one card, so it is payable like the
     /// other single-`Reference` verbs.
+    #[expect(
+        clippy::match_same_arms,
+        reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the loyalty-`+N` PutCounters arm vs the out-of-scope Reveal seam)"
+    )]
     fn verb_cost_payable(&self, verb: &Action, player: PlayerId, frame: &Frame) -> bool {
         match verb {
-            Action::By(_, pa) => self.player_verb_cost_payable(pa, player, frame),
-            // The direct-variant relocation (`Do(Move(This, Exile))`,
-            // Scavenge) — a single `Reference` always names its one object,
-            // so it is payable, like the `By`-wrapped verbs.
-            Action::Move(..) => true,
+            // Sacrifice/Move (exile is `Move(_, Exile)`)/Tap/Untap take a
+            // single `Reference` (an agent slot spelled `You` in cost
+            // context on the verbs that carry one) — it always names its one
+            // object, so it is payable. The choose-feasibility of "sacrifice
+            // a creature" lives in the cost `With(ChooseOne(filter), …)`
+            // binder, not the verb.
+            Action::Sacrifice(..) | Action::Move(..) | Action::Tap(_) | Action::Untap(_) => true,
+            // [CR#119.4]: pay-life needs life ≥ the amount; [CR#119.4b]: paying
+            // 0 is always allowed (and `life >= 0` holds trivially).
+            Action::ChangeLife(_, LifeOp::Down(count)) => {
+                let amount = self.eval_count(count, frame);
+                // [CR#119.4,119.4b]: compare in Uint space — negative life can
+                // never be ≥ a non-negative amount, so clamp to 0 before
+                // converting. `unwrap_or(Uint::MAX)` keeps this panic-free.
+                let life = deckmaste_core::Uint::try_from(self.player(player).life.max(0))
+                    .unwrap_or(deckmaste_core::Uint::MAX);
+                life >= amount
+            }
+            // Gaining/setting life as a cost ([CR#119.7]; Invigorate,
+            // Skyshroud Cutter) needs no prior resource — always payable.
+            Action::ChangeLife(_, LifeOp::Up(_) | LifeOp::Set(_)) => true,
+            // `PutCounters` as a cost (a loyalty `+N` ability adds that many
+            // loyalty counters to its source, [CR#606.4]) is always
+            // payable — adding counters needs no prior resource.
+            Action::PutCounters(..) => true,
+            // [CR#601.2h,107.14]: removing counters as a cost needs at least
+            // that many present on the carrier — the loyalty `−N` ability
+            // ([CR#606.6]) and "pay {E}" ([CR#107.14]: paying {E} removes an
+            // energy counter from the player). The carrier is the resolved
+            // object OR player proxy ([CR#122.1] — a counter is a marker on an
+            // object OR player, so energy/poison sit on the player), so
+            // `RemoveCounters(You, Energy, N)` reads the payer's
+            // proxy counter map. An absent kind reads zero, so an unfunded
+            // "pay {E}" is unpayable (partial payment forbidden, [CR#601.2h]).
+            Action::RemoveCounters(sel, kind, count) => {
+                let need = self.eval_count(count, frame);
+                self.eval_reference_set(sel, frame).iter().all(|&id| {
+                    self.objects
+                        .get(id)
+                        .and_then(|o| o.counters.get(kind.as_str()).copied())
+                        .unwrap_or(0)
+                        >= need
+                })
+            }
+            // Out of this ticket's listed scope — the reveal window is unbuilt,
+            // so treat as payable for now.
+            // TODO(engine-cost-payment follow-up): payability for Reveal (needs
+            // the reveal window).
+            Action::Reveal { .. } => true,
             Action::Composite { name, body } if name.as_str() == "Discard" => {
                 if deckmaste_core::discard_body_what(body).is_some() {
                     // The bound form names its one card ([CR#702.29a]) —
@@ -680,77 +726,11 @@ impl GameState {
                     self.zones.hands[player.index()].len() >= need
                 }
             }
+            // Look through a remembered macro invocation.
+            Action::Expanded(e) => self.verb_cost_payable(&e.value, player, frame),
             // `cost_summary` only collects cost-eligible actions, so nothing
             // else reaches here.
             other => unreachable!("non-cost-eligible action in a cost summary: {other:?}"),
-        }
-    }
-
-    /// Whether one cost-eligible PLAYER verb can be paid in full
-    /// ([CR#601.2h]). Looks through `Expanded` macro wrappers.
-    fn player_verb_cost_payable(
-        &self,
-        verb: &PlayerAction,
-        player: PlayerId,
-        frame: &Frame,
-    ) -> bool {
-        #[expect(
-            clippy::match_same_arms,
-            reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the loyalty-`+N` PutCounters arm vs the out-of-scope Reveal seam)"
-        )]
-        match verb {
-            // [CR#119.4]: pay-life needs life ≥ the amount; [CR#119.4b]: paying
-            // 0 is always allowed (and `life >= 0` holds trivially).
-            PlayerAction::LoseLife(count) => {
-                let amount = self.eval_count(count, frame);
-                // [CR#119.4,119.4b]: compare in Uint space — negative life can
-                // never be ≥ a non-negative amount, so clamp to 0 before
-                // converting. `unwrap_or(Uint::MAX)` keeps this panic-free.
-                let life = deckmaste_core::Uint::try_from(self.player(player).life.max(0))
-                    .unwrap_or(deckmaste_core::Uint::MAX);
-                life >= amount
-            }
-            // Sacrifice/Move (exile is `Move(_, Exile)`)/Tap/Untap take a single
-            // `Reference` — it always names its one object, so it is payable.
-            // The choose-feasibility of "sacrifice a creature" lives in the
-            // cost `With(ChooseOne(filter), …)` binder, not the verb.
-            PlayerAction::Sacrifice(_)
-            | PlayerAction::Move(..)
-            | PlayerAction::Tap(_)
-            | PlayerAction::Untap(_) => true,
-            // `PutCounters` as a cost (a loyalty `+N` ability adds that many
-            // loyalty counters to its source, [CR#606.4]) is always
-            // payable — adding counters needs no prior resource.
-            PlayerAction::PutCounters(..) => true,
-            // [CR#601.2h,107.14]: removing counters as a cost needs at least
-            // that many present on the carrier — the loyalty `−N` ability
-            // ([CR#606.6]) and "pay {E}" ([CR#107.14]: paying {E} removes an
-            // energy counter from the player). The carrier is the resolved
-            // object OR player proxy ([CR#122.1] — a counter is a marker on an
-            // object OR player, so energy/poison sit on the player), so
-            // `RemoveCounters(You, Energy, N)` reads the payer's
-            // proxy counter map. An absent kind reads zero, so an unfunded
-            // "pay {E}" is unpayable (partial payment forbidden, [CR#601.2h]).
-            PlayerAction::RemoveCounters(sel, kind, count) => {
-                let need = self.eval_count(count, frame);
-                self.eval_reference_set(sel, frame).iter().all(|&id| {
-                    self.objects
-                        .get(id)
-                        .and_then(|o| o.counters.get(kind.as_str()).copied())
-                        .unwrap_or(0)
-                        >= need
-                })
-            }
-            // Out of this ticket's listed scope — the reveal window is unbuilt,
-            // so treat as payable for now.
-            // TODO(engine-cost-payment follow-up): payability for Reveal (needs
-            // the reveal window).
-            PlayerAction::Reveal { .. } => true,
-            // Look through a remembered macro invocation.
-            PlayerAction::Expanded(e) => self.player_verb_cost_payable(&e.value, player, frame),
-            // `cost_summary` only collects cost-eligible verbs, so nothing else
-            // reaches here.
-            other => unreachable!("non-cost-eligible verb in a cost summary: {other:?}"),
         }
     }
 
@@ -834,7 +814,6 @@ mod tests {
     use deckmaste_core::ManaSymbol;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::PhaseStep;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SimpleManaSymbol;
     use deckmaste_core::Timing;
@@ -881,11 +860,8 @@ mod tests {
     }
 
     fn noop_effect() -> OneShotEffect {
-        // A no-target effect: By(You, Sacrifice(This)) — available in core.
-        OneShotEffect::Act(Action::By(
-            Reference::You,
-            PlayerAction::Sacrifice(Reference::This),
-        ))
+        // A no-target effect: Sacrifice(You, This) — available in core.
+        OneShotEffect::Act(Action::Sacrifice(Reference::You, Reference::This))
     }
 
     // -- as_activated --
@@ -933,9 +909,9 @@ mod tests {
 
     #[test]
     fn cost_summary_returns_none_on_non_eligible_do_cost() {
-        let cost = vec![CostComponent::do_(PlayerAction::GainLife(
-            deckmaste_core::Count::Literal(1),
-        ))];
+        // `DrawCard` is not cost-eligible ([CR#601.2b..601.2c]) — no printed
+        // "draw a card" cost exists.
+        let cost = vec![CostComponent::do_action(Action::DrawCard(Reference::You))];
         assert!(
             cost_summary(&cost).is_none(),
             "Do(...) with a non-cost-eligible action should yield None"
@@ -947,7 +923,7 @@ mod tests {
         let cost = vec![
             CostComponent::Mana("{1}".parse().unwrap()),
             CostComponent::Tap,
-            CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
+            CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This)),
         ];
         let summary = cost_summary(&cost).expect("verb costs no longer abort the summary");
         assert_eq!(summary.mana, "{1}".parse().unwrap());
@@ -1504,8 +1480,9 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let ability = activated(
-            vec![CostComponent::do_(PlayerAction::LoseLife(
-                deckmaste_core::Count::Literal(2),
+            vec![CostComponent::do_action(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(deckmaste_core::Count::Literal(2)),
             ))],
             noop_effect(),
         );
@@ -1525,8 +1502,9 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let ability = activated(
-            vec![CostComponent::do_(PlayerAction::LoseLife(
-                deckmaste_core::Count::Literal(2),
+            vec![CostComponent::do_action(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(deckmaste_core::Count::Literal(2)),
             ))],
             noop_effect(),
         );
@@ -1550,9 +1528,10 @@ mod tests {
         assert!(
             state.can_pay_verbs(
                 player,
-                &[Action::by_you(PlayerAction::LoseLife(
-                    deckmaste_core::Count::Literal(0),
-                ))],
+                &[Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Down(deckmaste_core::Count::Literal(0)),
+                )],
                 obj,
             ),
             "paying 0 life is always allowed [CR#119.4b]"
@@ -1582,9 +1561,10 @@ mod tests {
         assert!(
             state.can_pay_verbs(
                 player,
-                &[Action::by_you(PlayerAction::LoseLife(
-                    deckmaste_core::Count::Literal(2),
-                ))],
+                &[Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Down(deckmaste_core::Count::Literal(2)),
+                )],
                 obj,
             ),
             "without an (unbuilt) can't-lose-life lock, a LoseLife(2) cost is payable at 20 life"
@@ -1629,7 +1609,7 @@ mod tests {
         assert!(
             state.can_pay_verbs(
                 player,
-                &[Action::by_you(PlayerAction::Sacrifice(Reference::This))],
+                &[Action::Sacrifice(Reference::You, Reference::This)],
                 obj,
             ),
             "a self-sacrifice always has its one object to pay with"
@@ -1646,11 +1626,11 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let proxy = state.player(player).object;
-        let verbs = [Action::by_you(PlayerAction::RemoveCounters(
+        let verbs = [Action::RemoveCounters(
             Reference::You,
             deckmaste_core::CounterRef::from("Energy"),
             deckmaste_core::Count::Literal(2),
-        ))];
+        )];
 
         // Zero energy: pay {E}{E} is unpayable.
         assert!(
@@ -1691,11 +1671,11 @@ mod tests {
         let mut state = game();
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
-        let verbs = [Action::by_you(PlayerAction::RemoveCounters(
+        let verbs = [Action::RemoveCounters(
             Reference::This,
             deckmaste_core::CounterRef::from("LoyaltyCounter"),
             deckmaste_core::Count::Literal(3),
-        ))];
+        )];
 
         // No loyalty counters: −3 is unpayable.
         assert!(

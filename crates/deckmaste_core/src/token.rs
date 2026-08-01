@@ -174,7 +174,8 @@ impl PredefinedToken {
         use crate::Predicate;
         use crate::StaticEffect;
         use crate::ability::ActivatedAbility;
-        use crate::action::PlayerAction;
+        use crate::action::Action;
+        use crate::action::LifeOp;
         use crate::cost::CostComponent;
         use crate::effect::OneShotEffect;
         use crate::mana::ManaCost;
@@ -187,13 +188,14 @@ impl PredefinedToken {
             types: vec![Type::Artifact].into(),
             confers: [].into(),
         };
-        let sac = CostComponent::do_(PlayerAction::Sacrifice(Reference::This));
+        let sac = CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This));
         let mana = |n: u32| {
             let symbols: Arc<[ManaSymbol]> =
                 [ManaSymbol::Simple(SimpleManaSymbol::Generic(n))].into();
             CostComponent::Mana(ManaCost::from(symbols))
         };
-        let add_any = || PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor.into());
+        let add_any =
+            || Action::AddMana(Reference::You, Count::Literal(1), ManaSpec::AnyColor.into());
         // Vibranium's "Add {C}. This mana can't be spent to cast a nonartifact
         // spell." ([CR#111.10w]) — a colorless unit carrying a `SpendOnly`
         // rider ([CR#106.6]) whose filter admits everything EXCEPT a
@@ -206,7 +208,8 @@ impl PredefinedToken {
                 ]
                 .into(),
             );
-            PlayerAction::AddMana(
+            Action::AddMana(
+                Reference::You,
                 Count::Literal(1),
                 ManaProduction::WithRiders {
                     mana: ManaSpec::Specific(ColorOrColorless::Colorless),
@@ -242,20 +245,19 @@ impl PredefinedToken {
                 Self::Treasure => (
                     [].into(),
                     vec![CostComponent::Tap, sac].into(),
-                    OneShotEffect::act_by_you(add_any()),
+                    OneShotEffect::Act(add_any()),
                 ),
                 // [CR#111.10b] "{2}, {T}, Sacrifice this token: You gain 3 life."
                 Self::Food => (
                     [].into(),
                     vec![mana(2), CostComponent::Tap, sac].into(),
-                    OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
+                    OneShotEffect::Act(Action::ChangeLife(
+                        Reference::You,
+                        LifeOp::Up(Count::Literal(3)),
+                    )),
                 ),
                 // [CR#111.10c] "Sacrifice this token: Add one mana of any color."
-                Self::Gold => (
-                    [].into(),
-                    vec![sac].into(),
-                    OneShotEffect::act_by_you(add_any()),
-                ),
+                Self::Gold => ([].into(), vec![sac].into(), OneShotEffect::Act(add_any())),
                 // [CR#111.10f] "{2}, Sacrifice this token: Draw a card."
                 Self::Clue => (
                     [].into(),
@@ -283,7 +285,7 @@ impl PredefinedToken {
                 Self::Vibranium => (
                     vec![indestructible()].into(),
                     vec![CostComponent::Tap].into(),
-                    OneShotEffect::act_by_you(restricted_colorless()),
+                    OneShotEffect::Act(restricted_colorless()),
                 ),
             };
 
@@ -348,7 +350,6 @@ mod tests {
     use crate::ability::Ability;
     use crate::ability::ActivatedAbility;
     use crate::action::Action;
-    use crate::action::PlayerAction;
     use crate::cost::CostComponent;
     use crate::effect::OneShotEffect;
     use crate::mana::ManaSpec;
@@ -455,13 +456,17 @@ mod tests {
                 cost: crate::Cost(
                     vec![
                         CostComponent::Tap,
-                        CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
+                        CostComponent::do_action(Action::Sacrifice(
+                            Reference::You,
+                            Reference::This
+                        )),
                     ]
                     .into(),
                 ),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
+                effect: OneShotEffect::Act(Action::AddMana(
+                    Reference::You,
                     crate::Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
@@ -591,8 +596,8 @@ mod tests {
             types: [TypeDef(name: \"Artifact\", permanent: true)],\
             abilities: [\
                 Activated(\
-                    cost: [Tap, Do(Sacrifice(This))],\
-                    effect: AddMana(Literal(1), AnyColor),\
+                    cost: [Tap, Do(Sacrifice(You, This))],\
+                    effect: AddMana(You, Literal(1), AnyColor),\
                 )\
             ],\
         )";
@@ -608,15 +613,19 @@ mod tests {
                 cost: crate::Cost(
                     vec![
                         CostComponent::Tap,
-                        CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
+                        CostComponent::do_action(Action::Sacrifice(
+                            Reference::You,
+                            Reference::This
+                        )),
                     ]
                     .into(),
                 ),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::AddMana(
                     Reference::You,
-                    PlayerAction::AddMana(crate::Count::Literal(1), ManaSpec::AnyColor.into()),
+                    crate::Count::Literal(1),
+                    ManaSpec::AnyColor.into(),
                 )),
             })]
             .into()

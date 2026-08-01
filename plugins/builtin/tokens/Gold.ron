@@ -5,7 +5,7 @@ Token(
     abilities: [
         Activated(
             cost: [SacrificeThis],
-            effect: AddMana(1, AnyColor),
+            effect: AddMana(You, 1, AnyColor),
         )
     ],
 )

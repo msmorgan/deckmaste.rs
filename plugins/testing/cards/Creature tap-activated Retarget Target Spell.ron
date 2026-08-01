@@ -1,0 +1,17 @@
+// {R} 1/1: "{T}: choose new targets for target spell." Modeled on the
+// tap-pinger shape (Creature tap-activated DealDamage AnyTarget.ron) and the
+// CopySpell fixture, but re-targeting a COMMITTED stack entry via
+// `Action::Retarget` ([CR#707.10c,115.7d]) instead of minting a copy — the
+// engine-copy-spells end-to-end fixture for `Retarget`. `mode: ChooseNew`
+// is [CR#115.7d]'s own mode (leave-any-even-if-illegal); mode-specific
+// semantics are unwired this task (grammar only).
+Normal(
+    name: "Creature tap-activated Retarget Target Spell",
+    mana_cost: [Red],
+    types: [Creature],
+    power: 1,
+    toughness: 1,
+    abilities: [
+        Activated(cost: [Tap], effect: Targeted(targets: [TargetOne(Kind(Spell))], effect: Retarget(mode: ChooseNew, of: Target(0), by: You))),
+    ],
+)

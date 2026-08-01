@@ -14,7 +14,7 @@
     name: "Investigate",
     template: "investigate",
     kinds: [OneShotEffect],
-    body: Create(1, Token(
+    body: Create(agent: You, count: 1, token: Token(
         types: [Artifact],
         subtypes: [Clue],
         abilities: [

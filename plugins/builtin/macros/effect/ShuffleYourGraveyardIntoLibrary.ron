@@ -24,6 +24,6 @@
             binder: Existing(SelectAll(And([InZone(Graveyard), Owner(Ref(You))]))),
             effect: Move(It, Library(FromTop(0))),
         ),
-        Shuffle,
+        Shuffle(LibraryOf(You)),
     ]),
 )

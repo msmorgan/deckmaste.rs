@@ -23,7 +23,7 @@ Normal(
       event: ThisEnters,
       effect: Each(
         binder: Existing(SelectAll(Player)),
-        effect: By(It, SetLife(Aggregate(MaxOf, (
+        effect: ChangeLife(It, Set(Aggregate(MaxOf, (
           of: Players(Player),
           by: PlayerStatOf(It, Life),
         )))),

@@ -15,7 +15,7 @@
                 effect: If(
                     condition: Compare(CounterCount(This, FadeCounter), AtLeast, 1),
                     then: RemoveCounters(This, FadeCounter, 1),
-                    otherwise: Sacrifice(This),
+                    otherwise: Sacrifice(You, This),
                 ),
             ),
         ],

@@ -517,7 +517,7 @@ impl StrategyEvaluator {
             ),
             // [CR#707.10c]: re-target a committed entry by keeping every
             // current target (see `crate::sim::keep_current_targets`).
-            PendingDecision::ChooseNewTargets(crate::decide::pending::ChooseNewTargets {
+            PendingDecision::Retarget(crate::decide::pending::Retarget {
                 entry,
                 spec,
                 legal,

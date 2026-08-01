@@ -1,7 +1,7 @@
 // Fling — "As an additional cost to cast this spell, sacrifice a creature.
 // Fling deals damage equal to the sacrificed creature's power to any
 // target." The printed additional cost ([CR#601.2f,118.8]): the sacrifice
-// choice binds via `With(ChooseOne, Sacrifice(That))`, and `body` reads the
+// choice binds via `With(ChooseOne, Sacrifice(You, That))`, and `body` reads the
 // sacrificed creature back through the event reference `EventObject` (the
 // SAME anaphor a trigger uses), exactly like an `AdditionalCost` body's
 // Idris mirror.
@@ -19,7 +19,7 @@ Normal(
       effect: Targeted(
         targets: [AnyTarget],
         effect: AdditionalCost(
-          pay: [With(binder: ChooseOne(filter: Type(Creature)), body: [Do(Sacrifice(That(Creature)))])],
+          pay: [With(binder: ChooseOne(filter: Type(Creature)), body: [Do(Sacrifice(You, That(Creature)))])],
           body: DealDamage(This, StatOf(EventObject, Power), Target(0)),
         ),
       ),

@@ -12,7 +12,7 @@ Normal(
     power: 1,
     toughness: 1,
     abilities: [
-        Triggered(event: Cast(who: Ref(You), what: Kind(Spell)), effect: GainLife(1)),
-        Triggered(event: Copied(who: Ref(You), what: Kind(Spell)), effect: GainLife(10)),
+        Triggered(event: Cast(who: Ref(You), what: Kind(Spell)), effect: ChangeLife(You, Up(1))),
+        Triggered(event: Copied(who: Ref(You), what: Kind(Spell)), effect: ChangeLife(You, Up(10))),
     ],
 )

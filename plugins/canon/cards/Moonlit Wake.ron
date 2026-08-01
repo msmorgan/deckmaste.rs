@@ -8,6 +8,6 @@ Normal(
     Enchantment,
   ],
   abilities: [
-    Triggered(event: Dies(Creature), effect: GainLife(1)),
+    Triggered(event: Dies(Creature), effect: ChangeLife(You, Up(1))),
   ],
 )

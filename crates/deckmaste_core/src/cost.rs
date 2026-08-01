@@ -12,7 +12,6 @@ use crate::Normalize;
 use crate::Predicate;
 use crate::Stat;
 use crate::SupportsMacros;
-use crate::action::PlayerAction;
 use crate::mana::ManaCost;
 use crate::reference::Reference;
 
@@ -37,11 +36,10 @@ pub enum CostComponent {
     /// The {Q} symbol.
     Untap,
     /// Pay by performing an action ([CR#118.3]) — the Idris `Do : Action b
-    /// -> Cost b`. The payer is implicitly you: a bare player verb
-    /// (`Do(Sacrifice(This))`) reads as `By(You, …)` through
-    /// [`Action::By`]'s `#[macro_ron(embed)]` lift, so the common spellings
-    /// are unchanged; holding the full [`Action`](crate::Action) is what
-    /// lets a keyword-action composite be a cost — "Discard a card:" is
+    /// -> Cost b`. The payer is `You` in cost context — spelled explicitly on
+    /// every agent-bearing verb (`Do(Sacrifice(You, This))`, Law 2: no
+    /// read-time default); holding the full [`Action`](crate::Action) is
+    /// what lets a keyword-action composite be a cost — "Discard a card:" is
     /// `Do(Discard(1))`, cycling's "Discard this card:" the bound
     /// [`discard_what`](crate::Action::discard_what) form
     /// ([CR#701.9,702.29a]). Only cost-eligible actions
@@ -103,16 +101,6 @@ pub enum CostComponent {
 }
 
 impl CostComponent {
-    /// Pay by performing a (cost-eligible) player verb —
-    /// `Do(Arc::new(By(You, action)))`, hiding the box and the implicit-you
-    /// `By` wrapper the widened variant requires. Eligibility itself stays a
-    /// cards-layer validation lint ([CR#601.2b],
-    /// [`Action::is_cost_eligible`](crate::Action::is_cost_eligible)).
-    #[must_use]
-    pub fn do_(action: PlayerAction) -> CostComponent {
-        CostComponent::Do(Arc::new(crate::Action::by_you(action)))
-    }
-
     /// Pay by performing a full [`Action`](crate::Action) — the
     /// keyword-action composite forms ("Discard a card:" —
     /// [CR#701.9,601.2b]).
@@ -312,9 +300,9 @@ mod tests {
         use crate::CharacteristicPredicate;
         use crate::Predicate;
         use crate::Type;
-        use crate::action::PlayerAction;
 
-        // "sacrifice a creature": choose one creature, then Sacrifice(That(Creature)).
+        // "sacrifice a creature": choose one creature, then Sacrifice(You,
+        // That(Creature)).
         let creature =
             Predicate::Characteristic(CharacteristicPredicate::Supertype(crate::Supertype::Basic));
         let with = CostComponent::With {
@@ -323,7 +311,8 @@ mod tests {
                 by: Reference::You,
             }),
             body: Cost(
-                vec![CostComponent::do_(PlayerAction::Sacrifice(
+                vec![CostComponent::do_action(crate::Action::Sacrifice(
+                    Reference::You,
                     Reference::That(crate::Sort::OfType(Type::Creature)),
                 ))]
                 .into(),
@@ -331,10 +320,8 @@ mod tests {
         };
         assert_eq!(read(&to_string(&with)), with, "With cost round-trips");
 
-        // Exile-as-cost is a Move to the Exile zone. In `Action` position
-        // the bare `Move(This, Exile)` spelling resolves to the DIRECT
-        // `Action::Move` (the direct variant shadows the `By(You, …)`
-        // embed), so that is the canonical stored form.
+        // Exile-as-cost is a Move to the Exile zone — `Action::Move` is
+        // agent-silent, so this spells with no agent slot.
         let exile =
             CostComponent::do_action(crate::Action::move_to(Reference::This, crate::Zone::Exile));
         assert_eq!(
@@ -408,8 +395,6 @@ mod tests {
 
     #[test]
     fn cost_components_parse() {
-        use crate::action::PlayerAction;
-
         assert_eq!(
             read("Mana([Generic(2)])"),
             CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
@@ -418,8 +403,8 @@ mod tests {
         );
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
-            read("Do(Sacrifice(This))"),
-            CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
+            read("Do(Sacrifice(You, This))"),
+            CostComponent::do_action(crate::Action::Sacrifice(Reference::You, Reference::This)),
         );
     }
 
@@ -503,7 +488,9 @@ mod tests {
 
     #[test]
     fn cost_list_round_trips() {
-        let source = "[Mana([Generic(2)]),Tap,Do(Sacrifice(This))]";
+        // `Sacrifice` carries its agent slot explicitly now ([CR#701.21a]
+        // "its controller"); in a cost, `You` is the payer.
+        let source = "[Mana([Generic(2)]),Tap,Do(Sacrifice(You, This))]";
         let parsed: Arc<[CostComponent]> = crate::ron::options().from_str(source).unwrap();
         let written = crate::ron::options().to_string(&parsed).unwrap();
         let reparsed: Arc<[CostComponent]> = crate::ron::options().from_str(&written).unwrap();

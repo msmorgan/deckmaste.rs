@@ -15,7 +15,6 @@ use deckmaste_core::ManaSymbol;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PayAct;
 use deckmaste_core::PipClass;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
@@ -453,9 +452,9 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 }
 
 /// [CR#601.2h]: one `RunEffect` per cost-eligible verb, each performed by the
-/// activating `player` against the ability's `source`. The verb rides
-/// `Action::By(You, …)` over a fresh resolution frame whose `controller` is
-/// the activator — so `Reference::You` resolves to that player and
+/// activating `player` against the ability's `source`, over a fresh
+/// resolution frame whose `controller` is the activator — so `Reference::You`
+/// (the verb's own agent slot, spelled) resolves to that player and
 /// `Reference::This` (a self-sacrifice) to the source — mirroring the frame
 /// any effect node resolves against (`targets`/`bindings`/`chosen` empty: a
 /// cost verb names no targets and carries no trigger context). A
@@ -494,17 +493,13 @@ fn verb_payment_items(
 /// without an `{X}` mana symbol. Looks through `Expanded` macro wrappers,
 /// mirroring `verb_cost_payable`.
 fn verb_mentions_cost_x(verb: &CoreAction) -> bool {
-    fn player_verb_mentions_x(verb: &PlayerAction) -> bool {
-        match verb {
-            PlayerAction::LoseLife(count)
-            | PlayerAction::PutCounters(_, _, count)
-            | PlayerAction::RemoveCounters(_, _, count) => count.mentions_x(),
-            PlayerAction::Expanded(e) => player_verb_mentions_x(&e.value),
-            _ => false,
-        }
-    }
     match verb {
-        CoreAction::By(_, pa) => player_verb_mentions_x(pa),
+        // Pay-X-life ([CR#119.4]) only — a gain/set-life cost never reads X
+        // this way, mirroring the former `PlayerAction::LoseLife`-only match.
+        CoreAction::ChangeLife(_, deckmaste_core::LifeOp::Down(count))
+        | CoreAction::PutCounters(_, _, count)
+        | CoreAction::RemoveCounters(_, _, count) => count.mentions_x(),
+        CoreAction::Expanded(e) => verb_mentions_cost_x(&e.value),
         // An X-discard ("discard X cards") — the count rides the body's
         // `With` binder's `Quantity`.
         CoreAction::Composite { name, body } if name.as_str() == "Discard" => {
@@ -709,16 +704,17 @@ impl GameState {
             return false;
         }
         let verb_actions = phyrexian_life_verbs(&verbs);
-        // Structural per-verb payability (here: each LoseLife is non-negative
-        // and life ≥ that ONE amount). `concretize` emits only Do(LoseLife(2)),
-        // so this is the [CR#119.4] floor; the joint check below adds the
-        // shared-life constraint `can_pay_verbs` can't express.
+        // Structural per-verb payability (here: each ChangeLife(Down) is
+        // non-negative and life ≥ that ONE amount). `concretize` emits only
+        // Do(ChangeLife(You, Down(2))), so this is the [CR#119.4] floor; the
+        // joint check below adds the shared-life constraint `can_pay_verbs`
+        // can't express.
         if !self.can_pay_verbs(player, &verb_actions, subject) {
             return false;
         }
         // [CR#107.4f]: the COMBINED life of all Phyrexian-life picks must be
         // affordable — two {W/P} paid with life cost 4, not 2. `can_pay_verbs`
-        // judges each LoseLife against full life independently, so sum them.
+        // judges each ChangeLife(Down) against full life independently, so sum them.
         // The frame mirrors the one `can_pay_verbs`/`verb_payment_items` use: a
         // cost verb names no targets and `~`/`This` is the live source.
         let frame = Frame::bare(subject, player);
@@ -731,12 +727,15 @@ impl GameState {
     }
 
     /// The life a single concretized Phyrexian-life verb costs. `concretize`
-    /// emits only `Do(LoseLife(n))` for life picks ([CR#107.4f]); any other
-    /// shape contributes 0 (its own structural check in `can_pay_verbs` covers
-    /// it — this sum is purely the shared-life constraint).
+    /// emits only `Do(ChangeLife(You, Down(n)))` for life picks ([CR#107.4f];
+    /// paying life IS losing life, [CR#119.4]); any other shape contributes 0
+    /// (its own structural check in `can_pay_verbs` covers it — this sum is
+    /// purely the shared-life constraint).
     fn life_cost_of(&self, verb: &CoreAction, frame: &Frame) -> Uint {
         match verb {
-            CoreAction::By(_, PlayerAction::LoseLife(count)) => self.eval_count(count, frame),
+            CoreAction::ChangeLife(_, deckmaste_core::LifeOp::Down(count)) => {
+                self.eval_count(count, frame)
+            }
             _ => 0,
         }
     }
@@ -1170,7 +1169,7 @@ impl GameState {
         }
         // The per-kind spec derivation is shared with re-targeting a
         // COMMITTED entry ([`Self::stack_object_target_specs`],
-        // `ChooseNewTargets`, [CR#707.10c]).
+        // `Retarget`, [CR#707.10c]).
         let view = self.layers();
         let specs = self.stack_object_target_specs(&view, &pending.object);
         if specs.is_empty() {
@@ -1189,7 +1188,7 @@ impl GameState {
     /// The target specs a stack object's ability carries
     /// ([CR#601.2c,603.3d]) — the per-kind derivation shared by the announce
     /// slot ([`Self::announce_targets`]) and re-targeting a COMMITTED entry
-    /// (`ChooseNewTargets`, [CR#707.10c]). A spell's specs are read fresh off
+    /// (`Retarget`, [CR#707.10c]). A spell's specs are read fresh off
     /// `view` (its `Spell` ability may have changed since the object hit the
     /// stack, and a copy's controller can differ from the caster,
     /// [CR#707.10]); an activated/triggered ability's ride the text carried
@@ -1263,7 +1262,7 @@ impl GameState {
 
     /// The per-spec legal-target computation ([CR#601.2c]) shared by
     /// [`Self::surface_target_choice`] (announce / trigger placement) and
-    /// re-targeting a COMMITTED entry (`ChooseNewTargets`, [CR#707.10c]) —
+    /// re-targeting a COMMITTED entry (`Retarget`, [CR#707.10c]) —
     /// `Cant(Target)` carriers ([CR#702.11b] hexproof, [CR#702.16b]
     /// protection's targeted clause) excluded per spec. `targeting_id` is the
     /// live stack identity each forbidding row's `by` filter evaluates
@@ -2616,7 +2615,6 @@ mod tests {
         use deckmaste_core::ActivatedAbility;
         use deckmaste_core::Cost;
         use deckmaste_core::ManaSpec;
-        use deckmaste_core::PlayerAction;
         Card::Normal(CardFace {
             name: name.into(),
             mana_cost: ManaCost::default(),
@@ -2628,7 +2626,8 @@ mod tests {
                 window: None,
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
+                effect: OneShotEffect::Act(CoreAction::AddMana(
+                    Reference::You,
                     Count::Literal(1),
                     ManaSpec::Specific(color).into(),
                 )),

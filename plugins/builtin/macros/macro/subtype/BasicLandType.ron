@@ -15,7 +15,7 @@
             confers: [
                 Ability(Activated(
                     cost: [Tap],
-                    effect: AddMana(1, Param(color)),
+                    effect: AddMana(You, 1, Param(color)),
                 )),
             ],
         ),

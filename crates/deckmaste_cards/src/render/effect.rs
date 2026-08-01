@@ -20,11 +20,11 @@ use deckmaste_core::DeonticAction;
 use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::EnterRider;
+use deckmaste_core::LifeOp;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
 use deckmaste_core::ObjectKind;
 use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
@@ -361,6 +361,7 @@ fn delver_look_top(f: &deckmaste_core::If, ctx: &Ctx) -> Option<String> {
     let types = or_type_words(members)?;
     // then: you MAY (reveal that same top card, then transform ~).
     let OneShotEffect::May(deckmaste_core::May {
+        who: _,
         effect: body,
         if_did: None,
         if_not: None,
@@ -372,13 +373,10 @@ fn delver_look_top(f: &deckmaste_core::If, ctx: &Ctx) -> Option<String> {
         return None;
     };
     let [
-        OneShotEffect::Act(Action::By(
-            Reference::You,
-            PlayerAction::Reveal {
-                what: reveal_ref,
-                to: None,
-            },
-        )),
+        OneShotEffect::Act(Action::Reveal {
+            what: reveal_ref,
+            to: None,
+        }),
         OneShotEffect::Act(Action::Transform(target)),
     ] = parts.as_ref()
     else {
@@ -560,13 +558,10 @@ fn search_library(w: &With) -> Option<String> {
     if let Some(r) = reveal
         && !matches!(
             r,
-            OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Reveal {
-                    what: Reference::That(Sort::Card),
-                    to: None,
-                },
-            ))
+            OneShotEffect::Act(Action::Reveal {
+                what: Reference::That(Sort::Card),
+                to: None,
+            })
         )
     {
         return None;
@@ -593,7 +588,7 @@ fn search_library(w: &With) -> Option<String> {
     };
     if !matches!(
         shuffle_part,
-        OneShotEffect::Act(Action::By(Reference::You, PlayerAction::Shuffle))
+        OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You)))
     ) {
         return None;
     }
@@ -1089,7 +1084,7 @@ fn slice_whose(body: &OneShotEffect) -> Option<&Reference> {
 ///   `Composite` and the performer rides that body's `TopOfLibrary` slice.
 /// - **draw** ([CR#121.1]) is NOT ([CR#701] does not list it) and is
 ///   irreducible ([CR#121.5]), so it has no body at all — its per-unit form is
-///   `By(who, DrawCard)` and the performer IS the `By` agent.
+///   `DrawCard(who)` and the performer is its own agent slot.
 ///
 /// `None` for any other shape.
 fn each_collective_batch(
@@ -1105,9 +1100,7 @@ fn each_collective_batch(
             name,
             body: verb_body,
         }) => (name.as_str(), slice_whose(verb_body)?),
-        OneShotEffect::Act(Action::By(who, deckmaste_core::PlayerAction::DrawCard)) => {
-            ("Draw", who)
-        }
+        OneShotEffect::Act(Action::DrawCard(who)) => ("Draw", who),
         _ => return None,
     };
     if !matches!(whose, Reference::It) {
@@ -1201,27 +1194,25 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
             ))
         }
         // Set-wide tap/untap ([CR#701.26a,701.26b]): "Tap each <group>."
-        Action::By(_, PlayerAction::Tap(Reference::It)) => Some(format!("Tap {}.", each_group())),
-        Action::By(_, PlayerAction::Untap(Reference::It)) => {
-            Some(format!("Untap {}.", each_group()))
-        }
+        Action::Tap(Reference::It) => Some(format!("Tap {}.", each_group())),
+        Action::Untap(Reference::It) => Some(format!("Untap {}.", each_group())),
         // Set-wide counter placement ([CR#122.1,608.2d]): "Put a +1/+1 counter
         // on each <group>." — the mass twin of the targeted "Put … on <ref>."
         // (`player_action`'s `PutCounters` arm), the loop element the
-        // placement patient `It`. The `By` actor (the placing player, an
-        // implicit `You`) plays no part in the printed sentence.
-        Action::By(_, PlayerAction::PutCounters(Reference::It, kind, count)) => Some(format!(
+        // placement patient `It`. Agent-silent, so no agent plays any part in
+        // the printed sentence.
+        Action::PutCounters(Reference::It, kind, count) => Some(format!(
             "Put {} on {}.",
             counter_phrase(kind, count),
             each_group(),
         )),
         // [CR#119.1,119.5]: "Each player's life total becomes N." — a
         // possessive-subject sentence (the value belongs to the loop
-        // element), unlike the subject-verb pattern the generic `By(It, pa)`
+        // element), unlike the subject-verb pattern the generic per-verb-agent
         // arm below handles ("Each player mills …"). Arbiter of Knollridge's
         // own shape: `count` is typically a cross-player `Aggregate`
         // ([CR#119.1]) reading "the highest life total among all players".
-        Action::By(Reference::It, PlayerAction::SetLife(count)) => Some(format!(
+        Action::ChangeLife(Reference::It, LifeOp::Set(count)) => Some(format!(
             "{}'s life total becomes {}.",
             capitalize_first(&each_group()),
             fragment::count(count)
@@ -1229,8 +1220,8 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
         // Subject-declarative player verbs over the loop element as AGENT
         // ([CR#608.2d] distributive each; [CR#701.17a,701.9,121.1,119.3]):
         // "Each player mills two cards." / "Each opponent loses 2 life."
-        Action::By(Reference::It, pa) => {
-            let verb = third_person_verb_phrase(pa)?;
+        act if verb_agent(act) == Some(&Reference::It) => {
+            let verb = third_person_verb_phrase(act)?;
             Some(format!("{} {verb}.", capitalize_first(&each_group())))
         }
         _ => None,
@@ -1354,12 +1345,12 @@ fn exchange_control_phrase(parts: &[OneShotEffect], ctx: &Ctx) -> Option<String>
 }
 
 /// Structural match for one HALF of an "exchange life totals" pair
-/// ([CR#701.12a,701.12c], Axis of Mortality): `By(<actor>, SetLife(
+/// ([CR#701.12a,701.12c], Axis of Mortality): `ChangeLife(<actor>, Set(
 /// PlayerStatOf(<other>, Life)))`. Returns `(actor, other)` — the player
 /// whose life is being set and the player whose (pre-exchange) total it's
 /// copying.
 fn exchange_life_half(e: &OneShotEffect) -> Option<(&Reference, &Reference)> {
-    let OneShotEffect::Act(Action::By(actor, PlayerAction::SetLife(count))) = e else {
+    let OneShotEffect::Act(Action::ChangeLife(actor, LifeOp::Set(count))) = e else {
         return None;
     };
     let Count::PlayerStatOf(other, PlayerAttr::Life) = count else {
@@ -1369,10 +1360,10 @@ fn exchange_life_half(e: &OneShotEffect) -> Option<(&Reference, &Reference)> {
 }
 
 /// "have two target players exchange life totals" ([CR#701.12a,701.12c],
-/// Axis of Mortality's `May`-wrapped trigger body): the mirrored `SetLife`/
+/// Axis of Mortality's `May`-wrapped trigger body): the mirrored `ChangeLife`/
 /// `PlayerStatOf` pair reads as one collective verb over the announced
 /// targets, not two separate "X's life total becomes Y" sentences — the
-/// per-half phrasing (`Action::By(Reference::It, PlayerAction::SetLife(_))`,
+/// per-half phrasing (`Action::ChangeLife(Reference::It, LifeOp::Set(_))`,
 /// used by the distributive-`Each` "Each player's life total becomes N")
 /// doesn't apply here since neither half's actor is the loop anaphor `It`.
 fn exchange_life_phrase(parts: &[OneShotEffect], ctx: &Ctx) -> Option<String> {
@@ -1479,6 +1470,10 @@ fn turn_marker(m: TurnMarker) -> &'static str {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per Action variant; splitting would scatter the render dispatch"
+)]
 fn action(a: &Action, ctx: &Ctx) -> String {
     match a {
         // Damage always names its source in oracle text ("~ deals 3 damage
@@ -1600,7 +1595,8 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             format!("Exile {} from a graveyard.", fragment::reference(r, ctx))
         }
         // Exiling is a pure zone move ([CR#701.13]) — "Exile <r>." (the
-        // source-agent twin of `PlayerAction::Move`'s identical exile arm).
+        // player-agent `Move` twin was DELETED and merged into this one,
+        // agent-silent, verb).
         Action::Move(r, Destination::Zone(Zone::Exile), riders, None) if riders.is_empty() => {
             format!("Exile {}.", fragment::reference(r, ctx))
         }
@@ -1672,23 +1668,39 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 enter_rider_phrase(riders, ctx),
             )
         }
+        // Agent-silent player verbs ([CR#701.26a..701.26b,122.1,614.8]) —
+        // no `By` agent to check, so always imperative.
+        Action::Tap(r) => format!("Tap {}.", fragment::reference(r, ctx)),
+        Action::Untap(r) => format!("Untap {}.", fragment::reference(r, ctx)),
+        Action::PutCounters(r, kind, count) => format!(
+            "Put {} on {}.",
+            counter_phrase(kind, count),
+            fragment::reference(r, ctx),
+        ),
+        Action::RemoveDamage(r) => {
+            format!("Remove all damage from {}.", fragment::reference(r, ctx))
+        }
         // A non-`You` agent renders subject-declarative ("Target opponent
         // loses 2 life."); the implicit-`You` default keeps the imperative
         // form ("Discard a card."). A verb with no third-person phrase falls
         // back to the imperative render. (Mill/draw no longer route here —
-        // they left `PlayerAction` for the `Composite` keyword-action lane.)
-        Action::By(who, pa) => match who {
-            Reference::You => player_action(pa, ctx),
-            other => third_person_verb_phrase(pa).map_or_else(
-                || player_action(pa, ctx),
-                |verb| {
-                    format!(
-                        "{} {verb}.",
-                        capitalize_first(&fragment::reference(other, ctx))
-                    )
-                },
-            ),
-        },
+        // they left the player-verb family for the `Composite` keyword-action
+        // lane.)
+        act if verb_agent(act).is_some() => {
+            let who = verb_agent(act).expect("guarded above");
+            match who {
+                Reference::You => player_action(act, ctx),
+                other => third_person_verb_phrase(act).map_or_else(
+                    || player_action(act, ctx),
+                    |verb| {
+                        format!(
+                            "{} {verb}.",
+                            capitalize_first(&fragment::reference(other, ctx))
+                        )
+                    },
+                ),
+            }
+        }
         // [CR#701.19a]: a regeneration shield. The protected permanent is the
         // `That` the enclosing `With` bound (no authored `subject`), so the
         // bare fallback names it as "that"; the top-level `Regenerate` keyword
@@ -1809,7 +1821,7 @@ fn divide_among(d: &deckmaste_core::Distribute, ctx: &Ctx) -> String {
                 capitalize_first(&dealer)
             )
         }
-        OneShotEffect::Act(Action::By(_, PlayerAction::PutCounters(_, kind, _))) => {
+        OneShotEffect::Act(Action::PutCounters(_, kind, _)) => {
             format!(
                 "Distribute {amount} {} counters among {group}.",
                 kind.as_str()
@@ -1880,13 +1892,14 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
 }
 
 /// The verb phrase a `CostComponent::Do(action)` cost renders
-/// ([CR#601.2b]): a player verb (`By(You, ...)`) through the imperative
-/// `player_action` clause; a keyword-action composite ("Discard a card:",
-/// [CR#701.9]) through its `action` tag arm.
+/// ([CR#601.2b]): a player verb (agent slot spelled `You` in cost context)
+/// through the imperative `player_action` clause; a keyword-action composite
+/// ("Discard a card:", [CR#701.9]) through its `action` tag arm.
 fn do_action_phrase(act: &Action, ctx: &Ctx) -> String {
-    match act {
-        Action::By(_, pa) => player_action(pa, ctx),
-        other => action(other, ctx),
+    if verb_agent(act).is_some() {
+        player_action(act, ctx)
+    } else {
+        action(act, ctx)
     }
 }
 
@@ -1918,20 +1931,17 @@ fn do_action_phrase(act: &Action, ctx: &Ctx) -> String {
 /// back to the generic render.
 fn loyalty_cost_prefix(action: &Action) -> Option<String> {
     let is_loyalty = |c: &deckmaste_core::CounterRef| c.as_str() == "LoyaltyCounter";
-    let Action::By(_, pa) = action else {
-        return None;
-    };
-    match pa {
-        PlayerAction::PutCounters(Reference::This, counter, count) if is_loyalty(counter) => {
+    match action {
+        Action::PutCounters(Reference::This, counter, count) if is_loyalty(counter) => {
             match count.literal_value()? {
                 0 => Some("[0]".to_owned()),
                 n => Some(format!("[+{n}]")),
             }
         }
-        PlayerAction::RemoveCounters(Reference::This, counter, Count::X) if is_loyalty(counter) => {
+        Action::RemoveCounters(Reference::This, counter, Count::X) if is_loyalty(counter) => {
             Some("[\u{2212}X]".to_owned())
         }
-        PlayerAction::RemoveCounters(Reference::This, counter, count) if is_loyalty(counter) => {
+        Action::RemoveCounters(Reference::This, counter, count) if is_loyalty(counter) => {
             Some(format!("[\u{2212}{}]", count.literal_value()?))
         }
         _ => None,
@@ -2017,7 +2027,7 @@ fn additional_cost_object_phrase(cost: &[deckmaste_core::CostComponent]) -> Opti
     if let [CostComponent::With { binder, body }] = cost
         && let Binder::ChooseOne { filter, .. } = binder.as_ref()
         && let [CostComponent::Do(pa)] = body.0.as_ref()
-        && let Action::By(_, PlayerAction::Sacrifice(Reference::That(_))) = pa.as_ref()
+        && let Action::Sacrifice(_, Reference::That(_)) = pa.as_ref()
     {
         return Some(format!("the sacrificed {}", fragment::filter_noun(filter)));
     }
@@ -2038,26 +2048,57 @@ fn counted_cards(c: &Count) -> String {
     }
 }
 
+/// The agent slot of a former-`PlayerAction` verb — `None` for a source verb,
+/// an agent-silent verb (`Tap`/`Untap`/`PutCounters`/`RemoveCounters`/
+/// `Reveal`/`RemoveDamage`, no `By` to check any more), or `Pay`/`Retarget`/
+/// `CopySpell.retarget` (not this render layer's concern). Mirrors the
+/// verb set `player_action`/`third_person_verb_phrase` render.
+fn verb_agent(action: &Action) -> Option<&Reference> {
+    match action {
+        Action::ChangeLife(who, _)
+        | Action::AddMana(who, _, _)
+        | Action::Sacrifice(who, _)
+        | Action::DrawCard(who)
+        | Action::VentureIntoDungeon(who)
+        | Action::GetEmblem(who, _)
+        | Action::GetDesignation(who, _)
+        | Action::CastCopy(who, _)
+        | Action::FlipCoins(who, _, _)
+        | Action::RollDice(who, _, _)
+        | Action::RollPlanarDie(who)
+        | Action::WinGame(who)
+        | Action::LoseGame(who)
+        | Action::Cast(who, _, _)
+        | Action::ChooseValue(who, _, _) => Some(who),
+        Action::Create { agent, .. } => Some(agent),
+        Action::CopySpell { controller, .. } => Some(controller),
+        Action::Expanded(e) => verb_agent(&e.value),
+        _ => None,
+    }
+}
+
 /// The THIRD-PERSON verb phrase of a player action — the declarative-subject
-/// tail ("loses 2 life", "discards a card") a non-`You` `By` agent or an
+/// tail ("loses 2 life", "discards a card") a non-`You` agent or an
 /// `Each` player loop prefixes with its subject. A remembered verb-macro
 /// expansion (`LosesLife(2)`) renders through its own template; the core verbs
 /// carry structural fallbacks. `None` = no third-person phrase (the caller
 /// falls back to the imperative render).
-fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {
-    match pa {
-        PlayerAction::Expanded(e) => {
+fn third_person_verb_phrase(action: &Action) -> Option<String> {
+    match action {
+        Action::Expanded(e) => {
             super::template::expanded(e, "it").or_else(|| third_person_verb_phrase(&e.value))
         }
-        PlayerAction::LoseLife(c) => Some(format!("loses {} life", fragment::count(c))),
-        PlayerAction::GainLife(c) => Some(format!("gains {} life", fragment::count(c))),
+        Action::ChangeLife(_, LifeOp::Down(c)) => {
+            Some(format!("loses {} life", fragment::count(c)))
+        }
+        Action::ChangeLife(_, LifeOp::Up(c)) => Some(format!("gains {} life", fragment::count(c))),
         // Dictate of Karametra's "that land's controller adds one mana of
         // any type that land produced" — reuse `add_mana_text`'s clause,
         // stripped of its imperative "Add "/trailing period. A shape
         // `add_mana_text` itself declines (`[unrendered: …]`) has no
         // "Add "/"." to strip, so this falls through to `None` (the caller's
         // imperative fallback) rather than fabricating a phrase.
-        PlayerAction::AddMana(count, production) => {
+        Action::AddMana(_, count, production) => {
             let imperative = add_mana_text(count, production);
             imperative
                 .strip_prefix("Add ")
@@ -2068,53 +2109,40 @@ fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {
     }
 }
 
-fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
-    match pa {
+fn player_action(action: &Action, ctx: &Ctx) -> String {
+    match action {
         // A remembered verb-macro expansion (`Mills(2)` under an explicit
-        // `By`): the imperative frame renders the expanded CORE action —
+        // agent): the imperative frame renders the expanded CORE action —
         // the third-person template belongs to the declarative subjects.
-        PlayerAction::Expanded(e) => player_action(&e.value, ctx),
+        Action::Expanded(e) => player_action(&e.value, ctx),
         // Life totals move in digits, with the explicit "you" subject the
         // oracle prints ("You gain 2 life.").
-        PlayerAction::GainLife(c) => format!("You gain {} life.", fragment::count(c)),
-        PlayerAction::LoseLife(c) => format!("You lose {} life.", fragment::count(c)),
+        Action::ChangeLife(_, LifeOp::Down(c)) => format!("You lose {} life.", fragment::count(c)),
+        Action::ChangeLife(_, LifeOp::Up(c)) => format!("You gain {} life.", fragment::count(c)),
         // A mana ability's production ([CR#106.1]): "Add {W}.", "Add
         // {C}{C}.", "Add one mana of any color."
-        PlayerAction::AddMana(count, production) => add_mana_text(count, production),
+        Action::AddMana(_, count, production) => add_mana_text(count, production),
         // Rider-carrying token creation ("tapped and attacking") falls back
         // to the structural form until its surface lands (macro-first-wave).
-        PlayerAction::Create(count, spec, riders) if riders.is_empty() => {
-            create_text(count, spec, ctx)
-        }
-        PlayerAction::Tap(r) => format!("Tap {}.", fragment::reference(r, ctx)),
-        PlayerAction::Untap(r) => format!("Untap {}.", fragment::reference(r, ctx)),
+        Action::Create {
+            count,
+            token: spec,
+            riders,
+            ..
+        } if riders.is_empty() => create_text(count, spec, ctx),
         // A sacrifice ([CR#701.21]) — the patient is a single reference. A
         // chosen permanent ("sacrifice a creature", Fling) arrives pre-bound as
         // `Reference::That` from an enclosing `With`, which supplies the phrase.
-        PlayerAction::Sacrifice(r) => format!("Sacrifice {}.", fragment::reference(r, ctx)),
-        // A player-performed relocation ([CR#400.7]). Exiling is a pure zone
-        // move ([CR#701.13]) — "Exile X."; a library destination mirrors
-        // `Action::Move`'s "Put X on top/the bottom of your library."
-        PlayerAction::Move(r, Destination::Zone(Zone::Exile), riders) if riders.is_empty() => {
-            format!("Exile {}.", fragment::reference(r, ctx))
-        }
-        PlayerAction::Move(r, Destination::Library(anchor), riders) if riders.is_empty() => {
-            format!(
-                "Put {} on {} of {} library.",
-                fragment::reference(r, ctx),
-                fragment::library_position(anchor),
-                fragment::move_possessive(r, ctx),
-            )
-        }
-        PlayerAction::GetDesignation(name) if name.as_ref() == "CitysBlessing" => {
+        Action::Sacrifice(_, what) => format!("Sacrifice {}.", fragment::reference(what, ctx)),
+        Action::GetDesignation(_, name) if name.as_ref() == "CitysBlessing" => {
             "You get the city's blessing.".to_string()
         }
-        PlayerAction::GetDesignation(name) => format!("You get {name}."),
+        Action::GetDesignation(_, name) => format!("You get {name}."),
         // [CR#114.1]: "You get an emblem with «ability»." The emblem carries
         // only its abilities ([CR#114.3]) — render them through the same
         // `rules` walk a card face uses (a nameless, typeless view), quoted as
         // the emblem's text.
-        PlayerAction::GetEmblem(abilities) => {
+        Action::GetEmblem(_, abilities) => {
             let view = super::CardView {
                 name: "",
                 mana_cost: None,
@@ -2132,25 +2160,13 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
                 super::rules(&view).join(" ")
             )
         }
-        // [CR#701.19a]: remove all damage as part of regeneration.
-        PlayerAction::RemoveDamage(r) => {
-            format!("Remove all damage from {}.", fragment::reference(r, ctx))
-        }
-        // [CR#122.1]: "Put a luck counter on this enchantment." — reuses the
-        // same `counter_phrase` the `Distribute`/keyword-counter renderers
-        // already share.
-        PlayerAction::PutCounters(r, kind, count) => format!(
-            "Put {} on {}.",
-            counter_phrase(kind, count),
-            fragment::reference(r, ctx),
-        ),
         // [CR#608.2g]: "Cast that card." — the resolution-time cast verb. The
         // enclosing `May` supplies the "You may "/"If you don't, …" framing
         // (Chandra's "You may cast that card."); this renders the bare
         // instruction, its patient the surrounding effect's anaphor.
         // [CR#118.9,702.35a]: an alternative-cost cast ("by paying its madness
         // cost") appends the cost; the bare form ([CR#608.2g]) omits it.
-        PlayerAction::Cast(what, for_cost) => match for_cost
+        Action::Cast(_, what, for_cost) => match for_cost
             .as_ref()
             .and_then(|c| super::template::render_cost(c))
         {
@@ -2162,16 +2178,16 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         // Kiki-Jiki, Ral, Storm Conduit's "you may cast a copy of it").
         // Exceptions ([CR#707.9]) append the shared ", except …" clause the
         // other three copy delivery sites carry.
-        PlayerAction::CastCopy(spec) => format!(
+        Action::CastCopy(_, spec) => format!(
             "Cast a copy of {}{}.",
             copy_source_phrase(&spec.source, ctx),
             copy_exceptions_clause(&spec.exceptions)
         ),
         // [CR#104.2b]: "You win the game." — immediate on resolution; the
         // `CantWin` suppression is engine-side, not part of the sentence.
-        PlayerAction::WinGame => "You win the game.".to_string(),
+        Action::WinGame(_) => "You win the game.".to_string(),
         // [CR#104.3e]: the loss twin of `WinGame`.
-        PlayerAction::LoseGame => "You lose the game.".to_string(),
+        Action::LoseGame(_) => "You lose the game.".to_string(),
         other => format!("[unrendered: {other:?}]."),
     }
 }
@@ -2310,7 +2326,7 @@ fn create_text(count: &Count, spec: &TokenSpec, ctx: &Ctx) -> String {
 //
 // The shared `CopySpec` rendering every one of the four copy delivery sites
 // (`TokenSpec::Copy` above, `EnterRider::AsCopy` in `enter_rider_phrase`,
-// `PlayerAction::CastCopy` in `player_action`, and `StaticEffect::BecomesCopy`
+// `Action::CastCopy` in `player_action`, and `StaticEffect::BecomesCopy`
 // in `render/ability.rs`, which calls back into this section via
 // `effect::copy_source_phrase`/`effect::copy_exceptions_clause`) prints after
 // its own family verb — "create a token that's ~", "cast ~", "becomes ~",
@@ -2466,7 +2482,7 @@ fn copy_type_add_clause(word: &str) -> String {
 /// A gained ability's phrase: a keyword prints its bare lowercase name ("it
 /// has flying"); any other ability prints its rendered rules text in quotes
 /// ("it has \"At the beginning of your upkeep, …\""), reusing the same
-/// nameless/typeless `CardView` trick `PlayerAction::GetEmblem` renders an
+/// nameless/typeless `CardView` trick `Action::GetEmblem` renders an
 /// emblem's abilities through.
 fn copy_gained_ability_phrase(a: &Ability) -> String {
     if let Ability::Keyword(k) = a {
@@ -2673,6 +2689,7 @@ mod tests {
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
     use deckmaste_core::Each;
+    use deckmaste_core::LifeOp;
     use deckmaste_core::Modification;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
@@ -2741,7 +2758,6 @@ mod tests {
         use deckmaste_core::CostComponent;
         use deckmaste_core::MayPay;
         use deckmaste_core::MustPay;
-        use deckmaste_core::PlayerAction;
 
         let ctx = Ctx {
             subject: "it",
@@ -2752,8 +2768,9 @@ mod tests {
         let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())].into());
         let draw = || Arc::new(kw("Draw(1)"));
         let lose = || {
-            Arc::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
-                Count::Literal(1),
+            Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Down(Count::Literal(1)),
             )))
         };
 
@@ -2858,7 +2875,6 @@ mod tests {
     fn loyalty_cost_renders_bracketed_prefix() {
         use deckmaste_core::CostComponent;
         use deckmaste_core::CounterRef;
-        use deckmaste_core::PlayerAction;
 
         let ctx = Ctx {
             subject: "Jace Beleren",
@@ -2866,12 +2882,12 @@ mod tests {
             that: None,
             named: None,
         };
-        let cost = |pa: PlayerAction| super::activated_cost(&[CostComponent::do_(pa)], &ctx);
+        let cost = |act: Action| super::activated_cost(&[CostComponent::do_action(act)], &ctx);
         let loyalty = || CounterRef::from("LoyaltyCounter");
 
         // [+2]: PutCounters(This, LoyaltyCounter, 2)
         assert_eq!(
-            cost(PlayerAction::PutCounters(
+            cost(Action::PutCounters(
                 Reference::This,
                 loyalty(),
                 Count::Literal(2),
@@ -2880,7 +2896,7 @@ mod tests {
         );
         // [−1]: RemoveCounters(This, LoyaltyCounter, 1) — U+2212
         assert_eq!(
-            cost(PlayerAction::RemoveCounters(
+            cost(Action::RemoveCounters(
                 Reference::This,
                 loyalty(),
                 Count::Literal(1),
@@ -2889,7 +2905,7 @@ mod tests {
         );
         // [−10]: RemoveCounters(This, LoyaltyCounter, 10) — U+2212
         assert_eq!(
-            cost(PlayerAction::RemoveCounters(
+            cost(Action::RemoveCounters(
                 Reference::This,
                 loyalty(),
                 Count::Literal(10),
@@ -2899,7 +2915,7 @@ mod tests {
         // [0]: PutCounters(This, LoyaltyCounter, 0) — a zero-cost loyalty
         // ability (LoyaltyZero) prints "[0]", not "[+0]".
         assert_eq!(
-            cost(PlayerAction::PutCounters(
+            cost(Action::PutCounters(
                 Reference::This,
                 loyalty(),
                 Count::Literal(0),
@@ -2909,7 +2925,7 @@ mod tests {
 
         // Regression: a NON-loyalty counter cost still renders generically —
         // the loyalty prefix must key on the "LoyaltyCounter" name.
-        let generic = cost(PlayerAction::PutCounters(
+        let generic = cost(Action::PutCounters(
             Reference::This,
             CounterRef::from("P1P1Counter"),
             Count::Literal(1),
@@ -2929,7 +2945,6 @@ mod tests {
         use deckmaste_core::Color::White;
         use deckmaste_core::ColorOrColorless;
         use deckmaste_core::ManaSpec;
-        use deckmaste_core::PlayerAction;
 
         let ctx = Ctx {
             subject: "it",
@@ -2939,7 +2954,11 @@ mod tests {
         };
         let render = |spec: ManaSpec| {
             effect(
-                &OneShotEffect::act_by_you(PlayerAction::AddMana(Count::Literal(1), spec.into())),
+                &OneShotEffect::Act(Action::AddMana(
+                    Reference::You,
+                    Count::Literal(1),
+                    spec.into(),
+                )),
                 &ctx,
             )
         };
@@ -3472,7 +3491,6 @@ mod tests {
         use deckmaste_core::AdditionalCost;
         use deckmaste_core::Cost;
         use deckmaste_core::CostComponent;
-        use deckmaste_core::PlayerAction;
 
         let ctx = Ctx {
             subject: "Fling",
@@ -3491,7 +3509,8 @@ mod tests {
                             by: Reference::You,
                         }),
                         body: Cost(
-                            vec![CostComponent::do_(PlayerAction::Sacrifice(
+                            vec![CostComponent::do_action(Action::Sacrifice(
+                                Reference::You,
                                 Reference::That(deckmaste_core::Sort::OfType(
                                     deckmaste_core::Type::Creature,
                                 )),
@@ -3517,7 +3536,6 @@ mod tests {
     /// the old verb-patient `Choose`.
     #[test]
     fn with_choose_one_renders_sacrifice_a_creature() {
-        use deckmaste_core::PlayerAction;
         let ctx = Ctx {
             subject: "Altar",
             targets: &[],
@@ -3529,7 +3547,8 @@ mod tests {
                 filter: Predicate::creature(),
                 by: Reference::You,
             },
-            body: Arc::new(OneShotEffect::act_by_you(PlayerAction::Sacrifice(
+            body: Arc::new(OneShotEffect::Act(Action::Sacrifice(
+                Reference::You,
                 Reference::That(deckmaste_core::Sort::OfType(deckmaste_core::Type::Creature)),
             ))),
         });
@@ -3561,7 +3580,6 @@ mod tests {
     fn search_library_renders_hand_and_battlefield_destinations() {
         use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::EnterRider;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Sort;
         use deckmaste_core::Supertype;
 
@@ -3590,7 +3608,7 @@ mod tests {
             },
             body: Arc::new(OneShotEffect::Sequentially(
                 vec![
-                    OneShotEffect::act_by_you(PlayerAction::Reveal {
+                    OneShotEffect::Act(Action::Reveal {
                         what: Reference::That(Sort::Card),
                         to: None,
                     }),
@@ -3600,7 +3618,7 @@ mod tests {
                         vec![].into(),
                         None,
                     )),
-                    OneShotEffect::act_by_you(PlayerAction::Shuffle),
+                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You))),
                 ]
                 .into(),
             )),
@@ -3626,7 +3644,7 @@ mod tests {
                         vec![EnterRider::Tapped].into(),
                         None,
                     )),
-                    OneShotEffect::act_by_you(PlayerAction::Shuffle),
+                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You))),
                 ]
                 .into(),
             )),
@@ -3648,7 +3666,6 @@ mod tests {
     #[test]
     fn search_library_renders_bare_subtype_with_no_type_word() {
         use deckmaste_core::CharacteristicPredicate;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Sort;
 
         let ctx = Ctx {
@@ -3672,7 +3689,7 @@ mod tests {
             },
             body: Arc::new(OneShotEffect::Sequentially(
                 vec![
-                    OneShotEffect::act_by_you(PlayerAction::Reveal {
+                    OneShotEffect::Act(Action::Reveal {
                         what: Reference::That(Sort::Card),
                         to: None,
                     }),
@@ -3682,7 +3699,7 @@ mod tests {
                         vec![].into(),
                         None,
                     )),
-                    OneShotEffect::act_by_you(PlayerAction::Shuffle),
+                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You))),
                 ]
                 .into(),
             )),
@@ -3708,7 +3725,7 @@ mod tests {
                         vec![].into(),
                         None,
                     )),
-                    OneShotEffect::act_by_you(PlayerAction::Shuffle),
+                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You))),
                 ]
                 .into(),
             )),
@@ -3749,7 +3766,6 @@ mod tests {
     /// `core-many-binder-group-move`.
     #[test]
     fn each_renders_collectively_or_per_element() {
-        use deckmaste_core::PlayerAction;
         let ctx = Ctx {
             subject: "it",
             targets: &[],
@@ -3765,8 +3781,9 @@ mod tests {
         // A body the collapse does not recognise → the per-element form.
         let gain = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-            effect: Arc::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
-                Count::Literal(1),
+            effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Up(Count::Literal(1)),
             ))),
         });
         assert_eq!(effect(&gain, &ctx), "For each creature, you gain 1 life.");
@@ -3775,7 +3792,7 @@ mod tests {
         // parser's `on each <subject>` arm.
         let counters = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-            effect: Arc::new(OneShotEffect::act_by_you(PlayerAction::PutCounters(
+            effect: Arc::new(OneShotEffect::Act(Action::PutCounters(
                 Reference::It,
                 deckmaste_core::CounterRef::from("P1P1Counter"),
                 Count::Literal(1),
@@ -3855,7 +3872,6 @@ mod tests {
         use deckmaste_core::AggregateOp;
         use deckmaste_core::Countable;
         use deckmaste_core::ObjectKind;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::PlayerAttr;
         use deckmaste_core::Projection;
 
@@ -3874,9 +3890,9 @@ mod tests {
         );
         let set_life = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
-            effect: Arc::new(OneShotEffect::Act(Action::By(
+            effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
                 Reference::It,
-                PlayerAction::SetLife(highest_life),
+                LifeOp::Set(highest_life),
             ))),
         });
         assert_eq!(
@@ -3889,18 +3905,18 @@ mod tests {
     /// is a pure zone move, not a dedicated verb ([CR#701.13]).
     #[test]
     fn player_move_to_exile_renders_exile_subject() {
-        use deckmaste_core::PlayerAction;
         let ctx = Ctx {
             subject: "Scavenger",
             targets: &[],
             that: None,
             named: None,
         };
-        let exile = Action::by_you(PlayerAction::Move(
+        let exile = Action::Move(
             Reference::This,
             Destination::Zone(Zone::Exile),
             vec![].into(),
-        ));
+            None,
+        );
         assert_eq!(action(&exile, &ctx), "Exile Scavenger.");
     }
 
@@ -4071,21 +4087,23 @@ mod tests {
         );
     }
 
-    /// `PlayerAction::CastCopy` ([CR#707.12]): "Cast a copy of [source]." —
+    /// `Action::CastCopy` ([CR#707.12]): "Cast a copy of [source]." —
     /// the resolution-time cast-a-copy delivery site.
     #[test]
     fn cast_copy_renders_cast_a_copy_of_source() {
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
-        use deckmaste_core::PlayerAction;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = target_creature_ctx(&target);
-        let pa = PlayerAction::CastCopy(CopySpec {
-            source: CopySource::Object(Reference::Target(0)),
-            exceptions: vec![],
-        });
-        assert_eq!(player_action(&pa, &ctx), "Cast a copy of target creature.",);
+        let act = Action::CastCopy(
+            Reference::You,
+            CopySpec {
+                source: CopySource::Object(Reference::Target(0)),
+                exceptions: vec![],
+            },
+        );
+        assert_eq!(player_action(&act, &ctx), "Cast a copy of target creature.",);
     }
 
     /// `EnterRider::AsCopy` ([CR#707.5]): the rider phrase itself renders

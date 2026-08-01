@@ -9,7 +9,7 @@
 //   - from / cost / window: identical to Embalm/Scavenge — activate from the
 //     graveyard, printed [cost] then `Do(Move(This, Exile))` spliced flat, only
 //     as a sorcery ([CR#602.5d]).
-//   - effect: `Create(1, Copy(source: SelfCard, ...))` — a token copy of the
+//   - effect: `Create(agent: You, count: 1, token: Copy(source: SelfCard, ...))` — a token copy of the
 //     exiled card ([CR#707.1]) EXCEPT it's 4/4 (`Power(Set(4))` + `Toughness(Set(4))`,
 //     [CR#707.9d]), black (`Colors(Set([Black]))`), and a Zombie in addition to
 //     its other types (`Subtypes(Add(Zombie))`). No mana cost needs no
@@ -25,7 +25,7 @@
             from: Graveyard,
             cost: [Splice(Param(0)), Do(Move(This, Exile))],
             window: SorcerySpeed,
-            effect: Create(1, Copy(source: SelfCard, exceptions: [
+            effect: Create(agent: You, count: 1, token: Copy(source: SelfCard, exceptions: [
                 Modify(Power(Set(4))),
                 Modify(Toughness(Set(4))),
                 Modify(Colors(Set([Black]))),

@@ -2,7 +2,7 @@
 // in canon: it is a singularly awkward Oracle template, not a useful general
 // migration-parser production.
 // waiver: render deferred — the renderer has no arms for the choose-a-name /
-// random hand-reveal / conditional-damage clause (ChooseAndNote, Random, hand
+// random hand-reveal / conditional-damage clause (ChooseValue, Random, hand
 // Reveal, If); the engine encoding is complete, render skipped at graduation
 // pending those arms (noncanon-wc99 follow-up).
 Normal(
@@ -15,7 +15,7 @@ Normal(
             effect: Targeted(
                 targets: [AnyTarget],
                 effect: Sequentially([
-                    ChooseAndNote("CursedScrollName", CardName),
+                    ChooseValue(You, CardName, "CursedScrollName"),
                     Each(
                         binder: Existing(Random(
                             Exactly(1),

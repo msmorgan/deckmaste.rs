@@ -1,11 +1,17 @@
-// "loses N life" — the third-person life-loss verb phrase ([CR#119.3]).
-// A parse/render template over the core `LoseLife` player action for the
-// declarative-subject production ("Each opponent loses 2 life", "Target
-// player loses 1 life"); expands in place to `LoseLife(n)`.
+// "[subject] loses N life" ([CR#119.3]) — the third-person life-loss verb
+// phrase, `GainsLife`'s twin. A parse/render template over the core
+// `ChangeLife` verb for the declarative-subject production ("Each opponent
+// loses 2 life", "Target player loses 1 life"); expands in place to
+// `ChangeLife(who, Down(n))`.
+//
+// `who` (Param(0)) is a REAL slot — see `GainsLife.ron` for why the subject
+// moved into the macro when the action role reshape deleted `By`.
+//
+// Usage: LosesLife(It, 2) / LosesLife(Target(0), 1).
 (
     name: "LosesLife",
-    template: "loses ${0} life",
-    kinds: [PlayerAction],
-    params: [Count],
-    body: LoseLife(Param(0)),
+    template: "${0} loses ${1} life",
+    kinds: [Action],
+    params: [Reference, Count],
+    body: ChangeLife(Param(0), Down(Param(1))),
 )

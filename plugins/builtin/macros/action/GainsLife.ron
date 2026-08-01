@@ -1,11 +1,22 @@
-// "gains N life" — the third-person life-gain verb phrase ([CR#119.3]).
-// A parse/render template over the core `GainLife` player action for the
-// declarative-subject production ("Each player gains 2 life"); expands in
-// place to `GainLife(n)`.
+// "[subject] gains N life" ([CR#119.3]) — the third-person life-gain verb
+// phrase. A parse/render template over the core `ChangeLife` verb for the
+// declarative-subject production ("Each player gains 2 life", "Target player
+// gains 3 life"); expands in place to `ChangeLife(who, Up(n))`.
+//
+// `who` (Param(0)) is a REAL slot, not a coordinate scraped off a wrapper.
+// Before the action role reshape this macro took only the count, and the
+// acting player was supplied by an enclosing `By(It, …)` that the migrations
+// declarative-subject parser spliced in. `By` is gone — role slots are never
+// defaulted now — so the subject rides the macro's own leading `${0}` exactly
+// as `Draws`/`Mills` already did, and the parser matches this template
+// against "it gains N life" instead of wrapping the result.
+//
+// Usage: GainsLife(It, 2) (the Each-bound / announced player subject) /
+// GainsLife(Target(0), 3).
 (
     name: "GainsLife",
-    template: "gains ${0} life",
-    kinds: [PlayerAction],
-    params: [Count],
-    body: GainLife(Param(0)),
+    template: "${0} gains ${1} life",
+    kinds: [Action],
+    params: [Reference, Count],
+    body: ChangeLife(Param(0), Up(Param(1))),
 )

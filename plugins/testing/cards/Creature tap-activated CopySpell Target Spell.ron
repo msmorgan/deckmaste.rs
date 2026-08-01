@@ -1,8 +1,9 @@
 // {R} 1/1: "{T}: copy target spell." Modeled on the tap-pinger shape
 // (Creature tap-activated DealDamage AnyTarget.ron) but targeting a STACK
 // object via `Kind(Spell)` ([CR#109.1]) instead of `AnyTarget` — the
-// engine-copy-spells end-to-end fixture for `PlayerAction::CopySpell`
-// ([CR#707.10]).
+// engine-copy-spells end-to-end fixture for `Action::CopySpell`
+// ([CR#707.10]). `retarget: AsIs` — the copy keeps the original's targets;
+// `spec.source` names the copied object.
 Normal(
     name: "Creature tap-activated CopySpell Target Spell",
     mana_cost: [Red],
@@ -10,6 +11,6 @@ Normal(
     power: 1,
     toughness: 1,
     abilities: [
-        Activated(cost: [Tap], effect: Targeted(targets: [TargetOne(Kind(Spell))], effect: CopySpell(Target(0)))),
+        Activated(cost: [Tap], effect: Targeted(targets: [TargetOne(Kind(Spell))], effect: CopySpell(controller: You, spec: (source: Object(Target(0))), retarget: AsIs))),
     ],
 )

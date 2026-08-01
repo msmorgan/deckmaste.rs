@@ -20,7 +20,6 @@ use pending::ChooseCostOptions;
 use pending::ChooseManaColor;
 use pending::ChooseManaMode;
 use pending::ChooseModes;
-use pending::ChooseNewTargets;
 use pending::ChooseNoteCardName;
 use pending::ChooseNoteNumber;
 use pending::ChooseObjects;
@@ -38,6 +37,7 @@ use pending::OrderTriggers;
 use pending::PayMana;
 use pending::PreGame;
 use pending::Priority;
+use pending::Retarget;
 use pending::Vote;
 use pending::YesNo;
 
@@ -127,7 +127,7 @@ impl PendingDecision {
             PendingDecision::ChooseManaColor(h) => h.player,
             PendingDecision::ChooseManaMode(h) => h.player,
             PendingDecision::ChooseTargets(h) => h.player,
-            PendingDecision::ChooseNewTargets(h) => h.player,
+            PendingDecision::Retarget(h) => h.player,
             PendingDecision::PayMana(h) => h.player,
             PendingDecision::OrderTriggers(h) => h.player,
             PendingDecision::DeclareAttackers(h) => h.player,
@@ -195,7 +195,7 @@ pub enum PendingDecision {
     ChooseManaColor(ChooseManaColor),
     ChooseManaMode(ChooseManaMode),
     ChooseTargets(ChooseTargets),
-    ChooseNewTargets(ChooseNewTargets),
+    Retarget(Retarget),
     PayMana(PayMana),
     OrderTriggers(OrderTriggers),
     DeclareAttackers(DeclareAttackers),
@@ -357,17 +357,21 @@ pub(crate) fn unless_cost_action(
 ) -> deckmaste_core::Action {
     use deckmaste_core::Action;
     use deckmaste_core::CostComponent;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     match component {
         // A verb cost is paid by `who` performing it ([CR#601.2h]) — re-agent
-        // the implicit-you action onto `who`: a player verb swaps its `By`
-        // agent; the chosen discard composite ([CR#701.9]) is rebuilt around
-        // `who` (who rides the body's `With` binder's `filter`/`by`), while the bound
-        // "discard this card" form ([CR#702.29a]) is paid by its patient's own
-        // controller, so it needs only the named card.
+        // the action onto `who`: the two agent-BEARING cost-eligible verbs
+        // (Sacrifice, ChangeLife) swap their agent slot; the agent-SILENT
+        // ones (Tap/Untap/PutCounters/RemoveCounters/Reveal/Move) have no
+        // slot to swap and pass through unchanged (their resolve arm never
+        // reads an agent anyway); the chosen discard composite ([CR#701.9])
+        // is rebuilt around `who` (who rides the body's `With` binder's
+        // `filter`/`by`), while the bound "discard this card" form
+        // ([CR#702.29a]) is paid by its patient's own controller, so it
+        // needs only the named card.
         CostComponent::Do(action) => match &**action {
-            Action::By(_, pa) => Action::By(who.clone(), pa.clone()),
+            Action::Sacrifice(_, what) => Action::Sacrifice(who.clone(), what.clone()),
+            Action::ChangeLife(_, op) => Action::ChangeLife(who.clone(), op.clone()),
             Action::Composite { name, body } if name.as_str() == "Discard" => {
                 match deckmaste_core::discard_body_what(body) {
                     // The bound form's performer is its patient's controller
@@ -385,9 +389,10 @@ pub(crate) fn unless_cost_action(
             }
             other => other.clone(),
         },
-        // {T}/{Q} tap/untap the source permanent the cost rides on.
-        CostComponent::Tap => Action::By(who.clone(), PlayerAction::Tap(Reference::This)),
-        CostComponent::Untap => Action::By(who.clone(), PlayerAction::Untap(Reference::This)),
+        // {T}/{Q} tap/untap the source permanent the cost rides on — both
+        // agent-silent ([CR#701.26a..701.26b]), so `who` has no slot to ride.
+        CostComponent::Tap => Action::Tap(Reference::This),
+        CostComponent::Untap => Action::Untap(Reference::This),
         CostComponent::Expanded(e) => unless_cost_action(&e.value, who),
         // A cost-side `With` ([CR#601.2b]) is a choose-then-pay step with no
         // single-`Action` rendering — it must surface a payment-time choice and
@@ -553,7 +558,7 @@ impl GameState {
             PendingDecision::ChooseManaColor(h) => h.resolve(self, decision),
             PendingDecision::ChooseManaMode(h) => h.resolve(self, decision),
             PendingDecision::ChooseTargets(h) => h.resolve(self, decision),
-            PendingDecision::ChooseNewTargets(h) => h.resolve(self, decision),
+            PendingDecision::Retarget(h) => h.resolve(self, decision),
             PendingDecision::PayMana(h) => h.resolve(self, decision),
             PendingDecision::OrderTriggers(h) => h.resolve(self, decision),
             PendingDecision::DeclareAttackers(h) => h.resolve(self, decision),

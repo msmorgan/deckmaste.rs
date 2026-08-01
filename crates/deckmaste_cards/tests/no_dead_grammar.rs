@@ -129,7 +129,7 @@ fn structurally_untagged() -> BTreeSet<Node> {
         // `Expanded(...)`. A text search for the tag is structurally
         // meaningless for the same reason `Act`/`Zone`/`Deontic` are above.
         ("OneShotEffect", "Expanded"),
-        ("PlayerAction", "Expanded"),
+        ("Action", "Expanded"),
         ("Modification", "Expanded"),
         ("StaticEffect", "Expanded"),
         ("EventFilter", "Expanded"),
@@ -293,17 +293,17 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             copy-grammar report.",
         ),
         (
-            n("PlayerAction", "VentureIntoDungeon"),
+            n("Action", "VentureIntoDungeon"),
             "DEFERRED: no dungeon-venture real card in this \
             batch.",
         ),
         (
-            n("PlayerAction", "Untap"),
+            n("Action", "Untap"),
             "DEFERRED: no untap-a-permanent-as-an-effect real card \
             (distinct from a cost's {Q}) has coverage.",
         ),
         (
-            n("PlayerAction", "GetEmblem"),
+            n("Action", "GetEmblem"),
             "DEFERRED: the engine (command-zone mint + static/triggered sourcing) and the \
             parse/render grammar arm now exist and are covered by unit tests, but no \
             emblem-granting real card is graduatable: every canon emblem-granter \
@@ -315,7 +315,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             the documented emblem limitations.",
         ),
         (
-            n("PlayerAction", "ChooseAndNote"),
+            n("Action", "ChooseValue"),
             "BLOCKED: reader-gated engine runtime now exists for the note kinds that HAVE a reader \
             (Number → Count::Noted; Objects → the noted group / AmongNoted; Color/CardName/Piles \
             stay loud — no reader grammar), but no covered simple real single-effect card \
@@ -323,7 +323,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             NotedKind doesn't have).",
         ),
         (
-            n("PlayerAction", "FlipCoins"),
+            n("Action", "FlipCoins"),
             "DEFERRED: every real coin-flip card that PERFORMS a flip \
             branches on its own win/lose result ('If you win the flip, ...', Boompile/Mana \
             Screw/Chaotic Goo/Karplusan Minotaur) — that branch needs a Condition reading the \
@@ -337,7 +337,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             (Chance Encounter) for that half.",
         ),
         (
-            n("PlayerAction", "RollDice"),
+            n("Action", "RollDice"),
             "DEFERRED: every real 'roll a d20' card in the corpus pairs the \
             roll with either a 3-way modal range-table (Loathsome Troll, Cone of Cold, Contact \
             Other Plane, Myrkul's Edict, Recruitment Drive, Thunderwave, Herald of Hadar) or a \
@@ -346,28 +346,61 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             unmodified roll. Buildable once either lands.",
         ),
         (
-            n("PlayerAction", "RollPlanarDie"),
+            n("Action", "RollPlanarDie"),
             "BLOCKED: see EventFilter::RollPlanarDie — no Plane-card \
             support exists to wire this action to either; a documented absent-subsystem no-op in \
             resolve.rs, never a panic.",
         ),
         (
-            n("PlayerAction", "LoseGame"),
+            n("Action", "LoseGame"),
             "DEFERRED: no 'a player loses the game' real card in this \
             batch.",
         ),
         (
-            n("PlayerAction", "RestartGame"),
+            n("Action", "RestartGame"),
             "DEFERRED: no restart-the-game real card (e.g. Karn \
             Liberated's -14) has coverage.",
         ),
         (
-            n("PlayerAction", "CastCopy"),
+            n("Action", "CastCopy"),
             "DEFERRED: the grammar is present \
             ([CR#707.12], sibling to CopySpell) with a documented never-panic fizzle resolve arm \
             (`// execution: engine-copy-permanent-spells`); the [CR#601.2] cast-a-copy pipeline that \
             would make a real 'cast a copy of [source]' card graduatable is \
             engine-copy-permanent-spells's, not built yet.",
+        ),
+        // The [CR#115.7] retarget discriminant. Canon's one retarget card
+        // exercises ChooseNew ([CR#115.7d], the leave-any-even-if-illegal
+        // shape); the other three modes are grammar landed with the
+        // discriminant that replaced `ChooseNewTargets`' one-size-fits-all
+        // shape — which mis-lumped Bolt Bend with Redirect — and fizzle as
+        // documented seams until a witness. The modes are distinguished by
+        // PRINTED WORDING, so each needs a card that says it. Semantics are
+        // core-pay-player-action T7's.
+        (
+            n("RetargetMode", "ChangeAll"),
+            "DEFERRED: [CR#115.7a] \"change the target(s)\" — all-or-none (\"if all the targets \
+            aren't changed to other legal targets, none of them are changed\"). No covered real \
+            card prints that wording; canon's retarget card is the ChooseNew shape.",
+        ),
+        (
+            n("RetargetMode", "ChangeOne"),
+            "DEFERRED: [CR#115.7b] \"change a target\" — [CR#115.7a]'s process except only ONE \
+            target may be changed. No covered real card prints that wording.",
+        ),
+        (
+            n("RetargetMode", "ChangeAny"),
+            "DEFERRED: [CR#115.7c] \"change any targets\" — [CR#115.7a]'s process except ANY \
+            number may be changed. No covered real card prints that wording.",
+        ),
+        (
+            n("CopyRetarget", "TargetsThat"),
+            "DEFERRED: [CR#707.10e]'s all-slots-to-one-object copy mode (every one of the copy's \
+            targets must be that player or object; the copy ISN'T CREATED if it is an illegal \
+            target for any instance of the word \"target\"). This is the creation-time half of \
+            the for-each-could-target family that Selection::ValidTargetsFor and InChosenOrder \
+            compose, and no covered real card spells that family — see those two entries. \
+            Semantics are core-pay-player-action T7's.",
         ),
         (
             n("Duration", "UntilEvent"),

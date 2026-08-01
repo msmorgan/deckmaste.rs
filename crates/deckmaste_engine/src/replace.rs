@@ -7,7 +7,6 @@ use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::EventFilter;
 use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
@@ -99,9 +98,9 @@ impl GameState {
         status: &mut EnterStatus,
     ) {
         match effect {
-            // `Tap` is a `PlayerAction`, so the `AsEnters` sugar expands to
-            // `Act(By(You, Tap(This)))` (the agent is irrelevant here).
-            OneShotEffect::Act(Action::By(_, PlayerAction::Tap(Reference::This))) => {
+            // `Tap` is agent-silent, so the `AsEnters` sugar expands to
+            // `Act(Tap(This))`.
+            OneShotEffect::Act(Action::Tap(Reference::This)) => {
                 status.tapped = true;
             }
             // [CR#303.4,303.4f]: enters attached. The enters-attached shape is
@@ -117,7 +116,7 @@ impl GameState {
             // n)` self-replacement → fold `(kind, n)` into the entering status.
             // `n` is evaluated against a `This`-anchored frame so a count that
             // scales ("a +1/+1 counter for each …") resolves at entry.
-            OneShotEffect::Act(Action::By(_, PlayerAction::PutCounters(what, kind, count)))
+            OneShotEffect::Act(Action::PutCounters(what, kind, count))
                 if is_self_reference(what) =>
             {
                 let frame = self.enters_frame(entering);
@@ -459,13 +458,10 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: OneShotEffect::Act(Action::By(
-                        Reference::You,
-                        PlayerAction::PutCounters(
-                            Reference::This,
-                            "P1P1Counter".into(),
-                            Count::Literal(2),
-                        ),
+                    also: OneShotEffect::Act(Action::PutCounters(
+                        Reference::This,
+                        "P1P1Counter".into(),
+                        Count::Literal(2),
                     )),
                 },
             )))],
@@ -555,10 +551,7 @@ mod tests {
                     },
                     also: OneShotEffect::If(If {
                         condition: Condition::Not(Arc::new(gate)),
-                        then: Arc::new(OneShotEffect::Act(Action::By(
-                            Reference::You,
-                            PlayerAction::Tap(Reference::This),
-                        ))),
+                        then: Arc::new(OneShotEffect::Act(Action::Tap(Reference::This))),
                         otherwise: None,
                     }),
                 },
@@ -675,13 +668,10 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: OneShotEffect::Act(Action::By(
-                        Reference::You,
-                        PlayerAction::PutCounters(
-                            Reference::This,
-                            "LoyaltyCounter".into(),
-                            Count::Literal(3),
-                        ),
+                    also: OneShotEffect::Act(Action::PutCounters(
+                        Reference::This,
+                        "LoyaltyCounter".into(),
+                        Count::Literal(3),
                     )),
                 }),
             )))),

@@ -1,11 +1,17 @@
-//! `player_action_items`: lower a [`PlayerAction`] (draw, discard, mana,
-//! tokens, randomness, …) to events and work items.
+//! `player_action_items`: lower the former-`PlayerAction` family of
+//! [`Action`](deckmaste_core::Action) verbs (draw, discard, mana, tokens,
+//! randomness, …) to events and work items.
 
+use deckmaste_core::Action;
 use deckmaste_core::Agency;
+use deckmaste_core::ChosenValueKind;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
+use deckmaste_core::CopyRetarget;
+use deckmaste_core::CopySource;
+use deckmaste_core::LifeOp;
 use deckmaste_core::ManaSpec;
-use deckmaste_core::PlayerAction;
+use deckmaste_core::Selection;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
@@ -43,21 +49,19 @@ const ANY_COLOR: [ColorOrColorless; 5] = [
 ];
 
 impl GameState {
-    /// The `Emit` work item(s) one `PlayerAction` produces, performed by
-    /// `actor` (the agent the enclosing `By` resolved to).
+    /// The `Emit` work item(s) one former-`PlayerAction` verb produces. Each
+    /// arm resolves its OWN agent/patient/recipient slot inline (the `By`
+    /// wrapper's centrally pre-resolved `actor` is gone — every verb spells
+    /// its own role slot now, Law 2); agent-silent verbs (`Tap`/`Untap`/
+    /// `PutCounters`/`RemoveCounters`/`Reveal`/`RemoveDamage`) resolve none.
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per player verb; splitting would scatter the dispatch"
     )]
-    pub(super) fn player_action_items(
-        &self,
-        action: &PlayerAction,
-        actor: crate::player::PlayerId,
-        frame: &Frame,
-    ) -> Vec<WorkItem> {
+    pub(super) fn player_action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         use crate::event::Occurrence;
         match action {
-            PlayerAction::Tap(sel) => {
+            Action::Tap(sel) => {
                 // [CR#701.26a]: only an untapped permanent can be tapped — a
                 // no-op is no event ([CR#603.2e] "becomes tapped" fires on
                 // the transition only).
@@ -81,25 +85,56 @@ impl GameState {
                     vec![WorkItem::Emit(occurrence_of(events))]
                 }
             }
-            PlayerAction::LoseLife(qty) => {
-                let amount = self.eval_count(qty, frame);
-                vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost(
-                    LifeLost {
-                        player: actor,
-                        amount,
-                    },
-                )))]
+            // [CR#119.3,119.5,119.9] the merged `GainLife`/`LoseLife`/`SetLife`
+            // family: `patient` is spelled directly (no more `By`-resolved
+            // `actor`), and `Set` still resolves as a gain/loss of the
+            // necessary difference below — never a bespoke "set" event.
+            Action::ChangeLife(patient, op) => {
+                let patient = self.acting_player(patient, frame);
+                match op {
+                    LifeOp::Down(qty) => {
+                        let amount = self.eval_count(qty, frame);
+                        vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost(
+                            LifeLost {
+                                player: patient,
+                                amount,
+                            },
+                        )))]
+                    }
+                    LifeOp::Up(qty) => {
+                        let amount = self.eval_count(qty, frame);
+                        vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained(
+                            LifeGained {
+                                player: patient,
+                                amount,
+                            },
+                        )))]
+                    }
+                    // [CR#119.5]: set-to-N resolves as a gain or loss of the
+                    // difference — triggers see the gain/loss, never a "set";
+                    // equal totals produce no event (transition-only).
+                    LifeOp::Set(qty) => {
+                        let target = deckmaste_core::Int::try_from(self.eval_count(qty, frame))
+                            .expect("life total fits in i32");
+                        let current = self.player(patient).life;
+                        let event = match target.cmp(&current) {
+                            std::cmp::Ordering::Less => GameEvent::LifeLost(LifeLost {
+                                player: patient,
+                                amount: Uint::try_from(current - target)
+                                    .expect("positive difference"),
+                            }),
+                            std::cmp::Ordering::Greater => GameEvent::LifeGained(LifeGained {
+                                player: patient,
+                                amount: Uint::try_from(target - current)
+                                    .expect("positive difference"),
+                            }),
+                            std::cmp::Ordering::Equal => return vec![],
+                        };
+                        vec![WorkItem::Emit(Occurrence::Single(event))]
+                    }
+                }
             }
-            PlayerAction::GainLife(qty) => {
-                let amount = self.eval_count(qty, frame);
-                vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained(
-                    LifeGained {
-                        player: actor,
-                        amount,
-                    },
-                )))]
-            }
-            PlayerAction::Untap(sel) => {
+            Action::Untap(sel) => {
                 // [CR#701.26b]: the mirror of `Tap` above — only a tapped
                 // permanent can be untapped, a no-op is no event.
                 let events: Vec<GameEvent> = self
@@ -114,14 +149,15 @@ impl GameState {
                     vec![WorkItem::Emit(occurrence_of(events))]
                 }
             }
-            PlayerAction::Sacrifice(sel) => {
-                // [CR#701.21a]: the actor moves each selected permanent to its
+            Action::Sacrifice(agent, what) => {
+                // [CR#701.21a]: the agent moves the sacrificed permanent to its
                 // owner's graveyard — the `Sacrificed` verb fact evolves into
-                // the zone move at apply. That the selection names permanents
-                // the actor controls is the grammar's contract; a legality
-                // pass is a later seam.
+                // the zone move at apply. That the reference names a
+                // permanent the agent controls is the grammar's contract; a
+                // legality pass is a later seam.
+                let actor = self.acting_player(agent, frame);
                 let events: Vec<GameEvent> = self
-                    .eval_reference_set(sel, frame)
+                    .eval_reference_set(what, frame)
                     .into_iter()
                     .map(|object| {
                         GameEvent::ZoneChange(ZoneChange {
@@ -143,30 +179,17 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            PlayerAction::Move(reference, destination, riders) => {
-                // `AsCopy` riders are a layer-1a copy input consumed by
-                // `engine-layers-1-copy-facedown-text`, not this seam — see
-                // `crate::copy::has_unbuilt_enter_rider`.
-                if crate::copy::has_unbuilt_enter_rider(riders) {
-                    todo!(
-                        "core-action-riders-cost-modes seam: enter riders (tapped/attacking/\
-                         with-counters) execute with the ETB machinery"
-                    );
-                }
-                // [CR#400.7]: the actor relocates the referenced object to
-                // `destination` from whatever zone it's in ([CR#406.2]).
-                // Exiling is a pure zone move ([CR#701.13a]) — `Move(This,
-                // Exile)`, e.g. a self-exile cost (Scavenge); a tuck rides the
-                // same verb via a library anchor. The player-agent twin of
-                // `Action::Move`.
-                self.move_items(reference, destination, None, frame)
-            }
-            // [CR#114.1]: the actor gets an emblem carrying `abilities`. The
+            // NOTE: the player-agent twin of `Action::Move` was DELETED
+            // ([CR#400.7]; unreachable + unattested) — `Action::Move` is
+            // agent-silent and dispatched directly by `action_items`, never
+            // reaching this function.
+            // [CR#114.1]: the recipient gets an emblem carrying `abilities`. The
             // synthesis + command-zone mint happens at apply (the `&mut self`
             // stage); here we only emit the fact. Getting an emblem is not a
             // zone-change trigger ([CR#114.5] — an emblem is never a
             // permanent; it never enters the battlefield).
-            PlayerAction::GetEmblem(abilities) => {
+            Action::GetEmblem(recipient, abilities) => {
+                let actor = self.acting_player(recipient, frame);
                 vec![WorkItem::Emit(Occurrence::single(
                     GameEvent::EmblemCreated(EmblemCreated {
                         player: actor,
@@ -174,65 +197,60 @@ impl GameState {
                     }),
                 ))]
             }
-            // [CR#701.24a]: shuffle the actor's library; the Shuffled
-            // apply randomizes via the seeded rng.
-            PlayerAction::Shuffle => {
-                vec![WorkItem::Emit(Occurrence::single(GameEvent::Shuffled(
-                    actor,
-                )))]
-            }
-            // [CR#119.5]: set-to-N resolves as a gain or loss of the
-            // difference — triggers see the gain/loss, never a "set";
-            // equal totals produce no event (transition-only).
-            PlayerAction::SetLife(qty) => {
-                let target = deckmaste_core::Int::try_from(self.eval_count(qty, frame))
-                    .expect("life total fits in i32");
-                let current = self.player(actor).life;
-                let event = match target.cmp(&current) {
-                    std::cmp::Ordering::Less => GameEvent::LifeLost(LifeLost {
-                        player: actor,
-                        amount: Uint::try_from(current - target).expect("positive difference"),
-                    }),
-                    std::cmp::Ordering::Greater => GameEvent::LifeGained(LifeGained {
-                        player: actor,
-                        amount: Uint::try_from(target - current).expect("positive difference"),
-                    }),
-                    std::cmp::Ordering::Equal => return vec![],
-                };
-                vec![WorkItem::Emit(Occurrence::single(event))]
-            }
+            // [CR#701.24a]: shuffle a collection; the Shuffled apply
+            // randomizes via the seeded rng. `Selection::LibraryOf(who)` is
+            // the whole-library shape ([CR#701.24a] "a library"); the
+            // face-down-pile shape ([CR#701.24a]'s other object) rides
+            // `Selection::PilesOf` and is an engine seam (never wired to a
+            // `Shuffled` event before this reshape either — fizzles, never
+            // panics).
+            Action::Shuffle(sel) => match sel {
+                Selection::LibraryOf(whose) => match self.eval_player_ref(whose, frame) {
+                    Some(player) => {
+                        vec![WorkItem::Emit(Occurrence::single(GameEvent::Shuffled(
+                            player,
+                        )))]
+                    }
+                    None => vec![],
+                },
+                // engine seam: shuffling a face-down pile (or any other
+                // collection shape) has no `Shuffled`-event target yet.
+                _ => vec![],
+            },
             // P0.W6 seams: outcome verbs (immediate, gate-checked at the
             // OUTCOME layer — never deontic rows) and reveal/look.
-            // [CR#104.2b]: "you win the game" — a first-class win event,
-            // suppressed by a matching `CantWin` gate ([CR#101.1]). The
-            // last-player-standing win ([CR#104.2a]) never rides this verb.
-            PlayerAction::WinGame => {
+            // [CR#104.2b]: "the patient wins the game" — a first-class win
+            // event, suppressed by a matching `CantWin` gate ([CR#101.1]).
+            // The last-player-standing win ([CR#104.2a]) never rides this verb.
+            Action::WinGame(patient) => {
+                let patient = self.acting_player(patient, frame);
                 let view = self.layers();
-                if self.gate_suppresses(&view, actor, deckmaste_core::OutcomeGateKind::CantWin) {
+                if self.gate_suppresses(&view, patient, deckmaste_core::OutcomeGateKind::CantWin) {
                     return vec![];
                 }
                 vec![WorkItem::Emit(Occurrence::single(GameEvent::PlayerWon(
-                    PlayerWon { player: actor },
+                    PlayerWon { player: patient },
                 )))]
             }
-            // [CR#104.3e]: "you lose the game", suppressed by a matching
-            // `CantLose` gate ([CR#101.1]).
-            PlayerAction::LoseGame => {
+            // [CR#104.3e]: "the patient loses the game", suppressed by a
+            // matching `CantLose` gate ([CR#101.1]).
+            Action::LoseGame(patient) => {
+                let patient = self.acting_player(patient, frame);
                 let view = self.layers();
-                if self.gate_suppresses(&view, actor, deckmaste_core::OutcomeGateKind::CantLose) {
+                if self.gate_suppresses(&view, patient, deckmaste_core::OutcomeGateKind::CantLose) {
                     return vec![];
                 }
                 vec![WorkItem::Emit(Occurrence::single(GameEvent::PlayerLost(
                     PlayerLost {
-                        player: actor,
+                        player: patient,
                         reason: crate::event::LossReason::Effect,
                     },
                 )))]
             }
-            PlayerAction::RestartGame => {
+            Action::RestartGame => {
                 todo!("P0.W6: restart ([CR#727.1] — a terminal with carryover, not a reset)")
             }
-            PlayerAction::Reveal { what, to } => {
+            Action::Reveal { what, to } => {
                 let object = self.eval_reference(what, frame);
                 if self.objects.get(object).is_none() {
                     vec![]
@@ -257,45 +275,59 @@ impl GameState {
                     )))]
                 }
             }
-            // [CR#608.2c,608.2d,607.2] choose-and-note: a resolution choice
-            // stored under a note key, KIND-GATED. Only note kinds with an
-            // existing engine READER get wired (reader-gated); write-only kinds
-            // stay LOUD per-kind (naming the kind), so a card reaching an
-            // unbuilt kind trips a labeled seam rather than silently no-op'ing.
-            // The verb is `&self`, so it only SCHEDULES the surfacing work
-            // item; the `&mut self` handler opens the decision.
-            PlayerAction::ChooseAndNote(key, kind) => match kind {
-                // Number → the `Count::Noted` reader (scalar `resolution_notes`).
-                deckmaste_core::NotedKind::Number => vec![WorkItem::ChooseNoteNumber {
-                    player: actor,
-                    key: *key,
-                }],
-                // Objects → the fact-backed `noted` product group, read by
-                // `Selection::AmongNoted` (and the future `Reference::Linked`).
-                deckmaste_core::NotedKind::Objects => vec![WorkItem::ChooseNoteObjects {
-                    player: actor,
-                    key: *key,
-                }],
-                // No reader grammar exists yet for chosen colors or piles, so
-                // those writes remain loud. CardName is read by `Named(key)`.
-                deckmaste_core::NotedKind::Color => todo!(
-                    "engine seam: ChooseAndNote(Color) has no reader grammar \
-                     (no chosen-color predicate) — write-only, unbuilt ([CR#607.2])"
-                ),
-                deckmaste_core::NotedKind::CardName => vec![WorkItem::ChooseNoteCardName {
-                    player: actor,
-                    key: *key,
-                }],
-                deckmaste_core::NotedKind::Piles => todo!(
-                    "engine seam: ChooseAndNote(Piles) needs the pile store + \
-                     Selection::PilesOf reader — unbuilt ([CR#700.3a])"
-                ),
-            },
-            // [CR#707.10]: put a copy of the referenced stack object onto
-            // the stack — the APPLY mints it (needs &mut). A reference that
-            // doesn't resolve to a live stack entry fizzles (authoring
-            // mistakes never crash).
-            PlayerAction::CopySpell(what) => {
+            // [CR#608.2c,608.2d,607.2] a resolution choice stored under a
+            // note key, KIND-GATED. Only kinds with an existing engine READER
+            // get wired (reader-gated); write-only kinds stay LOUD per-kind
+            // (naming the kind), so a card reaching an unbuilt kind trips a
+            // labeled seam rather than silently no-op'ing. The verb is
+            // `&self`, so it only SCHEDULES the surfacing work item; the
+            // `&mut self` handler opens the decision. The kind-space is now
+            // [`ChosenValueKind`] (Objects/Piles are a SEPARATE store-side
+            // `NotedKind`, written by `Noting`/`SeparatePiles`, never reached
+            // through this node).
+            Action::ChooseValue(who, kind, key) => {
+                let actor = self.acting_player(who, frame);
+                match kind {
+                    // Number → the `Count::Noted` reader (scalar `resolution_notes`).
+                    ChosenValueKind::Number => vec![WorkItem::ChooseNoteNumber {
+                        player: actor,
+                        key: *key,
+                    }],
+                    // No reader grammar exists yet for chosen colors, so that
+                    // write stays loud. CardName is read by `Named(key)`.
+                    ChosenValueKind::Color => todo!(
+                        "engine seam: ChooseValue(Color) has no reader grammar \
+                         (no chosen-color predicate) — write-only, unbuilt ([CR#607.2])"
+                    ),
+                    ChosenValueKind::CardName => vec![WorkItem::ChooseNoteCardName {
+                        player: actor,
+                        key: *key,
+                    }],
+                }
+            }
+            // [CR#707.10]: put a copy of `spec` onto the stack — the APPLY
+            // mints it (needs &mut). A reference that doesn't resolve to a
+            // live stack entry fizzles (authoring mistakes never crash).
+            // `retarget`/`CopySource::SelfCard` semantics are unwired this
+            // task (T7) — only the `AsIs` + `CopySource::Object` shape that
+            // was previously spellable is live; anything else fizzles as a
+            // documented seam rather than silently dropping the instruction.
+            Action::CopySpell {
+                controller,
+                spec,
+                retarget,
+            } => {
+                let actor = self.acting_player(controller, frame);
+                if !matches!(retarget, CopyRetarget::AsIs) {
+                    // engine seam: MayChooseNew/TargetsThat retarget modes
+                    // are T7's to wire.
+                    return vec![];
+                }
+                let CopySource::Object(what) = &spec.source else {
+                    // engine seam: a self-card copy source is new grammar
+                    // this task didn't wire an emission path for.
+                    return vec![];
+                };
                 let original = self.eval_reference(what, frame);
                 if self.stack.iter().any(|e| e.id == original) {
                     vec![WorkItem::Emit(Occurrence::single(GameEvent::Copied(
@@ -314,13 +346,13 @@ impl GameState {
             // casting pipeline in the source's own zone. That pipeline
             // (legality, cost payment, targeting) needs the shared
             // announce/cast machinery `cast_as_effect_items` above already
-            // drives for `PlayerAction::Cast`, wired for a COPY object
+            // drives for `Action::Cast`, wired for a COPY object
             // rather than a live card — grammar-only here, so this arm
             // fizzles (no events) rather than running it.
             // execution: engine-copy-permanent-spells
-            PlayerAction::CastCopy(_spec) => vec![],
+            Action::CastCopy(_agent, _spec) => vec![],
             // [CR#608.2g]: cast the referenced card DURING resolution — the
-            // actor follows the [CR#601.2a..601.2i] steps (reusing the shared
+            // agent follows the [CR#601.2a..601.2i] steps (reusing the shared
             // announce chain), except no player receives priority after it's
             // cast; the cast spell becomes the topmost stack object and the
             // currently-resolving ability continues. The May "yes" branch that
@@ -328,7 +360,8 @@ impl GameState {
             // effect grants the permission, [CR#608.2g]), so a live castable
             // referent is expected; a reference that no longer resolves to a
             // castable object fizzles (authoring mistakes never crash).
-            PlayerAction::Cast(what, for_cost) => {
+            Action::Cast(agent, what, for_cost) => {
+                let actor = self.acting_player(agent, frame);
                 let object = self.eval_reference(what, frame);
                 // `can_cast_as_effect` guards a null/stale/wrong-zone referent
                 // (never-crash) and returns false, so a bad reference fizzles.
@@ -349,17 +382,21 @@ impl GameState {
             // this resolving and the work item running). This arm only
             // resolves the two references; an unresolvable `by` (not a
             // player) fizzles — authoring mistakes never crash the engine.
-            PlayerAction::ChooseNewTargets { of, by } => {
+            // `mode`'s [CR#115.7a..115.7d] discriminant is unwired this task
+            // (T7) — every mode drives the SAME legal-set derivation the
+            // former undifferentiated `ChooseNewTargets` did.
+            Action::Retarget { mode: _, of, by } => {
                 let entry = self.eval_reference(of, frame);
                 match self.eval_player_ref(by, frame) {
-                    Some(player) => vec![WorkItem::ChooseNewTargets { player, entry }],
+                    Some(player) => vec![WorkItem::Retarget { player, entry }],
                     None => vec![],
                 }
             }
             // [CR#705.1]: flip `count` coins — the draw happens in the work
             // item (the rng needs `&mut`); the applied batch fixes "that
             // many" to the number of won (called) / heads (uncalled) flips.
-            PlayerAction::FlipCoins(count, called) => {
+            Action::FlipCoins(agent, count, called) => {
+                let actor = self.acting_player(agent, frame);
                 let count = self.eval_count(count, frame);
                 vec![WorkItem::FlipCoins {
                     player: actor,
@@ -380,7 +417,8 @@ impl GameState {
             // than a `Composite` over a move. "Draw N" is `Batch(n, …)` over
             // this ([CR#121.2]); the aggregate window that a count-referring
             // replacement bites ([CR#121.2a]) is `batch_act_head`'s.
-            PlayerAction::DrawCard => {
+            Action::DrawCard(agent) => {
+                let actor = self.acting_player(agent, frame);
                 vec![WorkItem::Emit(Occurrence::single(GameEvent::Act(Act {
                     verb: deckmaste_core::VerbName::from("Draw"),
                     who: Some(actor),
@@ -402,14 +440,15 @@ impl GameState {
                 })))]
             }
             // core-action-riders-cost-modes: shapes landed, execution seams.
-            PlayerAction::VentureIntoDungeon => {
+            Action::VentureIntoDungeon(_agent) => {
                 todo!("engine seam: venture into the dungeon ([CR#701.49a]) — dungeons unbuilt")
             }
             // [CR#706.1]: roll `count` `sides`-sided dice — draw in the work
             // item; the applied batch fixes "that many" to the summed
             // results ([CR#706.2] — `result = natural` until the modifier
             // pipeline lands, engine-replace-roll).
-            PlayerAction::RollDice(count, sides) => {
+            Action::RollDice(agent, count, sides) => {
+                let actor = self.acting_player(agent, frame);
                 let count = self.eval_count(count, frame);
                 vec![WorkItem::RollDice {
                     player: actor,
@@ -423,14 +462,14 @@ impl GameState {
             // model at all — a documented absent-subsystem no-op, never a
             // panic (no real card in this corpus needs it; no Plane-card
             // support exists to wire it TO even if a card did).
-            PlayerAction::RollPlanarDie => vec![],
+            Action::RollPlanarDie(_agent) => vec![],
             // [CR#122.1]: place/remove `n` counters of `kind` on each selected
             // object or player proxy. `n == 0` (or an empty selection) is a
             // no-op, so no event fires — a "counter is put on" trigger never
             // sees a zero placement. The cause carries the effect-instruction
             // agent so "you put a counter" reads ([CR#603.2e]-style transition
             // views) resolve to the right controller.
-            PlayerAction::PutCounters(sel, kind, count) => {
+            Action::PutCounters(sel, kind, count) => {
                 let n = self.eval_count(count, frame);
                 if n == 0 {
                     return vec![];
@@ -461,7 +500,7 @@ impl GameState {
                     vec![WorkItem::Emit(occurrence_of(events))]
                 }
             }
-            PlayerAction::RemoveCounters(sel, kind, count) => {
+            Action::RemoveCounters(sel, kind, count) => {
                 let n = self.eval_count(count, frame);
                 if n == 0 {
                     return vec![];
@@ -487,7 +526,8 @@ impl GameState {
                     vec![WorkItem::Emit(occurrence_of(events))]
                 }
             }
-            PlayerAction::AddMana(qty, production) => {
+            Action::AddMana(recipient, qty, production) => {
+                let actor = self.acting_player(recipient, frame);
                 let amount = self.eval_count(qty, frame);
                 let (spec, mut riders) = match production {
                     deckmaste_core::ManaProduction::Bare(spec) => (spec, Vec::new()),
@@ -592,7 +632,13 @@ impl GameState {
                     ManaSpec::ProducedByEvent => vec![],
                 }
             }
-            PlayerAction::Create(qty, spec, riders) => {
+            Action::Create {
+                agent,
+                count: qty,
+                token: spec,
+                riders,
+            } => {
+                let actor = self.acting_player(agent, frame);
                 // `AsCopy` riders fizzle here too — see
                 // `crate::copy::has_unbuilt_enter_rider`. (The dedicated
                 // token-copy spelling is `TokenSpec::Copy` below, already
@@ -655,7 +701,8 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            PlayerAction::GetDesignation(name) => {
+            Action::GetDesignation(recipient, name) => {
+                let actor = self.acting_player(recipient, frame);
                 // [CR#702.131c]: idempotent — a player who already holds the
                 // designation gets no second grant and no fact (so the SBA
                 // sweep converges and no spurious "got it" event is recorded).
@@ -674,7 +721,7 @@ impl GameState {
             // object and remove it from combat if it's attacking or blocking.
             // This is the regeneration "heal" clause — its apply zeroes damage
             // and calls `combat.remove_object`.
-            PlayerAction::RemoveDamage(sel) => {
+            Action::RemoveDamage(sel) => {
                 let events: Vec<GameEvent> = self
                     .eval_reference_set(sel, frame)
                     .into_iter()
@@ -686,8 +733,38 @@ impl GameState {
                     vec![WorkItem::Emit(occurrence_of(events))]
                 }
             }
+            // [CR#118.12] spec §14.1: bare effect-position `Pay` is
+            // unspellable — the slotless well-formedness gate is a
+            // cards-layer validation lint, not the parser. If one somehow
+            // still reaches here, fizzle rather than crash (this is a
+            // guarded seam, never a live path that used to work).
+            Action::Pay(_) => vec![],
             // Look through a remembered macro invocation.
-            PlayerAction::Expanded(e) => self.player_action_items(&e.value, actor, frame),
+            Action::Expanded(e) => self.player_action_items(&e.value, frame),
+            // `action_items` dispatches every object/effect-agent verb
+            // directly and only falls through to this function for the
+            // former-`PlayerAction` family — these variants never reach here.
+            other @ (Action::DealDamage(..)
+            | Action::Counter(_)
+            | Action::Transform(_)
+            | Action::Cease(_)
+            | Action::Attach { .. }
+            | Action::Unattach(_)
+            | Action::Move(..)
+            | Action::MoveGroup { .. }
+            | Action::GainControl(..)
+            | Action::ExtraPhase(..)
+            | Action::BecomeDay
+            | Action::BecomeNight
+            | Action::TheRingTempts(_)
+            | Action::MoveCounters(..)
+            | Action::CreateReplacement { .. }
+            | Action::Composite { .. }) => {
+                unreachable!(
+                    "action_items dispatches object verbs directly; {other:?} never reaches \
+                     player_action_items"
+                )
+            }
         }
     }
 }
@@ -702,7 +779,6 @@ mod tests {
     use deckmaste_core::Count;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Type;
@@ -757,10 +833,11 @@ mod tests {
             exceptions: vec![],
         };
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Move(
+            OneShotEffect::Act(Action::Move(
                 Reference::This,
                 Destination::Zone(Zone::Battlefield),
                 vec![EnterRider::AsCopy(spec)].into(),
+                None,
             )),
             &frame,
         );
@@ -794,7 +871,8 @@ mod tests {
         let frame = frame_src(src);
         let green = ColorOrColorless::Color(Color::Green);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::AddMana(
+            OneShotEffect::Act(Action::AddMana(
+                Reference::You,
                 Count::Literal(2),
                 ManaSpec::Specific(green).into(),
             )),
@@ -804,7 +882,8 @@ mod tests {
         assert_eq!(state.players[0].mana_pool.amount(green), 2);
 
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::AddMana(
+            OneShotEffect::Act(Action::AddMana(
+                Reference::You,
                 Count::Literal(1),
                 ManaSpec::AnyColor.into(),
             )),
@@ -858,7 +937,8 @@ mod tests {
         let white = ColorOrColorless::Color(Color::White);
         let blue = ColorOrColorless::Color(Color::Blue);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::AddMana(
+            OneShotEffect::Act(Action::AddMana(
+                Reference::You,
                 Count::Literal(1),
                 ManaSpec::OneOfRuns(
                     vec![vec![white, white], vec![white, blue], vec![blue, blue]].into(),
@@ -907,7 +987,8 @@ mod tests {
         let red = ColorOrColorless::Color(Color::Red);
         let rider = ManaRider::SpendOnly(Predicate::Any);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::AddMana(
+            OneShotEffect::Act(Action::AddMana(
+                Reference::You,
                 Count::Literal(1),
                 ManaProduction::WithRiders {
                     mana: ManaSpec::Specific(red),
@@ -941,7 +1022,6 @@ mod tests {
         use deckmaste_core::ManaSpec;
 
         let (mut state, source, imprinted) = two_permanents_on_field();
-        let p0 = PlayerId(0);
         let frame = frame_src_targets(source, vec![imprinted]);
         state.objects.remove(imprinted);
         assert!(
@@ -953,12 +1033,13 @@ mod tests {
             "the mana source is still live"
         );
 
-        let pa = PlayerAction::AddMana(
+        let act = Action::AddMana(
+            Reference::You,
             Count::Literal(1),
             ManaSpec::AmongColorsOf(Reference::It).into(),
         );
         // Must not panic dereferencing the gone id via `self.layers().get(..)`.
-        let items = state.player_action_items(&pa, p0, &frame);
+        let items = state.player_action_items(&act, &frame);
         assert!(
             items.is_empty(),
             "a gone AmongColorsOf referent has no colors to choose among, so no production"
@@ -1048,25 +1129,26 @@ mod tests {
         assert_eq!(state.zones.graveyards[0].len(), hand_before);
     }
 
-    /// A remembered `PlayerAction` macro invocation resolves through its
+    /// A remembered `Action` macro invocation resolves through its
     /// expanded body.
     #[test]
     fn expanded_player_action_resolves_through_body() {
         use deckmaste_core::Expansion;
         use deckmaste_core::ExpansionArgs;
+        use deckmaste_core::LifeOp;
 
         let (state, src) = bear_on_field();
         let frame = frame_src(src);
-        let body = PlayerAction::GainLife(Count::Literal(2));
-        let expanded = PlayerAction::Expanded(Expansion {
+        let body = Action::ChangeLife(Reference::You, LifeOp::Up(Count::Literal(2)));
+        let expanded = Action::Expanded(Expansion {
             name: "GainTwo".into(),
             args: ExpansionArgs::none(),
             template: None,
             value: Box::new(body.clone()),
         });
         assert_eq!(
-            state.action_items(&Action::by_you(expanded), &frame),
-            state.action_items(&Action::by_you(body), &frame),
+            state.action_items(&expanded, &frame),
+            state.action_items(&body, &frame),
         );
     }
 
@@ -1092,11 +1174,12 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(2),
-                token.into(),
-                vec![].into(),
-            )),
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(2),
+                token: token.into(),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         // One simultaneous batch of two TokenCreated facts.
@@ -1163,11 +1246,14 @@ mod tests {
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName::from("Treasure")),
-                vec![].into(),
-            )),
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName::from(
+                    "Treasure",
+                )),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
@@ -1200,11 +1286,12 @@ mod tests {
         let frame = frame_src(src);
         let treasure = builtin().token("Treasure").unwrap();
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                treasure.into(),
-                vec![].into(),
-            )),
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: treasure.into(),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
@@ -1255,17 +1342,18 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src_targets(a, vec![b]);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
                         source: CopySource::Object(Reference::Target(0)),
                         exceptions: vec![],
                     }
                     .into(),
                 ),
-                vec![].into(),
-            )),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
@@ -1324,17 +1412,18 @@ mod tests {
         let frame = frame_src_targets(a, vec![dead]);
         assert_eq!(
             state.action_items(
-                &Action::by_you(PlayerAction::Create(
-                    Count::Literal(1),
-                    deckmaste_core::TokenSpec::Copy(
+                &Action::Create {
+                    agent: Reference::You,
+                    count: Count::Literal(1),
+                    token: deckmaste_core::TokenSpec::Copy(
                         CopySpec {
                             source: CopySource::Object(Reference::Target(0)),
                             exceptions: vec![],
                         }
                         .into()
                     ),
-                    vec![].into(),
-                )),
+                    riders: vec![].into(),
+                },
                 &frame,
             ),
             vec![],
@@ -1362,17 +1451,18 @@ mod tests {
         let frame = frame_src_targets(a, vec![bolt]);
         assert_eq!(
             state.action_items(
-                &Action::by_you(PlayerAction::Create(
-                    Count::Literal(1),
-                    deckmaste_core::TokenSpec::Copy(
+                &Action::Create {
+                    agent: Reference::You,
+                    count: Count::Literal(1),
+                    token: deckmaste_core::TokenSpec::Copy(
                         CopySpec {
                             source: CopySource::Object(Reference::Target(0)),
                             exceptions: vec![],
                         }
                         .into()
                     ),
-                    vec![].into(),
-                )),
+                    riders: vec![].into(),
+                },
                 &frame,
             ),
             vec![],
@@ -1395,9 +1485,10 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src_targets(a, vec![b]);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
                         source: CopySource::Object(Reference::Target(0)),
                         exceptions: vec![
@@ -1411,8 +1502,8 @@ mod tests {
                     }
                     .into(),
                 ),
-                vec![].into(),
-            )),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
@@ -1611,9 +1702,10 @@ mod tests {
         let (mut state, src) = bear_on_field();
         // Mint the creature token to be populated (a 2/2 Bear token you control).
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                Token {
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: Token {
                     name: None,
                     color_indicator: vec![].into(),
                     supertypes: vec![].into(),
@@ -1629,8 +1721,8 @@ mod tests {
                     toughness: Some(StatValue::Number(2)),
                 }
                 .into(),
-                vec![].into(),
-            )),
+                riders: vec![].into(),
+            }),
             &frame_src(src),
         );
         run_injected(&mut state);
@@ -1852,17 +1944,18 @@ mod tests {
         let frame = frame_src_targets(actor, vec![src]);
         let hand_before = state.zones.hands[PlayerId(0).index()].len();
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
                         source: CopySource::Object(Reference::Target(0)),
                         exceptions: vec![],
                     }
                     .into(),
                 ),
-                vec![].into(),
-            )),
+                riders: vec![].into(),
+            }),
             &frame,
         );
 
@@ -1954,9 +2047,10 @@ mod tests {
         );
         let frame = frame_src_targets(goyf, vec![goyf]);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
                         source: CopySource::Object(Reference::Target(0)),
                         exceptions: vec![
@@ -1970,8 +2064,8 @@ mod tests {
                     }
                     .into(),
                 ),
-                vec![].into(),
-            )),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
@@ -2041,17 +2135,18 @@ mod tests {
         );
         let frame = frame_src_targets(goyf, vec![goyf]);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
                         source: CopySource::Object(Reference::Target(0)),
                         exceptions: vec![],
                     }
                     .into(),
                 ),
-                vec![].into(),
-            )),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // the TokenCreated batch applies
@@ -2125,17 +2220,18 @@ mod tests {
         let frame = frame_src_targets(a, vec![b]);
 
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
                         source: CopySource::Object(Reference::Target(0)),
                         exceptions: vec![],
                     }
                     .into(),
                 ),
-                vec![].into(),
-            )),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // the copy-token TokenCreated batch applies
@@ -2151,11 +2247,12 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Create(
-                Count::Literal(1),
-                plain_token.into(),
-                vec![].into(),
-            )),
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: plain_token.into(),
+                riders: vec![].into(),
+            }),
             &frame,
         );
         let _ = state.step(); // the plain-token TokenCreated batch applies
@@ -2199,7 +2296,7 @@ mod tests {
     fn win_game_verb_sets_win_outcome() {
         let (mut state, _bear) = bear_on_field();
         let frame = frame_for(&state, PlayerId(0));
-        state.run_effect(OneShotEffect::act_by_you(PlayerAction::WinGame), &frame);
+        state.run_effect(OneShotEffect::Act(Action::WinGame(Reference::You)), &frame);
         let _ = state.step();
         assert_eq!(
             state.outcome,
@@ -2215,7 +2312,7 @@ mod tests {
         let (state, _ids) = battlefield_with(&["Platinum Angel"]);
         let frame = frame_for(&state, PlayerId(1));
         assert_eq!(
-            state.action_items(&Action::by_you(PlayerAction::WinGame), &frame),
+            state.action_items(&Action::WinGame(Reference::You), &frame),
             vec![],
             "Platinum Angel's opponents-can't-win gate suppresses the WinGame verb"
         );
@@ -2227,7 +2324,7 @@ mod tests {
     fn lose_game_verb_sets_loss_and_opponent_wins() {
         let (mut state, _bear) = bear_on_field();
         let frame = frame_for(&state, PlayerId(0));
-        state.run_effect(OneShotEffect::act_by_you(PlayerAction::LoseGame), &frame);
+        state.run_effect(OneShotEffect::Act(Action::LoseGame(Reference::You)), &frame);
         let _ = state.step();
         assert!(state.players[0].lost);
         assert_eq!(
@@ -2243,7 +2340,7 @@ mod tests {
         let (state, _ids) = battlefield_with(&["Platinum Angel"]);
         let frame = frame_for(&state, PlayerId(0));
         assert_eq!(
-            state.action_items(&Action::by_you(PlayerAction::LoseGame), &frame),
+            state.action_items(&Action::LoseGame(Reference::You), &frame),
             vec![],
             "Platinum Angel's you-can't-lose gate suppresses the LoseGame verb"
         );
@@ -2285,7 +2382,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(3), false)),
+            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(3), false)),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2322,7 +2419,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::RollDice(Count::Literal(3), 6)),
+            OneShotEffect::Act(Action::RollDice(Reference::You, Count::Literal(3), 6)),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2413,12 +2510,12 @@ mod tests {
             let p0 = PlayerId(0);
             let frame = frame_for(&state, p0);
             state.run_effect(
-                OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(3), false)),
+                OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(3), false)),
                 &frame,
             );
             drain_progress(&mut state, 20);
             state.run_effect(
-                OneShotEffect::act_by_you(PlayerAction::RollDice(Count::Literal(3), 6)),
+                OneShotEffect::Act(Action::RollDice(Reference::You, Count::Literal(3), 6)),
                 &frame,
             );
             drain_progress(&mut state, 20);
@@ -2469,7 +2566,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), true)),
+            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), true)),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2518,7 +2615,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(3), true)),
+            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(3), true)),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2572,7 +2669,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), true)),
+            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), true)),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2700,7 +2797,7 @@ mod tests {
         let mut won = false;
         for i in 0..50 {
             state.run_effect(
-                OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), true)),
+                OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), true)),
                 &frame,
             );
             // Pop exactly the front-scheduled `FlipCoins` work item — it
@@ -2782,7 +2879,7 @@ mod tests {
         );
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), false)),
+            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), false)),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2824,7 +2921,7 @@ mod tests {
         );
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::RollDice(Count::Literal(2), 6)),
+            OneShotEffect::Act(Action::RollDice(Reference::You, Count::Literal(2), 6)),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2890,14 +2987,14 @@ mod tests {
             // leftover ambient turn-structure agenda, surfacing a stray
             // `Priority` that then blocks the next `run_effect`.)
             state.run_effect(
-                OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(2), false)),
+                OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(2), false)),
                 &frame,
             );
             step_n(&mut state, 2);
 
             // 1 called flip — the same call answer on both drives.
             state.run_effect(
-                OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), true)),
+                OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), true)),
                 &frame,
             );
             step_n(&mut state, 1);
@@ -2912,7 +3009,7 @@ mod tests {
 
             // RollDice(2, 20).
             state.run_effect(
-                OneShotEffect::act_by_you(PlayerAction::RollDice(Count::Literal(2), 20)),
+                OneShotEffect::Act(Action::RollDice(Reference::You, Count::Literal(2), 20)),
                 &frame,
             );
             step_n(&mut state, 2);

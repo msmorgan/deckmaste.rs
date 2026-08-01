@@ -45,7 +45,7 @@
 //     back to the `That` product). The fired body reads the exiled card as
 //     `EventObject`.
 //
-//   May(effect: Cast(EventObject, Param(0)), if_not: Move(EventObject, Graveyard, [], Exile))
+//   May(who: You, effect: Cast(You, EventObject, Param(0)), if_not: Move(EventObject, Graveyard, [], Exile))
 //     — the owner may cast the exiled card for the madness cost (`Cast`'s
 //     alternative-cost slot, [CR#118.9]); the "yes" offer is gated on a legal,
 //     payable cast ([CR#608.2g]). If they don't, it moves Exile → graveyard —
@@ -65,7 +65,8 @@
                 body: Delayed(
                     event: ZoneChange(what: Ref(This), from: Hand, to: Exile),
                     effect: May(
-                        effect: Cast(EventObject, Param(0)),
+                        who: You,
+                        effect: Cast(You, EventObject, Param(0)),
                         if_not: Move(EventObject, Graveyard, [], Exile),
                     ),
                 ),
