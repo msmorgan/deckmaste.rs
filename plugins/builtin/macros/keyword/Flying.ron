@@ -2,36 +2,18 @@
 // creatures with flying and/or reach. Composite per the keyword
 // classification; the carried name survives expand_all so Has /
 // LoseAbility name paths keep matching. A KeywordAbility-kind macro: cards
-// invoke it INSIDE the wrapper — `Keyword(Flying)` — so keyword-ness is
+// invoke it inside the wrapper — `Keyword(Flying)` — so keyword-ness is
 // always explicit. The engine evaluates point-wise Cant(Block) rows pairwise
 // at block submission (decide.rs DeclareBlockers -> legal::block_forbidden_by).
 //
 // Written directly, not through the `KeywordAbility(...)` wrapper
-// (`plugins/builtin/macros/macro/KeywordAbility.ron`) any more: that
-// meta-macro's own param signature is exactly `{name, template,
-// abilities}` with no `frames` slot, so a keyword that needs a `frames:`
-// entry has to spell its expansion out by hand — same reason
-// `Protection`/`Cycling`/etc. already skip the wrapper. This expands to the
-// byte-identical registered `MacroDef` the wrapper form produced (Task 6
-// pilot; see `docs/superpowers/research/2026-07-30-macro-frames/
-// pilot-constituency-findings.md`).
+// (`plugins/builtin/macros/macro/KeywordAbility.ron`), because that
+// meta-macro's param signature — `{name, template, abilities}` — has no
+// `frames` slot.
 (
     name: "Flying",
     template: "flying",
     kinds: [KeywordAbility],
-    // A real, verified matching gap Task 8's own G3/G4 canon sweep found:
-    // `CatalogAtom.spelling` preserves whatever case the *matched text* was
-    // actually written in (it is the matched input substring verbatim, not
-    // the catalog's own canonical form), so this frame's compiled tree —
-    // parsed from the citation spelling "flying" — could never structurally
-    // match real corpus text, which is always capitalized (line-initial
-    // capitalization is universal for a solo keyword line, and this pilot
-    // frame's compiled tree is a solo, one-ability `KeywordAbilityList`).
-    // Fixed the principled way, not with a second, casing-twin frame here:
-    // `spelling` is pure surface (it carries no information a match should
-    // be sensitive to, exactly like `NumberLiteral.numeral`) and is now in
-    // `crate::unify::surface_only_fields`'s exclusion table, so the single
-    // citation frame below matches regardless of the matched text's case.
     frames: ["flying"],
     body: Composite(
         name: "Flying",

@@ -1,19 +1,21 @@
-// "Draw N" ([CR#121.1]): the imperative YOU-form draw — you draw N cards, ONE
-// AT A TIME ([CR#121.2] — a per-card SEQUENCE, NOT a simultaneous batch like
-// mill). A `Batch(N, ...)` over the per-unit `By(You, DrawCard)`. The `Batch` gives
-// a count-doubling replacement (Alhammarret's Archive, [CR#121.2a,616.1g]) ONE
-// aggregate window; the engine then runs the N contained draws SEQUENTIALLY —
-// each binds the library top LATE and empty-checks BEFORE its move, so an empty
-// library loses the game ([CR#121.4,104.3c]).
+// "Draw N" ([CR#121.1]): the imperative you-form draw — you draw N cards,
+// one at a time ([CR#121.2] — a per-card sequence, not a simultaneous batch
+// like mill). A `Batch(N, ...)` over the per-unit `By(You, DrawCard)`. The
+// `Batch` gives a count-doubling replacement (Alhammarret's Archive,
+// [CR#121.2a,616.1g]) one aggregate window; the engine then runs the N
+// contained draws sequentially — each binds the library top late and
+// empty-checks before its move, so an empty library loses the game
+// ([CR#121.4,104.3c]).
 //
-// NOT a keyword action, and NOT a `Composite`: [CR#701] enumerates the keyword
-// actions and drawing is not among them — it is [CR#121], a game action.
-// Drawing is also irreducible, so there is no body to store: [CR#121.5] states
-// that a library → Hand move made WITHOUT the word "draw" is not a draw, so
-// such a body would denote a different event. The performer rides `By`'s own
-// agent slot. (This macro keeps the `KeywordAction` macro kind: that kind is the
-// English VERB REGISTRY — the conjugation data the renderer needs — not a CR
-// [CR#701] claim. See `Mill.ron` for a body that IS its verb's meaning.)
+// NOT a keyword action, and NOT a `Composite`: [CR#701] enumerates the
+// keyword actions and drawing is not among them — it is [CR#121], a game
+// action. Drawing is also irreducible, so there is no body to store:
+// [CR#121.5] states that a library -> Hand move made without the word
+// "draw" is not a draw, so such a body would denote a different event. The
+// performer rides `By`'s own agent slot. (This macro keeps the
+// `KeywordAction` macro kind: that kind is the English verb registry — the
+// conjugation data the renderer needs — not a [CR#701] claim. See
+// `Mill.ron` for a body that is its verb's meaning.)
 //
 // The declarative-subject form ("Target player draws N cards.") is the
 // `Draws(who, n)` macro; this is the bare you-imperative.
@@ -25,33 +27,22 @@
     kinds: [OneShotEffect, KeywordAction],
     params: [Count],
     // The checked-in `template:` uses the `card|cards` pluralization codec,
-    // which `cargo xtask macro templates --check` cannot express as a
-    // projection of frame text (D10) — so this def is reported `excepted`,
-    // not divergent, regardless of this frame's exact wording. "cards" is
-    // picked over "card" arbitrarily; citation normalization (Task 4) makes
-    // either authoring compile to the same tree.
+    // which the legacy `template:` mini-language cannot express as a
+    // projection of frame text — so this def is reported excepted, not
+    // divergent, regardless of this frame's exact wording. "cards" is
+    // picked over "card" arbitrarily.
     //
-    // Task 8's own G3/G4 canon sweep found a real gap in the pilot's original
-    // single frame: "draw <Param(0)> cards" is a `HoleClass::Numeral` hole,
-    // which only ever matches a *quantity* determiner ("N cards") — the
-    // legacy `${0:card|cards}` codec's `n == 1` case ("a card", an
-    // *indefinite*-determiner nominal, a structurally different tree) has no
-    // frame at all, so `Draw(1)` — the doc comment above's own first example,
-    // and the single most common count in the corpus — silently recovered
-    // as a residual. Fixed the same way `SacrificeThis`'s own G5 finding
-    // was: a second, guarded, zero-hole literal frame for exactly that count
-    // (D8 picks it over the first frame automatically — the two never
-    // actually compete, since "a card" and "N cards" are different
-    // determiners at the parser level, not just different guard outcomes).
+    // Second frame: `Count`'s `Numeral` hole only ever matches a *quantity*
+    // determiner ("N cards") — the legacy `${0:card|cards}` codec's `n == 1`
+    // case ("a card", an *indefinite*-determiner nominal, a structurally
+    // different tree) needs its own zero-hole literal frame.
     //
     // Guarded on the bare canonical spelling `"1"`, not `"Literal(1)"`: a
-    // `Count` literal serializes bare and the `Literal(…)` wrapper is
-    // deliberately noise that never appears in real RON
-    // (`crates/deckmaste_core/src/count.rs`'s own doc) — canon authors write
-    // `Draw(1)`, not `Draw(Literal(1))`. A fix-round finding (G3's guard
-    // comparison is now `guard::normalize_source`/`normalized`, the single
-    // authority, so either spelling is *accepted* — but the canonical one is
-    // what a reviewer reading this file alongside real corpus RON expects).
+    // `Count` literal serializes bare and the `Literal(…)` wrapper never
+    // appears in real RON (`crates/deckmaste_core/src/count.rs`'s own doc)
+    // — canon authors write `Draw(1)`, not `Draw(Literal(1))`. Guard
+    // comparison normalizes either spelling to the same value, but the
+    // canonical one is what a reader expects alongside real corpus RON.
     frames: [
         "draw <Param(0)> cards",
         (text: "draw a card", when: [(0, "1")]),

@@ -1,52 +1,33 @@
-// "[subject] draws N" ([CR#121.1]): the DECLARATIVE-SUBJECT draw — that player
-// draws N cards, ONE AT A TIME ([CR#121.2] — a per-card SEQUENCE, NOT a
-// simultaneous batch like mill). `Draws` is `Draw`'s twin: a `Batch(N, ...)`
-// over the per-unit `By(who, Draw)`. The engine runs the N contained draws
-// SEQUENTIALLY, each binding the library top LATE and empty-checking BEFORE its
-// move, so an empty library loses the game ([CR#121.4,104.3c]).
+// "[subject] draws N" ([CR#121.1]): the declarative-subject draw — that
+// player draws N cards, one at a time ([CR#121.2] — a per-card sequence,
+// not a simultaneous batch like mill). `Draws` is `Draw`'s twin: a
+// `Batch(N, ...)` over the per-unit `By(who, Draw)`. The engine runs the N
+// contained draws sequentially, each binding the library top late and
+// empty-checking before its move, so an empty library loses the game
+// ([CR#121.4,104.3c]).
 //
-// NOT a keyword action ([CR#701] does not list drawing — it is [CR#121]) and NOT
-// a `Composite`: drawing is irreducible ([CR#121.5]), so there is no body. See
-// `Draw.ron` for the full note, including why the `KeywordAction` macro kind
-// stays (it is the English verb registry, not a CR claim).
+// Not a keyword action ([CR#701] does not list drawing — it is [CR#121])
+// and not a `Composite`: drawing is irreducible ([CR#121.5]), so there is
+// no body. See `Draw.ron` for why the `KeywordAction` macro kind stays (it
+// is the English verb registry, not a CR claim).
 //
-// `who` (Param(0)) is `By`'s agent — a real slot, not a coordinate scraped off a
-// body selection. The template renders the subject context-aware ("Target player
-// draws two cards.", "Each player draws a card."); the count spells its noun via
-// the `card|cards` modifier.
+// `who` (Param(0)) is `By`'s agent — a real slot, not a coordinate scraped
+// off a body selection. The template renders the subject context-aware
+// ("Target player draws two cards.", "Each player draws a card."); the
+// count spells its noun via the `card|cards` modifier.
 //
-// Usage: Draws(It, 1) (the announced player target / Each-bound player, Jace
-// Beleren) / Draws(Target(0), 2).
+// Usage: Draws(It, 1) (the announced player target / Each-bound player,
+// Jace Beleren) / Draws(Target(0), 2).
 (
     name: "Draws",
     template: "${0} draws ${1:card|cards}",
     kinds: [OneShotEffect, KeywordAction],
     params: [Reference, Count],
-    // Two base frames: the corpus alternation this macro's own doc comment
-    // motivates (`docs/superpowers/research/2026-07-30-macro-frames/
-    // corpus-alternation.md` §3/§6 — gain/lose are stable `you`-declarative,
-    // but `draw` alternates, and imperative "Draw" so dominates the
-    // `Param(0) = You` case that a guarded frame reproducing `Draw`'s own
-    // wording is the natural default). The guarded frame pre-binds param 0
-    // (`Reference`) to `You` and holes only param 1 (`Count`); the unguarded
-    // frame spells the subject out for every other filler. Both are excepted
-    // from G2 like `Draw.ron` (checked-in template uses the `card|cards`
-    // codec).
-    //
-    // Plus two more for count = 1, the same gap `Draw.ron` found and fixed
-    // (Task 8's G3/G4 canon sweep): `Count`'s `Numeral` hole only ever
-    // matches a *quantity* determiner, never "a card"'s *indefinite* one, so
-    // this doc comment's own second example ("Each player draws a card.")
-    // recovered as a residual until these two zero-hole literals — one
-    // guarding both `You` and count = 1 (mirroring `Draw.ron`'s own fix
-    // exactly, since D8 always prefers the frame binding the *most*
-    // guards), one guarding only count = 1 for every other subject — were
-    // added. D8 selects among all four with no new ambiguity: a "cards"
-    // (quantity) frame and an "a card" (indefinite) frame never both match
-    // the same target text.
-    //
-    // Guarded on the bare canonical spelling `"1"`, not `"Literal(1)"` — see
-    // `Draw.ron`'s own comment on this same fix-round finding.
+    // Four frames: a guarded frame pre-binding Param(0) to `You` (the
+    // dominant filler) and an unguarded frame spelling the subject out,
+    // each doubled for count = 1 — `Count`'s `Numeral` hole only ever
+    // matches a quantity determiner ("N cards"), never the indefinite
+    // "a card", so count = 1 needs its own zero-hole literal in both forms.
     frames: [
         (text: "draw <Param(1)> cards", when: [(0, "You")], position: Main),
         "<Param(0)> draws <Param(1)> cards",

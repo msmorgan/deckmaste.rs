@@ -6,22 +6,19 @@
 //               [CR#704.5m..704.5n] sweeps' business);
 //   Blocked   — can't be blocked by matching creatures ([CR#702.16f]);
 //   Targeted  — can't be targeted by matching spells, or abilities from
-//               matching sources ([CR#702.16b]) — ONE row through the deed
-//               agent's SOURCE arm (a spell is itself a source [CR#609.7a];
+//               matching sources ([CR#702.16b]) — one row through the deed
+//               agent's source arm (a spell is itself a source [CR#609.7a];
 //               an ability's source is its generator [CR#113.7]).
 (
     name: "Protection",
     template: "protection from ${0}",
     kinds: [KeywordAbility],
     params: [Predicate],
-    // The same latent casing gap `Flying.ron` found (see its own comment) —
-    // `CatalogAtom.spelling` preserves the matched text's own case, so this
-    // frame's citation spelling alone would never match a real, capitalized
-    // solo keyword line. Fixed the same principled way, not with a second
-    // frame: `spelling` is in `crate::unify::surface_only_fields`'s
-    // exclusion table now, so the single frame below matches regardless of
-    // case. No canon card currently uses `Protection`, so G3/G4 do not
-    // exercise this one directly.
+    // `CatalogAtom.spelling` preserves the matched text's own case, so a
+    // frame citing lowercase "protection" would not match a capitalized
+    // solo keyword line. `spelling` is a `unify::surface_only_fields`
+    // exclusion, so this single frame matches regardless of case. No canon
+    // card in the corpus currently exercises this frame.
     frames: ["protection from <Param(0)>"],
     body: Composite(
         name: "Protection",

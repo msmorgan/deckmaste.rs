@@ -3,7 +3,7 @@
 // that expands to the +N/+M power-and-toughness boost the pump/anthem family
 // writes inline as `[Power(Up(N)), Toughness(Up(M))]`. Delegates to the
 // arity-2 `PowerAndToughness(NumericOp, NumericOp)` building block, forwarding
-// its own params as `Up(Param(0))`/`Up(Param(1))` — the Task 1 nested-macro
+// its own params as `Up(Param(0))`/`Up(Param(1))` — a nested-macro
 // param-forwarding mechanism. Usage: PowerAndToughnessUp(p, t) — e.g.
 // PowerAndToughnessUp(3, 3) for the Overrun-style team pump,
 // PowerAndToughnessUp(2, 0) for a power-only anthem.

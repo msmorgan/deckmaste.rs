@@ -1,42 +1,15 @@
-// Task 6 pilot (G5): framed literally, as `"Sacrifice this permanent"` — the
-// escape clause ("no parseable frame reproduces this wording") does not
-// apply here, only to `~`, below. `"Sacrifice this permanent"` compiles
-// cleanly with zero holes at `FragmentKind::Cost` (corroborated three ways:
-// `crates/deckmaste_english/src/fragment.rs:405` already uses the sibling
-// `"{2}{W}, Sacrifice this artifact"` as a clean `Cost` fixture; `permanent`
-// is a `noun_count` in `crates/deckmaste_english/regular-vocabulary.tsv:
-// 589`; and `cargo xtask english bracket "Carnival Elephant Meteor"`
-// brackets it as a real cost constituent). Not vacuous data either: 13
-// corpus cards print this literal wording (Acidic Sliver, Basal Sliver,
-// Carnival Elephant Meteor, the Sliver cycle, Ygra).
+// Literal, zero-hole frame for "Sacrifice this permanent" — the general
+// "Sacrifice this <TYPE>" family has no frame: no hole models "this <the
+// invoking card's own type>", only this one literal wording.
 //
-// What's still open: `"Sacrifice this permanent"` itself covers only
-// 12/1575 (0.8%) attestations of "Sacrifice this <TYPE>" in the supported
-// corpus — the other 99.2% need "this creature"/"this artifact"/etc.
-// instead. No hole in the current frame compiler models "this <the invoking
-// card's own type>" — the hole-constituency audit's own §4.3 remedy (a
-// non-param, card-level binding source for a hypothetical `<This>` hole) is
-// not built, so this literal frame is real but narrow: it matches/renders
-// exactly one of the many type-specific wordings, not a general one.
-//
-// The obvious *parameterized* candidate — `frames: ["Sacrifice ~"]` — was
-// also authored and compiles cleanly (a `HoleClass::SelfRef` hole), but is
-// the WRONG tool and was NOT adopted: `~` resolves structurally to
-// `NounPhrase::ThisCard`, which has exactly two forms
-// (`ThisCardForm::{FullName, AbbreviatedName}`,
-// `crates/deckmaste_english/src/syntax/phrase.rs:62-78`), both rendering as
-// the card's own printed NAME (`crates/deckmaste_english/src/renderer.rs:
-// 920-921`) — never as a type-generic demonstrative. The legacy `template:`
-// renderer's own `~` handling agrees: `'~' => out.push_str(subject)`
-// (`crates/deckmaste_cards/src/render/template.rs:45`), where `subject` is
-// the invoking card's name. Concretely: this macro is invoked live by
-// `plugins/builtin/tokens/{Clue,Gold,Treasure,Food,Blood}.ron`, so rewriting
-// the checked-in `template:` to `"Sacrifice ~"` (the only way to make G2
-// agree with a `~`-framed authoring) would flip their rendered cost from
-// "Sacrifice this artifact" to "Sacrifice Clue"/"Sacrifice Gold"/etc. — a
-// real regression, not a hypothetical one. See
-// `docs/superpowers/research/2026-07-30-macro-frames/
-// pilot-constituency-findings.md` for the full finding.
+// The `~` self-reference sigil is a rejected parameterized alternative:
+// `~` resolves structurally to `NounPhrase::ThisCard`
+// (`crates/deckmaste_english/src/syntax/phrase.rs`), which renders as the
+// card's own printed name, never a type-generic demonstrative. This macro
+// is invoked live by
+// `plugins/builtin/tokens/{Clue,Gold,Treasure,Food,Blood}.ron`, whose
+// checked-in `template:` renders "Sacrifice this artifact" — a `~`-framed
+// authoring would flip that to "Sacrifice Clue"/"Sacrifice Gold"/etc.
 (
     name: "SacrificeThis",
     template: "Sacrifice this permanent",

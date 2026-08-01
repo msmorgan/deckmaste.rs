@@ -1,103 +1,55 @@
 // The constructor frame catalog: English renderings for raw `deckmaste_core`
 // constructors, parallel to macro definitions' own `frames:` field
-// (`crates/macro_ron/src/set.rs`, `MacroDef.frames`). Canon RON is 83.5% raw
-// constructors (`docs/superpowers/research/2026-07-30-macro-frames/
-// macro-schema-census.md` §6), so this catalog is most of the lexicon, not
-// an appendix.
+// (`crates/macro_ron/src/set.rs`, `MacroDef.frames`).
 //
 // Loaded by `macro_ron::frames::load_constructor_frames`. Each
 // `constructor` names a bare `deckmaste_core` variant (verified against
-// `cargo xtask map enums`, not memory — see below); `params` names each
-// positional hole's type, in the order the entry's frames reference them
+// `cargo xtask map enums`, not memory); `params` names each positional
+// hole's type, in the order the entry's frames reference them
 // (`<Param(0)>` is `params[0]`).
-//
-// Three pilot entries, param names/arities verified against source (all
-// deviations from the round's original guess are noted inline):
 [
-    // `Action::DealDamage(Reference, Count, Reference)` — verified at
-    // `crates/deckmaste_core/src/action.rs:145` (`cargo xtask map enums`
-    // line 53). The pilot's original third param name, "Target", isn't a
-    // real param type; the constructor's third field is a plain `Reference`
-    // (the damage's patient object/player), same as the first, so it's
-    // corrected to `Reference` here.
+    // `Action::DealDamage(Reference, Count, Reference)`
+    // (`crates/deckmaste_core/src/action.rs:145`): the third field is a
+    // plain `Reference` (the damage's patient object/player), same as the
+    // first.
     (constructor: "DealDamage", params: ["Reference", "Count", "Reference"],
      frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"]),
 
-    // `PlayerAction::GainLife(Count)` (`action.rs:306`, `map enums` line 73)
-    // is arity-1 on its own — but a bare `GainLife(N)` in an effect slot
-    // never appears un-embedded: `Action::By(#[macro_ron(default =
-    // "Reference::You")] Reference, PlayerAction)` carries the
-    // `#[macro_ron(embed)]` marker (`action.rs:288-291`), so a RON author's
-    // `GainLife(1)` is really `By(Reference::You, GainLife(Count::Literal(1)))`
-    // with the subject defaulted. The catalog entry targets that authored
-    // surface, not the bare `PlayerAction` variant alone, so `params` stays
-    // the round's original `["Reference", "Count"]` (Param(0) = the `By`
-    // subject, Param(1) = the count) — no adjustment needed here beyond
-    // this note. Declarative for `You`, per the corpus sweep (0 imperative
-    // "Gain N life" attestations vs 236 "You gain N life",
-    // `docs/superpowers/research/2026-07-30-macro-frames/
-    // corpus-alternation.md` §3) — the agreement side table (Task 4) derives
-    // gains/gain from the subject filler, so no guard is needed on this
-    // pilot entry.
-    //
-    // A `You`-guarded literal frame ("you gain <Param(1)> life", mirroring
-    // `Draws.ron`'s own fix) was tried here during Task 8's canon sweep to
-    // recover the pronoun subject "you" (which, unlike `This`, has no
-    // lexicon entry of its own — see `docs/superpowers/research/
-    // 2026-07-30-macro-frames/pilot-constituency-findings.md`'s G3/G4
-    // section) — it compiled and matched correctly, but a *rendered* RON
-    // spelling `GainLife(You, N)` failed the G4 ground-truth check: the
-    // real `#[macro_ron(embed)]` sugar this constructor's own comment above
-    // describes reads a bare `GainLife(N)` (one arg, the `By` subject
-    // defaulted), not the frame's two-param `GainLife(subject, count)`
-    // shape, so `macros.read_str::<OneShotEffect>("GainLife(You, N)")`
-    // genuinely does not parse. Reverted rather than special-cased in xtask
-    // (which would duplicate this constructor's own embed-sugar knowledge
-    // in a second, driftable place) — recorded as an open, disclosed gap
-    // in the G5 findings file instead.
+    // `PlayerAction::GainLife(Count)` (`action.rs:306`) is arity-1;
+    // `Action::By`'s `#[macro_ron(embed)]` marker means authored
+    // `GainLife(N)` is really `By(You, GainLife(N))` with the subject
+    // defaulted, so `params` here targets that surface (subject, count).
     (constructor: "GainLife", params: ["Reference", "Count"],
      frames: ["<Param(0)> gains <Param(1)> life"]),
 
-    // `TargetSpec::Target(Quantity, Predicate)` (`target_spec.rs:33`, `map
-    // enums` line 890) is arity-2 with no default sugar on either field (no
-    // `#[macro_ron(...)]` marker on this variant) — unlike `GainLife` above,
-    // there is no embed/default path that collapses it to one argument at
-    // the RON surface, so the round's original single-`Predicate` params
-    // list can't construct a real `Target(...)` value and is corrected to
-    // the real two-field signature `["Quantity", "Predicate"]`. The pilot's
-    // "target <predicate>" wording (singular: "target creature", not
-    // "target N creatures") is preserved by guarding Param(0) (`Quantity`)
-    // to the real, sibling-precedented "exactly one" constant — the existing
-    // `TargetOne` macro (`plugins/builtin/macros/target/TargetOne.ron`)
-    // already invokes exactly `Target(Exactly(1), Param(0))` for the same
-    // idiom — and surfacing only Param(1) (`Predicate`) in the frame text.
+    // `TargetSpec::Target(Quantity, Predicate)` (`target_spec.rs:33`) is
+    // arity-2 with no default sugar on either field. The singular "target
+    // <predicate>" wording (not "target N creatures") is produced by
+    // guarding Param(0) (`Quantity`) to `Exactly(1)` — the same constant
+    // the `TargetOne` macro
+    // (`plugins/builtin/macros/target/TargetOne.ron`) invokes for the same
+    // idiom — while only Param(1) (`Predicate`) appears in the frame text.
     (constructor: "Target", params: ["Quantity", "Predicate"],
      frames: [(text: "target <Param(1)>", when: [(0, "Exactly(1)")])]),
 
-    // `Reference::This` — the nullary *pro-form* entry, added in Task 7's
-    // review addendum. Every other entry here renders a constructor that
-    // takes arguments; this one renders a bare constant, and its whole frame
-    // text is the self-reference sigil.
+    // `Reference::This` — the nullary pro-form entry. Every other entry
+    // here renders a constructor that takes arguments; this one renders a
+    // bare constant, and its whole frame text is the self-reference sigil.
     //
-    // Why it is needed: `This` is what a card's own subject is in RON
-    // (`DealsDamageToEach`'s body is `DealDamage(This, Param(0), It)`, and
-    // the same `This` heads most sentence-position canon lines), but until
-    // this entry existed nothing mapped the English back. A `~` sigil covers
-    // self-reference *inside* a frame, where it produces no argument at all;
-    // an argument position holding the card itself — `DealDamage`'s
-    // `<Param(0)>` — had no lexicon entry to recurse into, so it recovered as
-    // an unmatched residual and a structural comparison against the authored
-    // RON failed on that argument.
+    // `This` is what a card's own subject is in RON (`DealsDamageToEach`'s
+    // body is `DealDamage(This, Param(0), It)`); the `~` sigil covers
+    // self-reference inside a frame, where it produces no argument, but an
+    // argument position holding the card itself needs its own lexicon
+    // entry to recurse into.
     //
-    // It is matchable only because of the engine change that shipped with it:
-    // a frame whose entire tree peels down to one hole is admissible when the
-    // hole *discriminates*, which a `SelfRef` hole does (it accepts a
-    // self-reference and nothing else) and a `Subtree` hole does not. See
+    // Matchable because a frame whose entire tree peels down to one hole is
+    // admissible when the hole discriminates: a `SelfRef` hole accepts a
+    // self-reference and nothing else, unlike a `Subtree` hole. See
     // `try_entry` in `crates/deckmaste_frames/src/unify.rs`.
     //
-    // No `params`, so no `<Param(i)>` may appear in the text, and recovery is
-    // the nullary invocation `This` — the same shape the `Creature` predicate
-    // macro already recovers as.
+    // No `params`, so no `<Param(i)>` may appear in the text; recovery is
+    // the nullary invocation `This` — the same shape the `Creature`
+    // predicate macro already recovers as.
     (constructor: "This", params: [],
      frames: ["~"]),
 ]

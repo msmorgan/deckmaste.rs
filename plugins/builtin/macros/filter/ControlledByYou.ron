@@ -1,52 +1,32 @@
 // ControlledByYou = the generic "<X> you control" filter shape (the
 // controller-restriction idiom behind anthem effects and the general
 // "you control" postnominal restriction): wraps any base quality
-// `Param(0)` with the controller-is-you relation,
-// mirroring the already-lexicalized `OtherCreatureYouControl`/
-// `CreatureOpponentControls` siblings (`body: And([Creature, ...
-// ControlledBy(...)])`) but parameterized over the base predicate instead of
-// fixing it to `Creature`. Body verified against real constructors, not
-// taken on trust: `Predicate::And(Arc<[Predicate]>)`
-// (`crates/deckmaste_core/src/filter.rs:192`, `cargo xtask map enums`) and
-// `RelationPredicate::ControlledBy(Arc<Predicate>)` (`filter.rs:146`), the
-// exact pairing `OtherCreatureYouControl.ron`/`CreatureOpponentControls.ron`
-// already use.
+// `Param(0)` with the controller-is-you relation, mirroring the
+// already-lexicalized `OtherCreatureYouControl`/`CreatureOpponentControls`
+// siblings (`body: And([Creature, ... ControlledBy(...)])`) but
+// parameterized over the base predicate instead of fixing it to `Creature`.
+// `Predicate::And(Arc<[Predicate]>)` and
+// `RelationPredicate::ControlledBy(Arc<Predicate>)`
+// (`crates/deckmaste_core/src/filter.rs`) are the exact pairing
+// `OtherCreatureYouControl.ron`/`CreatureOpponentControls.ron` already use.
 //
-// Task 6 pilot addition, user-directed: exercises `HoleClass::FieldSlice`
-// from the side `target <Param(0)>` doesn't reach — the frame `<Param(0)>
-// you control` claims the nominal's `complements` field (the frame's own
-// "you control") and leaves the hole with `modifiers`+`head`, the mirror
-// image of `target <Param(0)>` (frame claims `determiner`, hole takes the
-// rest).
-//
-// This did NOT compile as originally authored in this round: `classify()`
-// (`crates/deckmaste_frames/src/compile.rs`) then only supported the
-// determiner-owning shape. The finding was escalated, and the user ruled to
-// reopen Task 4 and generalize `classify()`'s field-slice decision to a
-// `(determiner, modifiers, complements)` occupancy table — the fix landed
-// in this round (see `field_slice()` in `compile.rs`) — so this frame now
-// compiles, the hole claiming `["modifiers", "head"]`. See
-// `docs/superpowers/research/2026-07-30-macro-frames/
-// pilot-constituency-findings.md` for the resolved finding, the new
-// decision table, and the one further shape (a `modifiers`-only frame, e.g.
-// `white <Param(0)>`) the user considered generalizing to and declined.
+// The frame `<Param(0)> you control` claims the nominal's `complements`
+// field (the frame's own "you control"), leaving the hole with
+// `modifiers`+`head` — the mirror image of `target <Param(0)>` (frame
+// claims `determiner`, hole takes the rest). See `field_slice()` in
+// `crates/deckmaste_frames/src/compile.rs`.
 //
 // Named distinctly from the existing `Condition`-kind `YouControl`
 // (`plugins/builtin/macros/condition/YouControl.ron`, "you control ${0}",
-// prenominal, unrelated body `Exists(And([Param(0), ControlledBy(Ref(You))]))`)
-// even though `macro_ron::MacroSet` namespaces macro names by kind and the
-// two would not collide at the engine level (`macros: HashMap<Ident /*kind*/,
-// HashMap<Ident /*name*/, MacroDef>>`, `crates/macro_ron/src/set.rs:374`,
-// `register`/`check_kinds` never compares across kinds). The reason to avoid
-// reusing the name anyway: `cargo xtask macro inspect` resolves by name
-// alone across every loaded macro (`plugin.macros.iter().find(|(_, def)|
-// def.name.as_str() == name)`, `crates/xtask/src/macros/inspect.rs:136-139`)
-// with no kind disambiguation, so two same-named macros in different kinds
-// make `macro inspect` non-deterministic about which one it reports — a
-// pre-existing latent hazard in this corpus (`Draw`/`Draws` already share
-// names across `EventFilter` and `OneShotEffect`+`KeywordAction`, and
-// `Creature` across `Predicate` and `TypeDef`) that a fresh macro shouldn't
-// add another instance of.
+// prenominal, unrelated body `Exists(And([Param(0), ControlledBy(Ref(You))]))`):
+// `cargo xtask macro inspect` resolves a macro by name alone across every
+// loaded macro (`crates/xtask/src/macros/inspect.rs`) with no kind
+// disambiguation, so two same-named macros in different kinds make
+// `macro inspect` non-deterministic about which one it reports — a
+// pre-existing latent hazard (`Draw`/`Draws` share names across
+// `EventFilter` and `OneShotEffect`+`KeywordAction`, and `Creature` across
+// `Predicate` and `TypeDef`) that a fresh macro should not add another
+// instance of.
 (
     name: "ControlledByYou",
     template: "${0} you control",

@@ -2,10 +2,10 @@
 // ([CR#613.4] layer 7): DELEGATE-ONLY — no `template`, so it never stands
 // alone as printed text. `PowerAndToughnessUp`/`PowerAndToughnessDown` are the
 // parse surfaces; each forwards its own `Count` params into this macro's two
-// `NumericOp` slots (`PowerAndToughness(Up(Param(0)), Up(Param(1)))`) — the
-// Task 1 nested-macro param-forwarding mechanism. A macro expands to ONE
-// value, so the two axis ops bundle in a `Several`; `Modification::flatten`
-// splices it away at the engine boundary.
+// `NumericOp` slots (`PowerAndToughness(Up(Param(0)), Up(Param(1)))`) — a
+// nested-macro param-forwarding mechanism. A macro expands to ONE value, so
+// the two axis ops bundle in a `Several`; `Modification::flatten` splices
+// it away at the engine boundary.
 (
     name: "PowerAndToughness",
     kinds: [Modification],
