@@ -10,9 +10,8 @@ cards graduated. This one compares against ~7,353 encodings that already pass
 the fidelity gate and already run in the engine, so a disagreement is a
 finding rather than a worklist row.
 
-Claimable into the live IR workspace rather than after it: `workflow claim
-english-ir-legacy-parity --into english-semantic-ir` once IR→RON lowering
-exists at all, even partially. The `needs:` edge is graph correctness, not a
+Claimable alongside the live `english-semantic-ir` work rather than after it,
+once IR→RON lowering exists at all, even partially. The `needs:` edge is graph correctness, not a
 reason to wait — the harness is worth most *while* the IR is being shaped,
 least once it is finished.
 

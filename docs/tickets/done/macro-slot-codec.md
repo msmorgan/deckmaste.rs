@@ -34,7 +34,7 @@ including its `AsEnters` partial-template question: complete it to `"as ~ enters
 ${0}"` or keep replacement framing structural). Structural rendering stays the
 permanent floor for provenance-less hand-built `CardView`s.
 
-## PROGRESS (in workspace ../macro-slot-codec, committed, NOT integrated)
+## PROGRESS (mid-flight snapshot; since integrated)
 
 **Prerequisite 1 (typed params) DONE + verified.** Added a `Cost` param-type
 validator (`read_str::<Vec<CostComponent>>`) in `deckmaste_cards::macros`, and

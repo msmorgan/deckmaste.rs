@@ -3,9 +3,7 @@ needs: []
 ---
 **Quantifier-float residue — what remains after rounds `qfloat` and `anof`.**
 Campaign-internal residue of `english-structural-recovery-zero`, split out so
-the diagnosis survives in the tree; fold into the live campaign workspace with
-`workflow claim english-quantifier-float-residue --into
-english-structural-recovery-zero`.
+the diagnosis survives in the tree.
 
 Round `qfloat` (2026-07-27) landed its Stage 2 — the finite verbal quantifier
 float, 123 spans / 106 faces. Round `anof` (2026-07-28) landed **both** stages

@@ -2,10 +2,10 @@
 needs: []
 ---
 **`cargo xtask english adversarial` exists, is tested, and has nothing on
-trunk pointing at it.** It lives in the sibling workspace
-`english-adversarial-corpus`, a sixth sibling to
-`recovery`/`roundtrip`/`shapes`/`lint`/`bracket` — and the first *active*
-instrument: the other five read the printed snapshot; this one synthesizes
+trunk pointing at it.** It was built, un-integrated, under the
+`english-adversarial-corpus` claim — a sixth instrument beside
+`recovery`/`roundtrip`/`shapes`/`lint`/`bracket`, and the first *active*
+one: the other five read the printed snapshot; this one synthesizes
 candidate unprinted text from verbatim fragments and checks structural laws
 against it.
 

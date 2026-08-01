@@ -3,7 +3,7 @@ needs: []
 ---
 Grow the noncanon matchup decks with now-live keywords (fliers/reach, menace,
 defender, hexproof) so the 50-game gate regression-tests keyword interactions
-systemically rather than per-test. Lives in the noncanon workspace/feature.
+systemically rather than per-test. Lives on the long-lived `noncanon` branch.
 
 ## Triage note (batch2 worker, 2026-06-14): mis-tiered — NOT claimed, left in planned/
 
@@ -11,10 +11,10 @@ Surfaced rather than guessed. The decisive blocker is mechanism (point 1); a
 premise caveat (point 2) needs end-to-end verification before this is worth
 deck work.
 
-1. **Wrong mechanism for a default-line batch claim.** The ticket "lives in the
-   noncanon workspace/feature" — the long-lived non-mainline `noncanon` branch /
-   `../noncanon` workspace — not a fresh default-line claim that `integrate`s
-   into trunk. Growing the noncanon matchup decks and running the 50-game gate
+1. **Wrong mechanism for a default-line batch claim.** The ticket lives on the
+   long-lived non-mainline `noncanon` branch — not a fresh default-line claim
+   that `integrate`s into trunk. Growing the noncanon matchup decks and running
+   the 50-game gate
    is noncanon-feature work; it should be picked up inside that feature, not via
    this trunk-integrating batch.
 2. **Premise needs end-to-end verification.** Updated from an earlier note that

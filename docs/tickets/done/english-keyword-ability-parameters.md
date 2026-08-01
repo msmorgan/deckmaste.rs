@@ -4,8 +4,7 @@ needs: []
 **Keyword-ability parameter shapes the closed `KeywordArgument` vocabulary
 still cannot express.** Campaign-internal residue of
 `english-structural-recovery-zero`, split out so the diagnosis survives in the
-tree; fold into the live campaign workspace with `workflow claim
-english-keyword-ability-parameters --into english-structural-recovery-zero`.
+tree.
 
 Round `kwparam` (2026-07-27) typed the tight em-dash `[cost]` surface as a real
 `Cost`, added `KeywordArgument::RestrictedCost` for `[quality] [cost]`, and

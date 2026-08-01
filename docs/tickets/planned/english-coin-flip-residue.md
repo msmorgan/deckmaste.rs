@@ -3,9 +3,7 @@ needs: []
 ---
 **Coin-flip shapes `[CR#705.1..705.3]` the round `chance` deliberately left.**
 Campaign-internal residue of `english-structural-recovery-zero`, split out so
-the diagnosis survives in the tree; fold into the live campaign workspace with
-`workflow claim english-coin-flip-residue --into
-english-structural-recovery-zero`.
+the diagnosis survives in the tree.
 
 Round `chance` (2026-07-27) added `flip` as a count noun (95 clause rows) and a
 typed `come up heads`/`come up tails` result predicate — `CoinSide` plus

@@ -10,8 +10,8 @@ the combination fails to parse. This is an unambiguous coverage gap: the
 grammar accepts every part and cannot fully parse the whole.
 
 Measured 2026-07-29 with `cargo xtask english adversarial`'s synthesized
-sweep (the new adversarial-corpus tool, sibling `english-adversarial-corpus`
-workspace, not yet integrated). Of 90 admitted compositions, 58 parsed clean
+sweep (the new adversarial-corpus tool, under the then-unintegrated
+`english-adversarial-corpus` claim). Of 90 admitted compositions, 58 parsed clean
 end to end and **32 recovered**, all 32 under `SentenceBody::Recovered` (20
 distinct carriers by recipe).
 

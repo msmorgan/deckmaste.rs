@@ -4,8 +4,7 @@ needs: []
 **The voting procedure `[CR#701.38]` — the clause shapes and lexical
 subcategorization the grammar still cannot express.** Campaign-internal
 residue of `english-structural-recovery-zero`, split out so the diagnosis
-survives in the tree; fold into the live campaign workspace with `workflow
-claim english-voting-procedure --into english-structural-recovery-zero`.
+survives in the tree.
 
 Round `chance` (2026-07-27) landed the two lexical repairs the voting family
 needed (`receive`, `ensue`) and one small production (`While <gerund>,

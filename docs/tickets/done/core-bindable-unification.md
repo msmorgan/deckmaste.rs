@@ -46,5 +46,5 @@ parser, emitter, and cards follow in [[engine-anaphor-threading]],
 - `cargo test -p deckmaste_core` green; round-trip tests for the new shapes
   (`Each(Bindable, …)`, `With(Bindable, …)`, `Reference::It`, `Selection::That`).
 - Expect engine/cards/migrations to stop compiling — that is handled by the
-  dependent tickets in the shared `core-anaphor-mirror` workspace; do NOT patch
+  dependent tickets under the shared `core-anaphor-mirror` claim; do NOT patch
   them here.

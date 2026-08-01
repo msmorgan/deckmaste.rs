@@ -3,9 +3,7 @@ needs: []
 ---
 **Residue of round `kwgrant`: parameterized keyword abilities in grant
 position.** Campaign-internal residue of `english-structural-recovery-zero`,
-split out so the diagnosis survives in the tree; fold into the live campaign
-workspace with `workflow claim english-keyword-grant-arguments --into
-english-structural-recovery-zero`.
+split out so the diagnosis survives in the tree.
 
 Round `kwgrant` (2026-07-27) carried the keyword-line argument machinery into
 grant position. A keyword ability granted by `has`/`have`/`gains`/`gain`/

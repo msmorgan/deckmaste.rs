@@ -10,8 +10,8 @@ successfully. This affects `english bracket` and the new
 `selections()`.
 
 Verified 2026-07-29: `cargo run -q --release -p xtask -- english bracket
-"Siege Rhino" 2>/dev/null` (sibling `english-adversarial-corpus` workspace,
-not yet integrated) prints:
+"Siege Rhino" 2>/dev/null` (under the then-unintegrated
+`english-adversarial-corpus` claim) prints:
 
 ```
 <Trample>

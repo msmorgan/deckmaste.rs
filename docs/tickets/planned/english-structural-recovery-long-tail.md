@@ -4,8 +4,7 @@ needs: []
 **The structural-recovery long tail — why family-scoped rounds have a hard
 ceiling of roughly 508 faces, and what has to replace them.** Campaign-internal
 residue of `english-structural-recovery-zero`, split out so the measurement
-survives in the tree; fold into the live campaign workspace with `workflow claim
-english-structural-recovery-long-tail --into english-structural-recovery-zero`.
+survives in the tree.
 
 Every round of this campaign so far has worked the same way: find a family of
 unresolved rows sharing a construction, design one production for it, land it.
