@@ -14,16 +14,15 @@
     template: "protection from ${0}",
     kinds: [KeywordAbility],
     params: [Predicate],
-    // Two frames, differing only in casing — the same latent gap Task 8's
-    // G3/G4 canon sweep found and fixed for `Flying.ron` (see its own
-    // comment for the full reasoning): `CatalogAtom.spelling` preserves
-    // whatever case the matched text was actually written in, and a solo
-    // line-initial keyword line is always capitalized on real cards, so
-    // `frames[0]` (lowercase, what G2 projects `template:` against) can
-    // compile but never actually match one; `frames[1]` is the frame that
-    // does. No canon card currently uses `Protection`, so this is a
-    // proactive consistency fix, not one G3/G4 currently exercises.
-    frames: ["protection from <Param(0)>", "Protection from <Param(0)>"],
+    // The same latent casing gap `Flying.ron` found (see its own comment) —
+    // `CatalogAtom.spelling` preserves the matched text's own case, so this
+    // frame's citation spelling alone would never match a real, capitalized
+    // solo keyword line. Fixed the same principled way, not with a second
+    // frame: `spelling` is in `crate::unify::surface_only_fields`'s
+    // exclusion table now, so the single frame below matches regardless of
+    // case. No canon card currently uses `Protection`, so G3/G4 do not
+    // exercise this one directly.
+    frames: ["protection from <Param(0)>"],
     body: Composite(
         name: "Protection",
         abilities: [

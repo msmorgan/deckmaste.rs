@@ -242,38 +242,57 @@ fn select_frame<'lexicon>(
         .collect();
 
     // More than one maximal candidate splits into two genuinely different
-    // situations, and only one of them is the ambiguity D8 cares about.
-    // Candidates whose satisfied guard-param sets are literally EQUAL are
-    // not competing over what argument the selection is sensitive to at
-    // all — either the very same authored frame, registered once per
-    // `FragmentKind` it parses cleanly at (`Target`/`DealDamage`, tried at
-    // every category — see `lexicon::compile_constructor_frame`), or two
-    // frames that guard the identical param(s) to the identical value(s)
-    // (`Flying`'s two casing-only frames, both unguarded — `{} == {}`). A
-    // guard's own *value* already had to match for either to be viable at
-    // all, so equal sets can only arise from redundant/interchangeable
-    // authoring, not from two candidates disagreeing about the argument —
-    // resolved by assembly order, the exact tie-break `unify::unify` uses
-    // for its own equivalent case ("two registrations of one authored frame
-    // are one reading, not an ambiguity"). Only a tie between UNEQUAL
-    // (incomparable) sets — one candidate guards param 0, another guards
-    // param 1, and neither's set contains the other's — is the real D8
-    // ambiguity: the candidates disagree about which argument selection
-    // should turn on, and no order is more "assembled first" than semantic.
-    let (first, first_set) = maximal[0];
-    let incomparable = maximal.iter().any(|(_, set)| *set != first_set);
+    // situations, and only one of them is the ambiguity D8 cares about. A
+    // rival is benign — not a real tie — only when it is *the same authored
+    // frame* as the first (same name, `frame_index`, and origin — the
+    // identical identity `unify::same_authored_frame` keys on), registered a
+    // second time purely because a constructor frame is compiled at every
+    // `FragmentKind` it parses cleanly at
+    // (`lexicon::compile_constructor_frame`, e.g. `Target`/`DealDamage`).
+    // Those registrations share not just a guard-param set but the exact
+    // same `spec.text`/holes, so picking whichever the lexicon assembled
+    // first changes nothing about what gets rendered. Any OTHER rival — a
+    // genuinely different authored frame (different `frame_index`, i.e.
+    // different text) whose guard-param set merely happens to be equal or
+    // incomparable to the first's — is a real D8 ambiguity: two different
+    // wordings both claim to be the most specific match for these
+    // arguments, and no order is more "assembled first" than semantic. (A
+    // narrower carve-out than an earlier version of this function used: a
+    // one-off pair of frames differing only in surface casing — since
+    // fixed a different way, see `crate::unify::surface_only_fields` — would
+    // have been wrongly swallowed by an equal-guard-set-only check; keying
+    // on frame identity catches exactly the multi-`FragmentKind`-registration
+    // case it exists for and nothing broader.)
+    let (first, _) = maximal[0];
+    let rivals: Vec<&Entry> = maximal
+        .iter()
+        .skip(1)
+        .filter(|(entry, _)| !same_authored_frame(entry, first))
+        .map(|(entry, _)| *entry)
+        .collect();
     anyhow::ensure!(
-        !incomparable,
+        rivals.is_empty(),
         "no unique most-specific frame named `{entry_name}` at position {position:?}: {} \
-         candidate(s) tie on incomparable guard specificity: {}",
-        maximal.len(),
-        maximal
-            .iter()
-            .map(|(entry, _)| entry.label())
+         candidate(s) tie on guard specificity: {}",
+        rivals.len() + 1,
+        std::iter::once(first)
+            .chain(rivals)
+            .map(Entry::label)
             .collect::<Vec<_>>()
             .join(", "),
     );
     Ok(first)
+}
+
+/// Whether `a` and `b` are the *same* authored frame — identical `name`,
+/// `frame_index`, and `origin` — as opposed to two different frames that
+/// merely happen to be equally (or incomparably) specific. Mirrors
+/// `unify::same_authored_frame` exactly (the match-direction sibling of this
+/// same identity question): a constructor frame is registered once per
+/// `FragmentKind` it parses cleanly at, so several `Entry`s can share this
+/// identity while differing only in `frame.kind`.
+fn same_authored_frame(a: &Entry, b: &Entry) -> bool {
+    a.name == b.name && a.frame_index == b.frame_index && a.origin == b.origin
 }
 
 /// Whether `argument` (the recovered value at the guard's own param index)
@@ -882,13 +901,14 @@ mod tests {
         );
     }
 
-    /// D8's real ambiguity, distinguished from the benign kind (equal guard
-    /// sets — redundant/interchangeable authoring, resolved by assembly
-    /// order, see `select_frame`'s own doc): two candidates whose satisfied
-    /// guard-param sets are UNEQUAL and neither contains the other (one
-    /// guards param 0, the other guards param 1) must be reported as a tie,
-    /// not resolved silently by whichever the lexicon happened to assemble
-    /// first.
+    /// D8's real ambiguity, distinguished from the benign kind (the *same*
+    /// authored frame registered at several `FragmentKind`s, resolved by
+    /// assembly order, see `select_frame`'s own doc and
+    /// `same_authored_frame`): two genuinely *different* candidates whose
+    /// satisfied guard-param sets are unequal and neither contains the other
+    /// (one guards param 0, the other guards param 1) must be reported as a
+    /// tie, not resolved silently by whichever the lexicon happened to
+    /// assemble first.
     #[test]
     fn incomparable_guards_are_reported_rather_than_resolved_silently() {
         let macros = fixture().lexicon.macros();
@@ -950,7 +970,7 @@ mod tests {
         let error = render_invocation(&recovered, &lexicon, FramePosition::Main).unwrap_err();
         let message = format!("{error:#}");
         assert!(
-            message.contains("no unique most-specific") && message.contains("incomparable"),
+            message.contains("no unique most-specific") && message.contains("Ambiguous"),
             "{message}"
         );
     }

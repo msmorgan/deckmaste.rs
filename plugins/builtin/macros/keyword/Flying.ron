@@ -19,25 +19,20 @@
     name: "Flying",
     template: "flying",
     kinds: [KeywordAbility],
-    // Two frames, differing only in casing — a real, verified matching gap
-    // Task 8's own G3/G4 canon sweep found. `frames[0]` ("flying") is the
-    // citation spelling `template:`/G2 project against and is what compiles
-    // — the legacy renderer force-capitalizes a keyword line's first entry
-    // at render time regardless of the template's own case
-    // (`crates/deckmaste_cards/src/render/mod.rs`'s `rules()`), so lowercase
-    // is the right citation form there. But `CatalogAtom.spelling` — a leaf
-    // field `unify`'s exact-value comparison reads literally — preserves
-    // whatever case the *matched text* was actually written in, and this
-    // pilot frame's compiled tree is a solo, one-ability `KeywordAbilityList`
-    // that can only ever match a line that *is* the whole keyword line by
-    // itself — which real oracle text always prints capitalized (line-initial
-    // capitalization is universal for a solo keyword line). So `"flying"`
-    // (lowercase) can compile but can never actually match a real card;
-    // `frames[1]` ("Flying") is the frame that does. Both are needed: G2 only
-    // ever projects `frames[0]`, so it cannot become the fix on its own
-    // without also touching the checked-in `template:` field, which the
-    // legacy renderer does not need changed (see above).
-    frames: ["flying", "Flying"],
+    // A real, verified matching gap Task 8's own G3/G4 canon sweep found:
+    // `CatalogAtom.spelling` preserves whatever case the *matched text* was
+    // actually written in (it is the matched input substring verbatim, not
+    // the catalog's own canonical form), so this frame's compiled tree —
+    // parsed from the citation spelling "flying" — could never structurally
+    // match real corpus text, which is always capitalized (line-initial
+    // capitalization is universal for a solo keyword line, and this pilot
+    // frame's compiled tree is a solo, one-ability `KeywordAbilityList`).
+    // Fixed the principled way, not with a second, casing-twin frame here:
+    // `spelling` is pure surface (it carries no information a match should
+    // be sensitive to, exactly like `NumberLiteral.numeral`) and is now in
+    // `crate::unify::surface_only_fields`'s exclusion table, so the single
+    // citation frame below matches regardless of the matched text's case.
+    frames: ["flying"],
     body: Composite(
         name: "Flying",
         abilities: [Static(Cant(Block(

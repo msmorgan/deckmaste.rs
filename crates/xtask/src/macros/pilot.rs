@@ -19,28 +19,40 @@
 //! # Population and scope — read before trusting a "PASS"
 //!
 //! Both gates draw from the *same* per-line sweep
-//! ([`collect_lines`]/[`evaluate_line`]): every `Ability::Keyword` and
-//! `Ability::Spell` (with no `ability_word`) in every non-todo canon card
-//! face, isolated into its own single-ability [`CardView`] and legacy-
-//! rendered on its own. `Ability::Triggered`/`Static`/`Activated` lines are
-//! not swept at all — none of the pilot's macros model a whole trigger,
-//! static, or activated-cost shape, so a top-level match against one would
-//! always be `Residual` anyway, and isolating a *sub*-fragment (a single
-//! cost component out of an activated ability's list, in particular) has no
-//! public single-component legacy renderer to isolate against. Concretely,
-//! this means `SacrificeThis` — usable only inside an activated ability's
-//! cost list — sees zero coverage from this sweep; that is a disclosed gap,
-//! not a hidden one.
+//! ([`collect_lines`]/[`evaluate_line`]): every `Ability::Keyword`, every
+//! `Ability::Spell` with no `ability_word`, and every `Ability::Triggered`
+//! with no `ability_word` (its *effect clause alone*, re-wrapped as a
+//! synthetic spell — see [`testable_line`]'s own doc for why) in every
+//! non-todo canon card face, isolated into its own single-ability
+//! [`CardView`] and legacy-rendered on its own. `Ability::Static`/
+//! `Activated`/`Innate` are **not** swept at all — none of the pilot's
+//! macros model a whole static or activated-cost shape, so a top-level
+//! match against one would always be `Residual` anyway, and isolating a
+//! *sub*-fragment (a single cost component out of an activated ability's
+//! list, in particular) has no public single-component legacy renderer to
+//! isolate against. Concretely, this means `SacrificeThis` — usable only
+//! inside an activated ability's cost list — sees zero coverage from this
+//! sweep; that is a disclosed gap, not a hidden one. An `ability_word`-
+//! carrying `Spell`/`Triggered`, and any isolated render that comes out to
+//! something other than exactly one line (a modal's bulleted modes, a split
+//! additional-cost clause — no pilot frame models a multi-sentence effect),
+//! are excluded for the same reason: nothing this sweep could compare them
+//! against fairly.
 //!
-//! **Every swept line lands in exactly one bucket per gate — nothing is
-//! silently dropped.** [`report_g3`]/[`report_g4`] print a full
-//! [`ExclusionReason`] census alongside the equal/mismatch(diverged) counts,
-//! and a debug assertion in each ties the two together
-//! (`checked/covered + excluded == lines swept`), so a line disappearing
-//! from the numbers the way a whole macro's canon coverage once did (this
-//! command's own fix-round Critical finding: every `Keyword(Flying)` line
-//! was swept, then excluded with no record at all — see the G5 findings file
-//! for the root cause and fix) cannot happen again unnoticed.
+//! **Every canon ability lands in exactly one bucket, at both layers —
+//! nothing is silently dropped.** [`collect_lines`] itself prints a
+//! [`SweepExclusion`] census (why an ability never became a swept `Line` at
+//! all — out of scope, an `ability_word`, or a multi-line render), and
+//! [`report_g3`]/[`report_g4`] print a further [`ExclusionReason`] census
+//! for every swept line that is not equal/mismatched/diverged, with a debug
+//! assertion in each tying its own two numbers together
+//! (`checked/covered + excluded == lines swept`). So the population story
+//! runs end to end — canon ability lines seen → swept → gated — and a line
+//! disappearing from the numbers the way a whole macro's canon coverage
+//! once did (this command's own fix-round Critical finding: every
+//! `Keyword(Flying)` line was swept, then excluded with no record at all —
+//! see the G5 findings file for the root cause and fix) cannot happen again
+//! unnoticed, at either layer.
 //!
 //! G4's population is exactly the brief's literal wording: top-level
 //! `Recovered::Invocation`, any origin, full stop — **not** "and every
@@ -95,6 +107,12 @@ use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 use macro_ron::frames::load_constructor_frames;
 
+/// Where G4's own analysis of every divergence it can find lives — named in
+/// the FAIL output itself so a reader of a red gate does not have to go
+/// looking for it.
+const G5_FINDINGS_FILE: &str =
+    "docs/superpowers/research/2026-07-30-macro-frames/pilot-constituency-findings.md";
+
 #[derive(Debug, Args)]
 pub(super) struct PilotArgs {
     /// The plugin the pilot lexicon (frames + macros) is assembled from.
@@ -134,15 +152,23 @@ pub(super) fn run(args: PilotArgs) -> anyhow::Result<()> {
     let canon_plugin = Plugin::load_with_sibling_prelude(&canon_dir)?;
 
     let sweep_started = Instant::now();
-    let lines = collect_lines(&canon_dir, &canon_plugin.macros)?;
-    let results: Vec<LineResult> = lines
+    let swept = collect_lines(&canon_dir, &canon_plugin.macros)?;
+    let results: Vec<LineResult> = swept
+        .lines
         .iter()
         .map(|line| evaluate_line(line, &lexicon, &catalogs, &plugin.macros))
         .collect();
     let sweep_elapsed = sweep_started.elapsed();
     println!(
+        "canon ability line census: {} seen, {} swept, {} not swept — {}",
+        swept.seen(),
+        swept.lines.len(),
+        swept.excluded.values().sum::<usize>(),
+        format_census(&swept.excluded),
+    );
+    println!(
         "swept {} canon line(s) in {:.2}s",
-        lines.len(),
+        swept.lines.len(),
         sweep_elapsed.as_secs_f64()
     );
 
@@ -215,8 +241,58 @@ struct Line {
     authored_view: View,
 }
 
-fn collect_lines(canon_dir: &Path, macros: &MacroSet) -> anyhow::Result<Vec<Line>> {
+/// Why one canon ability never became a swept [`Line`] at all — the layer
+/// *above* [`ExclusionReason`]: that census accounts for every swept line;
+/// this one accounts for every canon ability the sweep looked at in the
+/// first place, so the population story runs end to end (canon ability
+/// lines seen → swept → gated) with nothing narrowed silently at either
+/// layer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+enum SweepExclusion {
+    /// `Ability::Static`/`Activated`/`Innate` (or anything else that is not
+    /// `Keyword`/`Spell`/`Triggered`) — out of this sweep's scope by design
+    /// (see the module doc's "Population and scope"), not a gate finding.
+    OutOfScopeAbilityKind,
+    /// A `Spell`/`Triggered` ability carrying an `ability_word` — the
+    /// isolated render would prepend "Word — ", which this sweep's text
+    /// comparison is not set up to strip.
+    AbilityWord,
+    /// The isolated render produced something other than exactly one line
+    /// (a modal's bulleted modes, a split additional-cost clause) — no
+    /// pilot frame models a multi-sentence effect.
+    MultiLineEffect,
+}
+
+impl SweepExclusion {
+    const fn label(self) -> &'static str {
+        match self {
+            SweepExclusion::OutOfScopeAbilityKind => "out-of-scope-ability-kind",
+            SweepExclusion::AbilityWord => "ability-word",
+            SweepExclusion::MultiLineEffect => "multi-line-effect",
+        }
+    }
+}
+
+/// Every canon ability visited, split into the [`Line`]s the sweep will
+/// gate and a census of why every other ability was not one of them —
+/// printed in full by [`run`] so "canon ability lines seen → swept → gated"
+/// is a complete, honest chain, not just the gated tail of it.
+struct Swept {
+    lines: Vec<Line>,
+    excluded: BTreeMap<&'static str, usize>,
+}
+
+impl Swept {
+    /// Every canon ability this sweep visited, whether or not it became a
+    /// `Line` — `lines.len() + excluded.values().sum()`.
+    fn seen(&self) -> usize {
+        self.lines.len() + self.excluded.values().sum::<usize>()
+    }
+}
+
+fn collect_lines(canon_dir: &Path, macros: &MacroSet) -> anyhow::Result<Swept> {
     let mut lines = Vec::new();
+    let mut excluded: BTreeMap<&'static str, usize> = BTreeMap::new();
     for path in ron_files_recursive(&canon_dir.join(CARDS_DIR))? {
         let source = read(&path)?;
         if is_todo_source(&source) {
@@ -228,13 +304,14 @@ fn collect_lines(canon_dir: &Path, macros: &MacroSet) -> anyhow::Result<Vec<Line
         for face in faces(&card) {
             let is_legendary = face.supertypes.contains(&Supertype::Legendary);
             for ability in &face.abilities {
-                if let Some(line) = testable_line(&path, face, is_legendary, ability) {
-                    lines.push(line);
+                match testable_line(&path, face, is_legendary, ability) {
+                    Ok(line) => lines.push(line),
+                    Err(reason) => *excluded.entry(reason.label()).or_insert(0) += 1,
                 }
             }
         }
     }
-    Ok(lines)
+    Ok(Swept { lines, excluded })
 }
 
 fn faces(card: &Card) -> Vec<&CardFace> {
@@ -276,7 +353,7 @@ fn testable_line(
     face: &CardFace,
     is_legendary: bool,
     ability: &Ability,
-) -> Option<Line> {
+) -> Result<Line, SweepExclusion> {
     let peeled = peel_expanded(ability);
     let (kind, ron_type, authored_view, tag, rendering_ability) = match peeled {
         Ability::Keyword(k) => (
@@ -286,24 +363,34 @@ fn testable_line(
             "Keyword",
             ability.clone(),
         ),
-        Ability::Spell(s) if s.ability_word.is_none() => (
-            FragmentKind::Sentence,
-            "OneShotEffect",
-            guard::normalized(s.effect.clone()),
-            "Spell",
-            ability.clone(),
-        ),
-        Ability::Triggered(t) if t.ability_word.is_none() => (
-            FragmentKind::Sentence,
-            "OneShotEffect",
-            guard::normalized(t.effect.clone()),
-            "Triggered-effect",
-            Ability::Spell(std::sync::Arc::new(deckmaste_core::SpellAbility {
-                ability_word: None,
-                effect: t.effect.clone(),
-            })),
-        ),
-        _ => return None,
+        Ability::Spell(s) => {
+            if s.ability_word.is_some() {
+                return Err(SweepExclusion::AbilityWord);
+            }
+            (
+                FragmentKind::Sentence,
+                "OneShotEffect",
+                guard::normalized(s.effect.clone()),
+                "Spell",
+                ability.clone(),
+            )
+        }
+        Ability::Triggered(t) => {
+            if t.ability_word.is_some() {
+                return Err(SweepExclusion::AbilityWord);
+            }
+            (
+                FragmentKind::Sentence,
+                "OneShotEffect",
+                guard::normalized(t.effect.clone()),
+                "Triggered-effect",
+                Ability::Spell(std::sync::Arc::new(deckmaste_core::SpellAbility {
+                    ability_word: None,
+                    effect: t.effect.clone(),
+                })),
+            )
+        }
+        _ => return Err(SweepExclusion::OutOfScopeAbilityKind),
     };
     let isolated = CardView {
         name: &face.name,
@@ -321,10 +408,10 @@ fn testable_line(
         // additional-cost clause split onto its own line) is out of scope —
         // no pilot frame models a multi-sentence effect, so a fair G3/G4
         // comparison needs exactly one line to compare against.
-        return None;
+        return Err(SweepExclusion::MultiLineEffect);
     }
     let text = rules.remove(0);
-    Some(Line {
+    Ok(Line {
         label: format!("{}: {} ({tag})", path.display(), face.name),
         name: face.name.to_string(),
         is_legendary,
@@ -674,6 +761,11 @@ fn report_g4(results: &[LineResult]) -> bool {
         if pass { "PASS" } else { "FAIL" },
         diverged.len(),
     );
+    if !pass {
+        println!(
+            "  every divergence above is analyzed, named, and disposed of in {G5_FINDINGS_FILE}"
+        );
+    }
     println!(
         "  exclusion census: {excluded_total} excluded of {} line(s) swept — {}",
         results.len(),

@@ -617,7 +617,27 @@ fn surface_only_fields(name: &str, fields: &[(&'static str, View)]) -> &'static 
                 }
             )
     });
-    if name == "NumberLiteral" && numeric_hole { &["numeral"] } else { &[] }
+    if name == "NumberLiteral" && numeric_hole {
+        return &["numeral"];
+    }
+    // `CatalogAtom.spelling` is the matched input substring verbatim
+    // (`Arc::from(&text[..length])`, `crates/deckmaste_english/src/
+    // catalog.rs`), never the catalog's own canonical form (that is
+    // `canonical`, which the parser's own `CatalogKind::case_policy()`
+    // already normalizes case-insensitively) — so `spelling` is pure surface,
+    // exactly the class this table exists for: it carries no information a
+    // real match should be sensitive to, the same reason `NumberLiteral`'s
+    // `numeral` field is excluded above ("the renderer's choice on the way
+    // out ... carries no information on the way in"). Unconditional, not
+    // gated on a hole nearby: unlike a numeral's spelling (which only
+    // diverges from a frame's citation form when a *hole* drives it),
+    // `spelling`'s case can differ from a frame's own authored text purely
+    // from surface position (a solo keyword line is always capitalized,
+    // line-initial, on a real card) with no hole involved at all.
+    if name == "CatalogAtom" {
+        return &["spelling"];
+    }
+    &[]
 }
 
 /// The serde scalar kinds a numeric hole may have captured.
@@ -1505,20 +1525,12 @@ mod tests {
                 "Draws[1]@Sentence",
                 "Draws[2]@Sentence",
                 "Draws[3]@Sentence",
-                // `Flying[1]`/`Protection[1]`: a fix-round finding (G3's
-                // Critical) — `frames[0]`'s lowercase citation spelling
-                // compiles but can never actually match a real card's
-                // `CatalogAtom.spelling` (always capitalized: a solo keyword
-                // line is always line-initial). See `Flying.ron`'s own
-                // comment for the full reasoning.
                 "Flying[0]@KeywordLine",
-                "Flying[1]@KeywordLine",
                 // `Player[0]`: a fix-round finding — `filter/Player.ron`
                 // already existed (used elsewhere) but had no `frames:`,
                 // exactly `Creature`'s pre-Task-6 gap; added the same way.
                 "Player[0]@Nominal",
                 "Protection[0]@KeywordLine",
-                "Protection[1]@KeywordLine",
                 "PumpThisUntilEot[0]@Sentence",
                 "SacrificeThis[0]@Cost",
             ],
