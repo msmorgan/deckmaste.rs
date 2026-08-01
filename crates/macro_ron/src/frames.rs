@@ -17,6 +17,14 @@
 //! This module only carries the strings through serde — it never parses
 //! them — so they must round-trip byte-for-byte.
 //!
+//! **A catalog entry may carry a `body:`** ([`ConstructorFrames::body`]): the
+//! value its frames stand for, as a term with `Param(i)` leaves, in exactly
+//! the schema and syntax [`MacroDef::body`](crate::set::MacroDef) already
+//! uses — so a wording can denote a value whose RON shape is not the flat
+//! application of its own name. Filling that term is [`substitute_body`],
+//! which is `macro_ron`'s own hole-splicing walk rather than a second one.
+//! An entry with no body means the positional application it always did.
+//!
 //! **The guard model.** A guard is a set of param pre-bindings (`when: [(0,
 //! "You")]` — param index paired with a RON spelling of the required
 //! constant) plus an optional syntactic-position key. At render time the
@@ -43,10 +51,13 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
+use ron::value::RawValue;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
+
+use crate::MacroSet;
 
 /// Where a frame is anchored syntactically — part of a guard's specificity,
 /// alongside its `when` param pre-bindings. `Main` is a top-level sentence
@@ -91,18 +102,44 @@ pub struct FrameSpec {
     pub text: String,
     pub when: Vec<(usize, String)>,
     pub position: Option<FramePosition>,
+    /// The params whose holes accept **only an announcement filler** — a
+    /// constituent covered by an entry that declares
+    /// [`ConstructorFrames::announcement`].
+    ///
+    /// Authored as the param indices, beside the text that holes them:
+    ///
+    /// ```ron
+    /// (text: "<Param(0)> deals <Param(1)> damage to <Param(2)>", announced: [2])
+    /// ```
+    ///
+    /// It is a restriction on the *filler*, not a change to the hole's own
+    /// structural class (`deckmaste_frames`'s `HoleClass`, which the parse
+    /// decides): the same hole is a whole-subtree hole either way, and both
+    /// wordings above and below stay one authored English string. The
+    /// restriction runs in both directions — a listed param's hole rejects a
+    /// non-announcement filler and an unlisted param's hole rejects an
+    /// announcement one — which is what makes two entries carrying the *same*
+    /// frame text over different values (an inline recipient versus one
+    /// hoisted into a `targets:` announce list) cover disjoint English
+    /// instead of competing for it. Magic's targeting rules are what make
+    /// that disjointness real rather than stipulated: a targeted recipient is
+    /// always announced [CR#601.2c], so the announced wording and the inline
+    /// one never describe the same effect.
+    pub announced: Vec<usize>,
 }
 
 impl FrameSpec {
-    /// An unguarded frame with no syntactic-position key — the shape every
-    /// bare-string sugar produces. Exposed as a test helper: Tasks 4-8 build
-    /// fixture frames without spelling out the guard fields every time.
+    /// An unguarded frame with no syntactic-position key and no announced
+    /// holes — the shape every bare-string sugar produces. Exposed as a test
+    /// helper: fixture frames are built without spelling out the guard fields
+    /// every time.
     #[must_use]
     pub fn bare(text: &str) -> FrameSpec {
         FrameSpec {
             text: text.to_string(),
             when: Vec::new(),
             position: None,
+            announced: Vec::new(),
         }
     }
 
@@ -119,6 +156,18 @@ impl FrameSpec {
     #[must_use]
     pub fn is_unguarded(&self) -> bool {
         self.when.is_empty() && self.position.is_none()
+    }
+
+    /// Whether this frame carries nothing but its text — no guard *and* no
+    /// announced holes — which is the condition [`Serialize`] takes the
+    /// bare-string spelling under.
+    ///
+    /// Deliberately not folded into [`is_unguarded`](Self::is_unguarded):
+    /// that predicate answers "does the text spell the whole rendering", and
+    /// an announced hole still surfaces in the text, so a frame with one is
+    /// projectable exactly as an unannounced frame is.
+    fn is_bare(&self) -> bool {
+        self.is_unguarded() && self.announced.is_empty()
     }
 }
 
@@ -137,6 +186,8 @@ enum FrameSpecRepr {
         when: Vec<(usize, String)>,
         #[serde(default)]
         position: Option<FramePosition>,
+        #[serde(default)]
+        announced: Vec<usize>,
     },
 }
 
@@ -148,10 +199,12 @@ impl From<FrameSpecRepr> for FrameSpec {
                 text,
                 when,
                 position,
+                announced,
             } => FrameSpec {
                 text,
                 when,
                 position,
+                announced,
             },
         }
     }
@@ -159,13 +212,14 @@ impl From<FrameSpecRepr> for FrameSpec {
 
 impl From<&FrameSpec> for FrameSpecRepr {
     fn from(spec: &FrameSpec) -> Self {
-        if spec.is_unguarded() {
+        if spec.is_bare() {
             FrameSpecRepr::Bare(spec.text.clone())
         } else {
             FrameSpecRepr::Full {
                 text: spec.text.clone(),
                 when: spec.when.clone(),
                 position: spec.position,
+                announced: spec.announced.clone(),
             }
         }
     }
@@ -230,6 +284,126 @@ pub struct ConstructorFrames {
     pub params: Vec<String>,
     pub frames: Vec<FrameSpec>,
     pub kind: FrameKind,
+    /// The value an invocation of this entry stands for, as a body term with
+    /// `Param(i)` leaves — the same schema and the same syntax as
+    /// [`MacroDef::body`](crate::set::MacroDef), authored bare, never quoted:
+    ///
+    /// ```ron
+    /// body: By(Param(0), GainLife(Param(1))),
+    /// ```
+    ///
+    /// Absent (the common case) means the implicit positional application
+    /// `Constructor(Param(0), …, Param(n-1))`, so every entry authored before
+    /// this field existed keeps its exact meaning.
+    ///
+    /// A body makes `constructor` the entry's **name** rather than a promise
+    /// that a bare core variant of that spelling exists: the entry denotes
+    /// whatever its body denotes, and the name is what diagnostics, the
+    /// census, and the `(name, frame_index, origin)` identity read. That is
+    /// what lets one English wording stand for a value the core repr does not
+    /// spell in the same shape — a subject the repr defaults away, or a
+    /// recipient the repr hoists into a `targets:` announce list and reads
+    /// back positionally.
+    ///
+    /// Stored as the body's own RON source text, exactly as
+    /// [`MacroDef::body`](crate::set::MacroDef) is (see
+    /// [`crate::set::body_text`]); this module attaches no meaning to it, the
+    /// same way it carries hole sigils and guard spellings through untouched.
+    /// [`substitute_body`] is what fills the holes.
+    #[serde(default, deserialize_with = "raw_body")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "raw_body_out"
+    )]
+    pub body: Option<String>,
+    /// Whether an invocation of this entry **is a target announcement** — a
+    /// `TargetSpec` or the `AnyTarget` pro-form, the things a `targets:` list
+    /// holds [CR#601.2c].
+    ///
+    /// Read by the filler discipline [`FrameSpec::announced`] describes: this
+    /// flag is what makes a constituent count as an announcement, so the
+    /// class is catalog data rather than a hardcoded English node shape.
+    /// `false` for everything else, which is why it defaults.
+    ///
+    /// Constructor entries only. A macro definition has no field for it and
+    /// this round adds none (`MacroDef` gains frame metadata only when a
+    /// frame demonstrably needs it), so a macro's frames are never
+    /// announcements; the two pro-forms that are — `Target` and `AnyTarget` —
+    /// are both catalog entries.
+    #[serde(default)]
+    pub announcement: bool,
+}
+
+/// Captures a `body:` term as source text, through the very deserializer
+/// [`MacroDef`](crate::set::MacroDef)'s own body uses: `RawValue` takes the
+/// term verbatim and [`crate::set::body_text`] trims it.
+///
+/// The field is optional by **absence**, not by an `Option` wrapper in the
+/// data: a body is written bare (`body: By(…)`), exactly as a macro's is, so
+/// `#[serde(default)]` supplies `None` when the field is missing and this
+/// function only ever runs on a term that is actually there. Deserializing an
+/// `Option<Box<RawValue>>` instead would demand the author write
+/// `body: Some(By(…))`, which is not the schema `MacroDef` established.
+fn raw_body<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
+    let raw = Box::<RawValue>::deserialize(deserializer)?;
+    Ok(Some(crate::set::body_text(&raw).into_string()))
+}
+
+/// The mirror of [`raw_body`]: a body serializes back as the **term** it was
+/// authored as, not as a string literal of that term's text, so a round trip
+/// through serde reproduces a readable catalog file. An absent body is
+/// skipped entirely (`skip_serializing_if`), which is why this only ever sees
+/// `Some`. A body that is not readable as RON cannot have come from
+/// [`raw_body`] and is refused rather than emitted as something that would
+/// not read back.
+#[expect(
+    clippy::ref_option,
+    reason = "serde's `serialize_with` hands the field by reference; `Option<&String>` would not typecheck against the derive"
+)]
+fn raw_body_out<S: Serializer>(body: &Option<String>, serializer: S) -> Result<S::Ok, S::Error> {
+    let text = body
+        .as_deref()
+        .ok_or_else(|| serde::ser::Error::custom("an absent body is skipped, never serialized"))?;
+    RawValue::from_ron(text)
+        .map_err(serde::ser::Error::custom)?
+        .serialize(serializer)
+}
+
+/// Fills `body`'s `Param(i)` holes from `args`, positionally, and returns the
+/// resulting RON source.
+///
+/// **The recovery emission for a `body:` entry.** A match against such an
+/// entry recovers one argument per declared param; the value the match stands
+/// for is this substitution, not the flat `Name(arg, …)` spelling — the name
+/// may not be a core variant at all (see [`ConstructorFrames::body`]).
+///
+/// The substitution is `macro_ron`'s own, not a second one: holes are located
+/// by decomposing the term and spliced by byte offset, so a string literal
+/// that happens to mention `Param` is never mistaken for a hole. `owner` is
+/// the entry name, for error messages; `macros` supplies the RON dialect the
+/// term is read in.
+///
+/// # Errors
+/// If `body` is not readable as RON, or holes a param `args` has no entry for.
+pub fn substitute_body(
+    owner: &str,
+    body: &str,
+    args: &[&str],
+    macros: &MacroSet,
+) -> Result<String, String> {
+    crate::expand::fill_positional_params(owner.into(), body, args, macros)
+}
+
+/// Every positional `Param(i)` index `body` holes, in the order found —
+/// what an entry's body actually uses, for checking it against the entry's
+/// declared `params`.
+///
+/// # Errors
+/// If `body` is not readable as RON, or holes a named param (`Param(cost)`):
+/// a frame body is addressed positionally, like the frames' own
+/// `<Param(i)>` sigils.
+pub fn body_param_indices(body: &str, macros: &MacroSet) -> Result<Vec<usize>, String> {
+    crate::expand::positional_param_indices(body, macros)
 }
 
 /// Why [`load_constructor_frames`] failed: an I/O error reading a directory
@@ -388,6 +562,7 @@ mod tests {
             text: "draw <Param(1)> cards".into(),
             when: vec![(0, "You".to_string())],
             position: Some(FramePosition::Trigger),
+            announced: Vec::new(),
         };
         let text = opts().to_string(&spec).unwrap();
         let back: FrameSpec = opts().from_str(&text).unwrap();
@@ -431,6 +606,179 @@ mod tests {
             message.to_lowercase().contains("kind"),
             "expected a field-naming error mentioning `kind`, got: {message}"
         );
+    }
+
+    /// The `deckmaste_core` kinds and param types a body term is read in the
+    /// dialect of. No macros are registered, so nothing here depends on the
+    /// plugin corpus — [`substitute_body`] needs a [`MacroSet`] only for its
+    /// RON options.
+    fn reader() -> MacroSet {
+        MacroSet::new(crate::KindSet::default())
+    }
+
+    /// A `body:` is authored as a bare term, captured verbatim, and its
+    /// `Param(i)` leaves fill positionally through the same splice-by-offset
+    /// walk a `MacroDef` body's holes go through.
+    #[test]
+    fn constructor_entry_body_deserializes_and_parses_as_term() {
+        let source = r#"[
+            (constructor: "GainLife", params: ["Reference", "Count"], kind: Sentence,
+             body: By(Param(0), GainLife(Param(1))),
+             frames: ["<Param(0)> gains <Param(1)> life"]),
+        ]"#;
+        let catalog: Vec<ConstructorFrames> = opts().from_str(source).unwrap();
+        let entry = &catalog[0];
+
+        // Captured as the term's own source text — not quoted, not reshaped.
+        assert_eq!(
+            entry.body.as_deref(),
+            Some("By(Param(0), GainLife(Param(1)))")
+        );
+        // And it is a term, so the body parser can say which params it holes.
+        assert_eq!(
+            body_param_indices(entry.body.as_deref().unwrap(), &reader()).unwrap(),
+            vec![0, 1]
+        );
+        // Filling those holes is the entry's emission. A hole is replaced at
+        // the extent `ron` located it at, so the emitted text's inner spacing
+        // follows the body's rather than being normalized — it is re-read as
+        // RON downstream, never compared as text.
+        assert_eq!(
+            substitute_body(
+                &entry.constructor,
+                entry.body.as_deref().unwrap(),
+                &["You", "3"],
+                &reader()
+            )
+            .unwrap(),
+            "By(You, GainLife(3))"
+        );
+        // An entry with no body reads as `None`, so every pre-existing
+        // catalog entry keeps meaning the positional application.
+        assert_eq!(
+            catalog_of(r#"(constructor: "This", params: [], kind: Nominal, frames: ["~"])"#).body,
+            None
+        );
+    }
+
+    /// Holes are located by decomposing the term, so a string literal
+    /// mentioning `Param` is data, not a hole — the property that makes
+    /// reusing `macro_ron`'s walk (rather than a textual replace) load-bearing
+    /// rather than tidy.
+    #[test]
+    fn body_substitution_does_not_reach_inside_a_string_literal() {
+        let filled = substitute_body(
+            "Named",
+            r#"LandType("Param(0)", Param(0))"#,
+            &["Forest"],
+            &reader(),
+        )
+        .unwrap();
+        assert_eq!(filled, r#"LandType("Param(0)",Forest)"#);
+    }
+
+    /// A body holing a param the entry cannot supply is an error, not a
+    /// silently surviving `Param(…)` leaf in the emitted value.
+    #[test]
+    fn body_substitution_refuses_a_hole_with_no_argument() {
+        let error = substitute_body("Named", "By(Param(0), Param(7))", &["You"], &reader())
+            .expect_err("Param(7) has no argument");
+        assert!(error.contains("Param(7)"), "{error}");
+    }
+
+    /// A `body:` authored as a *string* is the near-miss this schema has to
+    /// refuse loudly: `RawValue` would capture the quotes, and the resulting
+    /// "body" holes nothing at all.
+    #[test]
+    fn a_quoted_body_holes_no_params() {
+        let entry = catalog_of(
+            r#"(constructor: "X", params: ["Count"], kind: Sentence, frames: ["<Param(0)> life"], body: "GainLife(Param(0))")"#,
+        );
+        assert_eq!(
+            body_param_indices(entry.body.as_deref().unwrap(), &reader()).unwrap(),
+            Vec::<usize>::new(),
+            "a quoted body is a string literal, so it holes nothing — the \
+             arity check in `Lexicon::assemble` is what turns that into a \
+             loud failure"
+        );
+    }
+
+    /// A body round-trips through serialize as the term it was authored as,
+    /// so a catalog file rewritten from this schema still reads back.
+    #[test]
+    fn body_round_trips_as_a_term_not_a_string() {
+        let entry = catalog_of(
+            r#"(constructor: "GainLife", params: ["Reference", "Count"], kind: Sentence,
+                body: By(Param(0), GainLife(Param(1))),
+                frames: ["<Param(0)> gains <Param(1)> life"])"#,
+        );
+        let text = opts().to_string(&entry).unwrap();
+        assert!(
+            text.contains("body:By(Param(0), GainLife(Param(1)))"),
+            "the body must serialize as a term, not a string or an `Option`: {text}"
+        );
+        assert_eq!(opts().from_str::<ConstructorFrames>(&text).unwrap(), entry);
+
+        // And an absent body leaves no field behind to read back as `Some`.
+        let bodiless =
+            catalog_of(r#"(constructor: "This", params: [], kind: Nominal, frames: ["~"])"#);
+        let text = opts().to_string(&bodiless).unwrap();
+        assert!(!text.contains("body"), "{text}");
+        assert_eq!(
+            opts().from_str::<ConstructorFrames>(&text).unwrap(),
+            bodiless
+        );
+    }
+
+    /// The announce-class fields: a frame lists the params whose holes take
+    /// only an announcement, and an entry says whether it *is* one. Both
+    /// default, so every catalog entry authored before them reads unchanged.
+    #[test]
+    fn announce_class_fields_deserialize_and_default() {
+        let announced = catalog_of(
+            r#"(constructor: "TargetedDealDamage", params: ["Reference", "Count", "Reference"],
+                kind: Sentence,
+                body: Targeted(targets: [Param(2)], effect: Act(DealDamage(Param(0), Param(1), Target(0)))),
+                frames: [(text: "<Param(0)> deals <Param(1)> damage to <Param(2)>", announced: [2])])"#,
+        );
+        assert_eq!(announced.frames[0].announced, vec![2]);
+        assert!(!announced.announcement);
+        assert!(
+            announced.frames[0].is_unguarded(),
+            "an announced hole still surfaces in the text, so the frame is \
+             still a complete rendering"
+        );
+
+        let pro_form = catalog_of(
+            r#"(constructor: "AnyTarget", params: [], kind: Nominal, announcement: true,
+                frames: ["any target"])"#,
+        );
+        assert!(pro_form.announcement);
+        assert_eq!(pro_form.frames[0].announced, Vec::<usize>::new());
+
+        let plain =
+            catalog_of(r#"(constructor: "This", params: [], kind: Nominal, frames: ["~"])"#);
+        assert!(!plain.announcement);
+        assert_eq!(plain.frames[0].announced, Vec::<usize>::new());
+    }
+
+    /// An announced hole is part of the frame's identity, so the bare-string
+    /// serialization sugar must not swallow it.
+    #[test]
+    fn an_announced_frame_does_not_serialize_as_a_bare_string() {
+        let spec = FrameSpec {
+            announced: vec![2],
+            ..FrameSpec::bare("<Param(0)> deals <Param(1)> damage to <Param(2)>")
+        };
+        let text = opts().to_string(&spec).unwrap();
+        assert!(text.starts_with('('), "must take the full form: {text}");
+        assert_eq!(opts().from_str::<FrameSpec>(&text).unwrap(), spec);
+    }
+
+    fn catalog_of(entry: &str) -> ConstructorFrames {
+        opts()
+            .from_str::<ConstructorFrames>(entry)
+            .unwrap_or_else(|error| panic!("reading {entry}: {error}"))
     }
 
     #[test]

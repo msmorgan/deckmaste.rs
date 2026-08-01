@@ -501,6 +501,7 @@ dependencies = [
  "deckmaste_core",
  "deckmaste_english",
  "macro_ron",
+ "ron",
  "serde",
 ]
 

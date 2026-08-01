@@ -158,7 +158,20 @@ pub struct MacroDef {
 
 fn raw_body<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Box<str>, D::Error> {
     let raw = Box::<RawValue>::deserialize(deserializer)?;
-    Ok(raw.get_ron().trim().into())
+    Ok(body_text(&raw))
+}
+
+/// The stored text of a body captured as a raw RON value: the value's own
+/// source, trimmed.
+///
+/// Shared with [`crate::frames::ConstructorFrames`]'s optional body, which is
+/// the same thing in a different schema — a term with `Param(...)` leaves,
+/// authored bare (`body: By(Param(0), GainLife(Param(1)))`), never quoted.
+/// Both go through this one function so the two schemas cannot disagree on
+/// what "the body's text" is; a second `get_ron().trim()` elsewhere would be
+/// a copy of the contract rather than a use of it.
+pub(crate) fn body_text(raw: &RawValue) -> Box<str> {
+    raw.get_ron().trim().into()
 }
 
 /// Reads `kinds: [Subtype, Filter]` — bare identifiers, which in the serde

@@ -53,6 +53,7 @@ use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use macro_ron::Expand;
+use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 use serde::Serialize;
 
@@ -76,11 +77,24 @@ use crate::view::TreePath;
 /// exactly what the round's ground-truth recovery gate does.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Recovered {
-    /// A lexicon entry matched: `entry` is the RON head symbol (a macro name
-    /// or a raw constructor name), `args` are its arguments in param order.
+    /// A lexicon entry matched: `entry` is the entry's name (a macro name, or
+    /// a constructor-catalog entry's `constructor`), `args` are its arguments
+    /// in param order.
     Invocation {
         entry: String,
         args: Vec<Recovered>,
+        /// The entry's body term, if it has one
+        /// ([`Entry::body`](crate::Entry::body)) — carried here so a recovery
+        /// can spell itself without the lexicon it came from.
+        ///
+        /// `None` means `entry` names the value: the recovery spells as
+        /// `entry(arg, …)`. `Some(term)` means the entry's *name* is only a
+        /// name, and the value is that term with its `Param(i)` leaves filled
+        /// by `args` — which is how one English wording stands for a value
+        /// the core repr spells in a different shape (a defaulted subject; a
+        /// recipient hoisted into a `targets:` announce list). See
+        /// [`Recovered::to_ron`].
+        body: Option<String>,
         /// Every *other* frame that also matched at this node, recorded
         /// rather than silently discarded.
         ///
@@ -129,6 +143,91 @@ impl Recovered {
             Recovered::Literal(_) => false,
             Recovered::Invocation { args, .. } => args.iter().any(Recovered::has_residual),
         }
+    }
+
+    /// Spells this recovery as RON source text — **the emission**, the value
+    /// a match stands for.
+    ///
+    /// An invocation with no [`body`](Recovered::Invocation::body) spells as
+    /// `entry` (bare, if nullary) or `entry(arg, arg, …)`, recursively; one
+    /// with a body spells as that body with its `Param(i)` leaves filled by
+    /// the same recursive spellings
+    /// ([`macro_ron::frames::substitute_body`], which is `macro_ron`'s own
+    /// hole splice and not a second one). A literal is already a valid RON
+    /// leaf spelling (digits, or a guard's authored constant) and goes
+    /// through verbatim.
+    ///
+    /// A [`Recovered::Residual`] is refused outright: it carries only a
+    /// captured [`View`], which has no RON spelling at all. That refusal is
+    /// the honest answer rather than a gap — a recovery containing one is
+    /// *provably incomplete*, so it cannot be asserted equal to a fully
+    /// concrete authored value — and the error says **where**, because
+    /// otherwise every incomplete recovery reports identically and one
+    /// lexicon gap is indistinguishable from another.
+    ///
+    /// `macros` supplies the RON dialect a body is read in; pass the set the
+    /// lexicon was assembled against ([`Lexicon::macros`]).
+    ///
+    /// # Errors
+    /// If this is, or contains, a [`Recovered::Residual`], or if an entry's
+    /// body cannot be filled from the recovered arguments.
+    pub fn to_ron(&self, macros: &MacroSet) -> anyhow::Result<String> {
+        self.to_ron_at(macros, &mut Vec::new())
+    }
+
+    /// [`to_ron`](Self::to_ron), tracking the argument path it is currently
+    /// under so a refusal can say *where*.
+    ///
+    /// `path` is a stack of `entry arg i` steps, joined with ` -> ` for a
+    /// nested filler. It is only ever read on the error path, so the pushes
+    /// cost nothing that matters.
+    fn to_ron_at(&self, macros: &MacroSet, path: &mut Vec<String>) -> anyhow::Result<String> {
+        match self {
+            Recovered::Literal(text) => Ok(text.clone()),
+            Recovered::Invocation {
+                entry, args, body, ..
+            } => {
+                let mut parts = Vec::with_capacity(args.len());
+                for (index, argument) in args.iter().enumerate() {
+                    path.push(format!("{entry} arg {index}"));
+                    parts.push(argument.to_ron_at(macros, path)?);
+                    path.pop();
+                }
+                match body {
+                    Some(body) => {
+                        let filled: Vec<&str> = parts.iter().map(String::as_str).collect();
+                        macro_ron::frames::substitute_body(entry, body, &filled, macros)
+                            .map_err(|error| anyhow::anyhow!("emitting `{entry}`: {error}"))
+                    }
+                    None if parts.is_empty() => Ok(entry.clone()),
+                    None => Ok(format!("{entry}({})", parts.join(", "))),
+                }
+            }
+            Recovered::Residual(view) => anyhow::bail!(
+                "a residual filler at {} has no RON spelling; the unrecovered View was {}",
+                if path.is_empty() { "the top level".to_string() } else { path.join(" -> ") },
+                truncated_debug(view),
+            ),
+        }
+    }
+}
+
+/// How much of a captured [`View`] an incompleteness report shows: enough to
+/// recognize *which* constituent went unrecovered (its node type and head
+/// word are near the front of the `Debug`), not the whole subtree — one
+/// unrecovered nominal debug-prints to several hundred lines, and a page of
+/// them would bury the report under it.
+const RESIDUAL_DEBUG_BUDGET: usize = 240;
+
+/// A one-line, length-capped `Debug` of `view`. Truncation is by
+/// `char_indices`, never a byte slice, so a multi-byte character straddling
+/// the budget cannot panic.
+fn truncated_debug(view: &View) -> String {
+    let full = format!("{view:?}");
+    let flattened = full.split_whitespace().collect::<Vec<_>>().join(" ");
+    match flattened.char_indices().nth(RESIDUAL_DEBUG_BUDGET) {
+        Some((at, _)) => format!("{}… ({} chars total)", &flattened[..at], flattened.len()),
+        None => flattened,
     }
 }
 
@@ -345,6 +444,11 @@ fn unify_at(target: &View, lexicon: &Lexicon, position: FramePosition, depth: us
     if depth >= MAX_DEPTH {
         return Recovered::Residual(target.clone());
     }
+    // Recomputed per node rather than threaded down: it is a filter over the
+    // whole lexicon, which is two orders of magnitude smaller than the
+    // per-entry × per-alignment work below it, and threading it would put a
+    // second copy of the lexicon's own state in every signature.
+    let announcements: Vec<&Entry> = lexicon.announcements().collect();
     let mut matches: Vec<Matched> = Vec::new();
     for (index, entry) in lexicon.entries().iter().enumerate() {
         if entry
@@ -355,7 +459,7 @@ fn unify_at(target: &View, lexicon: &Lexicon, position: FramePosition, depth: us
         {
             continue;
         }
-        if let Some(matched) = try_entry(index, entry, target) {
+        if let Some(matched) = try_entry(index, entry, target, Some(&announcements)) {
             matches.push(matched);
         }
     }
@@ -400,6 +504,7 @@ fn unify_at(target: &View, lexicon: &Lexicon, position: FramePosition, depth: us
     Recovered::Invocation {
         entry: entry.name.clone(),
         args,
+        body: entry.body.clone(),
         ambiguities,
     }
 }
@@ -501,7 +606,20 @@ fn describe_tie(lexicon: &Lexicon, matches: &[Matched], best: usize, rivals: &[u
 ///   tree at all and would make a contentless frame match everywhere, so it is
 ///   refused here — and refused again by the `claimed == 0` check below, which
 ///   is the same guarantee stated a second way.
-fn try_entry(index: usize, entry: &Entry, target: &View) -> Option<Matched> {
+///
+/// # `announcements`
+///
+/// `Some(entries)` applies the filler-class discipline
+/// ([`announce_discipline_holds`]) to what the holes caught: the ordinary
+/// call. `None` is **probe mode** — a structural "is this constituent that
+/// entry's wording", used by the discipline itself to classify a filler. Its
+/// `index` is discarded by the caller, so any value does.
+fn try_entry(
+    index: usize,
+    entry: &Entry,
+    target: &View,
+    announcements: Option<&[&Entry]>,
+) -> Option<Matched> {
     let mut best: Option<(usize, Matched)> = None;
     for (pattern_depth, pattern) in unwrappings(&entry.frame.tree).into_iter().enumerate() {
         if matches!(pattern, View::Hole { class, .. } if *class != HoleClass::SelfRef) {
@@ -518,6 +636,11 @@ fn try_entry(index: usize, entry: &Entry, target: &View) -> Option<Matched> {
                 claimed: 0,
             };
             if !match_node(pattern, &normalized, &mut attempt) || attempt.claimed == 0 {
+                continue;
+            }
+            if let Some(announcements) = announcements
+                && !announce_discipline_holds(entry, &attempt.bindings, announcements)
+            {
                 continue;
             }
             // Best alignment: the one that accounts for the most of the
@@ -542,6 +665,74 @@ fn try_entry(index: usize, entry: &Entry, target: &View) -> Option<Matched> {
         }
     }
     best.map(|(_, matched)| matched)
+}
+
+/// Whether every hole in `entry`'s frame caught a filler of the class it
+/// accepts — **the disambiguation rule**, and the reason two entries may
+/// carry the same English frame text over different values.
+///
+/// The rule is one equality, read in both directions:
+///
+/// - a hole the frame marked announced
+///   ([`CompiledFrame::announces`](crate::CompiledFrame::announces)) accepts
+///   **only** an announcement filler;
+/// - an unmarked hole **rejects** an announcement filler.
+///
+/// So the announced wording ("… deals N damage to any target", whose value
+/// hoists the recipient into a `targets:` list and reads it back as
+/// `Target(0)`) and the inline wording ("… deals N damage to it", whose value
+/// names the recipient in place) cover disjoint English rather than competing
+/// for the same sentences. Magic's own targeting rules are what make the two
+/// domains disjoint rather than merely declared so: a targeted recipient is
+/// always announced [CR#601.2c], so no sentence is both.
+///
+/// The rule is decided **authored-blind** — matching never sees the card's
+/// RON, only its English — which is what lets it run during ingestion of text
+/// that has no authored side at all.
+///
+/// # What counts as an announcement is catalog data
+///
+/// A filler is an announcement iff it matches an entry that declares itself
+/// one ([`Entry::announcement`](crate::Entry::announcement)) — the two
+/// pro-form wordings a `targets:` list holds. Deliberately not a node shape
+/// hardcoded here: which determiner spells an announcement is a fact about
+/// Magic's editorial English, which the catalog is the place to state, and a
+/// lexicon that declares no announcements consequently has no discipline to
+/// enforce and matches exactly as it did before the mark existed.
+///
+/// The probe runs with the discipline **off** (`announcements: None`), for
+/// two reasons: it asks only "is this constituent that pro-form", which is a
+/// question about the filler's own surface rather than about what fills the
+/// pro-form's holes, and switching it off is what bounds the mutual recursion
+/// between the two checks at one level.
+///
+/// A scalar binding (a numeral, a P/T half) is not a constituent and cannot
+/// be an announcement, so it satisfies an unmarked hole and fails a marked
+/// one, which is what a `Count` hole marked announced would deserve.
+fn announce_discipline_holds(
+    entry: &Entry,
+    bindings: &HashMap<usize, Binding>,
+    announcements: &[&Entry],
+) -> bool {
+    entry.frame.holes.iter().all(|hole| {
+        let announced = entry.frame.announces(hole);
+        match bindings.get(&hole.index) {
+            Some(Binding::Node(node)) => announced == is_announcement(node, announcements),
+            // A scalar is never an announcement. An unvisited hole cannot
+            // occur in a successful match (every hole in the pattern is
+            // visited by the walk); treating it as non-announcement keeps the
+            // check total either way.
+            Some(Binding::Scalar(_)) | None => !announced,
+        }
+    })
+}
+
+/// Whether `view` is a target announcement: some entry that declares itself
+/// one matches it. See [`announce_discipline_holds`].
+fn is_announcement(view: &View, announcements: &[&Entry]) -> bool {
+    announcements
+        .iter()
+        .any(|entry| try_entry(0, entry, view, None).is_some())
 }
 
 /// A node and everything reachable from it by stripping newtype wrappers,
@@ -966,6 +1157,8 @@ mod tests {
                 frame_index: 0,
                 origin: Origin::Macro,
                 frame,
+                body: None,
+                announcement: false,
             }],
             // None of these hand-built fixture frames carry a guard, so the
             // bare core reader (no plugin macros) is enough.
@@ -982,6 +1175,46 @@ mod tests {
 
     fn literal(text: &str) -> Recovered {
         Recovered::Literal(text.to_string())
+    }
+
+    /// A lexicon over the **real** macro table and catalogs with a synthetic
+    /// constructor catalog in place of the shipped one — the fixture a
+    /// `body:` or announce-marked entry is exercised in without editing the
+    /// catalog every other test in this file reads.
+    ///
+    /// Assembled, not hand-built: `Lexicon::assemble` is what enforces the
+    /// authored-identity invariant, and the entries below deliberately differ
+    /// in *name*, so nothing here leans on
+    /// [`same_authored_frame`]'s tie carve-out — the announce discipline is
+    /// what has to separate two entries carrying one wording.
+    fn lexicon_over(constructors: &[macro_ron::frames::ConstructorFrames]) -> Lexicon {
+        let fixture = fixture();
+        Lexicon::assemble(&fixture.macros, constructors, &fixture.catalogs)
+            .unwrap_or_else(|error| panic!("assembling the fixture catalog: {error:#}"))
+    }
+
+    /// One synthetic catalog entry, spelled the way a catalog file spells it.
+    fn catalog_entry(source: &str) -> macro_ron::frames::ConstructorFrames {
+        ron::Options::default()
+            .from_str(source)
+            .unwrap_or_else(|error| panic!("reading catalog entry {source}: {error}"))
+    }
+
+    /// The canonical `View` of a RON spelling read at `ron_type` — through
+    /// [`guard::normalize_source`], the one normalizer, which is also what
+    /// the ground-truth gate compares with.
+    fn value_of(ron_type: &str, source: &str) -> View {
+        guard::normalize_source(&fixture().macros, ron_type, source)
+            .unwrap_or_else(|error| panic!("normalizing {source} as {ron_type}: {error:#}"))
+    }
+
+    /// What a recovery denotes: its emission, normalized. Panics rather than
+    /// degrading, because an incomplete recovery is a broken fixture here.
+    fn recovered_value(recovered: &Recovered, ron_type: &str) -> View {
+        let emitted = recovered
+            .to_ron(&fixture().macros)
+            .unwrap_or_else(|error| panic!("emitting {recovered:#?}: {error:#}"));
+        value_of(ron_type, &emitted)
     }
 
     // -- the brief's four ---------------------------------------------------
@@ -1051,6 +1284,7 @@ mod tests {
                 entry: "This".to_string(),
                 args: Vec::new(),
                 ambiguities: Vec::new(),
+                body: None,
             },
             "two registrations of one authored frame are one reading, not a tie"
         );
@@ -1593,6 +1827,353 @@ mod tests {
                 "SacrificeThis[0]@Cost",
             ],
             "the pilot's framed macro set, or a kind resolution, changed"
+        );
+    }
+
+    // -- entry bodies -------------------------------------------------------
+
+    /// The embed-sugar family. `Action::By` carries a `#[macro_ron(embed)]`
+    /// default subject, so the authored surface of "You gain 3 life." is the
+    /// one-argument `GainLife(3)` — the two-argument `GainLife(You, 3)` does
+    /// not parse at all. The English has two constituents either way, so the
+    /// entry declares two params and a `body:` says how they assemble.
+    ///
+    /// Asserted on the **value**, not the spelling: the recovery emits
+    /// `By(You, GainLife(3))` and the card says `GainLife(3)`, which are the
+    /// same `OneShotEffect` and different strings.
+    #[test]
+    fn body_entry_matches_embed_sugar_authoring() {
+        let lexicon = lexicon_over(&[
+            catalog_entry(
+                r#"(constructor: "GainLife", params: ["Reference", "Count"], kind: Sentence,
+                    body: By(Param(0), GainLife(Param(1))),
+                    frames: ["<Param(0)> gains <Param(1)> life"])"#,
+            ),
+            catalog_entry(r#"(constructor: "You", params: [], kind: Nominal, frames: ["you"])"#),
+        ]);
+
+        let recovered = unify(
+            &parse("You gain 3 life.", FragmentKind::Sentence, ""),
+            &lexicon,
+            FramePosition::Main,
+        );
+        let (entry, args) = invocation(&recovered);
+        assert_eq!(entry, "GainLife");
+        assert_eq!(invocation(&args[0]).0, "You", "{recovered:#?}");
+        assert_eq!(args[1], literal("3"));
+        assert!(!recovered.has_residual(), "{recovered:#?}");
+
+        assert_eq!(
+            recovered.to_ron(&fixture().macros).unwrap(),
+            "By(You, GainLife(3))",
+            "the emission is the body with its params filled, not `GainLife(You, 3)`"
+        );
+        assert_eq!(
+            recovered_value(&recovered, "OneShotEffect"),
+            value_of("OneShotEffect", "GainLife(3)"),
+            "the emission and the authored sugar are one value"
+        );
+    }
+
+    /// The announce-list family. English states a targeted recipient inline
+    /// ("… to any target"); RON hoists it into the `targets:` announce list
+    /// and reads it back positionally as `Target(0)` [CR#601.2c]. The body is
+    /// what expresses that, and its non-`Param` leaves — the literal
+    /// `Target(0)`, the `Targeted`/`Act` spine — are fixed material the
+    /// comparison holds the recovery to exactly.
+    #[test]
+    fn body_entry_matches_announce_list_authoring() {
+        let lexicon = lexicon_over(&announced_damage_catalog());
+
+        let recovered = unify(
+            &parse(
+                "Lightning Bolt deals 3 damage to any target.",
+                FragmentKind::Sentence,
+                "Lightning Bolt",
+            ),
+            &lexicon,
+            FramePosition::Main,
+        );
+        let (entry, args) = invocation(&recovered);
+        assert_eq!(entry, "TargetedDealDamage", "{recovered:#?}");
+        assert_eq!(invocation(&args[0]).0, "This", "the subject is the card");
+        assert_eq!(args[1], literal("3"));
+        assert_eq!(
+            invocation(&args[2]).0,
+            "AnyTarget",
+            "param 2 binds the announcement pro-form"
+        );
+
+        assert_eq!(
+            recovered_value(&recovered, "OneShotEffect"),
+            value_of(
+                "OneShotEffect",
+                "Targeted(targets: [AnyTarget], effect: DealDamage(This, Literal(3), Target(0)))",
+            ),
+            "recovered {:?}",
+            recovered.to_ron(&fixture().macros),
+        );
+
+        // The literal `Target(0)` really is fixed material: an authoring that
+        // reads the announce list back at a different index is a different
+        // value, and the comparison says so.
+        assert_ne!(
+            recovered_value(&recovered, "OneShotEffect"),
+            value_of(
+                "OneShotEffect",
+                "Targeted(targets: [AnyTarget, AnyTarget], effect: DealDamage(This, Literal(3), Target(1)))",
+            )
+        );
+    }
+
+    /// **The disambiguation rule**, both directions, over two entries that
+    /// carry the *same* English frame text and stand for different values.
+    ///
+    /// The two wordings are disjoint because Magic's targeting rules make
+    /// them so — a targeted recipient is always announced [CR#601.2c] — and
+    /// the mechanism that enforces it is filler class: the announce-list
+    /// entry marks its recipient hole `announced: [2]` and takes only an
+    /// announcement, while the flat entry leaves it unmarked and takes only a
+    /// non-announcement. Neither entry's name matches the other's, so
+    /// `same_authored_frame`'s tie carve-out is not what separates them.
+    #[test]
+    fn announce_only_hole_rejects_plain_filler_and_plain_hole_rejects_announced() {
+        let lexicon = lexicon_over(&announced_damage_catalog());
+
+        let recover = |text: &str| {
+            invocation(&unify(
+                &parse(text, FragmentKind::Sentence, "Lightning Bolt"),
+                &lexicon,
+                FramePosition::Main,
+            ))
+            .0
+            .to_string()
+        };
+
+        assert_eq!(
+            recover("Lightning Bolt deals 1 damage to it."),
+            "DealDamage",
+            "an unannounced recipient reaches only the flat entry"
+        );
+        assert_eq!(
+            recover("Lightning Bolt deals 3 damage to any target."),
+            "TargetedDealDamage",
+            "an announced recipient reaches only the announce-list entry"
+        );
+
+        // Neither result is a tie quietly resolved: with both entries in
+        // scope, each sentence has exactly one match, so nothing was recorded
+        // as an ambiguity either.
+        for text in [
+            "Lightning Bolt deals 1 damage to it.",
+            "Lightning Bolt deals 3 damage to any target.",
+        ] {
+            let recovered = unify(
+                &parse(text, FragmentKind::Sentence, "Lightning Bolt"),
+                &lexicon,
+                FramePosition::Main,
+            );
+            assert!(
+                recovered.ambiguities().is_empty(),
+                "{text}: the two entries must not compete: {recovered:#?}"
+            );
+        }
+
+        // And the discipline is what does it, not the wording: drop the
+        // announcement declaration and the announce-only hole has nothing it
+        // accepts, so the announced sentence falls to the flat entry — the
+        // recovery the whole family exists to stop.
+        let undeclared: Vec<_> = announced_damage_catalog()
+            .into_iter()
+            .map(|mut entry| {
+                entry.announcement = false;
+                entry
+            })
+            .collect();
+        assert_eq!(
+            invocation(&unify(
+                &parse(
+                    "Lightning Bolt deals 3 damage to any target.",
+                    FragmentKind::Sentence,
+                    "Lightning Bolt",
+                ),
+                &lexicon_over(&undeclared),
+                FramePosition::Main,
+            ))
+            .0,
+            "DealDamage",
+        );
+    }
+
+    /// The two same-wording damage entries plus the pro-forms they need:
+    /// `This` for the subject, `AnyTarget` as the declared announcement.
+    fn announced_damage_catalog() -> Vec<macro_ron::frames::ConstructorFrames> {
+        vec![
+            catalog_entry(
+                r#"(constructor: "DealDamage", params: ["Reference", "Count", "Reference"],
+                    kind: Sentence,
+                    frames: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"])"#,
+            ),
+            catalog_entry(
+                r#"(constructor: "TargetedDealDamage", params: ["Reference", "Count", "Reference"],
+                    kind: Sentence,
+                    body: Targeted(targets: [Param(2)], effect: DealDamage(Param(0), Param(1), Target(0))),
+                    frames: [(text: "<Param(0)> deals <Param(1)> damage to <Param(2)>", announced: [2])])"#,
+            ),
+            catalog_entry(r#"(constructor: "This", params: [], kind: Nominal, frames: ["~"])"#),
+            catalog_entry(
+                r#"(constructor: "AnyTarget", params: [], kind: Nominal, announcement: true,
+                    frames: ["any target"])"#,
+            ),
+        ]
+    }
+
+    /// A lexicon that declares no announcements has no discipline to enforce:
+    /// the mark is catalog data, so the shipped catalog matches exactly as it
+    /// did before the mechanism existed.
+    #[test]
+    fn the_shipped_catalog_declares_no_announcements_yet() {
+        assert_eq!(fixture().lexicon.announcements().count(), 0);
+    }
+
+    /// A `body:` must hole every param its entry declares, or a recovered
+    /// argument is silently dropped. The near-miss the check is really for is
+    /// a body authored as a *string*, which holes nothing at all.
+    #[test]
+    fn assemble_rejects_a_body_that_drops_a_declared_param() {
+        for (body, why) in [
+            (r"body: GainLife(Param(1))", "param 0 unholed"),
+            (r#"body: "By(Param(0), GainLife(Param(1)))""#, "quoted"),
+        ] {
+            let entry = catalog_entry(&format!(
+                r#"(constructor: "GainLife", params: ["Reference", "Count"], kind: Sentence,
+                    {body}, frames: ["<Param(0)> gains <Param(1)> life"])"#
+            ));
+            let error = Lexicon::assemble(&fixture().macros, &[entry], &fixture().catalogs)
+                .expect_err("a body that drops a declared param must be rejected");
+            let message = format!("{error:#}");
+            assert!(
+                message.contains("never holes it"),
+                "{why}: expected a dropped-param refusal, got {message}"
+            );
+        }
+    }
+
+    // -- the emission -------------------------------------------------------
+
+    fn built(entry: &str, args: Vec<Recovered>) -> Recovered {
+        Recovered::Invocation {
+            entry: entry.to_string(),
+            args,
+            body: None,
+            ambiguities: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_fully_recovered_tree_spells_as_ron() {
+        assert_eq!(
+            built(
+                "DealDamage",
+                vec![
+                    built("This", Vec::new()),
+                    literal("3"),
+                    built("Creature", Vec::new()),
+                ],
+            )
+            .to_ron(guard::core_reader())
+            .unwrap(),
+            "DealDamage(This, 3, Creature)"
+        );
+    }
+
+    /// Two residuals at *different* argument positions must produce different
+    /// text. Without the path they printed byte-identically, and the round's
+    /// two known lexicon gaps — plus any third, unrelated one — were a single
+    /// opaque bucket.
+    #[test]
+    fn a_residual_names_its_argument_position_and_shows_what_it_held() {
+        let deal_damage = built(
+            "DealDamage",
+            vec![
+                built("This", Vec::new()),
+                literal("3"),
+                Recovered::Residual(View::Unit {
+                    name: "Determiner",
+                    variant: Some("Any"),
+                }),
+            ],
+        )
+        .to_ron(guard::core_reader())
+        .unwrap_err();
+        let gain_life = built(
+            "GainLife",
+            vec![
+                Recovered::Residual(View::Unit {
+                    name: "Pronoun",
+                    variant: Some("You"),
+                }),
+                literal("2"),
+            ],
+        )
+        .to_ron(guard::core_reader())
+        .unwrap_err();
+
+        let deal_damage = format!("{deal_damage:#}");
+        let gain_life = format!("{gain_life:#}");
+        assert!(deal_damage.contains("DealDamage arg 2"), "{deal_damage}");
+        assert!(deal_damage.contains("Any"), "{deal_damage}");
+        assert!(gain_life.contains("GainLife arg 0"), "{gain_life}");
+        assert!(gain_life.contains("You"), "{gain_life}");
+        assert_ne!(
+            deal_damage, gain_life,
+            "two different gaps must not print identically — that is the whole finding"
+        );
+    }
+
+    #[test]
+    fn a_nested_residual_reports_the_whole_argument_path() {
+        let error = built(
+            "DealsDamageToEach",
+            vec![
+                literal("4"),
+                built("ControlledByYou", vec![Recovered::Residual(View::Absent)]),
+            ],
+        )
+        .to_ron(guard::core_reader())
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("DealsDamageToEach arg 1 -> ControlledByYou arg 0"),
+            "{error:#}"
+        );
+    }
+
+    #[test]
+    fn a_top_level_residual_says_so_rather_than_naming_an_argument() {
+        let error = Recovered::Residual(View::Absent)
+            .to_ron(guard::core_reader())
+            .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("at the top level"),
+            "{error:#}"
+        );
+    }
+
+    /// The `Debug` of one unrecovered nominal runs to hundreds of characters;
+    /// a page of them would bury a report. Truncation is by `char_indices`, so
+    /// a multi-byte character straddling the budget cannot panic the slice —
+    /// this feeds one that does straddle it.
+    #[test]
+    fn a_long_residual_debug_is_truncated_on_a_char_boundary() {
+        let view = View::Scalar {
+            kind: "str",
+            repr: "é".repeat(RESIDUAL_DEBUG_BUDGET * 2),
+        };
+        let printed = truncated_debug(&view);
+        assert!(printed.ends_with("chars total)"), "{printed}");
+        assert!(
+            printed.chars().count() < RESIDUAL_DEBUG_BUDGET + 40,
+            "{printed}"
         );
     }
 

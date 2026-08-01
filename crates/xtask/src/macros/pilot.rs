@@ -13,10 +13,13 @@
 //!   7 / 0, and is what [`COVERAGE_FLOOR`] pins.)
 //! - **G4 ground truth**: for every canon ability line whose parse `unify`s to
 //!   a non-`Residual` under the pilot lexicon, does the recovered structure —
-//!   reconstructed as RON text and expanded — equal the card's own authored
-//!   value, likewise expanded? Both directions go through
+//!   emitted as RON text and expanded — equal the card's own authored value,
+//!   likewise expanded? Both directions go through
 //!   [`deckmaste_frames::guard::normalized`]/`normalize_source`, the round's
-//!   one canonicalizer, never a second implementation.
+//!   one canonicalizer, never a second implementation. The comparison is on
+//!   **values**: an entry may stand for a value whose RON shape is not the flat
+//!   application of its name, so one value has two spellings and only the
+//!   expanded forms may be compared (see [`evaluate_g4`]).
 //!
 //! # Population and scope — read before trusting a "PASS"
 //!
@@ -66,18 +69,17 @@
 //! figures are compared against [`COVERAGE_FLOOR`] and **any decrease fails
 //! the run** — read that constant before trusting a PASS from any gate here.
 //!
-//! G4's population is exactly the brief's literal wording: top-level
-//! `Recovered::Invocation`, any origin, full stop — **not** "and every
-//! nested filler is RON-spellable too" (a fix-round correction: it used to
-//! additionally require that, silently narrowing the denominator). A line
-//! that recovers a non-`Residual` top level but leaves an unspellable
-//! residual filler is *covered* and counted `Diverged` (with
+//! G4's population is top-level `Recovered::Invocation`, any origin, full
+//! stop — **not** "and every nested filler denotes a value too" (a fix-round
+//! correction: it used to additionally require that, silently narrowing the
+//! denominator). A line that recovers a non-`Residual` top level but leaves a
+//! residual filler inside is *covered* and counted `Diverged` (with
 //! `recovered_ron: None`, see [`G4Outcome::Diverged`]) — a recovery that is
 //! provably incomplete is not asserted equal to the authored value, so it is
 //! a real divergence, not an exclusion.
 //!
-//! G3's own population is the brief's other, narrower wording — "canon usage
-//! of a pilot *macro*" — so a top-level `Origin::Constructor` match, or one
+//! G3's own population is the narrower one — "canon usage of a pilot
+//! *macro*" — so a top-level `Origin::Constructor` match, or one
 //! [`render_invocation_with`] itself cannot render (the identical residual
 //! limitation, one level up — see `deckmaste_frames::render`'s own module
 //! doc), is excluded from G3 specifically ([`ExclusionReason::NotMacroOrigin`]/
@@ -703,13 +705,18 @@ enum G4Outcome {
     Excluded(ExclusionReason),
     Equal,
     Diverged {
-        /// `None` when the recovered tree itself could not be spelled as
-        /// RON at all (a nested residual filler blocked
-        /// [`recovered_to_ron`]) — this is *still* a divergence, not an
-        /// exclusion (see [`evaluate_g4`]'s doc): the brief's population is
-        /// "unify's to a non-Residual" at the top level, full stop, and a
-        /// recovery that is provably incomplete cannot be asserted equal to
-        /// the authored value.
+        /// `None` when the recovery is **incomplete** — it holds a
+        /// `Recovered::Residual`, which stands for a constituent no lexicon
+        /// entry covered and therefore denotes no value at all. That is
+        /// *still* a divergence, not an exclusion (see [`evaluate_g4`]'s
+        /// doc): the population is "unify's to a non-Residual" at the top
+        /// level, full stop, and a recovery that is provably incomplete
+        /// cannot be asserted equal to the fully concrete authored value.
+        ///
+        /// `Some` on every other divergence, where the recovery *does* denote
+        /// a value and this is its RON text — shown for the reader, never
+        /// compared: the comparison is on expanded values (see
+        /// [`evaluate_g4`]).
         recovered_ron: Option<String>,
         reason: String,
     },
@@ -756,18 +763,33 @@ fn evaluate_line<'a>(
     LineResult { line, g3, g4 }
 }
 
-/// G4's population is exactly the brief's own wording: a top-level
-/// `Recovered::Invocation` (any origin — macro or constructor), full stop.
-/// A nested filler that cannot be spelled as RON does **not** narrow that
-/// population (a fix-round correction: it used to, silently) — it is
-/// reported as `Diverged` with `recovered_ron: None`, because recovery is
-/// then *provably incomplete*, which cannot be asserted equal to the fully
-/// concrete authored value.
+/// G4's population is a top-level `Recovered::Invocation` (any origin — macro
+/// or constructor), full stop. An incomplete recovery does **not** narrow that
+/// population (a fix-round correction: it used to, silently) — it is reported
+/// as `Diverged` with `recovered_ron: None`.
+///
+/// # The comparison is on values, not spellings
+///
+/// Both sides go through
+/// [`guard::normalize_source`]/
+/// [`normalized`](deckmaste_frames::guard::normalized) — read at the line's own
+/// RON type, fully expanded, compared as `View`s. So two spellings of one value
+/// are equal, which they must be: an entry's emission is its body term with the
+/// recovered arguments filled ([`Recovered::to_ron`]), and a body exists
+/// precisely because the value's RON shape is not the flat application of the
+/// entry's name. `GainLife(3)` on the card and `By(You, GainLife(3))` from the
+/// recovery are the same `OneShotEffect`; a string comparison would call them
+/// different, and did. The recovered RON text survives only as something to
+/// *print*.
+///
+/// The one thing a value comparison still cannot do is compare against a
+/// non-value: a recovery holding a `Recovered::Residual` denotes nothing at
+/// all, and that is the `recovered_ron: None` arm.
 fn evaluate_g4(recovered: &Recovered, line: &Line, macros: &MacroSet) -> G4Outcome {
     let Recovered::Invocation { .. } = recovered else {
         return G4Outcome::Excluded(ExclusionReason::NotAnInvocation);
     };
-    match recovered_to_ron(recovered) {
+    match recovered.to_ron(macros) {
         Ok(ron_text) => match guard::normalize_source(macros, line.ron_type, &ron_text) {
             Ok(recovered_view) if recovered_view == line.authored_view => G4Outcome::Equal,
             Ok(_) => G4Outcome::Diverged {
@@ -780,15 +802,14 @@ fn evaluate_g4(recovered: &Recovered, line: &Line, macros: &MacroSet) -> G4Outco
             },
         },
         // The error names the argument position and shows what the
-        // unrecovered `View` held — see `recovered_to_ron_at`. Without that
+        // unrecovered `View` held — see `Recovered::to_ron`. Without that
         // this arm printed identically for every divergence it produced,
         // and it currently produces *all* of them.
         Err(error) => G4Outcome::Diverged {
             recovered_ron: None,
             reason: format!(
-                "recovered as a non-residual invocation, but a nested filler could not be \
-                 spelled as RON — recovery is provably incomplete, so it cannot be asserted \
-                 equal to the authored value: {error:#}"
+                "the recovery is incomplete: a constituent no lexicon entry covers came \
+                 back as a residual, which denotes no value to compare — {error:#}"
             ),
         },
     }
@@ -833,82 +854,6 @@ fn evaluate_g3(
             }
         }
         Err(_) => G3Outcome::Excluded(ExclusionReason::RenderFailed),
-    }
-}
-
-/// Spells a fully non-residual [`Recovered`] tree as RON source text: an
-/// invocation as `entry` (bare, if nullary) or `entry(arg, arg, ...)`,
-/// recursively; a literal verbatim (already a valid RON leaf spelling —
-/// digits, or a guard's own authored constant). Refuses a
-/// [`Recovered::Residual`] outright: it carries only a captured `View` with
-/// no RON spelling to fall back on (see the module doc).
-///
-/// # Errors
-/// If `recovered` is, or contains, a `Residual`. The error **names the
-/// argument position and shows the captured `View`** — see
-/// [`recovered_to_ron_at`] for why that matters.
-fn recovered_to_ron(recovered: &Recovered) -> anyhow::Result<String> {
-    recovered_to_ron_at(recovered, &mut Vec::new())
-}
-
-/// [`recovered_to_ron`], tracking the argument path it is currently under so
-/// a refusal can say *where*.
-///
-/// This is not decoration. Every one of G4's 8 divergences today takes the
-/// residual arm, and without a path they printed byte-identically — one
-/// opaque bucket in which the round's two *known* gaps (`GainLife`'s
-/// pronoun subject, `DealDamage`'s "any target" recipient) were
-/// indistinguishable from each other and from any third, unrelated lexicon
-/// gap that happened to land here. With the path, `GainLife arg 0` and
-/// `DealDamage arg 2` split apart, and a new gap is visibly new.
-///
-/// `path` is a stack of `entry arg i` steps, joined with ` -> ` for a nested
-/// filler. It is only ever read on the error path, so the pushes cost
-/// nothing that matters; on failure the stack is simply dropped along with
-/// the borrow.
-///
-/// # Errors
-/// If `recovered` is, or contains, a `Residual`.
-fn recovered_to_ron_at(recovered: &Recovered, path: &mut Vec<String>) -> anyhow::Result<String> {
-    match recovered {
-        Recovered::Literal(text) => Ok(text.clone()),
-        Recovered::Invocation { entry, args, .. } => {
-            if args.is_empty() {
-                Ok(entry.clone())
-            } else {
-                let mut parts = Vec::with_capacity(args.len());
-                for (index, argument) in args.iter().enumerate() {
-                    path.push(format!("{entry} arg {index}"));
-                    parts.push(recovered_to_ron_at(argument, path)?);
-                    path.pop();
-                }
-                Ok(format!("{entry}({})", parts.join(", ")))
-            }
-        }
-        Recovered::Residual(view) => anyhow::bail!(
-            "a residual filler at {} has no RON spelling; the unrecovered View was {}",
-            if path.is_empty() { "the top level".to_string() } else { path.join(" -> ") },
-            truncated_debug(view),
-        ),
-    }
-}
-
-/// How much of a captured [`View`] a divergence line shows: enough to
-/// recognize *which* constituent went unrecovered (its node type and head
-/// word are near the front of the `Debug`), not the whole subtree — one
-/// unrecovered nominal debug-prints to several hundred lines, and eight of
-/// them would bury the census under it.
-const RESIDUAL_DEBUG_BUDGET: usize = 240;
-
-/// A one-line, length-capped `Debug` of `view`. Truncation is by
-/// `char_indices`, never a byte slice, so a multi-byte character straddling
-/// the budget cannot panic.
-fn truncated_debug(view: &View) -> String {
-    let full = format!("{view:?}");
-    let flattened = full.split_whitespace().collect::<Vec<_>>().join(" ");
-    match flattened.char_indices().nth(RESIDUAL_DEBUG_BUDGET) {
-        Some((at, _)) => format!("{}… ({} chars total)", &flattened[..at], flattened.len()),
-        None => flattened,
     }
 }
 
@@ -1021,7 +966,7 @@ fn report_g4(results: &[LineResult]) -> anyhow::Result<GateReport> {
             "  recovered RON: {}",
             recovered_ron
                 .as_deref()
-                .unwrap_or("(unspellable — see reason)")
+                .unwrap_or("(incomplete — see reason)")
         );
         println!("  {reason}");
     }
@@ -1228,115 +1173,107 @@ mod tests {
     }
 
     // -----------------------------------------------------------------
-    // Divergence discrimination.
+    // G4 compares values, not spellings.
     // -----------------------------------------------------------------
 
-    fn invocation(entry: &str, args: Vec<Recovered>) -> Recovered {
-        Recovered::Invocation {
-            entry: entry.to_string(),
-            args,
-            ambiguities: Vec::new(),
+    /// A line whose authored value is `authored`, read at `ron_type`.
+    /// Everything else is diagnostic-only: [`evaluate_g4`] reads exactly
+    /// `ron_type` and `authored_view`.
+    fn line_authored(ron_type: &'static str, authored: &str) -> Line {
+        let authored_view = guard::normalize_source(guard::core_reader(), ron_type, authored)
+            .unwrap_or_else(|error| panic!("normalizing {authored} as {ron_type}: {error:#}"));
+        Line {
+            label: format!("<fixture>: {authored}"),
+            name: String::new(),
+            is_legendary: false,
+            kind: FragmentKind::Sentence,
+            text: String::new(),
+            ron_type,
+            authored_view,
         }
     }
 
+    /// The gate's own comparison, on the family it was changed for: a
+    /// recovery through a `body:` entry emits `By(You, GainLife(3))`, the
+    /// card says `GainLife(3)`, and they are the same `OneShotEffect`.
+    ///
+    /// The control is the point — the two **spellings** genuinely differ, so
+    /// a comparison on text would have called this a divergence, and did.
     #[test]
-    fn a_fully_recovered_tree_still_spells_as_ron() {
+    fn g4_compares_expanded_values_not_spellings() {
+        let recovered = Recovered::Invocation {
+            entry: "GainLife".to_string(),
+            args: vec![
+                Recovered::Invocation {
+                    entry: "You".to_string(),
+                    args: Vec::new(),
+                    body: None,
+                    ambiguities: Vec::new(),
+                },
+                Recovered::Literal("3".to_string()),
+            ],
+            body: Some("By(Param(0), GainLife(Param(1)))".to_string()),
+            ambiguities: Vec::new(),
+        };
+        let emitted = recovered
+            .to_ron(guard::core_reader())
+            .expect("a fully recovered tree emits");
+        assert_eq!(emitted, "By(You, GainLife(3))");
+        assert_ne!(emitted, "GainLife(3)", "the spellings really do differ");
+
+        let line = line_authored("OneShotEffect", "GainLife(3)");
+        assert!(
+            matches!(
+                evaluate_g4(&recovered, &line, guard::core_reader()),
+                G4Outcome::Equal
+            ),
+            "expected Equal, got {:?}",
+            g4_label(&evaluate_g4(&recovered, &line, guard::core_reader())),
+        );
+
+        // And it is a comparison, not an acceptance: a recovery denoting a
+        // different value still diverges.
+        let other = line_authored("OneShotEffect", "GainLife(4)");
         assert_eq!(
-            recovered_to_ron(&invocation(
-                "DealDamage",
-                vec![
-                    invocation("This", Vec::new()),
-                    Recovered::Literal("3".to_string()),
-                    invocation("Creature", Vec::new()),
-                ],
-            ))
-            .unwrap(),
-            "DealDamage(This, 3, Creature)"
+            g4_label(&evaluate_g4(&recovered, &other, guard::core_reader())),
+            "diverged: expands to a different normal form than the authored RON",
         );
     }
 
-    /// The finding: all 8 of G4's divergences take this arm, and before the
-    /// path they printed byte-identically — the round's two known gaps and
-    /// any third, unrelated one were one opaque bucket. Two residuals at
-    /// *different* argument positions must now produce different text.
+    /// An incomplete recovery cannot be compared at all: a residual denotes
+    /// no value, so it is a divergence with nothing to print — the one arm a
+    /// value comparison does not remove.
     #[test]
-    fn a_residual_names_its_argument_position_and_shows_what_it_held() {
-        let deal_damage = recovered_to_ron(&invocation(
-            "DealDamage",
-            vec![
-                invocation("This", Vec::new()),
-                Recovered::Literal("3".to_string()),
-                Recovered::Residual(View::Unit {
-                    name: "Determiner",
-                    variant: Some("Any"),
-                }),
-            ],
-        ))
-        .unwrap_err();
-        let gain_life = recovered_to_ron(&invocation(
-            "GainLife",
-            vec![
+    fn an_incomplete_recovery_diverges_with_no_value_to_show() {
+        let recovered = Recovered::Invocation {
+            entry: "GainLife".to_string(),
+            args: vec![
                 Recovered::Residual(View::Unit {
                     name: "Pronoun",
                     variant: Some("You"),
                 }),
-                Recovered::Literal("2".to_string()),
+                Recovered::Literal("3".to_string()),
             ],
-        ))
-        .unwrap_err();
-
-        let deal_damage = format!("{deal_damage:#}");
-        let gain_life = format!("{gain_life:#}");
-        assert!(deal_damage.contains("DealDamage arg 2"), "{deal_damage}");
-        assert!(deal_damage.contains("Any"), "{deal_damage}");
-        assert!(gain_life.contains("GainLife arg 0"), "{gain_life}");
-        assert!(gain_life.contains("You"), "{gain_life}");
-        assert_ne!(
-            deal_damage, gain_life,
-            "two different gaps must not print identically — that is the whole finding"
-        );
-    }
-
-    #[test]
-    fn a_nested_residual_reports_the_whole_argument_path() {
-        let error = recovered_to_ron(&invocation(
-            "DealsDamageToEach",
-            vec![
-                Recovered::Literal("4".to_string()),
-                invocation("ControlledByYou", vec![Recovered::Residual(View::Absent)]),
-            ],
-        ))
-        .unwrap_err();
-        assert!(
-            format!("{error:#}").contains("DealsDamageToEach arg 1 -> ControlledByYou arg 0"),
-            "{error:#}"
-        );
-    }
-
-    #[test]
-    fn a_top_level_residual_says_so_rather_than_naming_an_argument() {
-        let error = recovered_to_ron(&Recovered::Residual(View::Absent)).unwrap_err();
-        assert!(
-            format!("{error:#}").contains("at the top level"),
-            "{error:#}"
-        );
-    }
-
-    /// The `Debug` of one unrecovered nominal runs to hundreds of
-    /// characters; eight of them would bury the census. Truncation is by
-    /// `char_indices`, so a multi-byte character straddling the budget
-    /// cannot panic the slice — this feeds one that does straddle it.
-    #[test]
-    fn a_long_residual_debug_is_truncated_on_a_char_boundary() {
-        let view = View::Scalar {
-            kind: "str",
-            repr: "é".repeat(RESIDUAL_DEBUG_BUDGET * 2),
+            body: Some("By(Param(0), GainLife(Param(1)))".to_string()),
+            ambiguities: Vec::new(),
         };
-        let printed = truncated_debug(&view);
-        assert!(printed.ends_with("chars total)"), "{printed}");
-        assert!(
-            printed.chars().count() < RESIDUAL_DEBUG_BUDGET + 40,
-            "{printed}"
-        );
+        let line = line_authored("OneShotEffect", "GainLife(3)");
+        let G4Outcome::Diverged {
+            recovered_ron,
+            reason,
+        } = evaluate_g4(&recovered, &line, guard::core_reader())
+        else {
+            panic!("an incomplete recovery must diverge");
+        };
+        assert_eq!(recovered_ron, None, "there is no value to show");
+        assert!(reason.contains("GainLife arg 0"), "{reason}");
+    }
+
+    fn g4_label(outcome: &G4Outcome) -> String {
+        match outcome {
+            G4Outcome::Equal => "equal".to_string(),
+            G4Outcome::Excluded(reason) => format!("excluded: {}", reason.label()),
+            G4Outcome::Diverged { reason, .. } => format!("diverged: {reason}"),
+        }
     }
 }

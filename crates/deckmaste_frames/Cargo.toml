@@ -35,7 +35,14 @@ deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 anyhow = "1.0.102"
 
 [dev-dependencies]
-# Task 6's pilot integration test (`tests/pilot.rs`) compiles every frame the
+# The pilot integration test (`tests/pilot.rs`) compiles every frame the
 # real `plugins/builtin` corpus loads, so it needs the plugin loader. No
 # cycle: `deckmaste_cards` does not depend on this crate.
 deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }
+# Tests only. A catalog entry's authored surface is RON, and a fixture
+# entry written as the RON a catalog file holds is what pins that surface
+# for whoever authors the next one; building the struct by hand instead
+# would pin the Rust shape and say nothing about the file. The crate proper
+# reads catalogs through `macro_ron::frames`, which owns the schema — this
+# is not a step toward parsing RON here.
+ron = "0.12.1"

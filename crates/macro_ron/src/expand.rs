@@ -801,6 +801,68 @@ fn substitute_params<'de>(
     Ok(std::borrow::Cow::Owned(out))
 }
 
+/// Fills `body`'s `Param(i)` holes from `args`, positionally, outside any
+/// real read.
+///
+/// This is [`substitute_params`] — the same walk a macro body goes through
+/// during expansion, `Strict` so an unfillable hole is an error rather than
+/// silently surviving — driven by a synthetic one-frame context instead of by
+/// the deserializer. The frame-schema layer needs exactly that: a lexicon
+/// entry's `body:` is a body template with no macro registered behind it, so
+/// it never reaches a `read_str`, yet its holes must be filled by *this*
+/// splice-by-offset rule and no other. A textual `Param(0)`-for-argument
+/// replacement would substitute inside string literals, which the offset walk
+/// provably does not (`ron` locates every value as a subslice).
+///
+/// `owner` names the body in error messages, the way a macro's name does.
+///
+/// # Errors
+/// If `body` is not readable as RON, or holes a param `args` has no entry for.
+pub(crate) fn fill_positional_params(
+    owner: Ident,
+    body: &str,
+    args: &[&str],
+    macros: &MacroSet,
+) -> Result<String, String> {
+    let read = ReadCtx::new(macros);
+    let frame = Frame {
+        name: owner,
+        args: FrameArgs::Positional(args.to_vec()),
+    };
+    let ctx = Ctx {
+        read: &read,
+        frame: Some(&frame),
+        depth: 0,
+    };
+    substitute_params(body, &ctx, HoleMode::Strict).map(std::borrow::Cow::into_owned)
+}
+
+/// Every positional `Param(i)` index `body` holes, in the order the walk
+/// finds them. A named hole (`Param(cost)`) is an error: a frame-schema body
+/// is addressed positionally, like the frames' own `<Param(i)>` sigils.
+///
+/// [`collect_param_keys`] is the walk; this is the positional projection of
+/// it, so the "which params does this body actually use" question is answered
+/// by the same decomposition that fills them.
+///
+/// # Errors
+/// If `body` is not readable as RON, or holes a named param.
+pub(crate) fn positional_param_indices(
+    body: &str,
+    macros: &MacroSet,
+) -> Result<Vec<usize>, String> {
+    let mut keys = Vec::new();
+    collect_param_keys(body, macros.options(), &mut keys)?;
+    keys.into_iter()
+        .map(|key| match key {
+            ParamKey::Index(index) => Ok(index),
+            ParamKey::Name(name) => Err(format!(
+                "holes `Param({name})`, but a frame body is addressed positionally"
+            )),
+        })
+        .collect()
+}
+
 /// The inner source of a top-level `Splice(X)` element, or `None` when the
 /// element isn't a splice. Reads through the enum channel: a `Splice`-led
 /// value's single newtype child is `X`.

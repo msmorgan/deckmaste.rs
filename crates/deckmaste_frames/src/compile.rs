@@ -260,6 +260,23 @@ impl CompiledFrame {
     pub fn hole_for_param(&self, param: usize) -> Option<&Hole> {
         self.holes.iter().find(|hole| hole.param == Some(param))
     }
+
+    /// Whether `hole` accepts **only** an announcement filler — the authored
+    /// [`FrameSpec::announced`](macro_ron::frames::FrameSpec::announced) mark,
+    /// resolved from the hole's param.
+    ///
+    /// Read off the spec rather than stored on the [`Hole`] because it is not
+    /// a fact the parse discovered: a hole's [`HoleClass`] is what the English
+    /// tree made it, and the announce mark is what the catalog *said* about
+    /// what may fill it. Keeping them apart is what lets one wording appear in
+    /// two entries with the same hole structure and different filler domains.
+    /// A `~` hole (`param: None`) is never announced — it stands for the card,
+    /// which no `targets:` list holds.
+    #[must_use]
+    pub fn announces(&self, hole: &Hole) -> bool {
+        hole.param
+            .is_some_and(|param| self.spec.announced.contains(&param))
+    }
 }
 
 /// Compiles one frame.
@@ -431,6 +448,23 @@ fn plan_holes(spec: &FrameSpec, params: &[String]) -> anyhow::Result<Plan> {
             params.get(*param).is_none() || by_param.get(*param).is_none_or(Option::is_none),
             "both holes and guards param {param}; a guarded param is pre-bound and \
              therefore has no surface of its own"
+        );
+    }
+    for param in &spec.announced {
+        anyhow::ensure!(
+            *param < params.len(),
+            "marks param {param} announced, but only {} param(s) are declared",
+            params.len()
+        );
+        // An announced param is a restriction on what may *fill* its hole, so
+        // it needs a hole to restrict. A guarded param has none by
+        // construction, and its value is the guard's constant rather than
+        // anything the card supplies.
+        anyhow::ensure!(
+            by_param[*param].is_some(),
+            "marks param {param} announced, but that param has no hole; the \
+             mark restricts what may fill a hole, and a guarded param is \
+             pre-bound instead of filled"
         );
     }
 
@@ -1325,6 +1359,7 @@ mod tests {
                 text: "draw <Param(1)> cards".into(),
                 when: vec![(0, "You".to_string())],
                 position: None,
+                announced: Vec::new(),
             },
             FragmentKind::Sentence,
             &draw_params(),
@@ -1359,6 +1394,7 @@ mod tests {
                 text: "<Param(0)> draws <Param(1)> cards".into(),
                 when: vec![(0, "You".to_string())],
                 position: None,
+                announced: Vec::new(),
             },
             FragmentKind::Sentence,
             &draw_params(),
@@ -1392,6 +1428,7 @@ mod tests {
             text: text.into(),
             when: vec![(0, guard.to_string())],
             position: None,
+            announced: Vec::new(),
         };
         let compile_one = |spec: FrameSpec| {
             compile(
@@ -1507,6 +1544,7 @@ mod tests {
                     text: "target <Param(1)>".into(),
                     when: vec![(0, source.to_string())],
                     position: None,
+                    announced: Vec::new(),
                 },
                 FragmentKind::Nominal,
                 &["Quantity".to_string(), "Predicate".to_string()],

@@ -66,6 +66,21 @@ pub struct Entry {
     pub frame_index: usize,
     pub origin: Origin,
     pub frame: CompiledFrame,
+    /// The value an invocation of this entry stands for, as a body term with
+    /// `Param(i)` leaves — [`ConstructorFrames::body`], carried through.
+    /// `None` is the implicit positional application `name(arg0, …)`, which
+    /// is what every macro entry uses (a macro's own definition body is the
+    /// macro set's business, reached by expanding that application) and what
+    /// a constructor entry without a `body:` means.
+    ///
+    /// This is what [`Recovered::Invocation`](crate::unify::Recovered) carries
+    /// away from a match, so a recovery can spell itself without holding the
+    /// lexicon it came from.
+    pub body: Option<String>,
+    /// Whether an invocation of this entry **is a target announcement** —
+    /// [`ConstructorFrames::announcement`], carried through. Always `false`
+    /// for a macro entry (see that field's own doc).
+    pub announcement: bool,
 }
 
 impl Entry {
@@ -196,12 +211,17 @@ impl Lexicon {
                     frame_index,
                     origin: Origin::Macro,
                     frame,
+                    body: None,
+                    announcement: false,
                 });
             }
         }
 
         for catalog_entry in constructors {
             let kind = fragment_kind_of(catalog_entry.kind);
+            if let Some(body) = catalog_entry.body.as_deref() {
+                body_covers_declared_params(catalog_entry, body, defs)?;
+            }
             for (frame_index, spec) in catalog_entry.frames.iter().enumerate() {
                 let frame = compile::compile(spec, kind, &catalog_entry.params, catalogs, defs)
                     .map_err(|error| {
@@ -216,6 +236,8 @@ impl Lexicon {
                     frame_index,
                     origin: Origin::Constructor,
                     frame,
+                    body: catalog_entry.body.clone(),
+                    announcement: catalog_entry.announcement,
                 });
             }
         }
@@ -291,6 +313,19 @@ impl Lexicon {
         self.entries
             .iter()
             .filter(move |entry| entry.frame.kind == kind)
+    }
+
+    /// The entries that **are** target announcements — the `TargetSpec` and
+    /// pro-form wordings a `targets:` list holds.
+    ///
+    /// This is the class the announce discipline in [`crate::unify`] tests a
+    /// filler against, and it is *catalog data*: which English counts as an
+    /// announcement is decided by which entries declare
+    /// [`ConstructorFrames::announcement`], not by a node shape hardcoded in
+    /// this crate. So a lexicon that declares none has no announce discipline
+    /// to enforce and matches exactly as it did before the mark existed.
+    pub fn announcements(&self) -> impl Iterator<Item = &Entry> {
+        self.entries.iter().filter(|entry| entry.announcement)
     }
 }
 
@@ -452,6 +487,56 @@ fn constructor_names_are_unique(constructors: &[ConstructorFrames]) -> anyhow::R
     Ok(())
 }
 
+/// A `body:` entry's body must hole **every** param the entry declares, and
+/// none it does not.
+///
+/// Both halves catch a real authoring mistake rather than a hypothetical one.
+/// A param the body never holes is an argument the match recovers and then
+/// silently drops — the recovery would look complete while carrying less than
+/// the English said. A `Param(i)` past the declared arity has no argument to
+/// fill it, which would fail at emission time, once, on whichever card
+/// happened to reach the entry; here it fails at load, for everyone. The
+/// spelled-out-as-a-string near-miss (`body: "By(Param(0), …)"`, which
+/// `RawValue` captures with its quotes) lands in the first half: a string
+/// literal holes nothing.
+///
+/// # Errors
+/// If the body is unreadable, holes a named param, holes a param the entry
+/// does not declare, or leaves a declared param unholed.
+fn body_covers_declared_params(
+    entry: &ConstructorFrames,
+    body: &str,
+    macros: &MacroSet,
+) -> anyhow::Result<()> {
+    let holed = macro_ron::frames::body_param_indices(body, macros).map_err(|error| {
+        anyhow::anyhow!(
+            "constructor entry `{}` body `{body}`: {error}",
+            entry.constructor
+        )
+    })?;
+    for param in &holed {
+        anyhow::ensure!(
+            *param < entry.params.len(),
+            "constructor entry `{}` body holes `Param({param})`, but only {} param(s) are \
+             declared",
+            entry.constructor,
+            entry.params.len(),
+        );
+    }
+    for param in 0..entry.params.len() {
+        anyhow::ensure!(
+            holed.contains(&param),
+            "constructor entry `{}` declares param {param} (`{}`) but its body `{body}` never \
+             holes it, so a recovered argument would be dropped; hole every declared param, or \
+             drop the param. (A `body:` is authored as a bare term — `body: By(Param(0), …)` — \
+             never as a quoted string, which holes nothing at all.)",
+            entry.constructor,
+            entry.params[param],
+        );
+    }
+    Ok(())
+}
+
 /// A macro's positional param type names, in index order.
 ///
 /// # Errors
@@ -578,6 +663,8 @@ mod tests {
                 "<Param(0)> deals <Param(1)> damage to <Param(2)>",
             )],
             kind: FrameKind::Sentence,
+            body: None,
+            announcement: false,
         }];
         let with_entry =
             Lexicon::assemble(crate::guard::core_reader(), &catalog, &Catalogs::default())
@@ -612,12 +699,16 @@ mod tests {
                 params: vec!["Reference".to_string()],
                 frames: vec![FrameSpec::bare("<Param(0)> is dealt damage")],
                 kind: FrameKind::Sentence,
+                body: None,
+                announcement: false,
             },
             ConstructorFrames {
                 constructor: "DealDamage".to_string(),
                 params: vec!["Reference".to_string()],
                 frames: vec![FrameSpec::bare("damage is dealt to <Param(0)>")],
                 kind: FrameKind::Sentence,
+                body: None,
+                announcement: false,
             },
         ];
         let error = Lexicon::assemble(crate::guard::core_reader(), &catalog, &Catalogs::default())

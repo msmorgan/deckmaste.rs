@@ -439,6 +439,25 @@ fn counts_a_pluralizable_noun(chosen: &Entry, hole: &Hole) -> bool {
 /// even where the count should spell out. [`spelled_count`] fixes that
 /// *before* substitution, so the parse+render round trip has already-correct
 /// text to work from.
+///
+/// # Why a literal's RON spelling may be used as English at all
+///
+/// Substituting a RON spelling into an English sentence is only sound because
+/// the literals that reach here are **numeric**, and a numeral's RON spelling
+/// and its English digit spelling are the same string. A named constant's
+/// would not be: `You` is RON, "you" is English, and the two coincide only up
+/// to case.
+///
+/// Nothing else can arrive. A [`Recovered::Literal`] is produced in exactly
+/// two places (`crate::unify::recover_argument`): from a scalar binding — a
+/// [`HoleClass::Numeral`] or `PtHalf` hole, numeric by construction — or from
+/// a guard's authored constant, which has *no hole* and therefore is never
+/// asked for here ([`render_frame_text`] iterates the frame's holes). A
+/// recovered named constant is a [`Recovered::Invocation`] against its own
+/// lexicon entry (the catalog's `This` pro-form, and its siblings as they are
+/// added) and renders through that entry's frame text, below. The
+/// `debug_assert!` pins that reasoning to the value rather than leaving it as
+/// a claim about two other functions.
 fn render_argument_text(
     argument: &Recovered,
     spell_count: bool,
@@ -448,7 +467,17 @@ fn render_argument_text(
 ) -> anyhow::Result<String> {
     match argument {
         Recovered::Literal(text) if spell_count => spelled_count(text),
-        Recovered::Literal(text) => Ok(text.clone()),
+        Recovered::Literal(text) => {
+            debug_assert!(
+                text.trim().parse::<i64>().is_ok(),
+                "a non-numeric literal {text:?} reached the verbatim path: its RON \
+                 spelling would go into an English sentence unchanged. A named \
+                 constant recovers as an invocation of its own lexicon entry, so \
+                 this means either a new hole class binds one as a scalar, or a \
+                 guarded param acquired a hole."
+            );
+            Ok(text.clone())
+        }
         Recovered::Invocation { entry, args, .. } => {
             // `None`: a nested filler contributes only its substituted text
             // (`render_frame_text` reads `spec.text`, never `frame.kind`),
@@ -957,11 +986,13 @@ mod tests {
             entry: "This".to_string(),
             args: Vec::new(),
             ambiguities: Vec::new(),
+            body: None,
         };
         let recovered = Recovered::Invocation {
             entry: "DealDamage".to_string(),
             args: vec![this(), Recovered::Literal("3".to_string()), this()],
             ambiguities: Vec::new(),
+            body: None,
         };
         let render = |kind| {
             render_invocation_with(
@@ -1007,6 +1038,7 @@ mod tests {
                 Recovered::Literal("Literal(1)".to_string()),
             ],
             ambiguities: Vec::new(),
+            body: None,
         };
         assert_eq!(
             render_invocation(&tagged, &fixture().lexicon, FramePosition::Main).unwrap(),
@@ -1027,6 +1059,7 @@ mod tests {
             entry: "Draw".to_string(),
             args: vec![Recovered::Literal("2".to_string())],
             ambiguities: Vec::new(),
+            body: None,
         };
         assert_eq!(
             render_invocation(&recovered, &fixture().lexicon, FramePosition::Main).unwrap(),
@@ -1053,6 +1086,7 @@ mod tests {
                 text: "draw <Param(1)> cards".to_string(),
                 when: vec![(0, "You".to_string())],
                 position: None,
+                announced: Vec::new(),
             },
             FragmentKind::Sentence,
             &params,
@@ -1065,6 +1099,7 @@ mod tests {
                 text: "<Param(0)> draws a card".to_string(),
                 when: vec![(1, "1".to_string())],
                 position: None,
+                announced: Vec::new(),
             },
             FragmentKind::Sentence,
             &params,
@@ -1080,6 +1115,8 @@ mod tests {
                     frame_index: 0,
                     origin: crate::lexicon::Origin::Macro,
                     frame: frame_a,
+                    body: None,
+                    announcement: false,
                 },
                 Entry {
                     name: "Ambiguous".to_string(),
@@ -1087,6 +1124,8 @@ mod tests {
                     frame_index: 1,
                     origin: crate::lexicon::Origin::Macro,
                     frame: frame_b,
+                    body: None,
+                    announcement: false,
                 },
             ],
             macros.clone(),
@@ -1101,6 +1140,7 @@ mod tests {
                 Recovered::Literal("1".to_string()),
             ],
             ambiguities: Vec::new(),
+            body: None,
         };
         let error = render_invocation(&recovered, &lexicon, FramePosition::Main).unwrap_err();
         let message = format!("{error:#}");
