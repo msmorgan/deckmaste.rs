@@ -270,6 +270,39 @@ fn next_hole(text: &str) -> Option<(&str, usize)> {
     None
 }
 
+/// Scans every `template:` field under `<plugin_dir>/macros` — not just
+/// framed defs (`execute`'s `checked`/`excepted` counters are scoped to
+/// those; this is the *other* population, see that struct's own doc) — and
+/// returns the sorted names of every macro whose template carries a
+/// D10-relevant legacy mini-language feature [`project`] cannot express.
+/// `cargo xtask macro census`'s "excepted-template count (corpus-wide)"
+/// figure is this list's length; kept as one implementation so census and
+/// this module's own cross-check test can't quietly drift apart on what
+/// counts.
+///
+/// # Errors
+/// If `plugin_dir` fails to load, or any `.ron` file under its `macros/`
+/// fails to parse.
+pub(super) fn corpus_wide_excepted_names(plugin_dir: &Path) -> anyhow::Result<Vec<String>> {
+    let plugin = Plugin::load_with_sibling_prelude(plugin_dir)
+        .with_context(|| format!("loading plugin {}", plugin_dir.display()))?;
+    let macros_dir = plugin_dir.join(deckmaste_core::plugin::MACROS_DIR);
+    let mut hits = Vec::new();
+    for path in ron_files_recursive(&macros_dir)? {
+        let source =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        let def: MacroDef = plugin
+            .macros
+            .read_str(&source)
+            .with_context(|| format!("parsing {} as a macro definition", path.display()))?;
+        if def.template().is_some_and(has_mini_language_exception) {
+            hits.push(def.name.as_str().to_string());
+        }
+    }
+    hits.sort();
+    Ok(hits)
+}
+
 /// Rewrites `source`'s top-level `template: "..."` string field to hold
 /// `new_value`, keeping every other byte — comments, other fields,
 /// formatting — untouched.
@@ -500,20 +533,7 @@ mod tests {
     fn macro_schema_census_count_matches_21() {
         let plugin_dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin");
-        let plugin = Plugin::load_with_sibling_prelude(&plugin_dir).unwrap();
-        let macros_dir = plugin_dir.join("macros");
-        let mut hits: Vec<String> = Vec::new();
-        for path in ron_files_recursive(&macros_dir).unwrap() {
-            let source = std::fs::read_to_string(&path).unwrap();
-            let def: MacroDef = match plugin.macros.read_str(&source) {
-                Ok(def) => def,
-                Err(error) => panic!("{}: {error}", path.display()),
-            };
-            if def.template().is_some_and(has_mini_language_exception) {
-                hits.push(def.name.as_str().to_string());
-            }
-        }
-        hits.sort();
+        let hits = corpus_wide_excepted_names(&plugin_dir).unwrap();
         let expected = {
             let mut names = vec![
                 "Chapter",

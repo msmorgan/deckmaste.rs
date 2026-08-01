@@ -54,8 +54,10 @@ pub(super) struct InspectArgs {
     plugin_dir: Option<PathBuf>,
 
     /// The English category to parse every one of `name`'s frames at.
-    /// Every pilot entry but `Target` (a noun phrase, `--kind nominal`) is a
-    /// sentence, hence the default.
+    /// Most pilot entries are a sentence, hence the default — but the
+    /// noun-phrase entries (`Target`, `This`) need `--kind nominal`;
+    /// `cargo xtask macro inspect This` fails to compile at the default
+    /// kind without it.
     #[arg(long, value_enum, default_value_t = Kind::Sentence)]
     kind: Kind,
 }

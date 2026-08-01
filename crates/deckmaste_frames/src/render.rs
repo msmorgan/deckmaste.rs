@@ -802,10 +802,11 @@ mod tests {
     /// back in (that only round-trips the frame's own convention) — a solo
     /// keyword line is always capitalized, line-initial, on a real card.
     /// `CatalogAtom.spelling` preserves the matched text's own case, so
-    /// without `Flying.ron`'s second, capitalized frame this recovers as a
-    /// residual (`unify` never reaches an `Invocation` at all), exactly the
-    /// gap that made every canon `Keyword(Flying)` line silently invisible
-    /// to G3/G4.
+    /// without `unify::surface_only_fields`'s `CatalogAtom.spelling` entry
+    /// (excluding that field from the match so case can't sink it) this
+    /// recovers as a residual (`unify` never reaches an `Invocation` at
+    /// all), exactly the gap that made every canon `Keyword(Flying)` line
+    /// silently invisible to G3/G4.
     #[test]
     fn a_keyword_line_matches_the_real_capitalized_corpus_spelling() {
         let recovered = recover("Flying", FragmentKind::KeywordLine, "");

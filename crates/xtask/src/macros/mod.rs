@@ -10,10 +10,12 @@ use std::path::PathBuf;
 use clap::Args;
 use clap::Subcommand;
 
+use self::census::CensusArgs;
 use self::inspect::InspectArgs;
 use self::pilot::PilotArgs;
 use self::templates::TemplatesArgs;
 
+mod census;
 mod inspect;
 mod pilot;
 mod templates;
@@ -35,6 +37,9 @@ enum MacroCommand {
     /// The pilot gate battery: G3 shadow parity (+ `fidelity`) and G4 ground
     /// truth, over real canon cards.
     Pilot(PilotArgs),
+    /// The D10 ratchet's reading: framed defs / true macro definitions,
+    /// per-gate pilot status, and the corpus-wide excepted-template count.
+    Census(CensusArgs),
 }
 
 pub fn run(args: MacroArgs) -> anyhow::Result<()> {
@@ -42,6 +47,7 @@ pub fn run(args: MacroArgs) -> anyhow::Result<()> {
         MacroCommand::Inspect(args) => inspect::run(args),
         MacroCommand::Templates(args) => templates::run(args),
         MacroCommand::Pilot(args) => pilot::run(args),
+        MacroCommand::Census(args) => census::run(args),
     }
 }
 

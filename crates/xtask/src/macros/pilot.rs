@@ -40,9 +40,10 @@
 //! against fairly.
 //!
 //! **Every canon ability lands in exactly one bucket, at both layers —
-//! nothing is silently dropped.** [`collect_lines`] itself prints a
-//! [`SweepExclusion`] census (why an ability never became a swept `Line` at
-//! all — out of scope, an `ability_word`, or a multi-line render), and
+//! nothing is silently dropped.** [`run`] prints a [`SweepExclusion`]
+//! census, built from [`collect_lines`]'s own return value (why an ability
+//! never became a swept `Line` at all — out of scope, an `ability_word`, or
+//! a multi-line render), and
 //! [`report_g3`]/[`report_g4`] print a further [`ExclusionReason`] census
 //! for every swept line that is not equal/mismatched/diverged, with a debug
 //! assertion in each tying its own two numbers together
@@ -109,8 +110,9 @@ use macro_ron::frames::load_constructor_frames;
 
 /// Where G4's own analysis of every divergence it can find lives — named in
 /// the FAIL output itself so a reader of a red gate does not have to go
-/// looking for it.
-const G5_FINDINGS_FILE: &str =
+/// looking for it. `pub(super)` so `cargo xtask macro census` can name it
+/// too, alongside its own condensed G4 status line.
+pub(super) const G5_FINDINGS_FILE: &str =
     "docs/superpowers/research/2026-07-30-macro-frames/pilot-constituency-findings.md";
 
 #[derive(Debug, Args)]
@@ -190,6 +192,73 @@ pub(super) fn run(args: PilotArgs) -> anyhow::Result<()> {
         .join("; ")
     );
     Ok(())
+}
+
+/// A concise, per-gate G3/G4 summary — `cargo xtask macro census`'s "per-gate
+/// pilot status" line. Runs the identical sweep-and-evaluate pipeline `run`
+/// itself assembles (same [`Lexicon`], same [`collect_lines`]/
+/// [`evaluate_line`], same [`evaluate_g3`]/[`evaluate_g4`] verdicts) so there
+/// is no second implementation of "what counts as PASS" to drift from the
+/// real gate — only the top-level assembly is duplicated, and only because
+/// `run` prints far more than a census caller wants (every mismatch/
+/// divergence, both exclusion censuses, sweep timing). Fidelity is
+/// deliberately not part of this summary: it is already its own gate in the
+/// battery (`cargo xtask fidelity`), not something a caller of `macro
+/// census` needs restated.
+pub(super) struct GateStatus {
+    pub g3_checked: usize,
+    pub g3_equal: usize,
+    pub g3_mismatched: usize,
+    pub g3_pass: bool,
+    pub g4_covered: usize,
+    pub g4_equal: usize,
+    pub g4_diverged: usize,
+    pub g4_pass: bool,
+}
+
+/// # Errors
+/// If the pilot lexicon or canon corpus fails to load.
+pub(super) fn gate_status(plugin_dir: &Path, canon_dir: &Path) -> anyhow::Result<GateStatus> {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let plugin = Plugin::load_with_sibling_prelude(plugin_dir)?;
+    let catalogs = real_catalogs(&workspace_root)?;
+    let constructors = load_constructor_frames(&plugin_dir.join("frames"))?;
+    let lexicon = Lexicon::assemble(&plugin.macros, &constructors, &catalogs)?;
+
+    let canon_plugin = Plugin::load_with_sibling_prelude(canon_dir)?;
+    let swept = collect_lines(canon_dir, &canon_plugin.macros)?;
+    let results: Vec<LineResult> = swept
+        .lines
+        .iter()
+        .map(|line| evaluate_line(line, &lexicon, &catalogs, &plugin.macros))
+        .collect();
+
+    let mut g3_equal = 0usize;
+    let mut g3_mismatched = 0usize;
+    let mut g4_equal = 0usize;
+    let mut g4_diverged = 0usize;
+    for result in &results {
+        match result.g3 {
+            G3Outcome::Equal => g3_equal += 1,
+            G3Outcome::Mismatch { .. } => g3_mismatched += 1,
+            G3Outcome::Excluded(_) => {}
+        }
+        match result.g4 {
+            G4Outcome::Equal => g4_equal += 1,
+            G4Outcome::Diverged { .. } => g4_diverged += 1,
+            G4Outcome::Excluded(_) => {}
+        }
+    }
+    Ok(GateStatus {
+        g3_checked: g3_equal + g3_mismatched,
+        g3_equal,
+        g3_mismatched,
+        g3_pass: g3_mismatched == 0,
+        g4_covered: g4_equal + g4_diverged,
+        g4_equal,
+        g4_diverged,
+        g4_pass: g4_diverged == 0,
+    })
 }
 
 // ---------------------------------------------------------------------------

@@ -2,15 +2,23 @@
 // damage-sweeper family): an object deals damage ([CR#120.1]) to every
 // member of a recipient class at once ([CR#608.2d] distributive each —
 // iterating a many-`Binder` binds each selected object in turn as the
-// anaphor `It`). Pyroclasm's "~ deals 2 damage to each creature.", Flame
-// Rift's "each player", Hour of Devastation's "each opponent", and any other
-// characteristic-filtered recipient ("each creature your opponents
-// control") all ride this one macro — the migrations parser's
-// `parse_deal_damage`/`damage_target` production reads the recipient-class
-// phrase (via the shared object-target filter grammar) and emits this
-// invocation with that filter as the second argument, since the generic
-// macro-template fallthrough can't itself synthesize an arbitrary
-// `Predicate` from English.
+// anaphor `It`). The migrations parser's `parse_deal_damage`/
+// `damage_target` production reads the recipient-class phrase (via the
+// shared object-target filter grammar) and emits this invocation with that
+// filter as the second argument, since the generic macro-template
+// fallthrough can't itself synthesize an arbitrary `Predicate` from
+// English.
+//
+// Actual users: the generated `plugins/wizards` corpus invokes this macro
+// 162 times (that migrations pipeline's own "deals N damage to each
+// <class>" shape); in hand-authored `plugins/canon`, the sole user is
+// Chandra, Torch of Defiance's [+1] impulse `if_not` branch ("~ deals 2
+// damage to each opponent"). Canon's own `Pyroclasm.ron`/`Flame Rift.ron`
+// (previously cited here as users) author the identical shape directly as a
+// raw `Each(binder: Existing(SelectAll(...)), effect: DealDamage(...))`
+// instead of through this macro, so they are not actually users of it;
+// "Hour of Devastation" (also previously cited here) has no card file in
+// this corpus at all (only a `.ron.todo` stub under `plugins/wizards`).
 //
 // `source` is fixed at `This` — every corpus usage is a spell/ability
 // naming its own source ("~ deals …"), never a foreign dealer; a card that

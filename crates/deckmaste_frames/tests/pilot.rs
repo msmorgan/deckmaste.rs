@@ -81,31 +81,6 @@ fn real_catalogs() -> Catalogs {
         .with_catalog(CatalogKind::CardType, load("card-types"))
 }
 
-/// Test-local only: no `kinds: [...]` -> `FragmentKind` table exists in
-/// production code (confirmed absent from `deckmaste_frames`, `xtask`, and
-/// `deckmaste_cards` while researching this task) — `cargo xtask macro
-/// inspect` takes `--kind` on the command line instead. This heuristic only
-/// needs to be right for the pilot's own kinds.
-fn expected_kind(def: &MacroDef) -> FragmentKind {
-    let kinds: Vec<&str> = def.kinds.iter().map(Ident::as_str).collect();
-    if kinds.contains(&"KeywordAbility") {
-        FragmentKind::KeywordLine
-    } else if kinds.contains(&"CostComponent") {
-        FragmentKind::Cost
-    } else if kinds.iter().any(|kind| {
-        matches!(
-            *kind,
-            "Predicate" | "Selection" | "TargetSpec" | "DesignationDecl"
-        )
-    }) {
-        FragmentKind::Nominal
-    } else if kinds.contains(&"Ability") {
-        FragmentKind::Ability
-    } else {
-        FragmentKind::Sentence
-    }
-}
-
 fn positional_params(def: &MacroDef) -> Vec<String> {
     match &def.params {
         Params::Positional(types) => types
@@ -172,7 +147,7 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
         }
         framed_names.push(def.name.as_str());
         let params = positional_params(def);
-        let kind = expected_kind(def);
+        let kind = deckmaste_frames::lexicon::macro_fragment_kind(def);
         for (index, spec) in def.frames().iter().enumerate() {
             deckmaste_frames::compile(spec, kind, &params, &catalogs, &plugin.macros)
                 .unwrap_or_else(|error| {
