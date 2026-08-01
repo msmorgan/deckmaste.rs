@@ -58,3 +58,18 @@ failure feeds `if_did`/`if_not`; the fate of `MustPay`/`Unless`/`AdditionalCost`
 before implementation. Standard constraints apply (idris soundness, render
 parity, CR citations, wizards regen). Related: `core-may-pay-must-pay` (done/),
 `engine-alt-costs`, `core-alt-costs`.
+
+## Frames-side evidence (macro-frames, 2026-07-31)
+
+The macro-frames effort independently supports this direction. If `Pay` is
+a `PlayerAction`, effect-position payment gets the same subject-attachment
+story (`By(subject, Pay(cost))`) as every other player verb, so the frame
+lexicon composes its Cost-kind entries into sentence position through one
+uniform wrapper — and `MayPay`, a node the lexicon would otherwise need
+bespoke frames for, disappears. Round 1 already logged `By`'s
+embed-default as concrete friction (a recovery spelling `GainLife(You, N)`
+does not parse; see the round-2 plan's entry-`body:` mechanism), and the
+round-2 residual census will quantify PlayerAction surface friction
+corpus-wide. Sequencing: land this reshape before the frames coverage
+rounds author the many PlayerAction catalog entries, so they are written
+once against the new shape.
