@@ -80,11 +80,15 @@
 //!
 //! G3's own population is the narrower one — "canon usage of a pilot
 //! *macro*" — so a top-level `Origin::Constructor` match, or one
-//! [`render_invocation_with`] itself cannot render (the identical residual
-//! limitation, one level up — see `deckmaste_frames::render`'s own module
-//! doc), is excluded from G3 specifically ([`ExclusionReason::NotMacroOrigin`]/
+//! [`render_invocation_with`] cannot render for want of coverage (the
+//! identical residual limitation, one level up — see
+//! `deckmaste_frames::render`'s own module doc), is excluded from G3
+//! specifically ([`ExclusionReason::NotMacroOrigin`]/
 //! [`ExclusionReason::RenderFailed`]), recorded in its own census rather than
-//! silently dropped.
+//! silently dropped. The one render failure that is **not** a coverage
+//! exclusion is [`ReassembledDifferently`]: text that parses back as a
+//! different constituency than the frame it came from is a defect in the
+//! frame set, and fails this gate outright (see [`G3Outcome`]).
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -110,6 +114,7 @@ use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::parse_fragment;
 use deckmaste_frames::Lexicon;
+use deckmaste_frames::ReassembledDifferently;
 use deckmaste_frames::Recovered;
 use deckmaste_frames::View;
 use deckmaste_frames::guard;
@@ -366,12 +371,16 @@ pub(super) fn gate_status(plugin_dir: &Path, canon_dir: &Path) -> anyhow::Result
 
     let mut g3_equal = 0usize;
     let mut g3_mismatched = 0usize;
+    let mut g3_reassembled = 0usize;
     let mut g4_equal = 0usize;
     let mut g4_diverged = 0usize;
     for result in &results {
         match result.g3 {
             G3Outcome::Equal => g3_equal += 1,
             G3Outcome::Mismatch { .. } => g3_mismatched += 1,
+            // Counted with the mismatches, not with the exclusions: the line
+            // *was* checked, and it failed — see `G3Outcome`'s own doc.
+            G3Outcome::ReassembledDifferently { .. } => g3_reassembled += 1,
             G3Outcome::Excluded(_) => {}
         }
         match result.g4 {
@@ -381,10 +390,10 @@ pub(super) fn gate_status(plugin_dir: &Path, canon_dir: &Path) -> anyhow::Result
         }
     }
     Ok(GateStatus {
-        g3_checked: g3_equal + g3_mismatched,
+        g3_checked: g3_equal + g3_mismatched + g3_reassembled,
         g3_equal,
-        g3_mismatched,
-        g3_pass: g3_mismatched == 0,
+        g3_mismatched: g3_mismatched + g3_reassembled,
+        g3_pass: g3_mismatched + g3_reassembled == 0,
         g4_covered: g4_equal + g4_diverged,
         g4_equal,
         g4_diverged,
@@ -698,7 +707,18 @@ impl ExclusionReason {
 enum G3Outcome {
     Excluded(ExclusionReason),
     Equal,
-    Mismatch { rendered: String },
+    Mismatch {
+        rendered: String,
+    },
+    /// The render's own re-parse cross-check refused the line
+    /// ([`ReassembledDifferently`]). Deliberately **not** an
+    /// [`ExclusionReason`]: an exclusion means "this gate has nothing to say
+    /// about this line", and a frame that renders text reading as some other
+    /// constituency is the opposite of nothing to say. Bucketing it with the
+    /// ordinary render failures would file a defect as missing coverage.
+    ReassembledDifferently {
+        detail: String,
+    },
 }
 
 enum G4Outcome {
@@ -853,7 +873,17 @@ fn evaluate_g3(
                 G3Outcome::Mismatch { rendered }
             }
         }
-        Err(_) => G3Outcome::Excluded(ExclusionReason::RenderFailed),
+        // Two different failures wear the same `Err`, and only one of them is
+        // a coverage gap. `ReassembledDifferently` says the render produced
+        // text that parses back as a different constituency than the frame it
+        // came from — a defect in the frame set, which the gate reports rather
+        // than sets aside.
+        Err(error) => match error.downcast_ref::<ReassembledDifferently>() {
+            Some(_) => G3Outcome::ReassembledDifferently {
+                detail: format!("{error:#}"),
+            },
+            None => G3Outcome::Excluded(ExclusionReason::RenderFailed),
+        },
     }
 }
 
@@ -887,6 +917,7 @@ fn format_census(counts: &BTreeMap<&'static str, usize>) -> String {
 /// One gate's verdict and the size of the population it was reached over —
 /// the pair [`check_coverage`] needs, since the verdict alone cannot
 /// distinguish "nothing was wrong" from "nothing was checked".
+#[derive(Debug)]
 struct GateReport {
     pass: bool,
     counted: usize,
@@ -895,6 +926,7 @@ struct GateReport {
 fn report_g3(results: &[LineResult]) -> anyhow::Result<GateReport> {
     let mut equal = 0usize;
     let mut mismatches: Vec<(&str, &str, &str)> = Vec::new();
+    let mut reassembled: Vec<(&str, &str)> = Vec::new();
     let excluded = census(results.iter().filter_map(|result| match &result.g3 {
         G3Outcome::Excluded(reason) => Some(*reason),
         _ => None,
@@ -906,6 +938,9 @@ fn report_g3(results: &[LineResult]) -> anyhow::Result<GateReport> {
             G3Outcome::Mismatch { rendered } => {
                 mismatches.push((&result.line.label, &result.line.text, rendered));
             }
+            G3Outcome::ReassembledDifferently { detail } => {
+                reassembled.push((&result.line.label, detail));
+            }
         }
     }
     for (label, legacy, rendered) in &mismatches {
@@ -913,7 +948,7 @@ fn report_g3(results: &[LineResult]) -> anyhow::Result<GateReport> {
         println!("  legacy render:      {legacy}");
         println!("  render_invocation:  {rendered}");
     }
-    let checked = equal + mismatches.len();
+    let checked = equal + mismatches.len() + reassembled.len();
     let excluded_total: usize = excluded.values().sum();
     let pass = mismatches.is_empty();
     println!(
@@ -936,6 +971,21 @@ fn report_g3(results: &[LineResult]) -> anyhow::Result<GateReport> {
         "every swept line must land in exactly one G3 bucket, but {checked} checked + \
          {excluded_total} excluded != {} swept",
         results.len(),
+    );
+    // A hard failure rather than a printed verdict: a wording that re-parses
+    // into a different constituency than the frame it was rendered from is a
+    // defect in the frame set, not a measurement of how much English is
+    // covered, and it must not be absorbed by a gate that is otherwise
+    // reporting a clean sweep.
+    anyhow::ensure!(
+        reassembled.is_empty(),
+        "{} rendered line(s) did not reassemble the frame they were rendered from:\n  {}",
+        reassembled.len(),
+        reassembled
+            .iter()
+            .map(|(label, detail)| format!("{label}: {detail}"))
+            .collect::<Vec<_>>()
+            .join("\n  "),
     );
     Ok(GateReport {
         pass,
@@ -1110,6 +1160,41 @@ mod tests {
     #[test]
     fn the_pinned_census_itself_satisfies_the_floor() {
         check_coverage(&COVERAGE_FLOOR).expect("the floor must not breach itself");
+    }
+
+    /// A render whose text parses back as a different constituency than the
+    /// frame it came from fails the gate, and is counted as *checked* rather
+    /// than excluded. Both halves matter: filed as an exclusion it would read
+    /// as missing coverage, and left out of the checked count it would breach
+    /// the population partition instead — a different, misleading error.
+    #[test]
+    fn a_line_that_did_not_reassemble_its_frame_fails_g3() {
+        let line = Line {
+            label: "fixture: Face (Spell)".to_string(),
+            name: String::new(),
+            is_legendary: false,
+            kind: FragmentKind::Sentence,
+            text: "fixture line".to_string(),
+            ron_type: "OneShotEffect",
+            authored_view: View::Absent,
+        };
+        let result = |g3| LineResult {
+            line: &line,
+            g3,
+            g4: G4Outcome::Excluded(ExclusionReason::NotAnInvocation),
+        };
+
+        let clean = report_g3(&[result(G3Outcome::Equal)]).expect("an equal line passes G3");
+        assert!(clean.pass);
+        assert_eq!(clean.counted, 1);
+
+        let error = report_g3(&[result(G3Outcome::ReassembledDifferently {
+            detail: "the substituted text parses into a different tree".to_string(),
+        })])
+        .expect_err("a line that did not reassemble its frame must fail the gate");
+        let message = format!("{error:#}");
+        assert!(message.contains("did not reassemble"), "{message}");
+        assert!(message.contains("fixture: Face (Spell)"), "{message}");
     }
 
     /// Each figure is checked independently, so a single shrinking

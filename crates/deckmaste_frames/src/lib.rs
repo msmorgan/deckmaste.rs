@@ -57,6 +57,7 @@ pub use compile::Normalization;
 pub use compile::compile;
 pub use lexicon::Entry;
 pub use lexicon::Lexicon;
+pub use render::ReassembledDifferently;
 pub use render::render_invocation;
 pub use render::render_invocation_with;
 pub use unify::Recovered;

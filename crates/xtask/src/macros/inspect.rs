@@ -1,7 +1,7 @@
 //! `cargo xtask macro inspect` — dump a compiled frame: text, kind, holes
-//! with classes and paths, agreement dependencies, and guards. Consumes
-//! Task 3's schema/loader (`macro_ron::frames`) and Task 4's compiler
-//! (`deckmaste_frames::compile`); xtask owns only the CLI and the printing.
+//! with classes and paths, agreement dependencies, and guards. The authoring
+//! schema and loader are `macro_ron::frames`' and the compiler is
+//! `deckmaste_frames::compile`'s; xtask owns only the CLI and the printing.
 
 use std::io;
 use std::path::Path;
@@ -16,6 +16,8 @@ use deckmaste_english::FragmentKind;
 use deckmaste_frames::CompiledFrame;
 use deckmaste_frames::HoleClass;
 use deckmaste_frames::View;
+use deckmaste_frames::lexicon::macro_fragment_kind;
+use macro_ron::MacroDef;
 use macro_ron::Params;
 use macro_ron::frames::FrameSpec;
 use macro_ron::frames::load_constructor_frames;
@@ -44,10 +46,21 @@ impl From<Kind> for FragmentKind {
     }
 }
 
+/// Where a name's frames are authored. A `clap`-friendly mirror of
+/// [`deckmaste_frames::lexicon::Origin`], for the same reason [`Kind`]
+/// mirrors [`FragmentKind`]: the real type lives in a crate with no `clap`
+/// dependency.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Origin {
+    /// The constructor frame catalog under `<plugin-dir>/frames`.
+    Constructor,
+    /// A loaded macro definition's own `frames:` list.
+    Macro,
+}
+
 #[derive(Debug, Args)]
 pub(super) struct InspectArgs {
     /// The constructor (from the frame catalog) or macro name to inspect.
-    /// The constructor catalog is checked first, then every loaded macro.
     name: String,
 
     /// Defaults to this workspace's `plugins/builtin`.
@@ -60,6 +73,12 @@ pub(super) struct InspectArgs {
     /// kind without it.
     #[arg(long, value_enum, default_value_t = Kind::Sentence)]
     kind: Kind,
+
+    /// Which side of the lexicon to read `name` from. Required when the
+    /// frame catalog and a loaded macro both define it — neither is more
+    /// authoritative than the other, so the choice is the caller's.
+    #[arg(long, value_enum)]
+    origin: Option<Origin>,
 }
 
 pub(super) fn run(args: InspectArgs) -> anyhow::Result<()> {
@@ -71,12 +90,13 @@ pub(super) fn run(args: InspectArgs) -> anyhow::Result<()> {
 
     let Resolved {
         source,
+        declared,
         params,
         frames,
-    } = resolve(&plugin, &plugin_dir, &args.name)?;
+    } = resolve(&plugin, &plugin_dir, &args.name, args.origin)?;
 
     println!(
-        "{source} `{}` ({} param(s)): {} frame(s)",
+        "{source} `{}`{declared} ({} param(s)): {} frame(s)",
         args.name,
         params.len(),
         frames.len()
@@ -103,19 +123,56 @@ pub(super) fn run(args: InspectArgs) -> anyhow::Result<()> {
 struct Resolved {
     /// `"constructor"` or `"macro"`, purely for the header line.
     source: &'static str,
+    /// The resolved definition's declared macro `kinds:`, pre-formatted for
+    /// the header line (empty for a catalog constructor, which declares none).
+    /// Printed because a name several definitions carry resolves to one of
+    /// them, and the reader has to be able to see which.
+    declared: String,
     params: Vec<String>,
     frames: Vec<FrameSpec>,
 }
 
-/// Finds `name` in the constructor frame catalog first, then among every
-/// macro `plugin` has loaded (any kind).
+/// Finds the framed `name`: a constructor frame catalog entry, or a loaded
+/// macro definition carrying a `frames:` list.
+///
+/// # One name, several definitions
+///
+/// Both halves can be ambiguous, and they are ambiguous in different ways.
+///
+/// A [`MacroSet`](macro_ron::MacroSet) deliberately holds several
+/// definitions under one name as long as their macro kinds differ, and the
+/// live corpus does exactly that (`Creature`, `Draw`, `Draws` each sit in two
+/// files) — while [`MacroSet::iter`](macro_ron::MacroSet::iter) documents its
+/// order as unspecified, since it follows the backing hash maps. Picking the
+/// first match therefore resolved a name differently between processes, and
+/// in every corpus pair only one side is framed at all, so half the time the
+/// answer was a spurious "has no frames defined yet". Two things fix that,
+/// both borrowed from
+/// [`Lexicon::assemble`](deckmaste_frames::Lexicon::assemble) rather than
+/// invented here: only framed definitions are candidates (the set `assemble`
+/// draws entries from), and the survivors are ordered by the key `assemble`
+/// sorts entries by — English category first, via
+/// [`kind_rank`](deckmaste_frames::lexicon::kind_rank), with the declared
+/// kinds as the final tiebreak for two definitions that resolve to one
+/// category (which `assemble` refuses outright, and this tool may still be
+/// pointed at while that is being fixed).
+///
+/// A name carried by *both* the catalog and a framed macro is not ordered at
+/// all: neither side is more authoritative, so it is refused and `--origin`
+/// decides. Silently preferring one hid a real authoring collision.
 ///
 /// # Errors
-/// If `name` names neither, or names one with no frames defined yet, or
-/// names a macro with a named (rather than positional) param signature —
-/// `<Param(i)>` is positional-only, so a named-signature macro has no
-/// defined index mapping for `macro inspect` to compile against.
-fn resolve(plugin: &Plugin, plugin_dir: &Path, name: &str) -> anyhow::Result<Resolved> {
+/// If `name` names neither, or names one with no frames defined yet, or is
+/// carried by both origins with no `--origin` to choose, or names a macro
+/// with a named (rather than positional) param signature — `<Param(i)>` is
+/// positional-only, so a named-signature macro has no defined index mapping
+/// for `macro inspect` to compile against.
+fn resolve(
+    plugin: &Plugin,
+    plugin_dir: &Path,
+    name: &str,
+    origin: Option<Origin>,
+) -> anyhow::Result<Resolved> {
     let frames_dir = plugin_dir.join("frames");
     let catalog = load_constructor_frames(&frames_dir).with_context(|| {
         format!(
@@ -123,27 +180,45 @@ fn resolve(plugin: &Plugin, plugin_dir: &Path, name: &str) -> anyhow::Result<Res
             frames_dir.display()
         )
     })?;
-    if let Some(entry) = catalog.iter().find(|entry| entry.constructor == name) {
+    let catalog_entry = catalog.iter().find(|entry| entry.constructor == name);
+    let defs = definitions_named(plugin, name);
+    let framed: Vec<&MacroDef> = defs
+        .iter()
+        .copied()
+        .filter(|def| !def.frames().is_empty())
+        .collect();
+
+    if origin.is_none()
+        && catalog_entry.is_some_and(|entry| !entry.frames.is_empty())
+        && !framed.is_empty()
+    {
+        anyhow::bail!(
+            "`{name}` is both a constructor frame catalog entry and a framed macro \
+             (kinds {}); pass `--origin constructor` or `--origin macro` to say which one to \
+             inspect",
+            declared_kinds(framed[0]),
+        );
+    }
+
+    if origin != Some(Origin::Macro)
+        && let Some(entry) = catalog_entry
+    {
         anyhow::ensure!(
             !entry.frames.is_empty(),
             "constructor `{name}` is in the frame catalog but has no frames defined yet"
         );
         return Ok(Resolved {
             source: "constructor",
+            declared: String::new(),
             params: entry.params.clone(),
             frames: entry.frames.clone(),
         });
     }
 
-    if let Some((_, def)) = plugin
-        .macros
-        .iter()
-        .find(|(_, def)| def.name.as_str() == name)
-    {
-        anyhow::ensure!(
-            !def.frames().is_empty(),
-            "macro `{name}` is loaded but has no frames defined yet"
-        );
+    if origin != Some(Origin::Constructor) && !defs.is_empty() {
+        let def = *framed.first().ok_or_else(|| {
+            anyhow::anyhow!("macro `{name}` is loaded but has no frames defined yet")
+        })?;
         let params = match &def.params {
             Params::Positional(types) => types
                 .iter()
@@ -157,6 +232,7 @@ fn resolve(plugin: &Plugin, plugin_dir: &Path, name: &str) -> anyhow::Result<Res
         };
         return Ok(Resolved {
             source: "macro",
+            declared: format!(" {}", declared_kinds(def)),
             params,
             frames: def.frames().to_vec(),
         });
@@ -168,6 +244,44 @@ fn resolve(plugin: &Plugin, plugin_dir: &Path, name: &str) -> anyhow::Result<Res
         frames_dir.display(),
         plugin_dir.display(),
     );
+}
+
+/// Every definition `plugin` holds under `name`, in a deterministic order —
+/// see [`resolve`]'s own doc for why neither property comes for free.
+///
+/// [`MacroSet::iter`](macro_ron::MacroSet::iter) yields one pair *per kind*,
+/// so a multi-kind definition appears several times and is deduplicated by
+/// `(name, sorted kinds)` — the real identity of a definition, the same key
+/// `Lexicon::assemble` deduplicates on.
+fn definitions_named<'plugin>(plugin: &'plugin Plugin, name: &str) -> Vec<&'plugin MacroDef> {
+    let mut found: Vec<&MacroDef> = Vec::new();
+    for (_, def) in plugin.macros.iter() {
+        if def.name.as_str() != name {
+            continue;
+        }
+        if !found
+            .iter()
+            .any(|seen| declared_kinds(seen) == declared_kinds(def))
+        {
+            found.push(def);
+        }
+    }
+    found.sort_by_key(|def| {
+        (
+            deckmaste_frames::lexicon::kind_rank(macro_fragment_kind(def)),
+            declared_kinds(def),
+        )
+    });
+    found
+}
+
+/// A definition's declared macro `kinds:`, sorted, as one readable string —
+/// the header line's disambiguator and [`definitions_named`]'s identity key
+/// and final tiebreak.
+fn declared_kinds(def: &MacroDef) -> String {
+    let mut kinds: Vec<&str> = def.kinds.iter().map(macro_ron::Ident::as_str).collect();
+    kinds.sort_unstable();
+    format!("[{}]", kinds.join(", "))
 }
 
 /// Writes a compiled frame's holes, agreement dependencies, and guards.
@@ -260,25 +374,123 @@ mod tests {
     name: "Foo",
     kinds: [OneShotEffect],
     params: [Reference, Count],
-    frames: ["<Param(0)> macro-should-not-win <Param(1)>"],
+    frames: ["<Param(0)> macro-also-carries-it <Param(1)>"],
+    body: 0,
+)
+"#;
+
+    /// One name, three definitions across the fixtures below — the shape the
+    /// live corpus has (`Creature`, `Draw`, `Draws` each sit in two files
+    /// under different macro kinds). Different `kinds:` are what lets a
+    /// `MacroSet` hold them at once.
+    const TWIN_FRAMED: &str = r#"(
+    name: "Twin",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    frames: ["<Param(0)> twin <Param(1)>"],
+    body: 0,
+)
+"#;
+
+    const TWIN_UNFRAMED: &str = r#"(
+    name: "Twin",
+    kinds: [EventFilter],
+    body: 0,
+)
+"#;
+
+    const TWIN_FRAMED_NOMINAL: &str = r#"(
+    name: "Twin",
+    kinds: [Predicate],
+    params: [Predicate],
+    frames: ["twin <Param(0)>"],
     body: 0,
 )
 "#;
 
     #[test]
-    fn resolve_prefers_the_constructor_catalog_over_a_same_named_macro() {
+    fn resolve_refuses_a_name_the_catalog_and_a_macro_both_carry() {
         let dir = tempdir_with(&[
             ("frames/constructors.ron", PRECEDENCE_CONSTRUCTOR),
             ("macros/effect/Foo.ron", PRECEDENCE_MACRO),
         ]);
         let plugin = Plugin::load(dir.path()).unwrap();
 
-        let resolved = resolve(&plugin, dir.path(), "Foo").unwrap();
+        let error = resolve(&plugin, dir.path(), "Foo", None).unwrap_err();
 
-        assert_eq!(resolved.source, "constructor");
-        assert_eq!(resolved.params, vec!["Reference".to_string()]);
-        assert_eq!(resolved.frames.len(), 1);
-        assert_eq!(resolved.frames[0].text, "<Param(0)> constructor-wins");
+        let message = format!("{error:#}");
+        assert!(message.contains("--origin"), "{message}");
+        assert!(message.contains("constructor"), "{message}");
+        assert!(message.contains("macro"), "{message}");
+    }
+
+    /// The other half of the refusal above: `--origin` reaches either side,
+    /// and reaches the one it names rather than the one that happened to be
+    /// preferred. Both directions are asserted, so this cannot pass against
+    /// an `--origin` that is ignored.
+    #[test]
+    fn origin_selects_which_side_of_a_shared_name_is_inspected() {
+        let dir = tempdir_with(&[
+            ("frames/constructors.ron", PRECEDENCE_CONSTRUCTOR),
+            ("macros/effect/Foo.ron", PRECEDENCE_MACRO),
+        ]);
+        let plugin = Plugin::load(dir.path()).unwrap();
+
+        let from_catalog = resolve(&plugin, dir.path(), "Foo", Some(Origin::Constructor)).unwrap();
+        assert_eq!(from_catalog.source, "constructor");
+        assert_eq!(from_catalog.frames[0].text, "<Param(0)> constructor-wins");
+
+        let from_macro = resolve(&plugin, dir.path(), "Foo", Some(Origin::Macro)).unwrap();
+        assert_eq!(from_macro.source, "macro");
+        assert_eq!(
+            from_macro.frames[0].text,
+            "<Param(0)> macro-also-carries-it <Param(1)>"
+        );
+        assert!(
+            from_macro.declared.contains("OneShotEffect"),
+            "the header names the definition that was resolved: {:?}",
+            from_macro.declared
+        );
+    }
+
+    /// Two definitions may share a name under different macro kinds, and the
+    /// live corpus has three such pairs. `MacroSet::iter` follows a hash map,
+    /// so without an order imposed here the name resolves to whichever the
+    /// map yielded first — differently between processes, and in each of
+    /// those pairs only one side carries frames at all, so the *other*
+    /// outcome is a spurious "has no frames defined yet".
+    #[test]
+    fn resolve_picks_the_framed_definition_of_a_twice_carried_name() {
+        let dir = tempdir_with(&[
+            ("macros/effect/Twin.ron", TWIN_FRAMED),
+            ("macros/filter/Twin.ron", TWIN_UNFRAMED),
+        ]);
+        // Each load builds a fresh hash map, so this samples real orders
+        // rather than one process's fixed one.
+        for _ in 0..24 {
+            let plugin = Plugin::load(dir.path()).unwrap();
+            let resolved = resolve(&plugin, dir.path(), "Twin", None).unwrap();
+            assert_eq!(resolved.frames[0].text, "<Param(0)> twin <Param(1)>");
+        }
+    }
+
+    /// When both definitions of a name *are* framed — a state
+    /// `Lexicon::assemble` refuses outright, and which `macro inspect` may
+    /// still be pointed at while it is being fixed — the tie breaks on the
+    /// English category, in the same order the assembled lexicon sorts
+    /// entries by. `Predicate` resolves to a nominal and `OneShotEffect` to
+    /// a sentence, and nominal sorts first.
+    #[test]
+    fn resolve_orders_two_framed_definitions_of_one_name_by_category() {
+        let dir = tempdir_with(&[
+            ("macros/effect/Twin.ron", TWIN_FRAMED),
+            ("macros/filter/TwinNominal.ron", TWIN_FRAMED_NOMINAL),
+        ]);
+        for _ in 0..24 {
+            let plugin = Plugin::load(dir.path()).unwrap();
+            let resolved = resolve(&plugin, dir.path(), "Twin", None).unwrap();
+            assert_eq!(resolved.frames[0].text, "twin <Param(0)>");
+        }
     }
 
     #[test]
@@ -294,7 +506,7 @@ mod tests {
         let dir = tempdir_with(&[("macros/effect/Bar.ron", source)]);
         let plugin = Plugin::load(dir.path()).unwrap();
 
-        let resolved = resolve(&plugin, dir.path(), "Bar").unwrap();
+        let resolved = resolve(&plugin, dir.path(), "Bar", None).unwrap();
 
         assert_eq!(resolved.source, "macro");
         assert_eq!(
@@ -317,7 +529,7 @@ mod tests {
         let dir = tempdir_with(&[("macros/effect/NamedOne.ron", source)]);
         let plugin = Plugin::load(dir.path()).unwrap();
 
-        let error = resolve(&plugin, dir.path(), "NamedOne").unwrap_err();
+        let error = resolve(&plugin, dir.path(), "NamedOne", None).unwrap_err();
 
         assert!(
             format!("{error:#}").contains("named param signature"),
@@ -334,7 +546,7 @@ mod tests {
         let dir = tempdir_with(&[("frames/constructors.ron", source)]);
         let plugin = Plugin::load(dir.path()).unwrap();
 
-        let error = resolve(&plugin, dir.path(), "Empty").unwrap_err();
+        let error = resolve(&plugin, dir.path(), "Empty", None).unwrap_err();
 
         assert!(
             format!("{error:#}").contains("no frames defined yet"),
@@ -354,7 +566,7 @@ mod tests {
         let dir = tempdir_with(&[("macros/effect/NoFrames.ron", source)]);
         let plugin = Plugin::load(dir.path()).unwrap();
 
-        let error = resolve(&plugin, dir.path(), "NoFrames").unwrap_err();
+        let error = resolve(&plugin, dir.path(), "NoFrames", None).unwrap_err();
 
         assert!(
             format!("{error:#}").contains("no frames defined yet"),
@@ -368,7 +580,7 @@ mod tests {
         let dir = tempdir_with(&[]);
         let plugin = Plugin::load(dir.path()).unwrap();
 
-        let error = resolve(&plugin, dir.path(), "Ghost").unwrap_err();
+        let error = resolve(&plugin, dir.path(), "Ghost", None).unwrap_err();
 
         assert!(
             format!("{error:#}").contains("no constructor or macro named"),

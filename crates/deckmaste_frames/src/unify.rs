@@ -57,6 +57,7 @@ use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 use serde::Serialize;
 
+use crate::CompiledFrame;
 use crate::CompiledGuard;
 use crate::HoleClass;
 use crate::View;
@@ -665,6 +666,37 @@ fn try_entry(
         }
     }
     best.map(|(_, matched)| matched)
+}
+
+/// Whether `target` **is** `frame`'s own tree with its holes filled: every
+/// node outside a hole identical, and each hole standing over exactly one
+/// subtree at exactly the position the frame puts it.
+///
+/// This is the render direction's cross-check, and it is deliberately this
+/// module's function rather than a comparison written over there. Rendering
+/// substitutes into the frame's *text* and re-parses the whole string
+/// ([`crate::render`]'s module doc explains why there is no tree-surgery
+/// path), so nothing about that round trip guarantees the parser rebuilt the
+/// frame's own constituency: a filler whose text coordinates, or trails a
+/// modifier the frame's next word can attach to, re-brackets the sentence
+/// around it into a well-formed parse of something else. Asking the question
+/// here means it is asked with the same neutralizations a match uses —
+/// citation-form agreement rewritten through the compiler's own normalizer,
+/// surface-only fields excluded ([`surface_only_fields`]) — so a render is
+/// not rejected for the two differences a *match* is defined to ignore.
+///
+/// Compared at depth 0 on both sides, with no wrapper peeling: the frame was
+/// parsed at its own category and the substituted text is parsed back at that
+/// same category, so the two roots are the same node kind by construction and
+/// a difference there is a real one.
+pub(crate) fn frame_reassembles(frame: &CompiledFrame, target: &View) -> bool {
+    let mut normalized = target.clone();
+    neutralize_agreement(&mut normalized, &frame.agreement, 0);
+    let mut attempt = Attempt {
+        bindings: HashMap::new(),
+        claimed: 0,
+    };
+    match_node(&frame.tree, &normalized, &mut attempt)
 }
 
 /// Whether every hole in `entry`'s frame caught a filler of the class it

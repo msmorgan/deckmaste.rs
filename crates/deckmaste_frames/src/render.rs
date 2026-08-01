@@ -43,6 +43,16 @@
 //! [`render_fragment`]'s own round trip is what turns `3` into "three" — the
 //! same way a real card's author never has to spell digits out by hand.
 //!
+//! What textual substitution *does* cost is a guarantee: a string that parses
+//! cleanly has not thereby parsed back into the frame it came from. A filler
+//! whose own text coordinates, or trails a modifier the frame's next word can
+//! attach to, re-brackets the sentence around it into a well-formed parse of
+//! something else — the frame's tree is then not what the reader sees.
+//! [`CompiledFrame::tree`](crate::compile::CompiledFrame::tree) is what makes
+//! that checkable rather than hoped for: the re-parse is compared back
+//! against it, holes filled, before any text is returned (see
+//! [`ReassembledDifferently`]).
+//!
 //! # Residual fillers
 //!
 //! A hole whose filler recovered as [`Recovered::Residual`] carries a
@@ -81,6 +91,48 @@ use crate::lexicon::Entry;
 use crate::lexicon::Lexicon;
 use crate::unify::Recovered;
 
+/// The substituted text parsed back into a *different* tree than the frame
+/// it was rendered from — see [`crate::unify::frame_reassembles`].
+///
+/// A named error type, not a bare message, because the two render failures a
+/// caller must tell apart are not equally serious. A residual this module
+/// cannot reconstruct is a coverage gap: some English is not covered yet, and
+/// a gate legitimately sets that line aside. This is the other thing — the
+/// render produced text that reads as something the frame does not say — and
+/// a gate that quietly set *those* aside would be recording the defect as
+/// missing coverage. Callers separate them by
+/// [downcasting](anyhow::Error::downcast_ref) to this type.
+///
+/// Recoverable, never a panic: the render path is fallible everywhere else
+/// for the same reason (a lexicon is data, and bad data must be reported to
+/// whoever loaded it, not abort the process), and a `debug_assert!` would
+/// vanish from exactly the release-mode gate runs that sweep the corpus.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReassembledDifferently {
+    /// The head symbol that was rendered.
+    pub entry: String,
+    /// Which of that entry's authored frames was selected.
+    pub frame_index: usize,
+    /// The English category the text was parsed back at.
+    pub kind: FragmentKind,
+    /// The fully substituted text, exactly as parsed back.
+    pub text: String,
+}
+
+impl std::fmt::Display for ReassembledDifferently {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "rendering `{}`: the substituted text {:?} parses at {:?} into a different tree than \
+             frame [{}] with its holes filled, so the text reads as some other constituency than \
+             the frame it was rendered from",
+            self.entry, self.text, self.kind, self.frame_index,
+        )
+    }
+}
+
+impl std::error::Error for ReassembledDifferently {}
+
 /// Renders the invocation a successful [`crate::unify::unify`] recovered,
 /// back to English, as a whole [`FragmentKind::Sentence`].
 ///
@@ -104,8 +156,10 @@ use crate::unify::Recovered;
 /// head symbol is registered at `Sentence` with every guard satisfied by
 /// `inv`'s own arguments; if a filler is (or recursively contains) a
 /// [`Recovered::Residual`] this module cannot honestly reconstruct text for
-/// (see the module doc); or if the fully substituted text does not parse
-/// cleanly at `Sentence`, or [`render_fragment`] itself refuses it.
+/// (see the module doc); if the fully substituted text does not parse
+/// cleanly at `Sentence`, or parses into a tree that is not the selected
+/// frame with its holes filled ([`ReassembledDifferently`]); or if
+/// [`render_fragment`] itself refuses it.
 pub fn render_invocation(
     inv: &Recovered,
     lexicon: &Lexicon,
@@ -184,6 +238,17 @@ pub fn render_invocation_with(
     let fragment = report
         .into_fragment()
         .expect("a clean fragment report has a fragment");
+    // The frame's own constituency, re-checked. Parsing cleanly is not the
+    // same as parsing *back*: see `ReassembledDifferently`.
+    if !crate::unify::frame_reassembles(&chosen.frame, &crate::view::of(&fragment)) {
+        return Err(ReassembledDifferently {
+            entry: entry.clone(),
+            frame_index: chosen.frame_index,
+            kind,
+            text: substituted,
+        }
+        .into());
+    }
     render_fragment(&fragment, name, is_legendary)
         .map_err(|error| anyhow::anyhow!("rendering `{entry}`: {error}"))
 }
@@ -220,6 +285,16 @@ pub fn render_invocation_with(
 /// incomparable guard sets apart), and a non-unique result — two or more
 /// candidates each maximal, dominating neither the other — is reported as an
 /// error rather than resolved silently by assembly order.
+///
+/// That tie is the **backstop**, not the primary check.
+/// [`lexicon::selection_is_unambiguous`](crate::lexicon) settles the same
+/// question over the whole lexicon at assembly, quantified over every
+/// argument assignment the guards can tell apart, so an assembled lexicon
+/// cannot reach here with a tie at all. This stays a recoverable error rather
+/// than an assertion because a lexicon need not come from `assemble`
+/// ([`Lexicon::from_entries`] enforces none of its invariants), and because
+/// the honest answer to "which of these two wordings did you mean" is a
+/// refusal, not a panic.
 ///
 /// # Errors
 /// If no entry is named `entry_name` at `kind` and `position`; if none of
@@ -1065,6 +1140,96 @@ mod tests {
             "Draw two cards.",
             "count = 2 fails the count-1-guarded frame and must fall through to the \
              unguarded plural frame, not error"
+        );
+    }
+
+    // -- the re-parse cross-check ------------------------------------------
+
+    /// A hand-built entry over `params`, compiled at `kind` — the fixture
+    /// shape the cross-check tests need, since the catalog holds no frame
+    /// whose constituency a filler can disturb.
+    fn fixture_entry(name: &str, params: &[&str], text: &str, kind: FragmentKind) -> Entry {
+        let params: Vec<String> = params.iter().map(|param| (*param).to_string()).collect();
+        let frame = crate::compile(
+            &macro_ron::frames::FrameSpec::bare(text),
+            kind,
+            &params,
+            &fixture().catalogs,
+            fixture().lexicon.macros(),
+        )
+        .unwrap_or_else(|error| panic!("compiling fixture frame {text:?}: {error:#}"));
+        Entry {
+            name: name.to_string(),
+            params,
+            frame_index: 0,
+            origin: crate::lexicon::Origin::Constructor,
+            frame,
+            body: None,
+            announcement: false,
+        }
+    }
+
+    fn nullary(entry: &str) -> Recovered {
+        Recovered::Invocation {
+            entry: entry.to_string(),
+            args: Vec::new(),
+            ambiguities: Vec::new(),
+            body: None,
+        }
+    }
+
+    /// Substitution is textual and the substituted string is re-parsed whole,
+    /// so a filler can silently re-bracket the frame around it: coordination
+    /// is a flat list, and a coordinated filler dropped into a coordination
+    /// slot comes back as one longer list rather than as a member holding its
+    /// own. Nothing about the resulting text is ill-formed — it parses
+    /// cleanly and renders — it simply is not the frame that was selected,
+    /// which is the whole failure mode of rendering through text.
+    ///
+    /// Both directions are asserted: the single-member filler reassembles
+    /// exactly and must still render, so the check cannot be passing by
+    /// refusing everything.
+    #[test]
+    fn a_filler_that_reassembles_the_frame_differently_is_refused() {
+        let lexicon = Lexicon::from_entries(
+            vec![
+                fixture_entry(
+                    "PairFixture",
+                    &["Predicate", "Predicate"],
+                    "<Param(0)> and <Param(1)>",
+                    FragmentKind::Nominal,
+                ),
+                fixture_entry("SoloFixture", &[], "card", FragmentKind::Nominal),
+                fixture_entry("DuoFixture", &[], "card and player", FragmentKind::Nominal),
+            ],
+            fixture().lexicon.macros().clone(),
+        );
+        let render = |first: &str| {
+            render_invocation_with(
+                &Recovered::Invocation {
+                    entry: "PairFixture".to_string(),
+                    args: vec![nullary(first), nullary("SoloFixture")],
+                    ambiguities: Vec::new(),
+                    body: None,
+                },
+                &lexicon,
+                FramePosition::Main,
+                FragmentKind::Nominal,
+                &fixture().catalogs,
+                "",
+                false,
+            )
+        };
+        assert_eq!(
+            render("SoloFixture").unwrap(),
+            "card and card",
+            "a filler that fills exactly one coordination member reassembles the frame"
+        );
+        let error = render("DuoFixture").unwrap_err();
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("PairFixture") && message.contains("card and player and card"),
+            "{message}"
         );
     }
 

@@ -21,6 +21,8 @@
 //! each), and they compete as independent candidates at match time, exactly
 //! as the guard model intends.
 
+use std::collections::BTreeSet;
+
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use macro_ron::Ident;
@@ -29,8 +31,10 @@ use macro_ron::MacroSet;
 use macro_ron::Params;
 use macro_ron::frames::ConstructorFrames;
 use macro_ron::frames::FrameKind;
+use macro_ron::frames::FramePosition;
 
 use crate::CompiledFrame;
+use crate::View;
 use crate::compile;
 
 /// Where an entry's frames were authored.
@@ -174,11 +178,19 @@ impl Lexicon {
     ///    `(origin, name, frame_index, kind)` before the lexicon is built.
     ///    Sorting last, over the finished vector, is what keeps every
     ///    `Matched.entry` index consistent.
+    /// 3. **Frame selection has a unique answer for every invocation.** See
+    ///    [`selection_is_unambiguous`]: the render direction picks the
+    ///    most-specific frame whose guards an invocation's arguments satisfy,
+    ///    and a frame set in which some argument assignment leaves two
+    ///    candidates equally specific has no principled winner. Checked over
+    ///    the compiled frames, so it is a property of the *lexicon*, not of
+    ///    whichever invocation first happens to hit it.
     ///
     /// # Errors
     /// If any frame fails to compile — for a constructor frame, if it
-    /// compiles at no category at all — or if two framed macro definitions
-    /// share a name, or two catalog entries share a `constructor`.
+    /// compiles at no category at all — if two framed macro definitions
+    /// share a name, if two catalog entries share a `constructor`, or if some
+    /// argument assignment leaves two frames tied for most specific.
     pub fn assemble(
         defs: &MacroSet,
         constructors: &[ConstructorFrames],
@@ -261,6 +273,11 @@ impl Lexicon {
                     kind_rank(right.frame.kind),
                 ))
         });
+
+        // Invariant 3 above. After compiling, because specificity is decided
+        // on each guard's expanded canonical value — the thing satisfaction
+        // is defined on — not on its authored spelling.
+        selection_is_unambiguous(&entries)?;
 
         Ok(Lexicon {
             entries,
@@ -381,6 +398,11 @@ const CONSTRUCTOR_KINDS: [FragmentKind; 5] = [
 
 /// A total order over [`FragmentKind`], for [`Lexicon::assemble`]'s sort.
 ///
+/// Public because it is the *only* definition of that order, and a tool that
+/// resolves a name to one of several same-named definitions has to break its
+/// tie the same way the assembled lexicon does or the two disagree about
+/// which definition a name means.
+///
 /// `FragmentKind` belongs to the corpus-gated `deckmaste_english` crate,
 /// which this round must not modify, so it carries no `Ord` to derive from.
 /// [`CONSTRUCTOR_KINDS`] already enumerates every category a frame can be
@@ -390,7 +412,8 @@ const CONSTRUCTOR_KINDS: [FragmentKind; 5] = [
 /// constructor frame's from its declared `kind:`) and exists only so a
 /// future `FragmentKind` variant sorts last instead of failing to compile a
 /// sort that has no business gating on the kind space.
-pub(crate) fn kind_rank(kind: FragmentKind) -> usize {
+#[must_use]
+pub fn kind_rank(kind: FragmentKind) -> usize {
     CONSTRUCTOR_KINDS
         .iter()
         .position(|candidate| *candidate == kind)
@@ -485,6 +508,248 @@ fn constructor_names_are_unique(constructors: &[ConstructorFrames]) -> anyhow::R
         seen.push(&entry.constructor);
     }
     Ok(())
+}
+
+/// Every syntactic position a render may be requested at. The whole space,
+/// not a sample: [`selection_is_unambiguous`] has to quantify over it, and a
+/// position no frame currently keys on is exactly where an unnoticed
+/// ambiguity would sit.
+const POSITIONS: [FramePosition; 2] = [FramePosition::Main, FramePosition::Trigger];
+
+/// Whether `position` is one [`POSITIONS`] sweeps. Exhaustive on purpose: a
+/// new [`FramePosition`] variant must fail to compile here rather than
+/// silently escape the sweep.
+const fn position_is_swept(position: FramePosition) -> bool {
+    match position {
+        FramePosition::Main | FramePosition::Trigger => true,
+    }
+}
+
+/// Rejects a frame set in which some invocation would have no *unique*
+/// most-specific frame.
+///
+/// # The rule this decides
+///
+/// Rendering picks among the entries sharing the invocation's head symbol:
+/// those registered at the caller's category (when it has one) and whose
+/// `position` key admits the caller's position, narrowed to those whose every
+/// guard the arguments satisfy, and among those the one whose satisfied
+/// guard-param set strictly contains every rival's (`render::select_frame`).
+/// Two candidates neither of which dominates the other is a tie with no
+/// principled winner, and this is where that is refused — over the lexicon,
+/// for every argument assignment, rather than on whichever invocation first
+/// happens to supply the offending arguments.
+///
+/// Totality is a *different* property and is deliberately not checked here:
+/// an argument assignment that satisfies **no** frame's guards is a coverage
+/// gap (the render says so, by name), not an ambiguity. A catalog entry that
+/// applies only at one constant — a singular "target `<predicate>`" wording
+/// guarding its quantity — is exactly that shape and must keep assembling.
+///
+/// # Why the quantifier is finite
+///
+/// "Every argument assignment" is infinite; the *distinctions it can draw*
+/// are not. A guard holds iff the argument's canonical form equals the
+/// guard's, so at each guarded param the only cases are: equals one of the
+/// distinct constants some frame guards there, or equals none of them. The
+/// sweep enumerates exactly that product, which is complete for selection —
+/// no third behaviour exists — and small (guarded params per name are a
+/// handful, constants per param fewer).
+///
+/// # Why a pairwise test would be wrong
+///
+/// Comparability of two frames' guard-param sets, taken in isolation, is
+/// *not* the condition. A pair guarding disjoint params is incomparable and
+/// still unambiguous whenever a third frame guarding the union is viable
+/// wherever both of them are — which is the shape a subject-guarded wording,
+/// a count-guarded wording, and the wording guarding both naturally take.
+/// Specificity is a property of the whole candidate set at an assignment.
+///
+/// # Errors
+/// Naming both tied frames, the assignment that ties them, and the position.
+fn selection_is_unambiguous(entries: &[Entry]) -> anyhow::Result<()> {
+    debug_assert!(POSITIONS.iter().copied().all(position_is_swept));
+    let mut names: Vec<&str> = entries.iter().map(|entry| entry.name.as_str()).collect();
+    names.sort_unstable();
+    names.dedup();
+    for name in names {
+        let same_name: Vec<&Entry> = entries.iter().filter(|entry| entry.name == name).collect();
+        if same_name.len() < 2 {
+            continue;
+        }
+        // A *nested filler* render passes no category at all (its text is
+        // substituted, never parsed), so every same-named entry competes
+        // regardless of where it is registered. A top-level render filters to
+        // the caller's category first, and narrowing the candidate set can
+        // *create* a tie the wider one had a dominating frame for — so
+        // neither grouping subsumes the other and both are swept.
+        positions_are_unambiguous(&same_name)?;
+        for kind in CONSTRUCTOR_KINDS {
+            let at_kind: Vec<&Entry> = same_name
+                .iter()
+                .copied()
+                .filter(|entry| entry.frame.kind == kind)
+                .collect();
+            if at_kind.len() >= 2 && at_kind.len() < same_name.len() {
+                positions_are_unambiguous(&at_kind)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// [`selection_is_unambiguous`] for one candidate group, at each position the
+/// group can be rendered in. A frame with no `position` key competes
+/// everywhere; a keyed one competes only at its own.
+fn positions_are_unambiguous(candidates: &[&Entry]) -> anyhow::Result<()> {
+    for position in POSITIONS {
+        let here: Vec<&Entry> = candidates
+            .iter()
+            .copied()
+            .filter(|entry| {
+                entry
+                    .frame
+                    .spec
+                    .position
+                    .is_none_or(|required| required == position)
+            })
+            .collect();
+        if here.len() >= 2 {
+            assignments_are_unambiguous(&here, position)?;
+        }
+    }
+    Ok(())
+}
+
+/// [`selection_is_unambiguous`] for one candidate group at one position:
+/// enumerate the argument assignments the guards can tell apart, and require
+/// a single maximal candidate under each.
+fn assignments_are_unambiguous(
+    candidates: &[&Entry],
+    position: FramePosition,
+) -> anyhow::Result<()> {
+    let mut params: Vec<usize> = candidates
+        .iter()
+        .flat_map(|entry| entry.frame.guards.iter().map(|guard| guard.param))
+        .collect();
+    params.sort_unstable();
+    params.dedup();
+    let constants: Vec<Vec<&View>> = params
+        .iter()
+        .map(|param| distinct_guard_values(candidates, *param))
+        .collect();
+
+    // Mixed radix over the params: each takes one of its mentioned constants,
+    // or the extra option standing for every value none of them equals.
+    let total: usize = constants.iter().map(|values| values.len() + 1).product();
+    for code in 0..total {
+        let mut rest = code;
+        let choice: Vec<usize> = constants
+            .iter()
+            .map(|values| {
+                let radix = values.len() + 1;
+                let picked = rest % radix;
+                rest /= radix;
+                picked
+            })
+            .collect();
+        let viable: Vec<(&Entry, BTreeSet<usize>)> = candidates
+            .iter()
+            .filter_map(|entry| {
+                entry
+                    .frame
+                    .guards
+                    .iter()
+                    .map(|guard| {
+                        let slot = params.iter().position(|param| *param == guard.param)?;
+                        let values = &constants[slot];
+                        let picked = choice[slot];
+                        (picked < values.len() && *values[picked] == guard.value)
+                            .then_some(guard.param)
+                    })
+                    .collect::<Option<BTreeSet<usize>>>()
+                    .map(|satisfied| (*entry, satisfied))
+            })
+            .collect();
+        // The maximal elements under the ⊆ order on satisfied guard-param
+        // sets — the identical relation the render direction ranks by, an
+        // actual set relation rather than a guard count, which cannot tell
+        // two same-sized incomparable sets apart.
+        let maximal: Vec<&Entry> = viable
+            .iter()
+            .filter(|(_, set)| {
+                !viable
+                    .iter()
+                    .any(|(_, other)| other.len() > set.len() && other.is_superset(set))
+            })
+            .map(|(entry, _)| *entry)
+            .collect();
+        anyhow::ensure!(
+            maximal.len() <= 1,
+            "no unique most-specific frame for `{}` at position {position:?} when {}: {} \
+             frame(s) are equally specific — {}. Selection is deterministic data: give one a \
+             strictly narrower guard set, guard them apart on a shared param, or key them to \
+             different positions.",
+            maximal[0].name,
+            describe(&params, &constants, &choice, candidates),
+            maximal.len(),
+            maximal
+                .iter()
+                .map(|entry| entry.label())
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+    }
+    Ok(())
+}
+
+/// The distinct canonical constants any candidate guards `param` at — the
+/// cases an argument at that position can be in, short of matching none of
+/// them.
+fn distinct_guard_values<'entries>(
+    candidates: &[&'entries Entry],
+    param: usize,
+) -> Vec<&'entries View> {
+    let mut values: Vec<&View> = Vec::new();
+    for entry in candidates {
+        for guard in &entry.frame.guards {
+            if guard.param == param && !values.contains(&&guard.value) {
+                values.push(&guard.value);
+            }
+        }
+    }
+    values
+}
+
+/// One enumerated assignment, in the authored spellings a reader can find in
+/// the catalog — never the expanded canonical form the comparison runs on,
+/// which is unreadable and is not what anyone would edit.
+fn describe(
+    params: &[usize],
+    constants: &[Vec<&View>],
+    choice: &[usize],
+    candidates: &[&Entry],
+) -> String {
+    params
+        .iter()
+        .enumerate()
+        .map(|(slot, param)| {
+            let values = &constants[slot];
+            let picked = choice[slot];
+            match values.get(picked) {
+                Some(value) => {
+                    let source = candidates
+                        .iter()
+                        .flat_map(|entry| &entry.frame.guards)
+                        .find(|guard| guard.param == *param && guard.value == **value)
+                        .map_or("?", |guard| guard.source.as_str());
+                    format!("Param({param}) is `{source}`")
+                }
+                None => format!("Param({param}) is anything no frame guards"),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" and ")
 }
 
 /// A `body:` entry's body must hole **every** param the entry declares, and
@@ -685,6 +950,105 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A pump-shaped catalog entry over `(Reference, Count, Count)`, for the
+    /// specificity tests below: every frame either holes or guards each of
+    /// the three params, and the texts parse at `Sentence` against an empty
+    /// catalog (no catalog noun anywhere).
+    fn pump_entry(name: &str, frames: Vec<FrameSpec>) -> ConstructorFrames {
+        ConstructorFrames {
+            constructor: name.to_string(),
+            params: vec![
+                "Reference".to_string(),
+                "Count".to_string(),
+                "Count".to_string(),
+            ],
+            frames,
+            kind: FrameKind::Sentence,
+            body: None,
+            announcement: false,
+        }
+    }
+
+    fn guarded(text: &str, when: &[(usize, &str)]) -> FrameSpec {
+        FrameSpec {
+            text: text.to_string(),
+            when: when
+                .iter()
+                .map(|(param, source)| (*param, (*source).to_string()))
+                .collect(),
+            position: None,
+            announced: Vec::new(),
+        }
+    }
+
+    /// Selection uniqueness, the build-time half. Two frames guarding the
+    /// same param at the same constant are equally specific for every
+    /// argument that satisfies them, and nothing else in the entry is more
+    /// specific — so an invocation with `Param(0) = You` has two maximal
+    /// candidates and no principled winner. Refused at assembly, naming both
+    /// frames, rather than on whichever invocation first happens to supply
+    /// `You`.
+    #[test]
+    fn assemble_rejects_two_frames_that_tie_on_guard_specificity() {
+        let catalog = [pump_entry(
+            "TieFixture",
+            vec![
+                guarded(
+                    "~ gets +<Param(1)>/+<Param(2)> until end of turn",
+                    &[(0, "You")],
+                ),
+                guarded("~ and ~ get +<Param(1)>/+<Param(2)>", &[(0, "You")]),
+            ],
+        )];
+        let error = Lexicon::assemble(crate::guard::core_reader(), &catalog, &Catalogs::default())
+            .expect_err("two equally-specific frames must be refused at assembly");
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("no unique most-specific frame"),
+            "{message}"
+        );
+        assert!(message.contains("`TieFixture`[0]"), "{message}");
+        assert!(message.contains("`TieFixture`[1]"), "{message}");
+        // The assignment is reported in the authored spelling, so the report
+        // names something findable in the catalog.
+        assert!(message.contains("Param(0) is `You`"), "{message}");
+    }
+
+    /// The control the check exists to *not* fire on, and the reason it
+    /// cannot be a pairwise comparability test over guard-param sets: the
+    /// `You`-guarded frame `[0]` and the count-guarded frame `[3]` guard
+    /// disjoint params, so neither's guard set contains the other's — yet
+    /// the entry is unambiguous, because the frame guarding *both* params
+    /// `[2]` is viable exactly when both of them are and strictly dominates
+    /// the pair. Uniqueness is a property of the whole candidate set at an
+    /// argument assignment, never of a pair in isolation.
+    #[test]
+    fn assemble_accepts_incomparable_guards_a_third_frame_dominates() {
+        let catalog = [pump_entry(
+            "DominatedFixture",
+            vec![
+                guarded(
+                    "~ gets +<Param(1)>/+<Param(2)> until end of turn",
+                    &[(0, "You")],
+                ),
+                guarded(
+                    "<Param(0)> gets +<Param(1)>/+<Param(2)> until end of turn",
+                    &[],
+                ),
+                guarded(
+                    "~ gets +1/+<Param(2)> until end of turn",
+                    &[(0, "You"), (1, "1")],
+                ),
+                guarded(
+                    "<Param(0)> gets +1/+<Param(2)> until end of turn",
+                    &[(1, "1")],
+                ),
+            ],
+        )];
+        Lexicon::assemble(crate::guard::core_reader(), &catalog, &Catalogs::default())
+            .unwrap_or_else(|error| panic!("a dominated pair is not an ambiguity: {error:#}"));
     }
 
     /// Invariant 1, constructor half. `load_constructor_frames` walks a
