@@ -4,6 +4,17 @@ needs: []
 Strip the ~20 existing `default`-valued player/reference arguments from `idris/src/Core.idr`
 grammar constructors, making every call site pass the reference explicitly.
 
+**Rescope (2026-08-01):** the `{default You …}` player-agent half of this
+ticket is subsumed by the action role reshape
+(`core-pay-player-action`, spec
+`docs/superpowers/specs/2026-08-01-action-role-reshape-design.md`) — deleting
+`Action::By` and giving player verbs explicit agent slots strips those
+defaults wholesale, and `MayPay`/`MustPay` (incl. their `{default You
+actor}`) are deleted outright. Remaining scope here: the non-player defaults
+(`{default This …}`, `{default [Library] …}`, `Countable.ManaSpent`'s
+`default This`, and kin). Coordinate with the reshape (the Idris constructor
+churn overlaps; land this after it or fold the leftovers into its plan).
+
 ## Why
 
 Implicit `{default You …}` / `{default This …}` / `{default [Library] …}` arguments on grammar
