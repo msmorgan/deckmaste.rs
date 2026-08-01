@@ -1,8 +1,9 @@
 //! `cargo xtask macro` — frame-layer tooling: dump a compiled frame
-//! (`inspect`) and keep a macro's legacy `template:` field honest against
-//! its `frames:` (`templates --check`/`--write`, the D10 coexistence
-//! contract). Mirrors `crate::english`'s command-wiring shape: one file per
-//! subcommand, this module owns only the `clap::Subcommand` dispatch.
+//! (`inspect`), keep a macro's legacy `template:` field honest against its
+//! `frames:` (`templates --check`/`--write`, the D10 coexistence contract),
+//! and read the frame set against real cards (`pilot`, `census`,
+//! `residuals`). Mirrors `crate::english`'s command-wiring shape: one file
+//! per subcommand, this module owns only the `clap::Subcommand` dispatch.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -13,11 +14,13 @@ use clap::Subcommand;
 use self::census::CensusArgs;
 use self::inspect::InspectArgs;
 use self::pilot::PilotArgs;
+use self::residuals::ResidualArgs;
 use self::templates::TemplatesArgs;
 
 mod census;
 mod inspect;
 mod pilot;
+mod residuals;
 mod templates;
 
 #[derive(Debug, Args)]
@@ -40,6 +43,9 @@ enum MacroCommand {
     /// The D10 ratchet's reading: framed defs / true macro definitions,
     /// per-gate pilot status, and the corpus-wide excepted-template count.
     Census(CensusArgs),
+    /// Classify every canon ability line against the whole lexicon and rank
+    /// the residual shapes the matcher still cannot recover.
+    Residuals(ResidualArgs),
 }
 
 pub fn run(args: MacroArgs) -> anyhow::Result<()> {
@@ -48,6 +54,7 @@ pub fn run(args: MacroArgs) -> anyhow::Result<()> {
         MacroCommand::Templates(args) => templates::run(args),
         MacroCommand::Pilot(args) => pilot::run(args),
         MacroCommand::Census(args) => census::run(args),
+        MacroCommand::Residuals(args) => residuals::run(args),
     }
 }
 

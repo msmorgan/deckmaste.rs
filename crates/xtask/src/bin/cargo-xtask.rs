@@ -55,8 +55,8 @@ enum Cmd {
     Cite(CiteArgs),
     /// Inspect parsed Oracle text and audit unresolved English phrases.
     English(EnglishArgs),
-    /// Frame-layer tooling: dump a compiled frame, and check/rewrite a
-    /// macro's legacy `template:` field against its `frames:`.
+    /// Frame-layer tooling: compiled-frame dumps, `template:` upkeep, and
+    /// the gates and sweeps that read the frame set against real cards.
     Macro(MacroArgs),
     /// The anaphora-soundness gate: re-emit each expanded card as a raw
     /// Idris `Core.idr` expression and typecheck it with `idris2 --check`.

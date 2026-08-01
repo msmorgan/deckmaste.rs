@@ -405,7 +405,7 @@ pub(super) fn gate_status(plugin_dir: &Path, canon_dir: &Path) -> anyhow::Result
 // Corpus loading
 // ---------------------------------------------------------------------------
 
-fn real_catalogs(workspace_root: &Path) -> anyhow::Result<Catalogs> {
+pub(super) fn real_catalogs(workspace_root: &Path) -> anyhow::Result<Catalogs> {
     let dir = workspace_root.join("data/gen/catalogs");
     let load = |name: &str| -> anyhow::Result<Vec<String>> {
         let path = dir.join(format!("{name}.txt"));
@@ -523,7 +523,7 @@ fn collect_lines(canon_dir: &Path, macros: &MacroSet) -> anyhow::Result<Swept> {
     Ok(Swept { lines, excluded })
 }
 
-fn faces(card: &Card) -> Vec<&CardFace> {
+pub(super) fn faces(card: &Card) -> Vec<&CardFace> {
     match card {
         Card::Normal(face) => vec![face],
         Card::TwoFaced { front, back, .. } => vec![front, back],
@@ -534,7 +534,7 @@ fn faces(card: &Card) -> Vec<&CardFace> {
 /// `deckmaste_cards::render`'s own private `peel_expanded`, which this
 /// module cannot call (it is not exported), kept minimal since only the
 /// two ability kinds below are ever isolated.
-fn peel_expanded(ability: &Ability) -> &Ability {
+pub(super) fn peel_expanded(ability: &Ability) -> &Ability {
     match ability {
         Ability::Expanded(exp) => peel_expanded(&exp.value),
         other => other,
@@ -637,7 +637,7 @@ fn testable_line(
 /// `deckmaste_cards::plugin::ron_files_recursive`, `crate::macros::templates`'s
 /// own copy) — xtask depends on none of those crates' internals, so this
 /// stays its own copy rather than a new public API surface for one caller.
-fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+pub(super) fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     if !dir.exists() {
         return Ok(Vec::new());
     }
