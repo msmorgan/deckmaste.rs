@@ -96,8 +96,8 @@ Read it before planning further work under this claim.
 `english-ast-grouping`, `english-closed-class-tables`,
 `english-grammar-syntax-key-mirrors`, `english-literal-surfaces-derivation`,
 `english-predicate-generics`, `english-recovery-walker-derive`,
-`english-semantic-ir`, `english-surface-fact-diet`,
-`english-test-structural-assertions`.
+`english-semantic-ir` (retired 2026-07-31: the IR direction is dead),
+`english-surface-fact-diet`, `english-test-structural-assertions`.
 
 **Hygiene and tooling.** `ability-word-catalog-regen`,
 `english-split-grammar-modules`, `split-resolve-tests`; plus scope added to

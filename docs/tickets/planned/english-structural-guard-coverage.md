@@ -52,10 +52,11 @@ makes the third-category count itself informative.
 
 ## Why now rather than later
 
-Sequencing against [[english-semantic-ir]]: the IR is the first consumer that
-will *act* on tree shape, and misparses surfacing through it appear as card
-defects at maximum distance from their cause. The meter is worth more before
-that consumption is corpus-wide than after. It does not block the IR and the IR
-does not block it; only the value ordering couples them.
+Sequencing against whatever layer first *acts* on tree shape downstream (the
+guarded-frames direction that superseded the dead semantic-IR idea): misparses
+surfacing through such a consumer appear as card defects at maximum distance
+from their cause, so the meter is worth more before that consumption is
+corpus-wide than after. Nothing blocks in either direction; only the value
+ordering couples them.
 
 Standard constraints apply.
