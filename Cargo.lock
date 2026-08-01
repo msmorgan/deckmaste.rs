@@ -1940,6 +1940,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rayon",
+ "ron",
  "serde",
  "serde_json",
  "syn",

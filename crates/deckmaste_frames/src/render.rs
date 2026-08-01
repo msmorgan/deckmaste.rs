@@ -642,11 +642,17 @@ fn substitute(
 /// nominal (no determiner, no modifiers, no complements) whose head's
 /// spelling is recoverable straight from the tree.
 ///
+/// Public because the discovery census's draft-entry generator
+/// (`xtask::macros::residuals`) reconstructs surface text for a residual the
+/// same honest way this module's own render path does — a captured filler
+/// that never went through a lexicon entry has no frame text to substitute
+/// from either way, whichever side is asking.
+///
 /// # Errors
 /// If `view` is not (after unwrapping newtype wrappers) a `NominalPhrase`
 /// with a vacuous determiner, modifiers and complements, or its head's
 /// spelling is not recoverable — see the module doc.
-fn render_residual_text(view: &View) -> anyhow::Result<String> {
+pub fn render_residual_text(view: &View) -> anyhow::Result<String> {
     match view {
         View::Newtype { inner, .. } => render_residual_text(inner),
         View::Node {
