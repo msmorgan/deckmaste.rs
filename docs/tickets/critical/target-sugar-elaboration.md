@@ -46,9 +46,19 @@ the ONLY scope introducer; idiom bodies stay scope-free.
   explicit-prefix edges, plus an "other"-flavored form
   (distinct-from-all-earlier announcements, oracle's "any OTHER
   target") for the fully-inline case; explicit indexed `Distinct` stays
-  the general mechanism. Arc Trail becomes the other-form fixture;
-  Seeds of Strength the non-distinct counterexample (its three
-  announcements may legally choose the same creature).
+  the general mechanism, and the other-form desugars to `Distinct`
+  edges — NEVER to a not-already-targeted choose-time filter, which is
+  order-dependent and wrong under retargeting (legality is rechecked
+  over the final SET). WITHIN-slot uniqueness needs no encoding at all:
+  one announce slot = one instance of "target", and the same object
+  can't be chosen twice for one instance [CR#601.2c] — that default is
+  engine-owned. Cross-slot same-object IS legal by default (once per
+  instance), which is why the other-form exists. Fixtures: Arc Trail
+  (other-form); Seeds of Strength (cross-slot same-object legal — its
+  three announcements may all choose one creature); a
+  choose-the-same-mode-more-than-once card (repeated modes mint
+  instances, same object legal per instance); a divided-damage card
+  (one plural slot, recipients forced-distinct).
 - Mixed scopes via the explicit-prefix rule (explicit slots own `0..E`;
   inline sites append in textual order; authored indices `< E`; validator
   rejects an authored index landing on a generated slot).
