@@ -46,10 +46,23 @@ the ONLY scope introducer; idiom bodies stay scope-free.
   explicit-prefix edges, plus an "other"-flavored form
   (distinct-from-all-earlier announcements, oracle's "any OTHER
   target") for the fully-inline case; explicit indexed `Distinct` stays
-  the general mechanism, and the other-form desugars to `Distinct`
-  edges — NEVER to a not-already-targeted choose-time filter, which is
-  order-dependent and wrong under retargeting (legality is rechecked
-  over the final SET). WITHIN-slot uniqueness needs no encoding at all:
+  the general mechanism at the authored surface — and the ULTIMATE core
+  encoding (owner-settled 2026-08-02) is predicate-embedded slot
+  references: slot i's criteria may reference strictly-earlier slots,
+  e.g. `[Target(Creature), Target(And([Not(Ref(Target(0))), Creature]))]`
+  — so `TargetSpec::Distinct` becomes DERIVED (the other-form lowers to
+  the predicate shape; core's dedicated constructor is deleted as a
+  small refactor or as the divergence ledger's first earned divergence).
+  Distinguish carefully: this is a STATIC slot-reference constraint —
+  order-free, and recheck-correct FOR FREE because [CR#601.2c] and the
+  retarget rules recheck targets against the criteria themselves. What
+  remains wrong is a dynamic not-already-targeted choose-time filter
+  (order-dependent over the in-progress set). Generalized obligations:
+  well-formedness becomes "no `Target(j >= i)` anywhere in slot i's
+  predicate tree" (deep scan, Rust + Idris — `idris-distinct-position-
+  proof` generalizes to this); plural slots need a group-membership
+  predicate (`Not(Among(Targets(0)))`-shaped) where set-disjointness was
+  uniform. WITHIN-slot uniqueness needs no encoding at all:
   one announce slot = one instance of "target", and the same object
   can't be chosen twice for one instance [CR#601.2c] — that default is
   engine-owned. Cross-slot same-object IS legal by default (once per

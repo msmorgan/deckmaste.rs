@@ -333,12 +333,20 @@ target.
   triggers open their own announcement scopes; per-mode target scopes are
   never flattened into an unconditional outer list
   [CR#601.2c,603.3d,603.7].
-- **`Distinct` is a set-level disjointness constraint** (two unconstrained
-  slots may legally choose the same object), checked after selection and
-  at legality recheck. No new constructor; canonical well-formedness:
-  sibling indices strictly earlier, sorted, deduplicated, each undirected
-  edge stored on the later slot. (The Idris side currently proves range
-  only; the position-strengthening is `idris-distinct-position-proof`.)
+- **Cross-slot distinctness**: two unconstrained slots may legally choose
+  the same object (once per instance [CR#601.2c]); within-slot uniqueness
+  is rules-default and needs no encoding. The ULTIMATE core encoding of
+  cross-slot constraints is predicate-embedded slot references — slot i's
+  criteria may reference strictly-earlier slots
+  (`Target(And([Not(Ref(Target(0))), Creature]))`) — making
+  `TargetSpec::Distinct` derived and deletable (the authored other-form
+  lowers to the predicate shape; recheck-correctness comes free because
+  the rules recheck targets against the criteria themselves). This is a
+  STATIC, order-free constraint — distinct from the rejected dynamic
+  not-already-targeted filter. Well-formedness: no `Target(j >= i)`
+  anywhere in slot i's predicate tree (the generalized
+  `idris-distinct-position-proof` obligation); plural edges use a
+  group-membership predicate.
 - **Re-mentions**: same-slot re-mentions are `Target(n)` in the full form
   or owned inside idiom defs; cross-zone re-mentions are `That(Sort)`.
   Surface pronouns do not map one-to-one onto channels — Ephemerate says

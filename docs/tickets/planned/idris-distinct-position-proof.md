@@ -13,6 +13,12 @@ rejects self and out-of-range sibling references — the mirror lags it.
 - `distinctOk` (or successor on the authoring mirror, once
   `idris-mirror-authoring` lands) receives the slot's own position; prove
   every sibling index strictly earlier.
+- **Generalization note (2026-08-02)**: the settled ultimate core encoding
+  replaces the dedicated `Distinct` constructor with predicate-embedded
+  slot references (see `target-sugar-elaboration`), so this proof's final
+  form is "no `Target(j >= i)` anywhere inside slot i's predicate tree" —
+  a deep scan over spec predicates, not a field check. Prove whichever
+  shape core has when claimed; the position-threading is the same idea.
 - Canonical well-formedness while there: sibling lists sorted and
   duplicate-free; each undirected distinctness edge stored on the later
   slot only.
