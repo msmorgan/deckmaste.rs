@@ -1,5 +1,5 @@
 ---
-needs: [macro-author-surface]
+needs: [macro-author-surface, idris-mirror-authoring]
 ---
 Strip the ~20 existing `default`-valued player/reference arguments from `idris/src/Core.idr`
 grammar constructors, making every call site pass the reference explicitly.

@@ -12,7 +12,10 @@ mechanism inside spelling.
 - Cargo rename + imports/docs sweep (mechanical).
 - Kind/type references retarget to `deckmaste_authoring` (the relation
   pairs English with the authored grammar; core must not appear in this
-  crate's dependency graph).
+  crate's dependency graph). Delimitation vs `plugin-repoint`: THIS ticket
+  owns the crate's own internal type table (guard.rs and kin); the
+  loader-supplied read path is the repoint's (unordered pair; each owns
+  its side).
 - xtask macro-tooling imports follow.
 
 ## Gates

@@ -16,9 +16,15 @@ the other — the build graph is the architecture.
   subset with a CI round-trip property (`raise(lower(t)) ≡α t`); the
   convention that every future non-identity arm carries its justification
   in place (the crate IS the divergence ledger) plus a per-variant test.
-- Scope-elaboration phases (desugar/hoist/normalize) are declared as this
-  crate's future home but NOT implemented here
+- If `card-crate-split` has landed, this crate also depends on
+  `deckmaste_card` (lowering targets both engine-side crates).
+- Normalization (authored → authored normal form) lives in
+  `deckmaste_authoring` (spec §9); this crate invokes it and owns the
+  cross-grammar mapping. Sugar/elaboration rules land later
   (`target-sugar-elaboration`).
+- The error-taxonomy pass (authoring parse errors / lowering errors / core
+  validation — spec §9) happens here, where the layers meet; the
+  expansion-equality law is this crate's to state and test.
 
 ## Gates
 

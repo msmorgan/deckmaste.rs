@@ -20,9 +20,18 @@ record; supersedes this ticket's pre-program draft):
   cards/tokens restricted; `rules/` tables and macro bodies free.
 - **Identity macros**: one def per authoring-reachable variant under the
   variant's own name (mirror-by-default — canon re-parses byte-
-  identically). Scaffolded once by the generator, then HAND-OWNED; a
-  coverage gate (variant ↔ def, arities verified) replaces wipe-first
-  regeneration. Registration kinds computed from the flatten graph.
+  identically). Reachable = variants of registry kinds reachable from the
+  restricted-container root types via fields/flatten/embed, excluding
+  name-erasing loader-tag kinds (spec §5). Scaffolded once by the
+  generator, then HAND-OWNED; a coverage gate (variant ↔ def, arities
+  verified) replaces wipe-first regeneration. Registration kinds computed
+  from the flatten graph. At `remembers_expansion` kinds the wrappers add
+  invocation provenance to previously-bare spellings — "zero behavior
+  change" is measured at stored-byte round-trip and lowered core (spec
+  §5).
+- Suppression must cover BOTH native-candidacy consults: the
+  `EnumIntercept` branch AND the untagged-embed pre-scan's own
+  `variants.contains` (spec §4).
 - **Stragglers**: register `Color` and `Supertype` (and the `Card` root
   scaffold) so the ban is uniform; the closed `Type` enum and counter
   names already conform.

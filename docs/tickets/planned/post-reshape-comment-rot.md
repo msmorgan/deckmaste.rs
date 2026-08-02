@@ -16,6 +16,17 @@ during the 2026-08-02 authoring-program recon; none block anything.
   `resolve/action.rs` (~786, ~2160), `deckmaste_migrations/src/resolve.rs`
   (~425), `macro_ron/src/tests.rs` fixture literals (~1293, ~1306 —
   harmless, body text is opaque to that crate, but confusing).
+- `crates/deckmaste_core/src/effect.rs` (~154-157): the `Targeted` doc
+  comment says announced slots are "read back by the anaphors
+  (`It`/`That(Sort)`/`They`, or `Target(n)`)" — contradicting the
+  targets-are-never-anaphors invariant documented in `reference.rs` /
+  `target_spec.rs` and proven Idris-side. Rewrite to the indexed-channel
+  reading.
+- `crates/deckmaste_core/src/action.rs` (~61-63): `EnterRider`'s claim
+  that non-battlefield riders are "rejected by the Idris re-emit gate" is
+  false (no such proof exists) — coordinate with
+  `idris-mirror-authoring`, which owns resolving it (mint the proof or
+  correct this prose); do not fix independently.
 
 Line numbers are as of 2026-08-02 — re-grep at claim time.
 

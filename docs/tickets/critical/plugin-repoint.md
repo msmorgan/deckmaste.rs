@@ -17,8 +17,16 @@ values.
 - The `Expanded`/`remembers_expansion` invocation-provenance machinery
   relocates from core values to authored values (a real sub-project — spec
   §12 — not a rename; storage round-trips must keep preserving
-  invocations).
-- Frames guard-constant reads retarget to authoring kinds.
+  invocations, and the ~97 production `Expanded(…)` match sites in
+  `deckmaste_engine` stop existing once core values carry no wrappers).
+- This relocation converts the lowering map's wrapper arms into erasure
+  arms — the first non-identity arms — so this ticket also SHRINKS the
+  raise-map round-trip property to the still-mirrored subset (spec §16.3).
+- Frames guard-constant reads retarget to authoring kinds. Delimitation vs
+  `spelling-crate-rename`: THIS ticket retargets the loader-supplied
+  MacroSet/guard-constant read path; the frames crate's own internal type
+  table is the rename ticket's (the two are unordered; each owns its
+  side).
 
 ## Gates
 

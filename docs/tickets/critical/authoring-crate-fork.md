@@ -12,7 +12,10 @@ written in — cards, tokens, and the `rules/` engine tables.
 
 - Duplicate the grammar type families from `deckmaste_core` as an exact
   mirror (variant names and shapes unchanged — canon must re-parse
-  byte-identically).
+  byte-identically) — INCLUDING the authored container types
+  (`Card`/`CardFace`/`Token`): there are deliberately two card-type
+  families afterward, one per side of `lower` (the engine-side family is
+  `card-crate-split`'s).
 - The macro layer moves here: `SupportsMacros` derives, `#[macro_ron(…)]`
   attributes (embed/flatten/default), the kind registry
   (`deckmaste_core::ron::kinds()` relocates), literal-reader plumbing.

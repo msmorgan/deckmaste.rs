@@ -3,8 +3,7 @@ needs: [macro-author-surface, spelling-crate-rename]
 ---
 **Retire `plugins/builtin/frames/constructors.ron`: its seven entries
 migrate into their words' `frames:`, and the lexicon becomes
-single-origin.** Design:
-`docs/decisions/authoring-spelling-lowering.md`
+single-origin.** Design: `docs/decisions/authoring-spelling-lowering.md`
 (§8). Do this while the catalog is still seven entries — it only grows
 otherwise.
 
@@ -12,16 +11,18 @@ otherwise.
 
 - Move each entry's frames onto the owning def (identity defs exist by
   `macro-author-surface`): `DealDamage`, `Target`, `This`, `You`,
-  `AnyTarget` directly; the bodied compound entries (`GainLife`,
-  `TargetedDealDamage`) are transitional workarounds — `GainLife`'s frames
-  land on the life word; `TargetedDealDamage` persists TEMPORARILY as a
-  differential baseline and dies when compositional targeting lands
-  (`target-sugar-elaboration` + the spelling engine's occurrence work).
+  `AnyTarget` directly; the bodied `GainLife` entry's frames land on the
+  life word's def (currently `GainsLife.ron`).
+- **`TargetedDealDamage`'s interim home is a spelling-crate TEST FIXTURE**
+  — a non-author-facing differential baseline inside the spelling test
+  suite, NOT a macro def (that would make it author-spellable vocabulary)
+  and NOT a catalog remnant. Its deletion is owned by
+  `target-sugar-elaboration`, when compositional targeting covers it.
 - Capability unification: macro-origin lexicon entries gain the
   constructor-only capabilities (body patterns, `announcement:`); the
   `Origin::Constructor` path and the catalog loader retire.
-- English round 3 mints frames into defs from this point on — never the
-  catalog.
+- From this point on, the english effort's frame-minting rounds write
+  frames into defs — never a catalog.
 
 ## Gates
 
