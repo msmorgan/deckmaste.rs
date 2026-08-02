@@ -24,6 +24,14 @@ themselves, the emitter, and hand-authored macro *bodies* that still elide
 `This`/`[Library]` — land after `macro-author-surface`, or fold this
 remainder into its plan.
 
+**Third rescope (2026-08-02):** under the authoring/spelling/lowering
+program
+(`docs/decisions/authoring-spelling-lowering.md`),
+the RON-side defaults live in `deckmaste_authoring` and the Idris mirror
+attaches to the authoring kernel — so this ticket's constructor/emitter
+work targets the authoring mirror, not core. Sequencing unchanged (behind
+`macro-author-surface`).
+
 ## Why
 
 Implicit `{default You …}` / `{default This …}` / `{default [Library] …}` arguments on grammar

@@ -31,3 +31,6 @@ requires explicit review rather than an opportunistic refactor.
   dependency, valency, voice, modality, and attachment before Magic lowering.
 - [English productions ship their inverse](english-productions-ship-their-inverse.md) —
   A grammar slice lands only with its exact renderer inverse.
+- [Authoring, spelling, lowering](authoring-spelling-lowering.md) — One
+  authored grammar; English relates two-way via spelling, core derives
+  one-way via lowering.
