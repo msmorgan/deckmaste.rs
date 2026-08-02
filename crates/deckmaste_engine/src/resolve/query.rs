@@ -33,6 +33,20 @@ impl GameState {
     /// a [`Reference`] that resolves (via `eval_reference`) to a player proxy
     /// object; this maps that proxy back to its `PlayerId`.
     ///
+    /// This is also where every DECIDER slot (`May.who`,
+    /// `ChooseSpec.chooser`, …) is resolved to a concrete player
+    /// ([CR#608.2d]). Every such `Reference` is evaluated SYNCHRONOUSLY over
+    /// state+frame, so a QUANTIFIED decider — "an opponent [of your choice]
+    /// chooses", requiring its own sub-choice of WHICH opponent before the
+    /// named decision can even open — has no home here today; zero canon
+    /// witnesses. The settled design is a binder node: the quantifying
+    /// choice hoists to a preceding binder that binds an `Ident`, and the
+    /// decider slot reads the resulting `Reference::Bound(ident)` like any
+    /// other bound reference. A suspending `Reference::ChosenBy` variant was
+    /// considered and REJECTED for the same reason — every `Reference` eval
+    /// here is synchronous. The first witness implements the binder node,
+    /// not this function.
+    ///
     /// # Panics
     ///
     /// Panics if `who` resolves to a non-player object — a player verb's agent

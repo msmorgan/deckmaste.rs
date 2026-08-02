@@ -1017,10 +1017,14 @@ impl GameState {
                     self.schedule_front(items);
                     return;
                 }
+                // [CR#608.2d]: the decider is NAMED on `who`, not derived —
+                // Browbeat's "Any player may have Browbeat deal 5 damage to
+                // them" proves the slot isn't always the controller. `who:
+                // You` is the only spelling in canon today, so this is
+                // behavior-preserving for every existing card.
+                let player = self.acting_player(&may.who, frame);
                 self.pending = Some(crate::decide::PendingDecision::YesNo(
-                    crate::decide::pending::YesNo {
-                        player: frame.controller,
-                    },
+                    crate::decide::pending::YesNo { player },
                 ));
                 self.choice = Some(crate::state::ChoiceContinuation::May {
                     may,
@@ -1031,26 +1035,32 @@ impl GameState {
             // when `up_to`, with repetition when `repeats`), then apply each
             // chosen mode's effect. Per-mode targets/costs are announce-time
             // ([CR#601.2b,700.2c,700.2h]) and unbuilt, so a resolution-time
-            // modal handles target/cost-free modes; a mode carrying either is a
-            // loud seam.
+            // modal handles target/cost-free modes; a mode carrying either is
+            // a documented FIZZLE (never a panic on a live path — canon
+            // witness: Collective Resistance, escalate + per-mode targets on
+            // every mode). Building announce-time mode choice is tracked at
+            // `docs/tickets/planned/engine-modal-announce-time.md`.
             OneShotEffect::Modal(modal) => {
                 if modal
                     .modes
                     .iter()
                     .any(|m| !top_targets(&m.effect).is_empty() || m.cost.is_some())
                 {
-                    todo!(
-                        "engine-resolve-effects seam: modal per-mode targets/costs are \
-                         announce-time ([CR#601.2b,700.2c,700.2h])"
-                    );
+                    // engine-resolve-effects seam: modal per-mode targets/costs
+                    // are announce-time ([CR#601.2b,700.2c,700.2h]) — the mode
+                    // choice would need to happen during casting, before
+                    // targets are announced, which this resolution-time modal
+                    // node can't do. Wrong-but-safe: no effect, rather than a
+                    // panic on a live (grammar-covered, rendering) canon path.
+                    return;
                 }
                 if modal.choose.rider.is_some() {
-                    // Entwine/escalate costs are announce-time additions to the
-                    // total ([CR#702.42a,702.120a,601.2b,601.2f]).
-                    todo!(
-                        "engine-alt-costs seam: entwine/escalate riders are announce-time \
-                         cost additions ([CR#601.2b])"
-                    );
+                    // engine-alt-costs seam: entwine/escalate riders are
+                    // announce-time cost additions
+                    // ([CR#702.42a,702.120a,601.2b,601.2f]) — the extra cost
+                    // has to be paid as part of casting, before this node ever
+                    // runs. Fizzle rather than panic; see the ticket above.
+                    return;
                 }
                 let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
                 // The choose-count is a Quantity ([CR#700.2]): its bounds cap
@@ -1062,9 +1072,16 @@ impl GameState {
                 let hi = hi.map_or(options, |c| self.eval_count(c, frame));
                 let max = if modal.choose.repeats { hi } else { hi.min(options) };
                 let min = if modal.choose.up_to { 0 } else { lo.min(max) };
+                // [CR#700.2e]: the mode CHOOSER is named on the spec, not
+                // derived — Fatal Lore's "An opponent chooses one —" is the
+                // canonical non-controller case. Quantified deciders ("an
+                // opponent [of your choice] chooses") have zero witnesses and
+                // are not built: see the seam note on
+                // `GameState::acting_player`.
+                let player = self.acting_player(&modal.choose.chooser, frame);
                 self.pending = Some(crate::decide::PendingDecision::ChooseModes(
                     crate::decide::pending::ChooseModes {
-                        player: frame.controller,
+                        player,
                         options,
                         min,
                         max,
@@ -3075,10 +3092,15 @@ mod tests {
         );
     }
 
-    /// [CR#607.2] note kinds without readers stay loud per-kind.
+    /// [CR#607.2] `ChooseValue(Color)` has no reader grammar yet — it's
+    /// grammar-spellable, so a card reaching it is a live path, and the
+    /// engine's never-crash doctrine means that fizzles (no work item, no
+    /// note written) rather than panicking. `resolve::player_action::tests::
+    /// choose_value_color_fizzles_no_reader_grammar_yet` pins the same
+    /// behavior directly on `player_action_items`; this pins it through the
+    /// full `run_effect` dispatch path.
     #[test]
-    #[should_panic(expected = "ChooseValue(Color)")]
-    fn choose_value_color_is_a_loud_seam() {
+    fn choose_value_color_fizzles_without_panic() {
         let (mut state, a) = bear_on_field();
         let frame = frame_src(a);
         state.run_effect(
@@ -3089,6 +3111,8 @@ mod tests {
             )),
             &frame,
         );
+        run_injected(&mut state);
+        assert!(state.pending.is_none(), "no decision surfaces — fizzles");
     }
 
     #[test]
@@ -4484,6 +4508,196 @@ mod tests {
         state.submit_decision(Decision::Modes(vec![0, 2])).unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(state.player(p0).life, life0 + 10, "both chosen modes run");
+    }
+
+    /// Regression guard for the crash this task fixed: canon's Collective
+    /// Resistance ("Escalate {G} … Choose one or more —" with a target on
+    /// every mode) used to hit `todo!()` on resolution — a modal whose modes
+    /// carry targets, and separately a modal whose `choose` carries a cost
+    /// rider, both used to panic ([CR#601.2b,700.2c,700.2h,702.120a]). Both
+    /// must now fizzle (no pending decision, no continuation, no panic)
+    /// instead — the announce-time feature they need is unbuilt and tracked
+    /// at `docs/tickets/planned/engine-modal-announce-time.md`.
+    #[test]
+    fn modal_with_per_mode_targets_or_rider_fizzles_without_panic() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Cost;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::Modal;
+        use deckmaste_core::ModalCostRider;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::TargetSpec;
+        use deckmaste_core::Targeted;
+
+        let p0 = PlayerId(0);
+        // The verb doesn't matter — only that the mode carries a top-level
+        // `Targeted` wrapper (`top_targets` non-empty), matching Collective
+        // Resistance's "Destroy target artifact" / "target creature gains…"
+        // modes. A harmless life-gain stands in for the verb.
+        let destroy_target = |predicate: Predicate| Mode {
+            effect: OneShotEffect::Targeted(Targeted::new(
+                vec![TargetSpec::Target(Quantity::one(), predicate)].into(),
+                OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Up(Count::Literal(0)),
+                )),
+            )),
+            cost: None,
+        };
+        let gain_mode = |n| Mode {
+            effect: OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Up(Count::Literal(n)),
+            )),
+            cost: None,
+        };
+        let escalate = || {
+            Some(ModalCostRider::Escalate(Cost(
+                vec![CostComponent::do_action(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Down(Count::Literal(1)),
+                ))]
+                .into(),
+            )))
+        };
+
+        // The Collective Resistance shape: every mode targeted, AND an
+        // escalate rider — the per-mode-targets check fires first.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::Modal(Modal {
+                choose: ChooseSpec {
+                    count: Quantity::Range(Some(Count::Literal(1)), None),
+                    up_to: false,
+                    repeats: false,
+                    chooser: Reference::You,
+                    rider: escalate(),
+                },
+                modes: vec![
+                    destroy_target(Predicate::Any),
+                    destroy_target(Predicate::Any),
+                    destroy_target(Predicate::Any),
+                ]
+                .into(),
+            }),
+            &frame,
+        );
+        assert!(
+            state.pending.is_none(),
+            "per-mode targets + rider fizzles — no decision opened, no panic"
+        );
+        assert!(state.choice.is_none(), "no continuation left behind");
+
+        // Rider alone (no per-mode targets) exercises the SECOND todo!() site
+        // in isolation.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::Modal(Modal {
+                choose: ChooseSpec {
+                    count: Quantity::one(),
+                    up_to: false,
+                    repeats: false,
+                    chooser: Reference::You,
+                    rider: escalate(),
+                },
+                modes: vec![gain_mode(3), gain_mode(5)].into(),
+            }),
+            &frame,
+        );
+        assert!(
+            state.pending.is_none(),
+            "rider alone fizzles — no decision opened, no panic"
+        );
+        assert!(state.choice.is_none(), "no continuation left behind");
+    }
+
+    /// [CR#608.2d,700.2e]: `Modal.choose.chooser` is the decider ([CR#700.2e],
+    /// Fatal Lore's "An opponent chooses one —") — surfaced via
+    /// `acting_player`, not hardcoded to the controller. `chooser: You` is
+    /// the only spelling in canon today, so this pins the new routing for a
+    /// non-`You` decider without changing any existing card's behavior.
+    #[test]
+    fn run_effect_modal_surfaces_choose_modes_to_the_named_chooser() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Modal;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Quantity;
+
+        use crate::decide::PendingDecision;
+
+        let gain_mode = |n| Mode {
+            effect: OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Up(Count::Literal(n)),
+            )),
+            cost: None,
+        };
+        let p0 = PlayerId(0);
+        let p1 = PlayerId(1);
+
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::Modal(Modal {
+                choose: ChooseSpec {
+                    count: Quantity::one(),
+                    up_to: false,
+                    repeats: false,
+                    chooser: Reference::Opponent,
+                    rider: None,
+                },
+                modes: vec![gain_mode(3), gain_mode(5)].into(),
+            }),
+            &frame,
+        );
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseModes(
+            crate::decide::pending::ChooseModes { player, .. },
+        )) = state.step()
+        else {
+            panic!("expected ChooseModes, got {:?}", state.pending);
+        };
+        assert_eq!(player, p1, "the NAMED chooser decides, not the controller");
+    }
+
+    /// [CR#118.12,608.2d]: `May.who` is the decider — Browbeat's "Any
+    /// player may have Browbeat deal 5 damage to them" proves it isn't always
+    /// the controller. Surfaced via `acting_player`, not hardcoded to
+    /// `frame.controller`. `who: You` is the only spelling in canon today,
+    /// so this pins the new routing for a non-`You` decider without changing
+    /// any existing card's behavior.
+    #[test]
+    fn run_effect_may_surfaces_yes_no_to_the_named_decider() {
+        use deckmaste_core::May;
+
+        use crate::decide::PendingDecision;
+
+        let p0 = PlayerId(0);
+        let p1 = PlayerId(1);
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::May(May {
+                who: Reference::Opponent,
+                effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Up(Count::Literal(3)),
+                ))),
+                if_did: None,
+                if_not: None,
+            }),
+            &frame,
+        );
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
+            player,
+        })) = state.step()
+        else {
+            panic!("expected YesNo, got {:?}", state.pending);
+        };
+        assert_eq!(player, p1, "the NAMED decider decides, not the controller");
     }
 
     /// [CR#118.12a]: the collapsed `May(Pay(cost))` `MustPay` shape (`if_did`

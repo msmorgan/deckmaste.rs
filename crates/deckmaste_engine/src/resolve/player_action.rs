@@ -11,6 +11,7 @@ use deckmaste_core::CopyRetarget;
 use deckmaste_core::CopySource;
 use deckmaste_core::LifeOp;
 use deckmaste_core::ManaSpec;
+use deckmaste_core::RetargetMode;
 use deckmaste_core::Selection;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -352,12 +353,13 @@ impl GameState {
                         player: actor,
                         key: *key,
                     }],
-                    // No reader grammar exists yet for chosen colors, so that
-                    // write stays loud. CardName is read by `Named(key)`.
-                    ChosenValueKind::Color => todo!(
-                        "engine seam: ChooseValue(Color) has no reader grammar \
-                         (no chosen-color predicate) — write-only, unbuilt ([CR#607.2])"
-                    ),
+                    // No reader grammar exists yet for chosen colors
+                    // (no chosen-color predicate), so this is a write with no
+                    // consumer today. It IS grammar-spellable ([CR#607.2]),
+                    // so a card reaching this arm is a live path — fizzle
+                    // (no work item, nothing noted) rather than panic.
+                    // CardName is read by `Named(key)`.
+                    ChosenValueKind::Color => vec![],
                     ChosenValueKind::CardName => vec![WorkItem::ChooseNoteCardName {
                         player: actor,
                         key: *key,
@@ -441,10 +443,23 @@ impl GameState {
             // this resolving and the work item running). This arm only
             // resolves the two references; an unresolvable `by` (not a
             // player) fizzles — authoring mistakes never crash the engine.
-            // `mode`'s [CR#115.7a..115.7d] discriminant is unwired this task
-            // (T7) — every mode drives the SAME legal-set derivation the
-            // former undifferentiated `ChooseNewTargets` did.
-            Action::Retarget { mode: _, of, by } => {
+            //
+            // `mode` is the [CR#115.7a..115.7c] three-way discriminant PLUS
+            // `ChooseNew` ([CR#115.7d]), distinguished by PRINTED WORDING
+            // (Redirect's "change any number of targets" vs. Bolt Bend's
+            // "change target" vs. "change all targets" vs. "choose new
+            // targets"). Only `ChooseNew` is exercised by canon or testing
+            // fixtures today, and it alone drives the legal-set derivation
+            // `open_choose_new_targets` implements. Running that SAME
+            // derivation under `ChangeAll`/`ChangeOne`/`ChangeAny`'s name
+            // would be silently wrong — a different slot-count contract per
+            // mode — so those three fizzle explicitly (no work item) rather
+            // than mimicking `ChooseNew`, until a witness demands their own
+            // derivations.
+            Action::Retarget { mode, of, by } => {
+                if !matches!(mode, RetargetMode::ChooseNew) {
+                    return vec![];
+                }
                 let entry = self.eval_reference(of, frame);
                 match self.eval_player_ref(by, frame) {
                     Some(player) => vec![WorkItem::Retarget { player, entry }],
@@ -841,6 +856,7 @@ mod tests {
 
     use deckmaste_core::Action;
     use deckmaste_core::Card;
+    use deckmaste_core::ChosenValueKind;
     use deckmaste_core::Count;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::OneShotEffect;
@@ -916,6 +932,66 @@ mod tests {
             before + 1,
             "the move completes: a second permanent lands on the battlefield \
              even though the AsCopy rider isn't applied yet"
+        );
+    }
+
+    /// [CR#115.7a..115.7d]: `mode`'s four-way discriminant is now branched
+    /// explicitly. Only `ChooseNew` ([CR#115.7d]) is exercised by canon or
+    /// testing fixtures, and it alone schedules the retarget work item
+    /// (unchanged behavior). `ChangeAll`/`ChangeOne`/`ChangeAny`
+    /// ([CR#115.7a..115.7c]) each need their own legal-set derivation that
+    /// isn't built — running `ChooseNew`'s under their name would be
+    /// silently wrong, so they fizzle (no work item) instead.
+    #[test]
+    fn retarget_only_choose_new_mode_is_wired_the_rest_fizzle() {
+        use deckmaste_core::RetargetMode;
+
+        let (state, src) = bear_on_field();
+        let frame = frame_src(src);
+        for mode in [
+            RetargetMode::ChangeAll,
+            RetargetMode::ChangeOne,
+            RetargetMode::ChangeAny,
+        ] {
+            let act = Action::Retarget {
+                mode: mode.clone(),
+                of: Reference::This,
+                by: Reference::You,
+            };
+            let items = state.player_action_items(&act, &frame);
+            assert!(
+                items.is_empty(),
+                "{mode:?} is an unwired discriminant — fizzles rather than \
+                 silently running ChooseNew's derivation"
+            );
+        }
+        let act = Action::Retarget {
+            mode: RetargetMode::ChooseNew,
+            of: Reference::This,
+            by: Reference::You,
+        };
+        let items = state.player_action_items(&act, &frame);
+        assert_eq!(items.len(), 1, "ChooseNew still schedules the retarget");
+        assert!(matches!(items[0], WorkItem::Retarget { .. }));
+    }
+
+    /// [CR#607.2]: `ChooseValue(who, Color, key)` is grammar-spellable, so a
+    /// card reaching it is a live path — no reader grammar exists for a
+    /// chosen color yet, so it must fizzle (no work item, nothing noted)
+    /// rather than panic. `CardName`/`Number` keep their existing readers.
+    #[test]
+    fn choose_value_color_fizzles_no_reader_grammar_yet() {
+        let (state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let act = Action::ChooseValue(
+            Reference::You,
+            ChosenValueKind::Color,
+            deckmaste_core::Ident::from("k"),
+        );
+        let items = state.player_action_items(&act, &frame);
+        assert!(
+            items.is_empty(),
+            "ChooseValue(Color) fizzles — no reader grammar exists yet"
         );
     }
 
