@@ -90,10 +90,13 @@ thousand complete games.
 
 ## Architecture
 
-Eleven crates, plus a thin root binary that launches the client:
+Thirteen crates, plus a thin root binary that launches the client:
 
 - **`deckmaste_core`** — the card-encoding language: the typed vocabulary of
   abilities, effects, costs, zones, durations, and conditions.
+- **`deckmaste_card`** — the engine's unit of card definitions:
+  `Card`/`CardFace` and the face layouts, packaging `deckmaste_core`'s
+  primitives into a playable unit. Depends on core; core never depends on it.
 - **`deckmaste_engine`** — the rules engine: game state and the rules systems
   listed above.
 - **`deckmaste_plugin`** — the card corpus, its plugin loader and conformance
@@ -110,6 +113,9 @@ Eleven crates, plus a thin root binary that launches the client:
 - **`macro_ron`** / **`macro_ron_derive`** — the RON macro-expansion layer the
   encoding language is built on.
 - **`macro_ron_lsp`** — a small language server for the repo's RON card files.
+- **`deckmaste_frames`** — bridges RON macro definitions to Magic English
+  through frames: English templates with typed holes, compiled from a macro
+  and unified back against real card text.
 - **`xtask`** — repository tooling: corpus generation, validation, and the
   citation checker.
 
