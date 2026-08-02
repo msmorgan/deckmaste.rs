@@ -38,7 +38,7 @@ so the overlay *masks* it (`legal::masked_self_rows_forbid`). The positive
 direction needs the engine to answer "what does the Flash keyword *do*?" so it
 can ADD Flash's ability to the candidate spell — and today it can't:
 `derive::composite_members` only reads an ALREADY-EXPANDED `Composite`, keyword
-macros expand at card-load time in the cards crate, and `GameState` carries
+macros expand at card-load time in the plugin crate, and `GameState` carries
 subtype/type registries but **no keyword→ability registry**. So this ticket must
 first add a **runtime keyword-definition registry to `GameState`** (populated
 from the loaded plugin, mirroring the subtype/type registries), then a resolver

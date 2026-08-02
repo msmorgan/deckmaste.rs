@@ -8,7 +8,7 @@ does; #3 below is self-documented in the code as "safe today only because" of an
 authoring convention. parse⇄render must stay one rule, so prefer fixes that keep
 the mirror.
 
-Sites (all render-side, `crates/deckmaste_cards/src/render/`):
+Sites (all render-side, `crates/deckmaste_plugin/src/render/`):
 
 1. `fragment.rs::adjective_adjunct` (~642) returns only the first combat/tap
    state adjective — `And([Creature, Status(Untapped), Attacking])` renders

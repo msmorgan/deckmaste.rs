@@ -136,7 +136,7 @@ pub struct MacroDef {
     pub template: Option<String>,
     /// Optional plural surface of `template`'s head noun (metadata): "Merfolk"
     /// for a macro whose regular-rules plural (see
-    /// `deckmaste_cards::template::plural::pluralize`) is wrong or ambiguous.
+    /// `deckmaste_plugin::template::plural::pluralize`) is wrong or ambiguous.
     /// Absent for the common case, where the regular rules suffice — every
     /// existing definition file omits this field, so it reads as `None`
     /// unchanged.

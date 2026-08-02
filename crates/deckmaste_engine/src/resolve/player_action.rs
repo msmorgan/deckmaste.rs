@@ -1931,7 +1931,7 @@ mod tests {
     /// amassed subtype.
     ///
     /// This proves the macro RESOLVES, catching a bug the expansion-only test
-    /// (`deckmaste_cards::builtin::amass_decomposes_into_core_primitives`)
+    /// (`deckmaste_plugin::builtin::amass_decomposes_into_core_primitives`)
     /// can't see: a `With` one-binder binds its pick as `Reference::That`,
     /// never `It` (the engine sets only `anaphora.that` for a `With` — see
     /// `run_effect`'s `With` arm), so all three body clauses must read

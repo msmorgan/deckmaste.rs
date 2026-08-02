@@ -42,5 +42,5 @@ What's missing is the **path from card RON/oracle text to those primitives**.
 ## Gate
 `cd idris && ./scripts/build` PASS; `cargo xtask idris-check` on a representative graduated
 card (each new grammar shape needs a render arm or fidelity fails); `cargo xtask fidelity`
-PASS; `cargo test -p deckmaste_core -p deckmaste_engine -p deckmaste_cards` green;
+PASS; `cargo test -p deckmaste_core -p deckmaste_engine -p deckmaste_plugin` green;
 `cargo clippy --all-targets -- -D warnings` clean; cite check 0 stale / 0 non-compliant.

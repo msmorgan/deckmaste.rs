@@ -13,7 +13,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::PhaseStep;
@@ -33,6 +32,7 @@ use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
 use deckmaste_engine::ZoneChange;
+use deckmaste_plugin::plugin::Plugin;
 
 const CHANDRA: &str = "Chandra, Torch of Defiance";
 const BEARS: &str = "Grizzly Bears"; // {1}{G}, no targets — the impulse's castable

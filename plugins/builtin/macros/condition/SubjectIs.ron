@@ -9,7 +9,7 @@
 // phrase ("a Human", "a creature").
 //
 // Template: "${0} is ${1}" renders via a hand-written `Matches` arm
-// (`crates/deckmaste_cards/src/render/condition.rs`'s `matches_phrase`) — the
+// (`crates/deckmaste_plugin/src/render/condition.rs`'s `matches_phrase`) — the
 // generic macro-template filler can't tell "is legendary" from "is a Human"
 // apart from "is attacking", so this shape gets its own render arm on the
 // CORE `Matches` variant rather than the template.

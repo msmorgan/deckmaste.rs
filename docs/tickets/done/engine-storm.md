@@ -67,7 +67,7 @@ Dragonstorm (search — hardest, avoid). Prefer Scattershot/Weather the Storm.
    resolves; assert copy count is still **2** (T cast after S → excluded). `[CR#603.3]`
 3. `Before(This)` round-trips through parse/render (it's new grammar → RENDER arm).
 4. Storm keyword parses from a card and renders back; keyword macro round-trips.
-5. `cargo test -p deckmaste_engine -p deckmaste_cards -p deckmaste_core` green;
+5. `cargo test -p deckmaste_engine -p deckmaste_plugin -p deckmaste_core` green;
    `no_dead_grammar` passes (drop any now-live deferrals: `Before`, `Storm`).
 6. CR citations: `cite check --list-noncompliant` empty, `cite check` 0 stale, `bless`
    new rules + audit (`[CR#702.40a,603.3]`).

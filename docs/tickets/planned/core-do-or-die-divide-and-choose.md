@@ -10,7 +10,7 @@ label, and it is one of the idris-check emit gaps — one ticket closes both.
 
 The premise is partly accurate (the stringly binder exists as described; Idris
 `DivideAndChoose` exists at `idris/src/Core.idr`; Rust core lacks it and the
-emitter stubs it at `crates/deckmaste_cards/src/idris_emit.rs`). But three
+emitter stubs it at `crates/deckmaste_plugin/src/idris_emit.rs`). But three
 blockers require decisions this ticket doesn't make, and the "engine unchanged"
 premise has drifted. Recommend splitting into a `core:` emit/render/RON slice
 (cleanly doable) vs a separate engine-resolution ticket, and deciding the

@@ -44,7 +44,7 @@ below gets the same result with **one macro** and no engine change.
 
 1. **Two parameterized `Predicate` macros**, each citing [CR#109.2], template a
    bare passthrough (`"${0}"` — supported by the template engine
-   (`crates/deckmaste_cards/src/render/template.rs:114`), no precedent card yet):
+   (`crates/deckmaste_plugin/src/render/template.rs:114`), no precedent card yet):
    - `PermanentOfSubtype(S)` → `body: And([Permanent, Subtype(${0})])`, arg a
      `Subtype`-kind slot. `PermanentOfSubtype(Vampire)` renders "Vampire"
      (subtype = proper noun, capitalized as-written, so `"${0}"` is correct).

@@ -24,7 +24,7 @@ this ticket there is exactly one emission path.
 ## Fixture export, CI-wired
 
 - Every `failing "<err>"` block in the v2 proof suite exports a RON reject
-  fixture under `crates/deckmaste_cards/tests/reject/` that the Rust
+  fixture under `crates/deckmaste_plugin/tests/reject/` that the Rust
   elaborator must refuse with the matching error code — the twin discipline
   becomes generated, not hand-maintained.
 - Every `Cards.idr` card exports its RESOLUTION TABLE (reference → bound
@@ -55,7 +55,7 @@ this ticket there is exactly one emission path.
 - `idris2 --build mtg.ipkg` + `idris2 --exec emitTables` (in `idris/`);
   `git`-visible diff of `data/grammar-tables/` empty on a second run
   (check via `./scripts/jj st`).
-- `cargo test -p deckmaste_cards` and `cargo test --workspace` green.
+- `cargo test -p deckmaste_plugin` and `cargo test --workspace` green.
 - `rg 'Ron.idr' idris/ crates/` — empty.
 - `cargo xtask fidelity` green; `cargo xtask cite check` — 0 stale,
   `--list-noncompliant` empty; `cite audit --diff` over regenerated rows.

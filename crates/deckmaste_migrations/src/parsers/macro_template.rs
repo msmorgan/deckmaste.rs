@@ -1,6 +1,6 @@
 //! The macro-template parser: route an oracle line back to the macro whose
 //! `template` renders it, via the reverse
-//! [`TemplateIndex`](deckmaste_cards::template::index::TemplateIndex). It
+//! [`TemplateIndex`](deckmaste_plugin::template::index::TemplateIndex). It
 //! claims whole-line keyword templates — nullary (`flying` → `Keyword(Flying)`)
 //! and parameterized (`protection from black` →
 //! `Keyword(Protection(ColorIs(Black)))`, each `${i}` slot filled via the typed
@@ -46,8 +46,8 @@ fn slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
 mod tests {
     use std::path::Path;
 
-    use deckmaste_cards::plugin::Plugin;
-    use deckmaste_cards::template::index::TemplateIndex;
+    use deckmaste_plugin::plugin::Plugin;
+    use deckmaste_plugin::template::index::TemplateIndex;
 
     use super::*;
     use crate::resolve::CardKind;

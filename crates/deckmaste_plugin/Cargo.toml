@@ -1,6 +1,6 @@
 [package]
 publish = false
-name = "deckmaste_cards"
+name = "deckmaste_plugin"
 version = "0.1.0"
 edition = "2024"
 

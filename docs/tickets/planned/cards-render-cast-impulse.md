@@ -24,7 +24,7 @@ card-text RENDER of two constructs is unbuilt. Build the two arms, drop the waiv
    to any target" — i.e. `Cast{what: Any}` → "a spell", and an emblem-context `This` →
    "this emblem".
 
-Both are bidirectional-grammar work in `crates/deckmaste_cards/src/render/effect.rs`
+Both are bidirectional-grammar work in `crates/deckmaste_plugin/src/render/effect.rs`
 (and wherever the emblem/trigger onset renders). The `Cast` verb itself already renders.
 
 ## Acceptance

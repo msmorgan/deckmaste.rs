@@ -6,7 +6,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
@@ -27,6 +26,7 @@ use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
 use deckmaste_core::Type;
 use deckmaste_core::ron::options as ron_options;
+use deckmaste_plugin::plugin::Plugin;
 
 fn builtin_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")
@@ -109,7 +109,7 @@ fn basic_land(name: &str) -> Card {
 /// `cargo xtask validate plugins/wizards`.
 #[test]
 fn builtin_cards_are_valid() {
-    let validation = deckmaste_cards::validate::validate_plugin(&builtin_path()).unwrap();
+    let validation = deckmaste_plugin::validate::validate_plugin(&builtin_path()).unwrap();
     for failure in &validation.failures {
         eprintln!("{}: {}", failure.path.display(), failure.error);
     }

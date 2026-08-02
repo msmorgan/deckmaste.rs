@@ -3,13 +3,13 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use deckmaste_cards::Deck;
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::StartingPlayer;
+use deckmaste_plugin::Deck;
+use deckmaste_plugin::plugin::Plugin;
 
 /// The fixed shuffle seed used by the test suite — chosen so the shuffle deals
 /// both decks a keepable opening hand (guarded by

@@ -119,6 +119,6 @@ its lexical-lifetime model.
 ### 7. Gates
 
 nightly fmt; clippy zero warnings; `cargo test -p deckmaste_engine`;
-`cargo test -p deckmaste_cards`; cite check + list-noncompliant + bless/audit
+`cargo test -p deckmaste_plugin`; cite check + list-noncompliant + bless/audit
 (verify [CR#608.2c] text against the scope claim before citing). No wizards
 regen (engine-internal types only) unless a core type changes.

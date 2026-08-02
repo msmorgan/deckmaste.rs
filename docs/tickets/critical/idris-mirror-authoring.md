@@ -32,7 +32,7 @@ checking — so the mirror follows its purpose.
   escape hatch recorded in the spec if an engine-side dependent invariant
   ever appears).
 - Re-aim the affected ticket set: this is an OPEN-ENDED sweep — grep the
-  ticket tree for `Core.idr` / emitter / `deckmaste_cards` references at
+  ticket tree for `Core.idr` / emitter / `deckmaste_plugin` references at
   claim time (at minimum the `idris-*` family plus
   `memoize-macro-invocations`, `macro-keyword-templates`,
   `parse-macro-slot-readers`) rather than trusting any closed list.

@@ -164,9 +164,9 @@ fn read_normalized<T: DeserializeOwned + Expand + Serialize>(
 /// The param-type name a guard may be written at, mapped to the Rust type its
 /// spelling is read as.
 ///
-/// Deliberately a mirror of `deckmaste_cards::macros::param_types()` — the
+/// Deliberately a mirror of `deckmaste_plugin::macros::param_types()` — the
 /// registry that decides which names are legal in a `params:` list — rather
-/// than a dependency on it: `deckmaste_cards` sits *above* this crate (it
+/// than a dependency on it: `deckmaste_plugin` sits *above* this crate (it
 /// loads plugins, which will one day include compiled frames), so the arrow
 /// cannot point that way. The key set must stay in step with that function;
 /// a name missing here surfaces as a clear "has no RON reader" error rather

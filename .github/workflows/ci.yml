@@ -69,10 +69,10 @@ jobs:
       - name: generate wizards corpus
         run: cargo xtask generate plugins/wizards
       # Un-freeze the fixture cfgs: `cargo xtask generate` already BUILT
-      # deckmaste_cards (an xtask dependency) before plugins/wizards existed,
+      # deckmaste_plugin (an xtask dependency) before plugins/wizards existed,
       # and the build scripts deliberately emit no `rerun-if-changed` — so
       # without this touch the OFF `wizards_corpus` cfg stays
-      # fingerprint-frozen and the deckmaste_cards corpus gates silently
+      # fingerprint-frozen and the deckmaste_plugin corpus gates silently
       # report `ignored` below while the run looks green.
       - name: re-run build scripts against the staged fixtures
         run: touch crates/*/build.rs

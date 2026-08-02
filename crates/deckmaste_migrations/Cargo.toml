@@ -9,7 +9,7 @@ workspace = true
 
 [dependencies]
 anyhow = { version = "1.0.102" }
-deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }
+deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 rayon = "1"
 regex = "1.12.3"

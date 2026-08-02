@@ -63,7 +63,7 @@ pub(crate) struct ParsePattern {
     pub(crate) has_params: bool,
     /// The macro's declared `plural:` override (metadata), if any — carried
     /// through from `MacroDef::plural()` for the parse-side plural match a
-    /// future pass wires up (see `deckmaste_cards::render::template` for the
+    /// future pass wires up (see `deckmaste_plugin::render::template` for the
     /// render-side twin).
     pub(crate) plural: Option<String>,
 }

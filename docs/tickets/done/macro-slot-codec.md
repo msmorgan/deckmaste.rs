@@ -37,7 +37,7 @@ permanent floor for provenance-less hand-built `CardView`s.
 ## PROGRESS (mid-flight snapshot; since integrated)
 
 **Prerequisite 1 (typed params) DONE + verified.** Added a `Cost` param-type
-validator (`read_str::<Vec<CostComponent>>`) in `deckmaste_cards::macros`, and
+validator (`read_str::<Vec<CostComponent>>`) in `deckmaste_plugin::macros`, and
 retyped the slot-bearing macros `params: [Any]` → real types: `[Filter]` for
 Protection/Enchant/Affinity + the 4 event subjects (Enters/Dies/Attacks/
 Destroyed); `[Cost]` for Ward/Equip/Fortify/Reconfigure/Flashback/Kicker. Verified
@@ -49,10 +49,10 @@ codec needs them.
 
 **Parse direction (`read` / codec-driven matching) DONE + verified.**
 `TemplateIndex::match_with(kind, input, slot_reader)` + `SlotMatch` in
-`deckmaste_cards::template::index`: walks a slot-bearing pattern, matching
+`deckmaste_plugin::template::index`: walks a slot-bearing pattern, matching
 literals and filling each `${i}` via a `slot_reader(declared_type,
 remaining_input) -> (arg_ron, consumed)` callback (keeps the index in
-deckmaste_cards, slot readers in deckmaste_migrations — no circular dep).
+deckmaste_plugin, slot readers in deckmaste_migrations — no circular dep).
 `macro_template` now routes PARAMETERIZED keyword lines: nullary via `match_kind`,
 parameterized via `match_with` with a `slot_reader` that dispatches on the
 declared type (`Filter` → `keyword_ability::quality_filter`, `Cost` →

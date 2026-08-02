@@ -44,7 +44,7 @@ Related: [[macro-keyword-templates]], [[parse-params-via-macros]],
 
 ## Done
 
-- All six deltas landed in `macro_ron`/`macro_ron_derive`/`deckmaste_cards`
+- All six deltas landed in `macro_ron`/`macro_ron_derive`/`deckmaste_plugin`
   with `E-MACRO-*` codes; each has a reject fixture (untyped param, contract
   violation, ill-formed definition body, unquoted meta-param, splice at a
   non-Vec position, codec round-trip failure).
@@ -54,7 +54,7 @@ Related: [[macro-keyword-templates]], [[parse-params-via-macros]],
 
 ## Verification
 
-- `cargo test -p macro_ron -p macro_ron_derive -p deckmaste_cards` and
+- `cargo test -p macro_ron -p macro_ron_derive -p deckmaste_plugin` and
   `cargo test --workspace` green.
 - `cargo xtask validate` clean; wizards regenerated and re-validated;
   `cargo xtask fidelity` still green on canon.

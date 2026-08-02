@@ -49,13 +49,13 @@ Once the bar is met (with or without the pre-approved loosening):
 - Dry-run harness (an xtask entry point or test-binary) runs over the full
   extracted corpus and prints the three metrics.
 - Metrics meet the bar; audit sample archived (card name → resolution table)
-  under `crates/deckmaste_cards/tests/`.
+  under `crates/deckmaste_plugin/tests/`.
 - Gate + tables frozen; `cards.elab.lock` blessed.
 
 ## Verification
 
 - The dry-run command reruns deterministically (two runs, identical metrics).
-- `cargo test -p deckmaste_cards` green (audit fixtures pinned).
+- `cargo test -p deckmaste_plugin` green (audit fixtures pinned).
 - `cargo xtask elaborate --lock` idempotent after blessing.
 - `cargo xtask cite check` — 0 stale, `--list-noncompliant` empty.
 
@@ -86,7 +86,7 @@ plugins/{builtin,canon,testing,wizards}; deterministic across reruns.
   hand-authored anaphor readers (canon: Arc Lightning, Brainstorm, Flame
   Rift, Pyroclasm) + 196 of the 227 anaphor-reading graduated wizards faces
   (deterministic md5-ordered draw, seed string in
-  `crates/deckmaste_cards/tests/r2_audit/sample.txt`). Every resolved
+  `crates/deckmaste_plugin/tests/r2_audit/sample.txt`). Every resolved
   binding points at the entity the oracle text names; 13 sampled faces fail
   elaboration LOUDLY (regen/group-cost findings above) rather than bind
   wrong. Resolution tables pinned by `tests/r2_audit.rs` against

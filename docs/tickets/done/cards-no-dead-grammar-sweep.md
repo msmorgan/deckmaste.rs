@@ -16,7 +16,7 @@ pair lands there and this sweep only audits it).
 - A CI test walks the core grammar's node inventory (enum variants across
   effects/actions/statics/events/counts/conditions/references) and asserts
   each appears in at least one loading acceptance card (canon/testing/builtin)
-  and at least one reject fixture under `crates/deckmaste_cards/tests/reject/`
+  and at least one reject fixture under `crates/deckmaste_plugin/tests/reject/`
   (nodes with no illegal configuration document why, in an explicit allowlist
   with a reason string — the allowlist is reviewed, not a dumping ground).
 - The check is mechanical (derive/inventory-driven), so future nodes are

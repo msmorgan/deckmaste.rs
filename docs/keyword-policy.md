@@ -105,7 +105,7 @@ Parameterized keywords live entirely in the `Composite` macro layer:
 **Card soundness is measured post-expansion.** A card is re-emitted *after*
 `Expand::expand_all` — the keyword having desugared to `Composite{name,
 abilities}` (or a bare intrinsic) — and typechecked with `idris2 --check`
-(`crates/deckmaste_cards/src/idris_emit.rs`). The Idris model maps a keyword by
+(`crates/deckmaste_plugin/src/idris_emit.rs`). The Idris model maps a keyword by
 **name** and reasons over its *expanded abilities*; the parameterization shape
 plays no part in the gate. Parameterization is therefore free to be as
 expressive as the macro layer allows — correctness is judged on what it expands
@@ -303,7 +303,7 @@ OneShotEffect -> Action`. The committed atom vocabulary (the seven parameterized
 `KeywordAction` verbs — Scry, Surveil, Fateseal, Mill, Draw, Destroy, Fight) is
 minimal and **grows with card pressure**; an `Action::Composite` whose atom has
 no Idris `KeywordActionSpec` constructor (Fateseal today) is a re-emit **gap**
-(coverage, not failure — `crates/deckmaste_cards/src/idris_emit.rs`). Action
+(coverage, not failure — `crates/deckmaste_plugin/src/idris_emit.rs`). Action
 soundness is post-expansion, by name, exactly as for abilities.
 
 ---

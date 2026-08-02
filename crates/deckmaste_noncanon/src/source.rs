@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::ConferralRule;
 use deckmaste_core::Counter;
@@ -13,6 +12,7 @@ use deckmaste_core::Ident;
 use deckmaste_core::SbaRule;
 use deckmaste_core::Subtype;
 use deckmaste_core::TypeDef;
+use deckmaste_plugin::plugin::Plugin;
 
 pub struct CardSource {
     wizards: Plugin,

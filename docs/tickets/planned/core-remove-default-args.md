@@ -51,13 +51,13 @@ The `default`-valued sites live on constructors including (verify the current se
 `default This`, among others (~20 total).
 
 For each: remove the `default`, make the argument a required positional, and update:
-1. the emitter (`crates/deckmaste_cards/src/idris_emit.rs`) so it always emits the argument;
+1. the emitter (`crates/deckmaste_plugin/src/idris_emit.rs`) so it always emits the argument;
 2. every canon/builtin card RON that relied on the default (they must now spell the reference);
 3. regenerate `plugins/wizards` (grammar changed) — `rm -rf plugins/wizards && cargo xtask generate plugins/wizards`.
 
 ## Gate
 
 `cd idris && ./scripts/build` PASS; `cargo xtask idris-check plugins/canon` no regressions;
-`cargo xtask fidelity` PASS; `cargo test -p deckmaste_core -p deckmaste_cards` green;
+`cargo xtask fidelity` PASS; `cargo test -p deckmaste_core -p deckmaste_plugin` green;
 `cargo clippy --all-targets -- -D warnings` clean. The blast radius (emitter + card RON + wizards
 regen) is why this is its own ticket rather than folded into a feature.

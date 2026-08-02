@@ -11,7 +11,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Card;
@@ -46,6 +45,7 @@ use deckmaste_engine::ReplacementKey;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
+use deckmaste_plugin::plugin::Plugin;
 
 /// Load the builtin plugin's `sba_rules` — used to populate `state.sba_rules`
 /// so data-driven SBAs (lethal-damage destroy, toughness-0 move, etc.) fire.

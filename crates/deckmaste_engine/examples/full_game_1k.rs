@@ -12,11 +12,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_engine::GameOutcome;
 use deckmaste_engine::sim::DeckCards;
 use deckmaste_engine::sim::Summary;
 use deckmaste_engine::sim::{self};
+use deckmaste_plugin::plugin::Plugin;
 
 fn matchup() -> DeckCards {
     let canon = Plugin::load_with_sibling_prelude(

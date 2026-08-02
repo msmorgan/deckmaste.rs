@@ -24,7 +24,7 @@ This also de-conflates the copy classification `core-copy-grammar` added: a copy
 `CardCopy` + not-on-stack instead of a zone-conditional kind.
 
 Scope: ~20 `ObjectKind::Spell` use sites plus heavy render-layer dependence
-(`deckmaste_cards/src/render/ability.rs` prints "spell" from
+(`deckmaste_plugin/src/render/ability.rs` prints "spell" from
 `Predicate::Kind(ObjectKind::Spell)` — needs a spell-predicate render rule). Surfaced
 by (not caused by) `core-copy-grammar`; sequenced after it so it can simplify that
 ticket's `CardCopy` classifier rather than collide with it.

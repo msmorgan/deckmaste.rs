@@ -256,13 +256,13 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
     use deckmaste_core::Type;
+    use deckmaste_plugin::plugin::Plugin;
 
     use super::*;
     use crate::agenda::WorkItem;

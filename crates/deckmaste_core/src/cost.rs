@@ -44,7 +44,7 @@ pub enum CostComponent {
     /// [`discard_what`](crate::Action::discard_what) form
     /// ([CR#701.9,702.29a]). Only cost-eligible actions
     /// ([`Action::is_cost_eligible`](crate::Action::is_cost_eligible))
-    /// belong here — enforced by the cards crate's validation lint, not the
+    /// belong here — enforced by the plugin crate's validation lint, not the
     /// parser. Boxed: `Action` dwarfs the other variants, and
     /// `CostComponent` rides in `Vec<CostComponent>` cost lists, so an
     /// unboxed variant would size every element to it

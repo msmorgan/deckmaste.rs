@@ -1269,7 +1269,6 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Condition;
     use deckmaste_core::EventFilter;
@@ -1277,6 +1276,7 @@ mod tests {
     use deckmaste_core::Reference;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
+    use deckmaste_plugin::plugin::Plugin;
 
     use crate::agenda::WorkItem;
     use crate::event::AbilityUsed;

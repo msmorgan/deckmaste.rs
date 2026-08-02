@@ -1,12 +1,12 @@
 //! The `card` command: show a card as parsed from a plugin, with its macro
 //! references expanded. xtask owns the CLI; the loading lives in
-//! `deckmaste_cards`.
+//! `deckmaste_plugin`.
 
 use std::path::PathBuf;
 
 use clap::Args;
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Expand;
+use deckmaste_plugin::plugin::Plugin;
 
 #[derive(Debug, Args)]
 pub struct CardArgs {

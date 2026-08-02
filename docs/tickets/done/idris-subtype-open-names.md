@@ -14,7 +14,7 @@ layer already carries. Every new subtype forces hand-edits or the card fails the
    (`CreatureSubtype = Bear | … | Dwarf`, `EnchantmentSubtype = Aura | Saga`, `ArtifactSubtype`,
    `LandSubtype`, `BattleSubtype`) wrapped in `data Subtype = CreatureSub … | EnchantmentSub … | …`,
    plus five `Promote` instances and a total `subtypeCategory : Subtype -> Type_`.
-2. `crates/deckmaste_cards/src/idris_emit.rs` (~233-289) holds `fn subtype_idris` — a
+2. `crates/deckmaste_plugin/src/idris_emit.rs` (~233-289) holds `fn subtype_idris` — a
    hand-mirrored `match` from each name to its Idris constructor (`"Bear" => "(CreatureSub Bear)"`,
    …), a verbatim duplicate of the Core.idr enum. An unmapped name returns
    `gap("unmapped subtype: …")`, so the card silently fails to emit and the

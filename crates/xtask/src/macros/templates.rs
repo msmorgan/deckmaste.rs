@@ -1,6 +1,6 @@
 //! `cargo xtask macro templates` — the D10 coexistence contract: every
 //! framed macro definition's checked-in `template:` field (the legacy
-//! rules-text mini-language `deckmaste_cards::template` renders from) must
+//! rules-text mini-language `deckmaste_plugin::template` renders from) must
 //! equal [`project`]ion of its first frame's authored text, so `template:`
 //! and `frames:` can't quietly drift into two different sources of truth
 //! for the same rendering.
@@ -36,7 +36,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Args;
-use deckmaste_cards::plugin::Plugin;
+use deckmaste_plugin::plugin::Plugin;
 use macro_ron::MacroDef;
 
 #[derive(Debug, Args)]
@@ -473,7 +473,7 @@ fn defs_agree_except_template(a: &MacroDef, b: &MacroDef) -> bool {
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
 /// empty. A private copy of the same small walker every plugin-tree reader
 /// in this workspace carries (`macro_ron::frames::ron_files_recursive`,
-/// `deckmaste_cards::plugin::ron_files_recursive`, both crate-private to
+/// `deckmaste_plugin::plugin::ron_files_recursive`, both crate-private to
 /// their own crates) — xtask depends on neither crate's internals, so this
 /// stays its own copy rather than a new public API surface just for one
 /// caller.

@@ -1,6 +1,6 @@
 //! The `validate` command: check every finished card in a plugin against the
 //! macro-aware reader and canon. xtask owns the CLI; the parsing and checking
-//! live in `deckmaste_cards`.
+//! live in `deckmaste_plugin`.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -25,14 +25,14 @@ pub fn run(args: ValidateArgs) -> anyhow::Result<()> {
         .plugin_dir
         .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"));
 
-    let validation = deckmaste_cards::validate::validate_plugin(&plugin_dir)?;
+    let validation = deckmaste_plugin::validate::validate_plugin(&plugin_dir)?;
     for failure in &validation.failures {
         eprintln!("{}: {}", failure.path.display(), failure.error);
     }
 
     // canon is the authority: a finished card a plugin shares with canon must
     // expand to canon's value (see `check_against_canon`).
-    let mismatches = deckmaste_cards::validate::check_against_canon(&plugin_dir)?;
+    let mismatches = deckmaste_plugin::validate::check_against_canon(&plugin_dir)?;
     for mismatch in &mismatches {
         eprintln!(
             "{}: differs from canon reference {}",

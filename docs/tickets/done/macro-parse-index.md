@@ -22,7 +22,7 @@ catalog is deleted here — rerouting a top-level parser and retiring
 `KEYWORD_NAMES` is `parse-keywords-via-macros`; typed-slot filling is
 `macro-slot-codec` (slot-bearing patterns compile but aren't matched yet).
 
-Landed in `deckmaste_cards::template` (`pattern` = compile, `index` =
+Landed in `deckmaste_plugin::template` (`pattern` = compile, `index` =
 `TemplateIndex::build` + `match_kind`), the crate that will also host the
 bidirectional codec. Added `MacroSet::iter()` (the registry had only
 `get(kind, name)`).

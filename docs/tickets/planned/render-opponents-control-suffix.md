@@ -8,7 +8,7 @@ the corpus (pump and non-pump) — e.g. Copperhoof Vorrac, Crusading Knight,
 Marauding Knight, Scourge of Geier Reach, Bleeding Woods.
 
 The fix lives in the shared `controller_suffix` / `singular_controller_suffix`
-in `crates/deckmaste_cards/src/render/fragment.rs` — not for-each-pump specific
+in `crates/deckmaste_plugin/src/render/fragment.rs` — not for-each-pump specific
 (the pump macros only newly EXPOSED it by rendering these selections at all).
 
 Verify: the ~44 "your opponents control" fidelity mismatches clear; no

@@ -10,7 +10,7 @@ Every variant's real work already lives elsewhere:
 
 - Energy — graduated player-counter composite: `PayEnergy`/`GainEnergy` macros
   over `Remove/PutCounters` + the Energy player-counter def (47 corpus uses);
-  glyph-run fold in `deckmaste_cards/src/energy.rs`. Idris agrees ("no
+  glyph-run fold in `deckmaste_plugin/src/energy.rs`. Idris agrees ("no
   dedicated PayEnergy verb").
 - Ticket — unimplemented; when needed it follows the Energy template exactly
   ([CR#107.17a]: pay = remove that many ticket counters from yourself). No

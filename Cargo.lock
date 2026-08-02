@@ -443,22 +443,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_cards"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "deckmaste_core",
- "macro_ron",
- "regex",
- "ron",
- "serde",
- "serde_json",
- "sha2",
- "syn",
- "tempfile",
-]
-
-[[package]]
 name = "deckmaste_core"
 version = "0.1.0"
 dependencies = [
@@ -472,8 +456,8 @@ name = "deckmaste_engine"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "deckmaste_cards",
  "deckmaste_core",
+ "deckmaste_plugin",
  "rand 0.10.1",
  "rand_chacha 0.10.0",
  "rayon",
@@ -497,9 +481,9 @@ name = "deckmaste_frames"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "deckmaste_cards",
  "deckmaste_core",
  "deckmaste_english",
+ "deckmaste_plugin",
  "macro_ron",
  "ron",
  "serde",
@@ -510,8 +494,8 @@ name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "deckmaste_cards",
  "deckmaste_core",
+ "deckmaste_plugin",
  "rayon",
  "regex",
  "ron",
@@ -524,9 +508,25 @@ dependencies = [
 name = "deckmaste_noncanon"
 version = "0.1.0"
 dependencies = [
- "deckmaste_cards",
  "deckmaste_core",
  "deckmaste_engine",
+ "deckmaste_plugin",
+]
+
+[[package]]
+name = "deckmaste_plugin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deckmaste_core",
+ "macro_ron",
+ "regex",
+ "ron",
+ "serde",
+ "serde_json",
+ "sha2",
+ "syn",
+ "tempfile",
 ]
 
 [[package]]
@@ -535,9 +535,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "deckmaste_cards",
  "deckmaste_core",
  "deckmaste_engine",
+ "deckmaste_plugin",
  "ratatui",
 ]
 
@@ -1931,11 +1931,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "deckmaste_cards",
  "deckmaste_core",
  "deckmaste_english",
  "deckmaste_frames",
  "deckmaste_migrations",
+ "deckmaste_plugin",
  "macro_ron",
  "proc-macro2",
  "quote",

@@ -477,7 +477,7 @@ impl std::error::Error for LoadError {
 /// holds a `[...]`-list of [`ConstructorFrames`], exactly like
 /// `plugins/builtin/frames/constructors.ron`) and concatenates their
 /// entries. An absent directory reads as empty, matching the macro loader's
-/// own convention (`deckmaste_cards::plugin::ron_files_recursive`) for a
+/// own convention (`deckmaste_plugin::plugin::ron_files_recursive`) for a
 /// plugin layer that hasn't opted in yet.
 ///
 /// # Errors
@@ -501,9 +501,9 @@ pub fn load_constructor_frames(dir: &Path) -> Result<Vec<ConstructorFrames>, Loa
 }
 
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
-/// empty. Mirrors `deckmaste_cards::plugin::ron_files_recursive` (kept as a
+/// empty. Mirrors `deckmaste_plugin::plugin::ron_files_recursive` (kept as a
 /// private copy rather than a shared dependency: `macro_ron` must not
-/// depend on `deckmaste_cards`, which itself depends on `macro_ron` — that
+/// depend on `deckmaste_plugin`, which itself depends on `macro_ron` — that
 /// would cycle just as surely as the arrow this module's relocation was
 /// fixing).
 fn ron_files_recursive(dir: &Path) -> Result<Vec<PathBuf>, LoadError> {

@@ -37,8 +37,8 @@ anyhow = "1.0.102"
 [dev-dependencies]
 # The pilot integration test (`tests/pilot.rs`) compiles every frame the
 # real `plugins/builtin` corpus loads, so it needs the plugin loader. No
-# cycle: `deckmaste_cards` does not depend on this crate.
-deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }
+# cycle: `deckmaste_plugin` does not depend on this crate.
+deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }
 # Tests only. A catalog entry's authored surface is RON, and a fixture
 # entry written as the RON a catalog file holds is what pins that surface
 # for whoever authors the next one; building the struct by hand instead

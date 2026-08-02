@@ -8,7 +8,7 @@
 // the `crate::parsers::condition` routing's Predicate-slot vocabulary.
 //
 // Template: "you control ${0}" renders the object noun with its indefinite
-// article (`crates/deckmaste_cards/src/render/condition.rs`'s `exists_phrase`
+// article (`crates/deckmaste_plugin/src/render/condition.rs`'s `exists_phrase`
 // — the generic slot filler can't supply "a"/"an", so this shape gets a
 // hand-written render arm on the CORE `Exists` variant, not the macro
 // template).

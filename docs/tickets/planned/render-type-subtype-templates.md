@@ -7,7 +7,7 @@ printed form — `Urzas`→"Urza's", `Ctan`→"C'tan", `AssemblyWorker`→
 "Assembly-Worker", `TimeLord`→"Time Lord" (see the `template:` overrides in
 `plugins/*/macros/types/**`) — currently renders the bare ident, because render
 is a PURE function of the stored value and takes no `MacroSet`
-(`crates/deckmaste_cards/src/render/mod.rs:142,381`), so a name→registry lookup
+(`crates/deckmaste_plugin/src/render/mod.rs:142,381`), so a name→registry lookup
 at render time is impossible. Every subtype/type render site reads the raw
 `Ident` (`render/condition.rs:305`, `render/fragment.rs:729,1007`).
 
@@ -24,7 +24,7 @@ HARDCODED table (`render/effect.rs:1638`), not a template read.
 
 The one render path that DOES emit a macro's template is `Predicate::Expanded`
 (and the per-position `::Expanded` twins): the template + args are captured
-INLINE on the value at expansion, and `crates/deckmaste_cards/src/render/
+INLINE on the value at expansion, and `crates/deckmaste_plugin/src/render/
 template.rs` fills that stored template. So route templated type/subtype values
 through that mechanism — capture the macro `template` inline at expansion so
 render emits the on-card spelling — rather than teaching render to reach a

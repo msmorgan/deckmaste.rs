@@ -6,9 +6,9 @@
 use std::path::Path;
 
 use anyhow::Context as _;
-use deckmaste_cards::plugin::Plugin;
-use deckmaste_cards::template::index::TemplateIndex;
 use deckmaste_core::plugin::is_ron_todo_file;
+use deckmaste_plugin::plugin::Plugin;
+use deckmaste_plugin::template::index::TemplateIndex;
 use rayon::prelude::*;
 
 use crate::todo_card::RawIdent;

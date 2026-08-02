@@ -63,7 +63,7 @@ agreeing surface form when parsing back.
 ## Shape
 
 Builds directly on the template/codec machinery already integrated
-(`deckmaste_cards::template` reverse index + bidirectional slot codec,
+(`deckmaste_plugin::template` reverse index + bidirectional slot codec,
 `render::template::fill`, `render_arg`). The realistic build after the dialogue:
 a small `(person, number)` agreement derivation over `Reference`/`Filter`, a
 regular+irregular present-tense conjugator, a verb token in `fill` (render) and a

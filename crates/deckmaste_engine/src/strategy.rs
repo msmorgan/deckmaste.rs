@@ -55,7 +55,7 @@ fn resolved(prefer: &Preference) -> &Preference {
 /// combat, discards, …) ride on top in `strategy-decision-handlers`; until then
 /// those kinds take the total fallback's legal default.
 ///
-/// [`Strategy`]: deckmaste_cards::Strategy
+/// [`Strategy`]: deckmaste_plugin::Strategy
 pub struct StrategyEvaluator {
     strategy: StrategyDef,
     seat: PlayerId,
@@ -69,7 +69,7 @@ impl StrategyEvaluator {
     }
 
     /// Build a seat from an authored RON strategy (raw — no macro vocabulary;
-    /// the macro-aware loader rides the cards crate's `MacroSet`).
+    /// the macro-aware loader rides the plugin crate's `MacroSet`).
     ///
     /// # Errors
     ///
@@ -576,7 +576,6 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::Card;
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
@@ -594,6 +593,7 @@ mod tests {
     use deckmaste_core::strategy::Rule;
     use deckmaste_core::strategy::Selector;
     use deckmaste_core::strategy::Strategy as StrategyDef;
+    use deckmaste_plugin::plugin::Plugin;
 
     use super::StrategyEvaluator;
     use super::eval_frame;

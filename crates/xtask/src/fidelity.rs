@@ -1,15 +1,15 @@
 //! The `fidelity` command: the render-back fidelity gate (strong form) —
 //! render every finished card back to templated English and diff it against
 //! the oracle snapshot. xtask owns the CLI; the oracle loading, diffing,
-//! waiver policy, and normalization live in `deckmaste_cards::fidelity`.
+//! waiver policy, and normalization live in `deckmaste_plugin::fidelity`.
 
 use std::path::Path;
 use std::path::PathBuf;
 
 use clap::Args;
-use deckmaste_cards::fidelity;
-use deckmaste_cards::fidelity::Oracle;
-use deckmaste_cards::fidelity::Outcome;
+use deckmaste_plugin::fidelity;
+use deckmaste_plugin::fidelity::Oracle;
+use deckmaste_plugin::fidelity::Outcome;
 
 /// The plugins the gate covers by default, with canon's stricter oracle
 /// policy (every canon card must exist in the oracle — canon encodes real

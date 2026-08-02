@@ -2,7 +2,7 @@
 needs: []
 ---
 Durational effects render the "until end of turn" duration clause in the WRONG
-position. `crates/deckmaste_cards/src/render/effect.rs`'s duration handling
+position. `crates/deckmaste_plugin/src/render/effect.rs`'s duration handling
 FRONTS the clause ("Until end of turn, ~ gets …") for any non-literal P/T
 delta, but the printed oracle MID-INSERTS it ("~ gets +2/+0 until end of turn
 for each …"). This blocks overall fidelity for every one-shot durational pump.

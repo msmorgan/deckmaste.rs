@@ -76,7 +76,7 @@ Encode all four abilities (mirror Jace Beleren's `LoyaltyPlus`/`LoyaltyMinus` st
 4. **Chandra full card:** loads through the real plugin loader (like Jace Beleren);
    enters at loyalty 4; each of the four abilities activates at sorcery speed / shared
    once-per-turn; `−7` mints a functioning emblem; `−3` kills a 4-toughness creature.
-5. `cargo test -p deckmaste_engine -p deckmaste_cards -p deckmaste_core` green;
+5. `cargo test -p deckmaste_engine -p deckmaste_plugin -p deckmaste_core` green;
    `no_dead_grammar` passes (drop `Cast` from any deferred list; add a render arm — new
    grammar needs bidirectional parse/render).
 6. CR citations: `cite check --list-noncompliant` empty, `cite check` 0 stale, `bless`

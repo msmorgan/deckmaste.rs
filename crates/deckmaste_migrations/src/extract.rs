@@ -238,7 +238,7 @@ fn face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<
         // Fold spelled-number energy ("Pay six {E}") into a `{E}` run so the
         // `${0*\{E\}}` matcher graduates it as `PayEnergy(6)`; the same fold runs
         // in `fidelity::normalize` so the diff meets the spelled render form.
-        let text = deckmaste_cards::energy::normalize_spelled_energy(&text);
+        let text = deckmaste_plugin::energy::normalize_spelled_energy(&text);
         let text = expand_keyword_lines(&strip_reminder_text(&text), keyword_abilities);
         let text = expand_repeated_from_lines(&text);
         let text = self_ref_to_tilde(&text, face_name, is_legendary, keyword_abilities);

@@ -29,11 +29,11 @@ use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_frames::HoleClass;
+use deckmaste_plugin::plugin::Plugin;
 use macro_ron::Ident;
 use macro_ron::MacroDef;
 use macro_ron::Params;

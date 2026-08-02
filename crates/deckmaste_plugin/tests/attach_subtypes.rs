@@ -14,7 +14,6 @@
 
 use std::path::Path;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
 use deckmaste_core::Condition;
 use deckmaste_core::DeonticAction;
@@ -22,6 +21,7 @@ use deckmaste_core::Ident;
 use deckmaste_core::Property;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
+use deckmaste_plugin::plugin::Plugin;
 
 fn canon() -> Plugin {
     Plugin::load_with_sibling_prelude(

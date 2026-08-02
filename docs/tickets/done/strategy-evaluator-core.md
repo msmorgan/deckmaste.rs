@@ -29,7 +29,7 @@ core/cards/engine full suites + clippy + `cargo build --workspace` all green).
 
 - **Type relocation (supersedes `strategy-data-types`' placement).** The
   evaluator must live in `deckmaste_engine` (for the `pub(crate)` evaluators),
-  but the engine only **dev**-depends on `deckmaste_cards`, so it can't import
+  but the engine only **dev**-depends on `deckmaste_plugin`, so it can't import
   the strategy types from there in production. Resolved by moving
   `Strategy`/`Rule`/`Preference`/`Selector`/`Extremum`/`BlockPolicy` to
   **`deckmaste_core::strategy`** (a dedicated module, **not** re-exported at the

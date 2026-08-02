@@ -15,4 +15,4 @@ noncanon_tests = []
 [dependencies]
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 deckmaste_engine = { version = "0.1.0", path = "../deckmaste_engine" }
-deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }
+deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }

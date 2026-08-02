@@ -29,7 +29,7 @@ fixed:
   forward, and a list-typed `Cost`/`Vec` param at a nested sequence position).
   Added: `body_forwards_whole_value_param_into_positional_macro` and
   `body_forwards_list_typed_whole_value_param_into_seq_position` (macro_ron),
-  plus `cost_param_forwards_into_nested_macro` (deckmaste_cards, real
+  plus `cost_param_forwards_into_nested_macro` (deckmaste_plugin, real
   `CastFromGraveyard(Param(0))` → `May(Cast(cost: Components(…)))`).
 
 Follow-up candidates (deferred, each adds a remembered-`Expanded` wrapper at a

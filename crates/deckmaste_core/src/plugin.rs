@@ -1,5 +1,5 @@
 //! The conventions of a plugin directory, shared by its readers
-//! (`deckmaste_cards`) and writers (`deckmaste_migrations`).
+//! (`deckmaste_plugin`) and writers (`deckmaste_migrations`).
 
 use std::path::Path;
 use std::path::PathBuf;

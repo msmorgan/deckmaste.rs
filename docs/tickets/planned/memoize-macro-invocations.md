@@ -15,7 +15,7 @@ subtypes) that is thousands of byte-identical heap structs.
 Intern macro expansions: expand each distinct macro invocation (keyed by
 name + arguments) ONCE during load and hand the SAME `Arc` to every reference.
 The expansion cache lives in the plugin-load / macro-expansion pipeline
-(`crates/deckmaste_cards/src/plugin.rs` load, `crates/macro_ron/src/expand.rs`).
+(`crates/deckmaste_plugin/src/plugin.rs` load, `crates/macro_ron/src/expand.rs`).
 Semantics are unchanged — identical values, shared storage — so this is a pure
 memory/alloc optimization, verifiable by pointer-identity across two cards that
 name the same subtype plus an unchanged behavior/render suite.

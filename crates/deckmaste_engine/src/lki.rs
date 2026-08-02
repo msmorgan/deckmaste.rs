@@ -63,7 +63,7 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use deckmaste_cards::plugin::Plugin;
+    use deckmaste_plugin::plugin::Plugin;
 
     use super::*;
     use crate::object::ObjectSource;

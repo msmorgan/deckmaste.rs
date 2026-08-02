@@ -42,7 +42,7 @@ Three places in the model already argue against the composite:
    on the action side, in one model.
 3. **The keyword-action name namespace holds seven real 701 actions and one
    impostor** (`idris/src/Core.idr` `n`, mirrored in
-   `crates/deckmaste_cards/src/idris_emit.rs`): Scry [CR#701.22], Surveil
+   `crates/deckmaste_plugin/src/idris_emit.rs`): Scry [CR#701.22], Surveil
    [CR#701.25], Fateseal [CR#701.29], Mill [CR#701.17], Discard [CR#701.9],
    Destroy [CR#701.8], Fight [CR#701.14] — and Draw.
 
@@ -77,7 +77,7 @@ body — rather than building machinery.
 2. **Engine**: the `Act(Draw)` resolve path keeps its late top-of-library bind
    and its empty-library check *before* the move — that behaviour is correct and
    must not regress; it simply stops being justified by a stored body.
-3. **Cards** (`crates/deckmaste_cards`): remove `"Draw"` from the keyword-action
+3. **Cards** (`crates/deckmaste_plugin`): remove `"Draw"` from the keyword-action
    arms in `idris_emit.rs` (`"Mill" | "Draw"`, the `"Destroy" | "Discard" |
    "Draw" | …` arm, and the `vec!["Draw"]` actor facet); re-point the `Draw`
    macro.
@@ -85,7 +85,7 @@ body — rather than building machinery.
    namespace; give it its player-action home. Regenerate `plugins/wizards`
    (grammar changed).
 5. **Gate set**: drop `"Draw"` from `keyword_action_only` in
-   `crates/deckmaste_cards/tests/no_dead_grammar.rs` — that set is documented as
+   `crates/deckmaste_plugin/tests/no_dead_grammar.rs` — that set is documented as
    "[CR#701] keyword-action NAME"s, which Draw is not.
 
 ## Drive-bys (in scope — same lines)
@@ -94,8 +94,8 @@ body — rather than building machinery.
   empty-library loss. [CR#120.3] is *damage results*; the rule wanted is
   **[CR#121.4]**. Exactly the right-number-wrong-topic class the hash checker
   cannot catch.
-- **Stale docs.** `crates/deckmaste_cards/src/macros.rs` and
-  `crates/deckmaste_cards/tests/no_dead_grammar.rs` still describe `Draw(1)` as
+- **Stale docs.** `crates/deckmaste_plugin/src/macros.rs` and
+  `crates/deckmaste_plugin/tests/no_dead_grammar.rs` still describe `Draw(1)` as
   `Action::By(You, Draw(1))` — wrong against today's composite, correct again
   under the target shape. Verify rather than assume they need no edit.
 

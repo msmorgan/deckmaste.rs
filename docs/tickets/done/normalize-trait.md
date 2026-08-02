@@ -77,7 +77,7 @@ lumpy. Each cost consumer now operates on a normalized cost at its boundary:
   recursed through `CostComponent::Cost`; that recursion is the pay path's
   normalization inlined into the summarizing walk (no clone). Comments updated
   to say lumpy costs now legitimately arrive and the recursion is load-bearing.
-- **`crates/deckmaste_cards/src/validate.rs`** (cost-eligibility lint): the
+- **`crates/deckmaste_plugin/src/validate.rs`** (cost-eligibility lint): the
   activated cost is `normalize`d before the lint loop, so a verb spliced in via
   a nested `Cost` is still validated (previously the lint silently skipped
   `CostComponent::Cost`).

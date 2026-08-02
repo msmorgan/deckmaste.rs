@@ -11,8 +11,8 @@ loaded cards: the engine's input contract is `ElabCard`, not raw grammar.
 
 ## Load wiring
 
-- `Plugin::load` / `load_with_prelude` (crates/deckmaste_cards/src/plugin.rs)
-  run `deckmaste_cards::elaborate` on every card after macro expansion.
+- `Plugin::load` / `load_with_prelude` (crates/deckmaste_plugin/src/plugin.rs)
+  run `deckmaste_plugin::elaborate` on every card after macro expansion.
 - Elaboration failures surface as load errors carrying the error code, card
   name, and file path (`E-POS-TARGETED at plugins/…/foo.ron (Foo)`).
 - The engine-facing card type is the elaborated IR; downstream consumers
@@ -48,7 +48,7 @@ The stage is a property of the load call, not a global: tests that load
 
 ## Verification
 
-- `cargo test -p deckmaste_cards` and `cargo test -p deckmaste_engine` green.
+- `cargo test -p deckmaste_plugin` and `cargo test -p deckmaste_engine` green.
 - `cargo xtask validate` on each hand-authored plugin — clean.
 - `cargo xtask elaborate --lock` idempotent (second run: no diff).
 - `cargo xtask cite check` — 0 stale, `--list-noncompliant` empty.

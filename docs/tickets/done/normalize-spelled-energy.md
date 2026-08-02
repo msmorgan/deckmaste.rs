@@ -18,7 +18,7 @@ both places (they're separate functions today — factor one shared helper):
    `Unparsed(...)`, so `"Pay six {E}"` → `"Pay {E}{E}{E}{E}{E}{E}"` and the
    `${0*\{E\}}` matcher folds it into `PayEnergy(6)`. Without this the card never
    graduates.
-2. **`fidelity::normalize`** (`crates/deckmaste_cards/src/fidelity.rs:337`, runs
+2. **`fidelity::normalize`** (`crates/deckmaste_plugin/src/fidelity.rs:337`, runs
    on BOTH rendered and oracle lines before the diff) — so the diff matches
    regardless of whether the render emits glyphs or the spelled form.
 

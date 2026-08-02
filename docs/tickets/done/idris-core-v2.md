@@ -54,7 +54,7 @@ mirror concepts, never preserve a weaker concept behind a matching name).
 
 - `idris2 --build mtg.ipkg` (in `idris/`) — clean, including all `failing`
   blocks.
-- `cargo test -p deckmaste_cards` — shared resolution fixtures still green on
+- `cargo test -p deckmaste_plugin` — shared resolution fixtures still green on
   the Rust side.
 - `cargo xtask cite check` — 0 stale, `--list-noncompliant` empty (comments
   in Core.idr citing rules count).

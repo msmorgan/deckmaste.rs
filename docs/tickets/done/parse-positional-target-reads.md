@@ -99,7 +99,7 @@ Direction confirmed correct; these belong in the ruling before it is claimed:
    Verify. If a deliberate Rust/Idris divergence is ruled acceptable here, record
    that exception explicitly; the gate consequence must be
    resolved either way.)
-7. **Renderer + emitter arms for `Targets(n)`.** `deckmaste_cards/src/render/effect.rs:1604`
+7. **Renderer + emitter arms for `Targets(n)`.** `deckmaste_plugin/src/render/effect.rs:1604`
    carries its own targets-as-`They` special case
    (`Binder::Existing(Selection::They) if ctx.targets.len() == 1`) that must
    migrate to `Targets(n)`, and `idris_emit.rs:1259` emits `They`/`Them` with no
@@ -145,6 +145,6 @@ creature and 1 damage to target creature") elaborates (was R2-rejected); an
 Arc-Lightning-shape plural fixture reads `Targets(0)`; `cargo xtask generate
 plugins/wizards` — Whipcorder emits `Target(0)`; `cargo xtask fidelity`
 unchanged (positional read is the same object); `cargo xtask idris-check` green
-(Spec probes flipped, Cards.idr reads `Target(0)`); the `deckmaste_cards` render
+(Spec probes flipped, Cards.idr reads `Target(0)`); the `deckmaste_plugin` render
 suite green (new `Targets(n)` arm); `cargo test --workspace`; `cargo xtask cite
 check` — 0 stale, `--list-noncompliant` empty.

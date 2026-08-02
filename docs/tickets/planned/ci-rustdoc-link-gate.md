@@ -54,7 +54,7 @@ bracket-prose convention) and a genuine tail in unrelated subsystems:
 `Fragment`, `Display`, `FaceLayout`, `Self::Adjective`/`Self::Noun`,
 `crate::render::template`, `OneShotEffect::Batch`, `DeonticAction::Cast`,
 `crate::Selection::That`, `SubtypeRef`, `crate::layer`, `Predicate::r#type`,
-`deckmaste_cards::Strategy`, `VerbName`. The quoted-placeholder cases want the
+`deckmaste_plugin::Strategy`, `VerbName`. The quoted-placeholder cases want the
 same escaping treatment as the citations; the rest are real dead links to fix.
 
 **Acceptance:** `cargo doc --workspace --no-deps` reaches a known-zero (or

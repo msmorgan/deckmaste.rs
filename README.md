@@ -96,7 +96,7 @@ Eleven crates, plus a thin root binary that launches the client:
   abilities, effects, costs, zones, durations, and conditions.
 - **`deckmaste_engine`** — the rules engine: game state and the rules systems
   listed above.
-- **`deckmaste_cards`** — the card corpus, its plugin loader and conformance
+- **`deckmaste_plugin`** — the card corpus, its plugin loader and conformance
   suite, and the card-text renderer.
 - **`deckmaste_tui`** — the interactive terminal client, built on ratatui.
 - **`deckmaste_migrations`** — the data pipeline (extract, resolve, graduate)

@@ -424,7 +424,7 @@ mod tests {
     fn atoms_read_flat() {
         // `Type`/`Subtype` now carry a resolved def (`Arc<…>`); their flat read
         // is covered by `type_and_subtype_carry_resolved_def` (struct form) and
-        // the macro-aware bare-name test in `deckmaste_cards`.
+        // the macro-aware bare-name test in `deckmaste_plugin`.
         assert_eq!(
             read("Supertype(Basic)"),
             Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
@@ -552,7 +552,7 @@ mod tests {
         );
         // The inner `Type(..)` filter is spelled as the resolved struct here —
         // the macro-less core reader can't expand the bare `Type(Creature)`
-        // name (covered in the macro-aware `deckmaste_cards` test); by-name eq
+        // name (covered in the macro-aware `deckmaste_plugin` test); by-name eq
         // matches the `Predicate::r#type` helper regardless.
         assert_eq!(
             read(r#"RelatedBy("PairedWith", Type(name:"Creature",permanent:true))"#),
@@ -770,7 +770,7 @@ mod tests {
             "TeammateOf(Kind(Player))",
             // The inner filters avoid `Type`/`Subtype`: their bare-name write
             // form doesn't round-trip through the macro-less core reader (that
-            // round-trip is covered in the macro-aware `deckmaste_cards` test).
+            // round-trip is covered in the macro-aware `deckmaste_plugin` test).
             "AttachedTo(InZone(Battlefield))",
             "Attachment(Supertype(Basic))",
             "InZone(Battlefield)",

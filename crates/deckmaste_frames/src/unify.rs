@@ -1073,11 +1073,11 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::LazyLock;
 
-    use deckmaste_cards::plugin::Plugin;
     use deckmaste_english::CatalogKind;
     use deckmaste_english::Catalogs;
     use deckmaste_english::FragmentKind;
     use deckmaste_english::parse_fragment;
+    use deckmaste_plugin::plugin::Plugin;
     use macro_ron::MacroSet;
     use macro_ron::frames::FrameSpec;
     use macro_ron::frames::load_constructor_frames;

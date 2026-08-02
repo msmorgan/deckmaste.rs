@@ -5,7 +5,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::Zone;
@@ -16,6 +15,7 @@ use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::legal_attackers;
+use deckmaste_plugin::plugin::Plugin;
 
 fn plugin(name: &str) -> Plugin {
     Plugin::load_with_sibling_prelude(

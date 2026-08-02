@@ -19,9 +19,9 @@ bare card type, silently dropping every narrowing qualifier:
   battlefield, …" but renders "Whenever **a creature** leaves the battlefield, …".
 
 The cause is the shared subject renderer: `find_card_type`
-(`crates/deckmaste_cards/src/render/ability.rs`) walks an `And([...])` predicate
+(`crates/deckmaste_plugin/src/render/ability.rs`) walks an `And([...])` predicate
 with `vs.iter().find_map(find_card_type)` and returns the FIRST card-type member
-(`Creature`), so `subject_of` (`crates/deckmaste_cards/src/render/fragment.rs`)
+(`Creature`), so `subject_of` (`crates/deckmaste_plugin/src/render/fragment.rs`)
 prints only that type and never the sibling `Not(Ref(This))` ("another") or
 `ControlledBy(Ref(You))` ("you control") clauses. Every event arm that feeds a
 filtered subject through `subject_of` (dies/enters/attacks/blocks/LTB) inherits

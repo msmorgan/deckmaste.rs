@@ -154,7 +154,7 @@ pub enum Agency {
 /// vocabulary behind "sacrificed"/"destroyed"/"discarded" views (and the
 /// present-tense `Act`'s verb tag). Each verb's fact form is one CR-cited row
 /// of the emitted entailment table
-/// (`crates/deckmaste_cards/tables/entailments.ron`): `Sacrifice` entails
+/// (`crates/deckmaste_plugin/tables/entailments.ron`): `Sacrifice` entails
 /// `ZoneChange { from: Battlefield, to: Graveyard }` [CR#701.21a], `Mill`
 /// entails `ZoneChange { from: Library, to: Graveyard }` [CR#701.17a] — so
 /// `Dies` matches a sacrifice structurally, and a cause-narrowed pattern admits

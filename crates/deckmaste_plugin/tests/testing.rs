@@ -6,8 +6,8 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
+use deckmaste_plugin::plugin::Plugin;
 
 fn testing_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing")
@@ -24,7 +24,7 @@ fn assert_testing_card_name(plugin: &Plugin, name: &str) {
 
 #[test]
 fn testing_mocks_are_valid() {
-    let validation = deckmaste_cards::validate::validate_plugin(&testing_path()).unwrap();
+    let validation = deckmaste_plugin::validate::validate_plugin(&testing_path()).unwrap();
     for failure in &validation.failures {
         eprintln!("{}: {}", failure.path.display(), failure.error);
     }

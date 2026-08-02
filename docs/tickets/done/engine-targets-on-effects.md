@@ -183,7 +183,7 @@ Triggered: `Triggered(event: .., effect: Targeted(targets: [..], effect: ..))`.
 - `plugins/canon/cards/Lightning Bolt.ron`, `Footlight Fiend.ron`, `Goblin Medics.ron`
 - `plugins/testing/cards/Creature tap-activated DealDamage AnyTarget.ron`, `Sorcery X DealDamage AnyTarget.ron`
 - `plugins/builtin/macros/keyword/Equip.ron`, `Enchant.ron`, `Fortify.ron`, `Reconfigure.ron`
-- Modify tests: `crates/deckmaste_cards/tests/canon.rs:90-111` (`spell.targets[0]` → reach into the wrapper), `tests/keywords.rs:107,162` (`.targets.is_empty()` checks).
+- Modify tests: `crates/deckmaste_plugin/tests/canon.rs:90-111` (`spell.targets[0]` → reach into the wrapper), `tests/keywords.rs:107,162` (`.targets.is_empty()` checks).
 
 Example (Lightning Bolt): `Spell(targets: [AnyTarget], effect: DealDamage(Target(0), 3))`
 → `Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 3)))`.
@@ -192,7 +192,7 @@ Equip: move `targets: [...]` inside → `Activated(cost: Param(0), window: Sorce
 - [ ] **Step 1 — update canon/keyword tests** to read targets through the wrapper (failing).
 - [ ] **Step 2 — run, expect FAIL.**
 - [ ] **Step 3 — migrate the 9 RON files.**
-- [ ] **Step 4 — run, expect PASS:** `cargo test -p deckmaste_cards canon && cargo test -p deckmaste_cards keywords`
+- [ ] **Step 4 — run, expect PASS:** `cargo test -p deckmaste_plugin canon && cargo test -p deckmaste_plugin keywords`
 - [ ] **Step 5 — commit:** `data: migrate authored RON (canon/testing/builtin keywords) to Targeted`
 
 ---
@@ -200,16 +200,16 @@ Equip: move `targets: [...]` inside → `Activated(cost: Param(0), window: Sorce
 ### Task 6: Renderer — read targets from the wrapper
 
 **Files:**
-- Modify: `crates/deckmaste_cards/src/render/ability.rs:25` (`targets: &t.targets` → from the wrapper)
-- Modify: `crates/deckmaste_cards/src/render/mod.rs:69-94` (`RenderCtx.targets`), `render/fragment.rs:48,123` (`ctx.targets.get(i)` for `Reference::Target(i)`)
-- Test: `crates/deckmaste_cards/tests/render.rs` (targeted card renders identically).
+- Modify: `crates/deckmaste_plugin/src/render/ability.rs:25` (`targets: &t.targets` → from the wrapper)
+- Modify: `crates/deckmaste_plugin/src/render/mod.rs:69-94` (`RenderCtx.targets`), `render/fragment.rs:48,123` (`ctx.targets.get(i)` for `Reference::Target(i)`)
+- Test: `crates/deckmaste_plugin/tests/render.rs` (targeted card renders identically).
 
 **Change:** when rendering an ability whose effect is a top-level `Targeted`, set `ctx.targets` from that wrapper and render its inner effect; non-targeted abilities pass `&[]`. Reuse `top_targets` from Task 3 if exposed, else a local peel.
 
 - [ ] **Step 1 — render test** for a targeted card asserting the prior rendered text (failing if ctx.targets no longer found).
 - [ ] **Step 2 — run, expect FAIL.**
 - [ ] **Step 3 — implement** the wrapper-aware ctx setup.
-- [ ] **Step 4 — run, expect PASS:** `cargo test -p deckmaste_cards render`
+- [ ] **Step 4 — run, expect PASS:** `cargo test -p deckmaste_plugin render`
 - [ ] **Step 5 — commit:** `cards: renderer reads Target(n) specs from the Targeted wrapper`
 
 ---

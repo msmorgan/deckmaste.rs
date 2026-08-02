@@ -54,7 +54,7 @@ temporary card-count estimate:
    quickly stale card-count total.
 4. **Architecture** — one line per crate: `deckmaste_core` (the card
    language: abilities, effects, costs, zones…), `deckmaste_engine` (game
-   state and rules), `deckmaste_cards` (corpus + suite), `deckmaste_migrations`
+   state and rules), `deckmaste_plugin` (corpus + suite), `deckmaste_migrations`
    (data pipeline), `macro_ron`/`macro_ron_derive` (RON macro-expansion DSL),
    `xtask` (tooling).
 5. **The cite-check system** — a paragraph on `cargo xtask cite check` /
@@ -78,11 +78,11 @@ warnings denied, and workspace tests. Data-dependent corpus tests are ignored
 when their local generated inputs are absent.
 
 The complication considered at the time was that parts of the
-`deckmaste_cards` suite loaded `plugins/wizards`, generated from the 600 MB
+`deckmaste_plugin` suite loaded `plugins/wizards`, generated from the 600 MB
 `data/` dump unavailable to CI. The alternatives considered were:
 
 - **(a)** run only the crates/tests that don't need data (e.g.
-  `cargo test --workspace --exclude deckmaste_cards`, or an env-var/feature
+  `cargo test --workspace --exclude deckmaste_plugin`, or an env-var/feature
   gate on the data-dependent tests) — simplest, recommended first pass;
 - **(b)** fetch + cache the dataset in CI (actions/cache can hold it, but
   the first-fetch and restore costs are real);

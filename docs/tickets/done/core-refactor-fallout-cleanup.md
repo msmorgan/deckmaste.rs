@@ -14,7 +14,7 @@ one cleanup pass.
   (`assert_eq!(*spec, 0, …)`). Plugin-authored data should not be able to abort
   the engine. Replace with a structured "multi target-spec announce not yet
   wired" error. Currently unreachable (only Arc Lightning, `GetTargets(0)`).
-- **Orphaned `selection_object`** — `crates/deckmaste_cards/src/render/fragment.rs`
+- **Orphaned `selection_object`** — `crates/deckmaste_plugin/src/render/fragment.rs`
   is kept behind a refactor-added `#[allow(dead_code)]` "per the migration plan."
   It's the only 0-caller fn in the touched crates. Delete it unless a concrete
   follow-up stage needs it (and if so, ticket that stage).

@@ -23,7 +23,7 @@ working doc, with the full evidence base and D1–D13). Supersedes
 the english AST is already near-canonical ⇒ no IR layer); that ticket's wip
 workspace stack is to be dropped un-integrated. End-state deletions once
 parity is reached: `deckmaste_migrations` bespoke parsers (~16.5k lines),
-`deckmaste_cards/src/render/` (~12.7k), `src/template/` (~1.1k). Interim:
+`deckmaste_plugin/src/render/` (~12.7k), `src/template/` (~1.1k). Interim:
 `template:` coexists and is *generated* from the frame by lexical
 projection (`<Param(i)>` → `${i}`), lint-enforced, so there is never a
 second truth.

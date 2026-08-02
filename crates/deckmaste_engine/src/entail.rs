@@ -7,7 +7,7 @@
 //! that remain (`Played`, the `Act(Destroy)` event's zone coordinates) read
 //! their fact shape from a row here instead of hardcoding it.
 //!
-//! One source of truth: `crates/deckmaste_cards/tables/entailments.ron` is
+//! One source of truth: `crates/deckmaste_plugin/tables/entailments.ron` is
 //! emitted by `idris/src/EmitTables.idr` and `include_str!`-shared — the
 //! Idris model (which computes these rows) and the engine's matching can
 //! never disagree on a verb's fact form.
@@ -46,9 +46,10 @@ struct EntailmentFile {
 /// verb is outside the closed set.
 pub(crate) fn entailment(verb: &str) -> Option<&'static EntailmentRow> {
     static TABLE: LazyLock<HashMap<String, EntailmentRow>> = LazyLock::new(|| {
-        let file: EntailmentFile =
-            ron::from_str(include_str!("../../deckmaste_cards/tables/entailments.ron"))
-                .expect("generated entailments table parses");
+        let file: EntailmentFile = ron::from_str(include_str!(
+            "../../deckmaste_plugin/tables/entailments.ron"
+        ))
+        .expect("generated entailments table parses");
         file.rows.into_iter().map(|r| (r.verb.clone(), r)).collect()
     });
     TABLE.get(verb)

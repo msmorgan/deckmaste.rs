@@ -5,7 +5,6 @@ use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::BeginningStep;
 use deckmaste_core::Card;
 use deckmaste_core::Color;
@@ -40,6 +39,7 @@ use deckmaste_engine::Tapped;
 use deckmaste_engine::TriggerFired;
 use deckmaste_engine::TurnBegan;
 use deckmaste_engine::ZoneChange;
+use deckmaste_plugin::plugin::Plugin;
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()

@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-Refocus `deckmaste_cards` on its two real jobs — reading cards from files and writing
+Refocus `deckmaste_plugin` on its two real jobs — reading cards from files and writing
 card text (the `render` module) — by moving migration/graduation file-management out of
 `cards` into `deckmaste_migrations`, which then calls back into `cards` for
 validation/graduation. Untangles the two crates' responsibilities (per the

@@ -8,7 +8,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
@@ -24,6 +23,7 @@ use deckmaste_engine::Progress;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
+use deckmaste_plugin::plugin::Plugin;
 
 // --- plugin loaders ----------------------------------------------------------
 

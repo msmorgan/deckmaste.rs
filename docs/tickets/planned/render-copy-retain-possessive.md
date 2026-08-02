@@ -3,7 +3,7 @@ needs: [core-copy-grammar]
 ---
 Render a copy-exception `Retain` with the source's possessive, not a flat "its".
 `core-copy-grammar` renders `CopyException::Retain(char)` via `copy_retain_clause`
-(`crates/deckmaste_cards/src/render/effect.rs:2377`, call site `:2255`), which always emits
+(`crates/deckmaste_plugin/src/render/effect.rs:2377`, call site `:2255`), which always emits
 "its [characteristic]" ("except it doesn't copy its color" [CR#707.9c,707.9d]). That reads
 correctly when the copier is the object gaining the exception, but the sole real precedent —
 Vesuvan Doppelganger — prints "that creature's [characteristic]" because the retained

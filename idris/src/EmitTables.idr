@@ -1,5 +1,5 @@
 ||| The grammar-table emitter: renders `entailments.ron`
-||| (`crates/deckmaste_cards/tables/entailments.ron`), the one table the Rust
+||| (`crates/deckmaste_plugin/tables/entailments.ron`), the one table the Rust
 ||| engine still loads independently (`deckmaste_engine::entail`) — not the
 ||| Rust load-time elaborator, which was deleted along with the twelve other
 ||| tables this module used to emit (event-caps, bridge-caps, cost-actions,
@@ -121,7 +121,7 @@ entailmentTable =
 -- --------------------------------------------------------------------------
 
 outDir : String
-outDir = "../crates/deckmaste_cards/tables/"
+outDir = "../crates/deckmaste_plugin/tables/"
 
 emitAt : (path : String) -> String -> IO ()
 emitAt path contents = do

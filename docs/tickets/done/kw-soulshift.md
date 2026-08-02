@@ -46,7 +46,7 @@ The inline `Token` already carries every needed field
 ## Done
 
 - Both macros authored; engine tests in
-  `crates/deckmaste_cards/tests/keywords.rs` (two structural tests + rows in
+  `crates/deckmaste_plugin/tests/keywords.rs` (two structural tests + rows in
   `every_builtin_keyword_macro_expands`).
 - Graduation: 5363 → 5388 (+25 cards). Remaining Soulshift/Afterlife `.todo`
   cards are blocked on *other* unparsed abilities, not the keyword.

@@ -56,7 +56,7 @@ symlinked back to the `default` checkout. Each directory present under
 this shares ignored local directories such as `docs/superpowers` and
 `docs/memory` while leaving tracked documentation directories alone.
 `plugins/wizards` is generated (it's all generated code — a real dir, never a
-symlink: the deckmaste_cards suite loads it, and a symlink would make generate
+symlink: the deckmaste_plugin suite loads it, and a symlink would make generate
 write into the main checkout). The workspaces share the repository and global
 ignore configuration, so there is no per-workspace exclude step. Provisioning
 also CoW-reflinks `default`'s `target/` into the new workspace as a build-cache

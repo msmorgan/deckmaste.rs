@@ -16,9 +16,9 @@ use criterion::Criterion;
 use criterion::Throughput;
 use criterion::criterion_group;
 use criterion::criterion_main;
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_engine::sim::DeckCards;
 use deckmaste_engine::sim::{self};
+use deckmaste_plugin::plugin::Plugin;
 
 fn matchup() -> DeckCards {
     let canon = Plugin::load_with_sibling_prelude(

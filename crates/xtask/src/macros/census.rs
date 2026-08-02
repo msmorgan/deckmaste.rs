@@ -43,7 +43,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Args;
-use deckmaste_cards::macros::macro_set;
+use deckmaste_plugin::macros::macro_set;
 use macro_ron::MacroDef;
 
 #[derive(Debug, Args)]
@@ -171,7 +171,7 @@ pub(super) fn scan_macro_dirs(plugin_dirs: &[PathBuf]) -> anyhow::Result<DefCens
 }
 
 /// Classifies every `.ron` file under `macros_dir`, without loading a
-/// [`Plugin`](deckmaste_cards::plugin::Plugin) at all: [`macro_set`] is an
+/// [`Plugin`](deckmaste_plugin::plugin::Plugin) at all: [`macro_set`] is an
 /// *empty* registry — every card kind and param type registered, but no
 /// macro *definitions* of its own — so reading a file's source against it
 /// succeeds for a literal `MacroDef` struct (whose `frames:`/`body:` fields
@@ -210,7 +210,7 @@ fn scan_macro_dir(macros_dir: &Path) -> anyhow::Result<DefCensus> {
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
 /// empty. A private copy of the same small walker every plugin-tree reader
 /// in this workspace carries (`macro_ron::frames::ron_files_recursive`,
-/// `deckmaste_cards::plugin::ron_files_recursive`, `crate::macros::templates`
+/// `deckmaste_plugin::plugin::ron_files_recursive`, `crate::macros::templates`
 /// and `crate::macros::pilot`'s own copies) — xtask depends on none of those
 /// crates' internals, so this stays its own copy rather than a new public
 /// API surface for one more caller.

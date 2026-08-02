@@ -7,7 +7,7 @@ the grammar constructors those files declare that no canon card yet exercises.
 
 ## Why
 
-`crates/deckmaste_cards/tests/no_dead_grammar.rs` guarantees every grammar constructor is either
+`crates/deckmaste_plugin/tests/no_dead_grammar.rs` guarantees every grammar constructor is either
 exercised by a canon fixture or carries a `DEFERRED` allowlist entry — but only for the files
 listed in its `GRAMMAR_FILES` array (~7 files). `selection.rs`, `filter.rs`, and `mana.rs` are
 NOT in that list, so constructors declared there are invisible to the guarantee: they can be dead
@@ -31,4 +31,4 @@ Concretely, these already-landed constructors are currently dead-and-invisible:
 
 ## Gate
 
-`cargo test -p deckmaste_cards --test no_dead_grammar` green with the three files added.
+`cargo test -p deckmaste_plugin --test no_dead_grammar` green with the three files added.

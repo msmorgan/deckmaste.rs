@@ -3338,7 +3338,7 @@ typeConfers _            = []
 
 -- ===========================================================================
 -- EMITTER-TARGET POSITIONAL HELPERS. The RON→Idris re-emit gate
--- (`deckmaste_cards::idris_emit`) authors card expressions mechanically and
+-- (`deckmaste_plugin::idris_emit`) authors card expressions mechanically and
 -- MUST NOT write curly-brace named-argument syntax (`{field = val}`). The
 -- constructors below carry ergonomic `{default …}` params for HAND authoring
 -- (Cards/Macros/Spec keep using them terse, untouched); these thin aliases

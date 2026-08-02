@@ -276,7 +276,6 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::BeginningStep;
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
@@ -290,6 +289,7 @@ mod tests {
     use deckmaste_core::Type;
     use deckmaste_core::Uint;
     use deckmaste_core::Zone;
+    use deckmaste_plugin::plugin::Plugin;
 
     use crate::event::DamageDealt;
     use crate::event::GameEvent;

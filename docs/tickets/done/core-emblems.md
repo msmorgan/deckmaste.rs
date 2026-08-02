@@ -61,7 +61,7 @@ the token path emits (mirror it); getting an emblem is not itself a zone-change 
 - Render the inverse (`PlayerAction::GetEmblem` → text) — bidirectional, per
   [Macro templates are bidirectional](../../decisions/macro-templates-are-bidirectional.md).
   New grammar needs a RENDER arm or the cards suite fails.
-- Drop `GetEmblem` from the deferred list at `deckmaste_cards/tests/no_dead_grammar.rs:283`
+- Drop `GetEmblem` from the deferred list at `deckmaste_plugin/tests/no_dead_grammar.rs:283`
   (and the note at `:846`); handle the emit side at `idris_emit.rs:1763`.
 
 ## Compiled card (full slice)
@@ -84,7 +84,7 @@ compiled-card leg is deferred with the reason.
    the command zone. `[CR#114.3]`
 2. Emblem persists across turns / SBAs (never removed). `[CR#114.4]`
 3. Parse round-trips: text → `GetEmblem` → text (bidirectional).
-4. `cargo test -p deckmaste_engine -p deckmaste_cards -p deckmaste_core` green.
+4. `cargo test -p deckmaste_engine -p deckmaste_plugin -p deckmaste_core` green.
 5. `no_dead_grammar` passes with `GetEmblem` no longer deferred.
 6. CR citations: `cargo xtask cite check --list-noncompliant` empty, `cite check` 0 stale;
    `cite bless` any newly-cited rule and audit it (`[CR#114.1,114.3,114.4,408.1]`).

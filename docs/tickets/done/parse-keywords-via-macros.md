@@ -22,7 +22,7 @@ loads only at the `graduate` phase (resolve runs before it in
 build the `TemplateIndex` before `resolve`, and thread it through the
 `AbilityParser` signature (or a resolve-scoped context) so the generic
 `macro_template` parser can consult it. `TemplateIndex::build` +
-`match_kind(kind, input)` already exist in `deckmaste_cards::template`.
+`match_kind(kind, input)` already exist in `deckmaste_plugin::template`.
 
 ## DONE
 

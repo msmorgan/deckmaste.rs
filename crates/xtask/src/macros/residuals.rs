@@ -99,7 +99,7 @@
 //! `witness::reserved_tokens`'s own length-preserving fold) and replaced with
 //! `<Param(i)>` — but only once the covering entry's own name is mapped to a
 //! *legal* `params:` type (`This`/`You` are lexicon identities, not entries
-//! in `deckmaste_cards::macros::param_types()`; both denote a
+//! in `deckmaste_plugin::macros::param_types()`; both denote a
 //! `deckmaste_core::Reference`, which is): a hole whose entry has no known
 //! legal type is left uncut for the same reason a filler that cannot be
 //! found is — an illegal `params:` entry would be a second field, beside
@@ -121,10 +121,6 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
-use deckmaste_cards::plugin::Plugin;
-use deckmaste_cards::plugin::read;
-use deckmaste_cards::render::CardView;
-use deckmaste_cards::render::render;
 use deckmaste_core::Ability;
 use deckmaste_core::Card;
 use deckmaste_core::Supertype;
@@ -141,6 +137,10 @@ use deckmaste_frames::View;
 use deckmaste_frames::render::render_residual_text;
 use deckmaste_frames::unify;
 use deckmaste_frames::view;
+use deckmaste_plugin::plugin::Plugin;
+use deckmaste_plugin::plugin::read;
+use deckmaste_plugin::render::CardView;
+use deckmaste_plugin::render::render;
 use macro_ron::MacroSet;
 use macro_ron::frames::ConstructorFrames;
 use macro_ron::frames::FrameKind;
@@ -1227,7 +1227,7 @@ fn filler_text(
 
 /// The `params:` type name a hole's covering entry stands for — not the
 /// entry's own name, which is a lexicon identity (`This`, `You`) and not one
-/// of `deckmaste_cards::macros::param_types()`'s legal names. Both of the
+/// of `deckmaste_plugin::macros::param_types()`'s legal names. Both of the
 /// pro-forms this census's top rows actually cover denote a
 /// `deckmaste_core::Reference`; anything not in this small, explicit table
 /// returns `None`, and the caller leaves that hole uncut rather than emit a
@@ -1698,7 +1698,7 @@ mod tests {
     /// exemplar's own name — which is what lets this test build the hole by
     /// hand rather than through a full parse. `params:` reads the entry's
     /// *type* (`Reference`), never its lexicon identity (`This`) — the
-    /// latter is not a legal `deckmaste_cards::macros::param_types()` name.
+    /// latter is not a legal `deckmaste_plugin::macros::param_types()` name.
     #[test]
     fn a_self_reference_hole_carves_the_cards_own_name() {
         let (lexicon, _catalogs) = fixture_lexicon();
@@ -1756,7 +1756,7 @@ mod tests {
 
     /// A hole whose covering entry has no legal `params:` type — the entry
     /// exists and its constant text can be found, but nothing maps its name
-    /// to one of `deckmaste_cards::macros::param_types()`'s names — is left
+    /// to one of `deckmaste_plugin::macros::param_types()`'s names — is left
     /// uncut for the same reason: an illegal `params:` entry would be a
     /// second field a human has to fix by hand, breaching D11's "only
     /// `body:` blank" contract as surely as a wrong hole would.

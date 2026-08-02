@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    ".", "crates/deckmaste_cards",
+    ".", "crates/deckmaste_plugin",
     "crates/deckmaste_core",
     "crates/deckmaste_english",
     "crates/deckmaste_engine",

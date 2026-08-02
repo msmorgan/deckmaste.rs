@@ -6,7 +6,7 @@
 //!
 //! This is migration file-management: it scans `cards/*.ron.todo`, renames the
 //! ones that parse, and reports the rest. The "does it parse" gate calls back
-//! into `deckmaste_cards` ([`Plugin`] + its macro reader) for validation — the
+//! into `deckmaste_plugin` ([`Plugin`] + its macro reader) for validation — the
 //! card-read/validate half of the split.
 //!
 //! Plan-1 scope: `cards/` only, single pass. Cards aren't part of the macro
@@ -19,12 +19,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use deckmaste_cards::plugin::Plugin;
-use deckmaste_cards::plugin::read;
 use deckmaste_core::Card;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::graduated_name;
 use deckmaste_core::plugin::is_ron_todo_file;
+use deckmaste_plugin::plugin::Plugin;
+use deckmaste_plugin::plugin::read;
 use rayon::prelude::*;
 use regex::Regex;
 

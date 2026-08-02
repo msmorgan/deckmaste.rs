@@ -340,6 +340,6 @@ migrate-damage-sbas-to-rules.
   - **Count-carrying `Draw` CONFIRMED (user, 2026-07-14)** — the reversal to
     `KeywordAction::Draw(Reference, Count)` (Mill-parity, idris-aligned) stands.
 - **Stage 5 — wizards regen + full suites: DONE, green.** Wizards regenerated
-  (30,520 cards); full `deckmaste_cards` suites incl. corpus render-fidelity +
+  (30,520 cards); full `deckmaste_plugin` suites incl. corpus render-fidelity +
   no-dead-grammar + canon + builtin pass, 0 ignored (`wizards_corpus` cfg set);
   engine + core green.

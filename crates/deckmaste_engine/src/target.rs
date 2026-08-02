@@ -718,11 +718,11 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::Predicate;
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
+    use deckmaste_plugin::plugin::Plugin;
 
     use super::*;
     use crate::player::PlayerId;

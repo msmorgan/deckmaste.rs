@@ -6,7 +6,7 @@ actor.** Found in the 2026-06-29 code review.
 
 `MayPay.actor`/`MustPay.actor` default to `Reference::You` → renders "you", but
 the templates hardcode third-person agreement
-(`crates/deckmaste_cards/src/render/effect.rs:71,88,90`): "If {payer} does", "if
+(`crates/deckmaste_plugin/src/render/effect.rs:71,88,90`): "If {payer} does", "if
 {payer} doesn't", "unless {payer} pays". With the (common) `you` actor this is
 ungrammatical: "You may pay {1}. If you **does**, …" / "… unless you **pays**
 {2}." Uncaught because no corpus card uses these arms yet.

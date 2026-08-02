@@ -133,7 +133,7 @@ idris_emit expectations only as the shape change forces.
 ### 8. Gates
 
 nightly fmt; clippy zero warnings; `cargo test -p deckmaste_engine`;
-`cargo test -p deckmaste_cards`; `cargo test -p deckmaste_tui` (decision
+`cargo test -p deckmaste_plugin`; `cargo test -p deckmaste_tui` (decision
 shape change); cite check + list-noncompliant + bless/audit for new cites.
 No Idris changes. No wizards regen unless a core type serialization changed
 (the reshape is engine-internal; `Decision`/`PendingDecision` are engine

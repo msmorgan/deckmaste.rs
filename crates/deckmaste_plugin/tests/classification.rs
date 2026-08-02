@@ -15,8 +15,8 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_cards::macros::MacroDef;
 use deckmaste_core::KeywordAbility;
+use deckmaste_plugin::macros::MacroDef;
 
 fn skill_dir() -> PathBuf {
     if let Ok(p) = std::env::var("MTG_RULES_SKILL") {
@@ -135,7 +135,7 @@ fn keyword_macros_match_the_classification() {
         // subtype templates) don't parse as a literal MacroDef — resolve
         // those through the LOADED set instead, which also proves the
         // registration round-trip the literal scan never exercised.
-        let loaded = deckmaste_cards::plugin::Plugin::load_with_sibling_prelude(
+        let loaded = deckmaste_plugin::plugin::Plugin::load_with_sibling_prelude(
             root.join("plugins").join(plugin),
         )
         .unwrap_or_else(|e| panic!("loading plugin {plugin}: {e:#}"));

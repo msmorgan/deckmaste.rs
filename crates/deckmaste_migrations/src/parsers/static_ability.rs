@@ -339,7 +339,7 @@ fn parse_cost_modifier(body: &str) -> Option<String> {
 /// `Static(Conditionally(<condition>, <inner>))` ([CR#611.3a]) — the
 /// COMPOSITION of the `Condition`-macro path and the existing static-ability
 /// productions, nothing new in either vocabulary. Condition-FIRST only: the
-/// renderer (`crates/deckmaste_cards/src/render/ability.rs`'s
+/// renderer (`crates/deckmaste_plugin/src/render/ability.rs`'s
 /// `conditionally_qualified`) only emits the "As long as X, Y." phrasing —
 /// `Conditionally` carries no order marker (the `(Condition, StaticEffect)`
 /// pair can't remember which way the oracle wrote it), and the SAME

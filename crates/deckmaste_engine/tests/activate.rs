@@ -10,7 +10,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
@@ -52,6 +51,7 @@ use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::SymbolChoice;
 use deckmaste_engine::WorkItem;
+use deckmaste_plugin::plugin::Plugin;
 
 const PINGER: &str = "Creature tap-activated DealDamage AnyTarget";
 const MANA_DRAWER: &str = "Artifact mana-activated DrawCards";

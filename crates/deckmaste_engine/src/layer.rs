@@ -2617,7 +2617,7 @@ mod tests {
     fn wizards_permanent(name: &str) -> (GameState, ObjectId) {
         use std::path::Path;
 
-        use deckmaste_cards::plugin::Plugin;
+        use deckmaste_plugin::plugin::Plugin;
 
         let plugin = Plugin::load_with_sibling_prelude(
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/wizards"),

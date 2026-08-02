@@ -1,7 +1,7 @@
 //! The shared `Condition`-macro routing: an English condition phrase (the
 //! clause after "if"/"as long as") → a `Condition`-kind macro invocation, via
 //! the reverse
-//! [`TemplateIndex`](deckmaste_cards::template::index::TemplateIndex).
+//! [`TemplateIndex`](deckmaste_plugin::template::index::TemplateIndex).
 //! A nullary phrase ("you have the city's blessing") matches through the
 //! bare-name index; a slot-bearing phrase ("you control ${0}", "${0} is
 //! ${1}") fills each `${i}` via [`slot_reader`]. The one routing point BOTH
@@ -43,7 +43,7 @@ pub(crate) fn resolve(phrase: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<S
 ///
 /// "equipped creature" is deliberately NOT included: the renderer's
 /// `AttachHostOf(This)` subject phrase is hardcoded to "enchanted creature"
-/// (a pre-existing gap in `crates/deckmaste_cards/src/render/fragment.rs`'s
+/// (a pre-existing gap in `crates/deckmaste_plugin/src/render/fragment.rs`'s
 /// `reference_subject`), so accepting it here would parse but never
 /// round-trip — left `Unparsed` until that gap closes.
 pub(crate) const SUBJECT_WORDS: &[(&str, &str)] = &[

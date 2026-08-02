@@ -57,7 +57,7 @@ deckmaste_english ◄════════════════► deckmas
   monomorphic. A future shared characteristics-atoms crate below both
   grammars (killing atom mirroring) is booked as a design-gated follow-up
   (`characteristics-atoms-crate`), deliberately NOT part of Stage 1.
-- **`deckmaste_cards` is renamed to `deckmaste_plugin`** (Stage 0): it was
+- **`deckmaste_plugin` is renamed to `deckmaste_plugin`** (Stage 0): it was
   always the loader plus riders; the riders (emitter, validation, fidelity,
   the dying legacy renderer) may split further at the claimant's
   discretion.
@@ -491,7 +491,7 @@ legally land before an earlier-stage one when its needs are met. Every
 landing keeps all gates green (zero behavior change until Stage 2 begins
 the visible policy).
 
-- **Stage 0 — free the names**: `deckmaste_cards` → `deckmaste_plugin`
+- **Stage 0 — free the names**: `deckmaste_plugin` → `deckmaste_plugin`
   (claimant may split loader vs riders further); `deckmaste_card` split
   out of core — a cross-cutting, land-anytime migration (deliberately
   `needs: []`; whichever of it and the fork lands second adapts). No

@@ -3161,7 +3161,7 @@ mod tests {
     fn declarative_subject_emissions_read_back() {
         use std::path::Path;
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
-        let plugin = deckmaste_cards::plugin::Plugin::load(plugins.join("builtin")).unwrap();
+        let plugin = deckmaste_plugin::plugin::Plugin::load(plugins.join("builtin")).unwrap();
         let effect: deckmaste_core::OneShotEffect = plugin
             .macros
             .read_str("Each(binder: Existing(SelectAll(Player)), effect: Mills(It, 2))")

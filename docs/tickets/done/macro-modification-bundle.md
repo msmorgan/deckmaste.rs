@@ -7,7 +7,7 @@ keystone being an `AddPowerToughness(Count, Count)` macro (template
 `[AddPower(Literal(N)), AddToughness(Literal(N))]` pair inline.
 
 Why it doesn't work today: `Modification` derives only `Expand` (not
-`SupportsMacros`) and isn't in `deckmaste_cards`'s `kinds()`, so no macro can
+`SupportsMacros`) and isn't in `deckmaste_plugin`'s `kinds()`, so no macro can
 stand in a `changes: [...]` slot; and macros expand to a single value, so a
 macro can't splice two ops into the list. The fix mirrors how `Filter` macros
 work (a `Filter` macro can expand to one `AllOf([...])`): give `Modification` a
@@ -20,7 +20,7 @@ Three coupled changes:
    `#[derive(SupportsMacros)]`, add an `Expanded(Expansion<Modification>)`
    variant (this is what remembers the `AddPowerToughness(3,3)` invocation so the
    template can render it back), and register `Modification::kind()` in
-   `crates/deckmaste_cards/src/macros.rs` `kinds()`.
+   `crates/deckmaste_plugin/src/macros.rs` `kinds()`.
 3. Build the "unnest after" flatten — NO precedent exists: `expand_all` over a
    `Vec` is strictly element-wise (`macro_ron/src/traverse.rs`, the `Vec` impl
    maps, never splices), so after expansion the changes list still holds

@@ -79,7 +79,7 @@ enum ParamShape { None, Counted, Costed, CountedCost, Predicated,
 
 ## Done
 
-- Shapes and registries land in `deckmaste_core`/`deckmaste_cards` with
+- Shapes and registries land in `deckmaste_core`/`deckmaste_plugin` with
   round-trip tests; registry files load as plugin data.
 - Elaborator enforces: DeedAgent ≥ 1 arm, patientScope rows, registry scopes,
   keyword shapes, closed symbol set — one reject fixture each.

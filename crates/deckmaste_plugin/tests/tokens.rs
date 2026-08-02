@@ -8,7 +8,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
@@ -26,6 +25,7 @@ use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
 use deckmaste_core::Type;
+use deckmaste_plugin::plugin::Plugin;
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -320,7 +320,7 @@ fn vibranium_token_parses() {
 #[test]
 fn validate_builtin_with_tokens_has_no_failures() {
     let builtin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin");
-    let validation = deckmaste_cards::validate::validate_plugin(&builtin).unwrap();
+    let validation = deckmaste_plugin::validate::validate_plugin(&builtin).unwrap();
     for failure in &validation.failures {
         eprintln!("{}: {}", failure.path.display(), failure.error);
     }

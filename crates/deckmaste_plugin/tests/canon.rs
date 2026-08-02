@@ -7,7 +7,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Card;
@@ -19,6 +18,7 @@ use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
+use deckmaste_plugin::plugin::Plugin;
 
 fn canon_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon")
@@ -33,7 +33,7 @@ fn canon() -> Plugin {
 
 #[test]
 fn canon_cards_are_valid() {
-    let validation = deckmaste_cards::validate::validate_plugin(&canon_path()).unwrap();
+    let validation = deckmaste_plugin::validate::validate_plugin(&canon_path()).unwrap();
     for failure in &validation.failures {
         eprintln!("{}: {}", failure.path.display(), failure.error);
     }

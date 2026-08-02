@@ -1,13 +1,10 @@
 //! The detail pane's text. An object's printed face plus its *derived*
 //! [`Characteristics`](deckmaste_engine::Characteristics) are bridged into a
-//! `core`-typed [`CardView`] and run through the engine-free `deckmaste_cards`
+//! `core`-typed [`CardView`] and run through the engine-free `deckmaste_plugin`
 //! renderer, so the pane shows real rules text over the live (pumped, animated,
 //! control-changed) object — not the printed encoding.
 use std::fmt::Write as _;
 
-use deckmaste_cards::render::CardView;
-use deckmaste_cards::render::RenderedCard;
-use deckmaste_cards::render::render as render_card_view;
 use deckmaste_core::Expand;
 use deckmaste_core::StatValue;
 use deckmaste_engine::GameState;
@@ -16,6 +13,9 @@ use deckmaste_engine::ObjectId;
 use deckmaste_engine::ObjectSource;
 use deckmaste_engine::StackObject;
 use deckmaste_engine::face;
+use deckmaste_plugin::render::CardView;
+use deckmaste_plugin::render::RenderedCard;
+use deckmaste_plugin::render::render as render_card_view;
 use ratatui::text::Text;
 
 use crate::ui::board::Selected;
@@ -174,7 +174,7 @@ mod tests {
 
     /// Elvish Visionary's `Triggered(ThisEnters, Draw(1))` renders as a real
     /// sentence ("…draw a card."), proving the detail pane runs the
-    /// `deckmaste_cards` renderer over derived characteristics rather than
+    /// `deckmaste_plugin` renderer over derived characteristics rather than
     /// Debug-formatting the abilities.
     #[test]
     #[cfg_attr(

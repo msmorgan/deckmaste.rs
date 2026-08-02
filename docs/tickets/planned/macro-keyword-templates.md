@@ -12,7 +12,7 @@ landed, and the two straightforward named templates are implemented and tested
 - **Ward** — `plugins/builtin/macros/keyword/Ward.ron`:
   `params: { cost: Cost, where_x: Default(Count, 0) }`.
 - **Protection** — `Protection.ron`: `params: [Predicate]`.
-Both round-trip (parse⇄render); `cargo test -p deckmaste_cards --lib` green.
+Both round-trip (parse⇄render); `cargo test -p deckmaste_plugin --lib` green.
 
 ## Remaining: typed cycling — a distinct design-gated follow-up
 

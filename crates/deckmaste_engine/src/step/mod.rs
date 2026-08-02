@@ -2692,11 +2692,11 @@ mod tests {
         use std::path::Path;
         use std::sync::Arc;
 
-        use deckmaste_cards::plugin::Plugin;
         use deckmaste_core::Card;
         use deckmaste_core::Predicate;
         use deckmaste_core::Type;
         use deckmaste_core::Zone;
+        use deckmaste_plugin::plugin::Plugin;
 
         use crate::agenda::WorkItem;
         use crate::matches as obj_matches;
@@ -2792,12 +2792,12 @@ mod tests {
         use std::path::Path;
         use std::sync::Arc;
 
-        use deckmaste_cards::plugin::Plugin;
         use deckmaste_core::Card;
         use deckmaste_core::StatValue;
         use deckmaste_core::Supertype;
         use deckmaste_core::Type;
         use deckmaste_core::Zone;
+        use deckmaste_plugin::plugin::Plugin;
 
         use crate::agenda::WorkItem;
         use crate::decide::PendingDecision;

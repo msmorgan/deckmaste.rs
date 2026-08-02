@@ -1,7 +1,7 @@
 //! `cargo xtask idris-check` — the anaphora-soundness gate that replaces the
 //! deleted Rust elaborator/twin gate: re-emit each EXPANDED card as an
 //! equivalent raw `idris/src/Core.idr` expression (via
-//! `deckmaste_cards::idris_emit`) and typecheck it with `idris2 --check`.
+//! `deckmaste_plugin::idris_emit`) and typecheck it with `idris2 --check`.
 //! Idris's dependent `Normal`/`Reference`/`Selection` proofs make an unsound
 //! card (a dangling anaphor, an ambiguous antecedent, …) unrepresentable, so
 //! a card that typechecks is sound by construction.
@@ -24,10 +24,10 @@ use std::process::Command;
 
 use anyhow::Context;
 use clap::Args;
-use deckmaste_cards::idris_emit;
-use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::Expand;
+use deckmaste_plugin::idris_emit;
+use deckmaste_plugin::plugin::Plugin;
 
 #[derive(Debug, Args)]
 pub struct IdrisCheckArgs {

@@ -5,9 +5,9 @@
 //! [CR#702.21a]). Components: mana runs, the tap/untap symbols, sacrifice-self,
 //! chosen-sacrifice (`Sacrifice a creature`), pay-life, discard.
 
-use deckmaste_cards::template::index::TemplateIndex;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
+use deckmaste_plugin::template::index::TemplateIndex;
 
 use crate::parsers::effect;
 use crate::parsers::filter;

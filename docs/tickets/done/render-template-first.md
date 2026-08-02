@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-Make the card-text renderer (`deckmaste_cards::render`) consistently *template-first,
+Make the card-text renderer (`deckmaste_plugin::render`) consistently *template-first,
 structural-fallback*. Today that pattern exists at exactly one of the ~15 `Expanded`
 positions (`Effect::Expanded` in `effect.rs`); every other `X::Expanded` arm discards
 the macro's `name`/`template` (carried on every `Expansion<T>`, populated for all kinds

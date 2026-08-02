@@ -24,7 +24,7 @@
 //!    behind.
 //!
 //! The load-time elaborator this sweep's reject-fixture half depended on
-//! (a CR-tagged binding-context walk — `deckmaste_cards::elaborate`) was
+//! (a CR-tagged binding-context walk — `deckmaste_plugin::elaborate`) was
 //! deleted; anaphora/binding resolution now happens purely at engine eval
 //! time, so there is no load-time gate left to demonstrate REJECT fixtures
 //! against. The reject-side requirement and `tests/reject/` corpus are gone
@@ -1272,7 +1272,7 @@ fn no_dead_grammar_nodes() {
 /// the closed `CauseVerb` enum retired into the bareword [`VerbName`] newtype,
 /// the type no longer rejects an unknown verb (any bareword parses) — so this
 /// gate does, by MEMBERSHIP against the closed vocabulary the Idris model emits
-/// (`crates/deckmaste_cards/tables/entailments.ron`). Every `Cause(verb: X)`
+/// (`crates/deckmaste_plugin/tables/entailments.ron`). Every `Cause(verb: X)`
 /// spelled anywhere in the corpus must name a verb the entailment table
 /// carries; a typo (`Desroy`) or an out-of-vocab verb fails here, recovering
 /// the safety the enum used to give at compile time.

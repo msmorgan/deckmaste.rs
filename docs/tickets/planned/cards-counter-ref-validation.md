@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-`Plugin::counters` (`crates/deckmaste_cards/src/plugin.rs`) long documented a
+`Plugin::counters` (`crates/deckmaste_plugin/src/plugin.rs`) long documented a
 post-load `validate_counter_refs` pass checking every authored `CounterRef`
 against the counter registry — but no such pass ever existed (`validate.rs`
 lints subtypes/types/keywords only; the doc comment was corrected 2026-07-16).

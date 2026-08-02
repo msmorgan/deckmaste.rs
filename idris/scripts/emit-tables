@@ -1,10 +1,10 @@
 #!/bin/sh
-# Regenerate crates/deckmaste_cards/tables/entailments.ron — the one table
+# Regenerate crates/deckmaste_plugin/tables/entailments.ron — the one table
 # the Rust engine still loads independently (deckmaste_engine::entail) —
 # from Core.idr's total functions. CI runs this and diffs: a Core.idr change
 # that moves a row must land with a regenerated table. See
 # idris/src/EmitTables.idr.
 set -e
 cd "$(dirname "$0")/.."
-mkdir -p ../crates/deckmaste_cards/tables
+mkdir -p ../crates/deckmaste_plugin/tables
 exec idris2 --find-ipkg --exec emitTables src/EmitTables.idr

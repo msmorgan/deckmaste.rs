@@ -90,7 +90,7 @@ README index line:
 
 ## Phases 1–5 — heavy files, per crate
 
-Order: `deckmaste_engine` → `deckmaste_cards` → `deckmaste_migrations` →
+Order: `deckmaste_engine` → `deckmaste_plugin` → `deckmaste_migrations` →
 `deckmaste_core` → remainder (`tui`, `macro_ron`, `macro_ron_derive`,
 `xtask`, `noncanon`, `macro_ron_lsp`). Heavy file = ≥100 comment lines;
 regenerate the list at claim time

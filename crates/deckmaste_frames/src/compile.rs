@@ -1521,7 +1521,7 @@ mod tests {
     /// plus one plugin macro, so a guard may be authored with the readable
     /// sugar the catalog actually uses. `params: [Any]` rather than `[Count]`
     /// keeps this a fixture — registering the real param-type set is
-    /// `deckmaste_cards`'s job, and this crate sits below it.
+    /// `deckmaste_plugin`'s job, and this crate sits below it.
     fn reader() -> MacroSet {
         let mut macros = MacroSet::new(deckmaste_core::ron::kinds())
             .with_options(deckmaste_core::ron::raw_options());

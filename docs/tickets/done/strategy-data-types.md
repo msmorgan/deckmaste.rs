@@ -8,7 +8,7 @@ vocabulary verbatim, and its branching is an ordered rule list the evaluator
 walks — the same way the engine already walks `Vec<Ability>` / orders triggers.
 
 Define and register as macroable kinds, alongside cards in
-`crates/deckmaste_cards/src/macros.rs`:
+`crates/deckmaste_plugin/src/macros.rs`:
 
 - `Strategy { name: String, rules: Vec<Rule> }`
 - `Rule { when: Condition, prefer: Preference }` — ordered; first applicable +
@@ -31,7 +31,7 @@ strategy-engine epic (v1).
 
 ## Status: DONE
 
-`crates/deckmaste_cards/src/strategy.rs` (10 TDD tests; full crate suite,
+`crates/deckmaste_plugin/src/strategy.rs` (10 TDD tests; full crate suite,
 clippy, and `cargo build --workspace` all green):
 
 - All six data types — `Extremum`, `Selector`, `BlockPolicy`, `Preference`,

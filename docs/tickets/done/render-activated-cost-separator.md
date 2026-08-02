@@ -12,7 +12,7 @@ This is the RENDER side (core → English oracle text), **distinct from
 into RON with no inner space — a `.todo`/RON-serialization concern, not the
 rendered card face).
 
-Source: `crates/deckmaste_cards/src/render/ability.rs:265` renders the line as
+Source: `crates/deckmaste_plugin/src/render/ability.rs:265` renders the line as
 `format!("{cost}: {body}{rider}")` (`:268`) where `cost = effect::activated_cost(&a.cost.0, &ctx)`
 (`render/effect.rs`). `activated_cost` joins the cost components without `", "`,
 so a two-component cost comes out crammed. Fix: join the rendered cost

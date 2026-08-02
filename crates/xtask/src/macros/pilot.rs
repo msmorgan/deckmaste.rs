@@ -5,7 +5,7 @@
 //!   `Origin::Macro` lexicon entry — not the raw constructor entries), does
 //!   [`render_invocation_with`] reproduce, byte-for-byte after `fidelity`-style
 //!   normalization, the same text the legacy per-ability renderer
-//!   ([`deckmaste_cards::render`]) already prints for that ability? AND does
+//!   ([`deckmaste_plugin::render`]) already prints for that ability? AND does
 //!   `cargo xtask fidelity` still hold at its established figure — this command
 //!   re-runs that exact check rather than asking a caller to remember to run
 //!   both. (The plan states that figure as canon's 73 clean / 7 waived / 0
@@ -96,13 +96,6 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
-use deckmaste_cards::fidelity;
-use deckmaste_cards::fidelity::Oracle;
-use deckmaste_cards::fidelity::Outcome as FidelityOutcome;
-use deckmaste_cards::plugin::Plugin;
-use deckmaste_cards::plugin::read;
-use deckmaste_cards::render::CardView;
-use deckmaste_cards::render::render;
 use deckmaste_core::Ability;
 use deckmaste_core::Card;
 use deckmaste_core::CardFace;
@@ -122,6 +115,13 @@ use deckmaste_frames::lexicon::Origin;
 use deckmaste_frames::render_invocation_with;
 use deckmaste_frames::unify;
 use deckmaste_frames::view;
+use deckmaste_plugin::fidelity;
+use deckmaste_plugin::fidelity::Oracle;
+use deckmaste_plugin::fidelity::Outcome as FidelityOutcome;
+use deckmaste_plugin::plugin::Plugin;
+use deckmaste_plugin::plugin::read;
+use deckmaste_plugin::render::CardView;
+use deckmaste_plugin::render::render;
 use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 use macro_ron::frames::load_constructor_frames;
@@ -532,7 +532,7 @@ pub(super) fn faces(card: &Card) -> Vec<&CardFace> {
 }
 
 /// Peels a leading `Ability::Expanded` wrapper — mirrors
-/// `deckmaste_cards::render`'s own private `peel_expanded`, which this
+/// `deckmaste_plugin::render`'s own private `peel_expanded`, which this
 /// module cannot call (it is not exported), kept minimal since only the
 /// two ability kinds below are ever isolated.
 pub(super) fn peel_expanded(ability: &Ability) -> &Ability {
@@ -554,7 +554,7 @@ pub(super) fn peel_expanded(ability: &Ability) -> &Ability {
 /// real usage untested. Its `event`/`condition`/`ability_word` are dropped
 /// and `effect` alone is re-wrapped as a synthetic `Ability::Spell` for
 /// rendering, reaching the *identical* `effect::effect` renderer a real
-/// spell's effect does (`deckmaste_cards::render::rules`'s own dispatch) —
+/// spell's effect does (`deckmaste_plugin::render::rules`'s own dispatch) —
 /// only the surrounding sentence frame (capitalization, no "When …,"
 /// lead-in) differs, which does not matter here: this sweep tests the
 /// effect's own structure, not the trigger wrapping it.
@@ -635,9 +635,10 @@ fn testable_line(
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
 /// empty. A private copy of the small walker every plugin-tree reader in
 /// this workspace carries (`macro_ron::frames::ron_files_recursive`,
-/// `deckmaste_cards::plugin::ron_files_recursive`, `crate::macros::templates`'s
-/// own copy) — xtask depends on none of those crates' internals, so this
-/// stays its own copy rather than a new public API surface for one caller.
+/// `deckmaste_plugin::plugin::ron_files_recursive`,
+/// `crate::macros::templates`'s own copy) — xtask depends on none of those
+/// crates' internals, so this stays its own copy rather than a new public API
+/// surface for one caller.
 pub(super) fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     if !dir.exists() {
         return Ok(Vec::new());

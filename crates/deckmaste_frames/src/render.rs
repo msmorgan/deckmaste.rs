@@ -568,7 +568,7 @@ fn render_argument_text(
 
 /// The spelling a `Count` hole's digit text renders as: one through twenty
 /// as English cardinal words (matching the legacy template renderer's own
-/// `number_word` threshold — `crates/deckmaste_cards/src/render/fragment.rs`
+/// `number_word` threshold — `crates/deckmaste_plugin/src/render/fragment.rs`
 /// — so G3's shadow-parity comparison derives the same spelling on both
 /// sides from the same value, independent of how the *card* happened to
 /// spell it), anything else verbatim as digits.
@@ -809,8 +809,8 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::LazyLock;
 
-    use deckmaste_cards::plugin::Plugin;
     use deckmaste_english::CatalogKind;
+    use deckmaste_plugin::plugin::Plugin;
     use macro_ron::frames::load_constructor_frames;
 
     use super::*;
