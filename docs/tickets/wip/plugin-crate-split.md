@@ -1,8 +1,8 @@
 ---
 needs: []
 ---
-**Stage 0 of the authoring/spelling/lowering program: rename
-`deckmaste_plugin` → `deckmaste_plugin`, freeing the card-name space before
+**Stage 0 of the authoring/spelling/lowering program: rename the
+card-loader crate to `deckmaste_plugin`, freeing the card-name space before
 the authoring-era crates arrive.** Design:
 `docs/decisions/authoring-spelling-lowering.md`
 (§1, §11).
@@ -16,9 +16,8 @@ renderer dies in place later and should NOT get a new home.
 
 ## Scope
 
-- Cargo rename + workspace/imports sweep (mechanical; `deckmaste_plugin`
-  must not survive as a name anywhere, including docs and xtask
-  references).
+- Cargo rename + workspace/imports sweep (mechanical; the OLD crate name
+  must not survive anywhere, including docs and xtask references).
 - No semantic change of any kind.
 
 ## Gates
