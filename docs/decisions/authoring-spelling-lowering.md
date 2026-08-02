@@ -273,16 +273,27 @@ target.
 - **Inline sugar**: `Target(spec)` at an exactly-one Reference position;
   `Targets(spec)` at a Selection position; never type-directed overloading
   (Idris treats only literal exactly-one as cardinality One).
-  **Discriminator, deterministic**: at a Reference/Selection position, a
-  payload that is a bare numeral is an index read; any other payload
-  parses as a `TargetSpec` and is the sugar; a payload that parses as
-  neither is an error naming both readings. (Because `TargetSpec`'s own
-  head constructor is also spelled `Target`, the sugared general form
-  nests as `Target(Target(…, …))` — legal but ugly; the implementation
-  plan may propose a distinct sugar ident, which is a naming decision for
-  the owner at that point.) Sugar is legal only in card-authored
-  provenance text — a macro body may FORWARD sugar through a `Param` hole
-  but may never introduce it (bodies are scope-free).
+  **The sugar family is named `Announce` (owner-settled 2026-08-02)**:
+  `Announce(spec)` introduces an announced slot — it names the rules
+  moment [CR#601.2c], kills the `Target(Target(…))` nesting the
+  overloaded spelling would have had, and makes introduction-vs-read
+  lexical rather than payload-shape-based (no numeral discriminator
+  needed). The same-concept reuse with `LockPoint::Announce` is
+  deliberate harmony. Two family members are direction-settled with
+  final shape left to the Stage-4 plan: a READ companion for referring
+  to a previously-announced slot (an `Announced(n)`-style spelling —
+  note the rename depth question: canon already spells `Target(n)` at
+  ~20 sites, so either both grammars rename with a small canon sweep, or
+  `Target(n)` stays canonical and the companion is rejected — dual
+  spellings are not an option under principle 2); and **distinctness
+  encoding**: `Announce(Distinct([i…], spec))` already composes for
+  edges naming explicit-prefix slots, and an "other"-flavored form
+  (distinct-from-all-earlier-announcements, matching oracle's "any
+  OTHER target") covers the fully-inline case that indexless sugar
+  slots cannot express — the explicit indexed `Distinct` remains the
+  general mechanism. Sugar is legal only in card-authored provenance
+  text — a macro body may FORWARD sugar through a `Param` hole but may
+  never introduce it (bodies are scope-free).
 - **Occurrence counting is defined over the PRE-EXPANSION invocation
   AST**: each caller-side authored site is one occurrence, regardless of
   how many times an idiom's body re-reads the parameter (`Fight` re-reads

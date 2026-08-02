@@ -33,10 +33,22 @@ the ONLY scope introducer; idiom bodies stay scope-free.
   (field declaration order, list sequence), so RON named-field reordering
   cannot renumber. Acceptance-time validation and canonical-writer
   contraction are separately labeled directions — this ticket implements
-  acceptance only. (The general sugared form nests as
-  `Target(Target(…))` since `TargetSpec`'s head is also spelled `Target`
-  — legal but ugly; proposing a distinct sugar ident is in-plan latitude,
-  final name = owner's call.)
+  acceptance only.
+- **Naming, owner-settled (2026-08-02)**: the sugar ident is `Announce`
+  (`Announce(spec)`, `Announces(spec)`-or-kin for the plural Selection
+  form — exact plural spelling is plan latitude). Direction-settled
+  family members to shape in the plan: a READ companion
+  (`Announced(n)`-style) for previously-announced slots — resolve the
+  rename-depth question (canon spells `Target(n)` at ~20 sites: rename
+  both grammars with the small canon sweep, or reject the companion and
+  keep `Target(n)`; dual spellings are forbidden by decision principle
+  2) — and distinctness: `Announce(Distinct([i…], spec))` composes for
+  explicit-prefix edges, plus an "other"-flavored form
+  (distinct-from-all-earlier announcements, oracle's "any OTHER
+  target") for the fully-inline case; explicit indexed `Distinct` stays
+  the general mechanism. Arc Trail becomes the other-form fixture;
+  Seeds of Strength the non-distinct counterexample (its three
+  announcements may legally choose the same creature).
 - Mixed scopes via the explicit-prefix rule (explicit slots own `0..E`;
   inline sites append in textual order; authored indices `< E`; validator
   rejects an authored index landing on a generated slot).
