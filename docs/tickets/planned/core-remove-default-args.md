@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [macro-author-surface]
 ---
 Strip the ~20 existing `default`-valued player/reference arguments from `idris/src/Core.idr`
 grammar constructors, making every call site pass the reference explicitly.
@@ -14,6 +14,15 @@ actor}`) are deleted outright. Remaining scope here: the non-player defaults
 (`{default This …}`, `{default [Library] …}`, `Countable.ManaSpent`'s
 `default This`, and kin). Coordinate with the reshape (the Idris constructor
 churn overlaps; land this after it or fold the leftovers into its plan).
+
+**Second rescope (2026-08-01):** now sequenced behind `macro-author-surface`
+(the `needs:`). Once card/token files parse macro vocabulary only and the
+generated identity macros mirror full constructor arity, the card-RON half of
+the remaining churn happens as a side effect of that ticket's canon
+migration. What is left here afterwards: the Idris constructor defaults
+themselves, the emitter, and hand-authored macro *bodies* that still elide
+`This`/`[Library]` — land after `macro-author-surface`, or fold this
+remainder into its plan.
 
 ## Why
 

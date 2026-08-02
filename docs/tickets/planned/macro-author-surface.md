@@ -98,6 +98,14 @@ After `core-pay-player-action` (the `needs:`): identity macros generate once
 over the final role-honest shapes, and the reshape's canon re-spelling isn't
 churned twice.
 
+**Design gate before english round 3 (2026-08-01):** design Q4
+(`DrawCard`→`Draw`) and Q5 (surface-text home) both shape what round 3 mints
+into the frames catalog — settle them before round 3 runs so fresh frames
+aren't re-keyed or relocated. Implementation order vs round 3 is otherwise
+free (this ticket is write-path, round 3 is read-path).
+`core-remove-default-args` is now sequenced behind this ticket (its `needs:`
+points here); its card-RON churn is absorbed by the canon-migration step.
+
 Related: the action-role-reshape spec's §16.3 naming criterion (retired for
 future types by this policy); `core-remove-default-args` (the same
 no-implicit-surface philosophy); the macro-frames effort (the read-path
