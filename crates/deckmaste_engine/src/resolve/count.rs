@@ -835,6 +835,7 @@ mod tests {
             GameEvent::LifeLost(LifeLost {
                 player: p,
                 amount: 3,
+                cause: None,
             }),
         );
         state.record_history_fact(
@@ -843,6 +844,7 @@ mod tests {
             GameEvent::LifeLost(LifeLost {
                 player: p,
                 amount: 2,
+                cause: None,
             }),
         );
         state.record_history_fact(
@@ -851,6 +853,7 @@ mod tests {
             GameEvent::LifeGained(LifeGained {
                 player: p,
                 amount: 4,
+                cause: None,
             }),
         );
         let lose_event = EventFilter::LifeLost {
@@ -2017,6 +2020,7 @@ mod tests {
             GameEvent::LifeLost(LifeLost {
                 player: PlayerId(0),
                 amount: 2,
+                cause: None,
             }),
         );
         state.record_history_fact(
@@ -2025,6 +2029,7 @@ mod tests {
             GameEvent::LifeLost(LifeLost {
                 player: PlayerId(0),
                 amount: 3,
+                cause: None,
             }),
         );
         state.record_history_fact(
@@ -2033,6 +2038,7 @@ mod tests {
             GameEvent::LifeLost(LifeLost {
                 player: PlayerId(1),
                 amount: 10,
+                cause: None,
             }),
         );
 

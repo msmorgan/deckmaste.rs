@@ -214,6 +214,10 @@ pub(crate) enum FactKind {
     Used,
     CoinFlipped,
     DiceRolled,
+    /// [CR#701.24a]: a library/pile was shuffled.
+    Shuffled,
+    /// [CR#701.20a]: cards were revealed.
+    Revealed,
     /// A named keyword action ([CR#701]) — the `GameEvent::Act` event
     /// that [`EventFilter::Act`](deckmaste_core::EventFilter::Act) watches.
     Act,
@@ -242,8 +246,9 @@ pub(crate) struct FactView<'a> {
     /// damage recipient, the blocked attacker, the attach host, the targeted
     /// object, the defending player, the designation gainer.
     pub patient: Option<Part<'a>>,
-    /// The responsible-player ACTOR: the caster/drawer/gainer/flipper, the
-    /// new controller, the active player of a step onset.
+    /// The responsible-player ACTOR: the caster/drawer/flipper, the new
+    /// controller, the active player of a step onset. Life gain/loss carries
+    /// no actor — the player is the PATIENT ([CR#119.9,119.10]).
     pub actor: Option<PlayerId>,
     /// The performing SOURCE object: the damage source, the targeting
     /// spell/ability.
@@ -425,15 +430,27 @@ impl<'a> FactView<'a> {
                 v.amount = Some(*amount);
                 v.combat = Some(*combat);
             }
-            GameEvent::LifeGained(LifeGained { player, amount }) => {
+            // [CR#119.9,119.10]: the player is the PATIENT — "a source
+            // CAUSES a player to gain/lose life", no agent role.
+            GameEvent::LifeGained(LifeGained {
+                player,
+                amount,
+                cause,
+            }) => {
                 v = FactView::bare(FactKind::LifeGained, state);
-                v.actor = Some(*player);
+                v.patient = Some(Part::Player(*player));
                 v.amount = Some(*amount);
+                v.cause = cause.as_ref().map(Cow::Borrowed);
             }
-            GameEvent::LifeLost(LifeLost { player, amount }) => {
+            GameEvent::LifeLost(LifeLost {
+                player,
+                amount,
+                cause,
+            }) => {
                 v = FactView::bare(FactKind::LifeLost, state);
-                v.actor = Some(*player);
+                v.patient = Some(Part::Player(*player));
                 v.amount = Some(*amount);
+                v.cause = cause.as_ref().map(Cow::Borrowed);
             }
             // [CR#122.1]: counter deltas.
             GameEvent::CounterPlaced(CounterPlaced {
@@ -521,9 +538,10 @@ impl<'a> FactView<'a> {
                 v.object = Some(part(*object));
                 v.cause = cause.as_ref().map(Cow::Borrowed);
             }
-            GameEvent::Untapped(o) => {
+            GameEvent::Untapped(o, cause) => {
                 v = FactView::bare(FactKind::StateBecame(StateChange::Untapped), state);
                 v.object = Some(part(*o));
+                v.cause = cause.as_ref().map(Cow::Borrowed);
             }
             // [CR#701.27a,712.18]: the transform status transition — same
             // shape as `Tapped`/`Untapped`, matched by `StateBecame`.
@@ -590,6 +608,20 @@ impl<'a> FactView<'a> {
                 v.actor = Some(*player);
                 v.amount = Some(*result);
             }
+            // [CR#701.24a]: a library/pile was shuffled — the shuffler is
+            // the actor, no other participant.
+            GameEvent::Shuffled(player) => {
+                v = FactView::bare(FactKind::Shuffled, state);
+                v.actor = Some(*player);
+            }
+            // [CR#701.20a]: cards revealed — ∃-matched over the revealed
+            // set via `subjects` (the `Act` arm's precedent); the revealer
+            // stays derived, no dedicated participant slot.
+            GameEvent::Revealed(Revealed { objects, .. }) => {
+                v = FactView::bare(FactKind::Revealed, state);
+                v.object = objects.first().map(|&o| part(o));
+                v.subjects = objects.iter().map(|&o| part(o)).collect();
+            }
             // Plumbing and information events no pattern atom watches.
             GameEvent::TurnBegan(TurnBegan { .. })
             | GameEvent::TriggerFired(TriggerFired { .. })
@@ -604,8 +636,6 @@ impl<'a> FactView<'a> {
             | GameEvent::PlayerWon(PlayerWon { .. })
             | GameEvent::ManaAdded(ManaAdded { .. })
             | GameEvent::ManaEmptied(ManaEmptied { .. })
-            | GameEvent::Revealed(Revealed { .. })
-            | GameEvent::Shuffled(_)
             | GameEvent::Unattached(Unattached { .. })
             | GameEvent::DamageRemoved(DamageRemoved { .. }) => return None,
         }
@@ -785,16 +815,16 @@ impl GameState {
                     && self.part_matches(to, fact.patient.as_ref(), bindings)
             }
 
-            // [CR#119.3].
+            // [CR#119.3,119.9,119.10]: the player is the PATIENT.
             EventFilter::LifeGained { who, amount } => {
                 fact.kind == FactKind::LifeGained
                     && self.amount_ok(amount.as_ref(), fact.amount, bindings)
-                    && self.actor_matches(who, fact.actor, bindings)
+                    && self.part_matches(who, fact.patient.as_ref(), bindings)
             }
             EventFilter::LifeLost { who, amount } => {
                 fact.kind == FactKind::LifeLost
                     && self.amount_ok(amount.as_ref(), fact.amount, bindings)
-                    && self.actor_matches(who, fact.actor, bindings)
+                    && self.part_matches(who, fact.patient.as_ref(), bindings)
             }
 
             // [CR#121.1]: per-fact granularity is one card ([CR#121.2]), so
@@ -856,21 +886,38 @@ impl GameState {
                 name_ok && coords_ok && cause_ok && shape_ok
             }
 
-            // [CR#122.1]: an omitted pattern `kind` watches any counter kind.
-            EventFilter::CounterPlaced { kind, on, amount } => {
+            // [CR#122.1]: an omitted pattern `kind` watches any counter kind;
+            // `cause` narrows the placement's cause triple ("as a cost").
+            EventFilter::CounterPlaced {
+                kind,
+                on,
+                amount,
+                cause,
+            } => {
                 fact.kind == FactKind::CounterPlaced
                     && kind
                         .as_ref()
                         .is_none_or(|r| Some(&r.0) == fact.counter.as_deref())
                     && self.amount_ok(amount.as_ref(), fact.amount, bindings)
+                    && cause
+                        .as_ref()
+                        .is_none_or(|c| self.cause_matches(c, fact.cause.as_deref(), bindings))
                     && self.part_matches(on, fact.object.as_ref(), bindings)
             }
-            EventFilter::CounterRemoved { kind, on, amount } => {
+            EventFilter::CounterRemoved {
+                kind,
+                on,
+                amount,
+                cause,
+            } => {
                 fact.kind == FactKind::CounterRemoved
                     && kind
                         .as_ref()
                         .is_none_or(|r| Some(&r.0) == fact.counter.as_deref())
                     && self.amount_ok(amount.as_ref(), fact.amount, bindings)
+                    && cause
+                        .as_ref()
+                        .is_none_or(|c| self.cause_matches(c, fact.cause.as_deref(), bindings))
                     && self.part_matches(on, fact.object.as_ref(), bindings)
             }
 
@@ -940,8 +987,11 @@ impl GameState {
             // phasing/turn-face have no fact shape (P0.W6), so their
             // patterns match no record (kept caps `StateBecame:Phased`/
             // `:TurnedFace`).
-            EventFilter::StateBecame { of, becomes } => {
+            EventFilter::StateBecame { of, becomes, cause } => {
                 fact.kind == FactKind::StateBecame(becomes.clone())
+                    && cause
+                        .as_ref()
+                        .is_none_or(|c| self.cause_matches(c, fact.cause.as_deref(), bindings))
                     && self.part_matches(of, fact.object.as_ref(), bindings)
             }
 
@@ -1003,6 +1053,20 @@ impl GameState {
                 fact.kind == FactKind::TokenCreated
                     && matches!(deref_filter(what), Predicate::Any)
                     && self.actor_matches(by, fact.actor, bindings)
+            }
+
+            // [CR#701.24a]: `by` narrows the shuffling player (Psychic
+            // Surgery's "whenever a player shuffles their library").
+            EventFilter::Shuffled { by } => {
+                fact.kind == FactKind::Shuffled && self.actor_matches(by, fact.actor, bindings)
+            }
+
+            // [CR#701.20a]: `what` ∃-matches the revealed set — the `Act`
+            // arm's `subjects_match` precedent; no performer coordinate
+            // (the revealer stays derived, not a fact participant).
+            EventFilter::Revealed { what } => {
+                fact.kind == FactKind::Revealed
+                    && self.subjects_match(what, &fact.subjects, bindings)
             }
 
             // [CR#608.2i,400.7]: object-scoped identity — `of` resolves

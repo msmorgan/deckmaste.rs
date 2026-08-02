@@ -1833,7 +1833,9 @@ mod tests {
             }))) if on.is_empty()
         )));
 
-        // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3})
+        // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3}) carrying
+        // the effect-instruction cause triple ([CR#119.9]'s source — the
+        // shared (frame.source, frame.controller) binding, not the patient).
         let items = state.action_items(
             &Action::ChangeLife(Reference::You, LifeOp::Down(Count::Literal(3))),
             &frame,
@@ -1844,6 +1846,12 @@ mod tests {
                 LifeLost {
                     player: PlayerId(0),
                     amount: 3,
+                    cause: Some(crate::event::Cause {
+                        verb: "LoseLife".into(),
+                        agency: deckmaste_core::Agency::EffectInstruction,
+                        agent: Some((src, PlayerId(0))),
+                        payment: None,
+                    }),
                 }
             )))]
         );
@@ -3916,6 +3924,12 @@ mod tests {
                 LifeGained {
                     player: PlayerId(0),
                     amount: 3,
+                    cause: Some(crate::event::Cause {
+                        verb: "GainLife".into(),
+                        agency: deckmaste_core::Agency::EffectInstruction,
+                        agent: Some((src, PlayerId(0))),
+                        payment: None,
+                    }),
                 }
             )))]
         );
@@ -3923,7 +3937,15 @@ mod tests {
         let items = state.action_items(&Action::Untap(Reference::This), &frame);
         assert_eq!(
             items,
-            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(src)))]
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(
+                src,
+                Some(crate::event::Cause {
+                    verb: "Untap".into(),
+                    agency: deckmaste_core::Agency::EffectInstruction,
+                    agent: Some((src, PlayerId(0))),
+                    payment: None,
+                }),
+            )))]
         );
     }
 

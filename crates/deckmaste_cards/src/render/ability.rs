@@ -474,7 +474,7 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
             lead_for(what),
             format!("{} leaves the battlefield", subject_of(what, ctx)),
         ),
-        EventFilter::StateBecame { of, becomes } => (
+        EventFilter::StateBecame { of, becomes, .. } => (
             "Whenever",
             format!("{} becomes {}", subject_of(of, ctx), state_word(becomes)),
         ),
@@ -2548,6 +2548,7 @@ mod tests {
                 &EventFilter::StateBecame {
                     of: Predicate::Ref(Reference::This),
                     becomes: StateChange::Untapped,
+                    cause: None,
                 },
                 &ctx
             ),

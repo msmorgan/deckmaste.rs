@@ -729,9 +729,13 @@ fn apply_one(
 /// intent's affected recipient bound for the body to read while `This` stays
 /// the source ability. A card-backed recipient binds as `EventObject` (a body
 /// reads `Ref(EventObject)` — regeneration heals it, wither/infect put -1/-1
-/// counters on it, [CR#702.80a,702.90c]); a PLAYER recipient (the proxy is
-/// zoneless, so it has no LKI snapshot) binds as `EventActor` instead, read as
-/// `Ref(EventActor)` — infect gives that player poison counters ([CR#702.90b]).
+/// counters on it, [CR#702.80a,702.90c]); a PLAYER recipient binds as the
+/// kind-poly `EventPatient` — infect gives that player poison counters
+/// ([CR#702.90b]). The retired `EventActor` compat alias (a player patient
+/// ALSO bound as `that_player`, so an old body could read it via
+/// `Ref(EventActor)`) is gone — `EventActor` names the responsible AGENT
+/// ([CR#119.9]'s distinction), and a replaced event's affected recipient is
+/// never that; `Infect.ron` was the one reader and now reads `EventPatient`.
 ///
 /// `applied` is the [CR#614.5] lineage already spent against the event this
 /// body replaces (including the very key that just fired) — threaded into
@@ -751,14 +755,11 @@ fn schedule_body(
     // ([CR#120.3]) — so the body can read it while `This` falls back to
     // `source` (`bindings.this` is `None`, the agent never moving off the
     // ability). A frameless body (`that == None`) leaves bindings unset. The
-    // recipient is the provenance-explicit `EventPatient`; it ALSO mirrors into
-    // `that_object`/`that_player` so `EventObject`/`EventActor` bodies keep
-    // reading it (a player proxy is zoneless, so it has no LKI snapshot — it
-    // binds as the player patient; a card/token recipient binds as the object
-    // patient).
+    // recipient is the provenance-explicit `EventPatient`; a card/token
+    // recipient ALSO mirrors into `that_object` so `EventObject` bodies keep
+    // reading it (regeneration/wither/infect-on-a-creature).
     let anaphora = that.map_or_else(Anaphora::empty, |id| match state.objects.obj(id).source {
         ObjectSource::Player(p) => Anaphora {
-            that_player: Some(p),
             that_patient: Some(EventPatient::Player(p)),
             ..Anaphora::empty()
         },

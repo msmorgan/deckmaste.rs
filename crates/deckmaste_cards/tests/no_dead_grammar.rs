@@ -667,6 +667,18 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             batch.",
         ),
         (
+            n("EventFilter", "Shuffled"),
+            "DEFERRED: no covered shuffle-triggered real card (Psychic \
+            Surgery) authored yet — the T5 exposure-row master form + FactView atom exist and \
+            are exercised by engine unit tests; authoring the card is optional per that round's \
+            scope.",
+        ),
+        (
+            n("EventFilter", "Revealed"),
+            "DEFERRED: see EventFilter::Shuffled — the reveal-keyed master \
+            form is exercised by engine unit tests; no covered real card spells it yet.",
+        ),
+        (
             n("RoundMode", "RoundUp"),
             "DEFERRED: no Count::Half-using real card (e.g. 'half its \
             power, rounded up') has coverage.",

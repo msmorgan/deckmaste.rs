@@ -591,7 +591,7 @@ impl GameState {
             // is the agent ("it") with its controller the actor — Exalted
             // ([CR#702.83a]) reads the lone attacker via `EventObject`.
             GameEvent::Attacking(Attacking { attacker: o, .. })
-            | GameEvent::Untapped(o)
+            | GameEvent::Untapped(o, _)
             | GameEvent::Tapped(Tapped { object: o, .. }) => {
                 let (agent, actor) = self.event_agent(*o);
                 (agent, actor, None)
@@ -2404,6 +2404,7 @@ mod tests {
         let pattern = EventFilter::StateBecame {
             of: Predicate::Ref(Reference::This),
             becomes: StateChange::Tapped,
+            cause: None,
         };
         let own_tap = GameEvent::Tapped(Tapped {
             object: bear,
@@ -2422,7 +2423,7 @@ mod tests {
             "another object's tap fails the of-filter"
         );
         assert!(
-            !state.event_matches(&pattern, &GameEvent::Untapped(bear), watcher_source),
+            !state.event_matches(&pattern, &GameEvent::Untapped(bear, None), watcher_source),
             "an untap is not a tap"
         );
     }
@@ -2438,8 +2439,9 @@ mod tests {
         let pattern = EventFilter::StateBecame {
             of: Predicate::creature(),
             becomes: StateChange::Untapped,
+            cause: None,
         };
-        assert!(state.event_matches(&pattern, &GameEvent::Untapped(bear), watcher_source));
+        assert!(state.event_matches(&pattern, &GameEvent::Untapped(bear, None), watcher_source));
         assert!(!state.event_matches(
             &pattern,
             &GameEvent::Tapped(Tapped {
@@ -2450,10 +2452,10 @@ mod tests {
         ));
     }
 
-    /// The `StateBecame` pattern no longer carries a cause coordinate — a
-    /// becomes-tapped watch matches the tap fact regardless of WHY it tapped
-    /// (cost [CR#107.5] vs effect [CR#701.26a]); the fact's cause triple is
-    /// simply not consulted.
+    /// An UNNARROWED `StateBecame` pattern (`cause` omitted) matches the tap
+    /// fact regardless of WHY it tapped (cost [CR#107.5] vs effect
+    /// [CR#701.26a]) — the omitted-cause match-anything default, same as
+    /// every other cause-narrowed filter (`ZoneChange`, `Act`).
     #[test]
     fn becomes_tapped_matches_any_tap_cause() {
         use deckmaste_core::StateChange;
@@ -2463,6 +2465,7 @@ mod tests {
         let pattern = EventFilter::StateBecame {
             of: Predicate::Any,
             becomes: StateChange::Tapped,
+            cause: None,
         };
         let cost_tap = GameEvent::Tapped(Tapped {
             object: bear,
@@ -2484,6 +2487,53 @@ mod tests {
         });
         assert!(state.event_matches(&pattern, &cost_tap, watcher_source));
         assert!(state.event_matches(&pattern, &effect_tap, watcher_source));
+    }
+
+    /// A NARROWED `StateBecame` pattern (T5's new coordinate) matches only
+    /// the cause it names — a cost-payment tap doesn't satisfy an
+    /// effect-instruction narrowing and vice versa.
+    #[test]
+    fn becomes_tapped_cause_narrowing_matches_only_its_agency() {
+        use deckmaste_core::Agency;
+        use deckmaste_core::StateChange;
+
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = EventFilter::StateBecame {
+            of: Predicate::Any,
+            becomes: StateChange::Tapped,
+            cause: Some(deckmaste_core::Cause::Cause(deckmaste_core::CausePattern {
+                verb: None,
+                agency: Some(Agency::CostPayment),
+                agent: None,
+            })),
+        };
+        let cost_tap = GameEvent::Tapped(Tapped {
+            object: bear,
+            cause: Some(crate::event::Cause {
+                verb: "Tap".into(),
+                agency: Agency::CostPayment,
+                agent: None,
+                payment: None,
+            }),
+        });
+        let effect_tap = GameEvent::Tapped(Tapped {
+            object: bear,
+            cause: Some(crate::event::Cause {
+                verb: "Tap".into(),
+                agency: Agency::EffectInstruction,
+                agent: None,
+                payment: None,
+            }),
+        });
+        assert!(
+            state.event_matches(&pattern, &cost_tap, watcher_source),
+            "cost-payment narrowing matches the cost tap"
+        );
+        assert!(
+            !state.event_matches(&pattern, &effect_tap, watcher_source),
+            "cost-payment narrowing excludes the effect tap"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -3371,6 +3421,7 @@ mod tests {
             event: EventFilter::StateBecame {
                 of: Predicate::Ref(Reference::This),
                 becomes: StateChange::Transformed,
+                cause: None,
             },
             condition: None,
             limits: Vec::new().into(),
@@ -4177,6 +4228,7 @@ mod tests {
             .push(GameEvent::LifeGained(LifeGained {
                 player: PlayerId(0),
                 amount: 3,
+                cause: None,
             }));
         state.run_effect(OneShotEffect::Reflexive(Arc::new(ability)), &frame);
         assert_eq!(
@@ -4239,6 +4291,7 @@ mod tests {
             .push(GameEvent::LifeGained(LifeGained {
                 player: PlayerId(0),
                 amount: 3,
+                cause: None,
             }));
         state.run_effect(OneShotEffect::Delayed(Arc::new(ability)), &frame);
         assert_eq!(
@@ -5541,7 +5594,8 @@ mod tests {
     }
 
     /// `LifeLost(who: Ref(You))` matches `LifeLost` for the watcher's
-    /// controller ([CR#119.3]) and not another player's life loss.
+    /// controller — the event's PATIENT ([CR#119.3,119.9,119.10]) — and not
+    /// another player's life loss.
     #[test]
     fn performed_matches_loselife_matches_life_lost() {
         let (state, bear) = bear_on_field();
@@ -5553,10 +5607,12 @@ mod tests {
         let you_lose = GameEvent::LifeLost(LifeLost {
             player: PlayerId(0),
             amount: 3,
+            cause: None,
         });
         let opp_lose = GameEvent::LifeLost(LifeLost {
             player: PlayerId(1),
             amount: 3,
+            cause: None,
         });
         assert!(
             state.event_matches(&pattern, &you_lose, watcher_source),
@@ -5569,7 +5625,8 @@ mod tests {
     }
 
     /// `LifeGained(who: Ref(You))` matches `LifeGained` for the watcher's
-    /// controller ([CR#119.3]) and not another player's life gain.
+    /// controller — the event's PATIENT ([CR#119.3,119.9]) — and not another
+    /// player's life gain.
     #[test]
     fn performed_matches_gainlife_matches_life_gained() {
         let (state, bear) = bear_on_field();
@@ -5581,10 +5638,12 @@ mod tests {
         let you_gain = GameEvent::LifeGained(LifeGained {
             player: PlayerId(0),
             amount: 4,
+            cause: None,
         });
         let opp_gain = GameEvent::LifeGained(LifeGained {
             player: PlayerId(1),
             amount: 4,
+            cause: None,
         });
         assert!(
             state.event_matches(&pattern, &you_gain, watcher_source),
@@ -5593,6 +5652,64 @@ mod tests {
         assert!(
             !state.event_matches(&pattern, &opp_gain, watcher_source),
             "an opponent's life gain fails by: Ref(You)"
+        );
+    }
+
+    /// T5 exposure row: `Shuffled(by: Ref(You))` matches the watcher's own
+    /// library shuffle ([CR#701.24a]) and not another player's — this is
+    /// what makes Psychic Surgery's "whenever a player shuffles their
+    /// library" authorable.
+    #[test]
+    fn shuffled_matches_the_shuffling_player() {
+        let (state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let pattern = EventFilter::Shuffled {
+            by: Predicate::Ref(Reference::You),
+        };
+        assert!(
+            state.event_matches(&pattern, &GameEvent::Shuffled(PlayerId(0)), watcher_source),
+            "the watcher's own controller shuffling matches by: Ref(You)"
+        );
+        assert!(
+            !state.event_matches(&pattern, &GameEvent::Shuffled(PlayerId(1)), watcher_source),
+            "an opponent shuffling fails by: Ref(You)"
+        );
+    }
+
+    /// T5 exposure row: `Revealed(what: …)` ∃-matches the revealed set
+    /// ([CR#701.20a]) — narrows by an object among those shown, not by any
+    /// performer coordinate (the revealer is unmodeled, [CR#701.20]).
+    #[test]
+    fn revealed_matches_a_card_in_the_revealed_set() {
+        use crate::event::Revealed;
+
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let other = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(0));
+            state
+                .objects
+                .mint(ObjectSource::Card(card), PlayerId(0), None)
+        };
+        let pattern = EventFilter::Revealed {
+            what: Predicate::Ref(Reference::This),
+        };
+        let reveals_bear = GameEvent::Revealed(Revealed {
+            objects: vec![bear],
+            to: None,
+        });
+        let reveals_other_only = GameEvent::Revealed(Revealed {
+            objects: vec![other],
+            to: None,
+        });
+        assert!(
+            state.event_matches(&pattern, &reveals_bear, watcher_source),
+            "the watcher among the revealed set matches what: Ref(This)"
+        );
+        assert!(
+            !state.event_matches(&pattern, &reveals_other_only, watcher_source),
+            "a reveal not including the watcher fails what: Ref(This)"
         );
     }
 

@@ -1635,6 +1635,10 @@ impl GameState {
                 if summary.untap {
                     items.push(WorkItem::Emit(Occurrence::single(GameEvent::Untapped(
                         source,
+                        Some(Cause::untap(
+                            Agency::CostPayment,
+                            Some((source, controller)),
+                        )),
                     ))));
                 }
                 // [CR#601.2h]: every cost-eligible verb (Sacrifice, LoseLife,

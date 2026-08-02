@@ -3946,6 +3946,7 @@ mod tests {
             LifeGained {
                 player: PlayerId(0),
                 amount: 1,
+                cause: None,
             },
         )));
         assert_eq!(

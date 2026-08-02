@@ -1290,7 +1290,7 @@ fn activated_ability_pays_life_cost() {
     let life_idx = trace.iter().position(|p| {
         matches!(
             applied(p),
-            Some(GameEvent::LifeLost(LifeLost { player, amount: 2 })) if *player == PlayerId(0)
+            Some(GameEvent::LifeLost(LifeLost { player, amount: 2, .. })) if *player == PlayerId(0)
         )
     });
     let activated_idx = trace.iter().position(|p| {
@@ -1846,7 +1846,7 @@ fn activated_ability_phyrexian_pays_life() {
     let life_idx = trace.iter().position(|p| {
         matches!(
             applied(p),
-            Some(GameEvent::LifeLost(LifeLost { player, amount: 2 })) if *player == PlayerId(0)
+            Some(GameEvent::LifeLost(LifeLost { player, amount: 2, .. })) if *player == PlayerId(0)
         )
     });
     let activated_idx = trace.iter().position(|p| {

@@ -1267,6 +1267,7 @@ mod tests {
             GameEvent::LifeGained(LifeGained {
                 player: PlayerId(0),
                 amount: 3,
+                cause: None,
             }),
         );
 
@@ -1291,6 +1292,7 @@ mod tests {
             GameEvent::LifeGained(LifeGained {
                 player: PlayerId(0),
                 amount: 1,
+                cause: None,
             }),
         );
         assert!(

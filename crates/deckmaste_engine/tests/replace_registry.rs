@@ -1125,6 +1125,7 @@ fn lifegain_replaced_by_draw() {
             deckmaste_engine::GameEvent::LifeGained(LifeGained {
                 player: PlayerId(0),
                 amount: 3,
+                cause: None,
             }),
         )));
 
@@ -1268,8 +1269,10 @@ fn double_damage_lineage_terminates() {
 
 /// A Static "damage by This to `on` → put `kind` counters on the recipient
 /// instead" replacement — the shape both Wither and Infect expand to. The
-/// recipient is read as `recipient` (`ThatObject` for a creature, `ThatPlayer`
-/// for a player — the proxy is zoneless and binds as the player).
+/// recipient is read as `recipient` (`EventObject` for a creature;
+/// `EventPatient` for a player — the kind-poly patient, [CR#119.9]'s
+/// distinction: the affected player is never `EventActor`, the retired
+/// compat alias).
 fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) -> Ability {
     use deckmaste_core::Count;
     let would = EventFilter::Damage {
@@ -1514,7 +1517,7 @@ fn infect_source_puts_minus_counters_on_a_creature() {
 fn infect_source_gives_player_poison_not_life_loss() {
     let infect_player = damage_as_counters_static(
         Predicate::Kind(deckmaste_core::ObjectKind::Player),
-        Reference::EventActor,
+        Reference::EventPatient,
         "Poison",
     );
     let (mut state, source, _target) = source_and_target(vec![infect_player]);
@@ -1548,7 +1551,7 @@ fn infect_source_gives_player_poison_not_life_loss() {
 fn ten_poison_counters_lose_the_game() {
     let infect_player = damage_as_counters_static(
         Predicate::Kind(deckmaste_core::ObjectKind::Player),
-        Reference::EventActor,
+        Reference::EventPatient,
         "Poison",
     );
     let (mut state, source, _target) = source_and_target(vec![infect_player]);

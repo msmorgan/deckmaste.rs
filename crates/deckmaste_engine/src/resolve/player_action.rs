@@ -103,8 +103,30 @@ impl GameState {
             // family: `patient` is spelled directly (no more `By`-resolved
             // `actor`), and `Set` still resolves as a gain/loss of the
             // necessary difference below — never a bespoke "set" event.
+            //
+            // Two-Headed Giant note: a team shares ONE life total in that
+            // variant — [CR#810.4], the shared-total rule (the plan's
+            // original [CR#119.1a] cite is only the STARTING total, 30 not
+            // 20, and does not say this). This resolution writes only
+            // `patient`'s own `life`; propagating the delta to `patient`'s
+            // teammate too is an unmodeled variant-gated seam (no
+            // multiplayer/team engine seat exists yet), the same boundary
+            // `LossReason::Poison`'s doc (`event.rs`) already draws for the
+            // fifteen-counter team check.
             Action::ChangeLife(patient, op) => {
                 let patient = self.acting_player(patient, frame);
+                // [CR#119.9]'s source: the resolving ability and its
+                // controller, the shared `(frame.source, frame.controller)`
+                // cause binding every other verb uses — never the patient
+                // (there is no agent role, [CR#119.9,119.10]).
+                let gain_cause = Some(
+                    Cause::gain_life(agency, Some((frame.source, frame.controller)))
+                        .with_payment(payment_id),
+                );
+                let lose_cause = Some(
+                    Cause::lose_life(agency, Some((frame.source, frame.controller)))
+                        .with_payment(payment_id),
+                );
                 match op {
                     LifeOp::Down(qty) => {
                         let amount = self.eval_count(qty, frame);
@@ -112,6 +134,7 @@ impl GameState {
                             LifeLost {
                                 player: patient,
                                 amount,
+                                cause: lose_cause,
                             },
                         )))]
                     }
@@ -121,6 +144,7 @@ impl GameState {
                             LifeGained {
                                 player: patient,
                                 amount,
+                                cause: gain_cause,
                             },
                         )))]
                     }
@@ -136,11 +160,13 @@ impl GameState {
                                 player: patient,
                                 amount: Uint::try_from(current - target)
                                     .expect("positive difference"),
+                                cause: lose_cause,
                             }),
                             std::cmp::Ordering::Greater => GameEvent::LifeGained(LifeGained {
                                 player: patient,
                                 amount: Uint::try_from(target - current)
                                     .expect("positive difference"),
+                                cause: gain_cause,
                             }),
                             std::cmp::Ordering::Equal => return vec![],
                         };
@@ -155,7 +181,15 @@ impl GameState {
                     .eval_reference_set(sel, frame)
                     .into_iter()
                     .filter(|&object| self.objects.obj(object).tapped)
-                    .map(GameEvent::Untapped)
+                    .map(|object| {
+                        GameEvent::Untapped(
+                            object,
+                            Some(Cause::untap(
+                                Agency::EffectInstruction,
+                                Some((frame.source, frame.controller)),
+                            )),
+                        )
+                    })
                     .collect();
                 if events.is_empty() {
                     vec![]
@@ -168,8 +202,14 @@ impl GameState {
                 // owner's graveyard — the `Sacrificed` verb fact evolves into
                 // the zone move at apply. That the reference names a
                 // permanent the agent controls is the grammar's contract; a
-                // legality pass is a later seam.
-                let actor = self.acting_player(agent, frame);
+                // legality pass is a later seam. `_actor` is still resolved
+                // for its validating panic (the reference must name a
+                // player) — the SACRIFICER stays in the actor channel via
+                // the fact's own derivation (`FactView::of`'s `ZoneChange`
+                // arm reads the moved object's controller, which
+                // [CR#701.21a] guarantees IS the sacrificer; Mayhem Devil
+                // reads it there), not through the cause tuple below.
+                let _actor = self.acting_player(agent, frame);
                 let events: Vec<GameEvent> = self
                     .eval_reference_set(what, frame)
                     .into_iter()
@@ -185,7 +225,12 @@ impl GameState {
                             // can't replace it; the cause says so.
                             face: None,
                             cause: Some(
-                                Cause::sacrifice(agency, Some((frame.source, actor)))
+                                // The shared `(frame.source, frame.controller)`
+                                // cause binding every other verb uses (design
+                                // record §10.2) — NOT the sacrificer, which
+                                // can differ under an edict ("target player
+                                // sacrifices a creature").
+                                Cause::sacrifice(agency, Some((frame.source, frame.controller)))
                                     .with_payment(payment_id),
                             ),
                         })

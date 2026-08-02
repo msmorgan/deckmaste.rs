@@ -395,7 +395,7 @@ impl GameState {
             GameEvent::ControlChanged(e) => e.apply(self),
             GameEvent::Shuffled(player) => zone::handle_shuffled(self, *player),
             GameEvent::DamageRemoved(e) => e.apply(self),
-            GameEvent::Untapped(id) => player::handle_untapped(self, *id),
+            GameEvent::Untapped(id, _) => player::handle_untapped(self, *id),
             GameEvent::Transformed(id) => player::handle_transformed(self, *id),
             GameEvent::DrewFromEmpty(p) => player::handle_drew_from_empty(self, *p),
             GameEvent::Tapped(e) => e.apply(self),
@@ -1298,7 +1298,17 @@ impl GameState {
                 }
                 to_untap
                     .into_iter()
-                    .map(|id| WorkItem::Emit(Occurrence::single(GameEvent::Untapped(id))))
+                    .map(|id| {
+                        WorkItem::Emit(Occurrence::single(GameEvent::Untapped(
+                            id,
+                            // [CR#502.3]: the untap step's turn-based action —
+                            // no source object.
+                            Some(crate::event::Cause::untap(
+                                deckmaste_core::Agency::TurnBasedAction,
+                                None,
+                            )),
+                        )))
+                    })
                     .collect()
             }
             // [CR#504.1]; [CR#103.8a] (two-player): turn 1 is the starting
@@ -2262,7 +2272,7 @@ mod tests {
         );
 
         // A substantive fact is logged.
-        state.record_history(&Occurrence::single(GameEvent::Untapped(id)));
+        state.record_history(&Occurrence::single(GameEvent::Untapped(id, None)));
         assert_eq!(
             state
                 .history
@@ -2365,12 +2375,12 @@ mod tests {
             Some(Zone::Battlefield),
         );
 
-        state.record_history(&Occurrence::single(GameEvent::Untapped(a)));
+        state.record_history(&Occurrence::single(GameEvent::Untapped(a, None)));
         state.record_history(&Occurrence::Batch(vec![
-            GameEvent::Untapped(a),
-            GameEvent::Untapped(b),
+            GameEvent::Untapped(a, None),
+            GameEvent::Untapped(b, None),
         ]));
-        state.record_history(&Occurrence::Batch(vec![GameEvent::Untapped(b)]));
+        state.record_history(&Occurrence::Batch(vec![GameEvent::Untapped(b, None)]));
 
         let batches: Vec<Option<deckmaste_core::Uint>> =
             state.history.entries().map(|e| e.batch).collect();
@@ -2992,8 +3002,8 @@ mod tests {
         let items = state.turn_based_actions(PhaseStep::Beginning(BeginningStep::Untap));
         let mut untapped = Vec::new();
         for item in items {
-            if let WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(id))) = item {
-                state.apply(GameEvent::Untapped(id));
+            if let WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(id, cause))) = item {
+                state.apply(GameEvent::Untapped(id, cause));
                 untapped.push(id);
             }
         }

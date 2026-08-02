@@ -3034,19 +3034,39 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
                 actor_agent_facets(who, on)?,
             )
         }
-        EventFilter::CounterPlaced { kind, on, amount } => {
+        EventFilter::CounterPlaced {
+            kind,
+            on,
+            amount,
+            cause,
+        } => {
             reject_amount(amount)?;
             if kind.is_some() {
                 return Err(gap(
                     "EventFilter::CounterPlaced{kind} not yet mapped (Idris PutCounters carries no kind)",
                 ));
             }
+            if cause.is_some() {
+                return Err(gap(
+                    "EventFilter::CounterPlaced{cause} has no Idris EventKind coordinate (agency/cost narrowing)",
+                ));
+            }
             (vec!["PutCounters".to_string()].into(), agent_facet(on)?)
         }
-        EventFilter::CounterRemoved { kind, on, amount } => {
+        EventFilter::CounterRemoved {
+            kind,
+            on,
+            amount,
+            cause,
+        } => {
             reject_amount(amount)?;
             if kind.is_some() {
                 return Err(gap("EventFilter::CounterRemoved{kind} not yet mapped"));
+            }
+            if cause.is_some() {
+                return Err(gap(
+                    "EventFilter::CounterRemoved{cause} has no Idris EventKind coordinate (agency/cost narrowing)",
+                ));
             }
             (vec!["RemoveCounters".to_string()].into(), agent_facet(on)?)
         }
@@ -3094,7 +3114,12 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
                 agent_facet(what)?,
             )
         }
-        EventFilter::StateBecame { of, becomes } => {
+        EventFilter::StateBecame { of, becomes, cause } => {
+            if cause.is_some() {
+                return Err(gap(
+                    "EventFilter::StateBecame{cause} has no Idris EventKind coordinate (agency/cost narrowing)",
+                ));
+            }
             let kind = match becomes {
                 deckmaste_core::StateChange::Tapped => "(Becomes Tapped)".to_string(),
                 deckmaste_core::StateChange::Untapped => "(Becomes Untapped)".to_string(),
@@ -3153,6 +3178,19 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
         EventFilter::DesignationChanged { .. } => {
             return Err(gap(
                 "EventFilter::DesignationChanged has no Idris EventKind counterpart",
+            ));
+        }
+        // [CR#701.24a,701.20a]: the T5 exposure rows — no Idris `EventKind`
+        // counterpart exists for either yet (Psychic Surgery is authorable
+        // via engine filter matching alone; Idris coverage is a later seam).
+        EventFilter::Shuffled { .. } => {
+            return Err(gap(
+                "EventFilter::Shuffled has no Idris EventKind counterpart yet",
+            ));
+        }
+        EventFilter::Revealed { .. } => {
+            return Err(gap(
+                "EventFilter::Revealed has no Idris EventKind counterpart yet",
             ));
         }
         EventFilter::TokenCreated { what, by } => {

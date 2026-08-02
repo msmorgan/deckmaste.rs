@@ -635,11 +635,12 @@ fn state_is_assertable_between_two_untap_events() {
         matches!(
             o,
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::Untapped(
+                _,
                 _
             ))))
         )
     });
-    let StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::Untapped(a)))) =
+    let StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::Untapped(a, _)))) =
         first
     else {
         unreachable!()
@@ -655,7 +656,7 @@ fn state_is_assertable_between_two_untap_events() {
     let second = state.step();
     assert!(matches!(
         second,
-        StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::Untapped(id)))) if id == b
+        StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::Untapped(id, _)))) if id == b
     ));
     assert!(!state.objects.obj(b).tapped);
 }

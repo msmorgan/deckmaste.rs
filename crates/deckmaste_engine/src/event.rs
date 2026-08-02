@@ -181,6 +181,31 @@ impl Cause {
     ) -> Self {
         Self::verb("RemoveCounters", agency, agent)
     }
+
+    /// "`GainLife`" ([CR#119.9]'s source — "a source CAUSES a player to gain
+    /// life"). Not a [CR#701] keyword action, so it carries no
+    /// `entailments.ron` row (the funnel principle, design §6: life has no
+    /// CR-named verb the way tap/sacrifice/discard do) — the verb spelling
+    /// exists only for the cause triple's own shape, unreachable through any
+    /// authored `Cause(verb: …)` narrowing today.
+    #[must_use]
+    pub fn gain_life(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("GainLife", agency, agent)
+    }
+
+    /// "`LoseLife`" ([CR#119.3]) — the mirror of [`Cause::gain_life`].
+    #[must_use]
+    pub fn lose_life(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("LoseLife", agency, agent)
+    }
+
+    /// "Untap" ([CR#701.26b]) — the mirror of [`Cause::tap`]; distinguishable
+    /// by `agency` the same way (cost vs effect vs turn-based-action
+    /// untap-step).
+    #[must_use]
+    pub fn untap(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Untap", agency, agent)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -325,18 +350,26 @@ pub struct ZoneChange {
     pub cause: Option<Cause>,
 }
 
-/// [CR#119.3]: a player loses life directly (not via damage).
+/// [CR#119.3]: a player loses life directly (not via damage). `player` is
+/// the PATIENT, not an agent (the CR names no lose-life mirror of
+/// [CR#119.9,119.10]'s gain-life trigger/replacement rewrite, but the same
+/// "a source causes the player to lose life" shape applies). `cause` names
+/// that source; `None` for an unattributed loss.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LifeLost {
     pub player: PlayerId,
     pub amount: Uint,
+    pub cause: Option<Cause>,
 }
 
-/// [CR#119.3]: a player gains life.
+/// [CR#119.3]: a player gains life. `player` is the PATIENT ([CR#119.9]: "a
+/// source causes [a player] to gain life" — there is no agent role).
+/// `cause` names that source; `None` for an unattributed gain.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LifeGained {
     pub player: PlayerId,
     pub amount: Uint,
+    pub cause: Option<Cause>,
 }
 
 /// [CR#508.1a,508.1b]: `attacker` was declared as an attacker attacking
@@ -649,7 +682,10 @@ pub struct Act {
 pub enum GameEvent {
     TurnBegan(TurnBegan),
     StepBegan(PhaseStep),
-    Untapped(ObjectId),
+    /// [CR#701.26b]: a permanent untaps. The cause triple symmetrizes with
+    /// `Tapped` ([CR#107.5] cost vs [CR#701.26a] effect vs the untap step's
+    /// [CR#502.3] turn-based action); `None` for an unattributed untap.
+    Untapped(ObjectId, Option<Cause>),
     /// A permanent turned to its other face ([CR#701.27a]) — carries the
     /// object, like `Untapped`. Apply toggles its `Side`; identity is
     /// preserved ([CR#712.18]).

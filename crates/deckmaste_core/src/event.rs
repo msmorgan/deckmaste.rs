@@ -311,14 +311,19 @@ pub enum EventFilter {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
-    /// A player gained life ([CR#119.3]).
+    /// A player gained life ([CR#119.3]). `who` narrows the gaining
+    /// player — the event's PATIENT ([CR#119.9]: "a source CAUSES [a
+    /// player] to gain life" — the player is acted upon, no agent role).
     LifeGained {
         #[serde(default = "Predicate::any")]
         who: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
-    /// A player lost life ([CR#119.3]).
+    /// A player lost life ([CR#119.3]). `who` narrows as `LifeGained`'s
+    /// does — the patient, no agent role (the CR names no lose-life
+    /// mirror of [CR#119.9,119.10]'s trigger/replacement rewrite, but the
+    /// same "a source causes the player to lose life" shape applies).
     LifeLost {
         #[serde(default = "Predicate::any")]
         who: Predicate,
@@ -377,7 +382,8 @@ pub enum EventFilter {
         cause: Option<Cause>,
     },
     /// Counters were placed on an object or player ([CR#122.1]). An omitted
-    /// `kind` watches any counter kind.
+    /// `kind` watches any counter kind; `cause` narrows the cause triple the
+    /// event already carries ("a counter removed as a cost").
     CounterPlaced {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         kind: Option<CounterRef>,
@@ -385,8 +391,11 @@ pub enum EventFilter {
         on: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<Cause>,
     },
-    /// Counters were removed from an object or player ([CR#122.1]).
+    /// Counters were removed from an object or player ([CR#122.1]). `cause`
+    /// narrows as `CounterPlaced`'s does, above.
     CounterRemoved {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         kind: Option<CounterRef>,
@@ -394,6 +403,8 @@ pub enum EventFilter {
         on: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<Cause>,
     },
     /// A spell became cast ([CR#601.2i]) — the onset family ([CR#603.2]).
     /// `who` is the casting player, `what` the spell on the stack.
@@ -457,10 +468,16 @@ pub enum EventFilter {
         to: Predicate,
     },
     /// An object's own status changed — transitions only ([CR#603.2e]).
+    /// `cause` narrows by the transition's cause triple where the event
+    /// carries one (`Tapped`/`Untapped`, "becomes tapped by an effect");
+    /// `Transformed`/`Phased`/`TurnedFace` carry none, so a cause-narrowed
+    /// pattern over those never matches.
     StateBecame {
         #[serde(default = "Predicate::any")]
         of: Predicate,
         becomes: StateChange,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<Cause>,
     },
     /// An object became the target of a spell/ability ([CR#601.2c]
     /// announce-time; ward is the family exemplar, [CR#702.21a]). TWO
@@ -505,6 +522,23 @@ pub enum EventFilter {
         what: Predicate,
         #[serde(default = "Predicate::any")]
         by: Predicate,
+    },
+    /// A library or face-down pile was shuffled ([CR#701.24a]) — an
+    /// INFORMATION event, no participant beyond the shuffling player.
+    /// `by` narrows the shuffler (Psychic Surgery's "whenever a player
+    /// shuffles their library").
+    Shuffled {
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+    },
+    /// Cards were revealed ([CR#701.20a]) — `what` narrows ∃-over the
+    /// revealed set. The revealer is not a modeled participant: [CR#701.20]
+    /// names no performer role (any effect can reveal), so there is no
+    /// `by`/actor coordinate — the revealer stays derived from context, not
+    /// stored on the fact.
+    Revealed {
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
     },
     /// An ability of `of` was used — a triggered ability fired ([CR#603.2])
     /// or an activated ability was activated ([CR#602.2a]). Matches the
@@ -819,6 +853,59 @@ mod tests {
             "BecameNight",
             "CoinFlipped(by: Ref(You), won: true)",
             "DiceRolled(by: Ref(You))",
+        ] {
+            let parsed = read(source);
+            let written = crate::ron::options().to_string(&parsed).unwrap();
+            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
+        }
+    }
+
+    /// The exposure rows ([CR#701.24a,701.20a]): `Shuffled` narrows by the
+    /// shuffler, `Revealed` by ∃-over the revealed set — both round-trip,
+    /// and bare (no narrowing) forms read as match-anything.
+    #[test]
+    fn shuffled_and_revealed_round_trip() {
+        assert_eq!(
+            read("Shuffled(by: Ref(You))"),
+            EventFilter::Shuffled {
+                by: Predicate::Ref(crate::Reference::You),
+            },
+        );
+        assert_eq!(
+            read("Shuffled()"),
+            EventFilter::Shuffled { by: Predicate::Any },
+        );
+        assert_eq!(
+            read("Revealed(what: Ref(This))"),
+            EventFilter::Revealed {
+                what: Predicate::Ref(crate::Reference::This),
+            },
+        );
+        for source in ["Shuffled(by: Ref(You))", "Revealed(what: Ref(This))"] {
+            let parsed = read(source);
+            let written = crate::ron::options().to_string(&parsed).unwrap();
+            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
+        }
+    }
+
+    /// `CounterPlaced`/`CounterRemoved`/`StateBecame` gain the `cause`
+    /// narrowing their engine facts already capture — omitted reads `None`
+    /// (match-anything); present round-trips.
+    #[test]
+    fn counter_and_state_cause_narrowing_round_trips() {
+        assert_eq!(
+            read("CounterPlaced(on: Ref(This))"),
+            EventFilter::CounterPlaced {
+                kind: None,
+                on: Predicate::Ref(crate::Reference::This),
+                amount: None,
+                cause: None,
+            },
+        );
+        for source in [
+            "CounterPlaced(on: Ref(This), cause: Cause(agency: CostPayment))",
+            "CounterRemoved(on: Ref(This), cause: Cause(verb: RemoveCounters))",
+            "StateBecame(of: Ref(This), becomes: Tapped, cause: Cause(agency: CostPayment))",
         ] {
             let parsed = read(source);
             let written = crate::ron::options().to_string(&parsed).unwrap();
