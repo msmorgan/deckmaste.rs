@@ -312,6 +312,25 @@ change until Stage 2 begins the visible policy).
   coverage until each feature family crosses its gates — measurements, not
   authorities — then die.
 
+Parallelism contract (the ticket `needs:` graph encodes this):
+
+```
+wave 1:  plugin-crate-split ∥ card-crate-split ∥ macro-collision-diagnostic
+         ∥ the planned soundness tickets (engine-it-target-fallback-removal,
+           idris-distinct-position-proof, post-reshape-comment-rot)
+spine:   authoring-crate-fork → { lowering-crate ∥ spelling-crate-rename }
+pinch:   plugin-repoint  (the one true serialization point; freeze window)
+wave 5:  macro-author-surface ∥ idris-mirror-authoring
+wave 6:  core-demacro ∥ target-sugar-elaboration ∥ frames-catalog-merge
+```
+
+The two Stage-0 renames conflict textually (workspace-wide import sweeps),
+not semantically — integrate them back-to-back or fold both into one
+workspace. Steady state after Stage 1, contention is sharded by crate:
+english rounds in spelling + authoring data, def/frames work in authoring,
+engine correctness in core/card, with the dependency DAG making
+cross-interference a build error.
+
 ## 12. Migration inventory and blast radius
 
 - Canon churn ≈ 0 at every stage (mirrored names; canon already spells the
