@@ -1146,6 +1146,105 @@ fn lifegain_replaced_by_draw() {
     );
 }
 
+// ── T6: `ChangeLife(who, Set(n))` under a life-gain replacement ─────────────
+//
+// Recon verdict (pinning, not routing): the `Set` branch
+// (`resolve/player_action.rs`) reads the current life, computes a delta, and
+// emits a plain directional `LifeGained`/`LifeLost` through the SAME
+// provenance-blind pipeline `lifegain_replaced_by_draw` above already pins
+// for a hand-built event — no dedicated "set" event exists to route
+// separately. These two tests exercise that pipeline from the REAL
+// `Action::ChangeLife(_, Set(_))` resolution (`resolve_and_drive`, not a
+// hand-pushed `GameEvent`), the Tainted-Remedy-over-Axis-of-Mortality shape.
+
+/// [CR#119.5,119.10]: a `Set` target ABOVE current life synthesizes a
+/// `LifeGained` delta — and that delta enters the would-replacement window
+/// exactly like a dedicated `Up`. [CR#119.5]: "the player gains or loses the
+/// necessary amount of life to end up with the new total." [CR#119.10]: "If
+/// a source would cause [a player] to gain life... " — the synthesized gain
+/// IS such a cause, so a `LifeGained`-watching Instead applies to it.
+#[test]
+fn set_life_above_current_enters_the_replacement_window() {
+    let would = EventFilter::LifeGained {
+        who: Predicate::Any,
+        amount: None,
+    };
+    let instead_body = OneShotEffect::Act(Action::ChangeLife(
+        Reference::You,
+        LifeOp::Down(deckmaste_core::Count::Literal(1)),
+    ));
+    let (mut state, src) = creature_with_non_destroy_replacement(Replacement::Instead {
+        would,
+        instead: instead_body,
+    });
+
+    let before_life = state.players[0].life;
+    let target =
+        deckmaste_core::Uint::try_from(before_life + 5).expect("target life total fits in u32");
+
+    // The real production path: `Action::ChangeLife(You, Set(target))`
+    // resolves, computes the +5 delta, and emits `LifeGained{amount: 5}`.
+    resolve_and_drive(
+        &mut state,
+        OneShotEffect::Act(Action::ChangeLife(
+            Reference::You,
+            LifeOp::Set(deckmaste_core::Count::Literal(target)),
+        )),
+        src,
+    );
+
+    // The synthesized gain was replaced: player 0 lost 1 life instead of
+    // gaining 5 — the Set-derived delta never bypassed the Instead body.
+    assert_eq!(
+        state.players[0].life,
+        before_life - 1,
+        "the Set-derived +5 gain should have been replaced by the Instead \
+         body (lose 1), not applied directly; before={before_life}, after={}",
+        state.players[0].life,
+    );
+}
+
+/// [CR#119.5,119.9,119.10]: setting life to its CURRENT total is a ZERO
+/// delta — [CR#119.5] computes "the necessary amount", which is 0, and
+/// [CR#119.9]/[CR#119.10] are explicit that a 0-life-gain "event has [not]
+/// occurred" / "would [not] occur" — so a watching replacement never even
+/// APPLIES (not "applies and does nothing"): life stays exactly where it
+/// was, not reduced by the Instead body's own -1.
+#[test]
+fn set_life_equal_to_current_emits_nothing() {
+    let would = EventFilter::LifeGained {
+        who: Predicate::Any,
+        amount: None,
+    };
+    let instead_body = OneShotEffect::Act(Action::ChangeLife(
+        Reference::You,
+        LifeOp::Down(deckmaste_core::Count::Literal(1)),
+    ));
+    let (mut state, src) = creature_with_non_destroy_replacement(Replacement::Instead {
+        would,
+        instead: instead_body,
+    });
+
+    let before_life = state.players[0].life;
+    let target = deckmaste_core::Uint::try_from(before_life).expect("starting life fits in u32");
+
+    resolve_and_drive(
+        &mut state,
+        OneShotEffect::Act(Action::ChangeLife(
+            Reference::You,
+            LifeOp::Set(deckmaste_core::Count::Literal(target)),
+        )),
+        src,
+    );
+
+    assert_eq!(
+        state.players[0].life, before_life,
+        "Set-to-current-total is a zero delta: no LifeGained/LifeLost event \
+         occurs, so the watching replacement's Instead body never fires \
+         (life must be UNCHANGED, not before_life - 1)"
+    );
+}
+
 /// [CR#614.5]: `double_damage_lineage_terminates` — a one-shot floating shield
 /// watching `DamageDealt` to the creature fires once and is consumed. The body
 /// schedules a fresh `DamageDealt` with a fixed larger amount. That fresh event

@@ -129,6 +129,16 @@ pub struct PlayerState {
     pub id: PlayerId,
     /// This player's proxy object (CR: players modeled as objects).
     pub object: ObjectId,
+    /// [CR#119.3,119.9,119.10]: every route into this total is
+    /// read-current → compute-delta → EMIT a `LifeGained`/`LifeLost`
+    /// `GameEvent` ([CR#119.5] "set" included — `resolve/player_action.rs`'s
+    /// `LifeOp::Set` arm resolves the necessary gain/loss, never writes
+    /// here directly). `EventApply for LifeGained`/`LifeLost`
+    /// (`step/player.rs`) is the ONLY production writer, reached after the
+    /// event has passed the replacement window ([CR#614]) — a direct write
+    /// here would bypass it. No production path writes `life` directly
+    /// today; only test fixtures set it to seed a scenario's starting
+    /// total.
     pub life: Int,
     pub max_hand_size: Uint,
     /// [CR#704.5b] flag: tried to draw from an empty library.
