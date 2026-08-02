@@ -43,7 +43,13 @@ deckmaste_english ◄════════════════► deckmas
   card-shapes program (transform/saga/adventure/split) has a home. Card
   depends on core, never the reverse; lowering targets both. The authoring
   crate carries its own authored container types; there are deliberately
-  two card-type families, one per side of `lower`.
+  two card-type families, one per side of `lower`. The seam between card
+  and core is a dependency-inverted interface: core owns
+  `trait BaseCharacteristics` (implemented by card's types, and by core's
+  own `Token` and face-down bundle) plus
+  `CardRef<T: BaseCharacteristics>` at the object/state boundary; grammar
+  enums stay monomorphic (`Token`/`TokenSpec` remain core — the grammar
+  creates tokens).
 - **`deckmaste_cards` is renamed to `deckmaste_plugin`** (Stage 0): it was
   always the loader plus riders; the riders (emitter, validation, fidelity,
   the dying legacy renderer) may split further at the claimant's

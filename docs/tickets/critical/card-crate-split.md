@@ -12,9 +12,25 @@ program (transform/saga/adventure/split; census §4).
 
 ## Scope
 
-- Move the card/token definition types (and their direct dependents) into
-  the new crate; `card → core` dependency only, never the reverse; engine
-  depends on both.
+- Move the card definition types (`Card`/`CardFace` and direct dependents)
+  into the new crate; `card → core` dependency only, never the reverse;
+  engine depends on both.
+- **`Token` and `TokenSpec` STAY in core**: the grammar itself creates
+  tokens (`TokenSpec` is referenced from `copy.rs`/`continuous.rs`), so
+  token definitions are grammar-adjacent, not loader artifacts.
+- **Interface contract (dependency inversion)**: core gains
+  `trait BaseCharacteristics` — the abstract base-characteristics bundle —
+  which `deckmaste_card` implements for its types, and which core's own
+  `Token` and `FaceDownCharacteristics` also implement (unifying the three
+  existing base sources behind one interface; the engine's
+  `layer::Characteristics` is the computed end, so the layers pipeline
+  reads base-in/computed-out). Core defines
+  `CardRef<T: BaseCharacteristics>` for definition references, kept at the
+  object/state boundary (engine bases, stack copies, layers input) — NOT
+  inside grammar enums, which stay monomorphic (grammar reaches
+  definitions only via `TokenSpec` and registry names, the
+  `tokens-predefined-registry` direction). Mechanics within this contract
+  are the claimant's.
 - Coordination: independent of the authoring fork — whichever of this and
   `authoring-crate-fork`/`core-demacro` lands second adapts mechanically
   (the fork mirrors whatever crate layout exists; demacro strips both
