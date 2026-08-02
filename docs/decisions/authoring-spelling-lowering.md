@@ -43,13 +43,18 @@ deckmaste_english ◄════════════════► deckmas
   card-shapes program (transform/saga/adventure/split) has a home. Card
   depends on core, never the reverse; lowering targets both. The authoring
   crate carries its own authored container types; there are deliberately
-  two card-type families, one per side of `lower`. The seam between card
-  and core is a dependency-inverted interface: core owns
-  `trait BaseCharacteristics` (implemented by card's types, and by core's
-  own `Token` and face-down bundle) plus
-  `CardRef<T: BaseCharacteristics>` at the object/state boundary; grammar
-  enums stay monomorphic (`Token`/`TokenSpec` remain core — the grammar
-  creates tokens).
+  two card-type families, one per side of `lower`. Core carries NO
+  characteristics abstraction: the grammar keeps only the characteristic
+  value vocabulary plus the effect-defined bundles (`Token`/`TokenSpec`
+  and the face-down bundle remain core — the grammar creates those
+  objects). The base/computed seam is ENGINE-owned:
+  `trait BaseCharacteristics` lives in the engine, implemented there for
+  `card`'s types and core's bundles (local trait, foreign types — the
+  orphan rule permits it), with `CardRef<T: BaseCharacteristics>`
+  engine-local at the object/state boundary; grammar enums stay
+  monomorphic. A future shared characteristics-atoms crate below both
+  grammars (killing atom mirroring) is booked as a design-gated follow-up
+  (`characteristics-atoms-crate`), deliberately NOT part of Stage 1.
 - **`deckmaste_cards` is renamed to `deckmaste_plugin`** (Stage 0): it was
   always the loader plus riders; the riders (emitter, validation, fidelity,
   the dying legacy renderer) may split further at the claimant's

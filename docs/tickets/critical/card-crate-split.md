@@ -18,19 +18,21 @@ program (transform/saga/adventure/split; census §4).
 - **`Token` and `TokenSpec` STAY in core**: the grammar itself creates
   tokens (`TokenSpec` is referenced from `copy.rs`/`continuous.rs`), so
   token definitions are grammar-adjacent, not loader artifacts.
-- **Interface contract (dependency inversion)**: core gains
-  `trait BaseCharacteristics` — the abstract base-characteristics bundle —
-  which `deckmaste_card` implements for its types, and which core's own
-  `Token` and `FaceDownCharacteristics` also implement (unifying the three
-  existing base sources behind one interface; the engine's
-  `layer::Characteristics` is the computed end, so the layers pipeline
-  reads base-in/computed-out). Core defines
-  `CardRef<T: BaseCharacteristics>` for definition references, kept at the
-  object/state boundary (engine bases, stack copies, layers input) — NOT
+- **Interface contract**: core carries NO characteristics abstraction.
+  `trait BaseCharacteristics` is ENGINE-owned — defined in
+  `deckmaste_engine` and implemented there for `card`'s types and for
+  core's `Token`/`FaceDownCharacteristics` (local trait, foreign types;
+  the orphan rule permits it) — unifying the three existing base sources
+  behind one interface, with `layer::Characteristics` as the computed end
+  (the layers pipeline reads base-in/computed-out).
+  `CardRef<T: BaseCharacteristics>` is likewise engine-local, kept at the
+  object/state boundary (object bases, stack copies, layers input) — NOT
   inside grammar enums, which stay monomorphic (grammar reaches
   definitions only via `TokenSpec` and registry names, the
-  `tokens-predefined-registry` direction). Mechanics within this contract
-  are the claimant's.
+  `tokens-predefined-registry` direction). A future shared
+  characteristics-atoms crate may become the trait's home if it lands
+  (`characteristics-atoms-crate`, design-gated); mechanics within this
+  contract are the claimant's.
 - Coordination: independent of the authoring fork — whichever of this and
   `authoring-crate-fork`/`core-demacro` lands second adapts mechanically
   (the fork mirrors whatever crate layout exists; demacro strips both
