@@ -881,6 +881,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "macro_ron_lsp"
+version = "0.1.0"
+dependencies = [
+ "lsp-server",
+ "lsp-types",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1228,16 +1238,6 @@ dependencies = [
  "serde_derive",
  "typeid",
  "unicode-ident",
-]
-
-[[package]]
-name = "ron_lsp"
-version = "0.1.0"
-dependencies = [
- "lsp-server",
- "lsp-types",
- "serde",
- "serde_json",
 ]
 
 [[package]]

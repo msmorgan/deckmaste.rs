@@ -455,7 +455,7 @@ fn tempdir_with(files: &[(&str, &str)]) -> TempTree {
 
     static COUNTER: AtomicU32 = AtomicU32::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let root = std::env::temp_dir().join(format!("ron_lsp_test_{}_{n}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("macro_ron_lsp_test_{}_{n}", std::process::id()));
     for (relative, contents) in files {
         let path = root.join(relative);
         fs::create_dir_all(path.parent().unwrap()).unwrap();

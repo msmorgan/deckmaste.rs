@@ -5,5 +5,5 @@
 # workspace (../NAME) builds and indexes that workspace, not `default`.
 # --quiet keeps cargo's build chatter off stdout; the server logs to stderr,
 # so stdout carries nothing but LSP frames (a stray byte breaks the protocol).
-exec cargo run --quiet -p ron_lsp \
+exec cargo run --quiet -p macro_ron_lsp \
   --manifest-path "$(dirname "$0")/../Cargo.toml" -- "$@"

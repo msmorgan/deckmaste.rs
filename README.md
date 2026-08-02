@@ -109,7 +109,7 @@ Eleven crates, plus a thin root binary that launches the client:
   and matchup tests that exercise the engine end-to-end.
 - **`macro_ron`** / **`macro_ron_derive`** — the RON macro-expansion layer the
   encoding language is built on.
-- **`ron_lsp`** — a small language server for the repo's RON card files.
+- **`macro_ron_lsp`** — a small language server for the repo's RON card files.
 - **`xtask`** — repository tooling: corpus generation, validation, and the
   citation checker.
 

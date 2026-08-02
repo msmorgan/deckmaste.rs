@@ -33,7 +33,7 @@ advertised — the card DSL has no matching notion.
 Over stdio, from the repository root (or any jj feature workspace):
 
 ```sh
-cargo run -p ron_lsp
+cargo run -p macro_ron_lsp
 ```
 
 Configure an editor LSP client to launch that command for both `*.ron` and
@@ -41,7 +41,7 @@ Configure an editor LSP client to launch that command for both `*.ron` and
 
 ## Claude Code integration
 
-`scripts/ron-lsp` launches the server (`cargo run -q -p ron_lsp`, manifest pinned
+`scripts/ron-lsp` launches the server (`cargo run -q -p macro_ron_lsp`, manifest pinned
 to its own checkout so each jj workspace runs its own build; all logs go to
 stderr to keep the stdio protocol clean). A checked-in Claude Code plugin at
 `.claude/skills/ron-lsp/` registers it for `.ron` / `.ron.todo` via the
@@ -51,7 +51,7 @@ stderr to keep the stdio protocol clean). A checked-in Claude Code plugin at
 {
   "name": "ron-lsp",
   "lspServers": {
-    "ron_lsp": {
+    "macro_ron_lsp": {
       "command": "${CLAUDE_PLUGIN_ROOT}/../../../scripts/ron-lsp",
       "transport": "stdio",
       "extensionToLanguage": { ".ron": "ron", ".ron.todo": "ron" },
@@ -81,7 +81,7 @@ type: .ron`. Trust is per-checkout-path (`hasTrustDialogAccepted` in
 version-controlled even though `.claude/` is otherwise ignored; anything else
 under `.claude/skills/` stays ignored.
 
-After first checkout, run `cargo build -p ron_lsp` once to warm the build (the
+After first checkout, run `cargo build -p macro_ron_lsp` once to warm the build (the
 wrapper's first launch otherwise waits on a debug compile, which
 `startupTimeout` is sized to cover), then `/reload-plugins` and check `/plugin`
 for load errors. Once live, Claude's `LSP` tool drives all of the capabilities

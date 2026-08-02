@@ -1,6 +1,6 @@
 [package]
 publish = false
-name = "ron_lsp"
+name = "macro_ron_lsp"
 version = "0.1.0"
 edition = "2024"
 

@@ -92,7 +92,7 @@ README index line:
 
 Order: `deckmaste_engine` → `deckmaste_cards` → `deckmaste_migrations` →
 `deckmaste_core` → remainder (`tui`, `macro_ron`, `macro_ron_derive`,
-`xtask`, `noncanon`, `ron_lsp`). Heavy file = ≥100 comment lines;
+`xtask`, `noncanon`, `macro_ron_lsp`). Heavy file = ≥100 comment lines;
 regenerate the list at claim time
 (`rg -t rust -c '^\s*//' crates | awk -F: '$2>=100'`) rather than trusting
 this ticket's snapshot.

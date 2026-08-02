@@ -61,7 +61,7 @@ const METHOD_NOT_FOUND: i32 = -32601;
 const INVALID_PARAMS: i32 = -32602;
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
-    eprintln!("deckmaste ron_lsp starting");
+    eprintln!("deckmaste macro_ron_lsp starting");
     let (connection, io_threads) = Connection::stdio();
     let capabilities = serde_json::to_value(server_capabilities())?;
     let init = connection.initialize(capabilities)?;
