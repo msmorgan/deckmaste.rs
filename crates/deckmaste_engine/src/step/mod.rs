@@ -560,7 +560,7 @@ impl GameState {
         // future form into the past form of the SAME `ZoneChange` variant.
         // Inside a batch apply the fact joins the shared evolution collector
         // instead, so a simultaneous move-batch commits as ONE past-form
-        // `ZoneChange` occurrence ([CR#603.3b,603.2c]). When the permanent
+        // `ZoneChange` occurrence ([CR#603.2c]). When the permanent
         // entered attached ([CR#303.4]), the `Attached` fact follows the entry
         // fact (it entered, then became attached) so "becomes attached /
         // equipped" can match it (breadth is a seam, §9); it stays its own
@@ -662,7 +662,7 @@ impl GameState {
     /// future-form `ZoneChange` → past-form `ZoneChange`, a draw's move, a
     /// token's entry fact): inside a `Batch` apply it joins the shared
     /// evolution collector — the whole batch's products commit later as ONE
-    /// follow-on occurrence ([CR#603.3b,603.2c] — a simultaneous set stays
+    /// follow-on occurrence ([CR#603.2c] — a simultaneous set stays
     /// one occurrence through every stage) — and outside one it
     /// front-schedules the familiar `Single`.
     fn schedule_evolution(&mut self, event: GameEvent) {
@@ -733,7 +733,7 @@ impl GameState {
                 // each member is replaceable ON ITS OWN ([CR#616.1]);
                 // replacing one member never unapplies the others. Member
                 // evolutions collect into `evolving_batch` and flush as ONE
-                // follow-on occurrence ([CR#603.3b]).
+                // follow-on occurrence ([CR#603.2c]).
                 let live: Vec<GameEvent> = events
                     .into_iter()
                     .filter(|e| !crate::replace_registry::cant_event(self, e))
@@ -808,7 +808,7 @@ impl GameState {
     }
 
     /// Front-schedules the batch-evolution collector's contents as ONE
-    /// occurrence ([CR#603.3b]) and deactivates it. A single-product batch
+    /// occurrence ([CR#603.2c]) and deactivates it. A single-product batch
     /// stays a `Batch` — it was one simultaneous instruction, and its
     /// follow-ons must keep collecting (a destroy-all that reached one
     /// creature still evolves batch-wise).
@@ -965,7 +965,7 @@ impl GameState {
                 other => vec![other],
             };
             // >1 subject → ONE Batch occurrence: the members share a history
-            // batch id ([CR#603.3b] — they were one fight; the per-FIGHT
+            // batch id ([CR#603.2c] — they were one fight; the per-FIGHT
             // dedup hook for any future fight-counting consumer).
             let occ = match done.len() {
                 1 => Occurrence::single(done.into_iter().next().expect("one fact")),
@@ -1052,7 +1052,7 @@ impl GameState {
     /// IS recorded (with the active player on its view) so history reads see
     /// step onsets ([CR#603.2b] — the StepBegins-in-history lift; also the
     /// future sub-turn window markers). A `Batch`'s members share one fresh
-    /// batch id ([CR#603.3b] — they were ONE occurrence); a `Single` records
+    /// batch id ([CR#603.2c] — they were ONE occurrence); a `Single` records
     /// `None`. Every recorded past-form `ZoneChange` also feeds the open
     /// `Noting` collections ([CR#607.2a] — fact-backed product groups: the
     /// group is what the clause ACTUALLY moved, never its gathered input
@@ -1798,7 +1798,7 @@ impl GameState {
     }
 
     /// [CR#705.1]: draw `count` coins and front-schedule ONE simultaneous
-    /// batch ([CR#603.3b] — the multi-discard precedent). A CALLED flip
+    /// batch ([CR#603.2c] — the multi-discard precedent). A CALLED flip
     /// ([CR#705.2]) instead surfaces a `CallFlip` decision per coin; the
     /// draw happens as each call is submitted.
     fn flip_coins(&mut self, player: PlayerId, count: Uint, called: bool) -> Progress {
@@ -2359,7 +2359,7 @@ mod tests {
     }
 
     /// An applied `Batch`'s recorded facts share ONE fresh batch id
-    /// ([CR#603.3b] — they were one occurrence); `Single`s record `None`,
+    /// ([CR#603.2c] — they were one occurrence); `Single`s record `None`,
     /// and distinct batches get distinct ids.
     #[test]
     fn batch_members_share_a_batch_id_singles_record_none() {

@@ -613,7 +613,7 @@ impl GameState {
         // serves effect-instructed and cleanup discards alike, so the
         // turn-based flavor rides the cleanup caller's context for now).
         // ONE simultaneous batch: a multi-discard's moves commit together
-        // ([CR#603.3b]), and the clause's amount — its card count, the
+        // ([CR#603.2c]), and the clause's amount — its card count, the
         // entailment row's `amount` — fixes "that many" for a following
         // draw ([CR#107.3]; the `apply_occurrence` funnel counts the batch).
         self.schedule_discard_acts(player, objects);
@@ -622,7 +622,7 @@ impl GameState {
 
     /// [CR#701.9a]: schedule cleanup's hand-size discard as PER-CARD
     /// `Act(Discard)` windows — ONE simultaneous batch (the choice was
-    /// batched, [CR#603.3b]) but minted per-card, because each card's
+    /// batched, [CR#603.2c]) but minted per-card, because each card's
     /// discard is its own replaceable/cantable moment ([CR#616.1]): madness
     /// reroutes ITS card's Hand→Graveyard to exile and no other's
     /// ([CR#702.35a]), and "whenever a player discards a card" fires once

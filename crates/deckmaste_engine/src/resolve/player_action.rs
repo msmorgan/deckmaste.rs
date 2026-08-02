@@ -1283,7 +1283,7 @@ mod tests {
                 "the creating effect's characteristics stick ([CR#111.3])"
             );
         }
-        // The enter facts follow as ONE batch occurrence ([CR#603.3b] — the
+        // The enter facts follow as ONE batch occurrence ([CR#603.2c] — the
         // two tokens were minted by one simultaneous instruction, so their
         // enter-triggers see one occurrence): from: None (created, not moved).
         match state.step() {
@@ -2670,7 +2670,7 @@ mod tests {
     /// [CR#705.2]: a 3-coin CALLED flip pauses per coin — three sequential
     /// `CallFlip` decisions, each drawing (and scoring) only when its call is
     /// submitted — then front-schedules ONE simultaneous batch
-    /// ([CR#603.3b]) once all three are called.
+    /// ([CR#603.2c]) once all three are called.
     #[test]
     fn multi_coin_called_flip_pauses_per_coin() {
         use crate::decide::Decision;

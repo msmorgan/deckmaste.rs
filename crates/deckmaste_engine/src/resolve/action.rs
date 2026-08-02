@@ -1913,7 +1913,7 @@ mod tests {
     /// enacted destroy-caused past-form `ZoneChange` facts, so the survivor is
     /// excluded BY CONSTRUCTION (its `Act(Destroy)` was canted; no move
     /// fact exists), and the two dies-facts share one history batch id
-    /// ([CR#603.3b]).
+    /// ([CR#603.2c]).
     #[test]
     fn destroyed_this_way_product_group_excludes_indestructible_survivor() {
         let (mut state, a, b) = two_permanents_on_field();
@@ -1963,7 +1963,7 @@ mod tests {
             members.contains(&a) && members.contains(&b),
             "exactly the two destroyed creatures, by LKI"
         );
-        // The dies-facts committed as ONE batch ([CR#603.3b]).
+        // The dies-facts committed as ONE batch ([CR#603.2c]).
         let ids: Vec<Option<deckmaste_core::Uint>> = state
             .history
             .entries()
@@ -2048,11 +2048,11 @@ mod tests {
         );
     }
 
-    /// [CR#701.17b,603.3b]: `OneShotEffect::mill(You, n)` moves the top `n` of
+    /// [CR#701.17b,603.2c]: `OneShotEffect::mill(You, n)` moves the top `n` of
     /// the library to the graveyard as ONE simultaneous batch, clamped to
     /// library size — milling 100 from a bounded library mills the whole
     /// library (never an out-of-range panic), and the moves share one batch
-    /// id ([CR#603.3b]).
+    /// id ([CR#603.2c]).
     #[test]
     fn mill_clamps_to_library_size_as_one_batch() {
         let (mut state, a) = bear_on_field();
@@ -2095,7 +2095,7 @@ mod tests {
         assert_eq!(batches.len(), libsize, "one committed move per milled card");
         assert!(
             batches.iter().all(|b| b.is_some() && *b == batches[0]),
-            "the milled cards land as ONE simultaneous batch ([CR#603.3b])"
+            "the milled cards land as ONE simultaneous batch ([CR#603.2c])"
         );
     }
 

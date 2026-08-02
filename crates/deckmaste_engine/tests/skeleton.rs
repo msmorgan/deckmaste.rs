@@ -466,7 +466,7 @@ fn cleanup_discards_to_hand_size() {
         .unwrap();
     let (trace, _) = step_to_stop(&mut state);
     // A discard commits as a simultaneous BATCH (one member here) —
-    // engine-fact-record-batch's [CR#603.3b] shape.
+    // engine-fact-record-batch's [CR#603.2c] shape.
     assert!(trace.iter().any(|p| matches!(
         p,
         Progress::Applied(Occurrence::Batch(events))

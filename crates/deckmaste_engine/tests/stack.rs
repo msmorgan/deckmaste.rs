@@ -2106,7 +2106,8 @@ fn etb_trigger_draws_a_card() {
     );
 }
 
-/// End-to-end occurrence batch + APNAP trigger ordering ([CR#603.3b,700.4]):
+/// End-to-end occurrence batch + APNAP trigger ordering
+/// ([CR#603.2c,603.3b,700.4]):
 ///
 /// Board under P0: Footlight Fiend (dies-trigger, 1/1) +
 /// Moonlit Wake (a dies-watcher enchantment) + a Willow Elf. Board under P1:

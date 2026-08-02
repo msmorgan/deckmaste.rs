@@ -424,7 +424,7 @@ pub struct GameState {
     /// zone change ([CR#400.7]) — so grants expire for free on shuffle. Written
     /// by looks (Distribute); the redacted per-player VIEW is a runner concern.
     pub look_grants: std::collections::HashSet<(crate::player::PlayerId, crate::object::ObjectId)>,
-    /// Monotonically increasing batch-id source ([CR#603.3b]): every applied
+    /// Monotonically increasing batch-id source ([CR#603.2c]): every applied
     /// `Occurrence::Batch` records its member facts under one fresh id, so
     /// the history log keeps "these facts were one simultaneous event"
     /// ([CR#603.2c] — a batch is ONE occurrence).
@@ -435,7 +435,7 @@ pub struct GameState {
     /// mints one fresh id here (`mint_payment`) and stamps it on every
     /// `Frame` that payment's drain runs against
     /// ([`crate::stack::Payment`]). Deliberately separate from `next_batch`
-    /// — a batch is [CR#603.3b] SIMULTANEITY grouping, a wholly different
+    /// — a batch is [CR#603.2c] SIMULTANEITY grouping, a wholly different
     /// concept from a payment; conflating them would corrupt history reads.
     pub next_payment: Uint,
     /// The batch-evolution collector: `Some` only while `apply_occurrence`
@@ -444,7 +444,7 @@ pub struct GameState {
     /// created token's entry fact) push here instead of front-scheduling a
     /// `Single`, and the batch apply flushes the collection as ONE
     /// follow-on `Occurrence` — a simultaneous batch stays a batch through
-    /// every evolution stage ([CR#603.3b,603.2c]; a destroy-all's
+    /// every evolution stage ([CR#603.2c]; a destroy-all's
     /// dies-facts are one occurrence).
     pub(crate) evolving_batch: Option<Vec<GameEvent>>,
     /// Fact-backed product groups ([CR#607.2a] linkage; the "this way"

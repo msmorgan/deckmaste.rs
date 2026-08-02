@@ -104,7 +104,7 @@ impl DecisionHandler for CallFlip {
             });
         } else {
             // ONE simultaneous batch, like the uncalled path
-            // ([CR#603.3b] — the multi-discard precedent).
+            // ([CR#603.2c] — the multi-discard precedent).
             g.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
         }
         Ok(())

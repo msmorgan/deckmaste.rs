@@ -527,7 +527,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     };
     assert!(
         matches!(&t.event, deckmaste_core::EventFilter::OneOrMore(_)),
-        "one occurrence per placement batch ([CR#603.3b])"
+        "one occurrence per placement batch ([CR#603.2c])"
     );
     let Some(deckmaste_core::Condition::Crossed { thresholds, .. }) = &t.condition else {
         panic!("the [CR#714.2b] was-less-than/became-at-least gate");

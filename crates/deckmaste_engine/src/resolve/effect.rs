@@ -448,7 +448,7 @@ impl GameState {
             // items are evaluated up front against the current state, before
             // any applies (an exchange works BECAUSE both halves read the
             // pre-state). ONE BATCH: the merged events land as one
-            // occurrence, so triggers see one [CR#603.3b] simultaneous set,
+            // occurrence, so triggers see one [CR#603.2c] simultaneous set,
             // its facts share a batch id, replacements run per member
             // ([CR#616.1]), and SBAs run after the whole batch (the next
             // `CheckSbas`, never between members). ALL-OR-NOTHING: a member
@@ -3341,7 +3341,7 @@ mod tests {
         assert!(subjects.contains(&vec![a]) && subjects.contains(&vec![b]));
         assert!(
             fights[0].batch.is_some() && fights[0].batch == fights[1].batch,
-            "the two per-subject facts share one batch id ([CR#603.3b])"
+            "the two per-subject facts share one batch id ([CR#603.2c])"
         );
     }
 

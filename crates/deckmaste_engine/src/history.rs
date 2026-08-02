@@ -21,7 +21,7 @@ use crate::player::PlayerId;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HistEntry {
     pub turn: Uint,
-    /// The simultaneous batch this fact was a member of ([CR#603.3b]) —
+    /// The simultaneous batch this fact was a member of ([CR#603.2c]) —
     /// every substantive fact of one applied `Occurrence::Batch` shares one
     /// fresh id, so "these happened as ONE occurrence" ([CR#603.2c]) is
     /// readable from the log. `None` = a `Single` occurrence.
@@ -74,7 +74,7 @@ impl History {
     }
 
     /// The recorded entries, oldest first — batch-id reads (the
-    /// [CR#603.3b] "one occurrence" grouping) go through here; the
+    /// [CR#603.2c] "one occurrence" grouping) go through here; the
     /// fact-only view is [`scan`](History::scan).
     #[cfg_attr(
         not(test),

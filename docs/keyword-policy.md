@@ -287,7 +287,7 @@ used only in composition.
   **Attach relation** (equip/aura/fortify/reconfigure), and the `Simultaneous`
   **combinator** — which is mid-generalization precisely because both the
   exchange family *and* fight need one batch/timestamp with per-member
-  replacement and post-batch SBAs `[CR#603.3b]`
+  replacement and post-batch SBAs `[CR#603.2c,704.3]`
   (`docs/tickets/done/core-fight-primitive-to-macro.md`).
 - **Watched, not minted:** the "peek the top N and sort to top/bottom/graveyard"
   shape recurs across scry/surveil/fateseal/clash/explore/discover, but it is

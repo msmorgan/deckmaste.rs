@@ -52,7 +52,7 @@ pub enum OneShotEffect {
     /// member reads game state as of one pre-application view (an exchange
     /// works BECAUSE both halves read the pre-state). **One timestamp, one
     /// batch:** application emits the member facts as one batch sharing a
-    /// batch id — ONE occurrence for `OneOrMore` triggers ([CR#603.3b]).
+    /// batch id — ONE occurrence for `OneOrMore` triggers ([CR#603.2c]).
     /// **Replacements apply per member fact independently** (each event is
     /// replaceable on its own, ordering per the affected object/player's
     /// controller as usual, [CR#616.1]); replacing one member does not
