@@ -33,8 +33,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use deckmaste_core::Card;
-use deckmaste_core::CardFace;
+use deckmaste_card::Card;
+use deckmaste_card::CardFace;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;
 

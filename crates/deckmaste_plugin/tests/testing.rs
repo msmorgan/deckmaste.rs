@@ -6,7 +6,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 use deckmaste_plugin::plugin::Plugin;
 
 fn testing_path() -> PathBuf {

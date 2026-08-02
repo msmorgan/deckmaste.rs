@@ -90,7 +90,7 @@ impl Serialize for RawIdent {
 }
 
 /// A face whose abilities are `TodoAbility`. Field set mirrors
-/// `deckmaste_core::CardFace`; the skip/default attrs match it so a fully
+/// `deckmaste_card::CardFace`; the skip/default attrs match it so a fully
 /// resolved face is byte-identical to a core `CardFace`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct TodoCardFace {
@@ -130,7 +130,7 @@ pub struct TodoCardFace {
 pub enum TodoCard {
     Normal(TodoCardFace),
     TwoFaced {
-        layout: deckmaste_core::FaceLayout,
+        layout: deckmaste_card::FaceLayout,
         front: TodoCardFace,
         back: TodoCardFace,
     },

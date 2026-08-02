@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 use deckmaste_engine::GameOutcome;
 use deckmaste_engine::PlayerId;
 use deckmaste_noncanon::deck;

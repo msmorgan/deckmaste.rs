@@ -1767,9 +1767,9 @@ mod tests {
     /// (directly below) — never the anchor itself nor the far card.
     #[test]
     fn adjacent_matches_the_one_neighbor_in_the_stated_direction() {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Adjacency;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
 
         let mut state = game();
         let p0 = PlayerId(0);

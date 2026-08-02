@@ -15,8 +15,8 @@ mod template;
 
 use std::cell::Cell;
 
+use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
-use deckmaste_core::CardFace;
 use deckmaste_core::ManaCost;
 use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;

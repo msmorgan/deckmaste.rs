@@ -287,7 +287,7 @@ fn todo_card(
     Ok(match (layout, faces) {
         ("normal", [f]) => Some(TodoCard::Normal(face(f, keyword_abilities)?)),
         ("modal_dfc", [front, back]) => Some(TodoCard::TwoFaced {
-            layout: deckmaste_core::FaceLayout::ModalDfc,
+            layout: deckmaste_card::FaceLayout::ModalDfc,
             front: face(front, keyword_abilities)?,
             back: face(back, keyword_abilities)?,
         }),

@@ -121,8 +121,8 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
+use deckmaste_card::Card;
 use deckmaste_core::Ability;
-use deckmaste_core::Card;
 use deckmaste_core::Supertype;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;

@@ -230,7 +230,7 @@ pub(crate) fn base_stat(v: Option<&deckmaste_core::StatValue>) -> Option<Int> {
 /// A face's base colors ([CR#202.2]): the colored mana symbols in the cost,
 /// falling back to the color indicator for objects with no mana cost.
 /// Computed once per card at setup (`Cards::push`) and cached.
-pub(crate) fn base_colors(face: &deckmaste_core::CardFace) -> Vec<Color> {
+pub(crate) fn base_colors(face: &deckmaste_card::CardFace) -> Vec<Color> {
     let mut colors: Vec<Color> = Vec::new();
     for c in face.mana_cost.iter().flat_map(symbol_colors) {
         if !colors.contains(&c) {
@@ -2187,8 +2187,8 @@ mod tests {
     /// Mint a 2/2 creature carrying `abilities` onto the battlefield (player
     /// 0).
     fn creature_on_field(mut state: GameState, abilities: Vec<Ability>) -> (GameState, ObjectId) {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: "Test Creature".into(),
             types: vec![Type::Creature.def()],
@@ -2289,8 +2289,8 @@ mod tests {
     /// offering it, while the card-facing list hides it before AND after.
     #[test]
     fn conferred_basic_land_mana_survives_lose_all_abilities() {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::ColorOrColorless;
         use deckmaste_core::CostComponent;
         use deckmaste_core::ManaProduction;
@@ -2506,8 +2506,8 @@ mod tests {
     /// battlefield (player 0) — used as an attachment whose static targets its
     /// host. No power/toughness, so it never gets caught by an anthem itself.
     fn permanent_on_field(mut state: GameState, abilities: Vec<Ability>) -> (GameState, ObjectId) {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: "Test Attachment".into(),
             types: vec![Type::Enchantment.def()],
@@ -2711,8 +2711,8 @@ mod tests {
         controller: PlayerId,
         abilities: Vec<Ability>,
     ) -> (GameState, ObjectId) {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Subtype;
         let card = Card::Normal(CardFace {
             name: "Test Tribe".into(),
@@ -2814,9 +2814,9 @@ mod tests {
     /// (driven directly here; Task 5 makes `Transform` set it).
     #[test]
     fn back_up_permanent_shows_back_face_characteristics() {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
-        use deckmaste_core::FaceLayout;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::StatValue;
         use deckmaste_core::Type;
 

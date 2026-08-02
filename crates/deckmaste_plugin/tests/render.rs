@@ -2,9 +2,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use deckmaste_card::Card;
+use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
-use deckmaste_core::Card;
-use deckmaste_core::CardFace;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
@@ -449,9 +449,9 @@ fn renders_damage_to_each_player_flame_rift() {
 
 #[test]
 fn renders_synthesized_lose_life_and_destroy() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Count;
     use deckmaste_core::LifeOp;
     use deckmaste_core::OneShotEffect;
@@ -632,8 +632,8 @@ fn renders_humility() {
 
 #[test]
 fn renders_scope_of_singular() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Count;
     use deckmaste_core::Modification;
     use deckmaste_core::Reference;
@@ -663,8 +663,8 @@ fn renders_scope_of_singular() {
 /// → "Enchanted creature gets +2/+2."
 #[test]
 fn renders_aura_host_pump() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Count;
     use deckmaste_core::Modification;
     use deckmaste_core::Reference;
@@ -698,8 +698,8 @@ fn renders_aura_host_pump() {
 /// `duration_suffix(FixedUntil(EndOfTurn))`.
 #[test]
 fn renders_continuously_pump_until_eot() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Continuously;
     use deckmaste_core::Count;
     use deckmaste_core::Duration;
@@ -754,8 +754,8 @@ fn renders_continuously_pump_until_eot() {
 /// the announced target's phrase.
 #[test]
 fn renders_continuously_cant_block_eot() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Continuously;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
@@ -799,8 +799,8 @@ fn renders_continuously_cant_block_eot() {
 /// ([CR#509.1b]).
 #[test]
 fn renders_continuously_cant_be_blocked_eot() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Continuously;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
@@ -846,8 +846,8 @@ fn renders_continuously_cant_be_blocked_eot() {
 /// "[unrendered: That(Creature)] can't block this turn.".
 #[test]
 fn renders_that_creature_cant_block_eot() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Continuously;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
@@ -1005,9 +1005,9 @@ fn renders_kabira_crossroads() {
 
 #[test]
 fn renders_get_designation() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Ident;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Reference;
@@ -1035,9 +1035,9 @@ fn renders_get_designation() {
 /// render through the same rules walk a card face uses, quoted as its text.
 #[test]
 fn renders_get_emblem() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::CardFace;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
@@ -1077,8 +1077,8 @@ fn renders_get_emblem() {
 /// shape).
 #[test]
 fn renders_graveyard_static_from_zone() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
     use deckmaste_core::Modification;
@@ -1136,8 +1136,8 @@ fn renders_graveyard_static_from_zone() {
 /// "if it's …'s turn," clause between event and effect.
 #[test]
 fn renders_trigger_with_turnof_intervening_if() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Condition;
     use deckmaste_core::EventFilter;
     use deckmaste_core::OneShotEffect;
@@ -1191,8 +1191,8 @@ fn renders_trigger_with_turnof_intervening_if() {
 /// fallback.
 #[test]
 fn renders_enters_with_counters_p1p1_singular_and_plural() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Type;
     use deckmaste_plugin::plugin::Plugin;
 
@@ -1234,8 +1234,8 @@ fn renders_enters_with_counters_p1p1_singular_and_plural() {
 /// (`ShieldCounter` -> "shield") as the pip kinds above.
 #[test]
 fn renders_enters_with_counters_named_kind() {
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Type;
     use deckmaste_plugin::plugin::Plugin;
 

@@ -1218,7 +1218,7 @@ fn contains_one_or_more(pattern: &EventFilter) -> bool {
 fn snapshot_face<'a>(
     state: &'a GameState,
     snapshot: &LkiSnapshot,
-) -> Option<&'a deckmaste_core::CardFace> {
+) -> Option<&'a deckmaste_card::CardFace> {
     match snapshot.source {
         ObjectSource::Card(card_id) => Some(crate::derive::face(&state.cards.get(card_id).def)),
         ObjectSource::Player(_) => None,
@@ -1379,7 +1379,7 @@ mod tests {
     /// Put `card` onto the battlefield under `controller`, returning its id.
     fn put_bf(
         state: &mut GameState,
-        card: Arc<deckmaste_core::Card>,
+        card: Arc<deckmaste_card::Card>,
         controller: PlayerId,
     ) -> ObjectId {
         let card_id = state.cards.push(card, controller);
@@ -3403,12 +3403,12 @@ mod tests {
     /// the bare `StateBecame(Transformed)` trigger from the destination-
     /// narrowed "transforms into X" reading ([CR#701.27e]), which is out of
     /// scope here.
-    fn transform_watcher_dfc() -> deckmaste_core::Card {
+    fn transform_watcher_dfc() -> deckmaste_card::Card {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::Ability;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Count;
-        use deckmaste_core::FaceLayout;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::StatValue;
         use deckmaste_core::StateChange;
@@ -3502,11 +3502,11 @@ mod tests {
     /// flip directly via a real `Action::Transform`, not a card-granted
     /// trigger/activated ability, and the asymmetric Trample isolates the
     /// face-aware layered-view read from the P/T flip.
-    fn delverish_aberration() -> deckmaste_core::Card {
+    fn delverish_aberration() -> deckmaste_card::Card {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::Ability;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
-        use deckmaste_core::FaceLayout;
         use deckmaste_core::KeywordAbility;
         use deckmaste_core::StatValue;
 
@@ -3721,11 +3721,11 @@ mod tests {
     ///     the 1/1 front.
     #[test]
     fn delver_upkeep_reveals_instant_and_transforms() {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::Action;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Count;
-        use deckmaste_core::FaceLayout;
         use deckmaste_core::If;
         use deckmaste_core::May;
         use deckmaste_core::OneShotEffect;
@@ -3894,11 +3894,11 @@ mod tests {
     /// Goblin creature token with haste" — i.e.
     /// `Triggered(event: StepBegins(at: Combat(BeginningOfCombat), whose:
     /// Your), effect: Create(1, Token(1/1 red Goblin)))`.
-    fn rabblemaster() -> deckmaste_core::Card {
+    fn rabblemaster() -> deckmaste_card::Card {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
         use deckmaste_core::Action;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Color;
         use deckmaste_core::CombatStep;
         use deckmaste_core::Count;
@@ -3948,7 +3948,7 @@ mod tests {
     /// Force a synthetic in-Rust card onto the battlefield under `controller`.
     fn put_synthetic_on_field(
         state: &mut GameState,
-        card: deckmaste_core::Card,
+        card: deckmaste_card::Card,
         controller: PlayerId,
     ) -> ObjectId {
         let card_id = state.cards.push(Arc::new(card), controller);
@@ -4308,11 +4308,11 @@ mod tests {
     /// A synthetic creature whose sole ability is an "at the beginning of your
     /// upkeep, draw a card" trigger that FUNCTIONS from the given zone
     /// (`from`).
-    fn upkeep_trigger_from(from: Option<Zone>) -> deckmaste_core::Card {
+    fn upkeep_trigger_from(from: Option<Zone>) -> deckmaste_card::Card {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
         use deckmaste_core::BeginningStep;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Count;
         use deckmaste_core::EventFilter;
         use deckmaste_core::OneShotEffect;
@@ -4343,7 +4343,7 @@ mod tests {
     /// Put a synthetic in-Rust card into `controller`'s graveyard.
     fn put_synthetic_in_graveyard(
         state: &mut GameState,
-        card: deckmaste_core::Card,
+        card: deckmaste_card::Card,
         controller: PlayerId,
     ) -> ObjectId {
         let card_id = state.cards.push(Arc::new(card), controller);
@@ -4594,12 +4594,12 @@ mod tests {
     /// matches. Returns the object id and the back trigger body.
     fn back_up_dfc_on_field_upkeep_draw() -> (GameState, ObjectId, deckmaste_core::TriggeredAbility)
     {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::Ability;
         use deckmaste_core::BeginningStep;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Count;
-        use deckmaste_core::FaceLayout;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::PhaseStep;
         use deckmaste_core::StatValue;
@@ -4888,7 +4888,7 @@ mod tests {
     /// is cleaned up rather than left dangling in the object store.
     #[test]
     fn targeting_trigger_with_only_hexproof_target_is_dropped() {
-        use deckmaste_core::Card;
+        use deckmaste_card::Card;
 
         // No curated canon card carries a creature-ONLY-target triggered
         // ability (canon's targeting triggers all use "any target", which
@@ -5236,11 +5236,11 @@ mod tests {
     /// trigger ([CR#603.6] `Dies(Creature)` → `ZoneMove(what: Creature,
     /// from: Battlefield, to: Graveyard)`) carrying `limits`, gaining its
     /// controller 1 life. Models `rabblemaster`.
-    fn dies_watcher(limits: Vec<deckmaste_core::UseLimit>) -> deckmaste_core::Card {
+    fn dies_watcher(limits: Vec<deckmaste_core::UseLimit>) -> deckmaste_card::Card {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
         use deckmaste_core::Action;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Count;
         use deckmaste_core::EventFilter;
         use deckmaste_core::LifeOp;
@@ -5328,11 +5328,11 @@ mod tests {
 
     /// A synthetic "whenever a creature is dealt damage, you gain that much
     /// life" watcher — the trigger-bound magnitude lane.
-    fn pain_gainer() -> deckmaste_core::Card {
+    fn pain_gainer() -> deckmaste_card::Card {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
         use deckmaste_core::Action;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Count;
         use deckmaste_core::LifeOp;
         use deckmaste_core::OneShotEffect;
@@ -5729,7 +5729,7 @@ mod tests {
         let card = Arc::new(
             canon()
                 .macros
-                .read_str::<deckmaste_core::Card>(&source)
+                .read_str::<deckmaste_card::Card>(&source)
                 .unwrap(),
         );
         let id = put_bf(state, card, controller);
@@ -5855,11 +5855,11 @@ mod tests {
         let src = format!("Normal(name: \"E\", types: [], abilities: [{inner}])");
         let card = canon()
             .macros
-            .read_str::<deckmaste_core::Card>(&src)
+            .read_str::<deckmaste_card::Card>(&src)
             .unwrap();
         match card {
-            deckmaste_core::Card::Normal(face) => face.abilities,
-            other @ deckmaste_core::Card::TwoFaced { .. } => {
+            deckmaste_card::Card::Normal(face) => face.abilities,
+            other @ deckmaste_card::Card::TwoFaced { .. } => {
                 panic!("unexpected emblem card shape: {other:?}")
             }
         }
@@ -5981,7 +5981,7 @@ mod tests {
             Arc::new(
                 builtin()
                     .macros
-                    .read_str::<deckmaste_core::Card>(&source)
+                    .read_str::<deckmaste_card::Card>(&source)
                     .unwrap(),
             )
         };
@@ -6046,7 +6046,7 @@ mod tests {
         let card = Arc::new(
             builtin()
                 .macros
-                .read_str::<deckmaste_core::Card>(&source)
+                .read_str::<deckmaste_card::Card>(&source)
                 .unwrap(),
         );
         let (mut state, _bear) = bear_on_field();
@@ -6118,7 +6118,7 @@ mod tests {
         let card = Arc::new(
             canon()
                 .macros
-                .read_str::<deckmaste_core::Card>(source)
+                .read_str::<deckmaste_card::Card>(source)
                 .unwrap(),
         );
         let (mut state, bear) = bear_on_field();

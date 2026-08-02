@@ -1088,8 +1088,8 @@ mod tests {
     // -- tap_total_subset (the crew candidate set) --
 
     /// A vanilla creature card with the given printed power/toughness.
-    fn creature_card(power: i32, toughness: i32) -> Arc<deckmaste_core::Card> {
-        Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+    fn creature_card(power: i32, toughness: i32) -> Arc<deckmaste_card::Card> {
+        Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: "Crew Fixture".into(),
             mana_cost: ManaCost::from(Arc::from(vec![])),
             color_indicator: vec![],
@@ -1190,9 +1190,9 @@ mod tests {
         // play. A prior `ObjectSource::Player` synthetic was absent from the
         // view, so the battlefield-wide `Cant(Activate)` collector's `view.get`
         // could not resolve it.
-        let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+        let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: "Gate Fixture".into(),
-            ..deckmaste_core::CardFace::default()
+            ..deckmaste_card::CardFace::default()
         }));
         let card_id = state.cards.push(card, player);
         let id = state
@@ -1700,8 +1700,8 @@ mod tests {
     /// A card whose only ability is the given activated ability.
     // In-module fixture: no macro/serde path exercised, so no plugin round-trip
     // needed.
-    fn card_with_activated(act: ActivatedAbility) -> Arc<deckmaste_core::Card> {
-        Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+    fn card_with_activated(act: ActivatedAbility) -> Arc<deckmaste_card::Card> {
+        Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: "Activated Fixture".into(),
             mana_cost: ManaCost::from(Arc::from(vec![])),
             color_indicator: vec![],
@@ -1721,8 +1721,8 @@ mod tests {
     fn card_with_cost_and_activated(
         mana_cost: ManaCost,
         act: ActivatedAbility,
-    ) -> Arc<deckmaste_core::Card> {
-        Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+    ) -> Arc<deckmaste_card::Card> {
+        Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: "ManaCostOf Fixture".into(),
             mana_cost,
             color_indicator: vec![],

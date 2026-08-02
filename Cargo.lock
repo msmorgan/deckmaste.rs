@@ -443,6 +443,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_card"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_core",
+ "macro_ron",
+ "serde",
+]
+
+[[package]]
 name = "deckmaste_core"
 version = "0.1.0"
 dependencies = [
@@ -456,6 +465,7 @@ name = "deckmaste_engine"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "deckmaste_card",
  "deckmaste_core",
  "deckmaste_plugin",
  "rand 0.10.1",
@@ -494,6 +504,7 @@ name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deckmaste_card",
  "deckmaste_core",
  "deckmaste_plugin",
  "rayon",
@@ -508,6 +519,7 @@ dependencies = [
 name = "deckmaste_noncanon"
 version = "0.1.0"
 dependencies = [
+ "deckmaste_card",
  "deckmaste_core",
  "deckmaste_engine",
  "deckmaste_plugin",
@@ -518,6 +530,7 @@ name = "deckmaste_plugin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deckmaste_card",
  "deckmaste_core",
  "macro_ron",
  "regex",
@@ -1931,6 +1944,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "deckmaste_card",
  "deckmaste_core",
  "deckmaste_english",
  "deckmaste_frames",

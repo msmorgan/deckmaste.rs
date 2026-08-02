@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 use deckmaste_core::Int;
 use deckmaste_core::Uint;
 use deckmaste_engine::GameConfig;

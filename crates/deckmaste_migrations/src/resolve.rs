@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn resolve_modal_dfc_resolves_both_faces() {
         let mut card = TodoCard::TwoFaced {
-            layout: deckmaste_core::FaceLayout::ModalDfc,
+            layout: deckmaste_card::FaceLayout::ModalDfc,
             front: TodoCardFace {
                 abilities: vec![TodoAbility::Unparsed("Flying".into())],
                 ..Default::default()

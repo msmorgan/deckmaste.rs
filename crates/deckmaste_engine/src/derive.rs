@@ -6,10 +6,10 @@
 
 use std::sync::Arc;
 
+use deckmaste_card::Card;
+use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
-use deckmaste_core::Card;
-use deckmaste_core::CardFace;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
@@ -391,9 +391,9 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
 mod tests {
     use std::sync::Arc;
 
+    use deckmaste_card::Card;
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::Card;
-    use deckmaste_core::CardFace;
     use deckmaste_core::EventFilter;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Reference;
@@ -532,9 +532,9 @@ mod tests {
     /// view's back trigger a SECOND time.
     #[test]
     fn back_up_permanent_sources_triggers_from_back_face() {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
-        use deckmaste_core::FaceLayout;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::StatValue;
         use deckmaste_core::Type;
         use deckmaste_core::Zone;

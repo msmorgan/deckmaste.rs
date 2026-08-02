@@ -162,9 +162,9 @@ impl GameState {
 mod tests {
     use std::sync::Arc;
 
+    use deckmaste_card::Card;
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::Card;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Count;
     use deckmaste_core::PlayerAttr;
     use deckmaste_core::PlayerMod;
@@ -251,8 +251,8 @@ mod tests {
     /// controller to two land plays once back-up ([CR#712.8e]).
     #[test]
     fn back_up_permanent_sources_player_static_from_back_face() {
-        use deckmaste_core::Card;
-        use deckmaste_core::FaceLayout;
+        use deckmaste_card::Card;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::Zone;
 
         use crate::object::Side;

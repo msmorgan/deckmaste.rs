@@ -11,8 +11,8 @@ use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::Arc;
 
+use deckmaste_card::Card;
 use deckmaste_core::BeginningStep;
-use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::PhaseStep;
@@ -3147,7 +3147,7 @@ fn inline_blink() -> Card {
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Targeted;
 
-    Card::Normal(deckmaste_core::CardFace {
+    Card::Normal(deckmaste_card::CardFace {
         name: "Blink".into(),
         mana_cost: "{W}".parse().unwrap(),
         types: vec![deckmaste_core::Type::Instant.def()],
@@ -3176,7 +3176,7 @@ fn inline_blink() -> Card {
                 )),
             },
         )],
-        ..deckmaste_core::CardFace::default()
+        ..deckmaste_card::CardFace::default()
     })
 }
 

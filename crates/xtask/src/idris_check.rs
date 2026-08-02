@@ -24,7 +24,7 @@ use std::process::Command;
 
 use anyhow::Context;
 use clap::Args;
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 use deckmaste_core::Expand;
 use deckmaste_plugin::idris_emit;
 use deckmaste_plugin::plugin::Plugin;

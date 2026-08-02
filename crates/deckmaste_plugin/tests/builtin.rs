@@ -6,11 +6,11 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use deckmaste_card::Card;
+use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
-use deckmaste_core::Card;
-use deckmaste_core::CardFace;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;

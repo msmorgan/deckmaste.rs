@@ -854,8 +854,8 @@ mod tests {
 
     use std::sync::Arc;
 
+    use deckmaste_card::Card;
     use deckmaste_core::Action;
-    use deckmaste_core::Card;
     use deckmaste_core::ChosenValueKind;
     use deckmaste_core::Count;
     use deckmaste_core::ObjectKind;
@@ -1576,7 +1576,7 @@ mod tests {
     /// instant or sorcery card, no token is created" — zero tokens.
     #[test]
     fn token_copy_of_instant_or_sorcery_creates_nothing() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
 
@@ -1712,7 +1712,7 @@ mod tests {
     fn minted_copy_face<'a>(
         state: &'a GameState,
         exclude: &[ObjectId],
-    ) -> &'a deckmaste_core::CardFace {
+    ) -> &'a deckmaste_card::CardFace {
         let &t = state
             .zones
             .battlefield
@@ -1942,7 +1942,7 @@ mod tests {
     /// pass even though the creating effect is long gone.
     #[test]
     fn amass_grows_and_subtypes_the_chosen_army() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
         use deckmaste_core::StatValue;
         use deckmaste_core::Subtype;
 
@@ -2045,8 +2045,8 @@ mod tests {
     /// asserted below.
     #[test]
     fn token_copy_etb_trigger_fires_through_the_normal_battlefield_path() {
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
-        use deckmaste_core::CardFace;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
         use deckmaste_core::EventFilter;
@@ -2166,7 +2166,7 @@ mod tests {
     /// move).
     #[test]
     fn token_copy_modify_pt_drops_source_cda_end_to_end() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
         use deckmaste_core::CopyException;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
@@ -2257,7 +2257,7 @@ mod tests {
     /// dynamically, exactly like the source's own.
     #[test]
     fn token_copy_without_modify_carries_source_cda() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
         use deckmaste_core::StatValue;
@@ -2854,8 +2854,8 @@ mod tests {
         controller: PlayerId,
         event: deckmaste_core::EventFilter,
     ) -> ObjectSource {
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
-        use deckmaste_core::CardFace;
         use deckmaste_core::TriggeredAbility;
 
         let card = Card::Normal(CardFace {

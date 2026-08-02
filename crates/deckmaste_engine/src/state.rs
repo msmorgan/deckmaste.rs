@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
+use deckmaste_card::Card;
 use deckmaste_core::BeginningStep;
-use deckmaste_core::Card;
 use deckmaste_core::EndingStep;
 use deckmaste_core::Int;
 use deckmaste_core::PhaseStep;

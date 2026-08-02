@@ -10,7 +10,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 use deckmaste_core::Counter;
 use deckmaste_core::DesignationDecl;
 use deckmaste_core::Ident;

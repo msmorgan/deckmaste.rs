@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use deckmaste_core::CardFace;
+use deckmaste_card::CardFace;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::CounterRef;
 use deckmaste_core::DamageResultRule;
@@ -37,8 +37,8 @@ fn loyalty_rule() -> DamageResultRule {
 }
 
 /// A synthetic non-creature planeswalker (types `[Planeswalker]`).
-fn walker_card() -> deckmaste_core::Card {
-    deckmaste_core::Card::Normal(CardFace {
+fn walker_card() -> deckmaste_card::Card {
+    deckmaste_card::Card::Normal(CardFace {
         name: "Test Walker".into(),
         types: vec![Type::Planeswalker.def()],
         loyalty: Some(StatValue::Number(5)),
@@ -120,8 +120,8 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
 /// `Creature` type CONFERS the combat capability (via
 /// `combatant_creature_def`), so combat-damage marking sees it as a combatant
 /// ([CR#120.3d]).
-fn creature_walker_card() -> deckmaste_core::Card {
-    deckmaste_core::Card::Normal(CardFace {
+fn creature_walker_card() -> deckmaste_card::Card {
+    deckmaste_card::Card::Normal(CardFace {
         name: "Test Creature Walker".into(),
         types: vec![combatant_creature_def(), Type::Planeswalker.def()],
         power: Some(StatValue::Number(4)),
@@ -134,7 +134,7 @@ fn creature_walker_card() -> deckmaste_core::Card {
 /// A two-player game whose player 0 decks `card`, with `damage_result_rules`
 /// as given (the knob these tests turn). No SBA rules — the tests assert the
 /// raw deal-time results, not the downstream 0-counter sweep.
-fn game_with(card: deckmaste_core::Card, rules: Vec<DamageResultRule>) -> GameState {
+fn game_with(card: deckmaste_card::Card, rules: Vec<DamageResultRule>) -> GameState {
     let card = Arc::new(card);
     GameState::new(GameConfig {
         players: vec![

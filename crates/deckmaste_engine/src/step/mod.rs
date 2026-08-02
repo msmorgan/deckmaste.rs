@@ -2314,9 +2314,9 @@ mod tests {
     /// `apply_zone_will_change` requires, since it reads the card's owner
     /// ([CR#108.3]) via `ObjectSource::Card` on the way out.
     fn mint_card_backed(state: &mut GameState, controller: PlayerId) -> ObjectId {
-        let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+        let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: "Test Card".into(),
-            ..deckmaste_core::CardFace::default()
+            ..deckmaste_card::CardFace::default()
         }));
         let card_id = state.cards.push(card, controller);
         let id = state.objects.mint(
@@ -2539,10 +2539,10 @@ mod tests {
         // Two cards in hand to discard.
         let mut in_hand = Vec::new();
         for name in ["Discard A", "Discard B"] {
-            let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
                 name: name.into(),
                 types: vec![deckmaste_core::Type::Sorcery.def()],
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             }));
             let cid = state.cards.push(card, PlayerId(0));
             let id = state
@@ -2692,7 +2692,7 @@ mod tests {
         use std::path::Path;
         use std::sync::Arc;
 
-        use deckmaste_core::Card;
+        use deckmaste_card::Card;
         use deckmaste_core::Predicate;
         use deckmaste_core::Type;
         use deckmaste_core::Zone;
@@ -2792,7 +2792,7 @@ mod tests {
         use std::path::Path;
         use std::sync::Arc;
 
-        use deckmaste_core::Card;
+        use deckmaste_card::Card;
         use deckmaste_core::StatValue;
         use deckmaste_core::Supertype;
         use deckmaste_core::Type;
@@ -2841,13 +2841,13 @@ mod tests {
         }
 
         fn legendary_creature(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
-            let card = Arc::new(Card::Normal(deckmaste_core::CardFace {
+            let card = Arc::new(Card::Normal(deckmaste_card::CardFace {
                 name: name.into(),
                 types: vec![Type::Creature.def()],
                 supertypes: vec![Supertype::Legendary],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             }));
             let card_id = state.cards.push(Arc::clone(&card), controller);
             let id = state.objects.mint(
@@ -2894,13 +2894,13 @@ mod tests {
             name: &str,
             controller: PlayerId,
         ) -> ObjectId {
-            let card = Arc::new(Card::Normal(deckmaste_core::CardFace {
+            let card = Arc::new(Card::Normal(deckmaste_card::CardFace {
                 name: name.into(),
                 types: vec![Type::Creature.def()],
                 supertypes: vec![],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             }));
             let card_id = state.cards.push(Arc::clone(&card), controller);
             let id = state.objects.mint(
@@ -2979,10 +2979,10 @@ mod tests {
         controller: PlayerId,
         abilities: Vec<deckmaste_core::Ability>,
     ) -> ObjectId {
-        let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+        let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: "Untap Fixture".into(),
             abilities,
-            ..deckmaste_core::CardFace::default()
+            ..deckmaste_card::CardFace::default()
         }));
         let card_id = state.cards.push(card, controller);
         let id = state.objects.mint(
@@ -3173,9 +3173,9 @@ mod tests {
     /// `Side` in place, front↔back, identity preserved ([CR#712.18]).
     #[test]
     fn transformed_event_toggles_side() {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
-        use deckmaste_core::FaceLayout;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_card::FaceLayout;
 
         use crate::object::Side;
 

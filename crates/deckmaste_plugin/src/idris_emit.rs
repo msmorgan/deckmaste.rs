@@ -47,12 +47,12 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use deckmaste_card::Card;
+use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Anchor;
 use deckmaste_core::Arrangement;
-use deckmaste_core::Card;
-use deckmaste_core::CardFace;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Cmp;
 use deckmaste_core::Color;

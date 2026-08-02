@@ -53,11 +53,8 @@ pub use count::Projection;
 pub use count::RoundMode;
 pub use count::Stat;
 
-mod card;
-pub use card::Card;
-pub use card::CardFace;
-pub use card::FaceLayout;
-pub use card::StatValue;
+mod stat_value;
+pub use stat_value::StatValue;
 
 mod color;
 pub use color::Color;

@@ -13,7 +13,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 use deckmaste_core::Color;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 
 use crate::source::CardSource;
 
@@ -46,7 +46,7 @@ fn push_copies(deck: &mut Vec<Arc<Card>>, src: &CardSource, name: &str, count: u
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::Card;
+    use deckmaste_card::Card;
 
     use super::*;
     use crate::wc99;

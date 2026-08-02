@@ -20,8 +20,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
+use deckmaste_card::Card;
 use deckmaste_core::Ability;
-use deckmaste_core::Card;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Ident;
 use deckmaste_core::Normalize;

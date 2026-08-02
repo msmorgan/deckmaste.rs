@@ -137,10 +137,10 @@ pub fn macro_set() -> MacroSet {
 mod tests {
     use std::sync::Arc;
 
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::AsThough;
-    use deckmaste_core::CardFace;
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::ColorOrColorless;
     use deckmaste_core::Condition;

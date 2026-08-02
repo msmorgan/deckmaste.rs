@@ -988,9 +988,9 @@ fn resume_replace_loop(
 pub(crate) mod tests_support {
     use std::sync::Arc;
 
+    use deckmaste_card::Card;
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::Card;
-    use deckmaste_core::CardFace;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -1330,10 +1330,10 @@ mod tests {
         // A spell object per caster (the fact record's actor is its
         // controller).
         let mut spell = |controller: crate::player::PlayerId| {
-            let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
                 name: "Test Spell".into(),
                 types: vec![deckmaste_core::Type::Sorcery.def()],
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             }));
             let cid = state.cards.push(card, controller);
             state

@@ -1721,8 +1721,8 @@ mod tests {
         types: Vec<Type>,
         abilities: Vec<Ability>,
     ) -> ObjectId {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: name.into(),
             types: types.into_iter().map(Type::def).collect(),
@@ -2187,8 +2187,8 @@ mod tests {
     /// Mint an instant-speed spell (via the conferred flash row above, its
     /// ONLY timing permission) into `controller`'s hand.
     fn flash_spell_in_hand(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: name.into(),
             mana_cost: "{1}".parse().unwrap(),
@@ -2215,8 +2215,8 @@ mod tests {
         what: Predicate,
         by: Predicate,
     ) -> ObjectId {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: name.into(),
             types: vec![Type::Instant.def()],
@@ -2306,8 +2306,8 @@ mod tests {
     /// `Triggered`, not `Spell`, it must NOT lock out casting.
     #[test]
     fn cant_cast_ignores_triggered_stack_stand_ins_source_statics() {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
 
         let mut state = game();
         let spell = flash_spell_in_hand(&mut state, "Bolt", PlayerId(0));
@@ -2487,8 +2487,8 @@ mod tests {
     /// abilities by the layer-4 `fold_conferred_abilities`), unlike
     /// `obj_on_field` which uses the empty-confer `Type::def`.
     fn conferred_land_on_field(state: &mut GameState, name: &str) -> ObjectId {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: name.into(),
             types: vec![land_typedef()],
@@ -2681,8 +2681,8 @@ mod tests {
         sick: bool,
         extra: Vec<Ability>,
     ) -> ObjectId {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: name.into(),
             types: vec![creature_typedef()],
@@ -2908,8 +2908,8 @@ mod tests {
         by: Predicate,
         cost: Option<deckmaste_core::CostPredicate>,
     ) -> ObjectId {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: name.into(),
             types: vec![Type::Instant.def()],
@@ -3043,8 +3043,8 @@ mod tests {
     /// below needs the land offered as a hand candidate, not already on the
     /// battlefield.
     fn land_in_hand(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         let card = Card::Normal(CardFace {
             name: name.into(),
             types: vec![land_typedef()],

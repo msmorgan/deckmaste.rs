@@ -1,7 +1,7 @@
 //! Transform legality ([CR#701.27]).
 
-use deckmaste_core::Card;
-use deckmaste_core::FaceLayout;
+use deckmaste_card::Card;
+use deckmaste_card::FaceLayout;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 

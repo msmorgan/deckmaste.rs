@@ -501,8 +501,8 @@ fn retain_characteristic(result: &mut CopiableValues, ch: Characteristic) {
 mod tests {
     use std::sync::Arc;
 
-    use deckmaste_core::Card;
-    use deckmaste_core::CardFace;
+    use deckmaste_card::Card;
+    use deckmaste_card::CardFace;
     use deckmaste_core::CollectionOp;
     use deckmaste_core::CopiableValues;
     use deckmaste_core::CopyException;

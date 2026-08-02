@@ -8,6 +8,7 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 rand = "0.10.1"
 rand_chacha = "0.10.0"

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 use deckmaste_core::ConferralRule;
 use deckmaste_core::Counter;
 use deckmaste_core::DamageResultRule;

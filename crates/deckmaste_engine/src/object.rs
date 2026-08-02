@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use deckmaste_card::Card;
+use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
-use deckmaste_core::Card;
-use deckmaste_core::CardFace;
 use deckmaste_core::Ident;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;

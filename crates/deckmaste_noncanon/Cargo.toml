@@ -13,6 +13,7 @@ workspace = true
 noncanon_tests = []
 
 [dependencies]
+deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 deckmaste_engine = { version = "0.1.0", path = "../deckmaste_engine" }
 deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }

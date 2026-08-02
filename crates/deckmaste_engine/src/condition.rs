@@ -512,9 +512,9 @@ mod tests {
     /// (parser/canon-slice work), an e2e fixture test is the natural follow-up.
     #[test]
     fn intervening_if_rechecked_at_resolution() {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::EventFilter;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::TriggeredAbility;
@@ -962,7 +962,7 @@ mod tests {
             ..Frame::bare(carrier, PlayerId(0))
         };
 
-        let enter = |state: &mut GameState, card: &Arc<deckmaste_core::Card>| {
+        let enter = |state: &mut GameState, card: &Arc<deckmaste_card::Card>| {
             let cid = state.cards.push(Arc::clone(card), PlayerId(0));
             let id = state.objects.mint(
                 ObjectSource::Card(cid),

@@ -7,9 +7,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use deckmaste_card::Card;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
-use deckmaste_core::Card;
 use deckmaste_core::Count;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::Reference;

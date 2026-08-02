@@ -256,9 +256,9 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
+    use deckmaste_card::Card;
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::Card;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
     use deckmaste_core::Type;

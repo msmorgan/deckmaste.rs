@@ -417,7 +417,7 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use deckmaste_core::Card;
+    use deckmaste_card::Card;
     use deckmaste_core::Predicate;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -1067,8 +1067,8 @@ mod tests {
 
     // --- Attachment SBAs ([CR#704.5m..704.5p]) ---------------------------------
 
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::CardFace;
     use deckmaste_core::Condition;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
@@ -1749,11 +1749,11 @@ mod tests {
         name: &str,
         controller: PlayerId,
     ) -> crate::object::ObjectId {
-        let card = deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+        let card = deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: name.into(),
             types: vec![Type::Creature.def()],
             supertypes: vec![Supertype::Legendary],
-            ..deckmaste_core::CardFace::default()
+            ..deckmaste_card::CardFace::default()
         });
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state.objects.mint(
@@ -1772,11 +1772,11 @@ mod tests {
         name: &str,
         controller: PlayerId,
     ) -> crate::object::ObjectId {
-        let card = deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+        let card = deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: name.into(),
             types: vec![Type::Creature.def()],
             supertypes: vec![],
-            ..deckmaste_core::CardFace::default()
+            ..deckmaste_card::CardFace::default()
         });
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state.objects.mint(

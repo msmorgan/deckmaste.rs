@@ -576,7 +576,7 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use deckmaste_core::Card;
+    use deckmaste_card::Card;
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;

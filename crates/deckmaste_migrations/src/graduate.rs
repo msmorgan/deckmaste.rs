@@ -19,7 +19,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::graduated_name;
 use deckmaste_core::plugin::is_ron_todo_file;

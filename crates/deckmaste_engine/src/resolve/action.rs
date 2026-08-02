@@ -963,12 +963,12 @@ mod tests {
 
     use std::sync::Arc;
 
+    use deckmaste_card::Card;
+    use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::Anchor;
     use deckmaste_core::Binder;
-    use deckmaste_core::Card;
-    use deckmaste_core::CardFace;
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
@@ -1059,9 +1059,9 @@ mod tests {
     /// Creature)))` grant — an attachment that may legally attach to a
     /// creature host.
     fn may_attach_creature_equipment(state: &mut GameState) -> ObjectId {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Deontic;
         use deckmaste_core::DeonticAction;
         use deckmaste_core::StaticEffect;
@@ -1187,7 +1187,7 @@ mod tests {
     /// `Attached` fact is recorded.
     #[test]
     fn attach_illegal_noop() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
 
         let mut state = game();
         // The attachment: an Equipment-shaped artifact whose May(Attach) grant
@@ -1925,7 +1925,7 @@ mod tests {
                  from: Battlefield, to: Graveyard)))])";
             let card = builtin()
                 .macros
-                .read_str::<deckmaste_core::Card>(source)
+                .read_str::<deckmaste_card::Card>(source)
                 .unwrap();
             mint_on_field(&mut state, card)
         };
@@ -2342,7 +2342,7 @@ mod tests {
     /// backing card, never a pre-move `ObjectId`.
     fn zone_has_named(state: &GameState, zone: &[crate::object::ObjectId], name: &str) -> bool {
         zone.iter()
-            .any(|&o| matches!(state.def(o), deckmaste_core::Card::Normal(f) if &*f.name == name))
+            .any(|&o| matches!(state.def(o), deckmaste_card::Card::Normal(f) if &*f.name == name))
     }
 
     /// [CR#702.35a]: the madness window — a replacement over `Act(Discard)`
@@ -5539,7 +5539,7 @@ mod tests {
         front_pt: (deckmaste_core::Int, deckmaste_core::Int),
         back_pt: (deckmaste_core::Int, deckmaste_core::Int),
     ) -> ObjectId {
-        use deckmaste_core::FaceLayout;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::StatValue;
 
         let face = |name: &str, (p, t): (deckmaste_core::Int, deckmaste_core::Int)| CardFace {
@@ -5651,7 +5651,7 @@ mod tests {
     /// unchanged, no `Transformed` fact.
     #[test]
     fn transform_into_sorcery_face_is_a_noop() {
-        use deckmaste_core::FaceLayout;
+        use deckmaste_card::FaceLayout;
         use deckmaste_core::StatValue;
 
         use crate::object::Side;

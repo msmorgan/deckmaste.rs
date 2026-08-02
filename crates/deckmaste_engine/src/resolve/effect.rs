@@ -1962,9 +1962,9 @@ mod tests {
 
     use std::sync::Arc;
 
+    use deckmaste_card::Card;
     use deckmaste_core::Action;
     use deckmaste_core::Binder;
-    use deckmaste_core::Card;
     use deckmaste_core::ChosenValueKind;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
@@ -2466,10 +2466,10 @@ mod tests {
     /// need to mill/draw from.
     fn mint_in_library(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
         let cid = state.cards.push(
-            Arc::new(Card::Normal(deckmaste_core::CardFace {
+            Arc::new(Card::Normal(deckmaste_card::CardFace {
                 name: name.into(),
                 types: vec![Type::Creature.def()],
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             })),
             owner,
         );
@@ -2532,13 +2532,13 @@ mod tests {
         };
         mint_on_field(
             &mut state,
-            Card::Normal(deckmaste_core::CardFace {
+            Card::Normal(deckmaste_card::CardFace {
                 name: "Bruvac Stand-In".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![deckmaste_core::Ability::r#static(
                     deckmaste_core::StaticEffect::Replacement(Arc::new(bruvac)),
                 )],
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             }),
         );
 
@@ -2622,13 +2622,13 @@ mod tests {
         };
         mint_on_field(
             &mut state,
-            Card::Normal(deckmaste_core::CardFace {
+            Card::Normal(deckmaste_card::CardFace {
                 name: "Archive Stand-In".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![deckmaste_core::Ability::r#static(
                     deckmaste_core::StaticEffect::Replacement(Arc::new(archive)),
                 )],
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             }),
         );
 
@@ -2662,7 +2662,7 @@ mod tests {
         }
         mint_on_field(
             &mut state,
-            Card::Normal(deckmaste_core::CardFace {
+            Card::Normal(deckmaste_card::CardFace {
                 name: "Mill Watcher".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![deckmaste_core::Ability::triggered(
@@ -2684,7 +2684,7 @@ mod tests {
                         )),
                     },
                 )],
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             }),
         );
 
@@ -2716,12 +2716,12 @@ mod tests {
     fn batch_fight_records_one_aggregate_fact_per_fighter() {
         let mut state = game();
         let fighter = |name: &str| {
-            Card::Normal(deckmaste_core::CardFace {
+            Card::Normal(deckmaste_card::CardFace {
                 name: name.into(),
                 types: vec![Type::Creature.def()],
                 power: Some(deckmaste_core::StatValue::Number(2)),
                 toughness: Some(deckmaste_core::StatValue::Number(5)),
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             })
         };
         let a = mint_on_field(&mut state, fighter("Batch Fighter A"));
@@ -2776,12 +2776,12 @@ mod tests {
     fn batch_fight_with_zero_power_still_records_its_aggregate_fact() {
         let mut state = game();
         let fighter = |name: &str| {
-            Card::Normal(deckmaste_core::CardFace {
+            Card::Normal(deckmaste_card::CardFace {
                 name: name.into(),
                 types: vec![Type::Creature.def()],
                 power: Some(deckmaste_core::StatValue::Number(0)),
                 toughness: Some(deckmaste_core::StatValue::Number(1)),
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             })
         };
         let a = mint_on_field(&mut state, fighter("Zero Fighter A"));
@@ -2976,7 +2976,7 @@ mod tests {
     /// `moved_chain_resets_when_a_resolution_begins`.
     #[test]
     fn resolution_notes_clear_when_a_fresh_resolution_begins() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
         use deckmaste_core::StatValue;
 
         let (mut state, _a) = bear_on_field();
@@ -5181,8 +5181,8 @@ mod tests {
     /// spell on the stack (its first/only ability the `secrets` effect).
     /// Returns `(state, p0, library_before)`.
     fn secrets_on_stack(permanents: usize) -> (GameState, PlayerId, usize) {
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
-        use deckmaste_core::CardFace;
         use deckmaste_core::SpellAbility;
 
         let mut state = game();
@@ -5412,7 +5412,7 @@ mod tests {
     /// the same ordered vec inside the body frame.
     #[test]
     fn with_binds_those_and_top_of_library_is_ordered() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
         use deckmaste_core::With;
 
         let mut state = game();
@@ -5499,10 +5499,10 @@ mod tests {
     /// lone `push_back` object is the top card.
     fn mint_library_top(state: &mut GameState, owner: PlayerId, name: &str, ty: Type) -> ObjectId {
         let cid = state.cards.push(
-            Arc::new(Card::Normal(deckmaste_core::CardFace {
+            Arc::new(Card::Normal(deckmaste_card::CardFace {
                 name: name.into(),
                 types: vec![ty.def()],
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             })),
             owner,
         );
@@ -5517,10 +5517,10 @@ mod tests {
     fn explorer_on_field(state: &mut GameState) -> ObjectId {
         mint_on_field(
             state,
-            Card::Normal(deckmaste_core::CardFace {
+            Card::Normal(deckmaste_card::CardFace {
                 name: "Explorer".into(),
                 types: vec![Type::Creature.def()],
-                ..deckmaste_core::CardFace::default()
+                ..deckmaste_card::CardFace::default()
             }),
         )
     }
@@ -5608,7 +5608,7 @@ mod tests {
     /// `BottomOfLibrary` constructors).
     #[test]
     fn bottom_of_library_and_union_resolve_as_groups() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -5672,7 +5672,7 @@ mod tests {
     /// NOT repeated) panic baseline.
     #[test]
     fn top_of_graveyard_resolves_top_down_and_fizzles_on_bad_of() {
-        use deckmaste_core::CardFace;
+        use deckmaste_card::CardFace;
 
         let mut state = game();
         let p0 = PlayerId(0);

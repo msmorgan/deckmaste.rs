@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
-use deckmaste_core::Card;
+use deckmaste_card::Card;
 
 use crate::plugin::Plugin;
 

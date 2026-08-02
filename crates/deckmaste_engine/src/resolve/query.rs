@@ -1273,9 +1273,9 @@ mod tests {
     /// discriminates: it is legal for slot 1 and must still be absent.
     #[test]
     fn valid_targets_for_intersects_slots_rather_than_unioning_them() {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
         use deckmaste_core::Ability;
-        use deckmaste_core::Card;
-        use deckmaste_core::CardFace;
         use deckmaste_core::Quantity;
         use deckmaste_core::SpellAbility;
         use deckmaste_core::TargetSpec;

@@ -2,8 +2,8 @@
 //! accumulated from the event stream. Asserted across a seed batch, never
 //! per game.
 
-use deckmaste_core::Card;
-use deckmaste_core::CardFace;
+use deckmaste_card::Card;
+use deckmaste_card::CardFace;
 use deckmaste_core::Zone;
 use deckmaste_engine::AbilityActivated;
 use deckmaste_engine::Attacking;

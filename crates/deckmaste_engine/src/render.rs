@@ -6,9 +6,9 @@
 
 use std::sync::Arc;
 
+use deckmaste_card::Card;
 use deckmaste_core::Ability;
 use deckmaste_core::ActivatedAbility;
-use deckmaste_core::Card;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::ManaCost;
 use deckmaste_core::Uint;
