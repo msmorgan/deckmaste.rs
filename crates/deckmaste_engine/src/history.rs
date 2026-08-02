@@ -26,6 +26,13 @@ pub struct HistEntry {
     /// fresh id, so "these happened as ONE occurrence" ([CR#603.2c]) is
     /// readable from the log. `None` = a `Single` occurrence.
     pub batch: Option<Uint>,
+    /// The paying [`crate::stack::Payment`]'s id ([CR#118.10]), mirrored
+    /// off the fact's `Cause::payment` when it has one — `None` for a fact
+    /// with no cause, or one caused outside a payment. The representation
+    /// [CR#118.10] needs to be checkable ("a payment... applies to only one
+    /// spell, ability, or effect" — no event belongs to two payments); no
+    /// reader consumes it yet.
+    pub payment: Option<Uint>,
     pub fact: GameEvent,
     /// The fact's record for matching, with per-fact LKI participants
     /// ([CR#603.10a]) — built at record time. `None` for plumbing facts no
@@ -49,6 +56,7 @@ impl History {
         &mut self,
         turn: Uint,
         batch: Option<Uint>,
+        payment: Option<Uint>,
         fact: GameEvent,
         mut view: Option<FactView<'static>>,
     ) {
@@ -59,6 +67,7 @@ impl History {
         self.0.push(HistEntry {
             turn,
             batch,
+            payment,
             fact,
             view,
         });
@@ -173,9 +182,27 @@ mod tests {
     #[test]
     fn scan_windows_select_by_turn() {
         let mut h = History::default();
-        h.record(1, None, GameEvent::SpellCast(ObjectId::from_raw(1)), None);
-        h.record(2, None, GameEvent::SpellCast(ObjectId::from_raw(2)), None);
-        h.record(2, None, GameEvent::SpellCast(ObjectId::from_raw(3)), None);
+        h.record(
+            1,
+            None,
+            None,
+            GameEvent::SpellCast(ObjectId::from_raw(1)),
+            None,
+        );
+        h.record(
+            2,
+            None,
+            None,
+            GameEvent::SpellCast(ObjectId::from_raw(2)),
+            None,
+        );
+        h.record(
+            2,
+            None,
+            None,
+            GameEvent::SpellCast(ObjectId::from_raw(3)),
+            None,
+        );
 
         assert_eq!(
             h.scan(Lookback::ThisTurn, 2).count(),

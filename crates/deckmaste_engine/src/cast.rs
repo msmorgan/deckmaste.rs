@@ -466,11 +466,18 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// `RemoveCounters(This, LoyaltyCounter, X)`) pays the announced amount,
 /// exactly as the effect-side frame reads X. `None` when no X was announced
 /// (the common no-X cost), leaving each `Count::X`-free verb untouched.
+///
+/// `payment` ([CR#118.10]) is stamped onto every frame this call
+/// mints — the caller mints ONE [`crate::stack::Payment`] per cost payment
+/// (shared across every `verb_payment_items` call and cost-`With` step that
+/// payment's drain schedules) so every event this payment's verbs perform
+/// reads as `Agency::CostPayment` and shares one payment id.
 fn verb_payment_items(
     verbs: &[CoreAction],
     source: ObjectId,
     player: PlayerId,
     x: Option<Uint>,
+    payment: crate::stack::Payment,
 ) -> Vec<WorkItem> {
     verbs
         .iter()
@@ -478,6 +485,7 @@ fn verb_payment_items(
             // A cost verb names no targets; it may read the announced X.
             let mut frame = Frame::bare(source, player);
             frame.anaphora.x = x;
+            frame.payment = Some(payment);
             WorkItem::RunEffect {
                 effect: Arc::new(OneShotEffect::Act(verb.clone())),
                 frame,
@@ -1531,12 +1539,17 @@ impl GameState {
         match &pending.object {
             StackObject::Spell(o) => {
                 let object = *o;
+                // [CR#118.10]: one fresh payment id for this spell's WHOLE
+                // cost payment — shared by every verb this payment schedules
+                // below, so no event belongs to two payments.
+                let payment = self.mint_payment();
                 // [CR#601.2h]: pay the Phyrexian-life verb costs in the payment
                 // window — front-scheduled so they sit behind the pending mana
                 // decision (if any) and ahead of the `SpellCast` becomes-cast
                 // step. The source is the spell object; the payer its
                 // controller.
-                let mut items = verb_payment_items(&extra_verbs, object, controller, x_binding);
+                let mut items =
+                    verb_payment_items(&extra_verbs, object, controller, x_binding, payment);
                 // [CR#601.2b]: apply the announced X to the concretized mana
                 // ({X} -> Generic(announced_x); hybrid/Phyrexian already resolved).
                 let mana = concretize_x(&mana, announced_x);
@@ -1553,6 +1566,7 @@ impl GameState {
                                 object,
                                 controller,
                                 x_binding,
+                                payment,
                             ));
                         }
                         other => todo!(
@@ -1593,6 +1607,11 @@ impl GameState {
                 let source = *source;
                 let summary = crate::activate::cost_summary(&ability.cost)
                     .expect("can_activate vetted the cost");
+                // [CR#118.10]: one fresh payment id for this activation's
+                // WHOLE cost payment — shared by every verb/`With` step this
+                // payment schedules below, so no event belongs to two
+                // payments.
+                let payment = self.mint_payment();
                 // Costs are paid at [CR#601.2h,602.2b]: schedule the {T}/{Q}
                 // events and the verb costs at the agenda FRONT — they sit
                 // behind the pending mana decision (if any) and ahead of the
@@ -1629,12 +1648,14 @@ impl GameState {
                     source,
                     controller,
                     x_binding,
+                    payment,
                 ));
                 items.extend(verb_payment_items(
                     &extra_verbs,
                     source,
                     controller,
                     x_binding,
+                    payment,
                 ));
                 // [CR#601.2b,601.2h]: pay each cost-side `With` choose-then-pay
                 // step. Rendered as an `OneShotEffect::With` (choosing kept OUT of the
@@ -1646,9 +1667,11 @@ impl GameState {
                 for with in &summary.withs {
                     let effect =
                         crate::decide::unless_cost_effect(with, &deckmaste_core::Reference::You);
+                    let mut frame = Frame::bare(source, controller);
+                    frame.payment = Some(payment);
                     items.push(WorkItem::RunEffect {
                         effect: Arc::new(effect),
-                        frame: Frame::bare(source, controller),
+                        frame,
                     });
                 }
                 // [CR#601.2h,702.122a]: pay each aggregate-stat (tap-total) cost

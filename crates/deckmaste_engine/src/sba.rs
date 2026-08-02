@@ -322,6 +322,7 @@ fn stamp_sba_cause(ev: &mut GameEvent) {
                 verb: "Move".into(),
                 agency: deckmaste_core::Agency::StateBasedAction,
                 agent: None,
+                payment: None,
             });
         }
     }

@@ -558,6 +558,7 @@ impl GameState {
             controller: ct.controller,
             this: bindings.this.clone(),
             defending_player: bindings.defending_player,
+            payment: None,
             anaphora: Anaphora {
                 that_object: bindings.that_object.clone(),
                 that_player: bindings.that_player,
@@ -827,6 +828,7 @@ impl GameState {
                         // Exophoric: the firing object's snapshot + combat defender.
                         this: Some(this.clone()),
                         defending_player: bindings.defending_player,
+                        payment: None,
                         // Endophoric event roles (no targets chosen at the gate).
                         anaphora: Anaphora {
                             that_object: bindings.that_object.clone(),
@@ -2175,6 +2177,7 @@ mod tests {
             verb: "Destroy".into(),
             agency: deckmaste_core::Agency::StateBasedAction,
             agent: None,
+            payment: None,
         }
     }
 
@@ -2237,6 +2240,7 @@ mod tests {
                 verb: "Sacrifice".into(),
                 agency: deckmaste_core::Agency::EffectInstruction,
                 agent: None,
+                payment: None,
             },
         );
         assert!(
@@ -2306,6 +2310,7 @@ mod tests {
                 verb: "Destroy".into(),
                 agency: deckmaste_core::Agency::EffectInstruction,
                 agent: None,
+                payment: None,
             },
         );
         assert!(state.event_matches(&pattern, &sba, watcher_source));
@@ -2353,6 +2358,7 @@ mod tests {
                 verb: "Destroy".into(),
                 agency: deckmaste_core::Agency::EffectInstruction,
                 agent: Some((agent, PlayerId(1))),
+                payment: None,
             },
         );
         let agentless = zone_changed_with_cause(
@@ -2464,6 +2470,7 @@ mod tests {
                 verb: "Tap".into(),
                 agency: deckmaste_core::Agency::CostPayment,
                 agent: None,
+                payment: None,
             }),
         });
         let effect_tap = GameEvent::Tapped(Tapped {
@@ -2472,6 +2479,7 @@ mod tests {
                 verb: "Tap".into(),
                 agency: deckmaste_core::Agency::EffectInstruction,
                 agent: None,
+                payment: None,
             }),
         });
         assert!(state.event_matches(&pattern, &cost_tap, watcher_source));
@@ -2950,6 +2958,7 @@ mod tests {
                     verb: "Sacrifice".into(),
                     agency: deckmaste_core::Agency::EffectInstruction,
                     agent: None,
+                    payment: None,
                 },
             )
         };
@@ -5505,6 +5514,7 @@ mod tests {
                     verb: "Draw".into(),
                     agency: deckmaste_core::Agency::EffectInstruction,
                     agent: None,
+                    payment: None,
                 }),
             })
         };

@@ -283,7 +283,7 @@ pub struct Anaphora {
     /// `bindIt`), so an outer share can never leak into a nested loop. `None`
     /// outside a `Distribute` body.
     pub allotment: Option<deckmaste_core::Uint>,
-    /// The event OBJECT ([CR#603.2e,608.2k]) — the moved/acting object a fired
+    /// The event OBJECT ([CR#608.2k]) — the moved/acting object a fired
     /// trigger carried, or the object an `AdditionalCost` payment bound. Read
     /// by `Reference::EventObject`.
     pub that_object: Option<LkiSnapshot>,
@@ -337,6 +337,24 @@ impl Anaphora {
     }
 }
 
+/// A cost payment in progress ([CR#118.10]): stamped on every
+/// [`Frame`] the payment's own drain runs against (each cost-eligible verb,
+/// each toll component), never on the frame of what comes AFTER a payment
+/// (`if_did`/`if_not`, an `AdditionalCost` body) — those name the
+/// CONSEQUENCE, not the payment. `id` is a fresh monotonic id minted once per
+/// payment ([`crate::state::GameState::mint_payment`]) and shared by every
+/// `Frame` in that one payment's drain — the representation [CR#118.10]
+/// needs to be checkable ("a payment... applies to only one spell, ability,
+/// or effect"; no event belongs to two payments), though nothing reads it
+/// back yet ([CR#118.10] correction — see the T4 brief). Presence alone
+/// already answers the AGENCY question (`Cause::*` construction sites read
+/// `frame.payment.is_some()` to choose `Agency::CostPayment`); `id` answers
+/// the identity question.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Payment {
+    pub id: deckmaste_core::Uint,
+}
+
 /// The binding environment a resolving effect reads ([CR#608.2]), split along
 /// the anaphora/exophora line. The always-available **exophoric** refs that
 /// name the game *situation* stay here — `source`/`controller` (read by
@@ -355,6 +373,11 @@ pub struct Frame {
     /// The combat DEFENDING player ([CR#506.2,508.5]) — always a player,
     /// exophoric. Read by `Reference::DefendingPlayer`; `None` outside combat.
     pub defending_player: Option<PlayerId>,
+    /// `Some` iff this frame is running as part of a cost payment's drain
+    /// ([CR#118.10]) — see [`Payment`]. `None` (the default, via
+    /// [`Frame::bare`]) keeps every existing `Cause::*` construction exactly
+    /// as `Agency::EffectInstruction`.
+    pub payment: Option<Payment>,
     /// The text-internal binding environment — targets, the `It`/`That`
     /// anaphors, the `Distribute` allotment, the chosen value, X, and the
     /// firing event's roles. See [`Anaphora`].
@@ -364,9 +387,9 @@ pub struct Frame {
 impl Frame {
     /// A bare resolution frame: the exophoric `source`/`controller`, no trigger
     /// snapshot (a spell frame — `Reference::This` reads the live `source`), no
-    /// combat defender, and an empty [`Anaphora`]. The common starting shape
-    /// for gate/payability/instant frames; add targets, X, or an anaphor by
-    /// populating `.anaphora`.
+    /// combat defender, not a payment, and an empty [`Anaphora`]. The common
+    /// starting shape for gate/payability/instant frames; add targets, X, or
+    /// an anaphor by populating `.anaphora`.
     #[must_use]
     pub fn bare(source: ObjectId, controller: PlayerId) -> Self {
         Frame {
@@ -374,6 +397,7 @@ impl Frame {
             controller,
             this: None,
             defending_player: None,
+            payment: None,
             anaphora: Anaphora::empty(),
         }
     }

@@ -429,6 +429,15 @@ pub struct GameState {
     /// the history log keeps "these facts were one simultaneous event"
     /// ([CR#603.2c] — a batch is ONE occurrence).
     pub next_batch: Uint,
+    /// Monotonically increasing payment-id source ([CR#118.10]): every
+    /// cost payment a scheduler starts (`crate::cast::pay_cost`'s spell/
+    /// activation arms, the `May(Pay)` toll path, an `AdditionalCost` arm)
+    /// mints one fresh id here (`mint_payment`) and stamps it on every
+    /// `Frame` that payment's drain runs against
+    /// ([`crate::stack::Payment`]). Deliberately separate from `next_batch`
+    /// — a batch is [CR#603.3b] SIMULTANEITY grouping, a wholly different
+    /// concept from a payment; conflating them would corrupt history reads.
+    pub next_payment: Uint,
     /// The batch-evolution collector: `Some` only while `apply_occurrence`
     /// is applying a `Batch`'s members. Intent evolutions (`Act(Destroy)` →
     /// future-form `ZoneChange` → past-form `ZoneChange`, a draw's move, a
@@ -602,12 +611,23 @@ impl GameState {
             next_shield_id: 0,
             look_grants: std::collections::HashSet::new(),
             next_batch: 0,
+            next_payment: 0,
             evolving_batch: None,
             noted: std::collections::HashMap::new(),
             noting: Vec::new(),
             resolution_notes: std::collections::HashMap::new(),
             arrange_scope: None,
         }
+    }
+
+    /// Mints a fresh [`crate::stack::Payment`] id ([CR#118.10]) — call
+    /// ONCE per cost payment (never per verb) and stamp the result on every
+    /// `Frame` that payment's drain runs against, so the whole payment
+    /// shares one id.
+    pub(crate) fn mint_payment(&mut self) -> crate::stack::Payment {
+        let id = self.next_payment;
+        self.next_payment += 1;
+        crate::stack::Payment { id }
     }
 
     /// # Panics

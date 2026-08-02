@@ -231,11 +231,33 @@ impl DecisionHandler for YesNo {
             } => {
                 let items: Vec<WorkItem> = if yes {
                     let payer = g.acting_player(&who, &frame);
+                    // [CR#608.2k,118.12]: the payment's DECISION RECORD,
+                    // captured now — at the payer's CHOICE, not scraped from
+                    // events afterward — object and actor only (actor = the
+                    // payer, statically known). `bindEvent`'s `notEventRoleA`
+                    // clears any stale outer event-role binding FIRST
+                    // ([CR#608.2k] — one antecedent set per body) so an
+                    // enclosing trigger/effect's own roles can't leak into
+                    // `if_did`.
+                    let mut if_did_frame = frame.clone();
+                    if_did_frame.anaphora.that_object = None;
+                    if_did_frame.anaphora.that_player = None;
+                    if_did_frame.anaphora.that_patient = None;
+                    if let Some(snapshot) = g.cost_paid_object(&cost, &frame) {
+                        if_did_frame.anaphora.that_object = Some(snapshot);
+                    }
+                    if_did_frame.anaphora.that_player = Some(payer);
+                    // [CR#118.10]: one fresh payment id for this whole toll
+                    // walk — `if_did_frame` (the consequence) never carries
+                    // it.
+                    let payment = g.mint_payment();
+                    let mut payment_frame = frame.clone();
+                    payment_frame.payment = Some(payment);
                     cost.iter()
-                        .map(|c| crate::decide::toll_item(c, &who, payer, &frame))
+                        .map(|c| crate::decide::toll_item(c, &who, payer, &payment_frame))
                         .chain(if_did.into_iter().map(|effect| WorkItem::RunEffect {
                             effect,
-                            frame: frame.clone(),
+                            frame: if_did_frame.clone(),
                         }))
                         .collect()
                 } else {

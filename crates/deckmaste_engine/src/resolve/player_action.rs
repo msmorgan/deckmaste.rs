@@ -60,6 +60,20 @@ impl GameState {
     )]
     pub(super) fn player_action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         use crate::event::Occurrence;
+        // [CR#601.2h]: a cost-eligible verb performed to pay a cost is that
+        // AGENCY, not a plain effect instruction — see the mirrored
+        // computation and doc in `resolve/action.rs::composite_items`. Tap
+        // stays out of this: its cost-payment `Tapped` events are stamped
+        // directly at their own call sites (cast.rs et al.), never through
+        // this dispatch, so this arm's `Cause::tap` below is always the
+        // effect-instruction reading.
+        let agency = if frame.payment.is_some() {
+            Agency::CostPayment
+        } else {
+            Agency::EffectInstruction
+        };
+        // [CR#118.10]: the paying payment's id, when there is one.
+        let payment_id = frame.payment.map(|p| p.id);
         match action {
             Action::Tap(sel) => {
                 // [CR#701.26a]: only an untapped permanent can be tapped — a
@@ -170,10 +184,10 @@ impl GameState {
                             // [CR#701.21a]: never a destruction — regeneration
                             // can't replace it; the cause says so.
                             face: None,
-                            cause: Some(Cause::sacrifice(
-                                Agency::EffectInstruction,
-                                Some((frame.source, actor)),
-                            )),
+                            cause: Some(
+                                Cause::sacrifice(agency, Some((frame.source, actor)))
+                                    .with_payment(payment_id),
+                            ),
                         })
                     })
                     .collect();
@@ -487,10 +501,13 @@ impl GameState {
                             // Apply-computed totals ([CR#714.2b]).
                             before: 0,
                             after: 0,
-                            cause: Some(crate::event::Cause::put_counters(
-                                deckmaste_core::Agency::EffectInstruction,
-                                Some((frame.source, frame.controller)),
-                            )),
+                            cause: Some(
+                                crate::event::Cause::put_counters(
+                                    agency,
+                                    Some((frame.source, frame.controller)),
+                                )
+                                .with_payment(payment_id),
+                            ),
                         })
                     })
                     .collect();
@@ -513,10 +530,13 @@ impl GameState {
                             object,
                             kind: kind.0,
                             amount: n,
-                            cause: Some(crate::event::Cause::remove_counters(
-                                deckmaste_core::Agency::EffectInstruction,
-                                Some((frame.source, frame.controller)),
-                            )),
+                            cause: Some(
+                                crate::event::Cause::remove_counters(
+                                    agency,
+                                    Some((frame.source, frame.controller)),
+                                )
+                                .with_payment(payment_id),
+                            ),
                         })
                     })
                     .collect();

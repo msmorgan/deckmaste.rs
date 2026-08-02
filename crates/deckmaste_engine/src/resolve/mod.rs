@@ -143,6 +143,7 @@ impl GameState {
                         controller: entry.controller,
                         this: None,
                         defending_player: None,
+                        payment: None,
                         anaphora: Anaphora {
                             targets: entry.targets.clone(),
                             x: entry.x,
@@ -245,6 +246,7 @@ impl GameState {
                     // Exophoric: the firing object's LKI and the combat defender.
                     this: bindings.this.clone(),
                     defending_player: bindings.defending_player,
+                    payment: None,
                     // Endophoric: the targets plus the event's bound roles.
                     anaphora: Anaphora {
                         targets: entry.targets.clone(),
@@ -306,6 +308,7 @@ impl GameState {
                         // Exophoric: the source snapshot and combat defender.
                         this: Some(this.clone()),
                         defending_player: bindings.defending_player,
+                        payment: None,
                         // Endophoric: targets, announced X, and event roles.
                         anaphora: Anaphora {
                             targets: entry.targets.clone(),

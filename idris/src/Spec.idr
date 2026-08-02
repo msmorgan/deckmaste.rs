@@ -548,6 +548,21 @@ tActivated : Ability Base
 tActivated = Activated (Costs [Mana [^2], Do (Tap This), Do (LoseLife (Literal 1))])
                        (Act (Draw (^1)))
 
+-- a root/printed activation cost stays UNBOUND by type ([CR#608.2k]) — unlike
+-- `AdditionalCost`/`mayPayCostBy`, which deliberately `bindEvent` their
+-- payment's caps into the effect that follows, `activatedFull`'s effect
+-- parameter is `OneShotEffect b`, the SAME ambient `b` the cost and the
+-- surrounding ability carry — never `OneShotEffect (bindEvent (costCaps
+-- cost) (costRoles (costCaps cost)) b)`. Pinned as the FULL signature
+-- (`activatedFull`'s own type, specialized at `b = Base`): a future edit
+-- that routed a printed cost's caps into its own ability's effect (making
+-- `EventObject`/`EventActor` reachable there just because the cost
+-- sacrifices/exiles something) would change `activatedFull`'s inferred type
+-- and this line would stop typechecking.
+tActivatedRootCostUnbound : Cost Base -> OneShotEffect Base -> Timing
+                          -> List UsageLimit -> List Zone -> Maybe (Condition Base) -> Ability Base
+tActivatedRootCostUnbound = activatedFull
+
 -- cost-payment DECISIONS, the collapsed `May (Act (Pay cost))` shape ([CR#118.12a]): MAY-pay
 -- (optional, reward + downside) and MUST-pay (pay or be punished) are the same node, `ifDid`
 -- present vs absent. The full `Cost` algebra rides both (here life / mana); the MayPay "if

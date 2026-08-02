@@ -635,6 +635,18 @@ impl GameState {
         };
         // The move verbs' agent: the resolving source and its controller.
         let agent = Some((frame.source, frame.controller));
+        // [CR#601.2h]: a verb performed to pay a cost is that AGENCY, not a
+        // plain effect instruction — `frame.payment` (set only by the
+        // payment schedulers, `crate::stack::Payment`) is the sole signal;
+        // an ordinary resolution frame keeps today's `EffectInstruction`.
+        let agency = if frame.payment.is_some() {
+            Agency::CostPayment
+        } else {
+            Agency::EffectInstruction
+        };
+        // [CR#118.10]: the paying payment's id, when there is one — chained
+        // onto the causes below via `Cause::with_payment`.
+        let payment_id = frame.payment.map(|p| p.id);
 
         // Dispatch on the verb NAME ([CR#701]); each verb reads its own
         // performer/patient references off the stored `body` (the same body
@@ -664,7 +676,7 @@ impl GameState {
                     vec![on],
                     Some(from),
                     Some(to),
-                    Some(Cause::destroy(Agency::EffectInstruction, agent)),
+                    Some(Cause::destroy(agency, agent).with_payment(payment_id)),
                     false,
                 );
                 self.act_window(act, FinalizeWatch::Patients(vec![on]))
@@ -695,7 +707,7 @@ impl GameState {
                         vec![on],
                         Some(from),
                         Some(to),
-                        Some(Cause::discard(Agency::EffectInstruction, agent)),
+                        Some(Cause::discard(agency, agent).with_payment(payment_id)),
                         false,
                     );
                     self.act_window(act, FinalizeWatch::Patients(vec![on]))
@@ -729,7 +741,7 @@ impl GameState {
                         vec![],
                         None,
                         None,
-                        Some(Cause::discard(Agency::EffectInstruction, agent)),
+                        Some(Cause::discard(agency, agent).with_payment(payment_id)),
                         true,
                     );
                     vec![WorkItem::Emit(Occurrence::single(act))]
@@ -763,7 +775,7 @@ impl GameState {
                     vec![],
                     Some(Zone::Library),
                     Some(Zone::Graveyard),
-                    Some(Cause::mill(Agency::EffectInstruction, agent)),
+                    Some(Cause::mill(agency, agent).with_payment(payment_id)),
                     true,
                 );
                 self.act_window(act, FinalizeWatch::Patients(patients))
@@ -1801,6 +1813,7 @@ mod tests {
                         verb: "Tap".into(),
                         agency: deckmaste_core::Agency::EffectInstruction,
                         agent: Some((src, PlayerId(0))),
+                        payment: None,
                     }),
                 }
             )))]
@@ -4106,6 +4119,55 @@ mod tests {
         assert!(!state.zones.battlefield.contains(&bear));
         assert_eq!(state.zones.graveyards[0].len(), 1);
         assert_ne!(state.zones.graveyards[0][0], bear, "reminted");
+    }
+
+    /// [CR#118.10]: a `Frame.payment` (minted by `GameState::mint_payment`)
+    /// is the sole signal a `Cause::*` construction site reads to choose
+    /// `Agency::CostPayment` over the default `EffectInstruction` — and the
+    /// SAME payment id rides the cause. Two mints are distinct; a
+    /// non-payment frame is untouched (today's behavior exactly).
+    #[test]
+    fn payment_frame_stamps_cost_payment_agency_and_carries_its_id() {
+        let (mut state, bear) = bear_on_field();
+        let p1 = state.mint_payment();
+        let p2 = state.mint_payment();
+        assert_ne!(p1.id, p2.id, "each payment mints a fresh id [CR#118.10]");
+
+        let mut paying_frame = frame_src(bear);
+        paying_frame.payment = Some(p1);
+        let items = state.action_items(
+            &Action::Sacrifice(Reference::You, Reference::This),
+            &paying_frame,
+        );
+        let [
+            WorkItem::Emit(Occurrence::Single(GameEvent::ZoneChange(ZoneChange {
+                cause: Some(cause),
+                ..
+            }))),
+        ] = items.as_slice()
+        else {
+            panic!("expected a single sacrifice ZoneChange, got {items:?}");
+        };
+        assert_eq!(cause.agency, deckmaste_core::Agency::CostPayment);
+        assert_eq!(cause.payment, Some(p1.id));
+
+        // The exact same verb, over a plain (non-payment) frame — unchanged.
+        let plain_frame = frame_src(bear);
+        let items = state.action_items(
+            &Action::Sacrifice(Reference::You, Reference::This),
+            &plain_frame,
+        );
+        let [
+            WorkItem::Emit(Occurrence::Single(GameEvent::ZoneChange(ZoneChange {
+                cause: Some(cause),
+                ..
+            }))),
+        ] = items.as_slice()
+        else {
+            panic!("expected a single sacrifice ZoneChange, got {items:?}");
+        };
+        assert_eq!(cause.agency, deckmaste_core::Agency::EffectInstruction);
+        assert_eq!(cause.payment, None);
     }
 
     /// A sacrifice rides the same death pipeline as a destroy: the sacrificed

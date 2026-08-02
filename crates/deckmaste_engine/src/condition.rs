@@ -462,6 +462,7 @@ mod tests {
             controller: PlayerId(0),
             this: Some(LkiSnapshot::capture(&state, bear)),
             defending_player: None,
+            payment: None,
             anaphora: Anaphora {
                 targets: vec![vec![bear]],
                 ..Anaphora::empty()

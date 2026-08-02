@@ -666,7 +666,7 @@ ChoiceRefKindOk _        = Void
 -- THE ANTECEDENT STACK (v2). The binding context is an ordered stack of
 -- ANTECEDENTS — one entry per thing the text has introduced (an announced
 -- target slot [CR#115.3], a producing clause's moved/created object
--- [CR#400.7], an event body's roles [CR#603.2e,608.2k], a binder's choice
+-- [CR#400.7], an event body's roles [CR#608.2k], a binder's choice
 -- [CR#608.2d], a loop element) — and references are SORTED ANAPHORS resolved
 -- against it: R1 nearest-compatible, R2 uniqueness gate, R3 strictly leftward
 -- (the telescope `Sequentially` below threads introductions in sentence order).
@@ -764,7 +764,7 @@ reaches (Just w) h = compat w h
 
 -- WHERE an antecedent came from — the survival rules key on it: `Delayed`
 -- bodies drop `TargetSlot`s and keep `Product`s ([CR#603.7c]); event bodies
--- replace `EventRole`s ([CR#603.2e]); loop bodies clear `Allot` ([CR#601.2d]).
+-- replace `EventRole`s ([CR#608.2k]); loop bodies clear `Allot` ([CR#601.2d]).
 -- `Frame` is a `With`/pile CHOICE binder — the legacy deterministic scope:
 -- anaphors inside it bind the frame directly, never R2-gated ([CR#608.2d]).
 namespace Site
@@ -1051,7 +1051,7 @@ eventKindObjectSort RollDice = Permanent                   -- (no object cap; un
 eventKindObjectSort (FlipCoin _) = Permanent               -- (no object cap; unused)
 eventKindObjectSort (RollPlanarDie _) = Permanent          -- (no object cap; unused)
 
--- one antecedent per CAPS guarantee ([CR#603.2e,608.2k]): the roles an
+-- one antecedent per CAPS guarantee ([CR#608.2k]): the roles an
 -- event/payment body pushes for its anaphora — object, patient (sort fixed
 -- by its kind), actor, amount, defending player. Push order mirrors the
 -- Rust walker (later pushes land nearer).
@@ -1155,7 +1155,7 @@ bindAllot a b = MkCtx (MkAnt Amount Anything One Allot Nothing Nothing :: MkAnt 
 
 -- entering a trigger/replacement/delayed/payment body: carry the event's
 -- CAPS and push one role antecedent per guarantee; an inner event's roles
--- SHADOW an outer's ([CR#603.2e] — one antecedent set per body).
+-- SHADOW an outer's ([CR#608.2k] — one antecedent set per body).
 public export
 bindEvent : EventCaps -> List Ant -> Ctx -> Ctx
 bindEvent caps roles b = MkCtx (reverse roles ++ filter notEventRoleA (stack b)) (targets b) caps (chosenKind b) (chosenRefKind b)
@@ -1304,7 +1304,7 @@ mutual
       -- per `compat`, R2 strict — a second compatible antecedent is a type
       -- error, not a guess). Inside a `With`/pile choice frame it binds the
       -- frame deterministically. Antecedents are pushed by producing clauses
-      -- ([CR#400.7]), event bodies ([CR#603.2e]), and binders ([CR#608.2d]) —
+      -- ([CR#400.7]), event bodies ([CR#608.2k]), and binders ([CR#608.2d]) —
       -- NOT by announced target slots, which are read positionally as
       -- `Target n`. This is the read for a move's PRODUCT ("exile target
       -- creature … return that card": the card is a new object, so `Target 0`
@@ -1586,7 +1586,7 @@ mutual
       -- (TurnOf …)`), so timing atoms live once in `Condition` ([CR#603.2]). `Within` stays (no Condition twin).
       Whenever : Condition b -> Facet b
       -- "this is the Nth event (matching the surrounding facets) in the window" — an ORDINAL facet,
-      -- engine-resolved like `EventCount` ([CR#603.2e] "the first time each…"). `IsFirst` is the `n=1`
+      -- engine-resolved like `EventCount`. `IsFirst` is the `n=1`
       -- sugar (below). Erayo "4th spell cast each turn" = `IsNth 4 ThisTurn`; "your second draw each turn"
       -- = `IsNth 2 ThisTurn`. `n=0` never matches (a harmless no-op). Notion Thief: "except the first draw
       -- each draw step" = `Not (And [Whenever (During drawStep), IsFirst ThisStep])`.
@@ -1595,7 +1595,7 @@ mutual
       Or   : List (Facet b) -> Facet b   -- OR
       Not : Facet b -> Facet b          -- NOT
 
-    -- "the FIRST matching event in the window" — sugar for the `n=1` ordinal ([CR#603.2e]).
+    -- "the FIRST matching event in the window" — sugar for the `n=1` ordinal.
     public export
     IsFirst : Window -> Facet b
     IsFirst = IsNth 1
@@ -1751,7 +1751,7 @@ mutual
     [] => Permanent
     (s :: ss) => if all (sameSort s) ss then s else Permanent
 
-  -- the role antecedents an event body pushes ([CR#603.2e,608.2k]): one per
+  -- the role antecedents an event body pushes ([CR#608.2k]): one per
   -- caps guarantee, the object's noun derived from the query's kinds.
   public export
   queryRoles : EventQuery b -> List Ant
@@ -2508,8 +2508,9 @@ mutual
   actionEventCaps (Action.Pay _)              = NoCaps
 
   -- the caps a COST's payment supplies its `AdditionalCost` body: an action pays via its event; a composite
-  -- `Costs […]` UNIONS (any object-moving component binds), `Scaled` rides its inner cost; pure mana binds
-  -- nothing. Mirrors `eventQueryCaps` — the value-driven cap derivation an `AdditionalCost` body's type uses.
+  -- `Costs […]` binds ONLY when EXACTLY ONE component actually supplies an event (see `costsCaps`); `Scaled`
+  -- rides its inner cost; pure mana binds nothing. Mirrors `eventQueryCaps` — the value-driven cap derivation
+  -- an `AdditionalCost` body's type uses.
   public export
   costCaps : Cost b -> EventCaps
   costCaps (Do a)          = actionEventCaps a
@@ -2519,11 +2520,38 @@ mutual
   costCaps (ManaCostOf _)  = NoCaps
   costCaps (TapTotal _ _ _ _) = NoCaps
 
-  -- the composite fold, spelled recursively (structural, so totality sees it).
+  -- a component's caps are non-`NoCaps` iff it actually supplies SOME role — the discriminator `costsCaps`
+  -- folds over to count real events, distinct from a capless component (`Mana`/`TapTotal`/a non-event `Do`)
+  -- contributing nothing to count.
+  public export
+  capsPresent : EventCaps -> Bool
+  capsPresent (MkEventCaps o a m p d pm) = o || a || m || isJust p || d || pm
+
+  -- `costsCaps`'s structural fold, spelled with an explicit accumulator (Idris's totality checker can't see
+  -- through `map`/`filter` to the mutually-recursive `costCaps` call, so this stays a direct `c :: cs` walk
+  -- like the original `orCaps` fold it replaces). `acc` is the ONE real event's caps seen so far; a SECOND
+  -- real event short-circuits straight to `NoCaps` (equivalent to scanning the rest and getting `NoCaps`
+  -- anyway, since the count can only grow).
+  public export
+  costsCapsGo : Maybe EventCaps -> List (Cost b) -> EventCaps
+  costsCapsGo acc [] = fromMaybe NoCaps acc
+  costsCapsGo acc (c :: cs) with (capsPresent (costCaps c))
+    costsCapsGo acc      (c :: cs) | False = costsCapsGo acc cs
+    costsCapsGo Nothing  (c :: cs) | True  = costsCapsGo (Just (costCaps c)) cs
+    costsCapsGo (Just _) (c :: cs) | True  = NoCaps
+
+  -- the composite fold ([CR#608.2k,118.10]): a body reading a cost→effect role (`EventObject`/`EventActor`/
+  -- `EventPatient`) refers to ONE event — so a multi-component cost binds its roles ONLY when EXACTLY ONE
+  -- component actually supplies an event ([CR#118.10] "a payment... applies to only one spell, ability, or
+  -- effect", extended here to the payment's OWN internal event-count). Zero real events (pure mana/tap-total)
+  -- ⇒ `NoCaps`, unchanged. Two-or-more real events (e.g. `Costs [Do Sacrifice, Do Discard]`) ⇒ `NoCaps` too —
+  -- AMBIGUOUS, so a body-side role read now FAILS TO TYPECHECK (`hasObject (eventCaps b) = True` has no
+  -- proof) instead of silently reading whichever component the Rust walker (`cost_paid_object`) happens to
+  -- see first. Upgrades the previous unconditional `orCaps` union, which bound roles for ANY qualifying
+  -- multi-component cost regardless of count.
   public export
   costsCaps : List (Cost b) -> EventCaps
-  costsCaps [] = NoCaps
-  costsCaps (c :: cs) = orCaps (costCaps c) (costsCaps cs)
+  costsCaps cs = costsCapsGo Nothing cs
 
   -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
   -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).

@@ -1108,7 +1108,13 @@ impl GameState {
         } else {
             crate::eval::FactView::of(self, &event).map(|v| v.into_lki(self))
         };
-        self.history.record(turn, batch, event, view);
+        // [CR#118.10]: mirror the fact's cause-carried payment id (if any)
+        // onto the entry — see `HistEntry::payment`.
+        let payment = view
+            .as_ref()
+            .and_then(|v| v.cause.as_ref())
+            .and_then(|c| c.payment);
+        self.history.record(turn, batch, payment, event, view);
     }
 
     /// Feeds one enacted fact to every OPEN `Noting` collection

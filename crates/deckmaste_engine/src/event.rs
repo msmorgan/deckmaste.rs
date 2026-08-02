@@ -44,6 +44,14 @@ pub struct Cause {
     pub verb: deckmaste_core::Ident,
     pub agency: deckmaste_core::Agency,
     pub agent: Option<(ObjectId, PlayerId)>,
+    /// The paying [`crate::stack::Payment`]'s id ([CR#118.10]), when
+    /// this cause's `agency` is `Agency::CostPayment` — `None` for every
+    /// other agency. Set via [`Cause::with_payment`] at the same
+    /// `Cause::*` construction sites that choose `Agency::CostPayment`, so
+    /// the history log ([`crate::history::HistEntry::payment`]) can (one
+    /// day) check [CR#118.10] — no event belongs to two payments. Nothing
+    /// reads it back yet.
+    pub payment: Option<Uint>,
 }
 
 /// Named constructors for the cause triple. Each fixes the VERB spelling in
@@ -68,7 +76,20 @@ impl Cause {
             verb: verb.into(),
             agency,
             agent,
+            payment: None,
         }
+    }
+
+    /// Stamps the paying [`crate::stack::Payment`]'s id ([CR#118.10]) onto
+    /// an already-built cause — chained at a `Cause::*` construction site
+    /// that reads `frame.payment` to choose `Agency::CostPayment`, e.g.
+    /// `Cause::destroy(agency, agent).with_payment(frame.payment.map(|p|
+    /// p.id))`. A `None` id (the frame isn't a payment) is a no-op, so this
+    /// is safe to chain unconditionally.
+    #[must_use]
+    pub fn with_payment(mut self, payment: Option<Uint>) -> Self {
+        self.payment = payment;
+        self
     }
 
     /// "Destroy" ([CR#701.8a]) — one of "destroyed"'s exactly two causes
@@ -845,6 +866,7 @@ mod tests {
                 verb: "Destroy".into(),
                 agency: Agency::StateBasedAction,
                 agent: None,
+                payment: None,
             }
         );
         assert_eq!(
@@ -853,6 +875,7 @@ mod tests {
                 verb: "Destroy".into(),
                 agency: Agency::EffectInstruction,
                 agent,
+                payment: None,
             }
         );
         assert_eq!(

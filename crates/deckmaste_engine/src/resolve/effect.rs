@@ -1265,10 +1265,31 @@ impl GameState {
             OneShotEffect::RevealUntil(_) => {}
             OneShotEffect::AdditionalCost(ac) => {
                 let cost = ac.pay.normalize().0;
+                // [CR#608.2k,118.12]: the payment's DECISION RECORD, captured
+                // when the payer chooses to pay (here, at schedule time —
+                // the cost hasn't run yet, but a directly-resolvable or
+                // already-`That`-bound reference is already fixed) — object
+                // and actor only (the payer, statically known: [CR#601.2b]
+                // an additional cost is never another player's). Amount and
+                // patient stay documented seams. `bindEvent`'s
+                // `notEventRoleA` clears any stale outer event-role binding
+                // FIRST ([CR#608.2k] — one antecedent set per body), so a
+                // trigger body's own `that_player`/`that_patient` can't leak
+                // into this payment's body.
                 let mut body_frame = frame.clone();
-                if let Some(snapshot) = self.additional_cost_paid_object(&cost, frame) {
+                body_frame.anaphora.that_object = None;
+                body_frame.anaphora.that_player = None;
+                body_frame.anaphora.that_patient = None;
+                if let Some(snapshot) = self.cost_paid_object(&cost, frame) {
                     body_frame.anaphora.that_object = Some(snapshot);
                 }
+                body_frame.anaphora.that_player = Some(frame.controller);
+                // [CR#118.10]: one fresh payment id for this cost's whole
+                // drain — every component below shares it; `body_frame`
+                // (the consequence, not the payment) never carries it.
+                let payment = self.mint_payment();
+                let mut payment_frame = frame.clone();
+                payment_frame.payment = Some(payment);
                 let mut items: Vec<WorkItem> = cost
                     .iter()
                     .map(|c| WorkItem::RunEffect {
@@ -1276,7 +1297,7 @@ impl GameState {
                         // effect; a cost-side `With` becomes an `OneShotEffect::With`
                         // (its choice surfaced at payment), not a single action.
                         effect: Arc::new(crate::decide::unless_cost_effect(c, &Reference::You)),
-                        frame: frame.clone(),
+                        frame: payment_frame.clone(),
                     })
                     .collect();
                 items.push(WorkItem::RunEffect {
@@ -1549,18 +1570,26 @@ impl GameState {
         fired
     }
 
-    /// The last-known snapshot of the object an
-    /// [`OneShotEffect::AdditionalCost`] moves, when its cost is a single
+    /// The last-known snapshot of the object a cost payment moves
+    /// ([CR#608.2k] cost→effect reference) — shared by the
+    /// [`OneShotEffect::AdditionalCost`] arm and the `MayPayCost` yes-answer
+    /// ([`crate::decide::pending::choice`]) — when the cost is a single
     /// object-moving verb (`Sacrifice`/`Move` — exile is `Move(_, Exile)` —
-    /// or a `Discard` that names *what*) over a directly-resolvable
-    /// reference (`Sacrifice(This)`, …). Captured BEFORE payment, so it is
-    /// the object's last-known information ([CR#603.10a]) — exactly what
+    /// or a `Discard` that names *what*) over a resolvable reference
+    /// (`Sacrifice(This)`, …). Captured BEFORE the verb actually pays, so it
+    /// is the object's last-known information ([CR#603.10a]) — exactly what
     /// the body's `EventObject` should read. Returns `None` for a cost that
-    /// moves no object (mana/tap/life — nothing to bind), or one
-    /// whose moved object is bound by an enclosing cost `With(ChooseOne, …)`
-    /// (a `That` not fixed until the choice resolves — a documented
-    /// payment-time capture seam, see the `AdditionalCost` arm).
-    fn additional_cost_paid_object(
+    /// moves no object (mana/tap/life — nothing to bind).
+    ///
+    /// A `That(Sort)` reference — bound by an ENCLOSING cost
+    /// `With(ChooseOne, …)` whose choice resolves before this cost's own
+    /// verb runs — resolves fine too: `frame.anaphora.that` is already the
+    /// choice's answer by the time we're called (`OneShotEffect::With` binds
+    /// `that` before running its body, [CR#608.2]), so `eval_reference`
+    /// reads a real value, not the unbound-`That` panic path. Only a
+    /// genuinely unbound `That` (no enclosing `With` at all — malformed
+    /// authoring) is still skipped, matching the historical `None` return.
+    pub(crate) fn cost_paid_object(
         &self,
         cost: &[deckmaste_core::CostComponent],
         frame: &Frame,
@@ -1578,12 +1607,10 @@ impl GameState {
                 }
                 _ => None,
             };
-            // Only a directly-resolvable reference is captured here; a
-            // `That(Sort)` bound by an enclosing cost `With(ChooseOne, …)`
-            // has no fixed object until the choice resolves (seam).
-            if let Some(reference) = reference
-                && !matches!(reference, Reference::That(_))
-            {
+            let Some(reference) = reference else { continue };
+            let resolvable =
+                !matches!(reference, Reference::That(_)) || frame.anaphora.that.is_some();
+            if resolvable {
                 let object = self.eval_reference(reference, frame);
                 return Some(crate::lki::LkiSnapshot::capture(self, object));
             }
@@ -4594,6 +4621,22 @@ mod tests {
     /// inspecting what those toll items go on to produce). A sacrifice
     /// payment — Dermoplasm's own cost verb — demonstrates it: `if_did`
     /// fires off the choice, not off any inspected sacrifice event.
+    ///
+    /// A test that only checks the AFTERMATH (creature gone + life gained)
+    /// can't discriminate "branch on the choice" from "branch on the
+    /// observed event" — both hypotheses predict the same aftermath here,
+    /// since nothing in this engine can make a CHOSEN, cost-eligible,
+    /// directly-resolvable `Sacrifice(This)` toll item produce no event
+    /// (`can_pay_may_cost`'s pre-offer legality gate, [CR#608.2d], already
+    /// forces `if_not` for anything that can't actually pay — see
+    /// `run_effect_may_pay_forces_if_not_when_unable_to_pay` below — so a
+    /// CHOSEN-but-silent toll is unreachable with current machinery). So
+    /// this asserts the ordering the design actually rests on instead: right
+    /// after the yes answer — BEFORE either work item has been stepped —
+    /// `if_did`'s `RunEffect` already sits in the agenda immediately behind
+    /// the toll item, proving it was scheduled in the same atomic step as
+    /// the toll items ([CR#118.12] "regardless of what events actually
+    /// occurred"), not appended later after inspecting what they produced.
     #[test]
     fn run_effect_may_pay_branches_on_the_choice_not_observed_events() {
         use deckmaste_core::Cost;
@@ -4631,6 +4674,31 @@ mod tests {
             panic!("expected YesNo, got {:?}", state.pending);
         };
         state.submit_decision(Decision::Answer(true)).unwrap();
+
+        // Ordering discriminator ([CR#118.12]): inspect the agenda BEFORE
+        // stepping either item — `if_did` (ChangeLife) is already queued
+        // right behind the toll item (Sacrifice), scheduled by the SAME
+        // `schedule_front` call the yes-answer made, not contingent on the
+        // toll item having run yet.
+        assert!(
+            matches!(
+                state.agenda.front(),
+                Some(WorkItem::RunEffect { effect, .. })
+                    if matches!(effect.as_ref(), OneShotEffect::Act(Action::Sacrifice(..)))
+            ),
+            "the toll item (Sacrifice) is at the agenda front, unstepped: {:?}",
+            state.agenda.front()
+        );
+        assert!(
+            matches!(
+                state.agenda.get(1),
+                Some(WorkItem::RunEffect { effect, .. })
+                    if matches!(effect.as_ref(), OneShotEffect::Act(Action::ChangeLife(..)))
+            ),
+            "if_did (ChangeLife) is already scheduled right behind it: {:?}",
+            state.agenda.get(1)
+        );
+
         let _ = drain_progress(&mut state, 40);
         assert!(
             !state.zones.battlefield.contains(&bear),
@@ -4748,6 +4816,62 @@ mod tests {
             state.player(p0).life,
             life0 + 3,
             "the body read the sacrificed object's counters via EventObject"
+        );
+    }
+
+    /// [CR#608.2k]: `bindEvent`'s `notEventRoleA` hygiene, ported — a stale
+    /// event-role binding an ENCLOSING scope carried (e.g. a triggered
+    /// ability's own firing-event patient) must not ride along into an
+    /// `AdditionalCost` body's frame just because the body's frame is a
+    /// clone of the enclosing one. One antecedent set per body: the payment
+    /// clears `that_patient` before landing its own (unpopulated —
+    /// documented seam) roles, rather than leaving the outer value in place.
+    #[test]
+    fn additional_cost_body_clears_a_stale_outer_event_patient_binding() {
+        use deckmaste_core::AdditionalCost;
+        use deckmaste_core::Cost;
+        use deckmaste_core::CostComponent;
+
+        let (mut state, bear) = bear_on_field();
+        let mut frame = frame_src(bear);
+        // Simulate an enclosing scope's own stale event-role binding — the
+        // shape a triggered ability's frame carries when ITS firing event
+        // named a patient (`resolve/mod.rs`'s trigger-frame construction).
+        frame.anaphora.that_patient = Some(crate::trigger::EventPatient::Player(PlayerId(1)));
+
+        state.run_effect(
+            OneShotEffect::AdditionalCost(AdditionalCost {
+                pay: Cost(
+                    vec![CostComponent::do_action(Action::Sacrifice(
+                        Reference::You,
+                        Reference::This,
+                    ))]
+                    .into(),
+                ),
+                body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Up(Count::Literal(1)),
+                ))),
+            }),
+            &frame,
+        );
+
+        let body_frame = state
+            .agenda
+            .iter()
+            .find_map(|item| match item {
+                WorkItem::RunEffect { effect, frame }
+                    if matches!(effect.as_ref(), OneShotEffect::Act(Action::ChangeLife(..))) =>
+                {
+                    Some(frame.clone())
+                }
+                _ => None,
+            })
+            .expect("the AdditionalCost body's RunEffect is scheduled");
+
+        assert_eq!(
+            body_frame.anaphora.that_patient, None,
+            "a stale outer EventPatient binding must not leak into the payment body"
         );
     }
 

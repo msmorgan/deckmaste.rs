@@ -765,6 +765,7 @@ mod tests {
                         verb: "Draw".into(),
                         agency: Agency::EffectInstruction,
                         agent: None,
+                        payment: None,
                     }),
                 }),
             );
@@ -803,6 +804,7 @@ mod tests {
                     verb: "Play".into(),
                     agency: Agency::SpecialAction,
                     agent: None,
+                    payment: None,
                 }),
             }),
         );
