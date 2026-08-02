@@ -22,9 +22,21 @@ the ONLY scope introducer; idiom bodies stay scope-free.
 - **Occurrence rule** (spec §7 — no primary/secondary distinction): every
   authored `Target(n)`/`Targets(n)` site counts, including characteristic
   reads; a sugared slot is unreferenceable by construction, so the
-  one-site rule is enforced syntactically. Acceptance-time validation and
-  canonical-writer contraction are separately labeled directions — this
-  ticket implements acceptance only.
+  one-site rule is enforced syntactically. Counting is defined over the
+  PRE-EXPANSION invocation AST: one caller site is one occurrence no
+  matter how many times an idiom body re-reads the `Param` (`Fight` is
+  the normative fixture). Implementation commitment: the current reader
+  expands during deserialization and re-reads raw argument text per
+  `Param`, so this needs a pre-expansion elaboration layer or
+  origin-tagged sugar nodes propagated through expansion — price it,
+  don't hand-wave it. Traversal order for appended slots is schema order
+  (field declaration order, list sequence), so RON named-field reordering
+  cannot renumber. Acceptance-time validation and canonical-writer
+  contraction are separately labeled directions — this ticket implements
+  acceptance only. (The general sugared form nests as
+  `Target(Target(…))` since `TargetSpec`'s head is also spelled `Target`
+  — legal but ugly; proposing a distinct sugar ident is in-plan latitude,
+  final name = owner's call.)
 - Mixed scopes via the explicit-prefix rule (explicit slots own `0..E`;
   inline sites append in textual order; authored indices `< E`; validator
   rejects an authored index landing on a generated slot).

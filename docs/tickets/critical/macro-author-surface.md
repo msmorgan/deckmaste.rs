@@ -25,10 +25,20 @@ record; supersedes this ticket's pre-program draft):
   name-erasing loader-tag kinds (spec §5). Scaffolded once by the
   generator, then HAND-OWNED; a coverage gate (variant ↔ def, arities
   verified) replaces wipe-first regeneration. Registration kinds computed
-  from the flatten graph. At `remembers_expansion` kinds the wrappers add
-  invocation provenance to previously-bare spellings — "zero behavior
-  change" is measured at stored-byte round-trip and lowered core (spec
-  §5).
+  from the flatten graph; scaffolds mirror arities AND existing
+  constructor defaults (byte-identical canon re-parse is the invariant —
+  default REMOVAL stays `core-remove-default-args`). Coverage is keyed
+  per `(defining type, variant, dispatch kind, signature)` row. At
+  `remembers_expansion` kinds the wrappers add invocation provenance to
+  previously-bare spellings — "zero behavior change" is measured at
+  stored-byte round-trip and lowered core (spec §5).
+- **Closed reachability inventory** (spec §4): every reachable
+  `(kind, variant)` pair classified identity-covered / native-calculus /
+  native-atom (plain enums outside the registry — `Cmp`, phase/step
+  enums, `FaceLayout`; canon spells `Eq` and `Beginning(Upkeep)` today);
+  suppression applies at registered kinds only, and nothing may be
+  unclassified. The identity exemption's trust channel is the COMPILED
+  registry (spec §6) — generated Rust table, marker never serialized.
 - Suppression must cover BOTH native-candidacy consults: the
   `EnumIntercept` branch AND the untagged-embed pre-scan's own
   `variants.contains` (spec §4).

@@ -10,11 +10,17 @@ checking — so the mirror follows its purpose.
 
 ## Scope
 
-- The mirror models the post-expansion, post-desugar authored normal form.
-  Day one this is shape-equivalent to today's `Core.idr`: rename the Idris
-  module per the naming principle and repoint the emitter to walk authored
-  terms (the emitter drops its dependency on lowering — normalization is
-  authoring-side, spec §9).
+- The mirror models the authoring kernel (spec §10): the post-expansion,
+  post-desugar normal-form value universe of the emitted families —
+  containers + grammar as emitted today; strategy, MacroDef machinery,
+  and frames data excluded. The reattachment is CONTENT-preserving, not
+  shape-identical: the emitted kernel and idris-check pass set are
+  unchanged, while the pre-existing Rust↔Idris drift (missing variants,
+  emitter-bridged arity differences — `idris-mirror-enum-gaps`'s
+  inventory) is untouched, neither fixed nor worsened. Rename the Idris
+  module per the naming principle and repoint the emitter to walk
+  authored terms (the emitter drops its dependency on lowering —
+  normalization is authoring-side, spec §9).
 - **Phantom obligation, resolve one way or the other**: the
   riders-battlefield-only rule exists ONLY as prose on `EnterRider` in
   `action.rs` ("rejected by the Idris re-emit gate" — verified false: no

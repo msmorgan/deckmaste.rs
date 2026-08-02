@@ -22,17 +22,21 @@ deckmaste_english ◄════════════════► deckmas
 ```
 
 - **`deckmaste_authoring`** is the single source of truth: the authored
-  rules grammar every container is written in — card files, token files,
-  and the `rules/` engine tables. It owns the types, the kind registry and
-  `SupportsMacros` machinery, identity-macro registration, the collision
-  diagnostic, and the scope-calculus and sugar forms. The Idris mirror
-  attaches HERE (§10).
+  rules grammar every card-content container is written in — card files,
+  token files, and the `rules/` engine tables. It owns the types, the kind
+  registry and `SupportsMacros` machinery, identity-macro registration,
+  the collision diagnostic, the scope-calculus and sugar forms, and
+  normalization (desugar + scope elaboration, authored → authored normal
+  form).
 - **`deckmaste_spelling`** is the authored ⇄ English relation:
-  `deckmaste_frames` renamed and absorbed. "Frames" survives as the name of
-  the lexicon's entries — the mechanism inside spelling.
-- **`deckmaste_lowering`** is the one-way compile authored → core: sugar
-  desugaring, scope elaboration, normalization, the type mapping, authored
-  invariant enforcement, and the divergence ledger.
+  `deckmaste_frames` renamed and absorbed — the ENGINE (compile/unify/
+  render). "Frames" survives as the name of the lexicon's entries, and the
+  frame SCHEMA (`FrameSpec` and kin) deliberately stays in neutral
+  `macro_ron`: defs carry `frames:` and `macro_ron` parses defs, so moving
+  the schema into spelling would cycle schema and consumer.
+- **`deckmaste_lowering`** is the one-way compile authored → core: it
+  invokes authoring's normalization, then owns the cross-grammar type
+  mapping, authored-invariant enforcement, and the divergence ledger.
 - **`deckmaste_core`** becomes a pure engine AST: no macro machinery, plain
   serde, no Idris obligations (until an engine-side dependent invariant
   earns a thin mirror back).
@@ -41,13 +45,11 @@ deckmaste_english ◄════════════════► deckmas
   type lines, the packaging of primitives into a playable unit — split out
   of core so the loose primitives are testable independently and the
   card-shapes program (transform/saga/adventure/split) has a home. Card
-  depends on core, never the reverse; lowering targets both. The authoring
-  crate carries its own authored container types; there are deliberately
-  two card-type families, one per side of `lower`. Core carries NO
-  characteristics abstraction: the grammar keeps only the characteristic
-  value vocabulary plus the effect-defined bundles (`Token`/`TokenSpec`
-  and the face-down bundle remain core — the grammar creates those
-  objects). The base/computed seam is ENGINE-owned:
+  depends on core, never the reverse; lowering targets both. Core carries
+  NO characteristics abstraction: the grammar keeps only the
+  characteristic value vocabulary plus the effect-defined bundles
+  (`Token`/`TokenSpec` and the face-down bundle remain core — the grammar
+  creates those objects). The base/computed seam is ENGINE-owned:
   `trait BaseCharacteristics` lives in the engine, implemented there for
   `card`'s types and core's bundles (local trait, foreign types — the
   orphan rule permits it), with `CardRef<T: BaseCharacteristics>`
@@ -73,7 +75,10 @@ Design principles that did the deciding, recorded because they generalize:
    provenance.)
 3. **Sugar never replaces structure.** The explicit form is always the
    meaning and always legal; every alignment feature desugars into it at
-   load. Every step is therefore reversible.
+   load — so each alignment step is removable, and semantics are preserved
+   under reduction to the explicit form. (The author's surface CHOICE is
+   intentionally unrecoverable; what is preserved is meaning, not
+   spelling.)
 4. **Productive compositions are machinery, never vocabulary.** A pattern
    that composes with an open class (targeting × verbs, `May` × effects)
    gets a mechanism; only closed idioms (`Mill`, `DestroyNoRegen`) get
@@ -114,8 +119,11 @@ re-derivable the same way):
 **Authored form is the source; everything else is derived.** English text
 is an input to recovery and an output of rendering, never stored truth.
 Core is a compiled artifact — cached at most, keyed by content digest,
-never treated as source. The spelling relation is **ranked, not
-bijective**: several authored spellings may word identically and one
+never treated as source. One narrow, declared exception: engine STRATEGY
+configuration is authored directly in core terms via plain serde — it is
+engine configuration, not card content, and sits outside the authoring
+program (see the §4 container table). The spelling relation is **ranked,
+not bijective**: several authored spellings may word identically and one
 sentence may recover to several candidates; ambiguity surfaces as
 candidates, never resolved by assembly order. "Faithful" means semantic
 round-trip plus canonical wording; byte-exact replay is out of scope (an
@@ -128,9 +136,21 @@ an authored term and no handle is ever serialized (principle 2).
 
 ## 4. The authoring grammar and the parse-position ban
 
-**One grammar, many containers, restriction per container.** Cards and
-tokens are macro-vocabulary-only; the `rules/` tables and macro definition
-bodies may spell primitives freely; test fixtures choose per fixture.
+**One grammar, many containers, restriction per container.** The
+normative container table (restriction mode inherits through NESTED
+definitions by textual provenance — e.g. a token bundle defined inline in
+a card file is card-authored text and restricted):
+
+| Container | Loader path | Mode |
+|---|---|---|
+| `cards/` (canon, builtin, AND generated wizards) | restricted read API | restricted |
+| `tokens/` | restricted read API | restricted |
+| migration graduation candidates (`.ron.todo`) | restricted read API | restricted |
+| `rules/{sba,grant,damage}` engine tables | rules loaders | free |
+| macro definition files (signatures, bodies, defaults, guards) | macros loader | free |
+| frames data (`frames:` on defs) | spelling compile | free |
+| engine strategy RON | plain core serde | outside the program (engine config) |
+| test fixtures | per fixture | fixture's choice |
 
 - **Mechanism: native-variant-candidacy suppression** at the ident dispatch
   point (`EnumIntercept::visit_enum`'s native-first branch) — not
@@ -142,13 +162,26 @@ bodies may spell primitives freely; test fixtures choose per fixture.
   `variants.contains` before `EnumIntercept` runs); suppression must cover
   both consults or a banned ident at an embed-hosting kind takes a
   confusing route.
+- **Suppression applies at REGISTERED kinds only.** Restricted card syntax
+  also reaches plain enums that are deliberately outside the macro system —
+  closed operator/timing/format atoms such as `Cmp` (canon spells `Eq`),
+  the phase/step enums (canon spells `Beginning(Upkeep)`), `FaceLayout` —
+  and those parse natively by design. The Stage-2 deliverable includes a
+  **closed reachability inventory**: every reachable `(kind, variant)`
+  pair classified as identity-covered, native-calculus (the §4 carve-out
+  below), or native-atom whitelist. Nothing may be unclassified.
 - **The restriction bit follows textual provenance, not the expansion
   frame.** It is recorded when argument text is captured and restored when
   that text is re-read; body re-reads are exempt however reached. (The
   `Ctx::frameless()` param-re-read path is exactly why frame-gating alone
   is wrong.)
-- **Entry points**: `Plugin::card`/`token` and the migrations graduation
-  path share one restricted entry; the ~230 other `read_str` callers are
+- **Entry points**: ONE restricted read API (a `read_authored_card`/
+  `read_authored_token` pair or equivalent) shared by `Plugin::card`/
+  `token`, the migrations graduation path, AND every typed production
+  reader that currently bypasses the loader — validation, fidelity, the
+  canon comparison path, and the Idris bulk emitter all `read_str` typed
+  card values directly today. A grep gate forbids remaining direct
+  `read_str::<Card|Token>` calls. The other ~230 `read_str` callers are
   untouched — restriction is opt-in at the entry, never a global default.
 - **Structural binding forms carve-out**: `Targeted`, `Target(n)`,
   `Targets(n)`, `Distinct` are designated structural grammar — the
@@ -157,30 +190,42 @@ bodies may spell primitives freely; test fixtures choose per fixture.
   hide its binding behavior.
 - **Straggler registration**: `Color` (currently unregistered as a kind — a
   macro of kind Color is undefinable today), `Supertype` (no
-  `SupportsMacros`), and the `Card` root gain registration and trivial defs
-  so the ban is uniform. The closed `Type` enum needs nothing (it appears
-  only in machinery positions post type-flip — the landed migration of
-  card type lines from the closed `Type` enum to `TypeDef` macros);
-  counters already conform (name vocabulary behind their hand
-  deserializer).
+  `SupportsMacros`), and the `Card` root gain registration and trivial
+  defs. The closed `Type` enum needs nothing (it appears only in machinery
+  positions post type-flip — the landed migration of card type lines from
+  the closed `Type` enum to `TypeDef` macros); counters already conform
+  (name vocabulary behind their hand deserializer).
 - Negative fixtures prove a bare-primitive card fails with a useful error.
 
 ## 5. Identity macros: scaffolded once, then hand-owned
 
-Every authoring-reachable variant gets a wrapping macro def under its
-variant's own name (mirror-by-default — this is what makes the ban
-near-zero-churn: invocation syntax is identical to variant syntax, so canon
-re-parses byte-identically). **Reachable** means: variants of kinds in the
-registry reachable from the restricted-container root types via field
-types, flatten, and embed — excluding the name-erasing loader-tag kinds
-(`Macro`, `KeywordAction`, and kin). Defs are **generated once as
-scaffolds, then hand-owned**: they must carry hand-written `frames:` (§8),
-which wipe-first regeneration would destroy, and hand ownership is what
-makes a core-side rename a one-line body edit with canon untouched. A
-**coverage gate** replaces regeneration: every reachable variant has
-exactly one covering def; arities verified; missing defs scaffolded on
-demand. Registration kinds are computed from the flatten graph (a variant
-spellable at a flatten host's positions registers its wrapper there too).
+Every authoring-reachable variant OUTSIDE the native whitelists gets a
+wrapping macro def under its variant's own name (mirror-by-default — this
+is what makes the ban near-zero-churn: invocation syntax is identical to
+variant syntax, so canon re-parses byte-identically). **Reachable** means:
+variants of kinds in the registry reachable from the restricted-container
+root types via field types, flatten, and embed — excluding the
+name-erasing loader-tag kinds (`Macro`, `KeywordAction`, and kin).
+**Coverage is keyed per `(defining type, variant, dispatch kind,
+signature)` row** — a flattened variant registers its wrapper at every
+dispatch host; same-name different-kind entries (the two `Target`
+constructors) are distinct rows. Coverage = every reachable row is
+identity-covered, native-calculus, or native-atom (§4) — the whitelists
+are named, so "every" is checkable.
+
+Wrapper scaffolds **mirror arities AND any existing constructor
+defaults** — byte-identical re-parse of canon is the invariant, so default
+elision keeps working; removing the defaults themselves remains
+`core-remove-default-args`'s separately-priced scope, not a side effect of
+this program.
+
+Defs are **generated once as scaffolds, then hand-owned**: they are the
+home for hand-written `frames:` (§8), which wipe-first regeneration would
+destroy, and hand ownership is what makes a core-side rename a one-line
+body edit with canon untouched. (Frame COVERAGE is the english effort's
+ratchet, not this program's gate — the coverage gate here checks
+def-presence and signature only.) A **coverage gate** replaces
+regeneration; missing defs are scaffolded on demand.
 
 Wrapper interaction at remembering kinds: once identity macros exist,
 previously-bare spellings at `remembers_expansion` kinds parse wrapped in
@@ -195,13 +240,17 @@ Registering a macro whose name equals a variant of any kind it registers
 under is an **error**, checked against the complete dispatch set
 (`SupportsMacros::ALL_VARIANTS` — flattened compartments included), at both
 ordinary insertion and plugin-layer replacement. The identity-wrapper
-exemption is **unforgeable generated metadata** (`IdentityOf(kind,
-variant)`-style), never body-equality. Per-kind, because same-name
-different-kind reuse is intentional practice (`Draw` the verb vs `Draw` the
-event filter). Current corpus has zero collisions — clean slate. This
-retires `action.rs`'s comment-enforced naming rule. A mandatory `core::`
-body namespace is consciously NOT shipped; it remains a possible future
-escape hatch if a non-identity collision is ever genuinely wanted.
+exemption's trust channel is a **compiled registry**: the scaffold
+generator emits a Rust-side table of `(kind, variant, signature)` rows in
+the authoring crate, and the loader confers the exemption when a def
+matches a row — the marker is never serialized in RON (a serialized marker
+would be forgeable; a serde-skipped one would be lost on reread). Per-kind,
+because same-name different-kind reuse is intentional practice (`Draw` the
+verb vs `Draw` the event filter). Current corpus has zero collisions —
+clean slate. This retires `action.rs`'s comment-enforced naming rule. A
+mandatory `core::` body namespace is consciously NOT shipped; it remains a
+possible future escape hatch if a non-identity collision is ever genuinely
+wanted.
 
 ## 7. Targeting and the scope calculus
 
@@ -224,22 +273,34 @@ target.
 - **Inline sugar**: `Target(spec)` at an exactly-one Reference position;
   `Targets(spec)` at a Selection position; never type-directed overloading
   (Idris treats only literal exactly-one as cardinality One).
-  Discrimination from index reads is syntactic: at a Reference/Selection
-  position, `Target(<numeral>)` / `Targets(<numeral>)` is an index read;
-  any other argument shape is the sugar. Sugar is legal only in
-  card-authored provenance text — a macro body may FORWARD sugar through a
-  `Param` hole but may never introduce it (bodies are scope-free).
-- **Occurrence counting has no "primary/secondary" distinction**: every
-  authored `Target(n)`/`Targets(n)` site counts, including characteristic
-  reads (`PowerOf(Target(0))` is a site). English `Mention` occurrences
-  and expanded-core reads do NOT count (an idiom's single argument may
-  expand to many core reads and stays sugar-eligible). A sugared slot is
-  unreferenceable by construction — no index exists in the authored text —
-  so the one-site rule is enforced by syntax; needing a second site means
-  writing the explicit form. Worked verdict: Rabid Bite's slot 0 has two
-  authored sites (agent position and the power read), so it must be
-  explicit; its slot 1 has one site and may append inline under the
-  mixing rule below.
+  **Discriminator, deterministic**: at a Reference/Selection position, a
+  payload that is a bare numeral is an index read; any other payload
+  parses as a `TargetSpec` and is the sugar; a payload that parses as
+  neither is an error naming both readings. (Because `TargetSpec`'s own
+  head constructor is also spelled `Target`, the sugared general form
+  nests as `Target(Target(…, …))` — legal but ugly; the implementation
+  plan may propose a distinct sugar ident, which is a naming decision for
+  the owner at that point.) Sugar is legal only in card-authored
+  provenance text — a macro body may FORWARD sugar through a `Param` hole
+  but may never introduce it (bodies are scope-free).
+- **Occurrence counting is defined over the PRE-EXPANSION invocation
+  AST**: each caller-side authored site is one occurrence, regardless of
+  how many times an idiom's body re-reads the parameter (`Fight` re-reads
+  each of its two arguments several times and is the normative fixture —
+  its caller writes each `Target(spec)` once, so both slots are
+  sugar-eligible). This is an implementation commitment, not just a
+  definition: the current reader expands during deserialization and
+  re-reads raw argument text at every `Param`, so sugar recognition needs
+  either a pre-expansion elaboration layer or origin-tagged sugar nodes
+  propagated through expansion — priced as such in
+  `target-sugar-elaboration`. Every authored `Target(n)`/`Targets(n)`
+  site counts (including characteristic reads — `PowerOf(Target(0))` is a
+  site); English `Mention` occurrences and expanded-core reads do not. A
+  sugared slot is unreferenceable by construction, so the one-site rule is
+  enforced by syntax; needing a second site means writing the explicit
+  form. Worked verdict: Rabid Bite's slot 0 has two authored sites (agent
+  position and the power read), so it must be explicit; its slot 1 has
+  one site and may append inline under the mixing rule below.
 - **Direction labels on the two scope rules** (they are not in tension —
   they govern different directions): *acceptance-time validation* — a
   sugared introduction is accepted iff it is that slot's only authored
@@ -249,15 +310,18 @@ target.
   has one site and no `Distinct` edge, and a cross-constrained connected
   component stays wholly explicit.
 - **Mixed scopes are legal via the explicit-prefix rule**: explicit slots
-  permanently own `0..E`; inline sites append in a specified traversal
-  (textual) order; authored indices must be `< E`; the validator rejects an
-  authored index landing on a generated slot.
+  permanently own `0..E`; inline sites append in the elaborator's
+  traversal order, which is DEFINED as schema order — fields in
+  declaration order, list elements in sequence — so named-field reordering
+  in RON text does not change indices; authored indices must be `< E`; the
+  validator rejects an authored index landing on a generated slot.
 - **The elaborator is the only scope introducer.** Idiom bodies are
   scope-free with spec-typed parameters. Elaboration normalizes to the
   engine's single top-level `Targeted` per spell/ability and stops
-  hoisting at genuine announcement boundaries (modal modes, delayed
-  triggers — per-mode target scopes are never flattened into an
-  unconditional outer list [CR#601.2c]).
+  hoisting at genuine announcement boundaries — modal modes and delayed
+  triggers open their own announcement scopes; per-mode target scopes are
+  never flattened into an unconditional outer list
+  [CR#601.2c,603.3d,603.7].
 - **`Distinct` is a set-level disjointness constraint** (two unconstrained
   slots may legally choose the same object), checked after selection and
   at legality recheck. No new constructor; canonical well-formedness:
@@ -277,6 +341,30 @@ target.
   inside a filter is legal; the desugar traversal collects it — under the
   explicit form nothing needs discovering at all).
 
+Worked examples (normative):
+
+```ron
+// Sugar (accepted input)             // Normal form (canonical)
+DealDamage(This, 3, Target(AnyTarget))
+                                      Targeted(
+                                        targets: [AnyTarget],
+                                        effect: DealDamage(This, 3, Target(0)))
+
+// Mixed: explicit prefix + appended inline site (indices 0..E fixed first)
+Targeted(
+  targets: [AnyTarget],               Targeted(
+  effect: Sequentially([                targets: [AnyTarget, TargetOne(Creature)],
+    DealDamage(This, 2, Target(0)),     effect: Sequentially([
+    Destroy(Target(TargetOne(Creature)))  DealDamage(This, 2, Target(0)),
+  ]))                                     Destroy(Target(1))]))
+
+// Idiom forwarding (Fight: one caller site per slot; body re-reads don't count)
+Fight(Target(TargetOne(Creature)), Target(TargetOne(Creature)))
+                                      Targeted(
+                                        targets: [TargetOne(Creature), TargetOne(Creature)],
+                                        effect: <Fight expansion over Target(0), Target(1)>)
+```
+
 ## 8. Spelling (the authored ⇄ English relation)
 
 - **The constructors catalog retires.** Its 7 entries migrate into their
@@ -288,8 +376,9 @@ target.
   non-author-facing spelling-side test fixture (a differential baseline)
   until compositional targeting covers it, when `target-sugar-elaboration`
   deletes it.
-- **`template:` fields sunset with the legacy renderer** (they are already
-  build-gated projections of `frames[0]`).
+- **`template:` fields sunset with the legacy renderer** (their projection
+  from `frames[0]` is checkable via the opt-in
+  `cargo xtask macro templates --check` — not currently wired into CI).
 - **Requirements handed to the english effort** (interface, not
   implementation): `Argument` vs `Mention(Full | Pronoun | Demonstrative)`
   occurrence classes on frame specs and compiled frames — the `${0:pro}`
@@ -308,13 +397,12 @@ target.
 
 ## 9. Lowering (the authored → core compile)
 
-Phases of the one pass: desugar (sugar → structural forms) → scope
-elaboration (collect, order, index; §7 rules) → normalization (single
-top-level `Targeted`) → type mapping (authored types → core/card types) →
-authored-invariant enforcement at the point where violation would produce
-wrong core. Normalization (authored → authored normal form) is an
+Phases of the one pass: normalization (authoring-side: desugar + scope
+elaboration + single-`Targeted` normalization, §7 rules) → type mapping
+(authored types → core/card types) → authored-invariant enforcement at the
+point where violation would produce wrong core. Normalization is an
 authoring-crate transformation — sugar is authoring's own feature — so the
-Idris emitter can reach the normal form without depending on lowering;
+Idris emitter reaches the normal form without depending on lowering;
 lowering invokes it and owns the cross-grammar mapping.
 
 - **The mapping starts as an exact mirror** (identity-shaped arms,
@@ -327,12 +415,14 @@ lowering invokes it and owns the cross-grammar mapping.
   correctness): generated identity arms while mirrored; a debug-only raise
   map enabling round-trip property tests on the mirrored subset;
   per-variant mapping tests for every diverged arm; downstream gates
-  (engine suites, fidelity) as the backstop. The round-trip property is
-  plain structural equality — the calculus is indexed and index
-  assignment is deterministic, so no renaming equivalence is needed; if a
-  future contraction pass reorders slots, equivalence is then "equal up to
-  consistent slot renumbering with `Distinct` edges re-anchored," and that
-  definition lands with that pass.
+  (engine suites, fidelity) as the backstop. **Definitions**: the
+  round-trip comparison is provenance-ERASED structural equality (compare
+  after `expand_all`-style wrapper erasure — stored `Expansion` equality
+  is deliberately provenance-sensitive and is NOT the comparison); the
+  mirrored subset is the set of terms all of whose nodes map via identity
+  arms. If a future contraction pass reorders slots, equivalence becomes
+  "equal up to consistent slot renumbering with `Distinct` edges
+  re-anchored," and that definition lands with that pass.
 - The error taxonomy (authoring parse errors / lowering errors / core
   validation) gets its one deliberate pass here, where the layers meet.
 
@@ -350,11 +440,16 @@ checks. Minting that proof — or correcting the prose — rides
 `idris-mirror-authoring`.
 
 - The mirror models the **authoring kernel**: the post-expansion,
-  post-desugar normal form (macros and sugar erased exactly as loading
-  erases them). On day one this is shape-equivalent to today's `Core.idr`,
-  so reattachment is a rename plus repointing the emitter at authored
-  terms — which also frees the emitter from depending on lowering (§9:
-  normalization is authoring-side).
+  post-desugar normal-form value universe of the families the emitter
+  emits — the container types (`Card`/`Token`) and the grammar reachable
+  from them, exactly as emitted today. Excluded: strategy terms, the
+  `MacroDef` machinery, frames data. The reattachment is
+  **content-preserving, not shape-identical**: the emitted kernel and the
+  idris-check pass set are unchanged (the emitter walks authored mirrors
+  of the same shapes it walked before), while the PRE-EXISTING Rust↔Idris
+  drift — missing variants, arity differences the emitter bridges —
+  remains exactly what `idris-mirror-enum-gaps` records: untouched,
+  neither fixed nor worsened by the move.
 - Sugar-level syntactic rules (occurrence criterion, prefix rule) are
   desugar-time Rust checks; Idris proves semantic invariants on the normal
   form. English-ward divergence brings its proof obligations with it.
@@ -364,7 +459,10 @@ checks. Minting that proof — or correcting the prose — rides
 - Known gate-coverage debt is unchanged by the move and more naturally
   closed after it (the emitter walks stored artifacts directly): the canon
   emitter gap and ungated wizards corpus tracked by
-  `validate-unbound-anaphor-lint`.
+  `validate-unbound-anaphor-lint` — and NOTE: batch `idris-check`
+  currently reports failures without a failing exit status, so "no
+  regressions" gates need the checked-in pass/gap baseline that
+  `ci-idris-gate` owns.
 
 ## 11. Staging
 
@@ -376,7 +474,9 @@ the visible policy).
 
 - **Stage 0 — free the names**: `deckmaste_cards` → `deckmaste_plugin`
   (claimant may split loader vs riders further); `deckmaste_card` split
-  out of core (sequenced flexibly). No semantic change.
+  out of core — a cross-cutting, land-anytime migration (deliberately
+  `needs: []`; whichever of it and the fork lands second adapts). No
+  semantic change.
 - **Stage 1 — the fork**: `deckmaste_authoring` created as a mirror of
   core's grammar WITH the macro machinery; `deckmaste_lowering` with the
   generated identity mapping; loaders and migrations repoint (parse
@@ -385,8 +485,9 @@ the visible policy).
   item: every `#[cfg(test)]` macro-aware spelling of core values repoints
   or re-spells).
 - **Stage 2 — the author surface**: the ban, identity-macro scaffold +
-  coverage gate, straggler registration, negative fixtures; the collision
-  diagnostic may land any time (independently early).
+  coverage gate + the closed reachability inventory, straggler
+  registration, negative fixtures; the collision diagnostic may land any
+  time (independently early).
 - **Stage 3 — spelling consolidation**: `deckmaste_frames` →
   `deckmaste_spelling`; catalog merge; capability unification.
 - **Stage 4 — sugar and scope**: inline target sugar + elaboration rules.
@@ -422,16 +523,17 @@ cross-interference a build error.
 
 ## 12. Migration inventory and blast radius
 
-- Canon churn ≈ 0 at every stage (mirrored names; canon already spells the
-  explicit targeting form).
+- Canon churn ≈ 0 at every stage (mirrored names AND mirrored defaults;
+  canon already spells the explicit targeting form).
 - The Stage-1 fixture sweep is the largest single line-item (engine
   resolve/trigger test modules, core mana/filter tests, the plugin-crate
   fixture helpers, integration suites).
 - `Expanded` / `remembers_expansion` invocation provenance relocates from
   core values to authored values (a real sub-project inside Stage 1, not a
-  rename) — including the ~97 production `Expanded(…)` match sites across
-  ~14 `deckmaste_engine` modules, which stop existing once core values
-  carry no wrappers.
+  rename) — the loader grows a dual-result contract (authored term AND
+  lowered core value; provenance erased exactly at `lower`), and the ~97
+  production `Expanded(…)` match sites across ~14 `deckmaste_engine`
+  modules stop existing once core values carry no wrappers.
 - Blame/history lineage for the grammar types breaks at the fork; the fork
   commit message must state the provenance.
 - Existing `idris-*` and macro-machinery tickets re-aim at the authoring
@@ -493,35 +595,44 @@ tracked tree); the deltas restated here are self-contained.
   grows is superseded: the catalog is a migration source, not a
   destination.
 - The macro-author-surface ticket's earlier "wipe-first, never hand-edited"
-  identity-macro line is superseded by §5.
+  identity-macro line is superseded by §5; its earlier claim that this
+  program's canon migration subsumes `core-remove-default-args`'s card-RON
+  churn is WITHDRAWN by §5's defaults-mirroring rule — that churn returns
+  to that ticket.
 - Ticket map — Stage 0: `plugin-crate-split` (+ `card-crate-split`,
-  sequenced flexibly). Stage 1: `authoring-crate-fork`, `lowering-crate`,
-  `plugin-repoint`, `idris-mirror-authoring`, `core-demacro`. Stage 2:
-  `macro-author-surface` (rewritten), `macro-collision-diagnostic`.
-  Stage 3: `spelling-crate-rename`, `frames-catalog-merge`. Stage 4:
-  `target-sugar-elaboration`. Follow-ups:
-  `engine-it-target-fallback-removal`, `idris-distinct-position-proof`,
-  `spelling-engine-requirements`, `post-reshape-comment-rot`, and the
-  re-aimed `core-remove-default-args`.
+  cross-cutting/anytime). Stage 1: `authoring-crate-fork`,
+  `lowering-crate`, `plugin-repoint`, `idris-mirror-authoring`,
+  `core-demacro`. Stage 2: `macro-author-surface` (rewritten),
+  `macro-collision-diagnostic`. Stage 3: `spelling-crate-rename`,
+  `frames-catalog-merge`. Stage 4: `target-sugar-elaboration`.
+  Follow-ups: `engine-it-target-fallback-removal`,
+  `idris-distinct-position-proof`, `spelling-engine-requirements`,
+  `post-reshape-comment-rot`, `ci-idris-gate` (the idris-check baseline),
+  the re-aimed `core-remove-default-args`, and the design-gated
+  `characteristics-atoms-crate`.
 
 ## 16. Verification obligations
 
 1. Every stage's zero-behavior-change claim is gated: canon + workspace
-   suites, `cargo xtask idris-check plugins/canon` no regressions,
+   suites, `cargo xtask idris-check plugins/canon` no regressions
+   (against the `ci-idris-gate` baseline — the batch command currently
+   exits 0 on failures, so a diffable baseline is part of the gate),
    fidelity green, before and after each stage lands — with "zero change"
    measured at the two §5 levels (stored-byte round-trip; lowered core).
 2. The engine `It`→lone-target compatibility arm is deliberate, guarded,
    and self-documented — its removal requires the corpus re-spell sweep
    first (`engine-it-target-fallback-removal`).
-3. The raise-map round-trip property (structural equality on the mirrored
-   subset) runs in CI while any mirrored arm exists; `plugin-repoint`'s
-   provenance relocation is the moment the property's scope first
-   shrinks, and that ticket owns adjusting it.
-4. The coverage gate (variant ↔ identity def) and the collision diagnostic
-   get negative fixtures each.
+3. The raise-map round-trip property (provenance-erased structural
+   equality on the mirrored subset, §9 definitions) runs in CI while any
+   mirrored arm exists; `plugin-repoint`'s provenance relocation is the
+   moment the property's scope first shrinks, and that ticket owns
+   adjusting it.
+4. The coverage gate (reachability inventory: every row classified) and
+   the collision diagnostic get negative fixtures each.
 5. The Ephemerate/Cloudshift pronoun pair and the §7 card list become
-   spelling test fixtures when their features land.
+   spelling test fixtures when their features land; `Fight` is the
+   normative occurrence-counting fixture.
 6. Sugar acceptance is proven non-semantic: for every sugared fixture,
    `lower(sugar_form) == lower(explicit_form)` byte-for-byte on core.
-7. The per-container restriction matrix (cards/tokens restricted; rules
-   tables and bodies free) gets an explicit fixture per container kind.
+7. The per-container restriction table (§4) gets an explicit fixture per
+   row, including a nested-definition inheritance case.

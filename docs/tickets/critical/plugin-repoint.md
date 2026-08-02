@@ -13,7 +13,16 @@ values.
 - `Plugin::card`/`token`, the per-directory loaders (including the
   `rules/{sba,grant,damage}` tables — they are authored containers too),
   and the migrations graduation/parser paths construct authored terms and
-  call `lower`.
+  call `lower`. The loader grows a DUAL-RESULT contract (authored term AND
+  lowered core value; provenance erased exactly at `lower`) so spelling
+  and the Idris emitter keep the authored form while the engine receives
+  core.
+- **Typed-reader inventory** (spec §4): validation, fidelity, the canon
+  comparison path, and the Idris bulk emitter currently `read_str` typed
+  `Card`/`Token` values directly, bypassing `Plugin::card` — all route
+  through the one restricted read API, with a grep gate forbidding
+  remaining direct `read_str::<Card|Token>` calls. Engine strategy RON is
+  explicitly OUTSIDE the program (plain core serde; spec §3/§4 table).
 - The `Expanded`/`remembers_expansion` invocation-provenance machinery
   relocates from core values to authored values (a real sub-project — spec
   §12 — not a rename; storage round-trips must keep preserving
