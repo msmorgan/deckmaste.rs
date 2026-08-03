@@ -112,19 +112,44 @@ fn load_macros(plugins: &[&str]) -> MacroSet {
     macros
 }
 
+/// What a directory sweep found.
+struct Swept {
+    /// Files that parsed, lowered, and came out byte-identical.
+    checked: usize,
+    /// Files that did not parse at all, with the first such error.
+    unparsed: usize,
+    first_error: Option<String>,
+}
+
 /// Reads every file in `dir` as `A`, lowers it, and asserts the stored bytes
-/// are unchanged. Returns how many files it checked.
-fn check_all<A>(macros: &MacroSet, dir: &Path) -> usize
+/// are unchanged.
+///
+/// A file that does not PARSE is counted, not fatal — see [`sweep_strict`] and
+/// [`wizards_cards_lower_unchanged`] for which callers tolerate that and why.
+/// Anything past the parse — lowering, and the byte comparison — is always
+/// fatal: that is the property under test, and no corpus condition excuses it.
+fn sweep<A>(macros: &MacroSet, dir: &Path) -> Swept
 where
     A: DeserializeOwned + Serialize + Lower,
     A::Target: Serialize,
 {
-    let files = ron_files(dir);
-    for path in &files {
-        let source = fs::read_to_string(path).expect("corpus file is readable");
-        let authored: A = macros
-            .read_str(&source)
-            .unwrap_or_else(|e| panic!("reading {}: {e}", path.display()));
+    let mut swept = Swept {
+        checked: 0,
+        unparsed: 0,
+        first_error: None,
+    };
+    for path in ron_files(dir) {
+        let source = fs::read_to_string(&path).expect("corpus file is readable");
+        let authored: A = match macros.read_str(&source) {
+            Ok(value) => value,
+            Err(error) => {
+                swept.unparsed += 1;
+                swept
+                    .first_error
+                    .get_or_insert_with(|| format!("{}: {error}", path.display()));
+                continue;
+            }
+        };
 
         let before = deckmaste_authoring::ron::options()
             .to_string(&authored)
@@ -139,8 +164,29 @@ where
             "lowering changed the stored form of {}",
             path.display()
         );
+        swept.checked += 1;
     }
-    files.len()
+    swept
+}
+
+/// [`sweep`] for the hand-authored corpora, where a file failing to parse IS a
+/// failure: canon, builtin and the rules tables are curated and every file in
+/// them must read.
+fn sweep_strict<A>(macros: &MacroSet, dir: &Path) -> usize
+where
+    A: DeserializeOwned + Serialize + Lower,
+    A::Target: Serialize,
+{
+    let swept = sweep::<A>(macros, dir);
+    assert_eq!(
+        swept.unparsed,
+        0,
+        "{} file(s) under {} did not parse; first: {}",
+        swept.unparsed,
+        dir.display(),
+        swept.first_error.as_deref().unwrap_or("—"),
+    );
+    swept.checked
 }
 
 fn plugin_dir(plugin: &str, sub: &str) -> PathBuf {
@@ -150,8 +196,9 @@ fn plugin_dir(plugin: &str, sub: &str) -> PathBuf {
 #[test]
 fn canon_and_builtin_cards_lower_unchanged() {
     let macros = load_macros(&["builtin", "canon"]);
-    let builtin = check_all::<deckmaste_authoring::Card>(&macros, &plugin_dir("builtin", "cards"));
-    let canon = check_all::<deckmaste_authoring::Card>(&macros, &plugin_dir("canon", "cards"));
+    let builtin =
+        sweep_strict::<deckmaste_authoring::Card>(&macros, &plugin_dir("builtin", "cards"));
+    let canon = sweep_strict::<deckmaste_authoring::Card>(&macros, &plugin_dir("canon", "cards"));
     // A silent zero would make this gate vacuous.
     assert!(builtin > 0 && canon > 0, "no cards found to check");
 }
@@ -160,7 +207,7 @@ fn canon_and_builtin_cards_lower_unchanged() {
 fn builtin_tokens_lower_unchanged() {
     let macros = load_macros(&["builtin"]);
     let checked =
-        check_all::<deckmaste_authoring::Token>(&macros, &plugin_dir("builtin", "tokens"));
+        sweep_strict::<deckmaste_authoring::Token>(&macros, &plugin_dir("builtin", "tokens"));
     assert!(checked > 0, "no tokens found to check");
 }
 
@@ -170,10 +217,11 @@ fn builtin_tokens_lower_unchanged() {
 fn builtin_rules_tables_lower_unchanged() {
     let macros = load_macros(&["builtin"]);
     let rules = plugin_dir("builtin", "rules");
-    let sba = check_all::<Vec<deckmaste_authoring::SbaRule>>(&macros, &rules.join("sba"));
-    let grant = check_all::<Vec<deckmaste_authoring::ConferralRule>>(&macros, &rules.join("grant"));
+    let sba = sweep_strict::<Vec<deckmaste_authoring::SbaRule>>(&macros, &rules.join("sba"));
+    let grant =
+        sweep_strict::<Vec<deckmaste_authoring::ConferralRule>>(&macros, &rules.join("grant"));
     let damage =
-        check_all::<Vec<deckmaste_authoring::DamageResultRule>>(&macros, &rules.join("damage"));
+        sweep_strict::<Vec<deckmaste_authoring::DamageResultRule>>(&macros, &rules.join("damage"));
     assert!(
         sba > 0 && grant > 0 && damage > 0,
         "no rules tables found to check"
@@ -182,9 +230,41 @@ fn builtin_rules_tables_lower_unchanged() {
 
 /// The generated corpus: far larger than canon and machine-written, so it
 /// exercises shapes a hand-authored file never reaches.
+///
+/// Unlike the curated corpora this one is swept LENIENTLY on parse, because it
+/// is known-incomplete by construction: `cargo xtask generate` emits cards
+/// referencing macros nobody has defined yet and says so as it runs ("other
+/// failures: 57", a list of unresolved macro names). `plugins/wizards` is also
+/// gitignored and regenerated per workspace, so its exact contents differ
+/// between checkouts — two provisioned workspaces here held 7,294 and 7,353
+/// cards. Demanding that every generated card parse would assert something the
+/// tree does not claim, and would fail differently depending on where it ran.
+///
+/// What IS asserted, and is the whole point: every generated card that parses
+/// lowers with its stored bytes unchanged. That is checked strictly — only the
+/// parse is forgiven. Closing the parse gap belongs to the corpus effort;
+/// `plugin-repoint` owns the wizards save-load round-trip proper.
+///
+/// The skip count is printed rather than swallowed, and floored, so the gate
+/// cannot quietly decay into checking nothing.
 #[test]
 fn wizards_cards_lower_unchanged() {
     let macros = load_macros(&["builtin", "wizards"]);
-    let checked = check_all::<deckmaste_authoring::Card>(&macros, &plugin_dir("wizards", "cards"));
-    assert!(checked > 0, "no wizards cards found to check");
+    let swept = sweep::<deckmaste_authoring::Card>(&macros, &plugin_dir("wizards", "cards"));
+    let total = swept.checked + swept.unparsed;
+    println!(
+        "wizards: {} of {} cards parsed and lowered unchanged; {} unparsed (corpus debt)",
+        swept.checked, total, swept.unparsed,
+    );
+    if let Some(first) = &swept.first_error {
+        println!("  first unparsed: {first}");
+    }
+    assert!(total > 0, "no wizards cards found at all");
+    assert!(
+        swept.checked * 4 > total * 3,
+        "only {} of {} wizards cards parsed — the corpus or the reader has regressed \
+         well past known debt",
+        swept.checked,
+        total,
+    );
 }
