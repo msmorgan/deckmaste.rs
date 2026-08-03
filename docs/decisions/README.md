@@ -34,3 +34,5 @@ requires explicit review rather than an opportunistic refactor.
 - [Authoring, spelling, lowering](authoring-spelling-lowering.md) — One
   authored grammar; English relates two-way via spelling, core derives
   one-way via lowering.
+- [English grammar is derived](english-grammar-is-derived.md) — One
+  construction declaration compiles parse, render, and build.

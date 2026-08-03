@@ -15,6 +15,11 @@ lowered AST, not on `RuleTag`, so a rule that reuses existing AST shapes
 compiles and ships with no renderer change at all. The requirements below are
 the discipline that replaces the missing compiler check.
 
+[English grammar is derived](english-grammar-is-derived.md) supplies that
+compiler check for migrated construction families: both directions are
+generated from one declaration. The discipline below continues to govern the
+handwritten families while the migration ratchet runs.
+
 ## Requirements
 
 - **Build the render inverse in the same slice.** A production that lands
@@ -45,4 +50,5 @@ corruption.
 ## Tracked references
 
 - [English clauses are structural](english-clauses-are-structural.md)
+- [English grammar is derived](english-grammar-is-derived.md)
 - [Macro templates are bidirectional](macro-templates-are-bidirectional.md)
