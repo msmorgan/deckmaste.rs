@@ -8,6 +8,7 @@ use clap::Subcommand;
 use xtask::card::CardArgs;
 use xtask::catalogs::CatalogArgs;
 use xtask::cite::CiteArgs;
+use xtask::derive_cards::DeriveCardsArgs;
 use xtask::english::EnglishArgs;
 use xtask::extract::ExtractArgs;
 use xtask::fidelity::FidelityArgs;
@@ -33,6 +34,8 @@ struct Cli {
 enum Cmd {
     /// Derive the catalogs we consume from the CR and Vintage card data.
     Catalogs(CatalogArgs),
+    /// Derive the flat Oracle snapshot from MTGJSON's atomic-card data.
+    DeriveCards(DeriveCardsArgs),
     /// Validate every finished card in a plugin (defaults to plugins/builtin).
     Validate(ValidateArgs),
     /// Show a card as parsed from a plugin, with its macros expanded.
@@ -69,6 +72,7 @@ enum Cmd {
 fn main() -> anyhow::Result<()> {
     match Cli::parse().command {
         Cmd::Catalogs(args) => xtask::catalogs::run(&args),
+        Cmd::DeriveCards(args) => xtask::derive_cards::run(&args),
         Cmd::Validate(args) => xtask::validate::run(args),
         Cmd::Card(args) => xtask::card::run(args),
         Cmd::Fidelity(args) => xtask::fidelity::run(args),
@@ -93,5 +97,11 @@ mod tests {
     fn catalogs_subcommand_parses_with_defaults() {
         let cli = Cli::try_parse_from(["cargo xtask", "catalogs"]).unwrap();
         assert!(matches!(cli.command, Cmd::Catalogs(_)));
+    }
+
+    #[test]
+    fn derive_cards_subcommand_parses_with_defaults() {
+        let cli = Cli::try_parse_from(["cargo xtask", "derive-cards"]).unwrap();
+        assert!(matches!(cli.command, Cmd::DeriveCards(_)));
     }
 }

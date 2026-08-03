@@ -7,6 +7,7 @@ pub mod extract;
 pub mod graduate;
 mod ident;
 mod layout;
+pub mod oracle_snapshot;
 pub(crate) mod parsers;
 pub mod resolve;
 mod ron_output;

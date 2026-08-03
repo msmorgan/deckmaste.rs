@@ -29,11 +29,11 @@ fn fetch_data_if_needed() -> Result<(), String> {
 fn generate_cards() -> Result<(), String> {
     eprintln!("cargo run: first-run setup: generating card corpus...");
     let status = Command::new("cargo")
-        .args(["xtask", "generate", "plugins/wizards", "--minimal"])
+        .args(["xtask", "generate", "plugins/wizards"])
         .status()
         .map_err(|e| format!("failed to run cargo xtask generate: {e}"))?;
     if !status.success() {
-        return Err("cargo xtask generate --minimal failed".into());
+        return Err("cargo xtask generate failed".into());
     }
     Ok(())
 }

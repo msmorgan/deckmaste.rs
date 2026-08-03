@@ -5,8 +5,8 @@ or return
 
 argparse -S m/minimal -- $argv; or return
 
-# --minimal: download only what `cargo xtask generate --minimal` needs.
-# Without the flag: download everything including reference files.
+# --minimal: download only what `cargo xtask generate plugins/wizards` needs.
+# Without the flag: also download the reference files used by local audits.
 set -q _flag_minimal; and set -g _minimal
 
 function fetch_mtgjson
@@ -27,7 +27,8 @@ function fetch_mtgjson
 end
 
 function fetch_rules
-    # cr.json is only needed for keyword stub generation, which --minimal skips.
+    # The generator needs keywords.json; cr.txt/cr.json are reference inputs for
+    # citation and catalog audits, which the first-run demo can skip.
     set wanted cr/keywords:keywords.json
     if not set -q _minimal
         set -a wanted \

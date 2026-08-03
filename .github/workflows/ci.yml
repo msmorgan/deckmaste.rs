@@ -33,10 +33,12 @@ jobs:
 
       # The gitignored reference data (Scryfall catalogs, CR keywords, mtgjson
       # AtomicCards) is too bulky to commit to this repo, so it lives in the
-      # `deckmaste.rs_data` mirror (public, self-refreshed weekly). Pull it in
-      # and stage it so each crate's build.rs detects the fixtures and flips its
-      # cfg on — otherwise the catalog/corpus tests below report as `ignored`
-      # (they carry `#[cfg_attr(not(<cfg>), ignore)]`).
+      # `deckmaste.rs_data` mirror (public, self-refreshed weekly). Pull the
+      # reviewed revision below and stage it so each crate's build.rs detects
+      # the fixtures and flips its cfg on — otherwise the catalog/corpus tests
+      # below report as `ignored` (they carry
+      # `#[cfg_attr(not(<cfg>), ignore)]`). Bump `ref` explicitly after a mirror
+      # refresh passes this workflow; never follow the mirror's moving branch.
       #
       # `data/catalogs` + `data/rules` -> `scryfall_catalogs` cfg (the gated
       # keyword-parser tests read `data/rules/keywords.json`, so the cfg
@@ -50,6 +52,7 @@ jobs:
         with:
           repository: msmorgan/deckmaste.rs_data
           path: _data
+          ref: c27aa236aa00186b0eca70c7114cc940efc8ec9f
       - name: stage data (+ decompress mtgjson)
         run: |
           sudo apt-get update && sudo apt-get install -y xz-utils
@@ -57,6 +60,36 @@ jobs:
           cp -r _data/data/catalogs data/
           cp -r _data/data/rules data/
           xz -dkc _data/data/mtgjson/cache/AtomicCards.json.xz > data/mtgjson/AtomicCards.json
+
+      # The mirror intentionally carries no raw CR text. Cache one immutable
+      # historical snapshot; on a cache miss Academy Ruins sees one request,
+      # and the digest turns an upstream replacement into an explicit pin-bump
+      # failure rather than silently changing CI's inputs.
+      - name: restore pinned Comprehensive Rules
+        id: cr-cache
+        uses: actions/cache@v4
+        with:
+          path: data/rules/cr.txt
+          key: cr-msh-e366ffd5bee87d6f
+      - name: fetch pinned Comprehensive Rules
+        if: steps.cr-cache.outputs.cache-hit != 'true'
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            --header 'Accept: text/plain' \
+            --header 'User-Agent: deckmaste.rs CI (+https://github.com/msmorgan/deckmaste.rs)' \
+            https://api.academyruins.com/file/cr/MSH \
+            --output data/rules/cr.txt
+      - name: verify pinned Comprehensive Rules
+        run: echo 'e366ffd5bee87d6f676b939524b61a18dfe7822a15cbb22c5dbe565a58e07975  data/rules/cr.txt' | sha256sum --check
+
+      # Reproduce the two gitignored fixtures that used to be present only in
+      # a developer checkout. Both derive from pinned inputs: the flat Oracle
+      # snapshot from AtomicCards, and the English catalogs from AtomicCards +
+      # the versioned CR above.
+      - name: derive corpus fixtures
+        run: |
+          cargo xtask derive-cards
+          cargo xtask catalogs
 
       # Generate the gitignored `plugins/wizards` corpus from the staged mtgjson
       # AtomicCards, so each crate's build.rs sets `wizards_corpus` and the
@@ -68,25 +101,12 @@ jobs:
       # corpus passes the full workspace suite (every gated test is green).
       - name: generate wizards corpus
         run: cargo xtask generate plugins/wizards
-      # Un-freeze the fixture cfgs: `cargo xtask generate` already BUILT
-      # deckmaste_plugin (an xtask dependency) before plugins/wizards existed,
-      # and the build scripts deliberately emit no `rerun-if-changed` — so
-      # without this touch the OFF `wizards_corpus` cfg stays
-      # fingerprint-frozen and the deckmaste_plugin corpus gates silently
-      # report `ignored` below while the run looks green.
+      # Un-freeze the fixture cfgs: the xtasks above already BUILT several
+      # workspace crates before every generated path existed, and the build
+      # scripts deliberately emit no `rerun-if-changed`. Without this touch an
+      # OFF cfg can stay fingerprint-frozen and silently report `ignored`.
       - name: re-run build scripts against the staged fixtures
         run: touch crates/*/build.rs
-      # KNOWN GAP — two fixture cfgs are OFF here, so 62 corpus-parsing tests
-      # report `ignored`: `gen_catalogs` (`data/gen/catalogs`, from `cargo
-      # xtask catalogs` over `data/rules/cr.txt`) and `derived_cards`
-      # (`data/derived/cards.jsonl`, the oracle snapshot). No step above can
-      # produce either — the mirror carries no CR text snapshot and no oracle
-      # corpus, and committing them is barred. Note `cargo test` fail-stops at
-      # the first failing binary, so a gap here hides the next one; to see the
-      # whole picture, stage a data/ holding only catalogs + rules +
-      # mtgjson/AtomicCards.json and run with --no-fail-fast. cards.jsonl is
-      # regenerable from the AtomicCards this job already stages; see item 4 of
-      # docs/tickets/planned/ci-noncanon-gate-and-mirror-pinning.md.
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
@@ -96,10 +116,10 @@ jobs:
       # cr-coverage.lock, so it is green on a clean runner.
       - name: cr coverage ratchet
         run: cargo xtask cite coverage --check
-      # NOTE: `cargo xtask cite check` is intentionally not run yet — it shells
-      # out to the mtg-rules skill and needs the CR snapshot under data/, neither
-      # of which a clean runner has. Wiring it in (install the skill + fetch just
-      # the rules snapshot) is a follow-up.
+      # NOTE: `cargo xtask cite check` is intentionally not run yet — although
+      # the CR snapshot is now staged, the command shells out to the mtg-rules
+      # skill, which a clean runner does not have. Installing that skill remains
+      # a follow-up.
       #
       # The Idris↔Rust lockstep gate does NOT run here. The committed-
       # artifact gates this comment once described (elaborator twin-gate,

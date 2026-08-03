@@ -13,6 +13,7 @@ pub mod card;
 pub mod catalogs;
 pub mod cite;
 pub mod coverage;
+pub mod derive_cards;
 pub mod english;
 pub mod extract;
 pub mod fidelity;

@@ -36,12 +36,24 @@ pub struct AtomicCard<'a> {
     /// The name of this face, for multi-face cards.
     #[serde(borrow, default)]
     pub face_name: Option<DataStr<'a>>,
+    /// Face ordering marker (`"a"`, `"b"`, …) for multi-face cards.
+    #[serde(borrow, default)]
+    pub side: Option<DataStr<'a>>,
     /// Symbols like "{2}{W/U}{X}".
     #[serde(borrow, default)]
     pub mana_cost: Option<DataStr<'a>>,
+    #[serde(default)]
+    pub mana_value: Option<f64>,
+    /// The printed type line. `type` is the upstream JSON field name.
+    #[serde(borrow, default, rename = "type")]
+    pub type_line: Option<DataStr<'a>>,
     /// Single-letter color codes ("W", "U", ...).
     #[serde(borrow, default, deserialize_with = "super::null_to_default")]
     pub color_indicator: Vec<DataStr<'a>>,
+    #[serde(borrow, default, deserialize_with = "super::null_to_default")]
+    pub colors: Vec<DataStr<'a>>,
+    #[serde(borrow, default, deserialize_with = "super::null_to_default")]
+    pub color_identity: Vec<DataStr<'a>>,
     #[serde(borrow)]
     pub types: Vec<DataStr<'a>>,
     #[serde(borrow)]
@@ -99,15 +111,19 @@ mod tests {
             "legalities": {"commander": "Legal", "vintage": "Legal"},
             "keywords": ["Flying"],
             "manaCost": "{1}{W}",
+            "manaValue": 2.0,
             "name": "Front // Back",
             "defense": "4",
             "subtypes": ["Time Lord"],
             "supertypes": ["Legendary"],
             "text": "Flying\nProtection from \"quotes\"",
+            "type": "Legendary Battle — Siege",
             "types": ["Battle"]
         }"#;
         let card: AtomicCard = serde_json::from_str(json).unwrap();
         assert_eq!(card.face_name.as_deref(), Some("Front"));
+        assert_eq!(card.mana_value, Some(2.0));
+        assert_eq!(card.type_line.as_deref(), Some("Legendary Battle — Siege"));
         assert_eq!(card.layout.as_str(), "some_future_layout");
         assert_eq!(card.legalities.vintage.as_deref(), Some("Legal"));
         assert_eq!(card.defense.as_deref(), Some("4"));

@@ -86,8 +86,8 @@ Concretely, the engine currently implements:
 `cargo run` launches an interactive terminal client (built on ratatui): a
 hotseat game — Goblins vs. Elves — with a live board across every zone, where you
 drive priority, targeting, attackers and blockers, ability activations, and mana
-payment from the keyboard. It needs no external data; the committed cards are
-enough.
+payment from the keyboard. On first run it downloads the source snapshot and
+generates the demo corpus; subsequent runs reuse those local files.
 
 The engine's behavior is also covered by a test suite that exercises specific
 interactions, and `crates/deckmaste_engine/examples/full_game_1k.rs` runs a
@@ -368,20 +368,22 @@ a 100× speedup.
 
 ## Getting started
 
-Everything but the full card pipeline runs with no external data:
+The committed vertical slice's tests run without downloading external data:
 
 ```sh
-cargo run                  # launch the interactive client (a hotseat demo)
 cargo test                 # the engine's interaction suite
-cargo xtask cite check     # validate CR citations against the rules snapshot
 ```
 
-The full card pipeline requires the dataset, which is not committed, as it is
-Wizards of the Coast property (see below):
+`cargo run` launches the interactive hotseat demo. On a clean checkout its
+first-run bootstrap downloads the minimal source snapshot and generates the
+gitignored Wizards corpus; subsequent runs reuse it. The full card pipeline and
+the citation checker require the complete dataset, which is not committed, as
+it is Wizards of the Coast property (see below):
 
 ```sh
 scripts/fetch_data                       # ~600 MB: MTGJSON and a CR snapshot
 cargo xtask generate plugins/wizards     # build the stub corpus from it
+cargo xtask cite check                   # validate CR citations
 ```
 
 The repository uses jj rather than git; see `CLAUDE.md` for the workflow
