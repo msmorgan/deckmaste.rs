@@ -38,3 +38,10 @@ migrated concept. This slice may proceed while
 `english-coordination-comma-defects` completes.
 
 Standard constraints apply.
+
+Implemented the shared, stratified feature vocabulary, migrated its English and
+frame consumers, and preserved legacy public and serialized views. Verified
+workspace check, affected-crate `-D warnings` Clippy, and affected all-target
+tests; roundtrip is exactly 31,685 clean / 0 mismatched / 0 render errors, and
+recovery is byte-identical at 3,369 structural spans / 62,225 tokens (max 69)
+plus 1,419 opacity spans / 2,102 tokens (max 8).

@@ -146,7 +146,7 @@ pub(super) fn lower(
             return lower_lexical(
                 grammar,
                 forest_node.key.lexical_value()?,
-                &alternative.surface,
+                alternative.surface,
             );
         }
         ForestSymbol::Intermediate { .. } => return None,
@@ -191,7 +191,7 @@ pub(super) fn selected_rule_children(
 pub(super) fn lower_lexical(
     grammar: &EnglishGrammar<'_, '_>,
     meaning: &MeaningKey,
-    surface: &EnglishSurfaceWitness,
+    surface: EnglishSurfaceWitness,
 ) -> Option<Lowered> {
     Some(match meaning {
         MeaningKey::Literal(_) | MeaningKey::Punctuation => Lowered::Ignored,

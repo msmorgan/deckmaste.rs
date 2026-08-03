@@ -2047,18 +2047,15 @@ pub(super) fn reduce_composed_clause(
                         Features::RestrictionMember | Features::RestrictionRun
                     );
                     let last_ok = matches!(children.last()?.features, Features::RestrictionMember);
-                    let conjunction_ok = match children.get(1)?.features {
-                        Features::Conjunction(Conjunction::And) => true,
+                    let conjunction_ok = !matches!(
+                        children.get(1)?.features,
                         Features::Conjunction(
                             Conjunction::Or
-                            | Conjunction::Then
-                            | Conjunction::Plus
-                            | Conjunction::AndOr,
-                        ) => false,
-                        // The comma-joined base and asyndetic-growth forms
-                        // carry punctuation rather than a conjunction here.
-                        _ => true,
-                    };
+                                | Conjunction::Then
+                                | Conjunction::Plus
+                                | Conjunction::AndOr
+                        )
+                    );
                     if first_ok && last_ok && conjunction_ok {
                         Some(Features::RestrictionRun)
                     } else {
@@ -2340,7 +2337,7 @@ mod feature_identity_tests {
     use super::*;
     use crate::word::AuxiliaryInstance;
 
-    fn hash(features: Features) -> u64 {
+    fn hash(features: &Features) -> u64 {
         let mut hasher = DefaultHasher::new();
         features.hash(&mut hasher);
         hasher.finish()
@@ -2372,7 +2369,7 @@ mod feature_identity_tests {
         let full_auxiliary = Features::auxiliary(full);
         let contracted_auxiliary = Features::auxiliary(contracted);
         assert_eq!(full_auxiliary, contracted_auxiliary);
-        assert_eq!(hash(full_auxiliary), hash(contracted_auxiliary));
+        assert_eq!(hash(&full_auxiliary), hash(&contracted_auxiliary));
 
         let subject = ContractedSubjectKey::Pronoun(crate::word::Pronoun::You);
         let agreement = subject.agreement();
@@ -2387,7 +2384,7 @@ mod feature_identity_tests {
             auxiliary: contracted.into(),
         };
         assert_eq!(full_subject, contracted_subject);
-        assert_eq!(hash(full_subject), hash(contracted_subject));
+        assert_eq!(hash(&full_subject), hash(&contracted_subject));
     }
 
     #[test]
@@ -2410,6 +2407,6 @@ mod feature_identity_tests {
         .expect("comma exception rider must reduce");
 
         assert_eq!(single, comma);
-        assert_eq!(hash(single), hash(comma));
+        assert_eq!(hash(&single), hash(&comma));
     }
 }
