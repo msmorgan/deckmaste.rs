@@ -1,0 +1,19 @@
+[package]
+publish = false
+name = "deckmaste_authoring"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+# The macro layer lives here now: `SupportsMacros`/`Expand` derives, the
+# `#[macro_ron(…)]` attributes, and the reader this crate's `ron` module wraps.
+macro_ron = { version = "0.1.0", path = "../macro_ron", features = ["derive"] }
+ron = "0.12.1"
+serde = { version = "1.0.228", features = ["derive", "rc"] }
+
+# NOTE: no `deckmaste_core` dependency, now or ever. The two grammars are
+# siblings joined only by `deckmaste_lowering`; the build graph is the
+# architecture (docs/decisions/authoring-spelling-lowering.md §1).

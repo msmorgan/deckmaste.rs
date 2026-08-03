@@ -443,6 +443,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_authoring"
+version = "0.1.0"
+dependencies = [
+ "macro_ron",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "deckmaste_card"
 version = "0.1.0"
 dependencies = [

@@ -1,13 +1,15 @@
 [workspace]
 members = [
-    ".", "crates/deckmaste_plugin",
+    ".",
+    "crates/deckmaste_authoring",
     "crates/deckmaste_card",
     "crates/deckmaste_core",
-    "crates/deckmaste_english",
     "crates/deckmaste_engine",
+    "crates/deckmaste_english",
     "crates/deckmaste_frames",
     "crates/deckmaste_migrations",
     "crates/deckmaste_noncanon",
+    "crates/deckmaste_plugin",
     "crates/deckmaste_tui",
     "crates/macro_ron",
     "crates/macro_ron_derive",

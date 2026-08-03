@@ -1,0 +1,1006 @@
+use std::sync::Arc;
+
+use serde::Deserialize;
+use serde::Serialize;
+
+use crate::Ability;
+use crate::AsThough;
+use crate::Color;
+use crate::Condition;
+use crate::CostComponent;
+use crate::Count;
+use crate::Deontic;
+use crate::EventFilter;
+use crate::Expand;
+use crate::Expansion;
+use crate::Ident;
+use crate::Predicate;
+use crate::Reference;
+use crate::RelationPredicate;
+use crate::StatValue;
+use crate::Supertype;
+use crate::SupportsMacros;
+use crate::TurnMarker;
+use crate::replacement::Prevention;
+use crate::replacement::Replacement;
+
+/// How long a one-shot-created continuous effect lasts ([CR#611.2]). Static
+/// abilities don't carry this — their duration is implicit ("while it
+/// functions", [CR#611.3]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Duration {
+    /// Ends at a fixed turn-structure marker ([CR#611.2a]): end of turn
+    /// sweeps in cleanup ([CR#514.2]), end of combat at the combat phase's
+    /// end ([CR#500.5a,511.2]).
+    FixedUntil(TurnMarker),
+    /// Until an event happens (the engine pairs the undo one-shot, [CR#610.3]).
+    UntilEvent(EventFilter),
+    /// "For as long as" — a tracked predicate ([CR#611.2b]). The
+    /// never-started / already-ended edge rules ride a `started` latch on
+    /// the ENGINE's effect-instance record, not the card grammar; once
+    /// stopped (including losing sight of a phased-out object,
+    /// [CR#702.26f]) it never resumes.
+    ForAsLongAs(Condition),
+    /// In force while the CARRYING instruction's event executes — an
+    /// instruction-scoped rider duration: "Destroy target creature. It can't
+    /// be regenerated." rides the destroy event itself ([CR#701.19c] — a
+    /// can't-be-regenerated effect causes regeneration shields to not be
+    /// applied to that destruction). The footing for the `DestroyNoRegen`
+    /// macro (macro-first-wave).
+    ForThisEvent,
+    /// For the rest of the game — the no-stated-duration default ([CR#611.2a]).
+    EndOfGame,
+}
+
+/// A shared op for the NUMERIC characteristic axes — power, toughness, base
+/// defense, base loyalty. `Set` overwrites the base value (layer 7b, or 7a when
+/// CDA-flagged), `Up`/`Down` are the ±N modifications (layer 7c)
+/// ([CR#613.4a..613.4c]). The op↔axis pairing is the soundness gate: a numeric
+/// axis variant (`Modification::Power`, …) takes a `NumericOp`, recovering
+/// Idris's `Numeric` type-class gate (`idris/src/Core.idr`) structurally.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum NumericOp {
+    /// Overwrite the base value — layer 7b, or 7a when CDA-flagged
+    /// ([CR#613.4a,613.4b]). Carries a [`StatValue`], not a bare [`Count`]: the
+    /// value SET can be a printed-style scalar (incl. negative, [CR#107.1b]), a
+    /// CDA `*/*` marker, or a dynamic count — the same value type as a card's
+    /// printed base P/T. (`Up`/`Down` deltas stay non-negative [`Count`].)
+    Set(StatValue),
+    /// "+N" ([CR#613.4c], layer 7c).
+    Up(Count),
+    /// "−N" ([CR#613.4c], layer 7c).
+    Down(Count),
+}
+
+/// A shared op for the SET-shaped characteristic axes — colors, card types,
+/// subtypes, supertypes. `Set` overwrites the whole list; `Add`/`Remove`
+/// affect a SINGLE element ([CR#613.1d,613.1e]). The op↔axis pairing is the
+/// soundness gate: a collection axis variant (`Modification::Colors`, …) takes
+/// a `CollectionOp`, which has no `Up`/`Down`, recovering Idris's `Collection`
+/// type-class gate (`idris/src/Core.idr`) structurally.
+///
+/// Generic over the element type, so it can't `#[derive(Expand)]` (that derive
+/// rejects generics); the `Expand` impl is hand-written just below. serde's
+/// derive handles the generic fine.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum CollectionOp<T> {
+    /// Overwrite the whole list (layer 4 types / layer 5 colors).
+    Set(Arc<[T]>),
+    /// Add one element.
+    Add(T),
+    /// Remove one element.
+    Remove(T),
+}
+
+impl<T: Expand + Clone> Expand for CollectionOp<T> {
+    fn expand_all(self) -> Self {
+        match self {
+            CollectionOp::Set(v) => CollectionOp::Set(v.expand_all()),
+            CollectionOp::Add(t) => CollectionOp::Add(t.expand_all()),
+            CollectionOp::Remove(t) => CollectionOp::Remove(t.expand_all()),
+        }
+    }
+}
+
+/// A flat primitive characteristic-change op ([CR#613]). Layers are DERIVED
+/// from the op, never written: the numeric axes (`Power`/`Toughness`/…) carry a
+/// [`NumericOp`] whose `Up`/`Down` → 7c and `Set` → 7b (7a when CDA-flagged);
+/// the set-shaped axes (`Colors`/`CardTypes`/`Subtypes`/`Supertypes`) carry a
+/// [`CollectionOp`] → layer 4 (types) / 5 (colors); `SwitchPowerToughness` →
+/// 7d, abilities → 6, controller → 2, text → 3 ([CR#613.1]). One effect's
+/// `changes` is a list because it can span layers applied to the same set
+/// ([CR#613.6]).
+///
+/// The per-axis ops are factored into the two shared op enums ([`NumericOp`],
+/// [`CollectionOp`]) but the AXIS stays named at the variant level — a
+/// deliberately-partial unification of Idris's fully-unified `Alter
+/// (Characteristic) (ModificationOp)` (`idris/src/Core.idr`): the variant↔op
+/// pairing recovers the op↔axis soundness gate structurally (a `Colors` takes a
+/// `CollectionOp`, which has no `Up`, so "raise a color" is unrepresentable),
+/// while keeping RON readable (`Power(Up(1))`, `Colors(Add(Blue))`).
+///
+/// `SupportsMacros` (not plain `Expand`) so a change-bundling macro can stand
+/// in a `changes: [...]` slot — the keystone being `PowerAndToughnessUp(p, t)`,
+/// which expands to `Several([Power(Up(p)), Toughness(Up(t))])`. `Several` is
+/// the `Modification` analog of `Predicate::And`: a macro expands to ONE
+/// value, so a macro that must contribute several ops bundles them into a
+/// `Several`. Unlike `Predicate::And` (a conjunction the engine evaluates),
+/// `Several` is semantically inert — `changes` is already a flat,
+/// layer-spanning list ([CR#613.6]) — so it is flattened away once, at the
+/// engine boundary ([`Modification::flatten`]), and the engine layer loops
+/// never see it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Modification {
+    /// Power ([CR#613.4]): `Set` base (7a/7b), `Up`/`Down` (7c).
+    Power(NumericOp),
+    /// Toughness ([CR#613.4]): `Set` base (7a/7b), `Up`/`Down` (7c).
+    Toughness(NumericOp),
+    /// Switch power and toughness ([CR#613.4d]).
+    SwitchPowerToughness,
+    /// Colors ([CR#613.1e], layer 5).
+    Colors(CollectionOp<Color>),
+    /// Card types by name (matched against the expanded `TypeDef`s, like
+    /// `Subtypes`); layer 4 ([CR#613.1d]). A layer-4 op ident is resolved
+    /// through the engine's type registry so a granted type's `confers` ride
+    /// along.
+    CardTypes(CollectionOp<Ident>),
+    /// Subtypes by name (the class is derivable from the values — each card
+    /// type has its own closed subtype set, [CR#205.3b]); layer 4. The element
+    /// is a [`SubtypeRef`] (a resolved-def ref that SERIALIZES bare and reads
+    /// via the subtype-macro channel), so an authored `Subtypes(Add(Zombie))`
+    /// validates the name against the declared subtypes; the engine keys the
+    /// layer-4 op off `SubtypeRef::name`.
+    Subtypes(CollectionOp<crate::SubtypeRef>),
+    /// Supertypes ([CR#613.1d], layer 4).
+    Supertypes(CollectionOp<Supertype>),
+    /// Gain an ability ([CR#613.1f]). Boxed: `Ability` is the enum's largest
+    /// variant by far, so indirection keeps `Modification` small.
+    GainAbility(Arc<Ability>),
+    /// Lose a named keyword ability ([CR#613.1f]).
+    LoseAbility(Ident),
+    /// Lose all abilities ([CR#613.1f]).
+    LoseAllAbilities,
+    /// Can't have or gain the named ability ([CR#613.1f]).
+    CantHaveAbility(Ident),
+    /// Change controller ([CR#613.1b]).
+    SetController(Reference),
+    /// Change text ([CR#613.1c]).
+    SetText(String),
+    /// "Is every creature type" ([CR#702.73a] changeling, [CR#205.3m] the
+    /// open creature-type set) — an open-set subtype FILL, not a list op;
+    /// layer 4, normally CDA-flagged.
+    AllCreatureTypes,
+    /// Base loyalty ([CR#306.5b..306.5c] — the printed-loyalty baseline the
+    /// counters start from; no 613 layer covers loyalty). Only `Set` is
+    /// meaningful today; the `NumericOp` shares the numeric op vocabulary.
+    BaseLoyalty(NumericOp),
+    /// Base defense (battle). Only `Set` is meaningful today; the `NumericOp`
+    /// shares the numeric op vocabulary.
+    BaseDefense(NumericOp),
+    /// The [CR#305.7] bundle: replace land types ∧ lose printed abilities ∧
+    /// gain the basic-land mana ability (Blood Moon). One intrinsic, not
+    /// reachable from the plain `Set*` ops.
+    BecomeBasicLandType(Arc<[Ident]>),
+    /// A bundle of ops contributed by one macro invocation — the analog of
+    /// `Predicate::And`. A macro expands to a single value, so a
+    /// change-bundling macro (`PowerAndToughnessUp(p, t)`) produces
+    /// `Several([Power(Up(p)), Toughness(Up(t))])`. Semantically inert:
+    /// `changes` is already a flat, layer-spanning list ([CR#613.6]), so
+    /// [`Modification::flatten`] splices a `Several` into its parent list
+    /// at the engine boundary and the engine never sees this variant.
+    Several(Arc<[Modification]>),
+    /// A remembered `Modification` macro invocation. Serialized as the
+    /// invocation, not the struct; `expand_all` strips it to the bundled value.
+    #[macro_ron(expanded)]
+    Expanded(Expansion<Modification>),
+}
+
+impl Modification {
+    /// Splice every `Several` (recursively) into the parent list, the one
+    /// flatten-away pass for change-bundling macros. Run AFTER `expand_all`
+    /// (which turns `Expanded(PowerAndToughnessUp(p, t))` into
+    /// `Several([Power(Up(p)), Toughness(Up(t))])`) and BEFORE the engine
+    /// consumes `changes`: `changes` is semantically a flat, layer-spanning
+    /// list ([CR#613.6]), so `Several` is a pure expansion artifact
+    /// normalized away exactly once here. The engine's `layer_of`/`apply`
+    /// then never see `Several`/`Expanded`.
+    ///
+    /// Element-wise `expand_all` first (a stored `changes` list may still hold
+    /// `Expanded` invocations), then splice: a plain element passes through, a
+    /// `Several` recurses and splices its (already-flattened) members in place.
+    #[must_use]
+    pub fn flatten(changes: &[Modification]) -> Arc<[Modification]> {
+        use crate::Expand;
+        let mut out: Vec<Modification> = Vec::with_capacity(changes.len());
+        for m in changes.iter().cloned() {
+            match m.expand_all() {
+                Modification::Several(inner) => {
+                    out.extend(Modification::flatten(&inner).iter().cloned());
+                }
+                other => out.push(other),
+            }
+        }
+        out.into()
+    }
+}
+
+/// A step in the total-cost pipeline ([CR#601.2f]): base → +additional and
+/// increases → −reductions (any order) → floor → lock. `Additional` is
+/// pipeline-positional ([CR#118.8] — any number may stack, [CR#118.8a]);
+/// it never changes the mana cost itself ([CR#118.8d]). Alternative costs
+/// are NOT here — they swap the base and ride `May(Cast(cost: …))` rows
+/// ([CR#118.9]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum CostChange {
+    Increase(Arc<[CostComponent]>),
+    Reduce(Arc<[CostComponent]>),
+    /// A MANDATORY "as an additional cost …" ([CR#118.8]). The optional
+    /// kicker-family shape ("you may pay an additional …", [CR#118.8b])
+    /// is NOT a pipeline step — it is a declared
+    /// [`OptionalCost`](crate::OptionalCost) (`StaticEffect::CostOption`),
+    /// announced at [CR#601.2b] and folded into the total at [CR#601.2f].
+    Additional {
+        components: Arc<[CostComponent]>,
+    },
+    /// A COUNT-SCALED change: the inner change applies `times` times at
+    /// total-cost time ([CR#601.2f]). Covers both polarities — "costs {1}
+    /// less for each artifact you control" ([CR#702.41a] affinity) and
+    /// "costs {1} more for each …" taxers — and `times` is a [`Count`],
+    /// so every counting form (`CountOf`, X, queries) composes. Boxed to
+    /// break the self-reference.
+    Scaled {
+        change: Arc<CostChange>,
+        times: Count,
+    },
+}
+
+/// The default `affected` for a [`StaticEffect::TriggerMultiplier`]: "you
+/// control" — the source permanent's controller ([CR#603.2c]). The common case
+/// (Panharmonicon / Yarok), so it is the serde default and is omitted from RON.
+fn affected_you_control() -> Predicate {
+    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+        Reference::You,
+    ))))
+}
+
+/// Whether an `affected` filter equals the "you control" default — skips it on
+/// write so the common case stays flat.
+fn is_affected_you_control(f: &Predicate) -> bool {
+    *f == affected_you_control()
+}
+
+/// The shared currency between an "anthem" static ability and a "+3/+3 until
+/// end of turn" one-shot ([CR#611]). The difference is who wraps it: a static
+/// ability (`StaticAbility`) or a one-shot `OneShotEffect::Continuously`.
+///
+/// Both serde impls are generated by `#[derive(SupportsMacros)]` for macro
+/// interception (it bears `Expanded`): unknown names at `StaticEffect`
+/// positions fall through to the macro layer, and the struct variants read
+/// flat in RON through generated helper structs + `unwrap_variant_newtypes`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum StaticEffect {
+    /// Change ONE object's characteristics ([CR#613]) — `Modify(It,
+    /// PowerAndToughnessUp(2, 2))`. Positional — a single target [`Reference`]
+    /// and a single [`Modification`] (bundle several ops with
+    /// [`Modification::Several`]); the meaning is unambiguous, so no field
+    /// names. Plurality is NEVER implicit here: to affect a set, distribute a
+    /// single-object `Modify` with [`Each`](StaticEffect::Each) over a
+    /// [`Selection`]. Mirrors Idris `Modify : Reference AnObject ->
+    /// Modification -> StaticEffect`.
+    Modify(Reference, Modification),
+    /// "[object] becomes a copy of [source]" ([CR#707.4]) — a CONTINUOUS
+    /// layer-1a copy effect: the object stays on the battlefield (no
+    /// leaves-/enters-the-battlefield triggers fire, [CR#707.4]) and keeps
+    /// any non-copy effects presently affecting it, while its copiable
+    /// values are replaced for as long as this effect lasts. Positional,
+    /// mirroring [`Modify`](StaticEffect::Modify) — a single affected
+    /// [`Reference`] and the shared [`crate::CopySpec`] payload (the same
+    /// source + "except" exceptions [CR#707.9] the other three copy
+    /// delivery sites carry: [`crate::TokenSpec::Copy`],
+    /// [`crate::action::EnterRider::AsCopy`],
+    /// [`crate::Action::CastCopy`]).
+    ///
+    /// NOT a [`Modification`]: [`Layer`](crate::layer) — see
+    /// `deckmaste_engine::layer::Layer` — has no L1 variant, since layer 1
+    /// reshapes the *base* copiable values
+    /// (`deckmaste_engine::layer::base_values`) rather than applying a
+    /// per-op characteristic change; a `BecomesCopy` static is therefore a
+    /// distinct `StaticEffect` variant, not a `Modify(_, Modification::…)`
+    /// op. Authored via the shared one-shot-continuous machinery —
+    /// `Continuously(effect: BecomesCopy(...), duration: ...)` for a single
+    /// part, `Until(duration, [BecomesCopy(...), ...])` alongside other
+    /// parts — exactly like [`Modify`](StaticEffect::Modify) is. Its
+    /// layer-1a APPLICATION (deriving and installing the copiable values
+    /// from the gathered `BecomesCopy` statics) is the
+    /// `engine-layers-1-copy-facedown-text` seam in `base_values`; gathering
+    /// this variant into a no-op here is a documented fizzle, never a
+    /// panic.
+    BecomesCopy(Reference, crate::CopySpec),
+    /// Distribute an inner static effect over a [`Selection`] — "for each
+    /// object in the selection, bind it as [`Reference::It`](crate::Reference)
+    /// and apply the inner effect." The ONLY way a static reaches many
+    /// objects (there is no implicit whole-set scope). The selection is
+    /// re-evaluated every layer pass, so the affected set tracks state changes
+    /// live ([CR#613.6]). Mirrors Idris `Each : Bindable Many -> StaticEffect
+    /// -> StaticEffect`; `Each(SelectAll(F), Modify(It, Δ))` is the anthem.
+    Each(crate::Selection, Arc<StaticEffect>),
+    /// A conditional static ([CR#611.3a]) — "as long as [condition],
+    /// [effect]." Wraps an inner static effect with a game-state predicate; the
+    /// effect applies only while the condition holds (re-checked continuously,
+    /// never locked in). The `condition:` field of the deleted `StaticAbility`
+    /// struct, now a composable effect wrapper. The layer engine rechecks the
+    /// condition against its in-progress derived view ([CR#611.3a]); non-layer
+    /// static consumers use the same wrapper as their collection gate.
+    Conditionally(Condition, Arc<StaticEffect>),
+    /// A deontic clause ([CR#101.2,601.3]): May/Cant/Must/Gate read bare
+    /// in RON (`effects: [Cant(…)]`) via the flatten dispatch.
+    #[macro_ron(flatten)]
+    Deontic(Deontic),
+    /// A cost modifier ([CR#118.7]).
+    CostModifier { of: Predicate, change: CostChange },
+    /// A declared OPTIONAL cost on this object's own casting
+    /// ([CR#118.8b,601.2b]) — the kicker/multikicker/buyback identity
+    /// ([`OptionalCost`](crate::OptionalCost)): "you may pay an additional
+    /// [cost] as you cast this spell", read back through the tag by
+    /// `Condition::PaidCost` / `Count::TimesPaid` / `Predicate::WasPaidWith`
+    /// ([CR#702.33d..702.33e,607.2]).
+    CostOption(crate::OptionalCost),
+    /// A trigger multiplier ([CR#603.2d] — "triggers additional times"):
+    /// Panharmonicon, Yarok, and the trigger half of Doubling Season. A
+    /// triggered ability whose trigger matches `cause`, carried by a permanent
+    /// matching `affected` (default "you control"), fires `extra` ADDITIONAL
+    /// times. It is NOT a copy — each firing chooses its own modes and targets
+    /// — and multipliers ADD rather than compound (two Panharmonicons → 3×,
+    /// not 4×; [CR#603.2d] "doesn't invoke itself repeatedly").
+    /// Panharmonicon = `TriggerMultiplier(cause: ZoneChange(what:
+    /// Or([Type(Artifact), Type(Creature)]), to: Battlefield), extra:
+    /// 1)`.
+    TriggerMultiplier {
+        cause: EventFilter,
+        extra: Count,
+        /// The affected ability's source permanent; defaults to "you control"
+        /// (the source's controller), overridden for opponent/any-doublers.
+        #[serde(
+            default = "affected_you_control",
+            skip_serializing_if = "is_affected_you_control"
+        )]
+        affected: Predicate,
+    },
+    /// A continuous modification to a player's numeric attribute ([CR#611]):
+    /// extra land plays (Exploration = `ModifyPlayer(Ref(You),
+    /// Raise(LandPlaysPerTurn, 1))`, [CR#305.2]) or no maximum hand size
+    /// (Reliquary Tower = `ModifyPlayer(Ref(You), NoMax(HandSizeLimit))`,
+    /// [CR#402.2]). The object-modifying `Modify` touches objects only; this is
+    /// its player-side twin. The `Reference` is the affected player ("you" by
+    /// default — the source's controller).
+    ModifyPlayer(Reference, PlayerMod),
+    /// A replacement effect ([CR#614]). Boxed: `Replacement` is by far the
+    /// largest payload here, so boxing keeps `StaticEffect` small
+    /// (`clippy::large_enum_variant`).
+    Replacement(Arc<Replacement>),
+    /// A prevention effect ([CR#615]). Boxed for the same size reason as
+    /// `Replacement`.
+    Prevention(Arc<Prevention>),
+    /// "Damage … can't be prevented" ([CR#615.12]): matching damage —
+    /// `from` the source, `to` the recipient — is unpreventable. Gates
+    /// exactly the [`Prevention`] class and nothing else, BY CONSTRUCTION:
+    /// prevention is its own marked class, so the gate never touches
+    /// generic replacements ([CR#614] Instead/Skip/Also — which still apply
+    /// their non-prevention riders per [CR#615.12], an engine concern).
+    CantPrevent { from: Predicate, to: Predicate },
+    /// The mana counterfactual channel ([CR#609.4b] payment freedom): mana
+    /// matching `mana_from` (a filter over its PRODUCER — "mana produced by
+    /// Smokebraider") "may be spent as though it were mana of any
+    /// [color/type]" (`as_`). Changes only HOW a cost may be paid — never
+    /// the cost, the pool, or what was actually spent.
+    SpendAsThough {
+        mana_from: Predicate,
+        as_: crate::SymbolPred,
+    },
+    /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
+    AsThough(AsThough),
+    /// A state-based action expressed as data ([CR#704]): whenever `when`
+    /// holds (evaluated with `This` = the carrying object), perform `then` as
+    /// part of the SBA sweep. The Aura must-be-attached rule ([CR#704.5m]) is
+    /// `Sba { when: Not(LegallyAttached(Ref(This))), then: Move(Ref(This),
+    /// Graveyard) }`; the universal SBA-as-data primitive generalizes (a Saga's
+    /// [CR#714.4] sacrifice is `Sba(lore≥final, Sacrifice(Ref(This)))`). The
+    /// SBA sweep reads these statics generically — it never branches on the
+    /// Aura/Equipment/Fortification subtype. `then` is boxed (an
+    /// `OneShotEffect` dominates `StaticEffect`'s size; `Box` only for the
+    /// size cycle, per the "Box only for cycles" rule).
+    Sba {
+        when: Arc<Condition>,
+        then: Arc<crate::OneShotEffect>,
+    },
+    /// An outcome gate: "[who] can't lose the game" / "can't win the game".
+    /// NOT a deontic row — outcome-"can't" modifies the §104/§704 outcome
+    /// machinery, not action legality (mtg-rules deontics §6 evicts the
+    /// family). Semantics (skill U5, settled): precedence, not consumption
+    /// ([CR#101.2]) — the gate suppresses each applicable outcome at each
+    /// SBA check ([CR#704.3]) while it lasts, and survival past the
+    /// effect's end is decided by each SBA's own predicate: the standing
+    /// state predicates ([CR#704.5a] life, [CR#704.5c] poison) fire at the
+    /// first check after the gate ends; the windowed empty-draw predicate
+    /// ([CR#704.5b]) lapses with its window. Concession pierces every gate
+    /// ([CR#101.1,104.3a]); the last-player-standing win pierces `CantWin`
+    /// ([CR#104.2a]); simultaneous win∧lose = lose ([CR#104.3f]).
+    OutcomeGate {
+        who: Predicate,
+        gate: OutcomeGateKind,
+    },
+    /// An event-side "can't happen" ([CR#614.17,702.12b]): the matching event
+    /// can't occur. Distinct from `Deontic::Cant`, which is over player ACTIONS
+    /// ([CR#101.2] action legality); destruction is an EVENT. Indestructible is
+    /// `CantHappen(Destroyed(Ref(This)))`. Per [CR#614.17c] a can't-happen
+    /// event can be touched only by a self-replacement, so the cant pass
+    /// pre-empts the replacement registry entirely.
+    CantHappen(EventFilter),
+    /// ROLL-MORE replacement ([CR#614.3] Krark's Thumb-family; [CR#706.6] the
+    /// ignore-result semantics): "if you would roll/flip `query`, instead
+    /// roll/flip `extra` more and ignore per `ignore`." Krark's Thumb =
+    /// `ReplaceRoll { query: CoinFlipped(by: Ref(You)), extra: 1, ignore:
+    /// IgnoreChosen(1) }`. Mirrors Idris `ReplaceRoll : (q : EventQuery b) ->
+    /// {auto 0 rnd : isRandomnessQuery q = True} -> (extra : Count b) ->
+    /// (ignore : IgnoreRule) -> StaticEffect b` — the `isRandomnessQuery`
+    /// erased auto-proof (gating `query` to a `FlipCoin`/`RollDice` kind
+    /// only, never the planar die, [CR#901.9d]) is Idris-ONLY, same as the
+    /// `EventCaps` proofs `EventFilter::TapForMana`/`ManaSpec::
+    /// ProducedByEvent` document: Rust holds no compile-time gate, so an
+    /// authoring mistake that reaches for `ReplaceRoll` over a non-randomness
+    /// query simply fails to typecheck on the Idris side (`idris-check`), the
+    /// intended soundness gate. Held unboxed like its `TriggerMultiplier`
+    /// sibling (same `EventFilter` + `Count` shape, already unboxed).
+    ReplaceRoll {
+        query: EventFilter,
+        extra: Count,
+        ignore: IgnoreRule,
+    },
+    /// ALTERNATIVE PAYMENT of individual cost pips — NOT a cost reduction and
+    /// NOT mana production. "For each [`PipClass`] pip in this spell's total
+    /// cost, you may [`PayAct`] rather than pay that mana": convoke
+    /// ([CR#702.51a]), delve ([CR#702.66a]), improvise ([CR#702.126a]). It
+    /// "isn't an additional or alternative cost and applies only after the
+    /// total cost of the spell ... is determined" ([CR#702.51b]); the total
+    /// cost and the mana value ([CR#202.3]) are NEVER mutated — paying a pip
+    /// this way still counts as paying the original cost ([CR#118.7]). The
+    /// engine reads this in exactly ONE step, the cost-payment window
+    /// ([CR#601.2g..601.2h]) of the casting that grants it: it walks the
+    /// locked-in cost's pips and offers each eligible pip its alternative,
+    /// substituting how the pip is paid, never the total. Read by no other
+    /// engine step, so the "while on the stack" lifetime ([CR#702.51a]) needs
+    /// no separate is-active predicate.
+    PayPips(PipClass, PayAct),
+    /// A remembered `StaticEffect` macro invocation. Serialized as the
+    /// invocation, not the struct.
+    #[macro_ron(expanded)]
+    Expanded(Expansion<StaticEffect>),
+}
+
+/// Which outcome a [`StaticEffect::OutcomeGate`] suppresses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum OutcomeGateKind {
+    /// Suppresses the loss SBAs ([CR#704.5a..704.5c]) and "loses the
+    /// game" effect outcomes ([CR#104.3e]) for matching players.
+    CantLose,
+    /// Suppresses "wins the game" effect outcomes ([CR#104.2b]); the
+    /// all-opponents-left win ([CR#104.2a]) bypasses it.
+    CantWin,
+}
+
+/// Which flip(s)/roll(s) a [`StaticEffect::ReplaceRoll`] discards, once the
+/// extras have been rolled ([CR#706.6]: "if a player is instructed to
+/// ignore a roll ... the player chooses one of those rolls to be ignored"
+/// when multiple tie for lowest). `IgnoreLowest` = an automatic
+/// ignore-the-lower-result rule; `IgnoreChosen(n)` = the player picks which
+/// `n` of the extras to discard (Krark's Thumb's own "ignore one" —
+/// [CR#706.6] settles this as the flipper's choice, not a forced-lowest
+/// rule). Mirrors Idris `IgnoreRule = IgnoreLowest | IgnoreChosen Nat`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum IgnoreRule {
+    IgnoreLowest,
+    IgnoreChosen(crate::Uint),
+}
+
+/// Which pips of a spell's locked-in total cost a [`StaticEffect::PayPips`]
+/// alternative may pay ([CR#601.2g]). `Generic` matches a generic pip (delve /
+/// improvise / convoke's generic clause); `Colored` a colored pip of the named
+/// color (convoke's per-color clause — "an untapped creature of that color",
+/// [CR#702.51a]). Spelled `Colored(Color)` rather than the Idris `ColorPip`'s
+/// implicit color-match: the color is named here, and a convoke keyword expands
+/// to one variant per color so the tapped creature's color is enforced
+/// structurally.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PipClass {
+    /// A generic pip ({1}) — delve, improvise, convoke's generic clause.
+    Generic,
+    /// A colored pip of the named color — convoke's colored clause
+    /// ([CR#702.51a]).
+    Colored(Color),
+}
+
+/// The per-pip alternative-payment action a [`StaticEffect::PayPips`] performs
+/// "rather than pay that mana" ([CR#702.51a,702.66a,702.126a]). The object is
+/// chosen at payment time ([CR#601.2g]); `Predicate` is open (plugin-safe).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PayAct {
+    /// Tap an untapped permanent matching the filter you control
+    /// ([CR#107.5]): convoke taps a creature ([CR#702.51a]), improvise an
+    /// artifact ([CR#702.126a]).
+    TapToPay(Predicate),
+    /// Exile a matching card from your graveyard: delve ([CR#702.66a]).
+    ExileToPay(Predicate),
+}
+
+/// A player's numeric attribute a [`StaticEffect::ModifyPlayer`] adjusts — the
+/// player-side twin of an object [`Modification`] axis. `HandSizeLimit`
+/// (normally seven, [CR#402.2]) and `LandPlaysPerTurn` (normally one,
+/// [CR#305.2]) are the caps continuous statics modify (Reliquary Tower /
+/// Exploration); `Life` ([CR#119.1]) and `HandSize` ([CR#402.2]) round out the
+/// readable player attributes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PlayerAttr {
+    Life,
+    HandSize,
+    HandSizeLimit,
+    LandPlaysPerTurn,
+}
+
+/// A continuous modification to a player attribute, carried by
+/// [`StaticEffect::ModifyPlayer`] — the player-side twin of [`NumericOp`]
+/// ([CR#611]; players have no [CR#613] layers, so these apply directly).
+/// `SetTo`/`Raise`/`Lower` adjust a count-valued attribute (Exploration =
+/// `Raise(LandPlaysPerTurn, 1)`); `NoMax` removes a cap (Reliquary Tower =
+/// `NoMax(HandSizeLimit)`, "no maximum hand size") — kept a dedicated op, not a
+/// `Maybe Count` value, since a player attribute reads as a count.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PlayerMod {
+    /// Overwrite the attribute with a fixed value.
+    SetTo(PlayerAttr, Count),
+    /// "+N" the attribute.
+    Raise(PlayerAttr, Count),
+    /// "−N" the attribute.
+    Lower(PlayerAttr, Count),
+    /// Remove the attribute's maximum ("no maximum hand size").
+    NoMax(PlayerAttr),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Supertype;
+
+    fn read(source: &str) -> StaticEffect {
+        crate::ron::options().from_str(source).unwrap()
+    }
+
+    /// The anthem shape reads flat and round-trips: `Each(SelectAll(...),
+    /// Modify(It, ...))` distributes a single-object `Modify` over every
+    /// matching creature.
+    #[test]
+    fn modify_reads_flat() {
+        let parsed = read(
+            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Power(Up(Literal(1))), Toughness(Up(Literal(1)))])))",
+        );
+        assert_eq!(
+            parsed,
+            StaticEffect::Each(
+                crate::Selection::SelectAll(Predicate::Characteristic(
+                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
+                )),
+                Arc::new(StaticEffect::Modify(
+                    Reference::It,
+                    Modification::Several(
+                        vec![
+                            Modification::Power(NumericOp::Up(Count::Literal(1))),
+                            Modification::Toughness(NumericOp::Up(Count::Literal(1))),
+                        ]
+                        .into()
+                    ),
+                )),
+            ),
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// The negative-P/T shape (layer 7c) reads flat and round-trips.
+    #[test]
+    fn subtract_modify_round_trips() {
+        let parsed = read(
+            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Power(Down(Literal(1))), Toughness(Down(Literal(1)))])))",
+        );
+        assert_eq!(
+            parsed,
+            StaticEffect::Each(
+                crate::Selection::SelectAll(Predicate::Characteristic(
+                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
+                )),
+                Arc::new(StaticEffect::Modify(
+                    Reference::It,
+                    Modification::Several(
+                        vec![
+                            Modification::Power(NumericOp::Down(Count::Literal(1))),
+                            Modification::Toughness(NumericOp::Down(Count::Literal(1))),
+                        ]
+                        .into()
+                    ),
+                )),
+            ),
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// A collection-axis op reads flat and round-trips: `Colors(Set([...]))`
+    /// (layer 5) and the `Ident`-keyed `CardTypes` `Add`/`Remove` forms
+    /// ([CR#613.1d]). The `Subtypes` axis carries a [`SubtypeRef`] (bare-write
+    /// / resolved-read) and is covered separately by
+    /// [`subtypes_modification_writes_bare_reads_resolved`].
+    #[test]
+    fn collection_op_round_trips() {
+        let parsed = read(
+            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Colors(Set([Black])), CardTypes(Add(\"Artifact\"))])))",
+        );
+        assert_eq!(
+            parsed,
+            StaticEffect::Each(
+                crate::Selection::SelectAll(Predicate::Characteristic(
+                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
+                )),
+                Arc::new(StaticEffect::Modify(
+                    Reference::It,
+                    Modification::Several(
+                        vec![
+                            Modification::Colors(CollectionOp::Set(vec![Color::Black].into())),
+                            Modification::CardTypes(CollectionOp::Add("Artifact".into())),
+                        ]
+                        .into()
+                    ),
+                )),
+            ),
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// A `Subtypes(...)` layer-4 op carries a [`SubtypeRef`]: it WRITES the
+    /// bare name (the compact filter/wizards form) and READS the resolved
+    /// fused struct — or a subtype-macro name, in a macro-aware reader.
+    /// By-name identity ([`SubtypeRef`]) makes the fused read equal a
+    /// name-only build, so the bare write and the resolved read agree
+    /// ([CR#613.1d]).
+    #[test]
+    fn subtypes_modification_writes_bare_reads_resolved() {
+        let m = Modification::Subtypes(CollectionOp::Add("Zombie".into()));
+        let written = crate::ron::options().to_string(&m).unwrap();
+        assert_eq!(written, "Subtypes(Add(Zombie))");
+        let read_back: Modification = crate::ron::options()
+            .from_str("Subtypes(Add(name:\"Zombie\",types:[Creature]))")
+            .unwrap();
+        assert_eq!(read_back, m, "SubtypeRef identity is by-name");
+    }
+
+    /// The `Sba` state-based-action primitive round-trips: the Aura
+    /// must-be-attached shape `Sba(when: Not(LegallyAttached(Ref(This))), then:
+    /// Move(Ref(This), Graveyard))` ([CR#704.5m]).
+    #[test]
+    fn sba_roundtrip() {
+        use crate::Action;
+        use crate::Condition;
+        use crate::OneShotEffect;
+        use crate::Zone;
+
+        let sba = StaticEffect::Sba {
+            when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
+                Reference::This,
+            )))),
+            then: Arc::new(OneShotEffect::Act(Action::move_to(
+                Reference::This,
+                Zone::Graveyard,
+            ))),
+        };
+        let written = crate::ron::options().to_string(&sba).unwrap();
+        assert_eq!(read(&written), sba, "Sba round-trips: {written}");
+    }
+
+    /// A `CantHappen` variant round-trips from RON.
+    #[test]
+    fn cant_happen_reads_flat() {
+        let parsed = read(
+            "CantHappen(ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard, cause: Cause(verb: Destroy)))",
+        );
+        assert!(matches!(parsed, StaticEffect::CantHappen(_)));
+    }
+
+    /// `Modification::flatten` splices a `Several` bundle into its parent list
+    /// (recursively) and leaves plain ops untouched — the one flatten-away pass
+    /// for change-bundling macros. A `Several([Power(Up), Toughness(Up)])`
+    /// (what `PowerAndToughnessUp(3, 3)` expands to) followed by a
+    /// `GainAbility` becomes the flat three-op list the engine consumes.
+    #[test]
+    fn flatten_splices_several() {
+        let changes = vec![
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(3))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(3))),
+                ]
+                .into(),
+            ),
+            Modification::LoseAllAbilities,
+            // A nested Several splices recursively.
+            Modification::Several(
+                vec![Modification::Several(
+                    vec![Modification::Colors(CollectionOp::Set(
+                        vec![Color::White].into(),
+                    ))]
+                    .into(),
+                )]
+                .into(),
+            ),
+        ];
+        assert_eq!(
+            Modification::flatten(&changes),
+            vec![
+                Modification::Power(NumericOp::Up(Count::Literal(3))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(3))),
+                Modification::LoseAllAbilities,
+                Modification::Colors(CollectionOp::Set(vec![Color::White].into())),
+            ]
+            .into(),
+        );
+    }
+
+    /// `flatten` runs `expand_all` element-wise first, so a stored `changes`
+    /// list still holding an `Expanded(Several([...]))` invocation (the
+    /// `PowerAndToughnessUp` shape) flattens to its bundled ops.
+    #[test]
+    fn flatten_strips_expanded_invocations() {
+        use crate::Expansion;
+        use crate::ExpansionArgs;
+        let expanded = Modification::Expanded(Expansion {
+            name: "PowerAndToughnessUp".into(),
+            args: ExpansionArgs::Positional(vec!["2".into(), "0".into()]),
+            template: Some("gets +${0}/+${1}".into()),
+            value: Box::new(Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(2))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(0))),
+                ]
+                .into(),
+            )),
+        });
+        assert_eq!(
+            Modification::flatten(&[expanded, Modification::SwitchPowerToughness]),
+            vec![
+                Modification::Power(NumericOp::Up(Count::Literal(2))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(0))),
+                Modification::SwitchPowerToughness,
+            ]
+            .into(),
+        );
+    }
+
+    /// `ModifyPlayer` reads flat and round-trips: the Exploration land-plays
+    /// raise ([CR#305.2]) and the Reliquary Tower no-maximum-hand-size cap
+    /// removal ([CR#402.2]).
+    #[test]
+    fn modify_player_round_trips() {
+        let parsed = read("ModifyPlayer(You, Raise(LandPlaysPerTurn, 1))");
+        assert_eq!(
+            parsed,
+            StaticEffect::ModifyPlayer(
+                Reference::You,
+                PlayerMod::Raise(PlayerAttr::LandPlaysPerTurn, Count::Literal(1)),
+            ),
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+
+        let no_max = read("ModifyPlayer(You, NoMax(HandSizeLimit))");
+        assert_eq!(
+            no_max,
+            StaticEffect::ModifyPlayer(Reference::You, PlayerMod::NoMax(PlayerAttr::HandSizeLimit),),
+        );
+        let written = crate::ron::options().to_string(&no_max).unwrap();
+        assert_eq!(read(&written), no_max);
+    }
+
+    /// `TriggerMultiplier` round-trips: Panharmonicon's artifact/creature-ETB
+    /// cause with the default "you control" affected omitted from RON
+    /// ([CR#603.2d]), and an explicit non-default affected preserved.
+    #[test]
+    fn trigger_multiplier_round_trips() {
+        let parsed = read(
+            "TriggerMultiplier(cause: ZoneChange(what: Or([Supertype(Basic), Supertype(Legendary)]), to: Battlefield), extra: 1)",
+        );
+        let StaticEffect::TriggerMultiplier {
+            extra, affected, ..
+        } = &parsed
+        else {
+            panic!("expected TriggerMultiplier, got {parsed:?}");
+        };
+        assert_eq!(*extra, Count::Literal(1));
+        assert_eq!(*affected, affected_you_control(), "default is you-control");
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert!(
+            !written.contains("affected"),
+            "the default affected is omitted: {written}"
+        );
+        assert_eq!(read(&written), parsed);
+
+        // An explicit non-default affected (an opponent doubler) is preserved.
+        let opp = read(
+            "TriggerMultiplier(cause: ZoneChange(what: Supertype(Basic), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
+        );
+        let written = crate::ron::options().to_string(&opp).unwrap();
+        assert!(written.contains("affected"), "non-default affected kept");
+        assert_eq!(read(&written), opp);
+    }
+
+    /// `PayPips` reads flat and round-trips: convoke's colored clause
+    /// (`Colored(White)` + tap a white creature you control, [CR#702.51a]) and
+    /// delve's generic clause (`Generic` + exile a graveyard card,
+    /// [CR#702.66a]). The `Predicate` fields are open and read flat.
+    #[test]
+    fn pay_pips_round_trips() {
+        use crate::CharacteristicPredicate;
+        use crate::RelationPredicate;
+        use crate::StatePredicate;
+        use crate::Zone;
+
+        // Convoke's colored clause: tap a white creature you control rather
+        // than pay a {W} pip.
+        let convoke = read(
+            "PayPips(Colored(White), TapToPay(And([Supertype(Basic), ColorIs(White), ControlledBy(Ref(You))])))",
+        );
+        assert_eq!(
+            convoke,
+            StaticEffect::PayPips(
+                PipClass::Colored(Color::White),
+                PayAct::TapToPay(Predicate::And(
+                    vec![
+                        Predicate::Characteristic(CharacteristicPredicate::Supertype(
+                            Supertype::Basic
+                        )),
+                        Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You)
+                        ))),
+                    ]
+                    .into()
+                )),
+            ),
+        );
+        let written = crate::ron::options().to_string(&convoke).unwrap();
+        assert_eq!(read(&written), convoke, "convoke round-trips: {written}");
+
+        // Delve's generic clause: exile a card from your graveyard rather than
+        // pay a generic pip.
+        let delve = read("PayPips(Generic, ExileToPay(InZone(Graveyard)))");
+        assert_eq!(
+            delve,
+            StaticEffect::PayPips(
+                PipClass::Generic,
+                PayAct::ExileToPay(Predicate::State(StatePredicate::InZone(Zone::Graveyard))),
+            ),
+        );
+        let written = crate::ron::options().to_string(&delve).unwrap();
+        assert_eq!(read(&written), delve, "delve round-trips: {written}");
+    }
+
+    /// `CantPrevent` — the [CR#615.12] gate on the Prevention class — reads
+    /// flat and round-trips.
+    #[test]
+    fn cant_prevent_round_trips() {
+        let parsed = read("CantPrevent(from: Ref(This), to: Any)");
+        assert_eq!(
+            parsed,
+            StaticEffect::CantPrevent {
+                from: Predicate::Ref(Reference::This),
+                to: Predicate::Any,
+            },
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// `SpendAsThough` — the [CR#609.4b] mana counterfactual channel —
+    /// reads flat and round-trips for both `SymbolPred` readings.
+    #[test]
+    fn spend_as_though_round_trips() {
+        let parsed = read("SpendAsThough(mana_from: Ref(This), as_: AnyColor)");
+        assert_eq!(
+            parsed,
+            StaticEffect::SpendAsThough {
+                mana_from: Predicate::Ref(Reference::This),
+                as_: crate::SymbolPred::AnyColor,
+            },
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed);
+        let any_type = read("SpendAsThough(mana_from: Any, as_: AnyType)");
+        assert!(matches!(
+            any_type,
+            StaticEffect::SpendAsThough {
+                as_: crate::SymbolPred::AnyType,
+                ..
+            }
+        ));
+    }
+
+    /// A deontic clause reads flat and serializes flat — the compartment
+    /// tag never appears in RON.
+    #[test]
+    fn deontic_reads_flat() {
+        let parsed = read("Cant(Attack(by: Ref(This)))");
+        assert_eq!(
+            parsed,
+            StaticEffect::Deontic(Deontic::Cant(crate::DeonticAction::Attack {
+                by: Predicate::Ref(crate::Reference::This),
+                on: Predicate::Any,
+            })),
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert!(
+            !written.contains("Deontic"),
+            "compartment tag leaked: {written}"
+        );
+        assert_eq!(read(&written), parsed);
+    }
+
+    /// `StaticEffect::BecomesCopy(Reference, CopySpec)` ([CR#707.4]) — "X
+    /// becomes a copy of Y" — carries the shared `CopySpec` payload
+    /// (mirroring `Modify(Reference, Modification)`'s shape) and round-trips
+    /// bare, and wrapped in `Until` — the shape a becomes-a-copy effect
+    /// actually gets authored through ([CR#611.2]).
+    #[test]
+    fn becomes_copy_round_trips() {
+        use crate::CopySource;
+        use crate::CopySpec;
+        use crate::OneShotEffect;
+
+        let parsed = read("BecomesCopy(This, (source: Object(Target(0))))");
+        assert_eq!(
+            parsed,
+            StaticEffect::BecomesCopy(
+                Reference::This,
+                CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![],
+                },
+            ),
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed, "BecomesCopy round-trips: {written}");
+
+        // The shape a card actually authors: wrapped in `Until` alongside
+        // the shared one-shot-continuous machinery ([CR#611.2]).
+        let until = OneShotEffect::Until(
+            Duration::EndOfGame,
+            vec![StaticEffect::BecomesCopy(
+                Reference::This,
+                CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![],
+                },
+            )]
+            .into(),
+        );
+        let written = crate::ron::options().to_string(&until).unwrap();
+        let back: OneShotEffect = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(back, until, "Until(..., [BecomesCopy(...)]) round-trips");
+    }
+
+    /// `Duration::ForThisEvent` — the instruction-scoped rider duration
+    /// ("It can't be regenerated.", [CR#701.19c]) — reads bare and
+    /// round-trips.
+    #[test]
+    fn for_this_event_round_trips() {
+        let v: Duration = crate::ron::options().from_str("ForThisEvent").unwrap();
+        assert_eq!(v, Duration::ForThisEvent);
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(written, "ForThisEvent");
+    }
+}

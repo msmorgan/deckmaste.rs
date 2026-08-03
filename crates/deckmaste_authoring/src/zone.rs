@@ -1,0 +1,34 @@
+use crate::SupportsMacros;
+
+/// A game zone ([CR#400.1]). Vintage-legal scope: no ante.
+///
+/// `SupportsMacros` (rather than a plain serde derive) so a zone name can be
+/// `#[macro_ron(flatten)]`-lifted into [`Destination`](crate::Destination): a
+/// bare `Graveyard` reads as `Destination::Zone(Zone::Graveyard)`, keeping
+/// `Move(This, Graveyard)` spelled as-is. `Destination` excludes `Library` and
+/// `Stack` from that lift (`exclude(Library, Stack)`) — the library is a
+/// destination only at an [`Anchor`](crate::Anchor), the stack never a `Move`
+/// target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Zone {
+    Battlefield,
+    Command,
+    Exile,
+    Graveyard,
+    Hand,
+    Library,
+    Stack,
+}
+
+impl Zone {
+    /// The zone's visibility DEFAULT ([CR#400.2]): hidden vs public is a
+    /// property of the zone, not of the cards in it. Library and hand are
+    /// hidden "even if all the cards in one such zone happen to be
+    /// revealed" — visibility statics grant sight on top of an unchanged
+    /// hidden default. Face-down cards in public zones are the exception
+    /// machinery ([CR#708]), not a zone property.
+    #[must_use]
+    pub fn is_hidden(self) -> bool {
+        matches!(self, Zone::Hand | Zone::Library)
+    }
+}
