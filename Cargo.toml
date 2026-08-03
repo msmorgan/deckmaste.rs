@@ -7,6 +7,7 @@ members = [
     "crates/deckmaste_engine",
     "crates/deckmaste_english",
     "crates/deckmaste_frames",
+    "crates/deckmaste_lowering",
     "crates/deckmaste_migrations",
     "crates/deckmaste_noncanon",
     "crates/deckmaste_plugin",

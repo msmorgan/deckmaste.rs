@@ -509,6 +509,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_lowering"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_authoring",
+ "deckmaste_card",
+ "deckmaste_core",
+ "macro_ron",
+ "ron",
+]
+
+[[package]]
 name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [

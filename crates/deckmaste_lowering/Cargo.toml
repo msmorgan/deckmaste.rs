@@ -1,0 +1,29 @@
+[package]
+publish = false
+name = "deckmaste_lowering"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+# The one-way compile: authored grammar in, engine AST out. This crate is the
+# ONLY edge between the two grammars — neither depends on the other, and the
+# build graph is the architecture
+# (docs/decisions/authoring-spelling-lowering.md §1, §9).
+deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
+# Lowering targets both engine-side crates: the loose primitives in core and
+# the card packaging in `deckmaste_card`.
+deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
+deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+# `Ident`/`Expansion`/`ExpansionArgs` are shared by both grammars — the same
+# types on both sides of the map, so they lower by identity.
+macro_ron = { version = "0.1.0", path = "../macro_ron" }
+
+[dev-dependencies]
+# The corpus gate reads canon/builtin macro definitions to expand real cards.
+# It deliberately does NOT depend on `deckmaste_plugin`: the loader is
+# `plugin-repoint`'s to retarget, and this crate needs only the ~40-line core of
+# it (see tests/support/corpus.rs).
+ron = "0.12.1"

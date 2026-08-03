@@ -22,6 +22,18 @@ pays.
 1. **Inventory**: which types are genuinely shared atoms? `Subtype` blurs
    the edge (registry-defined data, not a closed enum) — likely stays
    grammar/registry-side.
+   **Evidence from `authoring-crate-fork`/`lowering-crate` (add the mana
+   family to the candidate list):** `ManaCost` is the ONLY type in the
+   whole grammar whose lowering arm could not be scaffolded. It is a
+   newtype over a private `Arc<[ManaSymbol]>`, so the generated
+   `Self::Target(self.0.lower())` does not compile from a third crate, and
+   it needed a hand-written arm routing through its public `From`
+   conversions — pure ceremony around an atom with no
+   authored-vs-engine distinction at all. `ManaSymbol`,
+   `SimpleManaSymbol`, `ColorOrColorless` and `SymbolPred` ride the same
+   argument. A private-field newtype is a general signal here: it means
+   the type has an API rather than a shape, which is what an atom looks
+   like and what a grammar node does not.
 2. **The derive problem**: authoring needs `SupportsMacros` on the atoms
    (straggler registration: `Green` as a def with frames), the derive must
    sit with the type (orphan rule), so the shared crate needs an optional
