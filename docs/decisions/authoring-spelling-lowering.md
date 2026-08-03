@@ -549,8 +549,10 @@ the visible policy).
   or re-spells).
 - **Stage 2 — the author surface**: the ban, identity-macro scaffold +
   coverage gate + the closed reachability inventory, straggler
-  registration, negative fixtures; the collision diagnostic may land any
-  time (independently early).
+  registration, negative fixtures; the collision diagnostic lands after
+  the surface settles (early-landing option withdrawn 2026-08-02 — the
+  machinery it checks was moving underneath it; `needs:
+  [macro-author-surface]`, exemption live against the compiled registry).
 - **Stage 3 — spelling consolidation**: `deckmaste_frames` →
   `deckmaste_spelling`; catalog merge; capability unification.
 - **Stage 4 — sugar and scope**: inline target sugar + elaboration rules.
@@ -566,7 +568,7 @@ the visible policy).
 Parallelism contract (the ticket `needs:` graph encodes this):
 
 ```
-wave 1:  plugin-crate-split ∥ card-crate-split ∥ macro-collision-diagnostic
+wave 1:  plugin-crate-split ∥ card-crate-split
          ∥ the planned soundness tickets (engine-it-target-fallback-removal,
            idris-distinct-position-proof, post-reshape-comment-rot)
 spine    authoring-crate-fork → lowering-crate → plugin-repoint
@@ -575,6 +577,7 @@ spine    authoring-crate-fork → lowering-crate → plugin-repoint
 pinch:   plugin-repoint  (the one true serialization point; freeze window)
 wave 5:  macro-author-surface ∥ idris-mirror-authoring
 wave 6:  core-demacro ∥ target-sugar-elaboration ∥ frames-catalog-merge
+         ∥ macro-collision-diagnostic (resequenced 2026-08-02)
 ```
 
 The two Stage-0 renames conflict textually (workspace-wide import sweeps),
