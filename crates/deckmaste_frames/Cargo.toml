@@ -28,10 +28,10 @@ macro_ron = { version = "0.1.0", path = "../macro_ron" }
 # `deckmaste_english` stays a leaf: this arrow points into it and it gains
 # no dependency of its own.
 deckmaste_english = { version = "0.1.0", path = "../deckmaste_english" }
-# A guard's constant is a `deckmaste_core` RON term, read at the type its
-# param declares. The `param type name -> Rust type` table in `guard.rs`
-# needs every macroable core type by name.
-deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+# A guard's constant is an AUTHORED RON term, read at the type its param
+# declares. The `param type name -> Rust type` table in `guard.rs` needs
+# every macroable authoring type by name.
+deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
 anyhow = "1.0.102"
 
 [dev-dependencies]

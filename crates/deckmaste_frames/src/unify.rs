@@ -1709,8 +1709,8 @@ mod tests {
     /// a different spelling.
     #[test]
     fn guard_holds_compares_expanded_canonical_forms() {
-        use deckmaste_core::Count;
-        use deckmaste_core::Quantity;
+        use deckmaste_authoring::Count;
+        use deckmaste_authoring::Quantity;
 
         let entry = fixture()
             .lexicon

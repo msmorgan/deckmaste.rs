@@ -1102,7 +1102,7 @@ mod tests {
 
     /// The fix-round's exact counterexample: a `Recovered` argument spelled
     /// differently from the guard's own authored constant, but denoting the
-    /// same value, must still satisfy it. `crates/deckmaste_core/src/
+    /// same value, must still satisfy it. `crates/deckmaste_authoring/src/
     /// count.rs` documents `Literal(1)` as accepted "for leniency" even
     /// though `Count` never emits it (a bare `1` is canonical) — a textual
     /// comparison against the guard's own `"1"` would miss this spelling,

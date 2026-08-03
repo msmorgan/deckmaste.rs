@@ -47,7 +47,7 @@ use crate::compile;
 pub enum Origin {
     /// A `MacroDef`'s own `frames:` list.
     Macro,
-    /// A `ConstructorFrames` catalog entry — a raw `deckmaste_core`
+    /// A `ConstructorFrames` catalog entry — a raw `deckmaste_authoring`
     /// constructor with no macro definition behind it.
     Constructor,
 }
@@ -850,7 +850,7 @@ mod tests {
 
     /// A `MacroSet` holding exactly the two definitions below, both framed.
     /// `guard::core_reader` supplies the registered kind space (`Predicate`
-    /// and `Selection` are both real `deckmaste_core` macro kinds) with no
+    /// and `Selection` are both real `deckmaste_authoring` macro kinds) with no
     /// macros in it, so nothing but the fixture is in scope.
     fn two_framed_defs_named(name: &str) -> MacroSet {
         let mut macros = crate::guard::core_reader().clone();
