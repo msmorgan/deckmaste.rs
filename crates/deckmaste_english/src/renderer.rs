@@ -126,6 +126,15 @@ pub enum RenderError {
     /// grammar can never construct that surface, since `each` intervenes
     /// between the subject and the first auxiliary — `qfloat` round.
     InvalidDistributiveEachContraction,
+    /// A predicate, modifier, or clause carrier contains the nominal-only
+    /// `plus` conjunction. This can be constructed only through the widened
+    /// canonical compatibility alias, never by the grammar.
+    InvalidPredicateConjunction(Conjunction),
+    /// A nominal, noun-phrase, or prepositional carrier contains the
+    /// predicate-only `then` conjunction. This can be constructed only
+    /// through the widened canonical compatibility alias, never by the
+    /// grammar.
+    InvalidNominalConjunction(Conjunction),
 }
 
 impl fmt::Display for RenderError {
@@ -139,6 +148,14 @@ impl fmt::Display for RenderError {
                 .write_str("keyword argument shape is not licensed in nominal-complement position"),
             Self::InvalidDistributiveEachContraction => formatter.write_str(
                 "a distributive-each predicate head cannot also contract its first auxiliary",
+            ),
+            Self::InvalidPredicateConjunction(conjunction) => write!(
+                formatter,
+                "{conjunction:?} is not licensed as a predicate conjunction"
+            ),
+            Self::InvalidNominalConjunction(conjunction) => write!(
+                formatter,
+                "{conjunction:?} is not licensed as a nominal conjunction"
             ),
         }
     }
@@ -556,7 +573,7 @@ impl<'identity> Renderer<'identity> {
         let mut rendered = self.trigger_frame(*introducer, event, None)?;
         for coordination in &conditions.rest {
             rendered.push(' ');
-            rendered.push_str(render_predicate_conjunction(coordination.conjunction));
+            rendered.push_str(render_predicate_conjunction(coordination.conjunction)?);
             rendered.push(' ');
             let TriggerCondition { introducer, event } = &coordination.condition;
             rendered.push_str(&self.trigger_frame(*introducer, event, None)?);
@@ -990,7 +1007,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_predicate_conjunction(conjunction));
+                        rendered.push_str(render_predicate_conjunction(conjunction)?);
                         rendered.push(' ');
                     }
                     match &coordination.member {
@@ -1026,7 +1043,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = junction.conjunction {
-                        rendered.push_str(render_predicate_conjunction(conjunction));
+                        rendered.push_str(render_predicate_conjunction(conjunction)?);
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.predicate_expression(None, expression)?);
@@ -1150,7 +1167,7 @@ impl<'identity> Renderer<'identity> {
             }
             rendered.push(' ');
             if let Some(conjunction) = conjunct.conjunction {
-                rendered.push_str(render_predicate_conjunction(conjunction));
+                rendered.push_str(render_predicate_conjunction(conjunction)?);
                 rendered.push(' ');
             }
             rendered.push_str(&self.independent_clause(&conjunct.clause)?);
@@ -1172,7 +1189,7 @@ impl<'identity> Renderer<'identity> {
             }
             if let Some(conjunction) = member.conjunction {
                 rendered.push(' ');
-                rendered.push_str(render_predicate_conjunction(conjunction));
+                rendered.push_str(render_predicate_conjunction(conjunction)?);
             }
             rendered.push_str(" only ");
             rendered.push_str(&self.restriction_member(&member.adjuncts)?);
@@ -1428,7 +1445,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_predicate_conjunction(conjunction));
+                        rendered.push_str(render_predicate_conjunction(conjunction)?);
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.predicate_object(&coordination.object)?);
@@ -1697,7 +1714,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_nominal_conjunction(conjunction));
+                        rendered.push_str(render_nominal_conjunction(conjunction)?);
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.nominal_phrase(&coordination.phrase)?);
@@ -1716,7 +1733,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_nominal_conjunction(conjunction));
+                        rendered.push_str(render_nominal_conjunction(conjunction)?);
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.noun_phrase(&coordination.phrase)?);
@@ -1872,7 +1889,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_nominal_conjunction(conjunction));
+                        rendered.push_str(render_predicate_conjunction(conjunction)?);
                         rendered.push(' ');
                     }
                     let (member, member_trailing) =
@@ -2004,7 +2021,7 @@ impl<'identity> Renderer<'identity> {
             }
             rendered.push(' ');
             if let Some(conjunction) = coordination.conjunction {
-                rendered.push_str(render_nominal_conjunction(conjunction));
+                rendered.push_str(render_predicate_conjunction(conjunction)?);
                 rendered.push(' ');
             }
             rendered.push_str(&self.adjective_phrase(&coordination.phrase)?);
@@ -2073,7 +2090,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_nominal_conjunction(conjunction));
+                        rendered.push_str(render_nominal_conjunction(conjunction)?);
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.simple_prepositional_phrase(&coordination.phrase)?);
@@ -2711,21 +2728,21 @@ fn render_subordinator(subordinator: Subordinator) -> &'static str {
     subordinator.spelling()
 }
 
-fn render_predicate_conjunction(conjunction: Conjunction) -> &'static str {
+fn render_predicate_conjunction(conjunction: Conjunction) -> Result<&'static str, RenderError> {
     match conjunction {
         Conjunction::And | Conjunction::Or | Conjunction::Then | Conjunction::AndOr => {
-            conjunction.spelling()
+            Ok(conjunction.spelling())
         }
-        Conjunction::Plus => panic!("invalid predicate conjunction: {conjunction:?}"),
+        Conjunction::Plus => Err(RenderError::InvalidPredicateConjunction(conjunction)),
     }
 }
 
-fn render_nominal_conjunction(conjunction: Conjunction) -> &'static str {
+fn render_nominal_conjunction(conjunction: Conjunction) -> Result<&'static str, RenderError> {
     match conjunction {
         Conjunction::And | Conjunction::Or | Conjunction::Plus | Conjunction::AndOr => {
-            conjunction.spelling()
+            Ok(conjunction.spelling())
         }
-        Conjunction::Then => panic!("then is not a nominal conjunction"),
+        Conjunction::Then => Err(RenderError::InvalidNominalConjunction(conjunction)),
     }
 }
 
@@ -3948,6 +3965,69 @@ mod tests {
         let source = "Choose one —\n• Draw a card.\n• Draw two cards.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
         assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn predicate_carrier_rejects_nominal_only_conjunction_without_unwinding() {
+        let card = || {
+            nominal(
+                Some(Determiner::Indefinite),
+                vec![],
+                NounInstance::Singular(Noun::Word(Vocab::Card)),
+                vec![],
+            )
+        };
+        let first = strict_predicate(verb_phrase(
+            Vocab::Draw,
+            VerbSlot::Imperative,
+            vec![VerbDependent::DirectObject(card())],
+        ));
+        let second = strict_predicate(verb_phrase(
+            Vocab::Discard,
+            VerbSlot::Infinitive,
+            vec![VerbDependent::DirectObject(card())],
+        ));
+        let ast = paragraph_ability(Clause::Independent(IndependentClause::Predicated(
+            None,
+            PredicateExpression::Coordinated(Coordination::new(
+                PredicateExpression::Simple(first),
+                CoordinationJunction {
+                    conjunction: Some(Conjunction::Plus),
+                    comma: crate::features::Comma::Absent,
+                },
+                PredicateExpression::Simple(second),
+            )),
+        )));
+
+        assert_eq!(
+            ast.render("Test Card", false),
+            Err(RenderError::InvalidPredicateConjunction(Conjunction::Plus))
+        );
+    }
+
+    #[test]
+    fn nominal_carrier_rejects_predicate_only_conjunction_without_unwinding() {
+        let object = NounPhrase::Coordinated(CoordinatedNounPhrase {
+            first: Box::new(NounPhrase::Demonstrative(Demonstrative::This)),
+            rest: vec![NounPhraseCoordination {
+                conjunction: Some(Conjunction::Then),
+                comma: crate::features::Comma::Absent,
+                phrase: NounPhrase::Demonstrative(Demonstrative::That),
+            }],
+        });
+        let ast = paragraph_ability(simple(
+            None,
+            verb_phrase(
+                Vocab::Draw,
+                VerbSlot::Imperative,
+                vec![VerbDependent::DirectObject(object)],
+            ),
+        ));
+
+        assert_eq!(
+            ast.render("Test Card", false),
+            Err(RenderError::InvalidNominalConjunction(Conjunction::Then))
+        );
     }
 
     fn source_free(ast: &OracleText, name: &str, legendary: bool) -> String {

@@ -252,6 +252,7 @@ pub struct TriggerConditionList {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TriggerConditionCoordination {
+    #[serde(serialize_with = "super::legacy_serde::serialize_predicate_conjunction")]
     pub conjunction: Conjunction,
     pub condition: TriggerCondition,
 }

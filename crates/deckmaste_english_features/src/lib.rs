@@ -152,6 +152,7 @@ pub enum NounCardinality {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename = "InitialSound")]
 pub enum Onset {
     Consonant,
     Vowel,
@@ -182,6 +183,7 @@ pub enum Gender {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename = "Pronoun")]
 pub enum PronounClass {
     You,
     It(Gender),
@@ -237,6 +239,7 @@ pub enum PronounCase {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename = "RelativeGap")]
 pub enum GapState {
     Subject,
     Object,

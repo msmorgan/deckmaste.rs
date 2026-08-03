@@ -713,7 +713,29 @@ impl ser::SerializeStructVariant for NodeBuilder {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english::features::Comma;
+    use deckmaste_english::features::Conjunction;
+    use deckmaste_english::features::GapState;
+    use deckmaste_english::features::Onset;
+    use deckmaste_english::features::PronounCase;
+    use deckmaste_english::features::PronounClass;
+    use deckmaste_english::syntax::CoordinationJunction;
+    use deckmaste_english::syntax::Demonstrative;
+    use deckmaste_english::syntax::NounPhrase;
+    use deckmaste_english::syntax::NounPhraseCoordination;
+    use deckmaste_english::word::PronounInstance;
+
     use super::*;
+
+    fn field<'a>(view: &'a View, wanted: &str) -> &'a View {
+        let View::Node { fields, .. } = view else {
+            panic!("expected a field-bearing View, got {view:#?}");
+        };
+        fields
+            .iter()
+            .find_map(|(name, value)| (*name == wanted).then_some(value))
+            .unwrap_or_else(|| panic!("missing field {wanted:?} in {view:#?}"))
+    }
 
     #[test]
     fn scalar_values_survive() {
@@ -748,5 +770,64 @@ mod tests {
         assert_eq!(fields[0].0, "x");
         assert_eq!(fields[1].1, View::Absent);
         assert_ne!(of(&E::A), of(&E::B(0)));
+    }
+
+    #[test]
+    fn canonical_feature_aliases_keep_legacy_view_names() {
+        assert_eq!(
+            of(&Onset::Vowel),
+            View::Unit {
+                name: "InitialSound",
+                variant: Some("Vowel"),
+            }
+        );
+        assert_eq!(
+            field(
+                &of(&PronounInstance {
+                    pronoun: PronounClass::They,
+                    case: PronounCase::Object,
+                }),
+                "pronoun",
+            ),
+            &View::Unit {
+                name: "Pronoun",
+                variant: Some("They"),
+            }
+        );
+        assert_eq!(
+            of(&GapState::Object),
+            View::Unit {
+                name: "RelativeGap",
+                variant: Some("Object"),
+            }
+        );
+    }
+
+    #[test]
+    fn conjunction_fields_keep_context_specific_legacy_view_names() {
+        let predicate = of(&CoordinationJunction {
+            conjunction: Some(Conjunction::Then),
+            comma: Comma::Present,
+        });
+        assert_eq!(
+            field(&predicate, "conjunction"),
+            &View::Unit {
+                name: "PredicateConjunction",
+                variant: Some("Then"),
+            }
+        );
+
+        let nominal = of(&NounPhraseCoordination {
+            conjunction: Some(Conjunction::Plus),
+            comma: Comma::Absent,
+            phrase: NounPhrase::Demonstrative(Demonstrative::This),
+        });
+        assert_eq!(
+            field(&nominal, "conjunction"),
+            &View::Unit {
+                name: "NounPhraseConjunction",
+                variant: Some("Plus"),
+            }
+        );
     }
 }

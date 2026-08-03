@@ -130,6 +130,29 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
     );
 }
 
+#[test]
+fn existential_legacy_value_paths_compile_and_match_as_constants() {
+    const FORMS: [ExistentialForm; 5] = [
+        ExistentialForm::Is,
+        ExistentialForm::ContractedIs,
+        ExistentialForm::Are,
+        ExistentialForm::Was,
+        ExistentialForm::Were,
+    ];
+
+    let names = FORMS.map(|form| match form {
+        ExistentialForm::Is => "Is",
+        ExistentialForm::ContractedIs => "ContractedIs",
+        ExistentialForm::Are => "Are",
+        ExistentialForm::Was => "Was",
+        ExistentialForm::Were => "Were",
+        _ => unreachable!("validated existential forms have exactly five values"),
+    });
+
+    assert_eq!(names, ["Is", "ContractedIs", "Are", "Was", "Were"]);
+    assert_eq!(FORMS.map(serialize_unit_variant), names);
+}
+
 fn serialize_unit_variant(value: impl Serialize) -> &'static str {
     value
         .serialize(UnitVariantSerializer)

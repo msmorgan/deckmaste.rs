@@ -662,6 +662,7 @@ pub struct CoordinatedNominalPhrase {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhraseCoordination {
+    #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub comma: Comma,
     pub phrase: NominalPhrase,
@@ -673,6 +674,7 @@ pub struct NounPhraseCoordination {
     /// comma-separated interior members of an Oxford head list (`enchantment,`
     /// in `artifact, enchantment, or land`); `Some` on a bare `and`/`or`/`plus`
     /// member and on the final Oxford member.
+    #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub comma: Comma,
     pub phrase: NounPhrase,
@@ -777,6 +779,7 @@ pub struct ModifierCoordination {
     /// The connective introducing this member: `None` on the asyndetic
     /// comma-separated members of an Oxford list (`artifact,` in `artifact,
     /// creature, and land`); `Some` on the final `and`/`or`/`and/or` member.
+    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub modifier: NominalModifier,
 }
@@ -828,6 +831,7 @@ pub struct AdjectivePhraseCoordination {
     /// `and`/`or`/`and/or` member and on the final Oxford member. The
     /// disjunctive-or-conjunctive `and/or` is admitted here because a supported
     /// copular witness (Glistening Deluge) attests it.
+    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub phrase: AdjectivePhrase,
 }
@@ -1023,6 +1027,7 @@ pub struct CoordinatedPrepositionalPhrase {
 /// `non-` hyphen is derived rather than stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PrepositionalPhraseCoordination {
+    #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub phrase: SimplePrepositionalPhrase,
 }
