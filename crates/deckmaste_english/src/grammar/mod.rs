@@ -305,22 +305,22 @@ impl EnglishSurfaceWitness {
 impl SurfaceWitnessPayload for EnglishSurfaceWitness {}
 
 fn matching_contraction(
-    surface: &str,
-    spelling: impl Fn(crate::features::Contraction) -> Option<&'static str>,
+    matches: impl Fn(crate::features::Contraction) -> bool,
 ) -> Option<crate::features::Contraction> {
     let mut matches = [
         crate::features::Contraction::Full,
         crate::features::Contraction::Contracted,
     ]
     .into_iter()
-    .filter(|&contraction| {
-        spelling(contraction).is_some_and(|candidate| surface.eq_ignore_ascii_case(candidate))
-    });
+    .filter(|&contraction| matches(contraction));
     let contraction = matches.next()?;
     matches.next().is_none().then_some(contraction)
 }
 
-fn subject_auxiliary_surface_matches(key: SubjectAuxiliaryKey, surface: &str) -> bool {
+fn subject_auxiliary_spelling_matches(
+    key: SubjectAuxiliaryKey,
+    matches: impl Fn(&str) -> bool,
+) -> bool {
     SUBJECT_AUXILIARY_FORMS
         .iter()
         .filter(|(_, subject, auxiliaries)| {
@@ -335,9 +335,7 @@ fn subject_auxiliary_surface_matches(key: SubjectAuxiliaryKey, surface: &str) ->
                 } == key.auxiliary
             })
         })
-        .filter(|(surface_index, _, _)| {
-            surface.eq_ignore_ascii_case(SUBJECT_AUXILIARY_SURFACES[*surface_index])
-        })
+        .filter(|(surface_index, _, _)| matches(SUBJECT_AUXILIARY_SURFACES[*surface_index]))
         .count()
         == 1
 }
@@ -2050,6 +2048,16 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         self.words_match(tokens, start, &words)
     }
 
+    fn token_range_matches_spelling(
+        &self,
+        tokens: &[Token],
+        start: usize,
+        end: usize,
+        spelling: &str,
+    ) -> bool {
+        end > start && self.spelling_match(tokens, start, spelling) == Some(end)
+    }
+
     fn literal_words_match(
         &self,
         tokens: &[Token],
@@ -2351,32 +2359,40 @@ impl Grammar for EnglishGrammar<'_, '_> {
         start: usize,
         lexical_match: &LexicalMatch<Self::Features, Self::Meaning>,
     ) -> Self::SurfaceWitness {
-        if lexical_match.end <= start {
-            return EnglishSurfaceWitness::None;
-        }
-        let Some(first) = tokens.get(start) else {
-            return EnglishSurfaceWitness::None;
-        };
-        let Some(last) = tokens.get(lexical_match.end - 1) else {
-            return EnglishSurfaceWitness::None;
-        };
-        let Some(surface) = self.source.get(first.span.start..last.span.end) else {
-            return EnglishSurfaceWitness::None;
-        };
         let contraction = match (&lexical_match.meaning, slot) {
             (
                 MeaningKey::Auxiliary(key),
                 EnglishLexicalSlot::Auxiliary | EnglishLexicalSlot::Copula,
-            ) => matching_contraction(surface, |contraction| {
-                Vocabulary::new().render_auxiliary(key.with_contraction(contraction))
+            ) => matching_contraction(|contraction| {
+                Vocabulary::new()
+                    .render_auxiliary(key.with_contraction(contraction))
+                    .is_some_and(|spelling| {
+                        self.token_range_matches_spelling(
+                            tokens,
+                            start,
+                            lexical_match.end,
+                            spelling,
+                        )
+                    })
             }),
             (MeaningKey::Existential(key), EnglishLexicalSlot::Existential) => {
-                matching_contraction(surface, |contraction| {
-                    ExistentialForm::new(key.verb_slot, contraction).map(ExistentialForm::spelling)
+                matching_contraction(|contraction| {
+                    ExistentialForm::new(key.verb_slot, contraction)
+                        .map(ExistentialForm::spelling)
+                        .is_some_and(|spelling| {
+                            self.token_range_matches_spelling(
+                                tokens,
+                                start,
+                                lexical_match.end,
+                                spelling,
+                            )
+                        })
                 })
             }
             (MeaningKey::SubjectAuxiliary(key), EnglishLexicalSlot::SubjectAuxiliary)
-                if subject_auxiliary_surface_matches(*key, surface) =>
+                if subject_auxiliary_spelling_matches(*key, |spelling| {
+                    self.token_range_matches_spelling(tokens, start, lexical_match.end, spelling)
+                }) =>
             {
                 Some(crate::features::Contraction::Contracted)
             }
@@ -3097,6 +3113,26 @@ mod surface_witness_tests {
         assert_eq!(
             witness_for(
                 "THERE IS",
+                EnglishLexicalSlot::Existential,
+                singular_existential_key(),
+                0,
+                2,
+            ),
+            EnglishSurfaceWitness::Contraction(crate::features::Contraction::Full),
+        );
+        assert_eq!(
+            witness_for(
+                "there  is",
+                EnglishLexicalSlot::Existential,
+                singular_existential_key(),
+                0,
+                2,
+            ),
+            EnglishSurfaceWitness::Contraction(crate::features::Contraction::Full),
+        );
+        assert_eq!(
+            witness_for(
+                "there\tis",
                 EnglishLexicalSlot::Existential,
                 singular_existential_key(),
                 0,
