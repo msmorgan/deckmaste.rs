@@ -30,7 +30,12 @@ impl Lower for deckmaste_authoring::OneShotEffect {
             Self::Repeat(f0, f1) => deckmaste_core::OneShotEffect::Repeat(f0.lower(), f1.lower()),
             Self::Batch(f0, f1) => deckmaste_core::OneShotEffect::Batch(f0.lower(), f1.lower()),
             Self::RevealUntil(f0) => deckmaste_core::OneShotEffect::RevealUntil(f0.lower()),
-            Self::Expanded(f0) => deckmaste_core::OneShotEffect::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -478,7 +483,11 @@ mod tests {
                 value: Box::new(minimal_one_shot_effect())
             })
             .lower(),
-            deckmaste_core::OneShotEffect::Expanded(_)
+            deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
+                deckmaste_core::Reference::This,
+                deckmaste_core::Count::X,
+                deckmaste_core::Reference::This
+            ))
         );
     }
 

@@ -13,8 +13,6 @@ use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
-use deckmaste_core::Expansion;
-use deckmaste_core::ExpansionArgs;
 use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
@@ -26,6 +24,7 @@ use deckmaste_core::Subtype;
 use deckmaste_core::Token;
 use deckmaste_core::Type;
 use deckmaste_plugin::plugin::Plugin;
+use macro_ron::Expand;
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -38,18 +37,12 @@ fn mana_2() -> CostComponent {
     ])))
 }
 
-/// `SacrificeThis` — a remembered `CostComponent` macro invocation whose body
-/// expanded to `Do(Sacrifice(This))`.
+/// `SacrificeThis` — a `CostComponent` macro invocation whose BODY is
+/// `Do(Sacrifice(This))`. `lower` erases invocation provenance (spec §12),
+/// so the loaded token carries the body directly, not a remembered
+/// `Expanded` wrapper.
 fn sacrifice_this() -> CostComponent {
-    CostComponent::Expanded(Expansion {
-        name: "SacrificeThis".into(),
-        args: ExpansionArgs::none(),
-        template: None,
-        value: Box::new(CostComponent::do_action(Action::Sacrifice(
-            Reference::You,
-            Reference::This,
-        ))),
-    })
+    CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This))
 }
 
 fn artifact_subtype(name: &str) -> Subtype {
@@ -112,7 +105,11 @@ fn clue_token_parses() {
                 cost: Arc::<[CostComponent]>::from(vec![mana_2(), sacrifice_this()]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: builtin().macros.read_str("Draw(1)").unwrap(),
+                effect: builtin()
+                    .macros
+                    .read_str::<OneShotEffect>("Draw(1)")
+                    .unwrap()
+                    .expand_all(),
             })]
             .into(),
             power: None,
@@ -195,9 +192,15 @@ fn blood_token_parses() {
     let mana_1 = CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
         ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
     ])));
-    // Read through the builtin macro set so the remembered `Expanded`
-    // wrapper (the `DiscardCards(1)` cost macro) matches exactly.
-    let discard_one: CostComponent = builtin().macros.read_str("DiscardCards(1)").unwrap();
+    // Read through the builtin macro set, then expand: `lower` erases the
+    // `DiscardCards(1)` cost macro's `Expanded` wrapper (spec §12), so the
+    // loaded token carries its body — matching a fresh read collapsed the
+    // same way keeps this robust to macro refactors.
+    let discard_one: CostComponent = builtin()
+        .macros
+        .read_str::<CostComponent>("DiscardCards(1)")
+        .unwrap()
+        .expand_all();
     let token = builtin().token("Blood").unwrap().core;
     assert_eq!(
         token,
@@ -220,7 +223,11 @@ fn blood_token_parses() {
                 .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: builtin().macros.read_str("Draw(1)").unwrap(),
+                effect: builtin()
+                    .macros
+                    .read_str::<OneShotEffect>("Draw(1)")
+                    .unwrap()
+                    .expand_all(),
             })]
             .into(),
             power: None,
@@ -242,32 +249,22 @@ fn vibranium_token_parses() {
     use deckmaste_core::StaticEffect;
 
     // Indestructible expands from the `Keyword(Indestructible)` macro — a
-    // `Composite` keyword carrying the event-side can't-happen, under the
-    // macro-provenance `Expanded` wrapper.
-    let indestructible = Ability::Keyword(KeywordAbility::Expanded(Expansion {
+    // `Composite` keyword carrying the event-side can't-happen. `lower`
+    // erases invocation provenance (spec §12): the loaded token carries the
+    // macro's BODY, not a remembered `Expanded` wrapper (here or on the
+    // nested `Destroy(Ref(This))` filter, which expands to the `Act` master
+    // form).
+    let indestructible = Ability::Keyword(KeywordAbility::Composite {
         name: "Indestructible".into(),
-        args: ExpansionArgs::none(),
-        template: Some("indestructible".into()),
-        value: Box::new(KeywordAbility::Composite {
-            name: "Indestructible".into(),
-            // The filter is the bare-verb `Destroy(Ref(This))` pattern twin —
-            // remembered under its own macro-provenance `Expanded` wrapper,
-            // expanding to the `Act` master form.
-            abilities: vec![Ability::r#static(StaticEffect::CantHappen(
-                EventFilter::Expanded(Expansion {
-                    name: "Destroy".into(),
-                    args: ExpansionArgs::Positional(vec!["Ref(This)".into()]),
-                    template: Some("${0} is destroyed".into()),
-                    value: Box::new(EventFilter::Act {
-                        verb: deckmaste_core::VerbName::from("Destroy"),
-                        who: Predicate::Any,
-                        on: Predicate::Ref(Reference::This),
-                        cause: None,
-                    }),
-                }),
-            ))],
-        }),
-    }));
+        abilities: vec![Ability::r#static(StaticEffect::CantHappen(
+            EventFilter::Act {
+                verb: deckmaste_core::VerbName::from("Destroy"),
+                who: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
+                cause: None,
+            },
+        ))],
+    });
     // "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The
     // SpendOnly rider admits everything EXCEPT a nonartifact spell.
     let restricted_mana = OneShotEffect::Act(Action::AddMana(

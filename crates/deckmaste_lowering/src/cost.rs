@@ -29,7 +29,12 @@ impl Lower for deckmaste_authoring::CostComponent {
                 binder: binder.lower(),
                 body: body.lower(),
             },
-            Self::Expanded(f0) => deckmaste_core::CostComponent::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -178,7 +183,7 @@ mod tests {
                 value: Box::new(minimal_cost_component())
             })
             .lower(),
-            deckmaste_core::CostComponent::Expanded(_)
+            deckmaste_core::CostComponent::Mana(_)
         );
     }
 

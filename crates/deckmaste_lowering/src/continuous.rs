@@ -63,7 +63,12 @@ impl Lower for deckmaste_authoring::Modification {
                 deckmaste_core::Modification::BecomeBasicLandType(f0.lower())
             }
             Self::Several(f0) => deckmaste_core::Modification::Several(f0.lower()),
-            Self::Expanded(f0) => deckmaste_core::Modification::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -145,7 +150,12 @@ impl Lower for deckmaste_authoring::StaticEffect {
                 ignore: ignore.lower(),
             },
             Self::PayPips(f0, f1) => deckmaste_core::StaticEffect::PayPips(f0.lower(), f1.lower()),
-            Self::Expanded(f0) => deckmaste_core::StaticEffect::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -497,7 +507,9 @@ mod tests {
                 value: Box::new(minimal_modification())
             })
             .lower(),
-            deckmaste_core::Modification::Expanded(_)
+            deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
+                deckmaste_core::StatValue::DefinedByAbility
+            ))
         );
     }
 
@@ -840,7 +852,12 @@ mod tests {
                 value: Box::new(minimal_static_effect())
             })
             .lower(),
-            deckmaste_core::StaticEffect::Expanded(_)
+            deckmaste_core::StaticEffect::Modify(
+                deckmaste_core::Reference::This,
+                deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
+                    deckmaste_core::StatValue::DefinedByAbility
+                ))
+            )
         );
     }
 

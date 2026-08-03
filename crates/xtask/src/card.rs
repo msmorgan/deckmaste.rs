@@ -11,15 +11,13 @@ use deckmaste_plugin::plugin::Plugin;
 pub struct CardArgs {
     plugin_dir: PathBuf,
     card_name: String,
-    /// Keep the `Expanded(Expansion { name, args, .. })` wrapper nodes that
-    /// record which macro produced each value. The default output strips
-    /// them (`expand_all`), showing the card as the engine evaluates it.
-    #[arg(long)]
-    show_expansions: bool,
 }
 
 /// Parse one card (its builtin sibling prelude in scope) and print its
-/// expansion.
+/// engine image. `lower` erases every remembered macro invocation (spec
+/// §12), so `loaded.core` IS the expanded form — there is no unexpanded
+/// alternative to toggle to any more (the `--show-expansions` flag this
+/// command used to carry retired with the erasure).
 ///
 /// # Errors
 /// If the plugin fails to load or the card is missing or invalid.
@@ -27,17 +25,12 @@ pub fn run(args: CardArgs) -> anyhow::Result<()> {
     let CardArgs {
         plugin_dir,
         card_name,
-        show_expansions,
     } = args;
     let plugin = Plugin::load_with_sibling_prelude(&plugin_dir)?;
     let loaded = plugin.card(&card_name)?;
 
     println!("{} expands to:\n", plugin.card_path(&card_name).display());
-    if show_expansions {
-        println!("{:#?}", loaded.core);
-    } else {
-        println!("{:#?}", loaded.expanded());
-    }
+    println!("{:#?}", loaded.core);
 
     Ok(())
 }

@@ -10,7 +10,12 @@ impl Lower for deckmaste_authoring::TargetSpec {
         match self {
             Self::Target(f0, f1) => deckmaste_core::TargetSpec::Target(f0.lower(), f1.lower()),
             Self::Distinct(f0, f1) => deckmaste_core::TargetSpec::Distinct(f0.lower(), f1.lower()),
-            Self::Expanded(f0) => deckmaste_core::TargetSpec::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -62,7 +67,10 @@ mod tests {
                 value: Box::new(minimal_target_spec())
             })
             .lower(),
-            deckmaste_core::TargetSpec::Expanded(_)
+            deckmaste_core::TargetSpec::Target(
+                deckmaste_core::Quantity::Range(None, None),
+                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            )
         );
     }
 }

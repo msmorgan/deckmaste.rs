@@ -123,7 +123,12 @@ impl Lower for deckmaste_authoring::Count {
             Self::Damage(f0) => deckmaste_core::Count::Damage(f0.lower()),
             Self::ManaAvailable(f0) => deckmaste_core::Count::ManaAvailable(f0.lower()),
             Self::Aggregate(f0, f1) => deckmaste_core::Count::Aggregate(f0.lower(), f1.lower()),
-            Self::Expanded(f0) => deckmaste_core::Count::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
             Self::Literal(f0) => deckmaste_core::Count::Literal(f0.lower()),
         }
     }
@@ -672,7 +677,7 @@ mod tests {
                 value: Box::new(minimal_count())
             })
             .lower(),
-            deckmaste_core::Count::Expanded(_)
+            deckmaste_core::Count::X
         );
     }
 

@@ -17,7 +17,12 @@ impl Lower for deckmaste_authoring::Replacement {
                 would: would.lower(),
                 also: also.lower(),
             },
-            Self::Expanded(f0) => deckmaste_core::Replacement::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -136,7 +141,19 @@ mod tests {
                 value: Box::new(minimal_replacement())
             })
             .lower(),
-            deckmaste_core::Replacement::Expanded(_)
+            deckmaste_core::Replacement::Instead {
+                would: deckmaste_core::EventFilter::ZoneChange {
+                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                    from: None,
+                    to: None,
+                    cause: None
+                },
+                instead: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::This,
+                    deckmaste_core::Count::X,
+                    deckmaste_core::Reference::This
+                ))
+            }
         );
     }
 

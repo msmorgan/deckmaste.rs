@@ -294,7 +294,12 @@ impl Lower for deckmaste_authoring::EventFilter {
             Self::When(f0, f1) => deckmaste_core::EventFilter::When(f0.lower(), f1.lower()),
             Self::Within(f0, f1) => deckmaste_core::EventFilter::Within(f0.lower(), f1.lower()),
             Self::Before(f0) => deckmaste_core::EventFilter::Before(f0.lower()),
-            Self::Expanded(f0) => deckmaste_core::EventFilter::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -1184,7 +1189,12 @@ mod tests {
                 value: Box::new(minimal_event_filter())
             })
             .lower(),
-            deckmaste_core::EventFilter::Expanded(_)
+            deckmaste_core::EventFilter::ZoneChange {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                from: None,
+                to: None,
+                cause: None
+            }
         );
     }
 }

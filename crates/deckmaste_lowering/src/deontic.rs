@@ -31,7 +31,12 @@ impl Lower for deckmaste_authoring::AsThough {
                 premise: premise.lower(),
                 then: then.lower(),
             },
-            Self::Expanded(f0) => deckmaste_core::AsThough::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -114,7 +119,12 @@ impl Lower for deckmaste_authoring::DeonticAction {
                 on: on.lower(),
             },
             Self::Untap { what } => deckmaste_core::DeonticAction::Untap { what: what.lower() },
-            Self::Expanded(f0) => deckmaste_core::DeonticAction::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -127,7 +137,12 @@ impl Lower for deckmaste_authoring::Deontic {
             Self::Cant(f0) => deckmaste_core::Deontic::Cant(f0.lower()),
             Self::Must(f0) => deckmaste_core::Deontic::Must(f0.lower()),
             Self::Gate(f0, f1) => deckmaste_core::Deontic::Gate(f0.lower(), f1.lower()),
-            Self::Expanded(f0) => deckmaste_core::Deontic::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -194,7 +209,10 @@ mod tests {
                 value: Box::new(minimal_as_though())
             })
             .lower(),
-            deckmaste_core::AsThough::Expanded(_)
+            deckmaste_core::AsThough::Counterfactual {
+                premise: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                then: _
+            }
         );
     }
 
@@ -428,7 +446,10 @@ mod tests {
                 value: Box::new(minimal_deontic_action())
             })
             .lower(),
-            deckmaste_core::DeonticAction::Expanded(_)
+            deckmaste_core::DeonticAction::Attack {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            }
         );
     }
 
@@ -489,7 +510,10 @@ mod tests {
                 value: Box::new(minimal_deontic())
             })
             .lower(),
-            deckmaste_core::Deontic::Expanded(_)
+            deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Attack {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            })
         );
     }
 }

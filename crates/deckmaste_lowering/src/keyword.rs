@@ -49,7 +49,12 @@ impl Lower for deckmaste_authoring::KeywordAbility {
                 name: name.lower(),
                 abilities: abilities.lower(),
             },
-            Self::Expanded(f0) => deckmaste_core::KeywordAbility::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -211,7 +216,7 @@ mod tests {
                 value: Box::new(minimal_keyword_ability())
             })
             .lower(),
-            deckmaste_core::KeywordAbility::Expanded(_)
+            deckmaste_core::KeywordAbility::FirstStrike
         );
     }
 }

@@ -26,7 +26,12 @@ impl Lower for deckmaste_authoring::Reference {
             Self::OwnerOf(f0) => deckmaste_core::Reference::OwnerOf(f0.lower()),
             Self::AttachHostOf(f0) => deckmaste_core::Reference::AttachHostOf(f0.lower()),
             Self::Source => deckmaste_core::Reference::Source,
-            Self::Expanded(f0) => deckmaste_core::Reference::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -202,7 +207,7 @@ mod tests {
                 value: Box::new(minimal_reference())
             })
             .lower(),
-            deckmaste_core::Reference::Expanded(_)
+            deckmaste_core::Reference::This
         );
     }
 }

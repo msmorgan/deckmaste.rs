@@ -173,7 +173,12 @@ impl Lower for deckmaste_authoring::Action {
             },
             Self::RemoveDamage(f0) => deckmaste_core::Action::RemoveDamage(f0.lower()),
             Self::Pay(f0) => deckmaste_core::Action::Pay(f0.lower()),
-            Self::Expanded(f0) => deckmaste_core::Action::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -895,7 +900,11 @@ mod tests {
                 value: Box::new(minimal_action())
             })
             .lower(),
-            deckmaste_core::Action::Expanded(_)
+            deckmaste_core::Action::DealDamage(
+                deckmaste_core::Reference::This,
+                deckmaste_core::Count::X,
+                deckmaste_core::Reference::This
+            )
         );
     }
 

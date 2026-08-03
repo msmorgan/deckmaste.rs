@@ -42,7 +42,12 @@ impl Lower for deckmaste_authoring::Selection {
                 op: op.lower(),
                 proj: proj.lower(),
             },
-            Self::Expanded(f0) => deckmaste_core::Selection::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -237,7 +242,9 @@ mod tests {
                 value: Box::new(minimal_selection())
             })
             .lower(),
-            deckmaste_core::Selection::Expanded(_)
+            deckmaste_core::Selection::SelectAll(deckmaste_core::Predicate::Kind(
+                deckmaste_core::ObjectKind::Ability
+            ))
         );
     }
 }

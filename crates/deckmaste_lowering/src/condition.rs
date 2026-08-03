@@ -43,7 +43,12 @@ impl Lower for deckmaste_authoring::Condition {
             Self::And(f0) => deckmaste_core::Condition::And(f0.lower()),
             Self::Or(f0) => deckmaste_core::Condition::Or(f0.lower()),
             Self::Not(f0) => deckmaste_core::Condition::Not(f0.lower()),
-            Self::Expanded(f0) => deckmaste_core::Condition::Expanded(f0.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the authored
+            // spelling (spec §12). Prose recovers the authored term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
         }
     }
 }
@@ -256,7 +261,11 @@ mod tests {
                 value: Box::new(minimal_condition())
             })
             .lower(),
-            deckmaste_core::Condition::Expanded(_)
+            deckmaste_core::Condition::Compare(
+                deckmaste_core::Count::X,
+                deckmaste_core::Cmp::Eq,
+                deckmaste_core::Count::X
+            )
         );
     }
 }
