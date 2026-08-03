@@ -2,19 +2,16 @@
   "env": {
     "JJ_EDITOR": "false"
   },
+  "enabledPlugins": {
+    "mtg-rules@mtg-rules": true
+  },
   "extraKnownMarketplaces": {
     "mtg-rules": {
       "source": {
         "source": "github",
         "repo": "msmorgan/mtg-rules"
-      }
+      },
+      "autoUpdate": true
     }
-  },
-  "enabledPlugins": {
-    "mtg-rules@mtg-rules": true
-  },
-  "hooks": {
-    "WorktreeCreate": [{"hooks": [{"type": "command", "command": "fish /home/msmorgan/Projects/jj-workflow/scripts/hooks/worktree_create.fish"}]}],
-    "WorktreeRemove": [{"hooks": [{"type": "command", "command": "fish /home/msmorgan/Projects/jj-workflow/scripts/hooks/worktree_remove.fish"}]}]
   }
 }
