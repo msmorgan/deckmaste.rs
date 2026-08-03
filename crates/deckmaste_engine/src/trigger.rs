@@ -4888,16 +4888,13 @@ mod tests {
     /// is cleaned up rather than left dangling in the object store.
     #[test]
     fn targeting_trigger_with_only_hexproof_target_is_dropped() {
-        use deckmaste_card::Card;
-
         // No curated canon card carries a creature-ONLY-target triggered
         // ability (canon's targeting triggers all use "any target", which
         // always admits the player proxies, so the drop can't be reached with
         // them). This synthesizes the minimal card that does — engine-path
         // scaffolding to exercise [CR#603.3c], not a corpus mock.
-        let card: Card = canon()
-            .macros
-            .read_str(
+        let card = canon()
+            .card_from_str(
                 r#"Normal(
                     name: "Test Targeted Pinger",
                     mana_cost: [Red],
@@ -4910,7 +4907,8 @@ mod tests {
                     ],
                 )"#,
             )
-            .unwrap();
+            .unwrap()
+            .core;
 
         // The pinger (a non-creature, so not itself a legal "target creature")
         // belongs to P0; the only creature on the board is P1's hexproof Scout.
@@ -5726,12 +5724,7 @@ mod tests {
                  Triggered(event: {event}, effect: ChangeLife(You, Up(1))),\
              ])"
         );
-        let card = Arc::new(
-            canon()
-                .macros
-                .read_str::<deckmaste_card::Card>(&source)
-                .unwrap(),
-        );
+        let card = Arc::new(canon().card_from_str(&source).unwrap().core);
         let id = put_bf(state, card, controller);
         let src = state.objects.obj(id).source;
         (id, src)
@@ -5853,10 +5846,7 @@ mod tests {
     /// scope) — the `Vec<Ability>` a `GetEmblem` payload carries ([CR#114.1]).
     fn emblem_abilities(inner: &str) -> Vec<deckmaste_core::Ability> {
         let src = format!("Normal(name: \"E\", types: [], abilities: [{inner}])");
-        let card = canon()
-            .macros
-            .read_str::<deckmaste_card::Card>(&src)
-            .unwrap();
+        let card = canon().card_from_str(&src).unwrap().core;
         match card {
             deckmaste_card::Card::Normal(face) => face.abilities,
             other @ deckmaste_card::Card::TwoFaced { .. } => {
@@ -5978,12 +5968,7 @@ mod tests {
                      Triggered(event: {event}, effect: ChangeLife(You, Up(1))),\
                  ])"
             );
-            Arc::new(
-                builtin()
-                    .macros
-                    .read_str::<deckmaste_card::Card>(&source)
-                    .unwrap(),
-            )
+            Arc::new(builtin().card_from_str(&source).unwrap().core)
         };
         for (quantified, expected) in [(true, 1), (false, 2)] {
             let (mut state, bear) = bear_on_field();
@@ -6043,12 +6028,7 @@ mod tests {
             chapter(2),
             chapter(3),
         );
-        let card = Arc::new(
-            builtin()
-                .macros
-                .read_str::<deckmaste_card::Card>(&source)
-                .unwrap(),
-        );
+        let card = Arc::new(builtin().card_from_str(&source).unwrap().core);
         let (mut state, _bear) = bear_on_field();
         let saga = put_bf(&mut state, card, PlayerId(0));
         let saga_source = state.objects.obj(saga).source;
@@ -6115,12 +6095,7 @@ mod tests {
         let source = "Normal(name: \"Death Watcher\", types: [Enchantment], abilities: [\
              Triggered(event: Dies(Type(Creature)), effect: ChangeLife(You, Up(1))),\
          ])";
-        let card = Arc::new(
-            canon()
-                .macros
-                .read_str::<deckmaste_card::Card>(source)
-                .unwrap(),
-        );
+        let card = Arc::new(canon().card_from_str(source).unwrap().core);
         let (mut state, bear) = bear_on_field();
         let watcher = put_bf(&mut state, card, PlayerId(0));
         let watcher_source = state.objects.obj(watcher).source;

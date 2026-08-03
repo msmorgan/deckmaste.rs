@@ -1923,10 +1923,7 @@ mod tests {
             let source = "Normal(name: \"Darksteel Test\", types: [Creature], abilities: [\
                  Static(CantHappen(ZoneChange(what: Ref(This), \
                  from: Battlefield, to: Graveyard)))])";
-            let card = builtin()
-                .macros
-                .read_str::<deckmaste_card::Card>(source)
-                .unwrap();
+            let card = builtin().card_from_str(source).unwrap().core;
             mint_on_field(&mut state, card)
         };
 

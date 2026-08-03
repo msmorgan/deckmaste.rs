@@ -231,7 +231,7 @@ pub(super) fn run(args: PilotArgs) -> anyhow::Result<()> {
     let canon_plugin = Plugin::load_with_sibling_prelude(&canon_dir)?;
 
     let sweep_started = Instant::now();
-    let swept = collect_lines(&canon_dir, &canon_plugin.macros)?;
+    let swept = collect_lines(&canon_dir, &canon_plugin)?;
     let results: Vec<LineResult> = swept
         .lines
         .iter()
@@ -363,7 +363,7 @@ pub(super) fn gate_status(plugin_dir: &Path, canon_dir: &Path) -> anyhow::Result
     let lexicon = Lexicon::assemble(&plugin.macros, &constructors, &catalogs)?;
 
     let canon_plugin = Plugin::load_with_sibling_prelude(canon_dir)?;
-    let swept = collect_lines(canon_dir, &canon_plugin.macros)?;
+    let swept = collect_lines(canon_dir, &canon_plugin)?;
     let results: Vec<LineResult> = swept
         .lines
         .iter()
@@ -500,7 +500,7 @@ impl Swept {
     }
 }
 
-fn collect_lines(canon_dir: &Path, macros: &MacroSet) -> anyhow::Result<Swept> {
+fn collect_lines(canon_dir: &Path, plugin: &Plugin) -> anyhow::Result<Swept> {
     let mut lines = Vec::new();
     let mut excluded: BTreeMap<&'static str, usize> = BTreeMap::new();
     for path in ron_files_recursive(&canon_dir.join(CARDS_DIR))? {
@@ -508,9 +508,10 @@ fn collect_lines(canon_dir: &Path, macros: &MacroSet) -> anyhow::Result<Swept> {
         if is_todo_source(&source) {
             continue;
         }
-        let card: Card = macros
-            .read_str(&source)
-            .map_err(|error| anyhow::anyhow!("parsing {}: {error:#}", path.display()))?;
+        let card = plugin
+            .card_from_str(&source)
+            .map_err(|error| anyhow::anyhow!("parsing {}: {error:#}", path.display()))?
+            .core;
         for face in faces(&card) {
             let is_legendary = face.supertypes.contains(&Supertype::Legendary);
             for ability in &face.abilities {

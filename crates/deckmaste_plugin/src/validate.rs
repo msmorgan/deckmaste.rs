@@ -2,15 +2,16 @@
 //! reader, plus a lint pass over parsed values for shapes that read fine but
 //! are always authoring mistakes.
 //!
-//! **Token walking**: every `tokens/**/*.ron` is read as a [`Token`] with the
-//! same macro scope and todo-skipping as cards.
+//! **Token walking**: every `tokens/**/*.ron` is read as a
+//! [`deckmaste_core::Token`] with the same macro scope and todo-skipping as
+//! cards.
 //!
 //! **Cost-eligibility lint**: for every parsed Card face and Token, every
 //! `CostComponent::Do(action)` must satisfy `Action::is_cost_eligible()`.
 //! Violations surface as [`Validation::lint_failures`] entries with a plain
 //! message, separate from the parse-error [`Validation::failures`] vec (which
-//! carries [`ron::error::SpannedError`] values that can't be constructed by
-//! hand).
+//! carries the restricted reader's own errors — [`ron::error::SpannedError`]
+//! values, uncontextualized, that can't be constructed by hand).
 //!
 //! Earlier lint candidate: degenerate sequences once
 //! `OneShotEffect::Sequentially(Vec<OneShotEffect>)` lands.
@@ -26,7 +27,6 @@ use deckmaste_core::CostComponent;
 use deckmaste_core::Ident;
 use deckmaste_core::Normalize;
 use deckmaste_core::Subtype;
-use deckmaste_core::Token;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::TOKENS_DIR;
 use deckmaste_core::plugin::is_todo_file;
@@ -39,7 +39,10 @@ use crate::plugin::ron_files_recursive;
 /// A card or token file that failed to parse.
 pub struct InvalidCard {
     pub path: PathBuf,
-    pub error: ron::error::SpannedError,
+    /// The read failure as the restricted API reports it — no context is
+    /// added, so this still Displays as the underlying
+    /// [`ron::error::SpannedError`].
+    pub error: anyhow::Error,
 }
 
 /// What a validation pass saw: todos are skipped, everything else either
@@ -57,9 +60,10 @@ pub struct Validation {
 }
 
 /// Reads every non-todo `cards/**/*.ron` and `tokens/**/*.ron` in the plugin
-/// — builtin sibling prelude in scope — as a [`Card`] / [`Token`]
-/// respectively, collecting failures instead of stopping at the first. After
-/// parsing, each value is linted for cost-eligibility (see module doc).
+/// — builtin sibling prelude in scope — as a [`Card`] /
+/// [`deckmaste_core::Token`] respectively, collecting failures instead of
+/// stopping at the first. After parsing, each value is linted for
+/// cost-eligibility (see module doc).
 ///
 /// # Errors
 /// If the plugin (or its prelude) fails to load, or a file isn't readable.
@@ -80,11 +84,11 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
             validation.todos += 1;
             continue;
         }
-        match plugin.macros.read_str::<Card>(&source) {
+        match plugin.card_from_str(&source) {
             Ok(card) => {
                 lint_all_card_faces(
                     &path,
-                    &card,
+                    &card.core,
                     &plugin.subtypes,
                     &plugin.types,
                     &plugin.macros,
@@ -103,9 +107,9 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
             validation.todos += 1;
             continue;
         }
-        match plugin.macros.read_str::<Token>(&source) {
+        match plugin.token_from_str(&source) {
             Ok(token) => {
-                lint_card_abilities(&path, &token.abilities, &mut validation.lint_failures);
+                lint_card_abilities(&path, &token.core.abilities, &mut validation.lint_failures);
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),
@@ -184,15 +188,15 @@ pub fn check_against_canon(plugin_dir: &Path) -> anyhow::Result<Vec<CanonMismatc
             continue;
         }
 
-        let canon_card: Card = canon
-            .macros
-            .read_str(&canon_source)
-            .with_context(|| format!(r#"parsing canon "{}""#, canon_path.display()))?;
+        let canon_card = canon
+            .card_from_str(&canon_source)
+            .with_context(|| format!(r#"parsing canon "{}""#, canon_path.display()))?
+            .core;
         // A plugin card that won't parse is already a validate_plugin failure.
-        let Ok(plugin_card) = plugin.macros.read_str::<Card>(&plugin_source) else {
+        let Ok(plugin_card) = plugin.card_from_str(&plugin_source) else {
             continue;
         };
-        if canon_card != plugin_card {
+        if canon_card != plugin_card.core {
             mismatches.push(CanonMismatch {
                 file: file.to_owned(),
                 canon_path,

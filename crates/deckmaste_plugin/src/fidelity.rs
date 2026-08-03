@@ -199,10 +199,13 @@ pub fn check_plugin(plugin_dir: &Path, oracle: &Oracle) -> anyhow::Result<Vec<Ca
         if is_todo_source(&source) {
             continue;
         }
-        let card: Card = plugin
-            .macros
-            .read_str(&source)
-            .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
+        // `.core`: the fidelity gate renders the engine image. Repointing it
+        // at the authored term is `runtime-prose-link`, which lands the
+        // provenance index this consumer would need.
+        let card = plugin
+            .card_from_str(&source)
+            .with_context(|| format!(r#"parsing "{}""#, path.display()))?
+            .core;
         let waiver = waiver_annotation(&source);
         for face in faces(&card) {
             out.push(CardFidelity {

@@ -351,17 +351,28 @@ impl Plugin {
     /// Reads and parses `cards/<name>.ron` as an authored card, with the
     /// plugin's macros in scope, and lowers it to its engine image.
     ///
-    /// This is the one restricted read API (spec §4): nothing else may
-    /// `read_str` a typed card, and `tests/read_api_gate.rs` enforces it.
+    /// This and its three siblings ([`Plugin::card_from_str`],
+    /// [`Plugin::token`], [`Plugin::token_from_str`]) are the one restricted
+    /// read API (spec §4): nothing else may `read_str` a typed card, and
+    /// `tests/read_api_gate.rs` enforces it. The path-taking entries read the
+    /// file and delegate, so there is a single read path, not two that drift.
     ///
     /// # Errors
     /// If the file is missing or doesn't expand to a card.
     pub fn card(&self, name: &str) -> anyhow::Result<LoadedCard> {
         let path = self.card_path(name);
-        let authored: deckmaste_authoring::Card = self
-            .macros
-            .read_str(&read(&path)?)
-            .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
+        self.card_from_str(&read(&path)?)
+            .with_context(|| format!(r#"parsing "{}""#, path.display()))
+    }
+
+    /// Reads an authored card from SOURCE TEXT rather than from the plugin's
+    /// `cards/` directory — the entry test fixtures and the migration
+    /// graduation path use. Same restriction, same erasure point.
+    ///
+    /// # Errors
+    /// If the source doesn't expand to a card.
+    pub fn card_from_str(&self, source: &str) -> anyhow::Result<LoadedCard> {
+        let authored: deckmaste_authoring::Card = self.macros.read_str(source)?;
         Ok(LoadedCard {
             core: authored.clone().lower(),
             authored,
@@ -381,10 +392,17 @@ impl Plugin {
     /// If the file is missing or doesn't expand to a token.
     pub fn token(&self, name: &str) -> anyhow::Result<LoadedToken> {
         let path = self.token_path(name);
-        let authored: deckmaste_authoring::Token = self
-            .macros
-            .read_str(&read(&path)?)
-            .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
+        self.token_from_str(&read(&path)?)
+            .with_context(|| format!(r#"parsing "{}""#, path.display()))
+    }
+
+    /// Reads an authored token from SOURCE TEXT rather than from the plugin's
+    /// `tokens/` directory. Mirrors [`Plugin::card_from_str`].
+    ///
+    /// # Errors
+    /// If the source doesn't expand to a token.
+    pub fn token_from_str(&self, source: &str) -> anyhow::Result<LoadedToken> {
+        let authored: deckmaste_authoring::Token = self.macros.read_str(source)?;
         Ok(LoadedToken {
             core: authored.clone().lower(),
             authored,

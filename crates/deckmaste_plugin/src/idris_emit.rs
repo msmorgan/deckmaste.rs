@@ -3907,10 +3907,13 @@ pub fn load_all_cards(
         if is_todo_source(&source) {
             continue;
         }
-        let card: Card = plugin
-            .macros
-            .read_str(&source)
-            .with_context(|| format!("parsing {}", path.display()))?;
+        // `.core`: the Idris mirror emits the engine image. Repointing it at
+        // the authored term is `runtime-prose-link`, which lands the
+        // provenance index this emitter would need.
+        let card = plugin
+            .card_from_str(&source)
+            .with_context(|| format!("parsing {}", path.display()))?
+            .core;
         cards.push(card);
     }
     Ok(cards.into())

@@ -121,7 +121,6 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
-use deckmaste_card::Card;
 use deckmaste_core::Ability;
 use deckmaste_core::Supertype;
 use deckmaste_core::plugin::CARDS_DIR;
@@ -141,7 +140,6 @@ use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::plugin::read;
 use deckmaste_plugin::render::CardView;
 use deckmaste_plugin::render::render;
-use macro_ron::MacroSet;
 use macro_ron::frames::ConstructorFrames;
 use macro_ron::frames::FrameKind;
 use macro_ron::frames::FramePosition;
@@ -258,7 +256,7 @@ pub(super) fn run(args: ResidualArgs) -> anyhow::Result<()> {
     let lexicon = Lexicon::assemble(&plugin.macros, &constructors, &catalogs)?;
 
     let canon_plugin = Plugin::load_with_sibling_prelude(&canon_dir)?;
-    let swept = collect_lines(&canon_dir, &canon_plugin.macros)?;
+    let swept = collect_lines(&canon_dir, &canon_plugin)?;
 
     let started = Instant::now();
     let outcomes: Vec<LineOutcome> = swept
@@ -352,7 +350,7 @@ pub(super) fn corpus_full_share(
     let lexicon = Lexicon::assemble(&plugin.macros, &constructors, &catalogs)?;
 
     let canon_plugin = Plugin::load_with_sibling_prelude(canon_dir)?;
-    let swept = collect_lines(canon_dir, &canon_plugin.macros)?;
+    let swept = collect_lines(canon_dir, &canon_plugin)?;
     let outcomes: Vec<LineOutcome> = swept
         .lines
         .iter()
@@ -397,7 +395,7 @@ struct Swept {
 /// downstream of that: it sets three ability shapes aside and tests a
 /// trigger's *effect clause* in place of the line the card prints, while this
 /// one sets nothing aside and takes every line as printed.
-fn collect_lines(canon_dir: &Path, macros: &MacroSet) -> anyhow::Result<Swept> {
+fn collect_lines(canon_dir: &Path, plugin: &Plugin) -> anyhow::Result<Swept> {
     let mut lines = Vec::new();
     let mut abilities = 0usize;
     let mut silent = 0usize;
@@ -406,9 +404,10 @@ fn collect_lines(canon_dir: &Path, macros: &MacroSet) -> anyhow::Result<Swept> {
         if is_todo_source(&source) {
             continue;
         }
-        let card: Card = macros
-            .read_str(&source)
-            .map_err(|error| anyhow::anyhow!("parsing {}: {error:#}", path.display()))?;
+        let card = plugin
+            .card_from_str(&source)
+            .map_err(|error| anyhow::anyhow!("parsing {}: {error:#}", path.display()))?
+            .core;
         for face in faces(&card) {
             let is_legendary = face.supertypes.contains(&Supertype::Legendary);
             for ability in &face.abilities {
@@ -1853,7 +1852,7 @@ mod tests {
         let root = workspace_root();
         let canon_dir = root.join("plugins/canon");
         let canon_plugin = Plugin::load_with_sibling_prelude(&canon_dir).expect("the canon plugin");
-        let swept = collect_lines(&canon_dir, &canon_plugin.macros).expect("the corpus sweep");
+        let swept = collect_lines(&canon_dir, &canon_plugin).expect("the corpus sweep");
         let outcomes: Vec<LineOutcome> = swept
             .lines
             .iter()

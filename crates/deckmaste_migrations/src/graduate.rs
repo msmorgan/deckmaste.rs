@@ -19,7 +19,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use deckmaste_card::Card;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::graduated_name;
 use deckmaste_core::plugin::is_ron_todo_file;
@@ -110,10 +109,10 @@ enum Outcome {
 }
 
 /// Graduates every `cards/*.ron.todo` in `plugin_dir` that the macro reader
-/// parses as a [`Card`] — renaming it to `<name>.ron`. The plugin's builtin
-/// sibling prelude is in scope. A file that fails to parse (an `Unparsed(…)`
-/// placeholder, or a referenced macro/subtype that isn't real yet) is left in
-/// place and counted as `remaining`.
+/// parses as a [`deckmaste_card::Card`] — renaming it to `<name>.ron`. The
+/// plugin's builtin sibling prelude is in scope. A file that fails to parse
+/// (an `Unparsed(…)` placeholder, or a referenced macro/subtype that isn't
+/// real yet) is left in place and counted as `remaining`.
 ///
 /// # Panics
 /// If a file that passed [`is_ron_todo_file`] somehow lacks a valid UTF-8
@@ -131,7 +130,7 @@ pub fn graduate_plugin(plugin_dir: &Path) -> anyhow::Result<GraduateReport> {
         .par_iter()
         .map(|path| -> anyhow::Result<Outcome> {
             let source = read(path)?;
-            match plugin.macros.read_str::<Card>(&source) {
+            match plugin.card_from_str(&source) {
                 Ok(_) => {
                     // is_ron_todo_file guarantees a `.ron.todo` name, so
                     // graduated_name is always present.
