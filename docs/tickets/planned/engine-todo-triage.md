@@ -1,30 +1,44 @@
 ---
 needs: []
 ---
-**Triage the engine's `todo!()`/`unimplemented!()` population.** 76 grep
-hits in `crates/deckmaste_engine/src` (measured 2026-08-03; a handful sit
-in inline test modules — regenerate and filter at claim time; 16 are the
-`todo!("P0.…")` SEAM backlog already named in the tickets README's
-priority-0 note). Each production site is a reachable process abort on
-unsupported input — the engine's failure mode for an unmodeled card is a
-crash, not a diagnostic — and there is no error type to graduate one into.
-Examples: `legal.rs:89` (deontic legality rows unevaluated),
-`target.rs:409` (phased-in status), `replace.rs:142` (uninterpreted
-enters-replacement effect).
+**Classify the engine's `todo!()`/`unimplemented!()` population and turn it
+into an explicit failure policy.** There are 76 grep hits in
+`crates/deckmaste_engine/src` as of 2026-08-03; regenerate at claim time and
+separate production sites from inline-test fixtures. Sixteen are the old
+`todo!("P0.…")` SEAM backlog named in the tickets README.
 
-Inventory every site and classify:
+The inventory must distinguish four cases that require different behavior:
 
-1. **implement** — small enough to just close;
-2. **fizzle** — authored-data-reachable sites convert to a graceful
-   decline per `docs/decisions/invalid-authoring-fizzles.md` (log +
-   no-op), the way `engine-unbound-eventobject-panics` does for its
-   instance;
-3. **fail-loud stays** — genuine unmodeled-mechanic seams on the curated
-   corpus keep the diagnostic abort, but each message names a ticket slug.
+1. **Malformed authored reference or missing authored object.** Fizzle only
+   when the site falls under `docs/decisions/invalid-authoring-fizzles.md`:
+   resolve to no applicable object, emit no game facts, and retain a
+   diagnostic suitable for validation/logging.
+2. **Valid but unsupported Magic mechanic.** Keep a loud, mechanic-specific
+   diagnostic until its named implementation ticket lands. Do not silently
+   turn a legal card behavior into a no-op.
+3. **Internal engine invariant.** Keep or strengthen the assertion/panic and
+   state the invariant it protects; these are explicitly outside the fizzle
+   decision.
+4. **Small implementation.** Mint a focused ticket, or record why a genuinely
+   atomic correction is better handled ad hoc. Do not let opportunistic
+   implementation make this inventory unbounded.
 
-Deliverables: the classified inventory (in this ticket or a follow-up per
-class), the class-2 conversions, and one stated policy line (engine crate
-doc or a decision doc) so the fail-loud posture reads as a documented
-choice rather than an accident. `review-low-severity-followups` (the
-decide.rs `todo!`) and `engine-unbound-eventobject-panics` own their
-specific instances — don't duplicate them.
+Examples to classify include `legal.rs:89` (unevaluated deontic legality),
+`target.rs:409` (phased-in status), and `replace.rs:142` (uninterpreted
+enters-replacement effect). Existing tickets such as
+`review-low-severity-followups` and `engine-unbound-eventobject-panics` retain
+ownership of their named instances; link rather than duplicate them.
+
+Deliverables:
+
+- a complete table in this ticket's eventual done record: location,
+  reachability, class, governing decision/rule, and owner ticket;
+- focused child tickets for every class-2 site and every non-ad-hoc class-4
+  site, with no anonymous `P0.Wn` owner left;
+- one engine-crate policy paragraph distinguishing invalid-authoring fizzle,
+  unsupported mechanics, and invariant failure; and
+- a final grep proving every remaining production `todo!`/`unimplemented!`
+  has a durable diagnostic and a ticket slug.
+
+This ticket performs classification and policy work, not a bulk behavior
+rewrite.

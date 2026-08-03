@@ -9,13 +9,16 @@ representative artifact per claim, each with a half-line of why:
 
 - a hand-authored card: `plugins/canon/cards/Elesh Norn, Grand
   Cenobite.ron` — two statics that read exactly like the printed card;
-- one engine system: `crates/deckmaste_engine/src/layer.rs` — the
-  continuous-effects system: citation density, invariant comments, the
-  dependency-ordering fixpoint;
-- the proof layer: `idris/Spec.idr`'s `failing` blocks — invalid authored
-  states rejected at typecheck, with pinned error messages;
+- one engine system: the exact dependency-ordering function and its focused
+  test in `crates/deckmaste_engine/src/layer.rs` — citation density,
+  invariants, and the layer fixpoint without asking someone to browse a
+  multi-thousand-line file;
+- the proof layer: the exact `failing` blocks in `idris/Spec.idr` — invalid
+  authored states rejected at typecheck, with pinned error messages;
 - `cargo run` — the screencast, live.
 
-Keep it to ~10 lines. The deep version of this orientation is
+Render paths as clickable relative Markdown links and name the symbol or test
+the reviewer should read; code-font paths alone are not a trail. Keep it to
+~10 lines. The deep version of this orientation is
 `docs-grammar-guided-tour` (maybe/) — this section is the trailhead, not
 the tour.

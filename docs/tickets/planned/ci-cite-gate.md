@@ -1,25 +1,33 @@
 ---
 needs: []
 ---
-**CI runs no real citation checking.** The workflow's only citation step is
-`cargo xtask cite coverage --check` — the self-contained path-heuristic
-ratchet. The checker the README leads with, `cargo xtask cite check`, is a
-64-line shim (`crates/xtask/src/cite.rs:34`) that shells out to
-`~/.claude/skills/mtg-rules/scripts/cite` — a fish script in a different,
-uncommitted repository — and needs the CR snapshot under `data/rules/`,
-which the CI data mirror does not carry. So the repo's flagship
-verification claim is unverifiable from a clean clone: stale or
-unregistered citations surface only on a maintainer machine.
+**Make citation checking repository-owned and run it in CI.** The workflow
+currently runs only `cargo xtask cite coverage --check`, the self-contained
+path-heuristic ratchet. The checker the README advertises, `cargo xtask cite
+check`, is a shim over an uncommitted
+`~/.claude/skills/mtg-rules/scripts/cite`; a cold clone cannot run it even
+after fetching the complete dataset.
 
-Wire it in, either way closes the gap:
+Move the checker into `xtask` and make this repository its authoritative
+implementation. Preserve the existing command surface (`check
+[--list-noncompliant]`, `bless`, `list`, `show`, `diff`, and `audit`) and the
+`cite-config.json`/lockfile formats so the migration does not silently weaken
+the gate. Remove the home-directory lookup and `MTG_RULES_CITE` escape hatch;
+the mtg-rules skill may wrap the repository command when operating here, but
+CI and contributors must not require the skill.
 
-1. **Install the skill in CI** — check out `msmorgan/mtg-rules` at a
-   pinned revision, fetch just the rules snapshot, run
-   `cargo xtask cite check` (0 stale; `--list-noncompliant` empty); or
-2. **Vendor the checker** — move the cite script into this repo's
-   `scripts/` and make the skill the consumer (decide which copy is
-   authoritative), removing the external dependency entirely.
+The CI job already stages and digest-verifies `data/rules/cr.txt`. Reuse that
+exact file for citation checking; do not fetch a second CR or choose an
+independent latest-version policy inside this ticket. Run `cargo xtask cite
+check` after the coverage ratchet and require both zero stale citations and an
+empty `--list-noncompliant` result.
 
-Delete the ci.yml comment block documenting the gap along with the gap.
-Coordinate with `ci-derived-data-fixtures` (owns CI data staging) on where
-the CR snapshot comes from.
+Acceptance:
+
+- focused fixtures cover range expansion, stale text hashes, malformed and
+  noncompliant citations, and lockfile updates;
+- the full command surface works from a cold clone after
+  `scripts/fetch_data`, with no files expected under `$HOME`;
+- CI runs the real checker against the same pinned CR used to derive its
+  catalogs; and
+- the ci.yml comment documenting the missing skill is deleted with the gap.
