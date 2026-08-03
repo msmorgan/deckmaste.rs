@@ -41,11 +41,13 @@ deckmaste_english ◄════════════════► deckmas
   serde, no Idris obligations (until an engine-side dependent invariant
   earns a thin mirror back).
 - **`deckmaste_card`** (engine-side, sitting directly above core): the
-  engine's unit of card definitions — `Card`/`CardFace`/`Token`, layouts,
-  type lines, the packaging of primitives into a playable unit — split out
-  of core so the loose primitives are testable independently and the
-  card-shapes program (transform/saga/adventure/split) has a home. Card
-  depends on core, never the reverse; lowering targets both. Core carries
+  engine's unit of card definitions — `Card`/`CardFace` and the face
+  layouts, the packaging of primitives into a playable unit — split out of
+  core so the loose primitives are testable independently and the
+  card-shapes program (transform/saga/adventure/split) has a home. A face's
+  type-line FIELDS move with it; the `Type`/`Subtype`/`Supertype`/`TypeDef`
+  vocabulary those fields hold stays in core. Card depends on core, never
+  the reverse; lowering targets both. Core carries
   NO characteristics abstraction: the grammar keeps only the
   characteristic value vocabulary plus the effect-defined bundles
   (`Token`/`TokenSpec` and the face-down bundle remain core — the grammar
@@ -54,13 +56,18 @@ deckmaste_english ◄════════════════► deckmas
   `card`'s types and core's bundles (local trait, foreign types — the
   orphan rule permits it), with `CardRef<T: BaseCharacteristics>`
   engine-local at the object/state boundary; grammar enums stay
-  monomorphic. A future shared characteristics-atoms crate below both
-  grammars (killing atom mirroring) is booked as a design-gated follow-up
-  (`characteristics-atoms-crate`), deliberately NOT part of Stage 1.
-- **The card-loader crate is renamed to `deckmaste_plugin`** (Stage 0): it was
-  always the loader plus riders; the riders (emitter, validation, fidelity,
-  the dying legacy renderer) may split further at the claimant's
-  discretion.
+  monomorphic. Neither the trait nor `CardRef` is built yet:
+  `card-crate-split` landed as a pure move and deferred them, enforcing
+  only the negative half of the contract — that core gains no
+  characteristics abstraction. A future shared characteristics-atoms
+  crate below both grammars (killing atom mirroring) is booked as a
+  design-gated follow-up (`characteristics-atoms-crate`), deliberately
+  NOT part of Stage 1.
+- **The card-loader crate is renamed to `deckmaste_plugin`** (Stage 0): it
+  was always the loader plus riders. The rename landed alone; splitting the
+  riders (the Idris emitter and validation) out is booked as
+  `plugin-rider-split`. The dying legacy renderer stays put to die in
+  place, and the fidelity harness rides it.
 
 Design principles that did the deciding, recorded because they generalize:
 
@@ -492,10 +499,10 @@ landing keeps all gates green (zero behavior change until Stage 2 begins
 the visible policy).
 
 - **Stage 0 — free the names**: the card-loader crate → `deckmaste_plugin`
-  (claimant may split loader vs riders further); `deckmaste_card` split
-  out of core — a cross-cutting, land-anytime migration (deliberately
-  `needs: []`; whichever of it and the fork lands second adapts). No
-  semantic change.
+  (rename only; the rider split is `plugin-rider-split`); `deckmaste_card`
+  split out of core — a cross-cutting, land-anytime migration
+  (deliberately `needs: []`; whichever of it and the fork lands second
+  adapts). No semantic change.
 - **Stage 1 — the fork**: `deckmaste_authoring` created as a mirror of
   core's grammar WITH the macro machinery; `deckmaste_lowering` with the
   generated identity mapping; loaders and migrations repoint (parse
@@ -624,7 +631,7 @@ tracked tree); the deltas restated here are self-contained.
   `core-demacro`. Stage 2: `macro-author-surface` (rewritten),
   `macro-collision-diagnostic`. Stage 3: `spelling-crate-rename`,
   `frames-catalog-merge`. Stage 4: `target-sugar-elaboration`.
-  Follow-ups: `engine-it-target-fallback-removal`,
+  Follow-ups: `plugin-rider-split`, `engine-it-target-fallback-removal`,
   `idris-distinct-position-proof`, `spelling-engine-requirements`,
   `post-reshape-comment-rot`, `ci-idris-gate` (the idris-check baseline),
   the re-aimed `core-remove-default-args`, and the design-gated
