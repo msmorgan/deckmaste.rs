@@ -33,3 +33,15 @@ baseline, `cargo xtask english roundtrip --require-clean`, and recovery census
 remain unchanged. No generated production traffic is enabled in this ticket.
 
 Standard constraints apply.
+
+Result: every handwritten grammar family now has a stable `ConstructionId`,
+owner/backend/evidence metadata, stable per-family production ordinals, and a
+validated registry of explicit dominance edges. Forest selection compares
+named cost dimensions, declared dominance, and full stable derivation identity;
+public provenance and verbose `inspect` expose the selected construction and
+all equal-cost candidates, including dominated alternatives. Seven semantic
+fixtures are identical under normal, reversed, and fixed-shuffle family
+registration. The 31,685-face recovery JSON was byte-identical before and
+after (3,340 recovery sites), round-trip reported 31,685 clean faces with zero
+mismatches or render errors, and the shape census exited successfully. No
+generated production traffic was enabled.

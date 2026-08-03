@@ -53,6 +53,7 @@ use super::Token;
 use super::TokenKind;
 use super::Verb;
 use super::VerbAnalysis;
+use super::VerbInstance;
 use super::VerbSlot;
 use super::Vocab;
 use super::Vocabulary;
@@ -71,6 +72,30 @@ impl EnglishGrammar<'_, '_> {
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
         let mut matches = self.word_matches(tokens, start, LexicalSlot::Verb(verb_slot));
         matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Verb(verb_slot)));
+        let follows_conjunction = start.checked_sub(1).is_some_and(|previous| {
+            self.token_text(tokens, previous)
+                .is_some_and(|surface| surface.eq_ignore_ascii_case("and"))
+        });
+        if follows_conjunction {
+            for item in &mut matches {
+                if matches!(
+                    &item.meaning,
+                    MeaningKey::Verb(VerbAnalysis {
+                        instance: VerbInstance {
+                            verb: Verb::Word(Vocab::Target),
+                            ..
+                        },
+                        ..
+                    })
+                ) {
+                    // After `and`, rules text commonly starts a second noun
+                    // phrase with the `target` determiner. Keep the imperative
+                    // verb reading as a fallback, but make it lose whenever
+                    // the coordinated-object reading also completes.
+                    item.local_cost.reading_dispreference += 1;
+                }
+            }
+        }
         // A multi-word keyword action spells one rules-defined action; the shorter
         // verb readings that start at the same token — the vocabulary verb, or the
         // single-word keyword action whose spelling the phrase's head coincides with

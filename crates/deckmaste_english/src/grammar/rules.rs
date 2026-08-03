@@ -699,9 +699,8 @@ impl RuleBuilder {
         );
     }
 
-    /// General coordination inside the nominal, appended last so every existing
-    /// rule keeps its `RuleId` and every existing parse forest keeps its
-    /// alternative indices. Two independent shapes:
+    /// General coordination inside the nominal. Stable production identity
+    /// makes these two shapes independent of their registration position:
     ///
     /// * **Modifier coordination** — a coordinated run of attributive modifiers
     ///   filling one modifier slot (`white and blue`, `artifact, creature, and
@@ -960,9 +959,8 @@ impl RuleBuilder {
     }
 
     /// Attachment points that *consume* the landed coordination nonterminals at
-    /// positions other than the nominal head. Appended after
-    /// [`Self::add_coordination_rules`] so every rule here takes a higher
-    /// `RuleId` than the coordination machinery it reads.
+    /// positions other than the nominal head. Kept after
+    /// [`Self::add_coordination_rules`] for authoring locality, not precedence.
     ///
     /// * **Predicative-adjective coordination** (Family C) — a closed
     ///   [`Nonterminal::CoordinatedModifier`] filling a copular or
@@ -1059,8 +1057,8 @@ impl RuleBuilder {
     }
 
     /// A premodified possessor: `[AdjP] [PossessiveNounPhrase]`, e.g. `the
-    /// sacrificed creature's`. Registered append-last (see call site) so
-    /// existing `RuleId`s are untouched; same cost as `NominalAdjective`.
+    /// sacrificed creature's`. It has the same cost as `NominalAdjective`;
+    /// stable production identity resolves any surviving incomparable tie.
     pub(super) fn add_possessive_modifier_rules(&mut self) {
         use Expected::Nonterminal as n;
         use Nonterminal as N;

@@ -28,6 +28,7 @@ use super::ParseCost;
 use super::ParseForest;
 use super::PrepositionalPhrase;
 use super::Quantity;
+use super::RegistrationOrder;
 use super::SelfReference;
 use super::SimpleClause;
 use super::Span;
@@ -217,12 +218,33 @@ pub(super) fn parse_nonterminal_with_mode(
     opacity_mode: OpacityMode,
     self_reference: &SelfReference,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
-    let grammar = EnglishGrammar::with_opacity_mode(
+    parse_nonterminal_with_mode_and_registration_order(
+        source,
+        catalogs,
+        nonterminal,
+        tokens,
+        opacity_mode,
+        self_reference,
+        RegistrationOrder::Normal,
+    )
+}
+
+fn parse_nonterminal_with_mode_and_registration_order(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    tokens: &[Token],
+    opacity_mode: OpacityMode,
+    self_reference: &SelfReference,
+    registration_order: RegistrationOrder,
+) -> Result<ParsedNonterminal, ParseNonterminalError> {
+    let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
         source,
         catalogs,
         nonterminal,
         opacity_mode,
         self_reference.clone(),
+        registration_order,
     );
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
     if chart.roots.is_empty() {
@@ -293,6 +315,27 @@ pub(super) fn parse_nonterminal_with_mode(
         syntax,
         opacity_mode,
     })
+}
+
+#[cfg(test)]
+fn parse_nonterminal_with_registration_order(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    registration_order: RegistrationOrder,
+) -> Result<ParsedNonterminal, ParseNonterminalError> {
+    let self_reference = SelfReference::default();
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    parse_nonterminal_with_mode_and_registration_order(
+        source,
+        catalogs,
+        nonterminal,
+        &tokens,
+        OpacityMode::Exact,
+        &self_reference,
+        registration_order,
+    )
 }
 
 fn collect_construction_decisions(
@@ -848,6 +891,125 @@ mod root_lowering_tests {
                 after.clause(),
                 before.clause(),
                 "syntax changed for {source:?}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod registration_order_tests {
+    use super::*;
+    use crate::construction::ConstructionId;
+    use crate::forest::SelectionReason;
+    use crate::grammar::rules::RegistrationOrder;
+
+    const ORDER_INVARIANT_FIXTURES: &[(Nonterminal, &str)] = &[
+        (
+            Nonterminal::Sentence,
+            "This creature has protection from artifacts.",
+        ),
+        (Nonterminal::Clause, "copy that spell"),
+        (
+            Nonterminal::Sentence,
+            "Any number of target creatures gets +2/+2 until end of turn.",
+        ),
+        (
+            Nonterminal::Sentence,
+            "Activate only as a sorcery and only once each turn.",
+        ),
+        (Nonterminal::NounPhrase, "the declare attackers step"),
+        (
+            Nonterminal::Sentence,
+            "Enchanted creature has protection from black and from red.",
+        ),
+        (
+            Nonterminal::Sentence,
+            "Exile target artifact, creature, or planeswalker and target land or battle.",
+        ),
+    ];
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct NormalizedParse {
+        syntax: String,
+        cost: ParseCost,
+        decisions: Vec<NormalizedDecision>,
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct NormalizedDecision {
+        span: Span,
+        selected: ConstructionId,
+        reason: SelectionReason,
+        candidates: Vec<(ConstructionId, u16, bool)>,
+    }
+
+    fn fixture_catalogs() -> Catalogs {
+        Catalogs::default()
+            .with_catalog(CatalogKind::KeywordAbility, ["Protection"])
+            .with_catalog(
+                CatalogKind::CardType,
+                [
+                    "Artifact",
+                    "Battle",
+                    "Creature",
+                    "Land",
+                    "Planeswalker",
+                    "Sorcery",
+                ],
+            )
+    }
+
+    fn normalized_parse(
+        source: &str,
+        nonterminal: Nonterminal,
+        order: RegistrationOrder,
+    ) -> NormalizedParse {
+        let parsed = parse_nonterminal_with_registration_order(
+            source,
+            &fixture_catalogs(),
+            nonterminal,
+            order,
+        )
+        .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        NormalizedParse {
+            syntax: format!("{:?}", parsed.syntax),
+            cost: parsed.cost(),
+            decisions: parsed
+                .construction_decisions()
+                .iter()
+                .map(|decision| NormalizedDecision {
+                    span: decision.span(),
+                    selected: decision.selected(),
+                    reason: decision.reason(),
+                    candidates: decision
+                        .alternatives()
+                        .iter()
+                        .map(|candidate| {
+                            (
+                                candidate.id(),
+                                candidate.production_ordinal(),
+                                candidate.is_dominated(),
+                            )
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn semantic_selections_survive_family_registration_permutations() {
+        for &(nonterminal, source) in ORDER_INVARIANT_FIXTURES {
+            let normal = normalized_parse(source, nonterminal, RegistrationOrder::Normal);
+            assert_eq!(
+                normalized_parse(source, nonterminal, RegistrationOrder::Reversed),
+                normal,
+                "reversed registration changed {source:?}",
+            );
+            assert_eq!(
+                normalized_parse(source, nonterminal, RegistrationOrder::FixedShuffle),
+                normal,
+                "shuffled registration changed {source:?}",
             );
         }
     }

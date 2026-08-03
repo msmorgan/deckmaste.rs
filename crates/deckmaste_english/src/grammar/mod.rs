@@ -1924,41 +1924,29 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         if opacity_mode != OpacityMode::Exact {
             opacity::add_rules(&mut builder);
         }
-        // Coordination inside the nominal is appended last of all so existing
-        // rules keep their `RuleId`s and existing forests keep their alternative
-        // indices, even under the opacity modes.
+        // The calls below retain their feature-round grouping for authoring
+        // locality. `finish` may reorder whole construction families; stable
+        // production identity and declared dominance own selection semantics.
         builder.add_coordination_rules();
-        // Coordination *consumers* — new attachment points that read the landed
-        // coordination nonterminals — are appended after every coordination rule
-        // so they take the highest `RuleId`s in the grammar; the equal-cost
-        // tiebreak then leaves every already-clean parse untouched.
+        // Coordination *consumers* are kept beside the list constructions they
+        // read, independent of their eventual numeric lookup IDs.
         builder.add_coordination_consumer_rules();
-        // Registered last of the entire grammar so every existing `RuleId`
-        // keeps its numbering; append-last does not stabilize root `NodeId`
-        // or same-rule alternative discovery order, so the full negative
-        // gates in the `opqposs` round remain the check for that.
         builder.add_possessive_modifier_rules();
-        // Registered after every other rule, including the possessive
-        // modifier: the coin-result predicate's dot-1 gate is categorical
-        // (the pending `Come` frame), so append order only affects tie
-        // stability, not correctness.
+        // The coin-result predicate's dot-1 gate is categorical (the pending
+        // `Come` frame), rather than an ordering preference.
         builder.add_coin_result_rules();
-        // Registered after the coin-result predicate so every prior `RuleId`
-        // stays unchanged; its own dot-1 gate (`Features::Subordinator(While)`)
-        // is categorical, so append order affects only tie stability.
+        // This rule's dot-1 gate (`Features::Subordinator(While)`) is likewise
+        // categorical.
         builder.add_while_gerund_rules();
         builder.add_keyword_grant_rules();
         builder.add_reduced_recipient_passive_rules();
-        // Append-last because this widens `NounPhrase`; its dot-1 host gate is
-        // categorical, while retaining every earlier rule's stable identity.
+        // This widens `NounPhrase`, but its dot-1 host gate is categorical.
         builder.add_set_exception_rules();
-        // This subject-shared copular continuation is registered last of the
-        // entire grammar. Its dot-1 host gate is categorical, and retaining
-        // every earlier RuleId minimizes discovery-order perturbation.
+        // The subject-shared copular continuation also has a categorical dot-1
+        // host gate.
         builder.add_shared_copular_coordination_rules();
-        // This ticket's scoped attachment categories are last of all: they
-        // exist only to retain the final member of coordinated PP objects and
-        // must not renumber the established grammar.
+        // These scoped categories retain the final member of coordinated PP
+        // objects; family order does not decide their selection.
         builder.add_rules_object_attachment_rules();
         let rule_book = builder.finish(registration_order);
         Self {

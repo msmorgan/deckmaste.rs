@@ -594,7 +594,7 @@ where
             forest_node.alternatives[alternative].production;
         selection.decision_productions[node.index()] = representatives[alternative];
         selection.candidate_productions[node.index()] = representatives;
-        selection.identities[node.index()] = selected.identity.clone();
+        selection.identities[node.index()].clone_from(&selected.identity);
         selection.reasons[node.index()] = Some(reason);
         Ok(cost)
     }
