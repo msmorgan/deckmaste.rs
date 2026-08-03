@@ -128,19 +128,27 @@ pub enum PredefinedToken {
 }
 
 impl PredefinedToken {
+    /// Every predefined token deckmaste builds, in declaration order — the set
+    /// [`from_name`](Self::from_name) matches against. A consumer that has to
+    /// enumerate the rules-defined tokens (the provenance index, which cannot
+    /// reach them through any plugin file) reads them from here.
+    pub const ALL: [Self; 6] = [
+        Self::Treasure,
+        Self::Food,
+        Self::Gold,
+        Self::Clue,
+        Self::Blood,
+        Self::Vibranium,
+    ];
+
     /// Match a bare name to a predefined token, or `None` for any name not in
     /// the built set.
+    ///
+    /// Resolved through [`ALL`](Self::ALL) and [`name`](Self::name) so the
+    /// enumerable set and the name mapping cannot drift apart.
     #[must_use]
     pub fn from_name(name: &str) -> Option<Self> {
-        Some(match name {
-            "Treasure" => Self::Treasure,
-            "Food" => Self::Food,
-            "Gold" => Self::Gold,
-            "Clue" => Self::Clue,
-            "Blood" => Self::Blood,
-            "Vibranium" => Self::Vibranium,
-            _ => return None,
-        })
+        Self::ALL.into_iter().find(|t| t.name() == name)
     }
 
     /// The token's printed name (= its sole subtype, [CR#111.10]).

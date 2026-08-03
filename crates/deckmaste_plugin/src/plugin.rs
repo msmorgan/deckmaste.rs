@@ -18,6 +18,7 @@ use deckmaste_core::Subtype;
 use deckmaste_core::TypeDef;
 use deckmaste_core::plugin::MACROS_DIR;
 use deckmaste_core::plugin::RULES_DIR;
+use deckmaste_core::plugin::TOKENS_DIR;
 use deckmaste_core::plugin::card_path;
 use deckmaste_core::plugin::token_path;
 use deckmaste_lowering::Lower;
@@ -39,12 +40,15 @@ pub struct Plugin {
     /// value's **printed name** (what card values carry and the lint looks
     /// up), not the macro's registration ident; the two differ for names
     /// like "Time Lord"/`TimeLord`.
-    /// Authored provenance for everything this plugin's registries confer.
+    /// Authored provenance for everything this plugin's registries confer,
+    /// plus every token it defines and every predefined token ([CR#111.10]).
     ///
     /// Built at load because that is the only moment the authored halves of
-    /// the registry values exist: `subtypes`/`types` below keep the LOWERED
-    /// value, and the authored one is dropped right after `lower`. A conferred
-    /// ability appears on no card, so this is its only indexing opportunity.
+    /// the registry values exist: `subtypes`/`types`/`counters` below keep the
+    /// LOWERED value, and the authored one is dropped right after `lower`. A
+    /// conferred ability appears on no card, and a token's abilities reach an
+    /// object through a `CardId` past the end of the card companion table, so
+    /// this is their only indexing opportunity.
     pub provenance: crate::provenance::ProvenanceIndex,
     pub subtypes: HashMap<Ident, Subtype>,
     /// The card types defined by `macros/`, fully expanded — keyed by the
@@ -313,26 +317,9 @@ impl Plugin {
             types.insert(type_def.name, type_def);
         }
 
-        // Expanding each declared counter validates its body and fills the
-        // table — keyed by the counter's identity (the `name` field, what a
-        // `CounterRef` resolves to).
-        for name in declared_counters {
-            let counter: deckmaste_authoring::Counter = macros
-                .read_str(name.as_str())
-                .with_context(|| format!("expanding counter `{name}`"))?;
-            let counter = counter.lower();
-            counters.insert(counter.name, counter);
-        }
-
-        // Expanding each declared designation validates its body and fills
-        // the table — keyed by the decl's own name.
-        for name in declared_designations {
-            let decl: deckmaste_authoring::DesignationDecl = macros
-                .read_str(name.as_str())
-                .with_context(|| format!("expanding designation `{name}`"))?;
-            let decl = decl.lower();
-            designations.insert(decl.name, decl);
-        }
+        expand_counters(&macros, declared_counters, &mut provenance, &mut counters)?;
+        expand_designations(&macros, declared_designations, &mut designations)?;
+        index_tokens(&root, &macros, &mut provenance)?;
 
         let sba_rules = load_sba_rules(&root, &macros)?;
         let conferral_rules = load_conferral_rules(&root, &macros)?;
@@ -577,6 +564,71 @@ pub fn read(path: &Path) -> anyhow::Result<String> {
     std::fs::read_to_string(path).with_context(|| format!(r#"reading "{}""#, path.display()))
 }
 
+/// Expands each declared counter, validating its body and filling the registry
+/// — keyed by the counter's identity (the `name` field, what a `CounterRef`
+/// resolves to). The authored form is indexed on the way past: a keyword
+/// counter's grant appears on no card, so this is its only chance.
+fn expand_counters(
+    macros: &MacroSet,
+    declared: Vec<Ident>,
+    provenance: &mut crate::provenance::ProvenanceIndex,
+    counters: &mut HashMap<Ident, Counter>,
+) -> anyhow::Result<()> {
+    for name in declared {
+        let counter: deckmaste_authoring::Counter = macros
+            .read_str(name.as_str())
+            .with_context(|| format!("expanding counter `{name}`"))?;
+        provenance.insert_counter(&counter);
+        let counter = counter.lower();
+        counters.insert(counter.name, counter);
+    }
+    Ok(())
+}
+
+/// Expands each declared designation, validating its body and filling the
+/// registry — keyed by the decl's own name.
+fn expand_designations(
+    macros: &MacroSet,
+    declared: Vec<Ident>,
+    designations: &mut HashMap<Ident, DesignationDecl>,
+) -> anyhow::Result<()> {
+    for name in declared {
+        let decl: deckmaste_authoring::DesignationDecl = macros
+            .read_str(name.as_str())
+            .with_context(|| format!("expanding designation `{name}`"))?;
+        let decl = decl.lower();
+        designations.insert(decl.name, decl);
+    }
+    Ok(())
+}
+
+/// Indexes every token's abilities for provenance recovery.
+///
+/// A token's abilities reach an object verbatim through `Cards::push_token`,
+/// and the `CardId` that mints sits past the end of the card companion table —
+/// so the provenance index is a token permanent's ONLY prose channel. Two
+/// sources: this plugin's `tokens/` files, and the rules-defined tokens
+/// ([CR#111.10]) a `TokenSpec::Named` resolves to, which are built in code and
+/// appear in no plugin file.
+///
+/// Unlike the registry expansions, a token file is loaded on demand, so this
+/// pass indexes what it can and leaves a malformed token to fail at its own
+/// load site rather than failing every plugin load.
+fn index_tokens(
+    root: &Path,
+    macros: &MacroSet,
+    provenance: &mut crate::provenance::ProvenanceIndex,
+) -> anyhow::Result<()> {
+    for path in ron_files_recursive(&root.join(TOKENS_DIR))? {
+        let Ok(source) = read(&path) else { continue };
+        if let Ok(token) = macros.read_str::<deckmaste_authoring::Token>(&source) {
+            provenance.insert_token(&token);
+        }
+    }
+    provenance.insert_predefined_tokens();
+    Ok(())
+}
+
 /// Whether a signature takes no arguments, in either shape.
 fn nullary(params: &crate::macros::Params) -> bool {
     match params {
@@ -588,6 +640,9 @@ fn nullary(params: &crate::macros::Params) -> bool {
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
 /// empty. Entries are classified by [`std::fs::DirEntry::file_type`], so a
 /// directory named like a file is recursed into, not read.
+///
+/// # Errors
+/// If `dir` or one of its subdirectories cannot be read.
 pub fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     if !dir.exists() {
         return Ok(vec![]);

@@ -1,8 +1,13 @@
 //! The detail pane's text. An object's printed face plus its *derived*
-//! [`Characteristics`](deckmaste_engine::Characteristics) are bridged into a
-//! `core`-typed [`CardView`] and run through the engine-free `deckmaste_plugin`
+//! [`Characteristics`](deckmaste_engine::Characteristics) are raised back to
+//! AUTHORED terms through the load-time provenance index, bridged into a
+//! [`CardView`] and run through the engine-free `deckmaste_legacy_render`
 //! renderer, so the pane shows real rules text over the live (pumped, animated,
 //! control-changed) object — not the printed encoding.
+//!
+//! A derived value the index cannot raise is rendered as a visible
+//! `[unrendered: …]` marker line, never dropped: the pane may fail to produce
+//! prose, but it must not quietly show a shorter card than the object has.
 use std::fmt::Write as _;
 
 use deckmaste_authoring::Expand;
@@ -60,32 +65,30 @@ fn object_detail(
     // animated, type-changed object is exactly what this pane exists to show,
     // so the derived values are the ones that must survive.
     //
-    // Every component has an authored preimage: abilities are printed
-    // (`lower` of an authored one), granted (a verbatim clone, [CR#613.1f]) or
-    // conferred (from the registry); subtypes and card types are clones of
-    // registry entries; supertypes are a closed enum. A miss is not an error —
-    // it drops the value, and the renderer's own `[unrendered]` marker shows.
+    // Every component is expected to have an authored preimage: abilities are
+    // printed (`lower` of an authored one), granted (a verbatim clone,
+    // [CR#613.1f]) or conferred (from the registry); subtypes and card types
+    // are clones of registry entries; supertypes are a closed enum. A miss is
+    // not an error, but it is never silent: the unraised core value is kept
+    // aside and appended as its own `[unrendered: …]` marker line, so a lost
+    // ability shows as a marker instead of a vanilla body and a lost type
+    // shows as a marker instead of a quietly shortened type line.
     let supertypes: Vec<_> = chars
         .supertypes
         .iter()
         .copied()
         .map(raise_supertype)
         .collect();
-    let types: Vec<_> = chars
-        .card_types
-        .iter()
-        .filter_map(|t| provenance.index.type_def(t).cloned())
-        .collect();
-    let subtypes: Vec<_> = chars
-        .subtypes
-        .iter()
-        .filter_map(|s| provenance.index.subtype(s).cloned())
-        .collect();
-    let abilities: Vec<_> = chars
-        .abilities
-        .iter()
-        .filter_map(|a| provenance.index.ability(a).cloned())
-        .collect();
+    let mut unraised: Vec<String> = Vec::new();
+    let types = raise(chars.card_types.iter(), &mut unraised, |t| {
+        provenance.index.type_def(t)
+    });
+    let subtypes = raise(chars.subtypes.iter(), &mut unraised, |s| {
+        provenance.index.subtype(s)
+    });
+    let abilities = raise(chars.abilities.iter(), &mut unraised, |a| {
+        provenance.index.ability(a)
+    });
 
     // Name and mana cost aren't derived characteristics. The cost comes from
     // the authored card via the companion table; a token has no authored card
@@ -122,14 +125,58 @@ fn object_detail(
             ..card_view
         });
     }
+    // AFTER the re-render branch, which keys off the renderer's own markers:
+    // these are not renderer output — the renderer never saw the value — so
+    // re-rendering could neither remove nor improve them, and appending them
+    // first would only trigger a pointless second pass.
+    card.rules.extend(unraised);
     detail_text(&card)
+}
+
+/// The visible form of a provenance miss: the core value's `Debug`, truncated.
+///
+/// Deliberately not prose. The pane has no authored term for this value, and
+/// inventing one would be worse than saying so; `Debug` at least identifies
+/// WHICH value went unrecovered. Truncated because a derived ability's `Debug`
+/// can run to thousands of characters and would push the rest of the card off
+/// the pane.
+fn unrendered_marker(value: &impl std::fmt::Debug) -> String {
+    /// Chars of `Debug` kept before eliding — about one pane line.
+    const WIDTH: usize = 120;
+    let debug = format!("{value:?}");
+    match debug.char_indices().nth(WIDTH) {
+        Some((cut, _)) => format!("[unrendered: {}…]", &debug[..cut]),
+        None => format!("[unrendered: {debug}]"),
+    }
+}
+
+/// Raises each derived value to its authored term, collecting the misses into
+/// `unraised` as marker lines. A partition, not a filter: dropping a miss would
+/// make the pane render a shorter card than the object actually is.
+fn raise<'a, C, A>(
+    derived: impl Iterator<Item = &'a C>,
+    unraised: &mut Vec<String>,
+    lookup: impl Fn(&'a C) -> Option<&'a A>,
+) -> Vec<A>
+where
+    C: std::fmt::Debug + 'a,
+    A: Clone + 'a,
+{
+    let mut raised = Vec::new();
+    for value in derived {
+        match lookup(value) {
+            Some(authored) => raised.push(authored.clone()),
+            None => unraised.push(unrendered_marker(value)),
+        }
+    }
+    raised
 }
 
 /// The card a rendered object came from, or `None` for a token or emblem.
 fn card_id(state: &GameState, id: ObjectId) -> Option<deckmaste_engine::CardId> {
     match state.objects.obj(id).source {
         ObjectSource::Card(c) => Some(c),
-        _ => None,
+        ObjectSource::Player(_) => None,
     }
 }
 
@@ -306,5 +353,128 @@ mod tests {
         ));
         assert!(s.contains("Sacrifice"), "renders sacrifice cost: {s}");
         assert!(s.contains("1 damage"), "renders damage effect: {s}");
+    }
+
+    /// A layer-6 grant renders as PROSE in the pane, not as an `[unrendered]`
+    /// marker — the whole reason the provenance index exists.
+    ///
+    /// A keyword counter ([CR#122.1b]) is the grant path that reaches an object
+    /// without appearing on any card: the layer pass folds the counter
+    /// registry's `Continuous(This, GainAbility(Keyword(Flying)))` into a
+    /// continuous effect and pushes the payload verbatim ([CR#613.1f]). Nothing
+    /// on the host card mentions it, so the index's counter entry is the only
+    /// thing that can raise it back to authored text.
+    #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
+    fn object_detail_renders_a_layer_six_grant_as_prose() {
+        use deckmaste_core::Type;
+        use deckmaste_core::Zone;
+
+        let mut d = opening();
+        // Host chosen for a clean baseline render, so the assertions below are
+        // about the GRANT and not about whatever the host's own text does.
+        let host = {
+            let state = &d.state;
+            let view = state.layers();
+            state.zones.hands[0]
+                .iter()
+                .copied()
+                .filter(|&id| view.get(id).has_type(Type::Creature))
+                .find(|&id| {
+                    !text_to_string(&render(
+                        state,
+                        &view,
+                        Some(Selected::Object(id)),
+                        d.provenance_refs(),
+                    ))
+                    .contains("[unrendered")
+                })
+                .expect("a hand creature whose printed text renders cleanly")
+        };
+
+        // Onto the battlefield (static/continuous effects function only there,
+        // [CR#611.3b]) with a flying counter on it.
+        d.state.zones.hands[0].retain(|&id| id != host);
+        d.state.zones.battlefield.push(host);
+        let obj = d.state.objects.obj_mut(host);
+        obj.zone = Some(Zone::Battlefield);
+        obj.counters.insert("FlyingCounter".into(), 1);
+
+        let state = &d.state;
+        let view = state.layers();
+        assert!(
+            view.get(host).abilities.len() > face(state.def(host)).abilities.len(),
+            "the counter granted an ability the printed card does not have",
+        );
+        let s = text_to_string(&render(
+            state,
+            &view,
+            Some(Selected::Object(host)),
+            d.provenance_refs(),
+        ));
+        assert!(
+            s.to_lowercase().contains("flying"),
+            "the granted flying renders as prose: {s}"
+        );
+        assert!(
+            !s.contains("[unrendered"),
+            "the grant did not degrade to a marker: {s}"
+        );
+    }
+
+    /// The miss fallback, which is the whole point of not using `filter_map`:
+    /// a derived value the index cannot raise degrades VISIBLY instead of
+    /// vanishing, and never panics.
+    ///
+    /// The pane is fed an EMPTY index — the strongest form of "an ability that
+    /// cannot be in the index", and one no corpus change can accidentally
+    /// satisfy. Every raisable component must then come back as its own
+    /// `[unrendered: …]` line: one per ability, card type and subtype. Dropping
+    /// them instead would render a real creature as a nameless vanilla body.
+    #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
+    fn object_detail_marks_every_provenance_miss() {
+        use deckmaste_plugin::provenance::ProvenanceIndex;
+
+        let d = opening();
+        let state = &d.state;
+        let view = state.layers();
+        let id = state
+            .objects
+            .iter()
+            .filter(|o| o.card_id().is_some())
+            .map(|o| o.id)
+            .find(|&id| &*face(state.def(id)).name == "Elvish Visionary")
+            .expect("Elvish Visionary in game");
+
+        let empty = ProvenanceIndex::default();
+        let s = text_to_string(&render(
+            state,
+            &view,
+            Some(Selected::Object(id)),
+            ProvenanceRefs {
+                cards: d.provenance_refs().cards,
+                index: &empty,
+            },
+        ));
+
+        let chars = view.get(id);
+        let expected = chars.abilities.len() + chars.card_types.len() + chars.subtypes.len();
+        assert!(expected > 0, "the fixture has something to lose");
+        let markers = s.lines().filter(|l| l.contains("[unrendered")).count();
+        assert_eq!(
+            markers, expected,
+            "one marker per unraisable component, none silently dropped: {s}",
+        );
+        assert!(
+            s.contains(&*face(state.def(id)).name),
+            "the card is still named: {s}"
+        );
     }
 }

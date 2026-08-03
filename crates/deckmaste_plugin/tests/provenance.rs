@@ -28,6 +28,10 @@ fn canon() -> Plugin {
     Plugin::load_with_sibling_prelude(workspace_plugin("canon")).expect("load canon")
 }
 
+fn builtin() -> Plugin {
+    Plugin::load(workspace_plugin("builtin")).expect("load builtin")
+}
+
 /// Every ability the walker reaches from `card`, transitively.
 fn all_abilities(card: &deckmaste_authoring::Card) -> Vec<deckmaste_authoring::Ability> {
     let mut top = Vec::new();
@@ -54,15 +58,38 @@ fn card_sources(root: &Path) -> Vec<(PathBuf, String)> {
         .collect()
 }
 
+/// Each `GainAbility` node's payload, as the text `Debug` prints for it: the
+/// remainder of the rendering that starts immediately after `GainAbility(`.
+///
+/// The payload's own `Debug` is written verbatim there, and no proper prefix of
+/// a balanced rendering is itself balanced — so an ability whose `Debug` is a
+/// prefix of one of these tails IS that payload, not merely something like it.
+fn debug_grant_payloads(debug: &str) -> Vec<&str> {
+    debug
+        .match_indices("GainAbility(")
+        .map(|(at, hit)| &debug[at + hit.len()..])
+        .collect()
+}
+
+/// The first `n` chars of `s`, for a panic message on a value whose `Debug`
+/// may be enormous.
+fn head(s: &str, n: usize) -> String {
+    s.chars().take(n).collect()
+}
+
 /// The completeness oracle.
 ///
 /// `GainAbility` is the layer-6 grant position ([CR#613.1f]) and the one the
-/// index exists to catch. Counting its occurrences in a `Debug` rendering of
-/// the whole card is a check the walker cannot cheat: `Debug` prints the entire
-/// tree and knows nothing about which grammar positions the walker was taught.
-/// Each occurrence contributes exactly one nested ability, so the walker's
-/// transitive count can never be the smaller of the two unless it missed a
-/// position.
+/// index exists to catch. A `Debug` rendering of the whole card is a check the
+/// walker cannot cheat: it prints the entire tree and knows nothing about which
+/// grammar positions the walker was taught.
+///
+/// The comparison is payload-for-payload, not count-for-count: EVERY
+/// `GainAbility` payload in the `Debug` rendering has to be matched, one for
+/// one, against a distinct ability the walker actually reached. A missed
+/// grammar position leaves its payload with nothing to match and fails here —
+/// where merely comparing totals would let the card's own printed abilities pay
+/// for a grant the walker never saw.
 #[test]
 fn walker_reaches_every_gain_ability_in_the_canon_corpus() {
     let plugin = canon();
@@ -70,19 +97,24 @@ fn walker_reaches_every_gain_ability_in_the_canon_corpus() {
     let mut grants = 0usize;
     for (path, source) in card_sources(&workspace_plugin("canon")) {
         let Ok(loaded) = plugin.card_from_str(&source) else { continue };
-        let debug_grants = format!("{:?}", loaded.authored)
-            .matches("GainAbility")
-            .count();
-        let walked = all_abilities(&loaded.authored).len();
-        assert!(
-            walked >= debug_grants,
-            "{}: {debug_grants} GainAbility nodes in the tree but the walker \
-             reached only {walked} abilities — a grammar position is missing \
-             from AbilitySubterms",
-            path.display(),
-        );
+        let debug = format!("{:?}", loaded.authored);
+        let mut reached: Vec<String> = all_abilities(&loaded.authored)
+            .iter()
+            .map(|a| format!("{a:?}"))
+            .collect();
+        for payload in debug_grant_payloads(&debug) {
+            let Some(at) = reached.iter().position(|a| payload.starts_with(a.as_str())) else {
+                panic!(
+                    "{}: a GainAbility payload the walker never reached — a grammar \
+                     position is missing from AbilitySubterms: {}…",
+                    path.display(),
+                    head(payload, 160),
+                );
+            };
+            reached.swap_remove(at);
+            grants += 1;
+        }
         cards += 1;
-        grants += debug_grants;
     }
     assert!(cards > 0, "no canon cards loaded");
     assert!(
@@ -191,4 +223,113 @@ fn registry_conferral_is_indexed_in_its_conferred_form() {
         }
     }
     assert!(conferred > 0, "no subtype in canon confers an ability");
+}
+
+/// Keyword-counter conferral ([CR#122.1b]) is indexed in the form the ENGINE
+/// builds. A counter reaches layer 6 by a different path than a subtype: the
+/// layer pass folds `Property::Continuous(This, GainAbility(a))` out of the
+/// counter registry and pushes `a` VERBATIM ([CR#613.1f]) — no `Innate`
+/// wrapper. The keys checked here are read straight off the LOWERED registry
+/// the engine is handed, so they are the engine's own values, not a
+/// re-derivation of them.
+#[test]
+fn counter_conferral_is_indexed_as_the_bare_grant_payload() {
+    let plugin = builtin();
+    let mut grants = 0usize;
+    for counter in plugin.counters.values() {
+        for property in &counter.confers {
+            let deckmaste_core::Property::Continuous(_, change) = property else {
+                continue;
+            };
+            for m in deckmaste_core::Modification::flatten(std::slice::from_ref(change)).iter() {
+                let deckmaste_core::Modification::GainAbility(granted) = m else {
+                    continue;
+                };
+                assert!(
+                    plugin.provenance.ability(granted).is_some(),
+                    "the ability `{}` grants is not indexed",
+                    counter.name,
+                );
+                grants += 1;
+            }
+        }
+    }
+    assert!(
+        grants > 0,
+        "no builtin counter confers an ability — the fixture is gone",
+    );
+}
+
+/// A token's abilities are indexed. `Cards::push_token` mints a `CardId` past
+/// the end of the card companion table, so a token permanent has no authored
+/// card to fall back on and this index is its only prose channel.
+///
+/// Both sources: the plugin's own `tokens/` files, and the predefined tokens
+/// ([CR#111.10]) a `TokenSpec::Named` resolves to, which are built in code and
+/// appear in no plugin file at all.
+#[test]
+fn token_abilities_are_indexed() {
+    let plugin = builtin();
+    let treasure = plugin.token("Treasure").expect("builtin Treasure token");
+    assert!(
+        !treasure.core.abilities.is_empty(),
+        "the Treasure token has an activated ability to recover",
+    );
+    for ability in treasure.core.abilities.iter() {
+        assert!(
+            plugin.provenance.ability(ability).is_some(),
+            "a `tokens/` token ability is not indexed",
+        );
+    }
+
+    let mut checked = 0usize;
+    for predefined in deckmaste_authoring::PredefinedToken::ALL {
+        for ability in predefined.token().abilities.iter() {
+            let core = ability.clone().lower();
+            assert!(
+                plugin.provenance.ability(&core).is_some(),
+                "predefined token `{}` has an unindexed ability",
+                predefined.name(),
+            );
+            checked += 1;
+        }
+    }
+    assert!(checked > 0, "no predefined token carries an ability");
+}
+
+/// The walker reaches an INLINE token's abilities through the `Create`
+/// instruction that mints it — the position `AbilitySubterms for Action`
+/// wildcarded away, leaving every such ability unreachable and so unindexed.
+///
+/// No canon card exercises it, so the fixture is synthetic: `Afterlife`
+/// ([CR#702.135a]) is the builtin keyword whose body is `Create(… token:
+/// Token(abilities: [Keyword(Flying)] …))`, and that flying exists ONLY inside
+/// the `Create`. It is not printed on the host card, so nothing but the
+/// `Create` traversal can put it in the index.
+#[test]
+fn indexes_an_inline_created_tokens_abilities() {
+    let plugin = builtin();
+    let source = r#"Normal(
+      name: "Provenance Fixture",
+      mana_cost: [White],
+      types: [Creature],
+      abilities: [Keyword(Afterlife(1))],
+      power: 1,
+      toughness: 1,
+    )"#;
+    let loaded = plugin.card_from_str(source).expect("load the fixture card");
+    let mut index = ProvenanceIndex::default();
+    index.insert_card(&loaded.authored);
+
+    let reached = all_abilities(&loaded.authored);
+    let flying = reached
+        .iter()
+        .find(|a| format!("{a:?}").contains("Flying"))
+        .unwrap_or_else(|| {
+            panic!("the walker never reached the created token's flying; got {reached:#?}")
+        });
+    assert!(
+        index.ability(&flying.clone().lower()).is_some(),
+        "the created token's flying is not indexed",
+    );
 }

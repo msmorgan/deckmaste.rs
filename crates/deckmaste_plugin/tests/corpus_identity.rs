@@ -682,10 +682,23 @@ impl CoreAbilitySubterms for deckmaste_core::OneShotEffect {
     }
 }
 
+impl CoreAbilitySubterms for deckmaste_core::TokenSpec {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
+        match self {
+            Self::Token(t) => t.abilities.push_abilities(out),
+            // Mirrors the authoring side: neither borrows an ability from
+            // here — a predefined token's are built on demand, a copy
+            // token's come from the copied object.
+            Self::Named(_) | Self::Copy(_) => {}
+        }
+    }
+}
+
 impl CoreAbilitySubterms for deckmaste_core::Action {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
             Self::GetEmblem(_, abilities) => abilities.push_abilities(out),
+            Self::Create { token, .. } => token.push_abilities(out),
             // As with `StaticEffect`: dozens of variants, few ability-
             // bearing, and the list churns; the catch-all mirrors the
             // authoring side.

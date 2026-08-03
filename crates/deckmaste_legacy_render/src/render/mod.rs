@@ -35,8 +35,10 @@ pub struct RenderedCard {
     pub pt: Option<String>,
 }
 
-/// Borrowed, `core`-typed view — the single input the renderer understands. A
-/// printed `CardFace` and a derived live object both reduce to this.
+/// Borrowed view over AUTHORED terms — the single input the renderer
+/// understands. A printed `CardFace` reduces to it directly; a derived live
+/// object reduces to it by raising each characteristic back through the
+/// provenance index (`deckmaste_tui::ui::detail`).
 #[derive(Debug, Clone, Copy)]
 pub struct CardView<'a> {
     pub name: &'a str,

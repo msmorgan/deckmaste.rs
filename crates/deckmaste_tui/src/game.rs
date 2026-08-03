@@ -30,18 +30,6 @@ impl CardProvenance {
     pub fn get(&self, id: deckmaste_engine::CardId) -> Option<&Arc<deckmaste_authoring::Card>> {
         self.by_card.get(usize::try_from(id.0).ok()?)
     }
-
-    /// How many cards the decks contributed.
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.by_card.len()
-    }
-
-    /// Whether the decks contributed no cards at all.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.by_card.is_empty()
-    }
 }
 
 /// The provenance one render pass needs, bundled so it threads as a single
@@ -131,6 +119,16 @@ pub fn build_game_with_seed(seed: u64) -> Result<BuiltGame> {
 
     // Registry conferral first (it is the same for every game), then each
     // card's own abilities and everything nested inside them.
+    //
+    // Folded in the SAME plugin order as the `subtypes`/`types`/`counters`
+    // registries below, and `ProvenanceIndex::extend` resolves its name-keyed
+    // tables last-plugin-wins to match them, so a subtype a later plugin
+    // redefines raises to the definition the engine is actually using. The
+    // index's ability map is first-insert-wins instead, and deliberately so:
+    // it is keyed by lowered VALUE, not by name, so it carries no plugin
+    // precedence to mirror — every preimage is semantically exact
+    // (`docs/decisions/authoring-spelling-lowering.md` §9) and the rule there
+    // picks the best SPELLING, not the winning plugin.
     let mut provenance = ProvenanceIndex::default();
     provenance.extend(&canon.provenance);
     provenance.extend(&builtin.provenance);
@@ -170,7 +168,8 @@ pub fn build_game_with_seed(seed: u64) -> Result<BuiltGame> {
 
     // Subtype registry ([CR#205.3]): the engine resolves a layer-4
     // `Subtypes(...)` modification's `SubtypeRef` names against this map.
-    // Last plugin wins, mirroring `counter_decls`.
+    // Last plugin wins, mirroring `counter_decls` — and mirrored in turn by
+    // the provenance index's name-keyed tables above.
     let mut subtypes = std::collections::HashMap::new();
     subtypes.extend(canon.subtypes.clone());
     subtypes.extend(builtin.subtypes.clone());
@@ -217,6 +216,53 @@ mod tests {
         assert_eq!(state.players.len(), 2);
         assert_eq!(state.players[0].life, 20);
         assert_eq!(state.players[1].life, 20);
+    }
+
+    /// The zip in [`build_game_with_seed`] is an ASSUMPTION about the engine:
+    /// `GameState::new` assigns `CardId`s densely, in player order, in deck
+    /// order, before the shuffle — so flattening the two resolved decklists in
+    /// that same order makes index == `CardId`. Nothing type-checks that, and
+    /// getting it wrong would give every object the wrong card's authored half
+    /// (a silently misattributed detail pane, not a crash). Pin it by name:
+    /// the authored card at each `CardId` must be the card the engine holds
+    /// there.
+    ///
+    /// The tail of the invariant matters too — the table covers exactly the
+    /// deck cards, so the first `CardId` past it (a token or emblem, minted
+    /// later by `Cards::push_token`) must resolve `None` rather than
+    /// wrapping onto some unrelated deck card.
+    #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
+    fn pins_card_ids_to_deck_order() {
+        use deckmaste_engine::CardId;
+
+        let game = build_game().expect("build demo game");
+        let count = game.state.cards.len();
+        assert!(count > 0, "the demo game has cards");
+        for i in 0..count {
+            let id = CardId(u32::try_from(i).expect("card count fits in a CardId"));
+            let engine = &deckmaste_engine::face(&game.state.cards.get(id).def).name;
+            let authored = game
+                .cards
+                .get(id)
+                .unwrap_or_else(|| panic!("{id:?} has an authored half"));
+            let authored = match &**authored {
+                deckmaste_authoring::Card::Normal(f) => &f.name,
+                deckmaste_authoring::Card::TwoFaced { front, .. } => &front.name,
+            };
+            assert_eq!(
+                &**authored, &**engine,
+                "the authored card at {id:?} is not the card the engine holds there",
+            );
+        }
+        let past_end = CardId(u32::try_from(count).expect("card count fits in a CardId"));
+        assert!(
+            game.cards.get(past_end).is_none(),
+            "a token's {past_end:?} must resolve to no authored card",
+        );
     }
 
     /// The demo seed is fixed for reproducibility, so whatever opening hand it

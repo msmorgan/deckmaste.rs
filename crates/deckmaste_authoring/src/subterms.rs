@@ -12,10 +12,12 @@
 //! impl and stable Rust rejects. Being hand-written it is also incomplete by
 //! construction — a grammar position nobody taught it about is silently not
 //! traversed. That is why
-//! `nested_abilities_finds_every_gain_ability_in_the_tree` checks the walker
-//! against a `Debug` rendering of the whole corpus: the oracle does not share
-//! the walker's idea of which positions exist, so a missed position fails a
-//! test instead of quietly degrading prose.
+//! `walker_reaches_every_gain_ability_in_the_canon_corpus`
+//! (`deckmaste_plugin/tests/provenance.rs`) matches every `GainAbility` payload
+//! in a `Debug` rendering of the whole corpus against the abilities the walker
+//! actually reached: the oracle does not share the walker's idea of which
+//! positions exist, so a missed position fails a test instead of quietly
+//! degrading prose.
 
 use std::sync::Arc;
 
@@ -186,17 +188,48 @@ impl AbilitySubterms for crate::Action {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a Ability>) {
         match self {
             Self::GetEmblem(_, abilities) => abilities.push_abilities(out),
+            // A created token's abilities are the token's own ([CR#111.3]) and
+            // reach an object verbatim through `Cards::push_token`, so they are
+            // a grant position like any other.
+            Self::Create { token, .. } => token.push_abilities(out),
             // As with `StaticEffect`: 44 variants, few of them ability-bearing,
-            // and the list churns. The corpus oracle covers what this misses.
+            // and the list churns. The corpus oracle catches any ability-bearing
+            // variant the canon corpus actually exercises — a position no canon
+            // card reaches is caught by nothing, which is why the two positions
+            // that DO bear abilities are named above rather than left to it.
             _ => {}
+        }
+    }
+}
+
+impl AbilitySubterms for crate::TokenSpec {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a Ability>) {
+        match self {
+            Self::Token(t) => t.abilities.push_abilities(out),
+            // Neither of these borrows an ability from here. A predefined
+            // token ([CR#111.10]) resolves to an OWNED `Token` built on
+            // demand, so `ProvenanceIndex::insert_predefined_tokens` indexes
+            // that closed set from the definitions themselves; a copy token's
+            // characteristics are the copied object's ([CR#707.2]), indexed
+            // wherever that object's own abilities were.
+            Self::Named(_) | Self::Copy(_) => {}
         }
     }
 }
 
 impl AbilitySubterms for crate::Property {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a Ability>) {
-        if let Self::Ability(a) = self {
-            a.push_abilities(out);
+        match self {
+            Self::Ability(a) => a.push_abilities(out),
+            // The keyword-counter grant position ([CR#122.1b,613.1f]): the
+            // layer pass folds this `Modification` out of the counter registry
+            // and pushes a `GainAbility` payload VERBATIM — unwrapped, unlike
+            // the `Innate` form `Property::conferred_ability` emits.
+            Self::Continuous(_, m) => m.push_abilities(out),
+            // Effect flavors, not conferral: they execute in the [CR#704.3]
+            // sweep / as turn-based actions, and confer nothing on their
+            // bearer.
+            Self::StateBased { .. } | Self::TurnBased { .. } => {}
         }
     }
 }
