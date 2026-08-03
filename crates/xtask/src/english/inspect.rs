@@ -5,7 +5,13 @@ use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
 use deckmaste_english::Catalogs;
+use deckmaste_english::ConstructionBackend;
+use deckmaste_english::ConstructionEvidenceKind;
+use deckmaste_english::ConstructionOwner;
+use deckmaste_english::ParseCost;
+use deckmaste_english::ParseCostDimension;
 use deckmaste_english::ParseReport;
+use deckmaste_english::SelectionReason;
 use deckmaste_english::parse_with_identity;
 
 use super::data::CardFace;
@@ -112,11 +118,104 @@ fn write_cards(
             output_config.verbose,
         )?;
         if output_config.verbose && !report.provenance().selections().is_empty() {
-            writeln!(writer, "\nProvenance:\n{:#?}", report.provenance())?;
+            write_provenance(&mut writer, &report)?;
         }
     }
 
     Ok(())
+}
+
+fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> {
+    writeln!(writer, "\nProvenance:")?;
+    for selection in report.provenance().selections() {
+        for decision in selection.constructions() {
+            let span = decision.span();
+            let evidence = decision.evidence();
+            writeln!(
+                writer,
+                "bytes {}..{} {} owner={} backend={} evidence={}:{} reason={} cost={}",
+                span.start,
+                span.end,
+                decision.selected(),
+                owner_name(decision.owner()),
+                backend_name(decision.backend()),
+                evidence_kind_name(evidence.kind()),
+                evidence.label(),
+                reason_name(decision.reason()),
+                cost_text(decision.cost()),
+            )?;
+            for alternative in decision.alternatives() {
+                writeln!(
+                    writer,
+                    "  alternative {}#{} dominated={}",
+                    alternative.id(),
+                    alternative.production_ordinal(),
+                    alternative.is_dominated(),
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+const fn owner_name(owner: ConstructionOwner) -> &'static str {
+    match owner {
+        ConstructionOwner::Handwritten => "handwritten",
+        ConstructionOwner::Generated => "generated",
+    }
+}
+
+const fn backend_name(backend: ConstructionBackend) -> &'static str {
+    match backend {
+        ConstructionBackend::Chart => "chart",
+        ConstructionBackend::Ability => "ability",
+    }
+}
+
+const fn evidence_kind_name(kind: ConstructionEvidenceKind) -> &'static str {
+    match kind {
+        ConstructionEvidenceKind::Structural => "structural",
+        ConstructionEvidenceKind::Guard => "guard",
+        ConstructionEvidenceKind::Feature => "feature",
+        ConstructionEvidenceKind::Role => "role",
+    }
+}
+
+fn reason_name(reason: SelectionReason) -> String {
+    match reason {
+        SelectionReason::Unique => "unique".to_owned(),
+        SelectionReason::Cost(dimension) => format!("cost:{}", cost_dimension_name(dimension)),
+        SelectionReason::Dominance => "dominance".to_owned(),
+        SelectionReason::StableIdentity => "stable_identity".to_owned(),
+    }
+}
+
+const fn cost_dimension_name(dimension: ParseCostDimension) -> &'static str {
+    match dimension {
+        ParseCostDimension::OpaqueWords => "opaque_words",
+        ParseCostDimension::OpaqueLexemes => "opaque_lexemes",
+        ParseCostDimension::GenericRules => "generic_rules",
+        ParseCostDimension::ReadingDispreference => "reading_dispreference",
+        ParseCostDimension::AttachmentCount => "attachment_count",
+        ParseCostDimension::AttachmentDistance => "attachment_distance",
+        ParseCostDimension::AttachmentExtent => "attachment_extent",
+        ParseCostDimension::Precedence => "precedence",
+    }
+}
+
+fn cost_text(cost: ParseCost) -> String {
+    format!(
+        "{{opaque_words:{},opaque_lexemes:{},generic_rules:{},reading_dispreference:{},\
+         attachment_count:{},attachment_distance:{},attachment_extent:{},precedence:{}}}",
+        cost.opaque_words(),
+        cost.opaque_lexemes(),
+        cost.generic_rules(),
+        cost.reading_dispreference(),
+        cost.attachment_count(),
+        cost.attachment_distance(),
+        cost.attachment_extent(),
+        cost.precedence(),
+    )
 }
 
 fn write_diagnostics(
@@ -307,10 +406,50 @@ mod tests {
         assert!(!normal.contains("Span"));
         assert!(!normal.contains("ChartStats"));
         assert!(!normal.contains("ForestStats"));
-        assert!(verbose.contains("Span"));
-        assert!(verbose.contains("start: 0"));
-        assert!(verbose.contains("ChartStats"));
-        assert!(verbose.contains("ForestStats"));
+        assert!(verbose.contains("Provenance:"));
+        assert!(verbose.contains("bytes 0.."));
+        assert!(verbose.contains("owner=handwritten"));
+        assert!(verbose.contains("cost={opaque_words:"));
+        assert!(!verbose.contains("Span {"));
+        assert!(!verbose.contains("ChartStats"));
+        assert!(!verbose.contains("ForestStats"));
+    }
+
+    #[test]
+    fn verbose_output_explains_declared_construction_dominance() {
+        let cards = [CardFace {
+            card_name: "Test Card".to_owned(),
+            face_name: None,
+            is_legendary: false,
+            supported: false,
+            source_text: "This creature has protection from artifacts.".to_owned(),
+            oracle_text: "This creature has protection from artifacts.".to_owned(),
+        }];
+        let mut rendered = Vec::new();
+        let catalogs = Catalogs::default().with_catalog(
+            deckmaste_english::CatalogKind::KeywordAbility,
+            ["Protection"],
+        );
+
+        write_cards(
+            &mut rendered,
+            &cards,
+            &catalogs,
+            &OutputConfig {
+                verbose: true,
+                abilities_only: false,
+            },
+        )
+        .unwrap();
+
+        let rendered = String::from_utf8(rendered).unwrap();
+        assert!(rendered.contains("nominal_prepositional owner=handwritten backend=chart"));
+        assert!(rendered.contains("evidence=feature:nominal attachment phase"));
+        assert!(rendered.contains("reason=dominance"));
+        assert!(rendered.contains("cost={opaque_words:0,opaque_lexemes:0,generic_rules:0"));
+        assert!(
+            rendered.contains("alternative nominal_keyword_predicated_argument#0 dominated=true")
+        );
     }
 
     #[test]

@@ -39,7 +39,7 @@ fn family(tag: RuleTag) -> ConstructionFamily {
     )
 }
 
-fn dominance_edges() -> [DominanceEdge; 13] {
+fn dominance_edges() -> [DominanceEdge; 19] {
     let edge = |dominant, subordinate| {
         DominanceEdge::new(construction_id(dominant), construction_id(subordinate))
     };
@@ -66,12 +66,24 @@ fn dominance_edges() -> [DominanceEdge; 13] {
             RuleTag::NominalPrepositional,
             RuleTag::NominalKeywordPredicatedArgument,
         ),
+        edge(RuleTag::NominalPrepositional, RuleTag::NominalNoun),
+        edge(
+            RuleTag::NominalReducedRecipientPassive,
+            RuleTag::NominalNoun,
+        ),
+        edge(RuleTag::NominalRelative, RuleTag::NominalPrepositional),
         edge(RuleTag::NounPhraseNominal, RuleTag::NounPhraseCoordination),
         edge(RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
+        edge(
+            RuleTag::NounPhraseSubjectPronoun,
+            RuleTag::NounPhraseObjectPronoun,
+        ),
         edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdjective),
         edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdverb),
         edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAbility),
+        edge(RuleTag::VerbPhraseBase, RuleTag::VerbPhraseAuxiliaryProform),
         edge(RuleTag::ClauseSimple, RuleTag::ClauseCopular),
+        edge(RuleTag::RelativeSubject, RuleTag::RelativeObject),
     ]
 }
 
@@ -151,12 +163,24 @@ mod tests {
                 RuleTag::NominalPrepositional,
                 RuleTag::NominalKeywordPredicatedArgument,
             ),
+            (RuleTag::NominalPrepositional, RuleTag::NominalNoun),
+            (
+                RuleTag::NominalReducedRecipientPassive,
+                RuleTag::NominalNoun,
+            ),
+            (RuleTag::NominalRelative, RuleTag::NominalPrepositional),
             (RuleTag::NounPhraseNominal, RuleTag::NounPhraseCoordination),
             (RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
+            (
+                RuleTag::NounPhraseSubjectPronoun,
+                RuleTag::NounPhraseObjectPronoun,
+            ),
             (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdjective),
             (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdverb),
             (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAbility),
+            (RuleTag::VerbPhraseBase, RuleTag::VerbPhraseAuxiliaryProform),
             (RuleTag::ClauseSimple, RuleTag::ClauseCopular),
+            (RuleTag::RelativeSubject, RuleTag::RelativeObject),
         ];
         for (dominant, subordinate) in preferences {
             assert!(

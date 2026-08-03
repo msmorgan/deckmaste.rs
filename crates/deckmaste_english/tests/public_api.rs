@@ -3,13 +3,42 @@ use std::ops::Deref;
 
 use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
+use deckmaste_english::ConstructionBackend;
+use deckmaste_english::ConstructionOwner;
 use deckmaste_english::Numeral;
+use deckmaste_english::ParseSelection;
+use deckmaste_english::SelectionReason;
 use deckmaste_english::parse_with_catalogs;
 use deckmaste_english::parse_with_identity;
 use deckmaste_english::syntax::*;
 use deckmaste_english::word::*;
 use serde::Serialize;
 use serde::ser;
+
+#[test]
+fn predicated_keyword_single_pp_keeps_generic_ast_with_declared_dominance() {
+    let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Protection"]);
+    let report = parse_with_catalogs("This creature has protection from artifacts.", &catalogs);
+    let decision = report
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .find(|decision| {
+            decision.selected().as_str() == "nominal_prepositional"
+                && decision.alternatives().iter().any(|candidate| {
+                    candidate.id().as_str() == "nominal_keyword_predicated_argument"
+                        && candidate.is_dominated()
+                })
+        })
+        .expect("generic nominal attachment decision");
+    assert_eq!(decision.owner(), ConstructionOwner::Handwritten);
+    assert_eq!(decision.backend(), ConstructionBackend::Chart);
+    assert_eq!(decision.reason(), SelectionReason::Dominance);
+    assert!(decision.alternatives().iter().any(|candidate| {
+        candidate.id().as_str() == "nominal_keyword_predicated_argument" && candidate.is_dominated()
+    }));
+}
 
 #[test]
 fn feature_vocabulary() {

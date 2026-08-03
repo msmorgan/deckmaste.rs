@@ -109,6 +109,8 @@ pub(crate) struct AbilitySelection {
     pub(crate) span: Span,
     pub(crate) constituent_spans: Vec<Span>,
     pub(crate) rule: Option<usize>,
+    pub(crate) construction: Option<crate::construction::ConstructionId>,
+    pub(crate) constructions: Vec<crate::construction::ConstructionDecision>,
     pub(crate) tied_alternatives: Vec<usize>,
     pub(crate) cost: ParseCost,
     pub(crate) chart_stats: ChartStats,
@@ -2505,6 +2507,15 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 })
                 .collect(),
             rule: parsed.root_rule(),
+            construction: parsed
+                .root_production()
+                .map(|production| production.construction),
+            constructions: parsed
+                .construction_decisions()
+                .iter()
+                .cloned()
+                .map(|decision| decision.offset(span.start))
+                .collect(),
             tied_alternatives: parsed.root_tied_alternatives().to_vec(),
             cost: parsed.cost(),
             chart_stats: parsed.chart_stats(),
@@ -2554,6 +2565,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                         .map(|constituent| offset_span(constituent, span.start))
                         .collect(),
                     rule: selection.rule,
+                    construction: selection.construction,
+                    constructions: selection
+                        .constructions
+                        .into_iter()
+                        .map(|decision| decision.offset(span.start))
+                        .collect(),
                     tied_alternatives: selection.tied_alternatives,
                     cost: selection.cost,
                     chart_stats: selection.chart_stats,

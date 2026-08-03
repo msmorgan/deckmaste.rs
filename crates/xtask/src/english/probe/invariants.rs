@@ -38,39 +38,22 @@ pub(super) struct Thresholds {
 /// this function's findings back into a gating set, without re-deriving the
 /// reasoning below.
 ///
-/// **What the field actually records.** `ParseFacts::ties` (built from
-/// `ParseSelection::tied_alternatives`) says the packed forest had more than
-/// one alternative in cost-equal contention at a span. Which alternative the
-/// parser actually picked from that contention is not arbitrary:
-/// `Forest::best_root_matching`'s own doc comment says roots are ranked "by
-/// the ordinary cost and stable-node tiebreak" — a documented, deterministic
-/// resolution, not a coin flip. So a non-empty tie list means "more than one
-/// equally-cheap derivation existed here," not "the parser guessed."
+/// **What the field actually records.** `ParseFacts::ties` says the packed
+/// forest retained more than one undominated, cost-equal alternative at a
+/// span. The selected candidate is included. Selection applies named cost
+/// dimensions, declared construction dominance, and stable production
+/// identity; it is deterministic, not a coin flip.
 ///
-/// **The measurement.** `cargo xtask english probe --printed`, run over all
-/// 31,685 supported printed faces, found that 29,490 of them (93.07%) tie on
-/// cost somewhere in their parse — and 28,899 of those tie specifically under
-/// rule 176. A law that fires on 93% of ordinary, unmodified printed cards
-/// cannot discriminate a synthesized composition from an ordinary one; worse,
-/// a gate that fires almost always trains reviewers to ignore it.
-///
-/// **Those counts are parser-version-dependent. Re-measure rather than citing
-/// them as current.** They were taken before `english: preserve mixed
-/// coordination grouping` and `english: document minimum-cost alternatives`
-/// landed; on the grammar immediately after those, the same run reports 29,499
-/// (93.10%) and 28,911 under rule 176. `data/derived/cards.jsonl` was byte
-/// identical across both runs, so the movement is grammar drift, not corpus
-/// drift. The conclusion here is insensitive to the exact figures — the order
-/// of magnitude is the point — but a precise number carrying no revision
-/// invites exactly the misplaced confidence this comment exists to prevent.
+/// Historical measurements used numeric rule IDs and counted every unique
+/// minimum as a tie, so those clusters are intentionally not carried forward.
+/// Re-measure with the current stable construction identities before citing
+/// any precise corpus rate.
 ///
 /// **Corroborating evidence this is expected behavior, not a bug.**
 /// `deckmaste_english`'s own unit test,
-/// `provenance_identifies_selected_rules_without_copying_source` in
-/// `src/parse.rs`, asserts `!selection.tied_alternatives().is_empty()` for
-/// the input `"Draw a card."` — the simplest possible ability text. The
-/// crate's own test suite requires a tie to exist on trivial input; treating
-/// a tie's mere existence as pathological is incompatible with that.
+/// `equal_cost_uses_stable_production_identity_and_preserves_incomparable_ties`
+/// in `src/forest.rs`, explicitly requires incomparable equal-cost readings to
+/// survive while still selecting one stable construction.
 ///
 /// **Therefore:** this function still runs, but its findings are reported
 /// for information only — the sweep's `baseline_relative` list, never
@@ -81,9 +64,10 @@ pub(super) fn no_tie(facts: &ParseFacts) -> Vec<Finding> {
         .iter()
         .map(|tie: &TieFact| Finding {
             law: "no-tie",
-            signature: tie
-                .rule
-                .map_or_else(|| "rule ?".to_string(), |rule| format!("rule {rule}")),
+            signature: tie.construction.map_or_else(
+                || "construction ?".to_string(),
+                |id| format!("construction {id}"),
+            ),
             detail: format!(
                 "{} derivations tied at bytes {}..{}",
                 tie.alternatives, tie.span.start, tie.span.end,
@@ -120,9 +104,14 @@ pub(super) fn forest_growth(facts: &ParseFacts, limits: &Thresholds) -> Vec<Find
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english::ConstructionId;
     use deckmaste_english::Span;
 
     use super::*;
+
+    fn test_construction() -> ConstructionId {
+        deckmaste_english::construction_families()[0].id()
+    }
 
     #[test]
     fn a_parse_without_ties_is_clean() {
@@ -134,10 +123,11 @@ mod tests {
     /// never a violation.
     #[test]
     fn a_tied_selection_still_produces_one_finding() {
+        let construction = test_construction();
         let tied = ParseFacts {
             ties: vec![TieFact {
                 span: Span::new(0, 4),
-                rule: Some(7),
+                construction: Some(construction),
                 alternatives: 2,
             }],
             ..ParseFacts::default()
@@ -149,16 +139,21 @@ mod tests {
             "one tie at one span is one Finding, reported for information — \
              see the doc comment above for why this is not a defect signal"
         );
-        assert_eq!(found[0].signature, "rule 7", "the rule is the cluster key");
+        assert_eq!(
+            found[0].signature,
+            format!("construction {construction}"),
+            "the stable construction is the cluster key",
+        );
         assert!(found[0].detail.contains("bytes 0..4"));
     }
 
     #[test]
-    fn ties_in_the_same_rule_share_a_signature_across_different_bytes() {
+    fn ties_in_the_same_construction_share_a_signature_across_different_bytes() {
+        let construction = test_construction();
         let facts = |span| ParseFacts {
             ties: vec![TieFact {
                 span,
-                rule: Some(7),
+                construction: Some(construction),
                 alternatives: 2,
             }],
             ..ParseFacts::default()
@@ -171,11 +166,11 @@ mod tests {
     }
 
     #[test]
-    fn a_tie_without_a_rule_id_signs_as_rule_unknown() {
+    fn a_tie_without_a_construction_signs_as_unknown() {
         let tied = ParseFacts {
             ties: vec![TieFact {
                 span: Span::new(0, 4),
-                rule: None,
+                construction: None,
                 alternatives: 2,
             }],
             ..ParseFacts::default()
@@ -183,8 +178,8 @@ mod tests {
         let found = no_tie(&tied);
         assert_eq!(found.len(), 1);
         assert_eq!(
-            found[0].signature, "rule ?",
-            "a tie with no rule id must still get a stable cluster key"
+            found[0].signature, "construction ?",
+            "a tie with no construction must still get a stable cluster key"
         );
     }
 

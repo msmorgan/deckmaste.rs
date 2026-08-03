@@ -5197,11 +5197,10 @@ fn keyword_grant_predicated_coordinated_from_qualities() {
 // pre-existing generic `Nominal -> Nominal PrepositionalPhrase`
 // attachment (`NominalPrepositional`), which can independently complete
 // the same span (a bare plural/mass `NounPhrase` needs no determiner).
-// Both trees render byte-identically. Equal-cost ties resolve by
-// registration order (`rule_order`), and `NominalPrepositional` is
-// registered long before `add_keyword_grant_rules` (called last, per
-// plan §4, to preserve earlier `RuleId`s) — so the generic reading wins
-// this specific shape. A coordinated quality (`from X and from Y`) is
+// Both trees render byte-identically. The declared construction edge
+// `nominal_prepositional > nominal_keyword_predicated_argument` makes the
+// generic reading win independently of family registration order. A
+// coordinated quality (`from X and from Y`) is
 // NOT ambiguous this way: the generic single-PP rule cannot consume the
 // `and from Y` tail at all, so only the new rule completes the sentence.
 // This is documented, not fixed, this round — see the mechanic report's

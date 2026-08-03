@@ -7,6 +7,7 @@
 //! and a hand-built violating case.
 
 use deckmaste_english::Catalogs;
+use deckmaste_english::ConstructionId;
 use deckmaste_english::Span;
 use deckmaste_english::parse_with_identity;
 
@@ -16,7 +17,7 @@ use super::super::shape::{self};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct TieFact {
     pub(super) span: Span,
-    pub(super) rule: Option<usize>,
+    pub(super) construction: Option<ConstructionId>,
     pub(super) alternatives: usize,
 }
 
@@ -52,10 +53,10 @@ pub(super) fn facts_for(text: &str, catalogs: &Catalogs) -> ParseFacts {
     let mut constituent_nodes = 0;
     let mut chart_items = 0;
     for selection in report.provenance().selections() {
-        if !selection.tied_alternatives().is_empty() {
+        if selection.tied_alternatives().len() > 1 {
             ties.push(TieFact {
                 span: selection.span(),
-                rule: selection.rule(),
+                construction: selection.selected_construction(),
                 alternatives: selection.tied_alternatives().len(),
             });
         }

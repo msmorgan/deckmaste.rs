@@ -427,7 +427,7 @@ where
         self.best_root_matching(roots, registry, |_, _| true)
     }
 
-    /// Ranks complete roots by the ordinary cost and stable-node tiebreak,
+    /// Ranks complete roots by ordinary cost and stable derivation identity,
     /// returning the first root accepted by `matches`.
     ///
     /// The packed choices for every root are computed once. This lets a
@@ -440,40 +440,30 @@ where
         registry: &ConstructionRegistry,
         mut matches: impl FnMut(NodeId, &BestParse) -> bool,
     ) -> Result<Option<(NodeId, BestParse)>, ForestError> {
-        let mut costs = vec![None; self.nodes.len()];
-        let mut alternatives = vec![None; self.nodes.len()];
-        let mut selected_productions = vec![None; self.nodes.len()];
-        let mut equal_cost_alternatives = vec![Vec::new(); self.nodes.len()];
-        let mut tied_alternatives = vec![Vec::new(); self.nodes.len()];
-        let mut reasons = vec![None; self.nodes.len()];
-        let mut visiting = vec![false; self.nodes.len()];
+        let mut selection = SelectionState::new(self.nodes.len());
         let mut candidates = Vec::new();
         for root in roots {
-            let cost = self.best_cost(
+            let cost = self.best_cost(root, registry, &mut selection)?;
+            candidates.push((
+                cost,
+                selection.identities[root.index()].clone(),
+                root.index(),
                 root,
-                registry,
-                &mut costs,
-                &mut alternatives,
-                &mut selected_productions,
-                &mut equal_cost_alternatives,
-                &mut tied_alternatives,
-                &mut reasons,
-                &mut visiting,
-            )?;
-            let production = selected_productions[root.index()];
-            candidates.push((cost, production.is_none(), production, root.index(), root));
+            ));
         }
         candidates.sort_unstable();
         let mut best = BestParse {
             cost: ParseCost::default(),
-            costs,
-            alternatives,
-            selected_productions,
-            equal_cost_alternatives,
-            tied_alternatives,
-            reasons,
+            costs: selection.costs,
+            alternatives: selection.alternatives,
+            selected_productions: selection.selected_productions,
+            decision_productions: selection.decision_productions,
+            candidate_productions: selection.candidate_productions,
+            equal_cost_alternatives: selection.equal_cost_alternatives,
+            tied_alternatives: selection.tied_alternatives,
+            reasons: selection.reasons,
         };
-        for (cost, _, _, _, root) in candidates {
+        for (cost, _, _, root) in candidates {
             best.cost = cost;
             if matches(root, &best) {
                 return Ok(Some((root, best)));
@@ -486,83 +476,75 @@ where
         &self,
         node: NodeId,
         registry: &ConstructionRegistry,
-        costs: &mut [Option<ParseCost>],
-        choices: &mut [Option<usize>],
-        selected_productions: &mut [Option<ProductionId>],
-        equal_cost_choices: &mut [Vec<usize>],
-        ties: &mut [Vec<usize>],
-        reasons: &mut [Option<SelectionReason>],
-        visiting: &mut [bool],
+        selection: &mut SelectionState,
     ) -> Result<ParseCost, ForestError> {
-        if let Some(cost) = costs[node.index()] {
+        if let Some(cost) = selection.costs[node.index()] {
             return Ok(cost);
         }
-        if visiting[node.index()] {
+        if selection.visiting[node.index()] {
             return Err(ForestError::Cycle(node));
         }
-        visiting[node.index()] = true;
+        selection.visiting[node.index()] = true;
 
         let forest_node = self.node(node);
-        let mut aggregate_costs = Vec::with_capacity(forest_node.alternatives.len());
+        let mut scored = Vec::with_capacity(forest_node.alternatives.len());
         for (alternative_index, alternative) in forest_node.alternatives.iter().enumerate() {
             let mut cost = alternative.local_cost;
+            let mut identity = alternative.production.into_iter().collect::<Vec<_>>();
             for &child in &alternative.children {
-                cost += self.best_cost(
-                    child,
-                    registry,
-                    costs,
-                    choices,
-                    selected_productions,
-                    equal_cost_choices,
-                    ties,
-                    reasons,
-                    visiting,
-                )?;
+                cost += self.best_cost(child, registry, selection)?;
+                identity.extend_from_slice(&selection.identities[child.index()]);
             }
-            aggregate_costs.push((cost, alternative_index));
+            scored.push(ScoredAlternative {
+                cost,
+                index: alternative_index,
+                identity,
+            });
         }
 
-        visiting[node.index()] = false;
-        let cost = aggregate_costs
+        selection.visiting[node.index()] = false;
+        let cost = scored
             .iter()
-            .map(|(cost, _)| *cost)
+            .map(|candidate| candidate.cost)
             .min()
             .ok_or(ForestError::MissingAlternative(node))?;
-        let equal_cost = &mut equal_cost_choices[node.index()];
-        equal_cost.extend(
-            aggregate_costs
-                .iter()
-                .filter_map(|(candidate_cost, index)| (*candidate_cost == cost).then_some(*index)),
-        );
+        let equal = scored
+            .iter()
+            .filter(|candidate| candidate.cost == cost)
+            .collect::<Vec<_>>();
+        selection.equal_cost_alternatives[node.index()]
+            .extend(equal.iter().map(|candidate| candidate.index));
 
-        let viable = &mut ties[node.index()];
-        viable.extend(equal_cost.iter().copied().filter(|&candidate_index| {
-            let Some(candidate) = forest_node.alternatives[candidate_index].production else {
-                return true;
-            };
-            !equal_cost.iter().copied().any(|other_index| {
-                let Some(other) = forest_node.alternatives[other_index].production else {
-                    return false;
-                };
-                registry.dominates(other.construction, candidate.construction)
+        let mut viable = equal
+            .iter()
+            .copied()
+            .filter(|candidate| {
+                !equal
+                    .iter()
+                    .copied()
+                    .any(|other| strictly_dominates(registry, &other.identity, &candidate.identity))
             })
-        }));
-        viable.sort_unstable_by_key(|&index| {
-            let production = forest_node.alternatives[index].production;
-            (production.is_none(), production, index)
+            .collect::<Vec<_>>();
+        viable.sort_unstable_by(|left, right| {
+            left.identity
+                .cmp(&right.identity)
+                .then_with(|| left.index.cmp(&right.index))
         });
+        selection.tied_alternatives[node.index()]
+            .extend(viable.iter().map(|candidate| candidate.index));
 
-        let &alternative = viable
+        let selected = viable
             .first()
             .ok_or(ForestError::MissingAlternative(node))?;
-        let reason = if viable.len() < equal_cost.len() {
+        let alternative = selected.index;
+        let reason = if viable.len() < equal.len() {
             SelectionReason::Dominance
         } else if viable.len() > 1 {
             SelectionReason::StableIdentity
-        } else if aggregate_costs.len() > 1 {
-            let next_cost = aggregate_costs
+        } else if scored.len() > 1 {
+            let next_cost = scored
                 .iter()
-                .map(|(candidate_cost, _)| *candidate_cost)
+                .map(|candidate| candidate.cost)
                 .filter(|candidate_cost| *candidate_cost > cost)
                 .min()
                 .expect("a unique cheapest alternative must have a cost competitor");
@@ -573,12 +555,117 @@ where
         } else {
             SelectionReason::Unique
         };
-        costs[node.index()] = Some(cost);
-        choices[node.index()] = Some(alternative);
-        selected_productions[node.index()] = forest_node.alternatives[alternative].production;
-        reasons[node.index()] = Some(reason);
+
+        let mut representatives = vec![None; forest_node.alternatives.len()];
+        for candidate in &equal {
+            let mut dominance_productions = Vec::new();
+            let mut unmatched = Vec::new();
+            for other in &equal {
+                if candidate.index == other.index {
+                    continue;
+                }
+                if let Some((dominant, _)) =
+                    dominance_pair(registry, &candidate.identity, &other.identity)
+                {
+                    dominance_productions.push(dominant);
+                }
+                if let Some((_, subordinate)) =
+                    dominance_pair(registry, &other.identity, &candidate.identity)
+                {
+                    dominance_productions.push(subordinate);
+                }
+                if let Some((candidate_production, _)) =
+                    divergent_productions(&candidate.identity, &other.identity)
+                {
+                    unmatched.push(candidate_production);
+                }
+            }
+            representatives[candidate.index] = dominance_productions
+                .into_iter()
+                .min()
+                .or_else(|| unmatched.into_iter().min())
+                .or(forest_node.alternatives[candidate.index].production)
+                .or_else(|| candidate.identity.first().copied());
+        }
+
+        selection.costs[node.index()] = Some(cost);
+        selection.alternatives[node.index()] = Some(alternative);
+        selection.selected_productions[node.index()] =
+            forest_node.alternatives[alternative].production;
+        selection.decision_productions[node.index()] = representatives[alternative];
+        selection.candidate_productions[node.index()] = representatives;
+        selection.identities[node.index()] = selected.identity.clone();
+        selection.reasons[node.index()] = Some(reason);
         Ok(cost)
     }
+}
+
+#[derive(Debug)]
+struct ScoredAlternative {
+    cost: ParseCost,
+    index: usize,
+    identity: Vec<ProductionId>,
+}
+
+#[derive(Debug)]
+struct SelectionState {
+    costs: Vec<Option<ParseCost>>,
+    alternatives: Vec<Option<usize>>,
+    selected_productions: Vec<Option<ProductionId>>,
+    decision_productions: Vec<Option<ProductionId>>,
+    candidate_productions: Vec<Vec<Option<ProductionId>>>,
+    identities: Vec<Vec<ProductionId>>,
+    equal_cost_alternatives: Vec<Vec<usize>>,
+    tied_alternatives: Vec<Vec<usize>>,
+    reasons: Vec<Option<SelectionReason>>,
+    visiting: Vec<bool>,
+}
+
+impl SelectionState {
+    fn new(nodes: usize) -> Self {
+        Self {
+            costs: vec![None; nodes],
+            alternatives: vec![None; nodes],
+            selected_productions: vec![None; nodes],
+            decision_productions: vec![None; nodes],
+            candidate_productions: vec![Vec::new(); nodes],
+            identities: vec![Vec::new(); nodes],
+            equal_cost_alternatives: vec![Vec::new(); nodes],
+            tied_alternatives: vec![Vec::new(); nodes],
+            reasons: vec![None; nodes],
+            visiting: vec![false; nodes],
+        }
+    }
+}
+
+fn strictly_dominates(
+    registry: &ConstructionRegistry,
+    dominant: &[ProductionId],
+    subordinate: &[ProductionId],
+) -> bool {
+    dominance_pair(registry, dominant, subordinate).is_some()
+        && dominance_pair(registry, subordinate, dominant).is_none()
+}
+
+fn dominance_pair(
+    registry: &ConstructionRegistry,
+    dominant: &[ProductionId],
+    subordinate: &[ProductionId],
+) -> Option<(ProductionId, ProductionId)> {
+    let (dominant, subordinate) = divergent_productions(dominant, subordinate)?;
+    registry
+        .dominates(dominant.construction, subordinate.construction)
+        .then_some((dominant, subordinate))
+}
+
+fn divergent_productions(
+    left: &[ProductionId],
+    right: &[ProductionId],
+) -> Option<(ProductionId, ProductionId)> {
+    left.iter()
+        .copied()
+        .zip(right.iter().copied())
+        .find(|(left, right)| left != right)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -587,6 +674,8 @@ pub(crate) struct BestParse {
     costs: Vec<Option<ParseCost>>,
     alternatives: Vec<Option<usize>>,
     selected_productions: Vec<Option<ProductionId>>,
+    decision_productions: Vec<Option<ProductionId>>,
+    candidate_productions: Vec<Vec<Option<ProductionId>>>,
     equal_cost_alternatives: Vec<Vec<usize>>,
     tied_alternatives: Vec<Vec<usize>>,
     reasons: Vec<Option<SelectionReason>>,
@@ -604,6 +693,25 @@ impl BestParse {
     pub(crate) fn selected_production(&self, node: NodeId) -> Option<ProductionId> {
         self.selected_productions
             .get(node.index())
+            .copied()
+            .flatten()
+    }
+
+    pub(crate) fn decision_production(&self, node: NodeId) -> Option<ProductionId> {
+        self.decision_productions
+            .get(node.index())
+            .copied()
+            .flatten()
+    }
+
+    pub(crate) fn candidate_production(
+        &self,
+        node: NodeId,
+        alternative: usize,
+    ) -> Option<ProductionId> {
+        self.candidate_productions
+            .get(node.index())?
+            .get(alternative)
             .copied()
             .flatten()
     }

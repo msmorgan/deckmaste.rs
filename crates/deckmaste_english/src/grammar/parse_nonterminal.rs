@@ -38,6 +38,8 @@ use super::lowering::Lowered;
 use super::lowering::lower;
 use super::lowering::selected_rule_children;
 use super::parse_chart;
+use crate::construction::ConstructionAlternative;
+use crate::construction::ConstructionDecision;
 
 type EnglishChart =
     ChartResult<Nonterminal, EnglishLexicalSlot, Features, MeaningKey, EnglishSurfaceWitness>;
@@ -49,6 +51,7 @@ pub(crate) struct ParsedNonterminal {
     pub(crate) chart: EnglishChart,
     root: NodeId,
     best: BestParse,
+    construction_decisions: Vec<ConstructionDecision>,
     constituent_spans: Vec<Span>,
     quoted_ability_spans: Vec<Span>,
     syntax: Lowered,
@@ -128,6 +131,10 @@ impl ParsedNonterminal {
 
     pub(crate) fn root_reason(&self) -> Option<crate::forest::SelectionReason> {
         self.best.reason(self.root)
+    }
+
+    pub(crate) fn construction_decisions(&self) -> &[ConstructionDecision] {
+        &self.construction_decisions
     }
 
     pub(crate) fn cost(&self) -> ParseCost {
@@ -246,6 +253,18 @@ pub(super) fn parse_nonterminal_with_mode(
         &mut constituent_spans,
         &mut quoted_ability_spans,
     );
+    let mut construction_decisions = Vec::new();
+    collect_construction_decisions(
+        &chart.forest,
+        root,
+        &best,
+        tokens,
+        &mut construction_decisions,
+    );
+    construction_decisions.sort_by_key(|decision| {
+        let span = decision.span();
+        (span.start, span.end, decision.selected())
+    });
     let mut lowered_coordination_spans = Vec::new();
     let mut lowered_determiner_spans = Vec::new();
     collect_lowered_coordination_spans(
@@ -268,11 +287,68 @@ pub(super) fn parse_nonterminal_with_mode(
         chart,
         root,
         best,
+        construction_decisions,
         constituent_spans,
         quoted_ability_spans,
         syntax,
         opacity_mode,
     })
+}
+
+fn collect_construction_decisions(
+    forest: &EnglishForest,
+    node: NodeId,
+    best: &BestParse,
+    tokens: &[Token],
+    decisions: &mut Vec<ConstructionDecision>,
+) {
+    let forest_node = forest.node(node);
+    if matches!(forest_node.key.symbol, ForestSymbol::Nonterminal(_))
+        && let Some(production) = best.decision_production(node)
+        && let Some(span) = token_range_span(tokens, forest_node.key.start, forest_node.key.end)
+        && let Some(cost) = best.node_cost(node)
+        && let Some(reason) = best.reason(node)
+        && let Some(family) = super::construction::registry().family(production.construction)
+    {
+        let viable = best.tied_alternatives(node);
+        let mut alternatives = best
+            .equal_cost_alternatives(node)
+            .iter()
+            .filter_map(|&index| {
+                let candidate = best.candidate_production(node, index)?;
+                Some(ConstructionAlternative::new(
+                    candidate,
+                    cost,
+                    !viable.contains(&index),
+                ))
+            })
+            .collect::<Vec<_>>();
+        alternatives.sort_by_key(|alternative| {
+            (
+                alternative.id(),
+                alternative.production_ordinal(),
+                alternative.is_dominated(),
+            )
+        });
+        decisions.push(ConstructionDecision::new(
+            span,
+            production.construction,
+            family,
+            cost,
+            reason,
+            alternatives,
+        ));
+    }
+
+    let Some(alternative) = best.alternative(node) else {
+        return;
+    };
+    let Some(alternative) = forest_node.alternatives.get(alternative) else {
+        return;
+    };
+    for &child in &alternative.children {
+        collect_construction_decisions(forest, child, best, tokens, decisions);
+    }
 }
 
 fn collect_selected_spans(
@@ -698,6 +774,7 @@ mod root_lowering_tests {
             chart,
             root,
             best,
+            construction_decisions: Vec::new(),
             constituent_spans: Vec::new(),
             quoted_ability_spans: Vec::new(),
             syntax,

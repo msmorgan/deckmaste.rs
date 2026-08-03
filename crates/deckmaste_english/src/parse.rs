@@ -34,6 +34,8 @@ pub struct ParseSelection {
     pub(crate) span: Span,
     pub(crate) constituent_spans: Vec<Span>,
     pub(crate) rule: Option<usize>,
+    pub(crate) construction: Option<crate::construction::ConstructionId>,
+    pub(crate) constructions: Vec<crate::construction::ConstructionDecision>,
     pub(crate) tied_alternatives: Vec<usize>,
     pub(crate) cost: crate::forest::ParseCost,
     pub(crate) chart_stats: ChartStats,
@@ -118,6 +120,18 @@ impl ParseSelection {
         self.rule
     }
 
+    /// Stable identity of the selected root construction.
+    #[must_use]
+    pub const fn selected_construction(&self) -> Option<crate::construction::ConstructionId> {
+        self.construction
+    }
+
+    /// Source-ordered construction decisions in the selected derivation.
+    #[must_use]
+    pub fn constructions(&self) -> &[crate::construction::ConstructionDecision] {
+        &self.constructions
+    }
+
     /// Indices of the undominated alternatives at this selection's root with
     /// the minimum parse cost, including the selected alternative itself.
     ///
@@ -127,6 +141,11 @@ impl ParseSelection {
     #[must_use]
     pub fn tied_alternatives(&self) -> &[usize] {
         &self.tied_alternatives
+    }
+
+    #[must_use]
+    pub const fn cost(&self) -> crate::forest::ParseCost {
+        self.cost
     }
 
     #[must_use]
@@ -208,6 +227,8 @@ fn parse_internal(
                     span: selection.span,
                     constituent_spans: selection.constituent_spans,
                     rule: selection.rule,
+                    construction: selection.construction,
+                    constructions: selection.constructions,
                     tied_alternatives: selection.tied_alternatives,
                     cost: selection.cost,
                     chart_stats: selection.chart_stats,
@@ -245,5 +266,15 @@ mod tests {
                 && selection.tied_alternatives.len() == 1
                 && selection.cost == crate::forest::ParseCost::default()
         }));
+    }
+
+    #[test]
+    fn proform_selection_does_not_duplicate_do_on_render() {
+        let source = "All creatures with flying able to block this creature do so.";
+        let rendered = parse(source)
+            .into_ast()
+            .render("Test Card", false)
+            .expect("selected syntax must render");
+        assert_eq!(rendered, source);
     }
 }

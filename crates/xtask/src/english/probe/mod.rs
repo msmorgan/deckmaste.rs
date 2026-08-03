@@ -99,8 +99,8 @@ struct Cluster {
 /// (the tuple's second element), not raw `count`. In `--printed` mode that
 /// key is the card name itself, so `distinct_carriers` is the number of
 /// distinct cards behind a cluster, while `count` is the number of finding
-/// instances (a single card can contribute more than one, e.g. two separate
-/// rule-176 ties in one multi-sentence card).
+/// instances (a single card can contribute more than one tie under the same
+/// stable construction in a multi-sentence card).
 fn cluster(findings: Vec<(String, String, Finding)>) -> Vec<Cluster> {
     // Running count, capped examples, and distinct-provenance set for one
     // (law, signature) key.
@@ -115,7 +115,7 @@ fn cluster(findings: Vec<(String, String, Finding)>) -> Vec<Cluster> {
         entry.0 += 1;
         // Deduplicated: the same text (in `--printed` mode, the same card)
         // can produce several findings under one (law, signature) — e.g. two
-        // separate rule-176 ties in one multi-sentence card — and showing it
+        // sentence-construction ties in one multi-sentence card — and showing it
         // twice would waste a slot instead of illustrating the cluster.
         if entry.1.len() < 3 && !entry.1.contains(&text) {
             entry.1.push(text);
@@ -242,25 +242,6 @@ fn run_printed(data: &OracleData, limits: &Thresholds, overridden: bool, deny: b
     println!("\n{BASELINE_RELATIVE_HEADER}");
     report(&baseline_relative_clusters);
 
-    match baseline_relative_clusters
-        .iter()
-        .find(|group| group.law == "no-tie" && group.signature == "rule 176")
-    {
-        // `group.count` is tie *instances* (a face can tie more than once
-        // under the same rule); `group.distinct_carriers` is the actual
-        // face count, per `cluster`'s doc comment. Both are reported so
-        // neither number is mistaken for the other.
-        Some(group) => println!(
-            "\nrule-176-on-printed-cards\t{} faces ({} tie instances total; examples: {})",
-            group.distinct_carriers,
-            group.count,
-            group.examples.join(", ")
-        ),
-        None => {
-            println!("\nrule-176-on-printed-cards\tabsent — no printed face ties under rule 176");
-        }
-    }
-
     if deny && !gating_clusters.is_empty() {
         anyhow::bail!(
             "{} printed-baseline gating cluster(s) violated; no_tie's baseline-relative \
@@ -335,12 +316,20 @@ mod tests {
             (
                 "Draw a card.".to_string(),
                 "recipe A".to_string(),
-                finding("no-tie", "rule 7", "2 derivations tied at bytes 0..4"),
+                finding(
+                    "no-tie",
+                    "construction sentence",
+                    "2 derivations tied at bytes 0..4",
+                ),
             ),
             (
                 "You gain 1 life.".to_string(),
                 "recipe B".to_string(),
-                finding("no-tie", "rule 7", "2 derivations tied at bytes 9..13"),
+                finding(
+                    "no-tie",
+                    "construction sentence",
+                    "2 derivations tied at bytes 9..13",
+                ),
             ),
             (
                 "Draw a card.".to_string(),
@@ -368,12 +357,12 @@ mod tests {
             (
                 "a".to_string(),
                 "recipe".to_string(),
-                finding("no-tie", "rule 3", "tied"),
+                finding("no-tie", "construction clause_simple", "tied"),
             ),
             (
                 "b".to_string(),
                 "recipe".to_string(),
-                finding("no-tie", "rule 9", "tied"),
+                finding("no-tie", "construction clause_copular", "tied"),
             ),
         ];
         assert_eq!(
@@ -390,7 +379,7 @@ mod tests {
                 (
                     format!("text {index}"),
                     format!("recipe {index}"),
-                    finding("no-tie", "rule 3", "tied"),
+                    finding("no-tie", "construction clause_simple", "tied"),
                 )
             })
             .collect();
@@ -415,7 +404,7 @@ mod tests {
                 (
                     format!("Aang, donor {index}, and La attack"),
                     "extend `and` coordination".to_string(),
-                    finding("no-tie", "rule 177", "tied"),
+                    finding("no-tie", "construction sentence", "tied"),
                 )
             })
             .collect();
@@ -437,8 +426,8 @@ mod tests {
             .map(|index| {
                 (
                     format!("text {index}"),
-                    format!("substitute `phrase {index}` with rule-3 fragment"),
-                    finding("no-tie", "rule 3", "tied"),
+                    format!("substitute `phrase {index}` with clause fragment"),
+                    finding("no-tie", "construction clause_simple", "tied"),
                 )
             })
             .collect();
