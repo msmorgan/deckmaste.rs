@@ -1,27 +1,27 @@
 //! Shared noun-phrase / count fragment renderers.
 
-use deckmaste_core::AggregateOp;
-use deckmaste_core::Anchor;
-use deckmaste_core::Characteristic;
-use deckmaste_core::CharacteristicPredicate;
-use deckmaste_core::Color;
-use deckmaste_core::Count;
-use deckmaste_core::Countable;
-use deckmaste_core::ObjectKind;
-use deckmaste_core::PlayerAttr;
-use deckmaste_core::Predicate;
-use deckmaste_core::Projection;
-use deckmaste_core::Quantity;
-use deckmaste_core::Reference;
-use deckmaste_core::RelationPredicate;
-use deckmaste_core::RoundMode;
-use deckmaste_core::Selection;
-use deckmaste_core::Stat;
-use deckmaste_core::StatePredicate;
-use deckmaste_core::Status;
-use deckmaste_core::SymbolPred;
-use deckmaste_core::TargetSpec;
-use deckmaste_core::Zone;
+use deckmaste_authoring::AggregateOp;
+use deckmaste_authoring::Anchor;
+use deckmaste_authoring::Characteristic;
+use deckmaste_authoring::CharacteristicPredicate;
+use deckmaste_authoring::Color;
+use deckmaste_authoring::Count;
+use deckmaste_authoring::Countable;
+use deckmaste_authoring::ObjectKind;
+use deckmaste_authoring::PlayerAttr;
+use deckmaste_authoring::Predicate;
+use deckmaste_authoring::Projection;
+use deckmaste_authoring::Quantity;
+use deckmaste_authoring::Reference;
+use deckmaste_authoring::RelationPredicate;
+use deckmaste_authoring::RoundMode;
+use deckmaste_authoring::Selection;
+use deckmaste_authoring::Stat;
+use deckmaste_authoring::StatePredicate;
+use deckmaste_authoring::Status;
+use deckmaste_authoring::SymbolPred;
+use deckmaste_authoring::TargetSpec;
+use deckmaste_authoring::Zone;
 
 use super::Ctx;
 
@@ -472,7 +472,7 @@ fn target_rementioned(i: usize, ctx: &Ctx) -> String {
 /// (`None`) — the caller falls back to structural rendering, never a wrong
 /// pronoun.
 pub(super) fn reference_pronoun(raw: &str, ctx: &Ctx) -> Option<String> {
-    let opts = deckmaste_core::ron::options();
+    let opts = deckmaste_authoring::ron::options();
     if let Ok(r) = opts.from_str::<Reference>(raw) {
         return reference_object_pronoun(&r, ctx);
     }
@@ -1078,7 +1078,7 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
 /// Recursively search a stripped filter for a `Characteristic(Type(t))`.
 /// Used to find the type name inside a macro-expanded Creature/Land/etc.
 /// filter.
-pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Ident> {
+pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_authoring::Ident> {
     match strip_expanded(f) {
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => Some(t.name()),
         Predicate::And(vs) => vs.iter().find_map(find_card_type),
@@ -1433,8 +1433,8 @@ mod tests {
     /// initial casing is the filler's job.
     #[test]
     fn reference_pronoun_is_number_aware() {
-        use deckmaste_core::Quantity;
-        use deckmaste_core::TargetSpec;
+        use deckmaste_authoring::Quantity;
+        use deckmaste_authoring::TargetSpec;
 
         let creature = [TargetSpec::Target(Quantity::one(), Predicate::creature())];
         let c = Ctx {
@@ -1517,7 +1517,7 @@ mod tests {
         let goblin_piledriver = Predicate::And(
             vec![
                 Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                    deckmaste_core::SubtypeRef::named("Goblin".into()),
+                    deckmaste_authoring::SubtypeRef::named("Goblin".into()),
                 )),
                 Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
                 Predicate::State(StatePredicate::Attacking),
@@ -1671,7 +1671,7 @@ mod tests {
     fn filter_subject_renders_teammate_controller_phrase() {
         let f = Predicate::And(
             vec![
-                Predicate::r#type(deckmaste_core::Type::Creature),
+                Predicate::r#type(deckmaste_authoring::Type::Creature),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
                     Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
                         Reference::You,
@@ -1752,7 +1752,7 @@ mod tests {
                 of: Countable::Objects(Arc::new(Predicate::And(
                     vec![
                         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                        Predicate::r#type(deckmaste_core::Type::Creature),
+                        Predicate::r#type(deckmaste_authoring::Type::Creature),
                     ]
                     .into(),
                 ))),
@@ -1774,7 +1774,7 @@ mod tests {
     /// total among all players" — Arbiter of Knollridge's own shape.
     #[test]
     fn count_renders_highest_life_total_among_all_players() {
-        use deckmaste_core::PlayerAttr;
+        use deckmaste_authoring::PlayerAttr;
 
         let highest_life = Count::Aggregate(
             AggregateOp::MaxOf,

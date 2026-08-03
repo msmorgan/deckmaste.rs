@@ -3,43 +3,43 @@
 use std::cell::Cell;
 use std::fmt::Write as _;
 
-use deckmaste_core::Ability;
-use deckmaste_core::Action;
-use deckmaste_core::Arrangement;
-use deckmaste_core::Binder;
-use deckmaste_core::Characteristic;
-use deckmaste_core::CharacteristicPredicate;
-use deckmaste_core::CollectionOp;
-use deckmaste_core::Color;
-use deckmaste_core::CopyException;
-use deckmaste_core::CopySource;
-use deckmaste_core::Count;
-use deckmaste_core::CounterSpec;
-use deckmaste_core::Deontic;
-use deckmaste_core::DeonticAction;
-use deckmaste_core::Destination;
-use deckmaste_core::Duration;
-use deckmaste_core::EnterRider;
-use deckmaste_core::LifeOp;
-use deckmaste_core::Modification;
-use deckmaste_core::NumericOp;
-use deckmaste_core::ObjectKind;
-use deckmaste_core::OneShotEffect;
-use deckmaste_core::PlayerAttr;
-use deckmaste_core::Predicate;
-use deckmaste_core::Reference;
-use deckmaste_core::Selection;
-use deckmaste_core::Sort;
-use deckmaste_core::Stat;
-use deckmaste_core::StatValue;
-use deckmaste_core::StaticEffect;
-use deckmaste_core::Supertype;
-use deckmaste_core::TargetSpec;
-use deckmaste_core::Token;
-use deckmaste_core::TokenSpec;
-use deckmaste_core::TurnMarker;
-use deckmaste_core::With;
-use deckmaste_core::Zone;
+use deckmaste_authoring::Ability;
+use deckmaste_authoring::Action;
+use deckmaste_authoring::Arrangement;
+use deckmaste_authoring::Binder;
+use deckmaste_authoring::Characteristic;
+use deckmaste_authoring::CharacteristicPredicate;
+use deckmaste_authoring::CollectionOp;
+use deckmaste_authoring::Color;
+use deckmaste_authoring::CopyException;
+use deckmaste_authoring::CopySource;
+use deckmaste_authoring::Count;
+use deckmaste_authoring::CounterSpec;
+use deckmaste_authoring::Deontic;
+use deckmaste_authoring::DeonticAction;
+use deckmaste_authoring::Destination;
+use deckmaste_authoring::Duration;
+use deckmaste_authoring::EnterRider;
+use deckmaste_authoring::LifeOp;
+use deckmaste_authoring::Modification;
+use deckmaste_authoring::NumericOp;
+use deckmaste_authoring::ObjectKind;
+use deckmaste_authoring::OneShotEffect;
+use deckmaste_authoring::PlayerAttr;
+use deckmaste_authoring::Predicate;
+use deckmaste_authoring::Reference;
+use deckmaste_authoring::Selection;
+use deckmaste_authoring::Sort;
+use deckmaste_authoring::Stat;
+use deckmaste_authoring::StatValue;
+use deckmaste_authoring::StaticEffect;
+use deckmaste_authoring::Supertype;
+use deckmaste_authoring::TargetSpec;
+use deckmaste_authoring::Token;
+use deckmaste_authoring::TokenSpec;
+use deckmaste_authoring::TurnMarker;
+use deckmaste_authoring::With;
+use deckmaste_authoring::Zone;
 
 use super::Ctx;
 use super::fragment;
@@ -281,11 +281,11 @@ fn unrendered(e: &OneShotEffect) -> String {
 /// ("… It can't be regenerated."); every other arg keeps the context-free
 /// `render_slot`. `None` when there's no template or a slot declines — the
 /// caller then falls back to structural rendering of `e.value`.
-fn expanded_effect(e: &deckmaste_core::Expansion<OneShotEffect>, ctx: &Ctx) -> Option<String> {
+fn expanded_effect(e: &deckmaste_authoring::Expansion<OneShotEffect>, ctx: &Ctx) -> Option<String> {
     let tmpl = e.template.as_deref()?;
     super::template::fill_with(tmpl, ctx.subject, &e.args, |raw, modifier| {
         if modifier.is_none()
-            && let Ok(r) = deckmaste_core::ron::options().from_str::<Reference>(raw)
+            && let Ok(r) = deckmaste_authoring::ron::options().from_str::<Reference>(raw)
         {
             return Some(fragment::reference(&r, ctx));
         }
@@ -311,8 +311,8 @@ fn expanded_effect(e: &deckmaste_core::Expansion<OneShotEffect>, ctx: &Ctx) -> O
 /// `Matches`/`Or`/`Transform` renderers by their parent. `None` for any
 /// `If`/condition/body shape outside this exact family — the caller falls back
 /// to `[unrendered]`, matching every other bespoke-shape renderer here.
-fn delver_look_top(f: &deckmaste_core::If, ctx: &Ctx) -> Option<String> {
-    use deckmaste_core::Condition;
+fn delver_look_top(f: &deckmaste_authoring::If, ctx: &Ctx) -> Option<String> {
+    use deckmaste_authoring::Condition;
     // Condition: the sole top card of your library matches an Or of card types.
     let Condition::Matches(cond_ref, Predicate::Or(members)) = &f.condition else {
         return None;
@@ -322,7 +322,7 @@ fn delver_look_top(f: &deckmaste_core::If, ctx: &Ctx) -> Option<String> {
     }
     let types = or_type_words(members)?;
     // then: you MAY (reveal that same top card, then transform ~).
-    let OneShotEffect::May(deckmaste_core::May {
+    let OneShotEffect::May(deckmaste_authoring::May {
         who: _,
         effect: body,
         if_did: None,
@@ -387,7 +387,7 @@ fn or_type_words(members: &[Predicate]) -> Option<Vec<String>> {
 }
 
 /// See [`OneShotEffect::RevealUntil`]'s render arm above.
-fn reveal_until(r: &deckmaste_core::RevealUntil, ctx: &Ctx) -> String {
+fn reveal_until(r: &deckmaste_authoring::RevealUntil, ctx: &Ctx) -> String {
     let whose = fragment::reference(&r.whose, ctx);
     let whose_poss = if whose.eq_ignore_ascii_case("you") {
         "your".to_string()
@@ -740,8 +740,8 @@ fn flatten_and(filter: &Predicate) -> Vec<&Predicate> {
 /// A delayed triggered ability's lead-in + body ([CR#603.7]). See
 /// [`OneShotEffect::Delayed`]'s render arm above for why this doesn't just call
 /// `ability::event_clause` uncritically.
-fn delayed(t: &deckmaste_core::TriggeredAbility, ctx: &Ctx) -> String {
-    use deckmaste_core::EventFilter;
+fn delayed(t: &deckmaste_authoring::TriggeredAbility, ctx: &Ctx) -> String {
+    use deckmaste_authoring::EventFilter;
     let lead = match &t.event {
         EventFilter::Expanded(e) if e.template.is_some() => {
             format!("At {}", e.template.as_deref().unwrap_or_default())
@@ -773,7 +773,7 @@ fn peel_expanded(e: &OneShotEffect) -> &OneShotEffect {
 /// by its own "Reveal the top N cards of [owner]'s library." sentence (the
 /// group is revealed as part of being separated, [CR#701.20a]). `then`
 /// (almost always a `ChoosePile`) follows as its own sentence.
-fn separate_piles(piles: &deckmaste_core::SeparatePiles, ctx: &Ctx) -> String {
+fn separate_piles(piles: &deckmaste_authoring::SeparatePiles, ctx: &Ctx) -> String {
     let by = fragment::reference(&piles.by, ctx);
     let is_you = by.eq_ignore_ascii_case("you");
     let (preamble, noun) = match &piles.group {
@@ -823,10 +823,10 @@ fn separate_piles(piles: &deckmaste_core::SeparatePiles, ctx: &Ctx) -> String {
 /// Die's shape: a `Type` + a `ControlledBy(<dynamic reference>)` restrictor
 /// the shared `fragment::filter_noun` doesn't cover, since it only prints
 /// the fixed you/opponent controller phrases).
-fn plural_group_noun(f: &deckmaste_core::Predicate, ctx: &Ctx) -> String {
-    use deckmaste_core::CharacteristicPredicate;
-    use deckmaste_core::Predicate;
-    use deckmaste_core::RelationPredicate;
+fn plural_group_noun(f: &deckmaste_authoring::Predicate, ctx: &Ctx) -> String {
+    use deckmaste_authoring::CharacteristicPredicate;
+    use deckmaste_authoring::Predicate;
+    use deckmaste_authoring::RelationPredicate;
     let parts: Vec<&Predicate> = match f {
         Predicate::And(members) => members.iter().collect(),
         other => vec![other],
@@ -859,13 +859,13 @@ fn plural_group_noun(f: &deckmaste_core::Predicate, ctx: &Ctx) -> String {
 /// collective sentence the corpus needs ("Destroy all creatures in the pile
 /// of `[by]`'s choice. They can't be regenerated."); anything else declines
 /// structurally.
-fn choose_pile(cp: &deckmaste_core::ChoosePile, ctx: &Ctx) -> String {
+fn choose_pile(cp: &deckmaste_authoring::ChoosePile, ctx: &Ctx) -> String {
     let chooser = fragment::reference(&cp.by, ctx);
     let pile_phrase = format!("the pile of {chooser}'s choice");
     if let OneShotEffect::Each(each) = peel_expanded(&cp.then)
         && matches!(
             &each.binder,
-            deckmaste_core::Binder::Existing(Selection::Them(Sort::Pile))
+            deckmaste_authoring::Binder::Existing(Selection::Them(Sort::Pile))
         )
         && let Some(collective) = pile_collective(peel_expanded(&each.effect), &pile_phrase)
     {
@@ -910,8 +910,8 @@ fn pile_collective(body: &OneShotEffect, group_phrase: &str) -> Option<String> {
 
 /// A modal spell/ability ([CR#700.2]): an optional Escalate/Entwine cost-
 /// rider line, "Choose ... —", and one bulleted mode per line.
-fn modal_effect(modal: &deckmaste_core::Modal, ctx: &Ctx) -> String {
-    use deckmaste_core::ModalCostRider;
+fn modal_effect(modal: &deckmaste_authoring::Modal, ctx: &Ctx) -> String {
+    use deckmaste_authoring::ModalCostRider;
     let mut lines = Vec::new();
     if let Some(rider) = &modal.choose.rider {
         let (name, cost) = match rider {
@@ -939,7 +939,7 @@ fn modal_effect(modal: &deckmaste_core::Modal, ctx: &Ctx) -> String {
 /// The modal spec's "Choose ..." lead line ([CR#700.2]). Only the shapes the
 /// corpus needs (`AtLeast(1)` = "one or more") are named; anything else
 /// falls back to that reading rather than fabricating unverified wording.
-fn choose_line(spec: &deckmaste_core::ChooseSpec) -> String {
+fn choose_line(spec: &deckmaste_authoring::ChooseSpec) -> String {
     let (lo, hi) = spec.count.bounds();
     let lo_n = lo.and_then(Count::literal_value);
     let hi_n = hi.and_then(Count::literal_value);
@@ -949,13 +949,13 @@ fn choose_line(spec: &deckmaste_core::ChooseSpec) -> String {
     }
 }
 
-/// The noun phrase a [`Binder`](deckmaste_core::Binder) contributes to its
+/// The noun phrase a [`Binder`](deckmaste_authoring::Binder) contributes to its
 /// `OneShotEffect::With` / `CostComponent::With` body — read by the body's
 /// `That` / `Those` anaphor ([CR#601.2b]). A one-binder yields "a creature"; a
 /// many-binder yields "two cards"; the reference/existing forms defer to the
 /// shared fragment renderers.
-fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
-    use deckmaste_core::Binder;
+fn binder_phrase(binder: &deckmaste_authoring::Binder, ctx: &Ctx) -> String {
+    use deckmaste_authoring::Binder;
     #[expect(
         clippy::match_same_arms,
         reason = "the chooser binders (ChooseOne/Choose) and the search binders (SearchOne/Search) are distinct grammar categories kept separate for the documented reasons above; they coincidentally render the same noun phrase"
@@ -1021,10 +1021,12 @@ fn composite_move_patient(body: &OneShotEffect) -> Option<&Reference> {
 /// `whose` of the body's `TopOfLibrary` selection (draw's `Each` binder, mill's
 /// `MoveGroup` group). `None` for any other shape.
 fn slice_whose(body: &OneShotEffect) -> Option<&Reference> {
-    use deckmaste_core::Selection;
+    use deckmaste_authoring::Selection;
     match peel_expanded(body) {
         OneShotEffect::Each(each) => match &each.binder {
-            deckmaste_core::Binder::Existing(Selection::TopOfLibrary { whose, .. }) => Some(whose),
+            deckmaste_authoring::Binder::Existing(Selection::TopOfLibrary { whose, .. }) => {
+                Some(whose)
+            }
             _ => None,
         },
         OneShotEffect::Act(Action::MoveGroup {
@@ -1051,7 +1053,7 @@ fn slice_whose(body: &OneShotEffect) -> Option<&Reference> {
 /// `None` for any other shape.
 fn each_collective_batch(
     effect: &OneShotEffect,
-    binder: &deckmaste_core::Binder,
+    binder: &deckmaste_authoring::Binder,
     ctx: &Ctx,
 ) -> Option<String> {
     let OneShotEffect::Batch(count, body) = effect else {
@@ -1090,7 +1092,11 @@ fn each_collective_batch(
 /// renderer half the `core-many-binder-group-move` seam calls for. Returns
 /// `None` for any body the collapse does not recognise, so the caller falls
 /// back to the per-element "For each <group>, …" form.
-fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> Option<String> {
+fn each_collective(
+    act: &Action,
+    binder: &deckmaste_authoring::Binder,
+    ctx: &Ctx,
+) -> Option<String> {
     // "each <bare group noun>" — the recipient/patient of a set-wide verb.
     let each_group = || format!("each {}", binder_group_noun(binder, ctx));
     match act {
@@ -1126,7 +1132,7 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
         Action::Composite { name, body }
             if name.as_str() == "Discard"
                 && matches!(
-                    deckmaste_core::discard_body_whose(body),
+                    deckmaste_authoring::discard_body_whose(body),
                     Some(Reference::It)
                 ) =>
         {
@@ -1134,9 +1140,9 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
                 "{} discards {}{}.",
                 capitalize_first(&each_group()),
                 counted_cards(
-                    deckmaste_core::discard_body_count(body).unwrap_or(&Count::Literal(1))
+                    deckmaste_authoring::discard_body_count(body).unwrap_or(&Count::Literal(1))
                 ),
-                if deckmaste_core::discard_body_random(body) { " at random" } else { "" },
+                if deckmaste_authoring::discard_body_random(body) { " at random" } else { "" },
             ))
         }
         // A group move to the library reads "Put <group> on top/the bottom of
@@ -1192,10 +1198,10 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
 
 /// Whether a binder binds MORE than one object (a multi-card group move
 /// prints its "in any order" rider).
-fn binder_is_plural(binder: &deckmaste_core::Binder) -> bool {
-    use deckmaste_core::Binder;
-    use deckmaste_core::Count;
-    use deckmaste_core::Selection;
+fn binder_is_plural(binder: &deckmaste_authoring::Binder) -> bool {
+    use deckmaste_authoring::Binder;
+    use deckmaste_authoring::Count;
+    use deckmaste_authoring::Selection;
     match binder {
         Binder::Choose { quantity, .. } | Binder::Search { quantity, .. } => !quantity.is_one(),
         Binder::ChooseOne { .. } | Binder::SearchOne { .. } | Binder::TheRef(_) => false,
@@ -1210,15 +1216,15 @@ fn binder_is_plural(binder: &deckmaste_core::Binder) -> bool {
     }
 }
 
-/// The bare collective noun a [`Binder`](deckmaste_core::Binder) contributes to
-/// an [`OneShotEffect::Each`] "each <noun>" / "For each <noun>" construction:
-/// the whole matching set yields the bare noun ("creature", so the surrounding
-/// "each" supplies the quantifier — not "each each creature"), a
-/// bound/announced group its plural anaphor ("them"), and a chosen group its
+/// The bare collective noun a [`Binder`](deckmaste_authoring::Binder)
+/// contributes to an [`OneShotEffect::Each`] "each <noun>" / "For each <noun>"
+/// construction: the whole matching set yields the bare noun ("creature", so
+/// the surrounding "each" supplies the quantifier — not "each each creature"),
+/// a bound/announced group its plural anaphor ("them"), and a chosen group its
 /// full phrase.
-fn binder_group_noun(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
-    use deckmaste_core::Binder;
-    use deckmaste_core::Selection;
+fn binder_group_noun(binder: &deckmaste_authoring::Binder, ctx: &Ctx) -> String {
+    use deckmaste_authoring::Binder;
+    use deckmaste_authoring::Selection;
     match binder {
         Binder::Existing(Selection::SelectAll(f)) => fragment::filter_noun(f),
         Binder::Existing(sel) => fragment::selection(sel, ctx),
@@ -1412,7 +1418,7 @@ fn is_deontic_restriction(e: &StaticEffect) -> bool {
 /// `has_dynamic_pt_delta`'s `Modification`-level recursion — looks through
 /// `Several`/`Expanded` (a macro-bundled "+N/+N" carries the same shape).
 fn modification_has_dynamic_pt_delta(m: &Modification) -> bool {
-    use deckmaste_core::NumericOp;
+    use deckmaste_authoring::NumericOp;
     match m {
         Modification::Power(NumericOp::Up(c) | NumericOp::Down(c))
         | Modification::Toughness(NumericOp::Up(c) | NumericOp::Down(c)) => {
@@ -1529,7 +1535,8 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::library_position(anchor),
             if matches!(
                 arrangement,
-                deckmaste_core::Arrangement::AnyOrder | deckmaste_core::Arrangement::ChosenOrder(_)
+                deckmaste_authoring::Arrangement::AnyOrder
+                    | deckmaste_authoring::Arrangement::ChosenOrder(_)
             ) {
                 " in any order"
             } else {
@@ -1669,7 +1676,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // macro's `regenerate ${0}` template is the primary render (the
         // remembered invocation carries the real reference).
         Action::CreateReplacement { .. } => {
-            let that = deckmaste_core::Reference::That(deckmaste_core::Sort::Card);
+            let that = deckmaste_authoring::Reference::That(deckmaste_authoring::Sort::Card);
             format!("Regenerate {}.", fragment::reference(&that, ctx))
         }
         other => format!("[unrendered: {other:?}]."),
@@ -1738,7 +1745,7 @@ fn enter_rider_phrase(riders: &[EnterRider], ctx: &Ctx) -> String {
 /// (Undying/Persist's pip family) print their `+N/+N` symbol, exactly like
 /// the card frame does; any other named kind ("a lore counter") uses the
 /// plain word, same as `fragment`'s `counter_noun`.
-pub(super) fn counter_phrase(kind: &deckmaste_core::CounterRef, count: &Count) -> String {
+pub(super) fn counter_phrase(kind: &deckmaste_authoring::CounterRef, count: &Count) -> String {
     let symbol = match kind.as_str() {
         "P1P1Counter" => "+1/+1".to_string(),
         "M1M1Counter" => "-1/-1".to_string(),
@@ -1769,7 +1776,7 @@ fn stat_word(s: Stat) -> &'static str {
 /// Render a divided distribution ([CR#601.2d]). The body selects the verb;
 /// `group` is rendered as the set it divides among — an announced plural
 /// target slot prints its announce phrase ("one, two, or three targets").
-fn divide_among(d: &deckmaste_core::Distribute, ctx: &Ctx) -> String {
+fn divide_among(d: &deckmaste_authoring::Distribute, ctx: &Ctx) -> String {
     let amount = fragment::count(&d.amount);
     let group = divided_group_phrase(&d.binder, ctx);
     match &*d.body {
@@ -1797,9 +1804,9 @@ fn divide_among(d: &deckmaste_core::Distribute, ctx: &Ctx) -> String {
 /// (read by position as `Targets(n)`) prints its announce phrase — "one,
 /// two, or three targets" ([CR#601.2d]); anything else falls back to the
 /// binder's own phrase.
-fn divided_group_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
-    use deckmaste_core::Binder;
-    use deckmaste_core::Selection;
+fn divided_group_phrase(binder: &deckmaste_authoring::Binder, ctx: &Ctx) -> String {
+    use deckmaste_authoring::Binder;
+    use deckmaste_authoring::Selection;
     let slot = match binder {
         // The nth announced slot read as its whole group ([CR#115.3,601.2c]).
         Binder::Existing(Selection::Targets(n)) => ctx.targets.get(*n),
@@ -1814,8 +1821,8 @@ fn divided_group_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
 /// lowercased verb phrase ("sacrifice a creature"). Declines (`None`) on an
 /// empty or no-clean-rendering cost, so the effect falls back to the structural
 /// form.
-fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Option<String> {
-    use deckmaste_core::CostComponent;
+fn additional_payment(cost: &[deckmaste_authoring::CostComponent], ctx: &Ctx) -> Option<String> {
+    use deckmaste_authoring::CostComponent;
     if cost.is_empty() {
         return None;
     }
@@ -1892,7 +1899,7 @@ fn do_action_phrase(act: &Action, ctx: &Ctx) -> String {
 /// `[−X]`, e.g. Ugin, the Spirit Dragon); any other dynamic count falls
 /// back to the generic render.
 fn loyalty_cost_prefix(action: &Action) -> Option<String> {
-    let is_loyalty = |c: &deckmaste_core::CounterRef| c.as_str() == "LoyaltyCounter";
+    let is_loyalty = |c: &deckmaste_authoring::CounterRef| c.as_str() == "LoyaltyCounter";
     match action {
         Action::PutCounters(Reference::This, counter, count) if is_loyalty(counter) => {
             match count.literal_value()? {
@@ -1910,10 +1917,10 @@ fn loyalty_cost_prefix(action: &Action) -> Option<String> {
     }
 }
 
-pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> String {
-    use deckmaste_core::CostComponent;
+pub(super) fn activated_cost(cost: &[deckmaste_authoring::CostComponent], ctx: &Ctx) -> String {
+    use deckmaste_authoring::CostComponent;
 
-    fn push_symbol(component: &deckmaste_core::CostComponent, parts: &mut Vec<String>) {
+    fn push_symbol(component: &deckmaste_authoring::CostComponent, parts: &mut Vec<String>) {
         parts.push(
             super::template::render_cost(std::slice::from_ref(component))
                 .unwrap_or_else(|| format!("[unrendered: {component:?}]")),
@@ -1983,9 +1990,9 @@ pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) 
 /// power", Fling) — the cost-side twin of `With`'s binder-phrase threading.
 /// `None` for any payment shape besides the bare single sacrifice (the
 /// `EventObject` render then falls back to the plain "it").
-fn additional_cost_object_phrase(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
-    use deckmaste_core::Binder;
-    use deckmaste_core::CostComponent;
+fn additional_cost_object_phrase(cost: &[deckmaste_authoring::CostComponent]) -> Option<String> {
+    use deckmaste_authoring::Binder;
+    use deckmaste_authoring::CostComponent;
     if let [CostComponent::With { binder, body }] = cost
         && let Binder::ChooseOne { filter, .. } = binder.as_ref()
         && let [CostComponent::Do(pa)] = body.0.as_ref()
@@ -2158,7 +2165,7 @@ fn player_action(action: &Action, ctx: &Ctx) -> String {
 /// don't, …" riders (Chandra's "You may cast that card. If you don't, ~ deals 2
 /// damage to each opponent."). Each rider is a full sentence whose subject the
 /// inner effect supplies, so it stands capitalized after the base clause.
-fn render_may(m: &deckmaste_core::May, ctx: &Ctx) -> String {
+fn render_may(m: &deckmaste_authoring::May, ctx: &Ctx) -> String {
     use std::fmt::Write as _;
     // [CR#118.12a,118.12,603,608]: the collapsed `MayPay`/`MustPay` shape —
     // `effect` is `Pay(cost)`, so `if_did`/`if_not` read as cost semantics
@@ -2216,9 +2223,9 @@ fn render_may(m: &deckmaste_core::May, ctx: &Ctx) -> String {
 /// "Add {W}." / "Add {C}{C}." / "Add one mana of any color." / "Add {W} or
 /// {U}." — a mana ability's production ([CR#106.1]). Riders and dynamic
 /// counts fall back to the structural form.
-fn add_mana_text(count: &Count, production: &deckmaste_core::ManaProduction) -> String {
-    use deckmaste_core::ManaProduction;
-    use deckmaste_core::ManaSpec;
+fn add_mana_text(count: &Count, production: &deckmaste_authoring::ManaProduction) -> String {
+    use deckmaste_authoring::ManaProduction;
+    use deckmaste_authoring::ManaSpec;
     let ManaProduction::Bare(spec) = production else {
         return format!("[unrendered: AddMana({count:?}, {production:?})].");
     };
@@ -2685,22 +2692,22 @@ fn ensure_period(s: &str) -> String {
 mod tests {
     use std::sync::Arc;
 
-    use deckmaste_core::Ability;
-    use deckmaste_core::Action;
-    use deckmaste_core::Binder;
-    use deckmaste_core::Count;
-    use deckmaste_core::Destination;
-    use deckmaste_core::Each;
-    use deckmaste_core::LifeOp;
-    use deckmaste_core::Modification;
-    use deckmaste_core::OneShotEffect;
-    use deckmaste_core::Predicate;
-    use deckmaste_core::Quantity;
-    use deckmaste_core::Reference;
-    use deckmaste_core::Selection;
-    use deckmaste_core::TargetSpec;
-    use deckmaste_core::With;
-    use deckmaste_core::Zone;
+    use deckmaste_authoring::Ability;
+    use deckmaste_authoring::Action;
+    use deckmaste_authoring::Binder;
+    use deckmaste_authoring::Count;
+    use deckmaste_authoring::Destination;
+    use deckmaste_authoring::Each;
+    use deckmaste_authoring::LifeOp;
+    use deckmaste_authoring::Modification;
+    use deckmaste_authoring::OneShotEffect;
+    use deckmaste_authoring::Predicate;
+    use deckmaste_authoring::Quantity;
+    use deckmaste_authoring::Reference;
+    use deckmaste_authoring::Selection;
+    use deckmaste_authoring::TargetSpec;
+    use deckmaste_authoring::With;
+    use deckmaste_authoring::Zone;
 
     use super::Ctx;
     use super::action;
@@ -2757,9 +2764,9 @@ mod tests {
     /// …" / "unless you **pays**".
     #[test]
     fn pay_clauses_agree_verb_person_with_payer() {
-        use deckmaste_core::Cost;
-        use deckmaste_core::CostComponent;
-        use deckmaste_core::May;
+        use deckmaste_authoring::Cost;
+        use deckmaste_authoring::CostComponent;
+        use deckmaste_authoring::May;
 
         let ctx = Ctx {
             subject: "it",
@@ -2843,7 +2850,7 @@ mod tests {
     fn activated_cost_separates_components_but_not_mana_symbols() {
         use std::path::Path;
 
-        use deckmaste_core::CostComponent;
+        use deckmaste_authoring::CostComponent;
         use deckmaste_plugin::plugin::Plugin;
 
         let ctx = Ctx {
@@ -2880,8 +2887,8 @@ mod tests {
     /// match.
     #[test]
     fn loyalty_cost_renders_bracketed_prefix() {
-        use deckmaste_core::CostComponent;
-        use deckmaste_core::CounterRef;
+        use deckmaste_authoring::CostComponent;
+        use deckmaste_authoring::CounterRef;
 
         let ctx = Ctx {
             subject: "Jace Beleren",
@@ -2948,10 +2955,10 @@ mod tests {
     /// run choice "Add {W}{W}, {W}{U}, or {U}{U}." ([CR#106.1b]).
     #[test]
     fn add_mana_renders_run_and_color_choices() {
-        use deckmaste_core::Color::Blue;
-        use deckmaste_core::Color::White;
-        use deckmaste_core::ColorOrColorless;
-        use deckmaste_core::ManaSpec;
+        use deckmaste_authoring::Color::Blue;
+        use deckmaste_authoring::Color::White;
+        use deckmaste_authoring::ColorOrColorless;
+        use deckmaste_authoring::ManaSpec;
 
         let ctx = Ctx {
             subject: "it",
@@ -3033,7 +3040,7 @@ mod tests {
     /// inside a triggered/activated body (ctx subject "it").
     #[test]
     fn deal_damage_stat_of_this_power_renders_its_power() {
-        use deckmaste_core::Stat;
+        use deckmaste_authoring::Stat;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = Ctx {
@@ -3059,7 +3066,7 @@ mod tests {
     /// never "… equal to Cinder Shade's power").
     #[test]
     fn deal_damage_stat_of_this_power_at_spell_root() {
-        use deckmaste_core::Stat;
+        use deckmaste_authoring::Stat;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = Ctx {
@@ -3087,7 +3094,7 @@ mod tests {
     /// shape, not Fling's exact `EventObject`/`Target` encoding.)
     #[test]
     fn deal_damage_stat_of_other_reference_keeps_generic_possessive() {
-        use deckmaste_core::Stat;
+        use deckmaste_authoring::Stat;
 
         let ctx = Ctx {
             subject: "it",
@@ -3097,7 +3104,10 @@ mod tests {
         };
         let other_ref = Action::DealDamage(
             Reference::This,
-            Count::StatOf(Reference::That(deckmaste_core::Sort::Card), Stat::Power),
+            Count::StatOf(
+                Reference::That(deckmaste_authoring::Sort::Card),
+                Stat::Power,
+            ),
             Reference::EventActor,
         );
         assert_eq!(
@@ -3110,7 +3120,7 @@ mod tests {
     /// "top", `FromBottom(0)` -> "the bottom".
     #[test]
     fn move_to_library_renders_top_and_bottom() {
-        use deckmaste_core::Anchor;
+        use deckmaste_authoring::Anchor;
         let ctx = Ctx {
             subject: "it",
             targets: &[],
@@ -3140,7 +3150,7 @@ mod tests {
     /// its library destination uses "its owner's library."
     #[test]
     fn move_to_library_renders_targeted_top_and_bottom() {
-        use deckmaste_core::Anchor;
+        use deckmaste_authoring::Anchor;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = Ctx {
@@ -3179,9 +3189,9 @@ mod tests {
     /// battlefield-target, and graveyard-target ownership cases.
     #[test]
     fn bounce_possessive_your_vs_owners() {
-        use deckmaste_core::Anchor;
-        use deckmaste_core::RelationPredicate;
-        use deckmaste_core::StatePredicate;
+        use deckmaste_authoring::Anchor;
+        use deckmaste_authoring::RelationPredicate;
+        use deckmaste_authoring::StatePredicate;
 
         // Self-bounce -> "your hand".
         let self_ctx = Ctx {
@@ -3263,8 +3273,8 @@ mod tests {
     /// "an other"). Distinct from the targeted bounce.
     #[test]
     fn chosen_subject_bounce_renders_its_owners_hand() {
-        use deckmaste_core::RelationPredicate;
-        use deckmaste_core::Sort;
+        use deckmaste_authoring::RelationPredicate;
+        use deckmaste_authoring::Sort;
 
         let ctx = Ctx {
             subject: "Skyfisher",
@@ -3290,7 +3300,7 @@ mod tests {
 
         let land_you_control = Predicate::And(
             vec![
-                Predicate::r#type(deckmaste_core::Type::Land),
+                Predicate::r#type(deckmaste_authoring::Type::Land),
                 Predicate::Relation(RelationPredicate::ControlledBy(you())),
             ]
             .into(),
@@ -3323,9 +3333,9 @@ mod tests {
     /// graveyard" clause.
     #[test]
     fn reanimate_from_graveyard_round_trips() {
-        use deckmaste_core::EnterRider;
-        use deckmaste_core::RelationPredicate;
-        use deckmaste_core::StatePredicate;
+        use deckmaste_authoring::EnterRider;
+        use deckmaste_authoring::RelationPredicate;
+        use deckmaste_authoring::StatePredicate;
 
         let graveyard_creature = Predicate::And(
             vec![
@@ -3399,7 +3409,7 @@ mod tests {
         // not graveyard) and keeps its own phrasing, no "from your
         // graveyard" clause.
         let riders = Action::Move(
-            Reference::That(deckmaste_core::Sort::Card),
+            Reference::That(deckmaste_authoring::Sort::Card),
             Destination::Zone(Zone::Battlefield),
             vec![EnterRider::UnderOwnersControl].into(),
             None,
@@ -3414,7 +3424,7 @@ mod tests {
         // graveyard reanimation. The reanimation arm is guarded to `It`/`This`,
         // so this must NOT be mislabelled "from your graveyard".
         let riderless_that = Action::Move(
-            Reference::That(deckmaste_core::Sort::Card),
+            Reference::That(deckmaste_authoring::Sort::Card),
             Destination::Zone(Zone::Battlefield),
             vec![].into(),
             None,
@@ -3430,8 +3440,8 @@ mod tests {
     /// `from`/`to` resolve through `ctx.targets`.
     #[test]
     fn move_counters_renders_all_kinds_and_named() {
-        use deckmaste_core::CounterRef;
-        use deckmaste_core::CounterSpec;
+        use deckmaste_authoring::CounterRef;
+        use deckmaste_authoring::CounterSpec;
 
         let slot = || TargetSpec::Target(Quantity::one(), Predicate::creature());
         let targets = [slot(), slot()];
@@ -3465,8 +3475,8 @@ mod tests {
     /// divided as you choose among <group>" ([CR#601.2d]).
     #[test]
     fn divide_among_renders_divided_damage() {
-        use deckmaste_core::Distribute;
-        use deckmaste_core::Predicate;
+        use deckmaste_authoring::Distribute;
+        use deckmaste_authoring::Predicate;
         let ctx = Ctx {
             subject: "it",
             targets: &[],
@@ -3474,13 +3484,12 @@ mod tests {
             named: None,
         };
         let divide = super::effect(
-            &deckmaste_core::OneShotEffect::Distribute(Distribute {
+            &deckmaste_authoring::OneShotEffect::Distribute(Distribute {
                 amount: Count::Literal(3),
                 binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-                body: Arc::new(deckmaste_core::OneShotEffect::Act(Action::deal_damage(
-                    Reference::It,
-                    Count::Allotment,
-                ))),
+                body: Arc::new(deckmaste_authoring::OneShotEffect::Act(
+                    Action::deal_damage(Reference::It, Count::Allotment),
+                )),
             }),
             &ctx,
         );
@@ -3495,9 +3504,9 @@ mod tests {
     /// followed by the body sentence ([CR#601.2f,118.8]).
     #[test]
     fn additional_cost_renders_sacrifice_clause() {
-        use deckmaste_core::AdditionalCost;
-        use deckmaste_core::Cost;
-        use deckmaste_core::CostComponent;
+        use deckmaste_authoring::AdditionalCost;
+        use deckmaste_authoring::Cost;
+        use deckmaste_authoring::CostComponent;
 
         let ctx = Ctx {
             subject: "Fling",
@@ -3506,7 +3515,7 @@ mod tests {
             named: None,
         };
         let fling = super::effect(
-            &deckmaste_core::OneShotEffect::AdditionalCost(AdditionalCost {
+            &deckmaste_authoring::OneShotEffect::AdditionalCost(AdditionalCost {
                 // "sacrifice a creature" is now the choose-then-pay `With` cost
                 // step: ChooseOne(Creature) binds `That`, then `Sacrifice(That)`.
                 pay: Cost(
@@ -3518,8 +3527,8 @@ mod tests {
                         body: Cost(
                             vec![CostComponent::do_action(Action::Sacrifice(
                                 Reference::You,
-                                Reference::That(deckmaste_core::Sort::OfType(
-                                    deckmaste_core::Type::Creature,
+                                Reference::That(deckmaste_authoring::Sort::OfType(
+                                    deckmaste_authoring::Type::Creature,
                                 )),
                             ))]
                             .into(),
@@ -3556,7 +3565,9 @@ mod tests {
             },
             body: Arc::new(OneShotEffect::Act(Action::Sacrifice(
                 Reference::You,
-                Reference::That(deckmaste_core::Sort::OfType(deckmaste_core::Type::Creature)),
+                Reference::That(deckmaste_authoring::Sort::OfType(
+                    deckmaste_authoring::Type::Creature,
+                )),
             ))),
         });
         assert_eq!(effect(&with, &ctx), "Sacrifice a creature.");
@@ -3585,10 +3596,10 @@ mod tests {
     /// hand-destination (reveal) and battlefield-destination (tapped) forms.
     #[test]
     fn search_library_renders_hand_and_battlefield_destinations() {
-        use deckmaste_core::CharacteristicPredicate;
-        use deckmaste_core::EnterRider;
-        use deckmaste_core::Sort;
-        use deckmaste_core::Supertype;
+        use deckmaste_authoring::CharacteristicPredicate;
+        use deckmaste_authoring::EnterRider;
+        use deckmaste_authoring::Sort;
+        use deckmaste_authoring::Supertype;
 
         let ctx = Ctx {
             subject: "Tutor",
@@ -3599,7 +3610,7 @@ mod tests {
         let basic_land = || {
             Predicate::And(
                 vec![
-                    Predicate::r#type(deckmaste_core::Type::Land),
+                    Predicate::r#type(deckmaste_authoring::Type::Land),
                     Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
                 ]
                 .into(),
@@ -3672,8 +3683,8 @@ mod tests {
     /// article, not "a Swamp card or a Mountain card").
     #[test]
     fn search_library_renders_bare_subtype_with_no_type_word() {
-        use deckmaste_core::CharacteristicPredicate;
-        use deckmaste_core::Sort;
+        use deckmaste_authoring::CharacteristicPredicate;
+        use deckmaste_authoring::Sort;
 
         let ctx = Ctx {
             subject: "Tutor",
@@ -3683,7 +3694,7 @@ mod tests {
         };
         let subtype = |name: &'static str| {
             Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::new(name)),
+                deckmaste_authoring::SubtypeRef::named(deckmaste_authoring::Ident::new(name)),
             ))
         };
         let goblin = OneShotEffect::With(With {
@@ -3801,7 +3812,7 @@ mod tests {
             binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
             effect: Arc::new(OneShotEffect::Act(Action::PutCounters(
                 Reference::It,
-                deckmaste_core::CounterRef::from("P1P1Counter"),
+                deckmaste_authoring::CounterRef::from("P1P1Counter"),
                 Count::Literal(1),
             ))),
         });
@@ -3876,11 +3887,11 @@ mod tests {
     /// among all players").
     #[test]
     fn each_player_set_life_renders_possessive_becomes_clause() {
-        use deckmaste_core::AggregateOp;
-        use deckmaste_core::Countable;
-        use deckmaste_core::ObjectKind;
-        use deckmaste_core::PlayerAttr;
-        use deckmaste_core::Projection;
+        use deckmaste_authoring::AggregateOp;
+        use deckmaste_authoring::Countable;
+        use deckmaste_authoring::ObjectKind;
+        use deckmaste_authoring::PlayerAttr;
+        use deckmaste_authoring::Projection;
 
         let ctx = Ctx {
             subject: "it",
@@ -3934,7 +3945,7 @@ mod tests {
     /// the identical `Move(It, Exile)` shape, must NOT pick up the clause.
     #[test]
     fn exile_target_card_from_a_graveyard_round_trips() {
-        use deckmaste_core::StatePredicate;
+        use deckmaste_authoring::StatePredicate;
 
         let graveyard_creature = Predicate::And(
             vec![
@@ -4049,9 +4060,9 @@ mod tests {
     /// exceptions.
     #[test]
     fn token_copy_renders_create_a_token_thats_a_copy() {
-        use deckmaste_core::CopySource;
-        use deckmaste_core::CopySpec;
-        use deckmaste_core::TokenSpec;
+        use deckmaste_authoring::CopySource;
+        use deckmaste_authoring::CopySpec;
+        use deckmaste_authoring::TokenSpec;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = target_creature_ctx(&target);
@@ -4074,9 +4085,9 @@ mod tests {
     /// Replication's overload shape.
     #[test]
     fn token_copy_plural_renders_tokens_that_are_copies() {
-        use deckmaste_core::CopySource;
-        use deckmaste_core::CopySpec;
-        use deckmaste_core::TokenSpec;
+        use deckmaste_authoring::CopySource;
+        use deckmaste_authoring::CopySpec;
+        use deckmaste_authoring::TokenSpec;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = target_creature_ctx(&target);
@@ -4098,8 +4109,8 @@ mod tests {
     /// the resolution-time cast-a-copy delivery site.
     #[test]
     fn cast_copy_renders_cast_a_copy_of_source() {
-        use deckmaste_core::CopySource;
-        use deckmaste_core::CopySpec;
+        use deckmaste_authoring::CopySource;
+        use deckmaste_authoring::CopySpec;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = target_creature_ctx(&target);
@@ -4120,9 +4131,9 @@ mod tests {
     /// fragment directly rather than a full authored ability sentence.
     #[test]
     fn enter_rider_as_copy_renders_enters_as_a_copy_of_source() {
-        use deckmaste_core::CopySource;
-        use deckmaste_core::CopySpec;
-        use deckmaste_core::EnterRider;
+        use deckmaste_authoring::CopySource;
+        use deckmaste_authoring::CopySpec;
+        use deckmaste_authoring::EnterRider;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = target_creature_ctx(&target);
@@ -4141,9 +4152,9 @@ mod tests {
     /// token that's a copy of it.").
     #[test]
     fn copy_source_self_card_renders_it() {
-        use deckmaste_core::CopySource;
-        use deckmaste_core::CopySpec;
-        use deckmaste_core::TokenSpec;
+        use deckmaste_authoring::CopySource;
+        use deckmaste_authoring::CopySpec;
+        use deckmaste_authoring::TokenSpec;
 
         let ctx = Ctx {
             subject: "it",
@@ -4169,9 +4180,9 @@ mod tests {
     /// 7/7."
     #[test]
     fn copy_exception_pt_set_pair_renders_slash_pt() {
-        use deckmaste_core::CopyException;
-        use deckmaste_core::NumericOp;
-        use deckmaste_core::StatValue;
+        use deckmaste_authoring::CopyException;
+        use deckmaste_authoring::NumericOp;
+        use deckmaste_authoring::StatValue;
 
         let exceptions = vec![
             CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(7)))),
@@ -4187,8 +4198,8 @@ mod tests {
     /// subtype addition prints its proper-cased name (Sakashima's Student).
     #[test]
     fn copy_exception_type_add_renders_in_addition_to_its_other_types() {
-        use deckmaste_core::CollectionOp;
-        use deckmaste_core::CopyException;
+        use deckmaste_authoring::CollectionOp;
+        use deckmaste_authoring::CopyException;
 
         let card_type = vec![CopyException::Modify(Modification::CardTypes(
             CollectionOp::Add("Artifact".into()),
@@ -4211,8 +4222,8 @@ mod tests {
     /// ([CR#707.9a]) — "except it has flying."-style sibling cards.
     #[test]
     fn copy_exception_gain_ability_keyword_renders_it_has_keyword() {
-        use deckmaste_core::CopyException;
-        use deckmaste_core::KeywordAbility;
+        use deckmaste_authoring::CopyException;
+        use deckmaste_authoring::KeywordAbility;
 
         let exceptions = vec![CopyException::Modify(Modification::GainAbility(Arc::new(
             Ability::Keyword(KeywordAbility::Trample),
@@ -4230,9 +4241,9 @@ mod tests {
     /// a multi-color Set joins the colors.
     #[test]
     fn copy_exception_colors_set_renders_its_color() {
-        use deckmaste_core::CollectionOp;
-        use deckmaste_core::Color;
-        use deckmaste_core::CopyException;
+        use deckmaste_authoring::CollectionOp;
+        use deckmaste_authoring::Color;
+        use deckmaste_authoring::CopyException;
 
         assert_eq!(
             copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
@@ -4268,11 +4279,11 @@ mod tests {
     /// nicety out of scope.)
     #[test]
     fn copy_exceptions_eternalize_shape_renders_end_to_end() {
-        use deckmaste_core::CollectionOp;
-        use deckmaste_core::Color;
-        use deckmaste_core::CopyException;
-        use deckmaste_core::NumericOp;
-        use deckmaste_core::StatValue;
+        use deckmaste_authoring::CollectionOp;
+        use deckmaste_authoring::Color;
+        use deckmaste_authoring::CopyException;
+        use deckmaste_authoring::NumericOp;
+        use deckmaste_authoring::StatValue;
 
         let exceptions = vec![
             CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(4)))),
@@ -4295,8 +4306,8 @@ mod tests {
     /// possessive this grammar's exceptions clause uses.
     #[test]
     fn copy_exception_retain_colors_renders_doesnt_copy_its_color() {
-        use deckmaste_core::Characteristic;
-        use deckmaste_core::CopyException;
+        use deckmaste_authoring::Characteristic;
+        use deckmaste_authoring::CopyException;
 
         let exceptions = vec![CopyException::Retain(Characteristic::Colors)];
         assert_eq!(
@@ -4311,8 +4322,8 @@ mod tests {
     /// to the surrounding ETB-replacement framing, not the rider payload).
     #[test]
     fn copy_exception_additional_effect_with_counters_renders() {
-        use deckmaste_core::CopyException;
-        use deckmaste_core::EnterRider;
+        use deckmaste_authoring::CopyException;
+        use deckmaste_authoring::EnterRider;
 
         let exceptions = vec![CopyException::AdditionalEffect(EnterRider::WithCounters(
             "P1P1Counter".into(),
@@ -4330,11 +4341,11 @@ mod tests {
     /// subtype add, and a keyword grant).
     #[test]
     fn copy_exceptions_multiple_join_with_oxford_comma() {
-        use deckmaste_core::CollectionOp;
-        use deckmaste_core::CopyException;
-        use deckmaste_core::KeywordAbility;
-        use deckmaste_core::NumericOp;
-        use deckmaste_core::StatValue;
+        use deckmaste_authoring::CollectionOp;
+        use deckmaste_authoring::CopyException;
+        use deckmaste_authoring::KeywordAbility;
+        use deckmaste_authoring::NumericOp;
+        use deckmaste_authoring::StatValue;
 
         let exceptions = vec![
             CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(1)))),
@@ -4359,12 +4370,12 @@ mod tests {
     /// exception, which the `Ability` render family covers separately).
     #[test]
     fn becomes_copy_renders_via_static_effect() {
-        use deckmaste_core::CopyException;
-        use deckmaste_core::CopySource;
-        use deckmaste_core::CopySpec;
-        use deckmaste_core::NumericOp;
-        use deckmaste_core::StatValue;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_authoring::CopyException;
+        use deckmaste_authoring::CopySource;
+        use deckmaste_authoring::CopySpec;
+        use deckmaste_authoring::NumericOp;
+        use deckmaste_authoring::StatValue;
+        use deckmaste_authoring::StaticEffect;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = Ctx {

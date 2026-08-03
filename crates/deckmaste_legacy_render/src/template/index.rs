@@ -536,7 +536,7 @@ mod tests {
     fn ambiguous_templates_error() {
         let mut set = deckmaste_plugin::macros::macro_set();
         let boost = |name: &str, body: &str| -> macro_ron::MacroDef {
-            deckmaste_core::ron::options()
+            deckmaste_authoring::ron::options()
                 .from_str(&format!(
                     r#"(
                         name: "{name}",

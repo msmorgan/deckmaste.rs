@@ -1,14 +1,14 @@
 //! Replacement effects as sentences.
 
-use deckmaste_core::Action;
-use deckmaste_core::Count;
-use deckmaste_core::CounterRef;
-use deckmaste_core::EventFilter;
-use deckmaste_core::OneShotEffect;
-use deckmaste_core::Predicate;
-use deckmaste_core::Reference;
-use deckmaste_core::Replacement;
-use deckmaste_core::Zone;
+use deckmaste_authoring::Action;
+use deckmaste_authoring::Count;
+use deckmaste_authoring::CounterRef;
+use deckmaste_authoring::EventFilter;
+use deckmaste_authoring::OneShotEffect;
+use deckmaste_authoring::Predicate;
+use deckmaste_authoring::Reference;
+use deckmaste_authoring::Replacement;
+use deckmaste_authoring::Zone;
 
 use super::Ctx;
 use super::ability;

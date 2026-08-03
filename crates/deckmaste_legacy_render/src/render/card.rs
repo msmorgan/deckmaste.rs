@@ -2,12 +2,12 @@
 
 use std::fmt::Write as _;
 
-use deckmaste_core::Color;
-use deckmaste_core::ColorOrColorless;
-use deckmaste_core::ManaCost;
-use deckmaste_core::ManaSymbol;
-use deckmaste_core::SimpleManaSymbol;
-use deckmaste_core::StatValue;
+use deckmaste_authoring::Color;
+use deckmaste_authoring::ColorOrColorless;
+use deckmaste_authoring::ManaCost;
+use deckmaste_authoring::ManaSymbol;
+use deckmaste_authoring::SimpleManaSymbol;
+use deckmaste_authoring::StatValue;
 
 use super::CardView;
 
@@ -96,16 +96,16 @@ fn stat(v: Option<&StatValue>) -> String {
 
 /// The printed type line word for an expanded [`TypeDef`] — its open name.
 /// Total and open-safe: any plugin-declared type renders as its own name.
-pub(super) fn type_str(t: &deckmaste_core::TypeDef) -> &'static str {
+pub(super) fn type_str(t: &deckmaste_authoring::TypeDef) -> &'static str {
     t.name.as_str()
 }
 
-pub(super) fn supertype_str(s: deckmaste_core::Supertype) -> &'static str {
-    use deckmaste_core::Supertype::Basic;
-    use deckmaste_core::Supertype::Legendary;
-    use deckmaste_core::Supertype::Ongoing;
-    use deckmaste_core::Supertype::Snow;
-    use deckmaste_core::Supertype::World;
+pub(super) fn supertype_str(s: deckmaste_authoring::Supertype) -> &'static str {
+    use deckmaste_authoring::Supertype::Basic;
+    use deckmaste_authoring::Supertype::Legendary;
+    use deckmaste_authoring::Supertype::Ongoing;
+    use deckmaste_authoring::Supertype::Snow;
+    use deckmaste_authoring::Supertype::World;
     match s {
         Basic => "Basic",
         Legendary => "Legendary",

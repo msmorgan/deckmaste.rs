@@ -39,6 +39,13 @@ pub struct Plugin {
     /// value's **printed name** (what card values carry and the lint looks
     /// up), not the macro's registration ident; the two differ for names
     /// like "Time Lord"/`TimeLord`.
+    /// Authored provenance for everything this plugin's registries confer.
+    ///
+    /// Built at load because that is the only moment the authored halves of
+    /// the registry values exist: `subtypes`/`types` below keep the LOWERED
+    /// value, and the authored one is dropped right after `lower`. A conferred
+    /// ability appears on no card, so this is its only indexing opportunity.
+    pub provenance: crate::provenance::ProvenanceIndex,
     pub subtypes: HashMap<Ident, Subtype>,
     /// The card types defined by `macros/`, fully expanded — keyed by the
     /// value's **printed name** ([CR#300.1]), mirroring `subtypes` exactly.
@@ -107,6 +114,7 @@ impl Plugin {
         Self::load_onto(
             prelude.macros.clone(),
             Inherited {
+                provenance: prelude.provenance.clone(),
                 subtypes: prelude.subtypes.clone(),
                 types: prelude.types.clone(),
                 counters: prelude.counters.clone(),
@@ -150,6 +158,7 @@ impl Plugin {
         root: PathBuf,
     ) -> anyhow::Result<Self> {
         let Inherited {
+            mut provenance,
             mut subtypes,
             mut types,
             mut counters,
@@ -287,6 +296,7 @@ impl Plugin {
             let subtype: deckmaste_authoring::Subtype = macros
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding subtype `{name}`"))?;
+            provenance.insert_subtype(&subtype);
             let subtype = subtype.lower();
             subtypes.insert(subtype.name, subtype);
         }
@@ -298,6 +308,7 @@ impl Plugin {
             let type_def: deckmaste_authoring::TypeDef = macros
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding type `{name}`"))?;
+            provenance.insert_type_def(&type_def);
             let type_def = type_def.lower();
             types.insert(type_def.name, type_def);
         }
@@ -330,6 +341,7 @@ impl Plugin {
         Ok(Self {
             root,
             macros,
+            provenance,
             subtypes,
             types,
             counters,
@@ -421,6 +433,9 @@ impl Plugin {
 /// last plugin wins per name, exactly like the macro scope.
 #[derive(Default)]
 struct Inherited {
+    /// The prelude's registry provenance, carried down so a dependent plugin
+    /// can recover authored terms for subtypes it never declared itself.
+    provenance: crate::provenance::ProvenanceIndex,
     subtypes: HashMap<Ident, Subtype>,
     types: HashMap<Ident, TypeDef>,
     counters: HashMap<Ident, Counter>,

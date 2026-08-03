@@ -2,8 +2,8 @@
 //! `~` -> the subject; `${i}` / `${name}` -> the rendered positional / named
 //! arg. Single-brace `{…}` is a literal game symbol (mana, `{T}`, …).
 
-use deckmaste_core::Expansion;
-use deckmaste_core::ExpansionArgs;
+use deckmaste_authoring::Expansion;
+use deckmaste_authoring::ExpansionArgs;
 
 /// The one template-first hook: render a macro invocation through its own
 /// rules-text `template`, if it carries a fillable one. `None` when there is no
@@ -189,8 +189,8 @@ pub(super) fn render_slot(raw: &str, modifier: Option<&str>) -> Option<String> {
             // A dynamic count (`X`, `CountOf(...)`) reads plural — rendered
             // through the shared count fragment, declining if it isn't a count.
             Err(_) => {
-                let count: deckmaste_core::Count =
-                    deckmaste_core::ron::options().from_str(t).ok()?;
+                let count: deckmaste_authoring::Count =
+                    deckmaste_authoring::ron::options().from_str(t).ok()?;
                 format!("{} {plur}", super::fragment::count(&count))
             }
         });
@@ -225,7 +225,9 @@ fn render_arg(raw: &str) -> Option<String> {
     if t.parse::<i64>().is_ok() {
         return Some(t.to_string());
     }
-    if let Ok(filter) = deckmaste_core::ron::options().from_str::<deckmaste_core::Predicate>(t) {
+    if let Ok(filter) =
+        deckmaste_authoring::ron::options().from_str::<deckmaste_authoring::Predicate>(t)
+    {
         let noun = super::fragment::filter_noun(&filter);
         if !noun.contains("[unrendered") {
             return Some(noun);
@@ -244,13 +246,14 @@ fn render_arg(raw: &str) -> Option<String> {
     }
     // A Cost arg (`ward ${0}`, `equip ${0}`): a bracketed cost-component list.
     if let Ok(cost) =
-        deckmaste_core::ron::options().from_str::<Vec<deckmaste_core::CostComponent>>(t)
+        deckmaste_authoring::ron::options().from_str::<Vec<deckmaste_authoring::CostComponent>>(t)
     {
         return render_cost(&cost);
     }
     // A Count arg (ward-{X}'s `where_x`, quantity slots): the shared count
     // fragment, declining when it has no clean phrase.
-    if let Ok(count) = deckmaste_core::ron::options().from_str::<deckmaste_core::Count>(t) {
+    if let Ok(count) = deckmaste_authoring::ron::options().from_str::<deckmaste_authoring::Count>(t)
+    {
         let phrase = super::fragment::count(&count);
         if !phrase.contains("[unrendered") {
             return Some(phrase);
@@ -263,16 +266,17 @@ fn render_arg(raw: &str) -> Option<String> {
 /// name-only. These two filter atoms serialize to a bare macro name
 /// (`Type(Creature)`, `Subtype(Goblin)`), so the macro-less core reader in
 /// [`render_arg`] can't parse them; but rendering keys only on the name, so a
-/// [`deckmaste_core::TypeRef::named`] / [`deckmaste_core::SubtypeRef::named`]
-/// ref suffices. `None` for anything that isn't exactly one of those two atoms
-/// wrapping a bare identifier (a nested filter, a colored/negated form) — the
-/// caller then declines to its structural fallback, unchanged.
-fn bare_type_or_subtype(t: &str) -> Option<deckmaste_core::Predicate> {
-    use deckmaste_core::CharacteristicPredicate;
-    use deckmaste_core::Ident;
-    use deckmaste_core::Predicate;
-    use deckmaste_core::SubtypeRef;
-    use deckmaste_core::TypeRef;
+/// [`deckmaste_authoring::TypeRef::named`] /
+/// [`deckmaste_authoring::SubtypeRef::named`] ref suffices. `None` for anything
+/// that isn't exactly one of those two atoms wrapping a bare identifier (a
+/// nested filter, a colored/negated form) — the caller then declines to its
+/// structural fallback, unchanged.
+fn bare_type_or_subtype(t: &str) -> Option<deckmaste_authoring::Predicate> {
+    use deckmaste_authoring::CharacteristicPredicate;
+    use deckmaste_authoring::Ident;
+    use deckmaste_authoring::Predicate;
+    use deckmaste_authoring::SubtypeRef;
+    use deckmaste_authoring::TypeRef;
 
     let inner = |head: &str| {
         t.strip_prefix(head)
@@ -298,10 +302,10 @@ fn bare_type_or_subtype(t: &str) -> Option<deckmaste_core::Predicate> {
 /// Render a cost-component list to its symbol/word text (`[Mana([Generic(2)])]`
 /// → "{2}"). Declines on any component without a simple rendering (e.g. a
 /// `Do(...)` verb cost), so the keyword falls back to its bare name.
-pub(super) fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
-    use deckmaste_core::Cmp;
-    use deckmaste_core::CostComponent;
-    use deckmaste_core::Stat;
+pub(super) fn render_cost(cost: &[deckmaste_authoring::CostComponent]) -> Option<String> {
+    use deckmaste_authoring::Cmp;
+    use deckmaste_authoring::CostComponent;
+    use deckmaste_authoring::Stat;
     let mut out = String::new();
     for component in cost {
         match component {
@@ -312,7 +316,7 @@ pub(super) fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<Stri
             // granted-flashback phrase (Snapcaster). Only the carrier-relative
             // `This` ("its") has a frameless rendering here; any other
             // reference needs a `Ctx`, so decline to the structural fallback.
-            CostComponent::ManaCostOf(deckmaste_core::Reference::This) => {
+            CostComponent::ManaCostOf(deckmaste_authoring::Reference::This) => {
                 out.push_str("its mana cost");
             }
             // An aggregate-stat cost ([CR#702.122a]): "tap any number of
@@ -358,8 +362,8 @@ pub(super) fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<Stri
 mod tests {
     use std::sync::Arc;
 
-    use deckmaste_core::Expansion;
-    use deckmaste_core::ExpansionArgs;
+    use deckmaste_authoring::Expansion;
+    use deckmaste_authoring::ExpansionArgs;
 
     use super::expanded;
     use super::fill;
@@ -370,8 +374,8 @@ mod tests {
     /// fallback (no `Ctx` to render it frameless).
     #[test]
     fn render_cost_renders_mana_cost_of_this() {
-        use deckmaste_core::CostComponent;
-        use deckmaste_core::Reference;
+        use deckmaste_authoring::CostComponent;
+        use deckmaste_authoring::Reference;
         assert_eq!(
             render_cost(&[CostComponent::ManaCostOf(Reference::This)]).as_deref(),
             Some("its mana cost"),
@@ -387,14 +391,14 @@ mod tests {
     /// A dynamic (non-literal) count declines to the structural fallback.
     #[test]
     fn render_cost_renders_tap_total_crew() {
-        use deckmaste_core::Cmp;
-        use deckmaste_core::CostComponent;
-        use deckmaste_core::Count;
-        use deckmaste_core::Predicate;
-        use deckmaste_core::Reference;
-        use deckmaste_core::RelationPredicate;
-        use deckmaste_core::Stat;
-        use deckmaste_core::Type;
+        use deckmaste_authoring::Cmp;
+        use deckmaste_authoring::CostComponent;
+        use deckmaste_authoring::Count;
+        use deckmaste_authoring::Predicate;
+        use deckmaste_authoring::Reference;
+        use deckmaste_authoring::RelationPredicate;
+        use deckmaste_authoring::Stat;
+        use deckmaste_authoring::Type;
 
         // "tap any number of other creatures you control with total power 3 or
         // greater" — the Crew 3 cost ([CR#702.122a]).
@@ -685,9 +689,9 @@ mod tests {
 
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let plugin = Plugin::load(plugins.join("builtin")).unwrap();
-        let cost: deckmaste_core::CostComponent =
+        let cost: deckmaste_authoring::CostComponent =
             plugin.macros.read_str("PayEnergy(2)").expect("expands");
-        let deckmaste_core::CostComponent::Expanded(e) = &cost else {
+        let deckmaste_authoring::CostComponent::Expanded(e) = &cost else {
             panic!("PayEnergy expands to a CostComponent::Expanded, got {cost:?}");
         };
         let rendered = expanded(e, "ignored").expect("renders via template");
@@ -715,9 +719,9 @@ mod tests {
 
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let plugin = Plugin::load(plugins.join("builtin")).unwrap();
-        let effect: deckmaste_core::OneShotEffect =
+        let effect: deckmaste_authoring::OneShotEffect =
             plugin.macros.read_str("GainEnergy(3)").expect("expands");
-        let deckmaste_core::OneShotEffect::Expanded(e) = &effect else {
+        let deckmaste_authoring::OneShotEffect::Expanded(e) = &effect else {
             panic!("GainEnergy expands to a OneShotEffect::Expanded, got {effect:?}");
         };
         let rendered = expanded(e, "ignored").expect("renders via template");

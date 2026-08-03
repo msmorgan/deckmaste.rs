@@ -33,6 +33,7 @@ pub use ability::Mode;
 pub use ability::SpellAbility;
 pub use ability::TriggeredAbility;
 pub use ability::UseLimit;
+pub use subterms::AbilitySubterms;
 
 mod action;
 pub use action::Action;
@@ -228,6 +229,7 @@ pub use replacement::Prevention;
 pub use replacement::Replacement;
 
 mod status;
+mod subterms;
 pub use status::Face;
 pub use status::FaceDownCharacteristics;
 pub use status::FaceDownSpec;

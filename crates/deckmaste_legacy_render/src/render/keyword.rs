@@ -3,8 +3,8 @@
 //! parameterized keywords show their argument (`Protection from black`,
 //! `Enchant creature`).
 
-use deckmaste_core::ExpansionArgs;
-use deckmaste_core::KeywordAbility;
+use deckmaste_authoring::ExpansionArgs;
+use deckmaste_authoring::KeywordAbility;
 
 /// The printed text of a keyword ability. A PARAMETERIZED keyword (its macro
 /// carries args) renders via the filled `template` so its argument shows
@@ -55,7 +55,7 @@ mod tests {
 
     use super::keyword_name;
 
-    fn kw(src: &str) -> deckmaste_core::KeywordAbility {
+    fn kw(src: &str) -> deckmaste_authoring::KeywordAbility {
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let plugin = Plugin::load(plugins.join("builtin")).unwrap();
         plugin.macros.read_str(src).unwrap()

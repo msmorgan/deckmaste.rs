@@ -18,10 +18,6 @@ deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
 # grammar. `deckmaste_core` arrives transitively through this and only through
 # this — there is deliberately no direct dependency on it.
 deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }
-# TEMPORARY: dropped at the end of the retype step. Present only so the pure
-# file move has a compiling checkpoint before the types change.
-deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
-deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 regex = "1.12.3"
 ron = "0.12.1"

@@ -33,10 +33,10 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use deckmaste_card::Card;
-use deckmaste_card::CardFace;
-use deckmaste_core::plugin::CARDS_DIR;
-use deckmaste_core::plugin::is_todo_source;
+use deckmaste_authoring::Card;
+use deckmaste_authoring::CardFace;
+use deckmaste_plugin::layout::CARDS_DIR;
+use deckmaste_plugin::layout::is_todo_source;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::plugin::read;
 use deckmaste_plugin::plugin::ron_files_recursive;
@@ -199,13 +199,14 @@ pub fn check_plugin(plugin_dir: &Path, oracle: &Oracle) -> anyhow::Result<Vec<Ca
         if is_todo_source(&source) {
             continue;
         }
-        // `.core`: the fidelity gate renders the engine image. Repointing it
-        // at the authored term is `runtime-prose-link`, which lands the
-        // provenance index this consumer would need.
+        // `.authored`: the gate renders the authored term, not the engine
+        // image. Authored terms keep their `Expanded` invocation provenance —
+        // and so the rules-text templates the renderer needs — where lowered
+        // core carries none once `lower` erases it.
         let card = plugin
             .card_from_str(&source)
             .with_context(|| format!(r#"parsing "{}""#, path.display()))?
-            .core;
+            .authored;
         let waiver = waiver_annotation(&source);
         for face in faces(&card) {
             out.push(CardFidelity {

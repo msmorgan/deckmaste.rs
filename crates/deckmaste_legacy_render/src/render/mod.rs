@@ -15,14 +15,14 @@ mod template;
 
 use std::cell::Cell;
 
-use deckmaste_card::CardFace;
-use deckmaste_core::Ability;
-use deckmaste_core::ManaCost;
-use deckmaste_core::StatValue;
-use deckmaste_core::Subtype;
-use deckmaste_core::Supertype;
-use deckmaste_core::TargetSpec;
-use deckmaste_core::TypeDef;
+use deckmaste_authoring::Ability;
+use deckmaste_authoring::CardFace;
+use deckmaste_authoring::ManaCost;
+use deckmaste_authoring::StatValue;
+use deckmaste_authoring::Subtype;
+use deckmaste_authoring::Supertype;
+use deckmaste_authoring::TargetSpec;
+use deckmaste_authoring::TypeDef;
 
 /// The rendered, layout-ready pieces of one card/object. All fields are plain
 /// text.
@@ -341,13 +341,13 @@ fn chapter_line(ability: &Ability, view: &CardView) -> Option<String> {
     let Ability::Triggered(t) = exp.value.as_ref() else {
         return None;
     };
-    let Some(deckmaste_core::Condition::Crossed { thresholds, .. }) = &t.condition else {
+    let Some(deckmaste_authoring::Condition::Crossed { thresholds, .. }) = &t.condition else {
         return None;
     };
     let markers = thresholds
         .iter()
         .map(|c| match c {
-            deckmaste_core::Count::Literal(n) => Some(roman(*n)),
+            deckmaste_authoring::Count::Literal(n) => Some(roman(*n)),
             _ => None,
         })
         .collect::<Option<Vec<_>>>()?
@@ -363,7 +363,7 @@ fn chapter_line(ability: &Ability, view: &CardView) -> Option<String> {
 
 /// Prefix a rendered ability line with its printed ability word
 /// ([CR#207.2c] — italic render metadata, no rules meaning): "Domain — …".
-fn with_ability_word(word: Option<&deckmaste_core::Ident>, line: String) -> String {
+fn with_ability_word(word: Option<&deckmaste_authoring::Ident>, line: String) -> String {
     match word {
         Some(w) => format!("{} — {line}", w.as_str()),
         None => line,
