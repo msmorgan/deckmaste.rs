@@ -90,92 +90,216 @@ thousand complete games.
 
 ## Architecture
 
-Thirteen crates, plus a thin root binary that launches the client:
+A card here has one authoritative representation — the **authored form** — and
+every other representation is a projection of it. English text is an input to
+recovery and an output of rendering, never stored truth; the AST the engine
+executes is a compiled artifact. Two translation layers connect the three
+representations:
 
-- **`deckmaste_core`** — the card-encoding language: the typed vocabulary of
-  abilities, effects, costs, zones, durations, and conditions.
+```
+                     spelling                           lowering
+deckmaste_english ◄════════════► deckmaste_authoring ─────────────► deckmaste_core
+  the English         two-way        the authored rules   one-way      the engine AST
+  grammar; text ⇄     ranked         grammar + macro      total        the rules
+  syntax tree only    relation       layer                compile      execute
+```
+
+This split is recent (settled August 2026, and still completing — see the
+roadmap). Before it, one type family was simultaneously the authoring surface,
+the English-facing render/parse target, and the engine's input. Separating the
+roles lets each layer be what its job requires: the authored grammar carries
+the macro system and author conveniences, the English grammar carries genuine
+syntax, and core keeps only what the engine executes.
+
+The workspace's crates, grouped by role — plus a thin root binary that
+launches the client:
+
+**The card grammar and its projections**
+
+- **`deckmaste_authoring`** — the authored rules grammar: the single source of
+  truth every card-content container is written in — card files, token files,
+  and the engine's rules tables — plus the macro layer and normalization
+  (sugar desugars at load; the explicit form is always the meaning).
+- **`deckmaste_frames`** — the authored ⇄ English relation (slated to be
+  renamed `deckmaste_spelling`), built on *frames*: English templates with
+  typed holes, compiled from a macro definition and unified back against real
+  card text.
+- **`deckmaste_lowering`** — the one-way compile from authored form to the
+  engine's types. Generated as an exact mirror at the fork, it doubles as the
+  divergence ledger: every arm that stops being an identity carries its
+  justification in place.
+- **`deckmaste_core`** — the engine AST: the typed vocabulary of abilities,
+  effects, costs, zones, durations, and conditions, in the shapes the rules
+  systems execute.
 - **`deckmaste_card`** — the engine's unit of card definitions:
-  `Card`/`CardFace` and the face layouts, packaging `deckmaste_core`'s
-  primitives into a playable unit. Depends on core; core never depends on it.
+  `Card`/`CardFace` and the face layouts, packaging core's loose primitives
+  into a playable unit. Depends on core; core never depends on it.
+
+**The engine and its consumers**
+
 - **`deckmaste_engine`** — the rules engine: game state and the rules systems
   listed above.
 - **`deckmaste_plugin`** — the card corpus, its plugin loader and conformance
-  suite, and the card-text renderer.
+  suite, and the legacy card-text renderer (what the client prints today; kept
+  as a measurement oracle until rendering through the spelling layer replaces
+  it).
 - **`deckmaste_tui`** — the interactive terminal client, built on ratatui.
-- **`deckmaste_migrations`** — the data pipeline (extract, resolve, graduate)
-  that turns oracle text into encodings.
-- **`deckmaste_english`** — an experimental English syntax front end, kept
-  separate from semantic card encoding; currently exercised through `xtask`
-  inspection and self-check tooling and not yet wired into the main migration
-  pipeline.
+- **`deckmaste_migrations`** — the regex-era data pipeline (extract, resolve,
+  graduate) that turns oracle text into encodings. Still the production path;
+  it becomes a shadow oracle as English-grammar recovery crosses its gates.
 - **`deckmaste_noncanon`** — a non-canon proving ground: complete WC99 decks
   and matchup tests that exercise the engine end-to-end.
+
+**Language infrastructure**
+
+- **`deckmaste_english`** — the English grammar for Oracle text; its own
+  section below.
 - **`macro_ron`** / **`macro_ron_derive`** — the RON macro-expansion layer the
-  encoding language is built on.
+  authored grammar is built on.
 - **`macro_ron_lsp`** — a small language server for the repo's RON card files.
-- **`deckmaste_frames`** — bridges RON macro definitions to Magic English
-  through frames: English templates with typed holes, compiled from a macro
-  and unified back against real card text.
-- **`xtask`** — repository tooling: corpus generation, validation, and the
-  citation checker.
+- **`xtask`** — repository tooling: corpus generation, validation, the
+  citation checker, and the English-grammar inspection commands.
 
 ---
 
-## Scope
+## The authored grammar and its two translations
+
+The contract for the split lives in
+`docs/decisions/authoring-spelling-lowering.md`; the load-bearing rules are
+worth stating here because they shape everything else:
+
+- **Authored form is the source; everything else is derived.** The canonical
+  form may contain only what round-trips: anything one translation direction
+  would have to invent and the other would have to discard — named binder
+  variables, layout labels, the author's sugar-versus-explicit choice — is
+  decoration and cannot be stored. Card files are data, not a language.
+- **Spelling is ranked, not bijective.** Several authored spellings may word
+  identically, and one sentence may recover to several candidate terms;
+  ambiguity surfaces as candidates rather than being resolved by accident of
+  rule order. "Faithful" means semantic round-trip plus canonical wording, not
+  byte-exact replay — byte-exactness belongs to the English layer below.
+- **Sugar never replaces structure.** Author conveniences (like inline target
+  sugar) desugar into the explicit form at load, so every convenience is
+  removable and semantics are preserved under reduction.
+- **Announced targets are never pronouns.** Targets are read through an
+  indexed channel (`Target(0)`), and anaphora ("it", "that creature") resolve
+  through separate, deliberately narrow discourse channels — the invariant
+  that keeps target reference sound enough to prove things about.
+- **Lowering is total, and divergence is governed.** The authored → core
+  mapping started as a generated identity; an arm may diverge only with its
+  justification written in place, and every variant carries a mapping test
+  naming the engine shape it expects.
+
+The fork has landed: `deckmaste_authoring` and `deckmaste_lowering` exist, and
+the loaders now parse card containers as authored terms and lower them to core
+at load. The remaining stages are in the roadmap below.
+
+---
+
+## The English grammar (`deckmaste_english`)
+
+`deckmaste_english` parses Oracle text into a genuine grammatical syntax tree —
+constituency structure, not keyword-spotting. A chart parser produces a packed
+forest; parts of speech are selected by the grammar slots they fill rather than
+assigned by a lexer (Magic overloads its vocabulary too heavily for tagging —
+"exile" is a noun and a verb, "target" a verb, a noun, and an adjective); and
+legitimate ambiguity stays packed and visible instead of being decided by rule
+order. Unknown vocabulary and not-yet-covered text are retained explicitly
+rather than guessed at. Two contracts govern the crate (both recorded in
+`docs/decisions/`):
+
+- **English clauses are structural.** Dependency, valency, voice, modality,
+  and attachment are parsed as English before any Magic meaning attaches. The
+  tree is a syntax of English card text, not a semantic encoding wearing an
+  English costume.
+- **Every production ships its inverse.** A grammar slice lands only together
+  with its exact renderer inverse: `cargo xtask english roundtrip` re-renders
+  parsed text and requires the original bytes back. The round-trip gate is
+  what keeps the grammar honest about what it actually covers.
+
+A family of `cargo xtask english` commands (`inspect`, `bracket`, `shapes`,
+`unknown`, `lint`, `roundtrip`) exposes parses, coverage, and uncovered
+phrases over the card corpus.
+
+The grammar is evolving from handwritten to **derived**
+(`docs/decisions/english-grammar-is-derived.md`). Today each construction
+family is written twice — a parse path and a render path held in
+correspondence by the round-trip gate. The successor makes one Rust-native
+construction declaration the defining authority per family — its AST shape,
+typed holes, feature constraints, linearization, and the surface witnesses
+needed for exact replay — and generates all three projections from it: parse,
+render, and validating constructors. Migration is a ratchet, family by family,
+each deleting its handwritten paths in the change that derives it.
+
+Together with the spelling layer, this grammar is the successor to the regex
+migration pipeline: parse Oracle text into English syntax, then recover
+authored terms by unifying against frames. Frame coverage grows in ongoing
+rounds that attach `frames:` to macro definitions; the regex pipeline and the
+legacy renderer remain as shadow oracles — measurements, not authorities —
+until each feature family crosses its gates.
+
+---
+
+## The Idris gate (`idris/`)
+
+`idris/` holds a dependently-typed model of the card grammar, written in
+Idris 2. It began as a standalone probe and now runs as a soundness gate:
+`cargo xtask idris-check` re-emits authored card data into the model and
+type-checks it. The grammar is built from closed enums refined by total
+type-functions, so whole classes of nonsense are unrepresentable rather than
+merely rejected — there is no ill-formed term to write down in the first
+place. For example: the "that card" anaphor cannot be named in a trigger whose
+event supplies no object; a counter's carrier — a player versus a permanent —
+is fixed by the counter's kind; a target index cannot exceed what was
+announced. Each is an invariant the Rust types leave to a runtime check.
+
+The model is deliberately not a second engine — it models the *grammar*, not
+the rules, and runs no games; runtime semantics live in one engine so two
+implementations cannot drift. Its obligations are author-mistake proofs
+(unbound-anaphor soundness, target-index range and cardinality, distinctness
+constraints), which is why, as part of the grammar split, the mirror is being
+reattached to the authored grammar: `deckmaste_core` carries no proof
+obligations at all. What carries over to the Rust side is the *shape* of a
+sound data model — which distinctions earn their own type, which constructors
+are really one parameterized constructor, which invariants ought to hold — and
+a mechanic the model cannot express cleanly marks a gap in the shared
+vocabulary of primitives. Like the rest of the repository, its rules-bearing
+code cites the Comprehensive Rules by number and is checked by
+`cargo xtask cite`.
+
+---
+
+## Present state and roadmap
 
 The implemented card set is a deliberate vertical slice rather than a complete
-pool. Development has prioritized the correctness of the rules systems over
+pool: development has prioritized the correctness of the rules systems over
 breadth of card coverage. A curated set of real cards is encoded by hand and
-graduated through the data pipeline, and the encoding grammar continues to expand
-toward the remaining mechanics. `docs/rules-taxonomy.md` records the plan for
-that work.
+graduated through the data pipeline, and the grammar continues to expand toward
+the remaining mechanics (`docs/rules-taxonomy.md` records that plan). The
+near-term work runs in three strands:
 
----
+1. **Completing the grammar split.** Landed: the crate splits and renames, the
+   authoring fork, the lowering crate, and the loader repoint. Remaining, in
+   rough order: moving prose rendering onto authored terms and retiring the
+   legacy renderer's engine hooks; stripping the macro machinery out of core;
+   the author-surface vocabulary (bare engine variants stop being author
+   syntax, made near-zero-churn by identity macros); consolidating frames into
+   `deckmaste_spelling`; inline target sugar and its scope elaboration; and
+   reattaching the Idris mirror to the authored grammar.
+2. **Deriving the English grammar and growing recovery.** The constructicon
+   migration above, alongside the frame-coverage rounds — with the regex
+   pipeline and legacy renderer as shadow oracles until recovery replaces them
+   family by family.
+3. **Engine breadth.** `docs/tickets/census.md` tracks the open card shapes
+   (transform, saga, adventure, split, and the rest of the layout table),
+   keyword abilities, keyword actions, and ability words. Priority order:
+   the engine happy path (the normal resolution path of ~90% of abilities),
+   then oracle-text coverage, keyword authoring, and convenience macros, with
+   the noncanon suite growing alongside.
 
-## The English syntax front end (`deckmaste_english`)
-
-`deckmaste_english` is an early, deliberately separate parsing stage for card
-text. It produces an English-specific syntactic representation without folding
-syntax and semantic card encoding into the same operation. That boundary makes
-it possible to inspect and test the language analysis independently before
-lowering it into the typed vocabulary used by the engine.
-
-Today the front end is exercised through `xtask` inspection and self-check
-tooling. The primary extract/resolve/graduate pipeline does not consume it yet;
-integrating the two is future work rather than a claimed capability of the
-current card generator.
-
----
-
-## The grammar probe (`idris/`)
-
-`idris/` holds a separate, smaller exploration: a dependently-typed model of the
-card-encoding grammar, written in Idris 2. It asks a narrower version of the
-project's open question — not *how much* of Magic the primitives can capture, but
-*how much of a card's well-formedness the type system can guarantee outright*.
-
-The Rust encoding language validates a description after constructing it: an
-ill-formed card fails to parse or fails a check. The Idris model pushes that
-earlier, into the types. Its grammar is built from closed enums refined by total
-type-functions, so that whole classes of nonsense are unrepresentable rather than
-merely rejected — there is no ill-formed term to write down in the first place.
-For example: the "that card" anaphor cannot be named in a trigger whose event
-supplies no object; a counter's carrier — a player versus a permanent — is fixed
-by the counter's kind; the agent of a relation is constrained to the kind of
-object that can perform it. Each is an invariant the Rust types currently leave to
-a runtime check.
-
-The probe is exploratory and stands apart from the engine — it models the
-*grammar*, not the rules, and runs no games. It does not, and is not meant to,
-make the Rust engine sound: dependent types are what render ill-formed encodings
-unrepresentable, and Rust goes on validating its data at runtime. What carries
-over is the *shape* of a sound data model — which distinctions earn their own
-type, which constructors are really one parameterized constructor, which
-invariants ought to hold. A structure the grammar shows to be well-founded informs
-how the Rust types are organized (still runtime-checked, never proven), and a
-mechanic the grammar cannot express cleanly marks a gap in the shared vocabulary
-of primitives. Like the rest of the repository, its rules-bearing code cites the
-Comprehensive Rules by number and is checked by `cargo xtask cite`.
+`docs/tickets/` is the working queue (folder = status; `scripts/todo ready`
+lists the next claimable items), and `docs/decisions/` records the design
+contracts the roadmap is built on.
 
 ---
 
