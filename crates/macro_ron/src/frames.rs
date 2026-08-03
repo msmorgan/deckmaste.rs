@@ -51,6 +51,12 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
+/// Spelling-owned roles for frame occurrences. They intentionally remain absent
+/// from the chart and construction matcher.
+pub use deckmaste_english_features::MentionKind;
+/// Spelling-owned roles for frame occurrences. They intentionally remain absent
+/// from the chart and construction matcher.
+pub use deckmaste_english_features::OccurrenceRole;
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::Deserializer;

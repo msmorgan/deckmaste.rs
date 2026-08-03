@@ -11,6 +11,7 @@ workspace = true
 derive = ["dep:macro_ron_derive"]
 
 [dependencies]
+deckmaste_english_features = { version = "0.1.0", path = "../deckmaste_english_features" }
 elsa = "1.11.2"
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive", "rc"] }

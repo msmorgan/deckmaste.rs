@@ -489,8 +489,16 @@ dependencies = [
 name = "deckmaste_english"
 version = "0.1.0"
 dependencies = [
+ "deckmaste_english_features",
  "hashbrown 0.15.5",
  "proptest",
+ "serde",
+]
+
+[[package]]
+name = "deckmaste_english_features"
+version = "0.1.0"
+dependencies = [
  "serde",
 ]
 
@@ -901,6 +909,7 @@ dependencies = [
 name = "macro_ron"
 version = "0.1.0"
 dependencies = [
+ "deckmaste_english_features",
  "elsa",
  "macro_ron_derive",
  "ron",

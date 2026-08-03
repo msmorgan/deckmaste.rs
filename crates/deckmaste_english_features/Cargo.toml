@@ -1,0 +1,11 @@
+[package]
+publish = false
+name = "deckmaste_english_features"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
