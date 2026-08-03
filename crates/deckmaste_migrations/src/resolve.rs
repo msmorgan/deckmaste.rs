@@ -202,11 +202,15 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
             // A malformed `.ron.todo` aborts the run (via `?`): it means a bug in
             // the step that wrote it, which the engineer should fix before resolving.
             let source = std::fs::read_to_string(path)?;
-            // Read through the literal-aware AUTHORING facade (as graduation
-            // reads a `Card`, via `Plugin::card_from_str`): a bare `power: 2` is
-            // a `StatValue::Number` `#[macro_ron(literal)]`, spliced by the
+            // Read through the literal-aware AUTHORING facade: a bare `power: 2`
+            // is a `StatValue::Number` `#[macro_ron(literal)]`, spliced by the
             // literal reader — raw `ron` sees `StatValue` as an enum and rejects
-            // the bare numeral ("invalid std identifier").
+            // the bare numeral ("invalid std identifier"). That splice is all it
+            // adds: `deckmaste_authoring::ron::options()` registers NO macros,
+            // unlike graduation's `Plugin::card_from_str`, and that is what this
+            // layer wants — `RawIdent` and `TodoAbility::Parsed` capture their
+            // text verbatim, so expanding it here would destroy what resolve
+            // must write back unchanged.
             let mut card: TodoCard = deckmaste_authoring::ron::options()
                 .from_str(&source)
                 .with_context(|| format!("parsing {}", path.display()))?;

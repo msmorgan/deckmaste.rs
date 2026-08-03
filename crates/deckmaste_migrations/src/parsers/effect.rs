@@ -1298,12 +1298,13 @@ fn parse_destroy_macro_target(
 ///   step, sacrifice ~."
 /// - `Sacrifice it/~ unless you pay <cost>.` -> the "unless you pay" toll
 ///   ([CR#118.12a]): the controller may pay the stated cost to keep the
-///   permanent, else sacrifices it. Wrapped in an
-///   [`Unless`](deckmaste_authoring::OneShotEffect::Unless) whose payer is the
-///   default `You` (the controller — the trigger fires on your own upkeep).
-///   Only a single mana cost is modeled (the overwhelmingly common upkeep tax);
-///   a richer toll declines. Mirrors the kw-echo macro's `Unless(effect:
-///   Sacrifice(You, This), unless: Param(0))` resolution shape.
+///   permanent, else sacrifices it. Wrapped in an `Unless` invocation (the
+///   builtin `OneShotEffect` macro, which expands to a `May(Pay(…))`; there is
+///   no `Unless` variant in the grammar) whose payer is the default `You` (the
+///   controller — the trigger fires on your own upkeep). Only a single mana
+///   cost is modeled (the overwhelmingly common upkeep tax); a richer toll
+///   declines. Mirrors the kw-echo macro's `Unless(effect: Sacrifice(You,
+///   This), unless: Param(0))` resolution shape.
 ///
 /// A non-self sacrifice ("Sacrifice a creature", "Sacrifice another …") is a
 /// chosen-permanent cost handled in the cost grammar, not here — this body
@@ -1367,9 +1368,10 @@ fn parse_attach(line: &str) -> Option<ParsedEffect> {
 /// `Counter target spell[ unless its controller pays <cost>].` -> a
 /// `TargetOne(Spell)` target on the stack and a `Counter(It)` body
 /// ([CR#701.6a]). The "unless its controller pays" rider wraps the counter in
-/// an [`Unless`](deckmaste_authoring::OneShotEffect::Unless) ([CR#118.12a]):
-/// the spell's controller (`who: ControllerOf(It)`) may pay the stated cost to
-/// stop the counter. Only the bare and the mana-tax riders parse; richer riders
+/// an `Unless` invocation ([CR#118.12a] — the builtin `OneShotEffect` macro
+/// expanding to a `May(Pay(…))`, not a grammar variant): the
+/// spell's controller (`who: ControllerOf(It)`) may pay the stated cost to stop
+/// the counter. Only the bare and the mana-tax riders parse; richer riders
 /// (replacement clauses, "you may cast …", restricted spell filters) are later
 /// productions. Case-insensitive lead (spell clause vs. trigger comma).
 fn parse_counter(line: &str) -> Option<ParsedEffect> {

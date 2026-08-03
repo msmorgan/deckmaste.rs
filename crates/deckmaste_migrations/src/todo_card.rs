@@ -158,10 +158,12 @@ mod tests {
     use super::*;
 
     fn read(source: &str) -> TodoCard {
-        // The literal-aware AUTHORING facade (as graduation reads a `Card`, via
-        // `Plugin::card_from_str`): a bare `power: 1` is a `StatValue::Number`
+        // The literal-aware AUTHORING facade, as `resolve_cards` reads a
+        // `.ron.todo`: a bare `power: 1` is a `StatValue::Number`
         // `#[macro_ron(literal)]`, spliced by the literal reader — raw `ron`
-        // can't read it.
+        // can't read it. No macros are registered here (that is graduation's
+        // `Plugin::card_from_str`), which is what keeps the verbatim captures
+        // verbatim.
         deckmaste_authoring::ron::options()
             .from_str(source)
             .unwrap()
