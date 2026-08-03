@@ -1325,8 +1325,8 @@ mod tests {
     /// Build a two-player game with one Grizzly Bears forced onto the
     /// battlefield, mirroring the `bear_on_field` helper in other test modules.
     fn bear_on_field() -> (GameState, ObjectId) {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1430,13 +1430,13 @@ mod tests {
         let mut state = empty_two_player_game();
         let visionary = put_bf(
             &mut state,
-            Arc::new(canon.card("Elvish Visionary").unwrap()),
+            Arc::new(canon.card("Elvish Visionary").unwrap().core),
             PlayerId(0),
         );
         let vis_source = state.objects.obj(visionary).source;
         let pan = put_bf(
             &mut state,
-            Arc::new(canon.card("Panharmonicon").unwrap()),
+            Arc::new(canon.card("Panharmonicon").unwrap().core),
             PlayerId(0),
         );
 
@@ -1469,14 +1469,14 @@ mod tests {
         let mut state = empty_two_player_game();
         let visionary = put_bf(
             &mut state,
-            Arc::new(canon.card("Elvish Visionary").unwrap()),
+            Arc::new(canon.card("Elvish Visionary").unwrap().core),
             PlayerId(0),
         );
         let vis_source = state.objects.obj(visionary).source;
         for _ in 0..2 {
             put_bf(
                 &mut state,
-                Arc::new(canon.card("Panharmonicon").unwrap()),
+                Arc::new(canon.card("Panharmonicon").unwrap().core),
                 PlayerId(0),
             );
         }
@@ -1500,14 +1500,14 @@ mod tests {
         let mut state = empty_two_player_game();
         let visionary = put_bf(
             &mut state,
-            Arc::new(canon.card("Elvish Visionary").unwrap()),
+            Arc::new(canon.card("Elvish Visionary").unwrap().core),
             PlayerId(0),
         );
         let vis_source = state.objects.obj(visionary).source;
         // Panharmonicon controlled by the OPPONENT (player 1).
         put_bf(
             &mut state,
-            Arc::new(canon.card("Panharmonicon").unwrap()),
+            Arc::new(canon.card("Panharmonicon").unwrap().core),
             PlayerId(1),
         );
 
@@ -1532,8 +1532,8 @@ mod tests {
     fn dies_type_creature_matches_creature_dying() {
         let canon = canon();
         // The dies-watcher card uses Dies(Type(Creature)) in its event.
-        let watcher_card = Arc::new(canon.card("Moonlit Wake").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let watcher_card = Arc::new(canon.card("Moonlit Wake").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1565,7 +1565,7 @@ mod tests {
 
         // Separately put a Grizzly Bears on the battlefield.
         let bear = {
-            let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon.card("Grizzly Bears").unwrap().core);
             let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
             let bid = state.objects.mint(
                 ObjectSource::Card(bear_card),
@@ -1597,8 +1597,8 @@ mod tests {
     #[test]
     fn dies_type_creature_does_not_match_creature_entering() {
         let canon = canon();
-        let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon.card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1717,9 +1717,9 @@ mod tests {
     #[test]
     fn dies_this_matches_only_self_death() {
         let canon = canon();
-        let dies_card = Arc::new(canon.card("Footlight Fiend").unwrap());
-        let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let dies_card = Arc::new(canon.card("Footlight Fiend").unwrap().core);
+        let bears = Arc::new(canon.card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1800,8 +1800,8 @@ mod tests {
     #[test]
     fn enters_this_matches_own_entry() {
         let canon = canon();
-        let etb_card = Arc::new(canon.card("Elvish Visionary").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let etb_card = Arc::new(canon.card("Elvish Visionary").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1908,7 +1908,7 @@ mod tests {
 
     #[test]
     fn condition_holds_exists_creature_false_when_no_creature() {
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1948,7 +1948,7 @@ mod tests {
     /// and the carrier id. A frame is built separately with `this` bound to the
     /// carrier so `frame_watcher` anchors `This` to it.
     fn attacking_board(extras: &[&str]) -> (GameState, ObjectId) {
-        let courser = Arc::new(canon().card("Centaur Courser").unwrap());
+        let courser = Arc::new(canon().card("Centaur Courser").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1969,7 +1969,7 @@ mod tests {
             types: std::collections::HashMap::new(),
         });
         let put = |state: &mut GameState, name: &str| {
-            let card = Arc::new(canon().card(name).unwrap());
+            let card = Arc::new(canon().card(name).unwrap().core);
             let cid = state.cards.push(card, PlayerId(0));
             let id = state.objects.mint(
                 crate::object::ObjectSource::Card(cid),
@@ -2329,7 +2329,7 @@ mod tests {
         // A second creature stands in as the causing object (any live
         // object works for the predicate; real causes are spells/abilities).
         let agent = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -2391,7 +2391,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let other = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(0));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -2548,7 +2548,7 @@ mod tests {
         let (mut state, attacker) = bear_on_field();
         let attacker_source = state.objects.obj(attacker).source;
         let blocker = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -2586,7 +2586,7 @@ mod tests {
         // you gain 2 life."
         let (mut state, tantiv) = fixture_on_field("Deepwood Tantiv");
         let mut bear = || {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -2631,7 +2631,7 @@ mod tests {
 
         let (mut state, t1) = fixture_on_field("Deepwood Tantiv");
         let t2 = {
-            let card = Arc::new(canon().card("Deepwood Tantiv").unwrap());
+            let card = Arc::new(canon().card("Deepwood Tantiv").unwrap().core);
             let card_id = state.cards.push(card, PlayerId(0));
             let id = state.objects.mint(
                 ObjectSource::Card(card_id),
@@ -2642,7 +2642,7 @@ mod tests {
             id
         };
         let mut bear = || {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -2693,7 +2693,7 @@ mod tests {
 
         let (mut state, a) = bear_on_field();
         let b = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -2746,7 +2746,7 @@ mod tests {
         // A stand-in targeting object controlled by the opponent: a second
         // creature, placed on the STACK as a casting spell would sit.
         let spell = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             state
                 .objects
@@ -2790,7 +2790,7 @@ mod tests {
             "an opponent's spell passes the by-filter"
         );
         let own_spell = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(0));
             state
                 .objects
@@ -2830,7 +2830,7 @@ mod tests {
             ),
         };
         let mut spell_on_stack = |name: &str, controller: PlayerId| {
-            let card = Arc::new(canon().card(name).unwrap());
+            let card = Arc::new(canon().card(name).unwrap().core);
             let card_id = state.cards.push(card, controller);
             state
                 .objects
@@ -2864,7 +2864,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let other = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -2913,7 +2913,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let other = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -3019,7 +3019,7 @@ mod tests {
         // An opponent's creature sacrificed: the performer is its controller,
         // not you.
         let theirs = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -3053,7 +3053,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let other = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(1));
             let id = state.objects.mint(
                 ObjectSource::Card(card),
@@ -3231,8 +3231,8 @@ mod tests {
     fn fixture_on_field(card_name: &str) -> (GameState, ObjectId) {
         use crate::object::ObjectSource;
 
-        let card = Arc::new(canon().card(card_name).unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let card = Arc::new(canon().card(card_name).unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -3268,7 +3268,7 @@ mod tests {
     /// Force a named canon card onto the battlefield under `controller`,
     /// freshly minted, returning the new id.
     fn put_on_field(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
-        let card = Arc::new(canon().card(name).unwrap());
+        let card = Arc::new(canon().card(name).unwrap().core);
         let card_id = state.cards.push(card, controller);
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -3963,7 +3963,7 @@ mod tests {
 
     /// A two-player game with no permanents, active player = P0.
     fn empty_game() -> GameState {
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -4914,7 +4914,7 @@ mod tests {
 
         // The pinger (a non-creature, so not itself a legal "target creature")
         // belongs to P0; the only creature on the board is P1's hexproof Scout.
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -5686,7 +5686,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let other = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let card = state.cards.push(bears, PlayerId(0));
             state
                 .objects
@@ -5988,7 +5988,7 @@ mod tests {
         for (quantified, expected) in [(true, 1), (false, 2)] {
             let (mut state, bear) = bear_on_field();
             let other = {
-                let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+                let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
                 let card = state.cards.push(bears, PlayerId(0));
                 let id = state.objects.mint(
                     ObjectSource::Card(card),

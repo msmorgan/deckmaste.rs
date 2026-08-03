@@ -1838,8 +1838,8 @@ mod tests {
 
         use crate::lki::LkiSnapshot;
 
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {

@@ -56,7 +56,7 @@ fn canon_cards_are_valid() {
 #[test]
 fn grizzly_bears_expand_the_creature_type_macro() {
     let plugin = canon();
-    let card = plugin.card("Grizzly Bears").unwrap();
+    let card = plugin.card("Grizzly Bears").unwrap().core;
     let Card::Normal(face) = card else {
         panic!("Grizzly Bears should be single-faced");
     };
@@ -83,7 +83,7 @@ fn grizzly_bears_expand_the_creature_type_macro() {
 #[test]
 fn lightning_bolt_expands_target_macros() {
     let plugin = canon();
-    let Card::Normal(face) = plugin.card("Lightning Bolt").unwrap() else {
+    let Card::Normal(face) = plugin.card("Lightning Bolt").unwrap().core else {
         panic!("Lightning Bolt should be single-faced");
     };
     // The card's `targets` field is macro-aware: loading it expands the bare
@@ -110,7 +110,7 @@ fn lightning_bolt_expands_target_macros() {
 #[test]
 fn tribal_flames_expands_the_domain_count() {
     let plugin = canon();
-    let Card::Normal(face) = plugin.card("Tribal Flames").unwrap() else {
+    let Card::Normal(face) = plugin.card("Tribal Flames").unwrap().core else {
         panic!("Tribal Flames should be single-faced");
     };
     let Ability::Spell(ref spell) = face.abilities[0] else {
@@ -138,7 +138,7 @@ fn tribal_flames_expands_the_domain_count() {
 #[test]
 fn any_target_expansion_carries_its_template() {
     let plugin = canon();
-    let Card::Normal(face) = plugin.card("Lightning Bolt").unwrap() else {
+    let Card::Normal(face) = plugin.card("Lightning Bolt").unwrap().core else {
         panic!("Lightning Bolt should be single-faced");
     };
     let Ability::Spell(ref spell) = face.abilities[0] else {
@@ -171,7 +171,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     use deckmaste_core::SimpleManaSymbol;
 
     let plugin = canon();
-    let Card::Normal(face) = plugin.card("Mana Leak").unwrap() else {
+    let Card::Normal(face) = plugin.card("Mana Leak").unwrap().core else {
         panic!("Mana Leak should be single-faced");
     };
     let Ability::Spell(ref spell) = face.abilities[0] else {
@@ -220,7 +220,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
 /// intact, not the bare `Range(2, 2)` primitive — the no-card-churn guarantee.
 #[test]
 fn brainstorm_exactly_two_round_trips() {
-    let card = canon().card("Brainstorm").unwrap();
+    let card = canon().card("Brainstorm").unwrap().core;
     let written = deckmaste_core::ron::options().to_string(&card).unwrap();
     assert!(
         written.contains("Exactly(2)"),
@@ -240,7 +240,7 @@ fn fate_transfer_cost_is_hybrid_blue_black() {
     use deckmaste_core::SimpleManaSymbol;
 
     let plugin = canon();
-    let Card::Normal(face) = plugin.card("Fate Transfer").unwrap() else {
+    let Card::Normal(face) = plugin.card("Fate Transfer").unwrap().core else {
         panic!("Fate Transfer should be single-faced");
     };
     assert_eq!(
@@ -255,7 +255,7 @@ fn fate_transfer_cost_is_hybrid_blue_black() {
 #[test]
 fn pounce_is_instant_type() {
     let plugin = canon();
-    let Card::Normal(face) = plugin.card("Pounce").unwrap() else {
+    let Card::Normal(face) = plugin.card("Pounce").unwrap().core else {
         panic!("Pounce should be single-faced");
     };
     // The plugin-expanded Instant carries its May(Cast(InstantSpeed)) confer
@@ -268,7 +268,7 @@ fn pounce_is_instant_type() {
 #[test]
 fn arc_lightning_targets_any_target() {
     let plugin = canon();
-    let Card::Normal(face) = plugin.card("Arc Lightning").unwrap() else {
+    let Card::Normal(face) = plugin.card("Arc Lightning").unwrap().core else {
         panic!("Arc Lightning should be single-faced");
     };
     let Ability::Spell(ref spell) = face.abilities[0] else {

@@ -347,7 +347,7 @@ mod tests {
 
     /// Put a Grizzly Bears on the battlefield as a host. Returns its id.
     fn host_creature(state: &mut GameState) -> ObjectId {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let card = state.cards.push(bears, PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card),

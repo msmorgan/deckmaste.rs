@@ -69,13 +69,13 @@ impl CardSource {
     #[must_use]
     pub fn card(&self, name: &str) -> Arc<Card> {
         if let Ok(card) = self.builtin.card(name) {
-            return Arc::new(card);
+            return Arc::new(card.core);
         }
         if let Ok(card) = self.canon.card(name) {
-            return Arc::new(card);
+            return Arc::new(card.core);
         }
         match self.wizards.card(name) {
-            Ok(card) => Arc::new(card),
+            Ok(card) => Arc::new(card.core),
             Err(error) => panic!("card {name:?} not available: {error:?}"),
         }
     }

@@ -58,7 +58,7 @@ fn canon() -> Plugin {
 
 /// A canon card by name, ready for a deck list.
 fn card(name: &str) -> Arc<Card> {
-    Arc::new(canon().card(name).unwrap())
+    Arc::new(canon().card(name).unwrap().core)
 }
 
 fn red() -> ColorOrColorless {
@@ -130,9 +130,9 @@ fn force_into_play(state: &mut GameState, player: PlayerId, name: &str) -> Objec
 /// Creature onto player 1's battlefield (as a target) when they need one.
 fn bolt_game(seed: u64, mountains: usize) -> GameState {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let bears = card("Grizzly Bears");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let mut p1 = vec![Arc::clone(&bears); 5];
@@ -164,7 +164,7 @@ fn bolt_game(seed: u64, mountains: usize) -> GameState {
 /// battlefield.
 fn bears_game(seed: u64, forests: usize) -> GameState {
     let bears = card("Grizzly Bears");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&bears); 5];
     p0.extend(vec![Arc::clone(&forest); 5]);
     let mut state = GameState::new(GameConfig {
@@ -199,7 +199,7 @@ fn bears_game(seed: u64, forests: usize) -> GameState {
 /// keeps every Bolt cast legal so `ChooseTargets` always surfaces.
 fn spotlight_game(seed: u64) -> GameState {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let spotlight = card("Glaring Spotlight");
     let scout = card("Gladecover Scout");
     let bears = card("Grizzly Bears");
@@ -529,7 +529,8 @@ fn testing_card(name: &str) -> Arc<Card> {
         )
         .unwrap()
         .card(name)
-        .unwrap(),
+        .unwrap()
+        .core,
     )
 }
 
@@ -543,7 +544,7 @@ fn ward_game(seed: u64) -> GameState {
 /// [`ward_game`] with a chosen testing ward carrier (the ward-{X} fixture).
 fn ward_game_with(seed: u64, ward_name: &str) -> GameState {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let ward = testing_card(ward_name);
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
@@ -672,7 +673,7 @@ fn ward_counters_targeting_spell_via_that_object() {
 fn kicker_game(seed: u64) -> GameState {
     let charm = testing_card("Kicker Charm");
     let chant = testing_card("Multikicker Chant");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&charm); 2];
     p0.extend(vec![Arc::clone(&chant); 2]);
     p0.extend(vec![Arc::clone(&forest); 6]);
@@ -932,9 +933,9 @@ fn force_into_hand(state: &mut GameState, player: PlayerId, name: &str) -> Objec
 fn prowess_fires_and_pumps_on_own_noncreature_cast() {
     // bolt_game's deck with Bloodfire Expert mixed into player 0's half.
     let bolt_card = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let expert_card = card("Bloodfire Expert");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&expert_card); 5];
     p0.extend(vec![Arc::clone(&bolt_card); 5]);
     p0.extend(vec![Arc::clone(&mountain); 5]);
@@ -1001,9 +1002,9 @@ fn prowess_fires_and_pumps_on_own_noncreature_cast() {
 fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
     // bolt_game with player 1's creatures swapped for Phantasmal Bear.
     let bolt_card = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let phantasmal = card("Phantasmal Bear");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt_card); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let mut p1 = vec![Arc::clone(&phantasmal); 5];
@@ -1213,8 +1214,8 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
     {
         let bolt = card("Lightning Bolt");
         let bears = card("Grizzly Bears");
-        let mountain = Arc::new(builtin().card("Mountain").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         // 4 instant + 4 creature + 1 Mountain + 3 Forest, fattened so a
         // Mountain and two Forests are always somewhere in the library and a
         // seed exists with both spell types in the opening hand.
@@ -1377,8 +1378,8 @@ fn drive_to_off_turn_priority(state: &mut GameState) -> Vec<Action> {
 fn bears_with_bolts() -> GameState {
     let bolt = card("Lightning Bolt");
     let bears = card("Grizzly Bears");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let build = |seed: u64| {
         let mut deck = vec![Arc::clone(&bolt); 4];
         deck.extend(vec![Arc::clone(&bears); 2]);
@@ -1768,8 +1769,8 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
 fn dies_trigger_deals_damage_from_the_dead_source() {
     let bolt = card("Lightning Bolt");
     let fiend = card("Footlight Fiend");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     // P0's deck: bolts + fiends + mountains. P1: forests.
     let mut p0 = vec![Arc::clone(&bolt); 4];
     p0.extend(vec![Arc::clone(&fiend); 3]);
@@ -1943,7 +1944,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
 #[test]
 fn etb_trigger_draws_a_card() {
     let etb = card("Elvish Visionary");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
 
     // P0: etb creatures + forests (for {1}{G}).
     // P1: forests only (no cards relevant to the scenario).
@@ -2134,8 +2135,8 @@ fn occurrence_batch_and_apnap_ordering() {
     let pyroclasm = card("Pyroclasm");
     let fiend = card("Footlight Fiend");
     let watcher = card("Moonlit Wake");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
 
     // P0: pyroclasm + fiend + watcher + sweep-fodder elves + mountains +
     // forests. {1}{R} needs a Mountain (red) + something for generic.
@@ -2444,8 +2445,8 @@ fn occurrence_batch_and_apnap_ordering() {
 #[test]
 fn simultaneous_loss_is_a_draw() {
     let each_player = card("Flame Rift");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
 
     // P0: the sorcery + lands for {1}{R}. P1: forests.
     let mut deck0 = vec![Arc::clone(&each_player); 4];
@@ -2554,7 +2555,7 @@ fn simultaneous_loss_is_a_draw() {
 fn two_triggers_same_player_order_triggers_surfaces() {
     let watcher_card = card("Moonlit Wake");
     let bears_card = card("Grizzly Bears");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
 
     // Build a simple two-player game; both players' decks don't matter much.
     let mut state = GameState::new(GameConfig {
@@ -2708,8 +2709,8 @@ fn creature_enters_tapped_via_as_enters_replacement() {
     // --- (a) Diregraf Ghoul resolves tapped ---
     {
         let enters_tapped = card("Diregraf Ghoul");
-        let swamp = Arc::new(builtin().card("Swamp").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let swamp = Arc::new(builtin().card("Swamp").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         // {B} needs one black pip; a Swamp supplies it.
         let mut deck = vec![Arc::clone(&enters_tapped); 5];
         deck.extend(vec![Arc::clone(&swamp); 5]);
@@ -2849,7 +2850,7 @@ fn land_in_hand_offers_play_land_not_cast_spell() {
 #[test]
 fn hexproof_excludes_it_from_opposing_targets() {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let scout = card("Gladecover Scout");
     let bears = card("Grizzly Bears");
     let mut p0 = vec![Arc::clone(&bolt); 5];
@@ -2910,7 +2911,7 @@ fn hexproof_excludes_it_from_opposing_targets() {
 #[test]
 fn flash_creature_casts_at_instant_timing() {
     let cheetah = card("Pouncing Cheetah");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&cheetah); 5];
     p0.extend(vec![Arc::clone(&forest); 5]);
     let mut state = GameState::new(GameConfig {
@@ -3001,7 +3002,7 @@ fn flash_creature_casts_at_instant_timing() {
 #[test]
 fn flagbearer_constrains_opposing_target_choice() {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let bearer = card("Standard Bearer");
     let bears = card("Grizzly Bears");
     let mut p0 = vec![Arc::clone(&bolt); 5];
@@ -3059,7 +3060,7 @@ fn flagbearer_constrains_opposing_target_choice() {
 #[test]
 fn flagbearer_does_not_constrain_its_controllers_spells() {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let bearer = card("Standard Bearer");
     let bears = card("Grizzly Bears");
     let mut p0 = vec![Arc::clone(&bolt); 5];
@@ -3187,7 +3188,7 @@ fn inline_blink() -> Card {
 fn blink_exiles_and_returns_the_target_in_one_resolution() {
     let blink = Arc::new(inline_blink());
     let bears = card("Grizzly Bears");
-    let plains = Arc::new(builtin().card("Plains").unwrap());
+    let plains = Arc::new(builtin().card("Plains").unwrap().core);
     let mut p0 = vec![Arc::clone(&blink); 5];
     p0.extend(vec![Arc::clone(&bears); 5]);
     p0.extend(vec![Arc::clone(&plains); 5]);
@@ -3271,9 +3272,9 @@ fn blink_exiles_and_returns_the_target_in_one_resolution() {
 /// Forests (unused — the ability's only cost is {T}).
 fn copy_game(seed: u64, mountains: usize) -> GameState {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let copier = testing_card("Creature tap-activated CopySpell Target Spell");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let mut p1 = vec![Arc::clone(&copier); 5];
@@ -3304,7 +3305,7 @@ fn copy_game(seed: u64, mountains: usize) -> GameState {
 fn bears_copy_game(seed: u64, forests: usize) -> GameState {
     let bears = card("Grizzly Bears");
     let copier = testing_card("Creature tap-activated CopySpell Target Spell");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&bears); 5];
     p0.extend(vec![Arc::clone(&forest); 5]);
     let mut p1 = vec![Arc::clone(&copier); 5];
@@ -3458,10 +3459,10 @@ fn copied_bolt_shares_targets_and_controller() {
 fn copy_counter_game(seed: u64, mountains: usize, islands: usize) -> GameState {
     let bolt = card("Lightning Bolt");
     let mana_leak = card("Mana Leak");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let island = Arc::new(builtin().card("Island").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let island = Arc::new(builtin().card("Island").unwrap().core);
     let copier = testing_card("Creature tap-activated CopySpell Target Spell");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mana_leak); 5]);
     p0.extend(vec![Arc::clone(&mountain); 5]);
@@ -3953,10 +3954,10 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
 /// and Forests.
 fn choose_new_targets_game(seed: u64, mountains: usize) -> GameState {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let retargeter = testing_card("Creature tap-activated Retarget Target Spell");
     let bears = card("Grizzly Bears");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let mut p1 = vec![Arc::clone(&retargeter); 3];
@@ -4305,10 +4306,10 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
 )]
 fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
     let bolt_card = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let watcher_card = testing_card("Creature Cast and Copied Triggers");
     let copier_card = testing_card("Creature tap-activated CopySpell Target Spell");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&watcher_card); 5];
     p0.extend(vec![Arc::clone(&copier_card); 5]);
     p0.extend(vec![Arc::clone(&bolt_card); 5]);
@@ -4502,7 +4503,7 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
 fn ability_copy_same_source_resolves_and_vanishes() {
     let pinger_card = testing_card("Creature tap-activated DealDamage AnyTarget");
     let copier_card = testing_card("Creature tap-activated CopySpell Target Ability");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&pinger_card); 5];
     p0.extend(vec![Arc::clone(&copier_card); 5]);
     let mut state = GameState::new(GameConfig {
@@ -4678,9 +4679,9 @@ fn ability_copy_same_source_resolves_and_vanishes() {
 #[test]
 fn fate_transfer_two_distinct_targets_cast_to_resolution() {
     let fate = card("Fate Transfer");
-    let island = Arc::new(builtin().card("Island").unwrap());
+    let island = Arc::new(builtin().card("Island").unwrap().core);
     let bears = card("Grizzly Bears");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut deck = vec![Arc::clone(&fate); 4];
     deck.extend(vec![Arc::clone(&island); 4]);
     deck.extend(vec![Arc::clone(&bears); 4]);
@@ -4799,9 +4800,9 @@ fn fate_transfer_two_distinct_targets_cast_to_resolution() {
 #[test]
 fn arc_lightning_announces_one_to_three_targets() {
     let arc = card("Arc Lightning");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let bears = card("Grizzly Bears");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut deck = vec![Arc::clone(&arc); 4];
     deck.extend(vec![Arc::clone(&mountain); 4]);
     deck.extend(vec![Arc::clone(&bears); 4]);
@@ -4888,9 +4889,9 @@ fn arc_lightning_announces_one_to_three_targets() {
 #[test]
 fn fate_transfer_partial_fizzle_when_destination_dies() {
     let fate = card("Fate Transfer");
-    let island = Arc::new(builtin().card("Island").unwrap());
+    let island = Arc::new(builtin().card("Island").unwrap().core);
     let bears = card("Grizzly Bears");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut deck = vec![Arc::clone(&fate); 4];
     deck.extend(vec![Arc::clone(&island); 4]);
     deck.extend(vec![Arc::clone(&bears); 4]);

@@ -2455,7 +2455,7 @@ mod tests {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
         )
         .unwrap();
-        let forest = Arc::new(builtin.card("Forest").unwrap());
+        let forest = Arc::new(builtin.card("Forest").unwrap().core);
         GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {

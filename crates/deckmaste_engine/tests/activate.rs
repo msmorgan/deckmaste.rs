@@ -161,10 +161,10 @@ fn force_into_play(state: &mut GameState, player: PlayerId, name: &str) -> Objec
 /// player 0; the named card is pulled by `force_into_play` (library or hand).
 fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
     let testing = testing();
-    let card = Arc::new(testing.card(name).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let bears = Arc::new(canon().card(BEARS).unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let card = Arc::new(testing.card(name).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&card); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let mut p1 = vec![Arc::clone(&bears); 5];
@@ -542,11 +542,11 @@ fn sorcery_speed_drawer_gated() {
     // drawer and two Mountains are pulled from the library, the instant from a
     // seed-searched opening hand. P1: bears (the instant's target) + Forests.
     let canon = canon();
-    let bolt = Arc::new(canon.card(INSTANT).unwrap());
-    let drawer_card = Arc::new(testing().card(SORCERY_DRAWER).unwrap());
-    let bears = Arc::new(canon.card(BEARS).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bolt = Arc::new(canon.card(INSTANT).unwrap().core);
+    let drawer_card = Arc::new(testing().card(SORCERY_DRAWER).unwrap().core);
+    let bears = Arc::new(canon.card(BEARS).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut deck0 = vec![Arc::clone(&bolt); 4];
     deck0.extend(vec![Arc::clone(&drawer_card); 3]);
     deck0.extend(vec![Arc::clone(&mountain); 5]);
@@ -750,9 +750,9 @@ fn once_per_game_stays_spent() {
 /// needed); player 1 holds bears + forests as inert bystanders. Mirrors
 /// `activation_game`/`cost_game`.
 fn loyalty_game(seed: u64) -> GameState {
-    let card = Arc::new(testing().card(LOYALTY_PW).unwrap());
-    let bears = Arc::new(canon().card(BEARS).unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let card = Arc::new(testing().card(LOYALTY_PW).unwrap().core);
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let p0 = vec![Arc::clone(&card); 10];
     let mut p1 = vec![Arc::clone(&bears); 5];
     p1.extend(vec![Arc::clone(&forest); 5]);
@@ -809,11 +809,11 @@ fn loyalty_offered(legal: &[Action], object: ObjectId, ability: usize) -> bool {
 #[test]
 fn loyalty_ability_gated_at_sorcery_speed() {
     let canon = canon();
-    let bolt = Arc::new(canon.card(INSTANT).unwrap());
-    let pw_card = Arc::new(testing().card(LOYALTY_PW).unwrap());
-    let bears = Arc::new(canon.card(BEARS).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bolt = Arc::new(canon.card(INSTANT).unwrap().core);
+    let pw_card = Arc::new(testing().card(LOYALTY_PW).unwrap().core);
+    let bears = Arc::new(canon.card(BEARS).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut deck0 = vec![Arc::clone(&bolt); 4];
     deck0.extend(vec![Arc::clone(&pw_card); 3]);
     deck0.extend(vec![Arc::clone(&mountain); 5]);
@@ -992,10 +992,10 @@ fn pinger_fizzles_when_target_dies() {
     // — the seed search puts an instant in P1's opening hand; the bear and a
     // Mountain are pulled from the library.
     let canon = canon();
-    let pinger_card = Arc::new(testing().card(PINGER).unwrap());
-    let bolt = Arc::new(canon.card(INSTANT).unwrap());
-    let bears = Arc::new(canon.card(BEARS).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let pinger_card = Arc::new(testing().card(PINGER).unwrap().core);
+    let bolt = Arc::new(canon.card(INSTANT).unwrap().core);
+    let bears = Arc::new(canon.card(BEARS).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let mut deck0 = vec![Arc::clone(&pinger_card); 5];
     deck0.extend(vec![Arc::clone(&mountain); 5]);
     let mut deck1 = vec![Arc::clone(&bolt); 4];
@@ -1169,8 +1169,8 @@ fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
 /// special for player 1. Mirrors `activation_game` but seeds an arbitrary
 /// in-Rust card.
 fn cost_game(seed: u64, card: &Arc<Card>) -> GameState {
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(card); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let p1 = vec![forest; 10];
@@ -1517,9 +1517,9 @@ fn activated_ability_pays_choose_sacrifice_cost() {
 
     // Build a game: player 0 gets the artifact + mountains + Grizzly Bears,
     // player 1 gets forests (no creatures so candidates are unambiguously P0's).
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let bears_card = Arc::new(canon().card(BEARS).unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let bears_card = Arc::new(canon().card(BEARS).unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&card); 3];
     p0.extend(vec![Arc::clone(&bears_card); 4]);
     p0.extend(vec![Arc::clone(&mountain); 3]);

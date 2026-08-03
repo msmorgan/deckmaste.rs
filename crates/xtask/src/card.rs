@@ -31,7 +31,7 @@ pub fn run(args: CardArgs) -> anyhow::Result<()> {
         show_expansions,
     } = args;
     let plugin = Plugin::load_with_sibling_prelude(&plugin_dir)?;
-    let card = plugin.card(&card_name)?;
+    let card = plugin.card(&card_name)?.core;
 
     println!("{} expands to:\n", plugin.card_path(&card_name).display());
     if show_expansions {

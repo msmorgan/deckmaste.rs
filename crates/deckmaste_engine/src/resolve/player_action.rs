@@ -1425,7 +1425,7 @@ mod tests {
     fn create_builtin_treasure_token() {
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
-        let treasure = builtin().token("Treasure").unwrap();
+        let treasure = builtin().token("Treasure").unwrap().core;
         state.run_effect(
             OneShotEffect::Act(Action::Create {
                 agent: Reference::You,

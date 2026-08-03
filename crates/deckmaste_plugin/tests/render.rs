@@ -29,7 +29,7 @@ fn testing_path() -> PathBuf {
 
 fn testing_face(name: &str) -> CardFace {
     let plugin = Plugin::load_with_sibling_prelude(testing_path()).unwrap();
-    match plugin.card(name).unwrap() {
+    match plugin.card(name).unwrap().core {
         Card::Normal(f) => f,
         other @ Card::TwoFaced { .. } => panic!("expected a normal card, got {other:?}"),
     }
@@ -37,7 +37,7 @@ fn testing_face(name: &str) -> CardFace {
 
 fn face(name: &str) -> CardFace {
     let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
-    match plugin.card(name).unwrap() {
+    match plugin.card(name).unwrap().core {
         Card::Normal(f) => f,
         other @ Card::TwoFaced { .. } => panic!("expected a normal card, got {other:?}"),
     }
@@ -368,8 +368,8 @@ fn renders_every_canon_card_without_panicking() {
     let mut markers = 0usize;
     let mut total = 0usize;
     for name in canon_card_names().iter() {
-        let Ok(card) = plugin.card(name) else { continue };
-        let faces: Arc<[CardFace]> = match card {
+        let Ok(loaded) = plugin.card(name) else { continue };
+        let faces: Arc<[CardFace]> = match loaded.core {
             Card::Normal(f) => vec![f].into(),
             Card::TwoFaced { front, back, .. } => vec![front, back].into(),
         };

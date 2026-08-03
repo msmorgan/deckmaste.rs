@@ -10,20 +10,21 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use deckmaste_card::Card;
 use deckmaste_core::Counter;
 use deckmaste_core::DesignationDecl;
 use deckmaste_core::Ident;
 use deckmaste_core::KeywordDecl;
 use deckmaste_core::ParamShape;
 use deckmaste_core::Subtype;
-use deckmaste_core::Token;
 use deckmaste_core::TypeDef;
 use deckmaste_core::plugin::MACROS_DIR;
 use deckmaste_core::plugin::RULES_DIR;
 use deckmaste_core::plugin::card_path;
 use deckmaste_core::plugin::token_path;
+use deckmaste_lowering::Lower;
 
+use crate::loaded::LoadedCard;
+use crate::loaded::LoadedToken;
 use crate::macros::InsertError;
 use crate::macros::MacroDef;
 use crate::macros::MacroSet;
@@ -343,15 +344,24 @@ impl Plugin {
         card_path(&self.root, name)
     }
 
-    /// Reads and parses `cards/<name>.ron`, with the plugin's macros in scope.
+    /// Reads and parses `cards/<name>.ron` as an authored card, with the
+    /// plugin's macros in scope, and lowers it to its engine image.
+    ///
+    /// This is the one restricted read API (spec §4): nothing else may
+    /// `read_str` a typed card, and `tests/read_api_gate.rs` enforces it.
     ///
     /// # Errors
     /// If the file is missing or doesn't expand to a card.
-    pub fn card(&self, name: &str) -> anyhow::Result<Card> {
+    pub fn card(&self, name: &str) -> anyhow::Result<LoadedCard> {
         let path = self.card_path(name);
-        self.macros
+        let authored: deckmaste_authoring::Card = self
+            .macros
             .read_str(&read(&path)?)
-            .with_context(|| format!(r#"parsing "{}""#, path.display()))
+            .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
+        Ok(LoadedCard {
+            core: authored.clone().lower(),
+            authored,
+        })
     }
 
     /// The file a token of this name would live in.
@@ -360,15 +370,21 @@ impl Plugin {
         token_path(&self.root, name)
     }
 
-    /// Reads and parses `tokens/<name>.ron`, with the plugin's macros in scope.
+    /// Reads and parses `tokens/<name>.ron` as an authored token, with the
+    /// plugin's macros in scope, and lowers it to its engine image.
     ///
     /// # Errors
     /// If the file is missing or doesn't expand to a token.
-    pub fn token(&self, name: &str) -> anyhow::Result<Token> {
+    pub fn token(&self, name: &str) -> anyhow::Result<LoadedToken> {
         let path = self.token_path(name);
-        self.macros
+        let authored: deckmaste_authoring::Token = self
+            .macros
             .read_str(&read(&path)?)
-            .with_context(|| format!(r#"parsing "{}""#, path.display()))
+            .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
+        Ok(LoadedToken {
+            core: authored.clone().lower(),
+            authored,
+        })
     }
 }
 

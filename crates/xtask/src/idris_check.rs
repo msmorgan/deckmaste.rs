@@ -99,6 +99,7 @@ fn run_single(plugin: &Plugin, card_name: &str, idris_dir: &Path) -> anyhow::Res
     let card = plugin
         .card(card_name)
         .with_context(|| format!("loading card {card_name:?}"))?
+        .core
         .expand_all();
     let ident = idris_emit::sanitize_ident(card_name);
     let module_name = format!("IdrisCheckSingle_{ident}");

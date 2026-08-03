@@ -79,8 +79,8 @@ pub(super) fn second_bear_to_player_1(state: &mut GameState) -> ObjectId {
 /// A two-player game; player 0's deck is Grizzly Bears.
 /// Returns the state plus a creature object forced onto the battlefield.
 pub(super) fn bear_on_field() -> (GameState, ObjectId) {
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -244,9 +244,9 @@ pub(super) fn mint_in_hand_with(
 pub(super) fn battlefield_with(names: &[&str]) -> (GameState, Vec<ObjectId>) {
     let mut deck: Vec<Arc<Card>> = names
         .iter()
-        .map(|n| Arc::new(canon().card(n).unwrap()))
+        .map(|n| Arc::new(canon().card(n).unwrap().core))
         .collect();
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
     while deck.len() < 12 {
         deck.push(Arc::clone(&bears));
     }

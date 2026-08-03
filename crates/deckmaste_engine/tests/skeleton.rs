@@ -57,7 +57,7 @@ fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> {
 }
 
 fn two_player_plains(seed: u64, deck_size: usize) -> GameState {
-    let plains = Arc::new(builtin().card("Plains").unwrap());
+    let plains = Arc::new(builtin().card("Plains").unwrap().core);
     GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -80,7 +80,7 @@ fn two_player_plains(seed: u64, deck_size: usize) -> GameState {
 }
 
 fn two_player_with(card: &str, seed: u64, deck_size: usize) -> GameState {
-    let c = Arc::new(canon().card(card).unwrap());
+    let c = Arc::new(canon().card(card).unwrap().core);
     GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -736,8 +736,8 @@ fn starting_player_skips_the_first_draw() {
 /// Forest. Returns the state plus a creature object forced onto the
 /// battlefield.
 fn bear_on_field() -> (GameState, ObjectId) {
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -986,8 +986,8 @@ fn each_player_has_a_proxy_object() {
 /// battlefield from player 1's hand. Returns `(state, bear)`.
 fn decks_bolt_vs_bears_with_bear_on_field() -> (GameState, ObjectId) {
     let canon = canon();
-    let bolt = Arc::new(canon.card("Lightning Bolt").unwrap());
-    let bears = Arc::new(canon.card("Grizzly Bears").unwrap());
+    let bolt = Arc::new(canon.card("Lightning Bolt").unwrap().core);
+    let bears = Arc::new(canon.card("Grizzly Bears").unwrap().core);
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {

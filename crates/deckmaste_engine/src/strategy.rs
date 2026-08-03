@@ -658,7 +658,7 @@ mod tests {
     /// data-driven strategies — sensing reuses the card evaluators verbatim.
     #[test]
     fn synthesized_frame_drives_engine_evaluators() {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -794,8 +794,8 @@ mod tests {
     /// 1/1) — argmax of a `Count` over the legal set.
     #[test]
     fn priority_cast_selector_picks_by_extremum() {
-        let willow = Arc::new(canon().card("Willow Elf").unwrap());
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let willow = Arc::new(canon().card("Willow Elf").unwrap().core);
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = empty_two_player();
         let willow_id = put_creature(&mut state, &willow, PlayerId(0));
         let bears_id = put_creature(&mut state, &bears, PlayerId(0));
@@ -849,8 +849,8 @@ mod tests {
     /// picks the biggest creature among a slot's legal candidates.
     #[test]
     fn choose_targets_applies_the_target_selector_per_slot() {
-        let willow = Arc::new(canon().card("Willow Elf").unwrap());
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let willow = Arc::new(canon().card("Willow Elf").unwrap().core);
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = empty_two_player();
         let willow_id = put_creature(&mut state, &willow, PlayerId(1));
         let bears_id = put_creature(&mut state, &bears, PlayerId(1));
@@ -887,7 +887,7 @@ mod tests {
     fn choose_targets_without_a_rule_takes_first_legal() {
         let eval = StrategyEvaluator::new(always_prefer(Preference::Pass), PlayerId(0));
         let mut state = empty_two_player();
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let a = put_creature(&mut state, &bears, PlayerId(1));
         let b = put_creature(&mut state, &bears, PlayerId(1));
         let pending = PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
@@ -914,7 +914,7 @@ mod tests {
     /// (no `among`); no `Attack` rule declares none.
     #[test]
     fn declare_attackers_attacks_all_legal_then_none() {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = empty_two_player();
         let a = put_creature(&mut state, &bears, PlayerId(0));
         let b = put_creature(&mut state, &bears, PlayerId(0));
@@ -952,7 +952,7 @@ mod tests {
     /// blockers available.
     #[test]
     fn declare_blockers_no_blocks_policy_blocks_nothing() {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = empty_two_player();
         let blocker = put_creature(&mut state, &bears, PlayerId(1));
         let eval = StrategyEvaluator::new(
@@ -976,8 +976,8 @@ mod tests {
     /// expectation honest.
     #[test]
     fn block_all_repairs_illegal_flyer_pairing() {
-        let strix = Arc::new(canon().card("Baleful Strix").unwrap());
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let strix = Arc::new(canon().card("Baleful Strix").unwrap().core);
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = empty_two_player();
         let flyer = put_creature(&mut state, &strix, PlayerId(0));
         let ground = put_creature(&mut state, &bears, PlayerId(0));
@@ -1029,8 +1029,8 @@ mod tests {
     /// cheapest (Min by mana value) — Willow Elf (1) over Grizzly Bears (2).
     #[test]
     fn discard_sheds_cheapest_by_mana_value() {
-        let willow = Arc::new(canon().card("Willow Elf").unwrap());
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let willow = Arc::new(canon().card("Willow Elf").unwrap().core);
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = empty_two_player();
         let bears_id = put_in_hand(&mut state, &bears, PlayerId(0));
         let willow_id = put_in_hand(&mut state, &willow, PlayerId(0));

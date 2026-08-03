@@ -46,7 +46,7 @@ fn canon() -> Plugin {
 }
 
 fn card(name: &str) -> Arc<Card> {
-    Arc::new(canon().card(name).unwrap())
+    Arc::new(canon().card(name).unwrap().core)
 }
 
 /// A snow Forest: the builtin `Forest` (whose `Forest` subtype confers the
@@ -55,7 +55,7 @@ fn card(name: &str) -> Arc<Card> {
 /// ability is present (the generated snow basics leave their subtype's
 /// `confers` empty), isolating the test on snow-source detection.
 fn snow_forest() -> Card {
-    let mut forest = builtin().card("Forest").unwrap();
+    let mut forest = builtin().card("Forest").unwrap().core;
     let Card::Normal(face) = &mut forest else {
         panic!("Forest is a Normal card");
     };
@@ -98,7 +98,7 @@ fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> ObjectId {
 /// holds Forests. `forests` Forests are forced onto player 0's battlefield.
 fn bears_game(seed: u64, forests: usize) -> GameState {
     let bears = card("Grizzly Bears");
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&bears); 5];
     p0.extend(vec![Arc::clone(&forest); 5]);
     let mut state = GameState::new(GameConfig {
@@ -307,7 +307,7 @@ fn persistent_end_of_turn_mana_survives_step_boundaries() {
 /// from a snow source vs a non-snow source.
 fn snow_vs_plain_game(seed: u64) -> GameState {
     let snow = Arc::new(snow_forest());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {

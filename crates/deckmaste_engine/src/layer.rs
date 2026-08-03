@@ -2626,7 +2626,8 @@ mod tests {
         let card = Arc::new(
             plugin
                 .card(name)
-                .unwrap_or_else(|e| panic!("load {name}: {e:?}")),
+                .unwrap_or_else(|e| panic!("load {name}: {e:?}"))
+                .core,
         );
 
         let mut state = game();

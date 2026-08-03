@@ -32,7 +32,7 @@ fn canon() -> Plugin {
 }
 
 fn card(name: &str) -> Arc<Card> {
-    Arc::new(canon().card(name).unwrap())
+    Arc::new(canon().card(name).unwrap().core)
 }
 
 fn green() -> deckmaste_core::ColorOrColorless {
@@ -130,13 +130,13 @@ fn testing() -> Plugin {
 }
 
 fn x_draw() -> Arc<Card> {
-    Arc::new(testing().card("Sorcery X Draw").unwrap())
+    Arc::new(testing().card("Sorcery X Draw").unwrap().core)
 }
 
 /// Player 0 holds `Sorcery X Draw` ({X}) and Forests; player 1 holds Forests.
 fn x_game(seed: u64) -> GameState {
     let xdraw = x_draw();
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&xdraw); 5];
     p0.extend(vec![Arc::clone(&forest); 10]);
     GameState::new(GameConfig {
@@ -324,7 +324,7 @@ fn x_zero_draws_nothing_and_resolves() {
 
 fn bolt_game(seed: u64) -> GameState {
     let bolt = card("Lightning Bolt");
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mountain); 10]);
     GameState::new(GameConfig {
@@ -374,8 +374,8 @@ fn non_x_cast_surfaces_no_choose_x() {
 /// Player 0 holds `Artifact X-activated Draw` ({X}: draw X) and Mountains;
 /// player 1 holds Mountains.
 fn artifact_x_game(seed: u64) -> GameState {
-    let art = Arc::new(testing().card("Artifact X-activated Draw").unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let art = Arc::new(testing().card("Artifact X-activated Draw").unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let mut p0 = vec![Arc::clone(&art); 5];
     p0.extend(vec![Arc::clone(&mountain); 10]);
     GameState::new(GameConfig {
@@ -467,8 +467,13 @@ fn activate_x_draw_announces_pays_and_draws_x() {
 /// Player 0 holds `Sorcery X DealDamage AnyTarget` ({X}: deal X to any target)
 /// and Mountains; player 1 holds Mountains.
 fn x_burn_game(seed: u64) -> GameState {
-    let burn = Arc::new(testing().card("Sorcery X DealDamage AnyTarget").unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let burn = Arc::new(
+        testing()
+            .card("Sorcery X DealDamage AnyTarget")
+            .unwrap()
+            .core,
+    );
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
     let mut p0 = vec![Arc::clone(&burn); 5];
     p0.extend(vec![Arc::clone(&mountain); 10]);
     GameState::new(GameConfig {

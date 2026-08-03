@@ -87,7 +87,7 @@ mod tests {
     /// live map after capture leaves the snapshot untouched).
     #[test]
     fn capture_records_object_counters() {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {

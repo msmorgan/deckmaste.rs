@@ -3397,7 +3397,7 @@ mod tests {
     fn zero_power_fighter_still_records_its_fight_fact() {
         // Darksteel Myr is canon's 0/1 (see myr_on_field, resolve/action.rs:971-1003).
         let (mut state, a, _b) = two_permanents_on_field();
-        let myr_card = Arc::new(canon().card("Darksteel Myr").unwrap());
+        let myr_card = Arc::new(canon().card("Darksteel Myr").unwrap().core);
         let cid = state.cards.push(myr_card, PlayerId(0));
         let myr = state.objects.mint(
             ObjectSource::Card(cid),

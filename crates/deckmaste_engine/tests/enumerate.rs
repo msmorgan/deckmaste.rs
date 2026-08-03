@@ -128,10 +128,10 @@ fn force_into_play(state: &mut GameState, player: PlayerId, name: &str) -> Objec
 /// player 0; the named card is pulled by `force_into_play` (library or hand).
 fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
     let testing = testing();
-    let card = Arc::new(testing.card(name).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let bears = Arc::new(canon().card(BEARS).unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let card = Arc::new(testing.card(name).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&card); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let mut p1 = vec![Arc::clone(&bears); 5];
@@ -159,10 +159,10 @@ fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
 /// `activation_game`. Callers force the specific permanents/hand cards they
 /// need.
 fn bolt_game(seed: u64) -> GameState {
-    let bolt = Arc::new(canon().card(INSTANT).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let bolt = Arc::new(canon().card(INSTANT).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt); 5];
     p0.extend(vec![Arc::clone(&mountain); 5]);
     let mut p1 = vec![Arc::clone(&bears); 5];
@@ -373,11 +373,11 @@ fn decision_point_exposes_the_decider_player() {
 
 #[test]
 fn describe_action_bundles_cast_land_activate_pass_concede() {
-    let bolt = Arc::new(canon().card(INSTANT).unwrap());
-    let pinger = Arc::new(testing().card(PINGER).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
-    let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+    let bolt = Arc::new(canon().card(INSTANT).unwrap().core);
+    let pinger = Arc::new(testing().card(PINGER).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
+    let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt); 4];
     p0.extend(vec![Arc::clone(&pinger); 3]);
     p0.extend(vec![Arc::clone(&mountain); 6]);
@@ -514,11 +514,11 @@ fn priority_enumerates_all_action_kinds_at_one_window() {
     // one red, the legal list at p0's main-phase priority offers every action
     // kind in a SINGLE window — CastSpell, the pinger's ActivateAbility, an
     // untapped Mountain's mana ActivateAbility, PlayLand, Pass, and Concede.
-    let bolt = Arc::new(canon().card(INSTANT).unwrap());
-    let pinger = Arc::new(testing().card(PINGER).unwrap());
-    let mountain = Arc::new(builtin().card("Mountain").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
-    let bears = Arc::new(canon().card(BEARS).unwrap());
+    let bolt = Arc::new(canon().card(INSTANT).unwrap().core);
+    let pinger = Arc::new(testing().card(PINGER).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
     let mut p0 = vec![Arc::clone(&bolt); 4];
     p0.extend(vec![Arc::clone(&pinger); 3]);
     p0.extend(vec![Arc::clone(&mountain); 8]);

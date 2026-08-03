@@ -1023,8 +1023,8 @@ mod tests {
     /// A two-player game with player 0's deck = Darksteel Myr (an
     /// indestructible 0/1), one forced onto the battlefield.
     fn myr_on_field() -> (GameState, ObjectId) {
-        let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let myr = Arc::new(canon().card("Darksteel Myr").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -3153,7 +3153,7 @@ mod tests {
         // madness to P0's off-battlefield Vampires through the layer view, which
         // `derived_abilities_of` folds into the replacement scan. No conferral
         // rules are installed: the grant is the layer path, not a global rule.
-        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap());
+        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap().core);
         // A Vampire in hand that ALSO prints its own madness — the two-source
         // stack.
         let vampire = mint_in_hand_with(
@@ -3268,7 +3268,7 @@ mod tests {
     #[test]
     fn gorger_madness_grant_is_owner_scoped_in_the_layer_view() {
         let (mut state, _a) = bear_on_field();
-        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap());
+        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap().core);
         let mine = mint_in_hand_with(&mut state, PlayerId(0), vanilla_vampire("P0 Vampire"));
         let theirs = mint_in_hand_with(&mut state, PlayerId(1), vanilla_vampire("P1 Vampire"));
 
@@ -3295,7 +3295,7 @@ mod tests {
     #[test]
     fn gorger_madness_window_opens_only_for_its_controllers_vampire() {
         let (mut state, _a) = bear_on_field();
-        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap());
+        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap().core);
         let mine = mint_in_hand_with(&mut state, PlayerId(0), vanilla_vampire("P0 Vampire"));
         let theirs = mint_in_hand_with(&mut state, PlayerId(1), vanilla_vampire("P1 Vampire"));
 
@@ -3348,7 +3348,7 @@ mod tests {
         }
         state.zones.hands[0].clear();
         // Anje's Ravager on the battlefield — the trigger's source.
-        let anje = mint_on_field(&mut state, canon().card("Anje's Ravager").unwrap());
+        let anje = mint_on_field(&mut state, canon().card("Anje's Ravager").unwrap().core);
         // A two-card hand: a madness card + a plain card.
         let mad = mint_in_hand_with(
             &mut state,
@@ -4197,8 +4197,8 @@ mod tests {
     /// watches its own departure).
     #[test]
     fn sacrifice_fires_the_dying_objects_dies_trigger() {
-        let card = Arc::new(canon().card("Footlight Fiend").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let card = Arc::new(canon().card("Footlight Fiend").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {

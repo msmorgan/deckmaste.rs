@@ -2726,8 +2726,8 @@ mod tests {
         /// Player 0's deck = Darksteel Myr (indestructible 0/1), one on the
         /// field.
         fn myr_on_field() -> (GameState, crate::object::ObjectId) {
-            let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
-            let forest = Arc::new(builtin().card("Forest").unwrap());
+            let myr = Arc::new(canon().card("Darksteel Myr").unwrap().core);
+            let forest = Arc::new(builtin().card("Forest").unwrap().core);
             let mut state = GameState::new(GameConfig {
                 players: vec![
                     PlayerConfig {
@@ -2818,7 +2818,7 @@ mod tests {
         /// A two-player game with player 0's deck being Grizzly Bears (loaded
         /// from canon so the bear ends up on the battlefield).
         fn empty_game() -> GameState {
-            let forest = Arc::new(builtin().card("Forest").unwrap());
+            let forest = Arc::new(builtin().card("Forest").unwrap().core);
             GameState::new(GameConfig {
                 players: vec![
                     PlayerConfig {

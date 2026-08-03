@@ -763,8 +763,8 @@ mod tests {
     /// Forest. Returns the state plus a creature object moved onto the
     /// battlefield.
     fn game_with_a_bear_on_the_field() -> (GameState, ObjectId) {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -805,8 +805,8 @@ mod tests {
     /// Forests forced onto the battlefield. Returns the state plus the land
     /// object.
     fn game_with_a_forest_on_the_field() -> (GameState, ObjectId) {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1132,7 +1132,7 @@ mod tests {
         let (mut state, attacker) = game_with_a_bear_on_the_field();
         // A second creature to block with.
         let blocker = {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let cid = state.cards.push(bears, PlayerId(1));
             let bid = state.objects.mint(
                 ObjectSource::Card(cid),
@@ -1210,7 +1210,7 @@ mod tests {
         let p0 = state.players[0].object;
         state.objects.obj_mut(p0).counters.insert("mark".into(), 1);
         let p1_card = {
-            let forest = Arc::new(builtin().card("Forest").unwrap());
+            let forest = Arc::new(builtin().card("Forest").unwrap().core);
             let cid = state.cards.push(forest, PlayerId(1));
             state.objects.mint(
                 ObjectSource::Card(cid),
@@ -1308,9 +1308,10 @@ mod tests {
         use crate::trigger::TriggerBindings;
 
         let (mut state, _bear) = game_with_a_bear_on_the_field();
-        let cid = state
-            .cards
-            .push(Arc::new(builtin().card("Forest").unwrap()), PlayerId(0));
+        let cid = state.cards.push(
+            Arc::new(builtin().card("Forest").unwrap().core),
+            PlayerId(0),
+        );
 
         // A triggered ability's stack token (shares the card source).
         let ability_id =
@@ -1386,7 +1387,7 @@ mod tests {
         use crate::stack::StackObject;
         let (mut state, bear) = game_with_a_bear_on_the_field();
         let spell = {
-            let card = Arc::new(builtin().card("Forest").unwrap());
+            let card = Arc::new(builtin().card("Forest").unwrap().core);
             let cid = state.cards.push(card, PlayerId(0));
             state
                 .objects
@@ -1521,8 +1522,8 @@ mod tests {
     /// Ghoul (P1) both forced onto the battlefield — distinct colors, for the
     /// `Subject` / `Where` shares-color tests.
     fn game_with_bear_and_ghoul() -> (GameState, ObjectId, ObjectId) {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let ghouls = Arc::new(canon().card("Diregraf Ghoul").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let ghouls = Arc::new(canon().card("Diregraf Ghoul").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1650,7 +1651,7 @@ mod tests {
     /// Force a fresh battlefield creature of card `name` (from canon) under
     /// player 0, returning its object id.
     fn put_canon_creature(state: &mut GameState, name: &str) -> ObjectId {
-        let card = Arc::new(canon().card(name).unwrap());
+        let card = Arc::new(canon().card(name).unwrap().core);
         let cid = state.cards.push(card, PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(cid),
@@ -1666,7 +1667,7 @@ mod tests {
     /// Hunter (4/4, greater power). All three are declared as attackers so
     /// `Attacking` admits each.
     fn mentor_board() -> (GameState, ObjectId, ObjectId, ObjectId) {
-        let courser = Arc::new(canon().card("Centaur Courser").unwrap());
+        let courser = Arc::new(canon().card("Centaur Courser").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {

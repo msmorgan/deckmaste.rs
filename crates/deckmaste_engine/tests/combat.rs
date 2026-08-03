@@ -59,7 +59,8 @@ fn card(name: &str) -> Arc<Card> {
     let card = plugin("canon")
         .card(name)
         .or_else(|_| plugin("testing").card(name))
-        .unwrap();
+        .unwrap()
+        .core;
     Arc::new(card)
 }
 

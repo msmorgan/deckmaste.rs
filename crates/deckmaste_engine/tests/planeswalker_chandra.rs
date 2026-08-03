@@ -307,8 +307,8 @@ fn enter_chandra_then(
 }
 
 fn chandra_deck(n_bears: usize) -> Vec<Arc<Card>> {
-    let chandra = Arc::new(canon().card(CHANDRA).unwrap());
-    let bears = Arc::new(canon().card(BEARS).unwrap());
+    let chandra = Arc::new(canon().card(CHANDRA).unwrap().core);
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
     let mut p0 = deck(&chandra, 1);
     p0.extend(deck(&bears, n_bears));
     p0
@@ -322,7 +322,7 @@ fn chandra_deck(n_bears: usize) -> Vec<Arc<Card>> {
 /// stays in exile ([CR#608.2g] — "if you don't, …").
 #[test]
 fn impulse_decline_deals_two_and_card_stays_exiled() {
-    let bears = Arc::new(canon().card(BEARS).unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
     let mut state = game_with_rules(chandra_deck(20), deck(&bears, 20), 3);
     let chandra = enter_chandra(&mut state);
 
@@ -354,7 +354,7 @@ fn impulse_decline_deals_two_and_card_stays_exiled() {
 /// (cast during resolution, [CR#608.2g]) AND no damage was dealt.
 #[test]
 fn impulse_accept_puts_card_on_stack_and_deals_no_damage() {
-    let bears = Arc::new(canon().card(BEARS).unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
     let mut state = game_with_rules(chandra_deck(20), deck(&bears, 20), 3);
     let chandra = enter_chandra(&mut state);
 
@@ -390,7 +390,7 @@ fn impulse_accept_puts_card_on_stack_and_deals_no_damage() {
 /// `YesNo` ([CR#608.2g]).
 #[test]
 fn impulse_uncastable_runs_if_not_without_offering() {
-    let bears = Arc::new(canon().card(BEARS).unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
     let mut state = game_with_rules(chandra_deck(20), deck(&bears, 20), 3);
     let chandra = enter_chandra(&mut state);
 
@@ -425,8 +425,8 @@ fn impulse_uncastable_runs_if_not_without_offering() {
 /// kills a 4-toughness creature ([CR#606.4]).
 #[test]
 fn full_card_abilities_activate() {
-    let bears = Arc::new(canon().card(BEARS).unwrap());
-    let centaur = Arc::new(canon().card(CENTAUR).unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
+    let centaur = Arc::new(canon().card(CENTAUR).unwrap().core);
     let mut p0 = chandra_deck(10);
     p0.extend(deck(&centaur, 10));
     let mut state = game_with_rules(p0, deck(&bears, 20), 9);
@@ -507,8 +507,8 @@ fn full_card_abilities_activate() {
 /// more than lethal — the state-based destroy fires, [CR#704.5g]).
 #[test]
 fn minus_three_kills_a_creature() {
-    let bears = Arc::new(canon().card(BEARS).unwrap());
-    let centaur = Arc::new(canon().card(CENTAUR).unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
+    let centaur = Arc::new(canon().card(CENTAUR).unwrap().core);
     let mut p0 = chandra_deck(10);
     p0.extend(deck(&centaur, 10));
     let mut state = game_with_rules(p0, deck(&bears, 20), 11);
@@ -564,7 +564,7 @@ fn minus_three_kills_a_creature() {
 /// emblem carrying the "whenever you cast a spell" trigger ([CR#114.1]).
 #[test]
 fn ultimate_mints_an_emblem() {
-    let bears = Arc::new(canon().card(BEARS).unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
     let mut state = game_with_rules(chandra_deck(20), deck(&bears, 20), 5);
     // Loyalty 4 can't pay −7 by itself; boost it to 7 before the priority opens
     // (the loyalty-cost gate is proven elsewhere — here we exercise the emblem

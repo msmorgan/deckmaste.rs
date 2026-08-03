@@ -28,10 +28,10 @@ fn matchup() -> DeckCards {
     let builtin =
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap();
     DeckCards {
-        p0_spell: Arc::new(canon.card("Grizzly Bears").unwrap()),
-        p0_land: Arc::new(builtin.card("Forest").unwrap()),
-        p1_spell: Arc::new(canon.card("Lightning Bolt").unwrap()),
-        p1_land: Arc::new(builtin.card("Mountain").unwrap()),
+        p0_spell: Arc::new(canon.card("Grizzly Bears").unwrap().core),
+        p0_land: Arc::new(builtin.card("Forest").unwrap().core),
+        p1_spell: Arc::new(canon.card("Lightning Bolt").unwrap().core),
+        p1_land: Arc::new(builtin.card("Mountain").unwrap().core),
     }
 }
 

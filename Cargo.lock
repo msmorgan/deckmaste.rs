@@ -554,6 +554,7 @@ dependencies = [
  "deckmaste_authoring",
  "deckmaste_card",
  "deckmaste_core",
+ "deckmaste_lowering",
  "macro_ron",
  "regex",
  "ron",

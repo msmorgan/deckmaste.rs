@@ -321,8 +321,8 @@ fn first_p0_priority_on_opponent_turn(state: &mut GameState) -> Vec<Action> {
 /// offered at all on the opponent's turn (sorcery-speed only).
 #[test]
 fn jace_enters_with_loyalty_and_activates_plus_two() {
-    let jace = Arc::new(canon().card(JACE).unwrap());
-    let filler = Arc::new(canon().card(FILLER).unwrap());
+    let jace = Arc::new(canon().card(JACE).unwrap().core);
+    let filler = Arc::new(canon().card(FILLER).unwrap().core);
     let mut p0 = deck(&jace, 1);
     p0.extend(deck(&filler, 19));
     let mut state = game_with_rules(p0, deck(&filler, 20), 1);
@@ -392,9 +392,9 @@ fn jace_enters_with_loyalty_and_activates_plus_two() {
 /// (`Decision::Attackers(vec![(attacker, jace)])`).
 #[test]
 fn jace_dies_to_combat_damage_via_zero_loyalty_sba() {
-    let centaur = Arc::new(canon().card(CENTAUR).unwrap());
-    let jace = Arc::new(canon().card(JACE).unwrap());
-    let filler = Arc::new(canon().card(FILLER).unwrap());
+    let centaur = Arc::new(canon().card(CENTAUR).unwrap().core);
+    let jace = Arc::new(canon().card(JACE).unwrap().core);
+    let filler = Arc::new(canon().card(FILLER).unwrap().core);
     let mut p1 = deck(&jace, 1);
     p1.extend(deck(&filler, 19));
     let mut state = game_with_rules(deck(&centaur, 20), p1, 7);

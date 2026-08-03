@@ -77,7 +77,7 @@ impl Deck {
                 .iter()
                 .find_map(|p| p.card(&entry.card).ok())
                 .with_context(|| format!("deck {:?}: unknown card {:?}", self.name, entry.card))?;
-            let card = Arc::new(card);
+            let card = Arc::new(card.core);
             out.extend(std::iter::repeat_n(Arc::clone(&card), entry.count));
         }
         Ok(out.into())

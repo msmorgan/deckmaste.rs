@@ -476,8 +476,8 @@ mod tests {
     /// A two-player game; player 0's deck is Grizzly Bears.
     /// Returns the state plus a creature object forced onto the battlefield.
     fn bear_on_field() -> (GameState, crate::object::ObjectId) {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -510,8 +510,8 @@ mod tests {
 
     /// Player 0's deck = Darksteel Myr (indestructible 0/1), one on the field.
     fn myr_on_field() -> (GameState, crate::object::ObjectId) {
-        let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let myr = Arc::new(canon().card("Darksteel Myr").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -555,7 +555,7 @@ mod tests {
         ignore = "requires generated plugins/wizards corpus"
     )]
     fn wizards_aura_carries_innate_graveyard_sba() {
-        let gift = Arc::new(wizards().card("Angelic Gift").unwrap());
+        let gift = Arc::new(wizards().card("Angelic Gift").unwrap().core);
         // Sanity: the loaded card actually carries the Aura subtype's confer.
         // (the layer-4 `fold_conferred_abilities` is what flattens it onto the
         // derived object.)
@@ -772,7 +772,7 @@ mod tests {
     /// a Win for whoever was checked first.
     #[test]
     fn simultaneous_double_loss_is_a_draw() {
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -906,7 +906,7 @@ mod tests {
 
         use crate::event::AbilityCountered;
 
-        let bolt = Arc::new(canon().card("Lightning Bolt").unwrap());
+        let bolt = Arc::new(canon().card("Lightning Bolt").unwrap().core);
         let mut state = game();
         let card_id = state.cards.push(bolt, PlayerId(0));
         // Stranded: the backing object's zone already reads something other
@@ -1963,7 +1963,7 @@ mod tests {
         state.sba_rules = builtin().sba_rules;
 
         // A deathtouch source (Typhoid Rats, 1/1 deathtouch) on the battlefield.
-        let rats = Arc::new(canon().card("Typhoid Rats").unwrap());
+        let rats = Arc::new(canon().card("Typhoid Rats").unwrap().core);
         let rats_card = state.cards.push(Arc::clone(&rats), PlayerId(1));
         let source = state.objects.mint(
             ObjectSource::Card(rats_card),
@@ -2092,7 +2092,7 @@ mod tests {
     fn platinum_angel_parses_two_outcome_gates() {
         use deckmaste_core::Ability;
         use deckmaste_core::StaticEffect;
-        let angel = canon().card("Platinum Angel").unwrap();
+        let angel = canon().card("Platinum Angel").unwrap().core;
         let gates = crate::derive::face(&angel)
             .abilities
             .iter()
@@ -2106,8 +2106,8 @@ mod tests {
         use deckmaste_core::OutcomeGateKind;
 
         use crate::object::ObjectSource;
-        let angel = Arc::new(canon().card("Platinum Angel").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let angel = Arc::new(canon().card("Platinum Angel").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -2149,8 +2149,8 @@ mod tests {
     #[test]
     fn platinum_angel_suppresses_life_zero_loss() {
         use crate::object::ObjectSource;
-        let angel = Arc::new(canon().card("Platinum Angel").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let angel = Arc::new(canon().card("Platinum Angel").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -2205,8 +2205,8 @@ mod tests {
     #[test]
     fn platinum_angel_suppresses_poison_loss() {
         use crate::object::ObjectSource;
-        let angel = Arc::new(canon().card("Platinum Angel").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let angel = Arc::new(canon().card("Platinum Angel").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -2267,8 +2267,8 @@ mod tests {
     fn gated_empty_draw_window_lapses() {
         use crate::agenda::WorkItem;
         use crate::object::ObjectSource;
-        let angel = Arc::new(canon().card("Platinum Angel").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let angel = Arc::new(canon().card("Platinum Angel").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -2331,8 +2331,8 @@ mod tests {
         use crate::decide::PendingDecision;
         use crate::object::ObjectSource;
 
-        let persecutor = Arc::new(canon().card("Abyssal Persecutor").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let persecutor = Arc::new(canon().card("Abyssal Persecutor").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {

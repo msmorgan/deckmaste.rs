@@ -7,6 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use deckmaste_card::Card;
+use deckmaste_lowering::Lower;
 use deckmaste_plugin::plugin::Plugin;
 
 fn testing_path() -> PathBuf {
@@ -14,7 +15,7 @@ fn testing_path() -> PathBuf {
 }
 
 fn assert_testing_card_name(plugin: &Plugin, name: &str) {
-    let card = plugin.card(name).unwrap();
+    let card = plugin.card(name).unwrap().core;
     let face_name = match card {
         Card::Normal(card) => card.name,
         Card::TwoFaced { front, .. } => front.name,
@@ -43,4 +44,18 @@ fn testing_mocks_are_valid() {
     assert_testing_card_name(&testing, "Trample Deathtouch Creature");
     assert_testing_card_name(&testing, "Trample granter");
     assert_testing_card_name(&testing, "Animate enchantments");
+}
+
+/// The loader hands back BOTH projections of one parse: the authored term the
+/// spelling side needs and the engine value the engine needs. Reading twice
+/// could produce two values; reading once cannot.
+#[test]
+fn card_load_yields_both_projections_of_one_parse() {
+    let plugin = Plugin::load_with_sibling_prelude(testing_path()).unwrap();
+    let loaded = plugin.card("Exalted Creature").expect("testing card loads");
+    assert_eq!(
+        loaded.authored.clone().lower(),
+        loaded.core,
+        "the core half must be exactly the lowering of the authored half"
+    );
 }

@@ -338,8 +338,8 @@ mod tests {
     /// ([CR#608.2i]).
     #[test]
     fn happened_morbid_reads_history_window() {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -426,8 +426,8 @@ mod tests {
     /// object IS the watcher).
     #[test]
     fn is_reference_tests_filter_against_resolved_object() {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -557,7 +557,7 @@ mod tests {
 
             // The condition's subject: an actual creature, present or not.
             if creature_present {
-                let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+                let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
                 let bear_card = state.cards.push(bears, PlayerId(0));
                 let bear = state.objects.mint(
                     ObjectSource::Card(bear_card),
@@ -623,7 +623,7 @@ mod tests {
         // carrying `counters`, and ask whether `Is(This, HasCounter(kind))`
         // holds. The live object is removed so only the snapshot path can answer.
         let holds = |counters: &[(&str, Uint)], kind: &str| -> bool {
-            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let mut state = GameState::new(GameConfig {
                 players: vec![
                     PlayerConfig {
@@ -835,8 +835,8 @@ mod tests {
     /// then the only creature.
     #[test]
     fn compare_counts_nonstack_filter() {
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -899,11 +899,11 @@ mod tests {
 
         use crate::object::ObjectSource;
 
-        let bears = Arc::new(canon().card("Grizzly Bears").unwrap()); // 2/2 carrier
-        let courser = Arc::new(canon().card("Centaur Courser").unwrap()); // 3/3
-        let spider = Arc::new(canon().card("Giant Spider").unwrap()); // 2/4
-        let phantasm = Arc::new(canon().card("Phantasmal Bear").unwrap()); // 2/2
-        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core); // 2/2 carrier
+        let courser = Arc::new(canon().card("Centaur Courser").unwrap().core); // 3/3
+        let spider = Arc::new(canon().card("Giant Spider").unwrap().core); // 2/4
+        let phantasm = Arc::new(canon().card("Phantasmal Bear").unwrap().core); // 2/2
+        let forest = Arc::new(builtin().card("Forest").unwrap().core);
         let mut state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig {
@@ -1097,7 +1097,7 @@ mod tests {
 
         let mut state = game();
         state.turn.turn_number = 1;
-        let bear = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let bear = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let card = state.cards.push(bear, PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card),

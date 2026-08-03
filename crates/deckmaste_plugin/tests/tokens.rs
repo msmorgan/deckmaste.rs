@@ -63,7 +63,7 @@ fn artifact_subtype(name: &str) -> Subtype {
 // [CR#111.10a]
 #[test]
 fn treasure_token_parses() {
-    let token = builtin().token("Treasure").unwrap();
+    let token = builtin().token("Treasure").unwrap().core;
     assert_eq!(
         token,
         Token {
@@ -96,7 +96,7 @@ fn treasure_token_parses() {
 // [CR#111.10f]
 #[test]
 fn clue_token_parses() {
-    let token = builtin().token("Clue").unwrap();
+    let token = builtin().token("Clue").unwrap().core;
     assert_eq!(
         token,
         Token {
@@ -124,7 +124,7 @@ fn clue_token_parses() {
 // [CR#111.10b]
 #[test]
 fn food_token_parses() {
-    let token = builtin().token("Food").unwrap();
+    let token = builtin().token("Food").unwrap().core;
     assert_eq!(
         token,
         Token {
@@ -160,7 +160,7 @@ fn food_token_parses() {
 // [CR#111.10c]
 #[test]
 fn gold_token_parses() {
-    let token = builtin().token("Gold").unwrap();
+    let token = builtin().token("Gold").unwrap().core;
     assert_eq!(
         token,
         Token {
@@ -198,7 +198,7 @@ fn blood_token_parses() {
     // Read through the builtin macro set so the remembered `Expanded`
     // wrapper (the `DiscardCards(1)` cost macro) matches exactly.
     let discard_one: CostComponent = builtin().macros.read_str("DiscardCards(1)").unwrap();
-    let token = builtin().token("Blood").unwrap();
+    let token = builtin().token("Blood").unwrap().core;
     assert_eq!(
         token,
         Token {
@@ -287,7 +287,7 @@ fn vibranium_token_parses() {
             .into(),
         },
     ));
-    let token = builtin().token("Vibranium").unwrap();
+    let token = builtin().token("Vibranium").unwrap().core;
     assert_eq!(
         token,
         Token {

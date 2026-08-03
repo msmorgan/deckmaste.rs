@@ -136,7 +136,7 @@ fn basic_lands_parse_against_the_subtype_macros() {
     );
 
     for name in ["Forest", "Island", "Mountain", "Plains", "Swamp"] {
-        let card = plugin.card(name).unwrap();
+        let card = plugin.card(name).unwrap().core;
         assert_eq!(card, basic_land(name));
 
         // Every subtype the card references must be declared, under a type

@@ -143,9 +143,9 @@ fn cast_is_offered(state: &mut GameState, spell: ObjectId) -> bool {
 // --- convoke: tap a creature to pay a generic pip ----------------------------
 
 fn convoke_game(seed: u64) -> GameState {
-    let convoke = Arc::new(testing().card("Sorcery Convoke Draw").unwrap());
-    let bear = Arc::new(canon().card("Grizzly Bears").unwrap());
-    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let convoke = Arc::new(testing().card("Sorcery Convoke Draw").unwrap().core);
+    let bear = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&convoke); 3];
     p0.extend(vec![Arc::clone(&bear); 3]);
     p0.extend(vec![Arc::clone(&forest); 10]);
@@ -260,8 +260,8 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
 // --- delve: exile a graveyard card to pay a generic pip ----------------------
 
 fn delve_game(seed: u64) -> GameState {
-    let delve = Arc::new(testing().card("Sorcery Delve Draw").unwrap());
-    let island = Arc::new(builtin().card("Island").unwrap());
+    let delve = Arc::new(testing().card("Sorcery Delve Draw").unwrap().core);
+    let island = Arc::new(builtin().card("Island").unwrap().core);
     let mut p0 = vec![Arc::clone(&delve); 3];
     p0.extend(vec![Arc::clone(&island); 12]);
     GameState::new(GameConfig {
@@ -463,9 +463,9 @@ fn delve_makes_an_otherwise_unaffordable_cast_legal() {
 // --------------
 
 fn improvise_game(seed: u64) -> GameState {
-    let improvise = Arc::new(testing().card("Sorcery Improvise Draw").unwrap());
-    let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
-    let island = Arc::new(builtin().card("Island").unwrap());
+    let improvise = Arc::new(testing().card("Sorcery Improvise Draw").unwrap().core);
+    let myr = Arc::new(canon().card("Darksteel Myr").unwrap().core);
+    let island = Arc::new(builtin().card("Island").unwrap().core);
     let mut p0 = vec![Arc::clone(&improvise); 3];
     p0.extend(vec![Arc::clone(&myr); 3]);
     p0.extend(vec![Arc::clone(&island); 10]);
