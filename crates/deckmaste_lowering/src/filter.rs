@@ -113,3 +113,351 @@ impl Lower for deckmaste_authoring::Predicate {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_object_kind_ability() {
+        assert_lowers(deckmaste_authoring::ObjectKind::Ability);
+    }
+
+    #[test]
+    fn lowers_object_kind_card() {
+        assert_lowers(deckmaste_authoring::ObjectKind::Card);
+    }
+
+    #[test]
+    fn lowers_object_kind_card_copy() {
+        assert_lowers(deckmaste_authoring::ObjectKind::CardCopy);
+    }
+
+    #[test]
+    fn lowers_object_kind_emblem() {
+        assert_lowers(deckmaste_authoring::ObjectKind::Emblem);
+    }
+
+    #[test]
+    fn lowers_object_kind_player() {
+        assert_lowers(deckmaste_authoring::ObjectKind::Player);
+    }
+
+    #[test]
+    fn lowers_object_kind_spell() {
+        assert_lowers(deckmaste_authoring::ObjectKind::Spell);
+    }
+
+    #[test]
+    fn lowers_object_kind_token() {
+        assert_lowers(deckmaste_authoring::ObjectKind::Token);
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_type() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Type(
+            minimal_type_ref(),
+        ));
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_subtype() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Subtype(
+            minimal_subtype_ref(),
+        ));
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_supertype() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Supertype(
+            minimal_supertype(),
+        ));
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_color_is() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::ColorIs(
+            minimal_color(),
+        ));
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_named() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Named(
+            "X".into(),
+        ));
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_stat() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Stat(
+            minimal_stat(),
+            minimal_cmp(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_multicolored() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Multicolored);
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_colorless() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Colorless);
+    }
+
+    #[test]
+    fn lowers_characteristic_predicate_has() {
+        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Has(
+            minimal_keyword_ref(),
+        ));
+    }
+
+    #[test]
+    fn lowers_state_predicate_in_zone() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::InZone(minimal_zone()));
+    }
+
+    #[test]
+    fn lowers_state_predicate_status() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::Status(minimal_status()));
+    }
+
+    #[test]
+    fn lowers_state_predicate_summoning_sick() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::SummoningSick);
+    }
+
+    #[test]
+    fn lowers_state_predicate_has_counter() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::HasCounter(
+            minimal_counter_ref(),
+        ));
+    }
+
+    #[test]
+    fn lowers_state_predicate_designated() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::Designated("X".into()));
+    }
+
+    #[test]
+    fn lowers_state_predicate_related_by() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::RelatedBy(
+            "X".into(),
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_state_predicate_attacking() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::Attacking);
+    }
+
+    #[test]
+    fn lowers_state_predicate_blocking() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::Blocking);
+    }
+
+    #[test]
+    fn lowers_state_predicate_unblocked() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::Unblocked);
+    }
+
+    #[test]
+    fn lowers_state_predicate_targets() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::Targets(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_state_predicate_target_count() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::TargetCount(
+            minimal_count_bound(),
+        ));
+    }
+
+    #[test]
+    fn lowers_state_predicate_was_paid_with() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::WasPaidWith(
+            minimal_cost_tag(),
+        ));
+    }
+
+    #[test]
+    fn lowers_state_predicate_was_cast_with() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::WasCastWith(
+            minimal_cost_tag(),
+        ));
+    }
+
+    #[test]
+    fn lowers_state_predicate_was_put_from() {
+        assert_lowers_debug(deckmaste_authoring::StatePredicate::WasPutFrom(
+            minimal_zone(),
+        ));
+    }
+
+    #[test]
+    fn lowers_relation_predicate_controlled_by() {
+        assert_lowers_debug(deckmaste_authoring::RelationPredicate::ControlledBy(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_relation_predicate_controls() {
+        assert_lowers_debug(deckmaste_authoring::RelationPredicate::Controls(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_relation_predicate_owner() {
+        assert_lowers_debug(deckmaste_authoring::RelationPredicate::Owner(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_relation_predicate_opponent_of() {
+        assert_lowers_debug(deckmaste_authoring::RelationPredicate::OpponentOf(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_relation_predicate_teammate_of() {
+        assert_lowers_debug(deckmaste_authoring::RelationPredicate::TeammateOf(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_relation_predicate_attached_to() {
+        assert_lowers_debug(deckmaste_authoring::RelationPredicate::AttachedTo(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_relation_predicate_attachment() {
+        assert_lowers_debug(deckmaste_authoring::RelationPredicate::Attachment(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_adjacency_above() {
+        assert_lowers(deckmaste_authoring::Adjacency::Above);
+    }
+
+    #[test]
+    fn lowers_adjacency_below() {
+        assert_lowers(deckmaste_authoring::Adjacency::Below);
+    }
+
+    #[test]
+    fn lowers_predicate_kind() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Kind(minimal_object_kind()));
+    }
+
+    #[test]
+    fn lowers_predicate_characteristic() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Characteristic(
+            minimal_characteristic_predicate(),
+        ));
+    }
+
+    #[test]
+    fn lowers_predicate_state() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::State(
+            minimal_state_predicate(),
+        ));
+    }
+
+    #[test]
+    fn lowers_predicate_relation() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Relation(
+            minimal_relation_predicate(),
+        ));
+    }
+
+    #[test]
+    fn lowers_predicate_ref() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Ref(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_predicate_adjacent() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Adjacent(
+            minimal_adjacency(),
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_predicate_player_stat_cmp() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::PlayerStatCmp(
+            minimal_player_attr(),
+            minimal_cmp(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_predicate_from_source() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::FromSource(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_predicate_and() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::And([].into()));
+    }
+
+    #[test]
+    fn lowers_predicate_or() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Or([].into()));
+    }
+
+    #[test]
+    fn lowers_predicate_not() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Not(std::sync::Arc::new(
+            minimal_predicate(),
+        )));
+    }
+
+    #[test]
+    fn lowers_predicate_where() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Where(std::sync::Arc::new(
+            minimal_condition(),
+        )));
+    }
+
+    #[test]
+    fn lowers_predicate_any() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Any);
+    }
+
+    #[test]
+    fn lowers_predicate_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Predicate::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_predicate()),
+            },
+        ));
+    }
+}

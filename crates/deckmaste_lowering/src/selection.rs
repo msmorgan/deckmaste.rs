@@ -49,3 +49,132 @@ impl Lower for deckmaste_authoring::Selection {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_selection_select_all() {
+        assert_lowers_debug(deckmaste_authoring::Selection::SelectAll(
+            minimal_predicate(),
+        ));
+    }
+
+    #[test]
+    fn lowers_selection_union() {
+        assert_lowers_debug(deckmaste_authoring::Selection::Union(Vec::new()));
+    }
+
+    #[test]
+    fn lowers_selection_in_chosen_order() {
+        assert_lowers_debug(deckmaste_authoring::Selection::InChosenOrder(
+            std::sync::Arc::new(minimal_selection()),
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_selection_random() {
+        assert_lowers_debug(deckmaste_authoring::Selection::Random(
+            minimal_quantity(),
+            minimal_predicate(),
+        ));
+    }
+
+    #[test]
+    fn lowers_selection_among_noted() {
+        assert_lowers_debug(deckmaste_authoring::Selection::AmongNoted(
+            "X".into(),
+            minimal_quantity(),
+        ));
+    }
+
+    #[test]
+    fn lowers_selection_top_of_library() {
+        assert_lowers_debug(deckmaste_authoring::Selection::TopOfLibrary {
+            count: minimal_count(),
+            whose: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_selection_bottom_of_library() {
+        assert_lowers_debug(deckmaste_authoring::Selection::BottomOfLibrary {
+            count: minimal_count(),
+            whose: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_selection_library_of() {
+        assert_lowers_debug(deckmaste_authoring::Selection::LibraryOf(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_selection_top_of_graveyard() {
+        assert_lowers_debug(deckmaste_authoring::Selection::TopOfGraveyard {
+            count: minimal_count(),
+            of: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_selection_targets() {
+        assert_lowers_debug(deckmaste_authoring::Selection::Targets(0));
+    }
+
+    #[test]
+    fn lowers_selection_valid_targets_for() {
+        assert_lowers_debug(deckmaste_authoring::Selection::ValidTargetsFor(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_selection_they() {
+        assert_lowers_debug(deckmaste_authoring::Selection::They);
+    }
+
+    #[test]
+    fn lowers_selection_them() {
+        assert_lowers_debug(deckmaste_authoring::Selection::Them(minimal_sort()));
+    }
+
+    #[test]
+    fn lowers_selection_piles_of() {
+        assert_lowers_debug(deckmaste_authoring::Selection::PilesOf {
+            note: "X".into(),
+            of: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_selection_pick() {
+        assert_lowers_debug(deckmaste_authoring::Selection::Pick {
+            op: minimal_aggregate_op(),
+            proj: minimal_projection(),
+        });
+    }
+
+    #[test]
+    fn lowers_selection_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Selection::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_selection()),
+            },
+        ));
+    }
+}

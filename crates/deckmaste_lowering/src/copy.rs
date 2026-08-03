@@ -58,3 +58,73 @@ impl Lower for deckmaste_authoring::CopiableValues {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_copy_spec() {
+        assert_lowers(deckmaste_authoring::CopySpec {
+            source: minimal_copy_source(),
+            exceptions: Vec::new(),
+        });
+    }
+
+    #[test]
+    fn lowers_copy_source_object() {
+        assert_lowers_debug(deckmaste_authoring::CopySource::Object(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_copy_source_self_card() {
+        assert_lowers_debug(deckmaste_authoring::CopySource::SelfCard);
+    }
+
+    #[test]
+    fn lowers_copy_exception_modify() {
+        assert_lowers_debug(deckmaste_authoring::CopyException::Modify(
+            minimal_modification(),
+        ));
+    }
+
+    #[test]
+    fn lowers_copy_exception_retain() {
+        assert_lowers_debug(deckmaste_authoring::CopyException::Retain(
+            minimal_characteristic(),
+        ));
+    }
+
+    #[test]
+    fn lowers_copy_exception_additional_effect() {
+        assert_lowers_debug(deckmaste_authoring::CopyException::AdditionalEffect(
+            minimal_enter_rider(),
+        ));
+    }
+
+    #[test]
+    fn lowers_copiable_values() {
+        assert_lowers(deckmaste_authoring::CopiableValues {
+            name: "x".into(),
+            mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
+                [deckmaste_authoring::ManaSymbol],
+            >::from([])),
+            color_indicator: Vec::new(),
+            supertypes: Vec::new(),
+            types: Vec::new(),
+            subtypes: Vec::new(),
+            abilities: Vec::new(),
+            power: None,
+            toughness: None,
+            loyalty: None,
+            defense: None,
+        });
+    }
+}

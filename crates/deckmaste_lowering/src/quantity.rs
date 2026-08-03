@@ -16,3 +16,32 @@ impl Lower for deckmaste_authoring::Quantity {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_quantity_range() {
+        assert_lowers_debug(deckmaste_authoring::Quantity::Range(None, None));
+    }
+
+    #[test]
+    fn lowers_quantity_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Quantity::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_quantity()),
+            },
+        ));
+    }
+}

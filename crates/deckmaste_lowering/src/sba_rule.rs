@@ -17,3 +17,24 @@ impl Lower for deckmaste_authoring::SbaRule {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_sba_rule() {
+        assert_lowers(deckmaste_authoring::SbaRule {
+            scope: minimal_predicate(),
+            when: minimal_condition(),
+            then: minimal_one_shot_effect(),
+        });
+    }
+}

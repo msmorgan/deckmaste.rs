@@ -18,3 +18,35 @@ impl Lower for deckmaste_authoring::StatValue {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_stat_value_defined_by_ability() {
+        assert_lowers_debug(deckmaste_authoring::StatValue::DefinedByAbility);
+    }
+
+    #[test]
+    fn lowers_stat_value_variable() {
+        assert_lowers_debug(deckmaste_authoring::StatValue::Variable);
+    }
+
+    #[test]
+    fn lowers_stat_value_number() {
+        assert_lowers_debug(deckmaste_authoring::StatValue::Number(0));
+    }
+
+    #[test]
+    fn lowers_stat_value_count() {
+        assert_lowers_debug(deckmaste_authoring::StatValue::Count(minimal_count()));
+    }
+}

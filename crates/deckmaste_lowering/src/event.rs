@@ -136,10 +136,6 @@ impl Lower for deckmaste_authoring::Cause {
 
 impl Lower for deckmaste_authoring::EventFilter {
     type Target = deckmaste_core::EventFilter;
-    // One arm per variant of the grammar's widest enum, several with many named
-    // fields. Splitting the match into helpers is exactly what must NOT happen
-    // here: the single exhaustive match is the ratchet that turns a new variant
-    // on either side into a build error.
     #[expect(
         clippy::too_many_lines,
         reason = "exhaustive one-arm-per-variant map; splitting it would hide the exhaustiveness check"
@@ -303,5 +299,526 @@ impl Lower for deckmaste_authoring::EventFilter {
             Self::Before(f0) => deckmaste_core::EventFilter::Before(f0.lower()),
             Self::Expanded(f0) => deckmaste_core::EventFilter::Expanded(f0.lower()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_phase_kind_beginning() {
+        assert_lowers(deckmaste_authoring::PhaseKind::Beginning);
+    }
+
+    #[test]
+    fn lowers_phase_kind_precombat_main() {
+        assert_lowers(deckmaste_authoring::PhaseKind::PrecombatMain);
+    }
+
+    #[test]
+    fn lowers_phase_kind_combat() {
+        assert_lowers(deckmaste_authoring::PhaseKind::Combat);
+    }
+
+    #[test]
+    fn lowers_phase_kind_postcombat_main() {
+        assert_lowers(deckmaste_authoring::PhaseKind::PostcombatMain);
+    }
+
+    #[test]
+    fn lowers_phase_kind_ending() {
+        assert_lowers(deckmaste_authoring::PhaseKind::Ending);
+    }
+
+    #[test]
+    fn lowers_phase_step_beginning() {
+        assert_lowers(deckmaste_authoring::PhaseStep::Beginning(
+            minimal_beginning_step(),
+        ));
+    }
+
+    #[test]
+    fn lowers_phase_step_precombat_main() {
+        assert_lowers(deckmaste_authoring::PhaseStep::PrecombatMain);
+    }
+
+    #[test]
+    fn lowers_phase_step_combat() {
+        assert_lowers(deckmaste_authoring::PhaseStep::Combat(minimal_combat_step()));
+    }
+
+    #[test]
+    fn lowers_phase_step_postcombat_main() {
+        assert_lowers(deckmaste_authoring::PhaseStep::PostcombatMain);
+    }
+
+    #[test]
+    fn lowers_phase_step_ending() {
+        assert_lowers(deckmaste_authoring::PhaseStep::Ending(minimal_ending_step()));
+    }
+
+    #[test]
+    fn lowers_beginning_step_untap() {
+        assert_lowers(deckmaste_authoring::BeginningStep::Untap);
+    }
+
+    #[test]
+    fn lowers_beginning_step_upkeep() {
+        assert_lowers(deckmaste_authoring::BeginningStep::Upkeep);
+    }
+
+    #[test]
+    fn lowers_beginning_step_draw() {
+        assert_lowers(deckmaste_authoring::BeginningStep::Draw);
+    }
+
+    #[test]
+    fn lowers_combat_step_beginning_of_combat() {
+        assert_lowers(deckmaste_authoring::CombatStep::BeginningOfCombat);
+    }
+
+    #[test]
+    fn lowers_combat_step_declare_attackers() {
+        assert_lowers(deckmaste_authoring::CombatStep::DeclareAttackers);
+    }
+
+    #[test]
+    fn lowers_combat_step_declare_blockers() {
+        assert_lowers(deckmaste_authoring::CombatStep::DeclareBlockers);
+    }
+
+    #[test]
+    fn lowers_combat_step_first_combat_damage() {
+        assert_lowers(deckmaste_authoring::CombatStep::FirstCombatDamage);
+    }
+
+    #[test]
+    fn lowers_combat_step_combat_damage() {
+        assert_lowers(deckmaste_authoring::CombatStep::CombatDamage);
+    }
+
+    #[test]
+    fn lowers_combat_step_end_of_combat() {
+        assert_lowers(deckmaste_authoring::CombatStep::EndOfCombat);
+    }
+
+    #[test]
+    fn lowers_ending_step_end() {
+        assert_lowers(deckmaste_authoring::EndingStep::End);
+    }
+
+    #[test]
+    fn lowers_ending_step_cleanup() {
+        assert_lowers(deckmaste_authoring::EndingStep::Cleanup);
+    }
+
+    #[test]
+    fn lowers_whose_turn_your() {
+        assert_lowers(deckmaste_authoring::WhoseTurn::Your);
+    }
+
+    #[test]
+    fn lowers_whose_turn_each_players() {
+        assert_lowers(deckmaste_authoring::WhoseTurn::EachPlayers);
+    }
+
+    #[test]
+    fn lowers_whose_turn_an_opponents() {
+        assert_lowers(deckmaste_authoring::WhoseTurn::AnOpponents);
+    }
+
+    #[test]
+    fn lowers_state_change_tapped() {
+        assert_lowers(deckmaste_authoring::StateChange::Tapped);
+    }
+
+    #[test]
+    fn lowers_state_change_untapped() {
+        assert_lowers(deckmaste_authoring::StateChange::Untapped);
+    }
+
+    #[test]
+    fn lowers_state_change_phased() {
+        assert_lowers(deckmaste_authoring::StateChange::Phased(minimal_phasing()));
+    }
+
+    #[test]
+    fn lowers_state_change_turned_face() {
+        assert_lowers(deckmaste_authoring::StateChange::TurnedFace(minimal_face()));
+    }
+
+    #[test]
+    fn lowers_state_change_transformed() {
+        assert_lowers(deckmaste_authoring::StateChange::Transformed);
+    }
+
+    #[test]
+    fn lowers_agency_cost_payment() {
+        assert_lowers(deckmaste_authoring::Agency::CostPayment);
+    }
+
+    #[test]
+    fn lowers_agency_attack_declaration() {
+        assert_lowers(deckmaste_authoring::Agency::AttackDeclaration);
+    }
+
+    #[test]
+    fn lowers_agency_effect_instruction() {
+        assert_lowers(deckmaste_authoring::Agency::EffectInstruction);
+    }
+
+    #[test]
+    fn lowers_agency_turn_based_action() {
+        assert_lowers(deckmaste_authoring::Agency::TurnBasedAction);
+    }
+
+    #[test]
+    fn lowers_agency_state_based_action() {
+        assert_lowers(deckmaste_authoring::Agency::StateBasedAction);
+    }
+
+    #[test]
+    fn lowers_agency_mana_ability_resolution() {
+        assert_lowers(deckmaste_authoring::Agency::ManaAbilityResolution);
+    }
+
+    #[test]
+    fn lowers_agency_special_action() {
+        assert_lowers(deckmaste_authoring::Agency::SpecialAction);
+    }
+
+    #[test]
+    fn lowers_verb_name() {
+        assert_lowers_debug(deckmaste_authoring::VerbName("X".into()));
+    }
+
+    #[test]
+    fn lowers_cause_pattern() {
+        assert_lowers(deckmaste_authoring::CausePattern {
+            verb: None,
+            agency: None,
+            agent: None,
+        });
+    }
+
+    #[test]
+    fn lowers_cause_cause() {
+        assert_lowers(deckmaste_authoring::Cause::Cause(minimal_cause_pattern()));
+    }
+
+    #[test]
+    fn lowers_event_filter_zone_change() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::ZoneChange {
+            what: minimal_predicate(),
+            from: None,
+            to: None,
+            cause: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_damage() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Damage {
+            source: minimal_predicate(),
+            to: minimal_predicate(),
+            combat: None,
+            amount: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_life_gained() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::LifeGained {
+            who: minimal_predicate(),
+            amount: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_life_lost() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::LifeLost {
+            who: minimal_predicate(),
+            amount: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_drawn() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Drawn {
+            who: minimal_predicate(),
+            amount: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_act() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Act {
+            verb: minimal_verb_name(),
+            who: minimal_predicate(),
+            on: minimal_predicate(),
+            cause: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_counter_placed() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::CounterPlaced {
+            kind: None,
+            on: minimal_predicate(),
+            amount: None,
+            cause: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_counter_removed() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::CounterRemoved {
+            kind: None,
+            on: minimal_predicate(),
+            amount: None,
+            cause: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_cast() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Cast {
+            who: minimal_predicate(),
+            what: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_copied() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Copied {
+            who: minimal_predicate(),
+            what: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_played() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Played {
+            who: minimal_predicate(),
+            what: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_activated_ab() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::ActivatedAb {
+            who: minimal_predicate(),
+            what: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_attack_declared() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::AttackDeclared {
+            by: minimal_predicate(),
+            against: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_block_declared() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::BlockDeclared {
+            by: minimal_predicate(),
+            of: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_attached() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Attached {
+            what: minimal_predicate(),
+            to: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_state_became() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::StateBecame {
+            of: minimal_predicate(),
+            becomes: minimal_state_change(),
+            cause: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_becomes_target() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::BecomesTarget {
+            what: minimal_predicate(),
+            by: minimal_predicate(),
+            source: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_step_begins() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::StepBegins {
+            at: minimal_phase_step(),
+            whose: minimal_whose_turn(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_control_changed() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::ControlChanged {
+            of: minimal_predicate(),
+            to: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_designation_changed() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::DesignationChanged {
+            name: "X".into(),
+            of: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_token_created() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::TokenCreated {
+            what: minimal_predicate(),
+            by: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_shuffled() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Shuffled {
+            by: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_revealed() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Revealed {
+            what: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_used() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Used {
+            of: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_coin_flipped() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::CoinFlipped {
+            by: minimal_predicate(),
+            won: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_dice_rolled() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::DiceRolled {
+            by: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_tap_for_mana() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::TapForMana {
+            what: minimal_predicate(),
+            by: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_roll_planar_die() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::RollPlanarDie {
+            by: minimal_predicate(),
+            face: None,
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_became_day() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::BecameDay);
+    }
+
+    #[test]
+    fn lowers_event_filter_became_night() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::BecameNight);
+    }
+
+    #[test]
+    fn lowers_event_filter_all_of() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::AllOf([].into()));
+    }
+
+    #[test]
+    fn lowers_event_filter_one_of() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::OneOf([].into()));
+    }
+
+    #[test]
+    fn lowers_event_filter_not() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Not(std::sync::Arc::new(
+            minimal_event_filter(),
+        )));
+    }
+
+    #[test]
+    fn lowers_event_filter_one_or_more() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::OneOrMore(
+            std::sync::Arc::new(minimal_event_filter()),
+        ));
+    }
+
+    #[test]
+    fn lowers_event_filter_nth() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Nth {
+            n: 0,
+            of: std::sync::Arc::new(minimal_event_filter()),
+            within: minimal_lookback(),
+        });
+    }
+
+    #[test]
+    fn lowers_event_filter_when() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::When(
+            std::sync::Arc::new(minimal_event_filter()),
+            std::sync::Arc::new(minimal_condition()),
+        ));
+    }
+
+    #[test]
+    fn lowers_event_filter_within() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Within(
+            std::sync::Arc::new(minimal_event_filter()),
+            minimal_lookback(),
+        ));
+    }
+
+    #[test]
+    fn lowers_event_filter_before() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Before(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_event_filter_expanded() {
+        assert_lowers_debug(deckmaste_authoring::EventFilter::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_event_filter()),
+            },
+        ));
     }
 }

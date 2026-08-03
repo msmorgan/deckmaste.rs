@@ -29,3 +29,50 @@ impl Lower for deckmaste_authoring::ColorOrColorless {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_color_white() {
+        assert_lowers_debug(deckmaste_authoring::Color::White);
+    }
+
+    #[test]
+    fn lowers_color_blue() {
+        assert_lowers_debug(deckmaste_authoring::Color::Blue);
+    }
+
+    #[test]
+    fn lowers_color_black() {
+        assert_lowers_debug(deckmaste_authoring::Color::Black);
+    }
+
+    #[test]
+    fn lowers_color_red() {
+        assert_lowers_debug(deckmaste_authoring::Color::Red);
+    }
+
+    #[test]
+    fn lowers_color_green() {
+        assert_lowers_debug(deckmaste_authoring::Color::Green);
+    }
+
+    #[test]
+    fn lowers_color_or_colorless_colorless() {
+        assert_lowers_debug(deckmaste_authoring::ColorOrColorless::Colorless);
+    }
+
+    #[test]
+    fn lowers_color_or_colorless_color() {
+        assert_lowers_debug(deckmaste_authoring::ColorOrColorless::Color(minimal_color()));
+    }
+}

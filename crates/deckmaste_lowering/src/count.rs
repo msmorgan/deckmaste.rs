@@ -131,3 +131,368 @@ impl Lower for deckmaste_authoring::Count {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_stat_power() {
+        assert_lowers(deckmaste_authoring::Stat::Power);
+    }
+
+    #[test]
+    fn lowers_stat_toughness() {
+        assert_lowers(deckmaste_authoring::Stat::Toughness);
+    }
+
+    #[test]
+    fn lowers_stat_mana_value() {
+        assert_lowers(deckmaste_authoring::Stat::ManaValue);
+    }
+
+    #[test]
+    fn lowers_stat_loyalty() {
+        assert_lowers(deckmaste_authoring::Stat::Loyalty);
+    }
+
+    #[test]
+    fn lowers_stat_defense() {
+        assert_lowers(deckmaste_authoring::Stat::Defense);
+    }
+
+    #[test]
+    fn lowers_round_mode_round_up() {
+        assert_lowers(deckmaste_authoring::RoundMode::RoundUp);
+    }
+
+    #[test]
+    fn lowers_round_mode_round_down() {
+        assert_lowers(deckmaste_authoring::RoundMode::RoundDown);
+    }
+
+    #[test]
+    fn lowers_characteristic_colors() {
+        assert_lowers(deckmaste_authoring::Characteristic::Colors);
+    }
+
+    #[test]
+    fn lowers_characteristic_types() {
+        assert_lowers(deckmaste_authoring::Characteristic::Types);
+    }
+
+    #[test]
+    fn lowers_characteristic_subtypes() {
+        assert_lowers(deckmaste_authoring::Characteristic::Subtypes);
+    }
+
+    #[test]
+    fn lowers_characteristic_basic_land_types() {
+        assert_lowers(deckmaste_authoring::Characteristic::BasicLandTypes);
+    }
+
+    #[test]
+    fn lowers_characteristic_supertypes() {
+        assert_lowers(deckmaste_authoring::Characteristic::Supertypes);
+    }
+
+    #[test]
+    fn lowers_characteristic_power() {
+        assert_lowers(deckmaste_authoring::Characteristic::Power);
+    }
+
+    #[test]
+    fn lowers_characteristic_toughness() {
+        assert_lowers(deckmaste_authoring::Characteristic::Toughness);
+    }
+
+    #[test]
+    fn lowers_characteristic_defense() {
+        assert_lowers(deckmaste_authoring::Characteristic::Defense);
+    }
+
+    #[test]
+    fn lowers_characteristic_mana_cost() {
+        assert_lowers(deckmaste_authoring::Characteristic::ManaCost);
+    }
+
+    #[test]
+    fn lowers_characteristic_name() {
+        assert_lowers(deckmaste_authoring::Characteristic::Name);
+    }
+
+    #[test]
+    fn lowers_countable_objects() {
+        assert_lowers(deckmaste_authoring::Countable::Objects(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_countable_players() {
+        assert_lowers(deckmaste_authoring::Countable::Players(
+            std::sync::Arc::new(minimal_predicate()),
+        ));
+    }
+
+    #[test]
+    fn lowers_countable_mana_symbols() {
+        assert_lowers(deckmaste_authoring::Countable::ManaSymbols(
+            std::sync::Arc::new(minimal_reference()),
+            minimal_symbol_pred(),
+        ));
+    }
+
+    #[test]
+    fn lowers_countable_singleton() {
+        assert_lowers(deckmaste_authoring::Countable::Singleton(
+            std::sync::Arc::new(minimal_reference()),
+        ));
+    }
+
+    #[test]
+    fn lowers_countable_mana_spent_matching() {
+        assert_lowers(deckmaste_authoring::Countable::ManaSpentMatching(
+            std::sync::Arc::new(minimal_reference()),
+            minimal_symbol_pred(),
+        ));
+    }
+
+    #[test]
+    fn lowers_aggregate_op_sum_of() {
+        assert_lowers(deckmaste_authoring::AggregateOp::SumOf);
+    }
+
+    #[test]
+    fn lowers_aggregate_op_min_of() {
+        assert_lowers(deckmaste_authoring::AggregateOp::MinOf);
+    }
+
+    #[test]
+    fn lowers_aggregate_op_max_of() {
+        assert_lowers(deckmaste_authoring::AggregateOp::MaxOf);
+    }
+
+    #[test]
+    fn lowers_aggregate_op_average_of() {
+        assert_lowers(deckmaste_authoring::AggregateOp::AverageOf(
+            minimal_round_mode(),
+        ));
+    }
+
+    #[test]
+    fn lowers_projection() {
+        assert_lowers(deckmaste_authoring::Projection {
+            of: minimal_countable(),
+            by: std::sync::Arc::new(minimal_count()),
+        });
+    }
+
+    #[test]
+    fn lowers_count_x() {
+        assert_lowers_debug(deckmaste_authoring::Count::X);
+    }
+
+    #[test]
+    fn lowers_count_count_of() {
+        assert_lowers_debug(deckmaste_authoring::Count::CountOf(minimal_countable()));
+    }
+
+    #[test]
+    fn lowers_count_count_distinct() {
+        assert_lowers_debug(deckmaste_authoring::Count::CountDistinct(
+            minimal_characteristic(),
+            minimal_countable(),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_stat_of() {
+        assert_lowers_debug(deckmaste_authoring::Count::StatOf(
+            minimal_reference(),
+            minimal_stat(),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_player_stat_of() {
+        assert_lowers_debug(deckmaste_authoring::Count::PlayerStatOf(
+            minimal_reference(),
+            minimal_player_attr(),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_opponents() {
+        assert_lowers_debug(deckmaste_authoring::Count::Opponents(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_count_counter_count() {
+        assert_lowers_debug(deckmaste_authoring::Count::CounterCount(
+            std::sync::Arc::new(minimal_reference()),
+            minimal_counter_ref(),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_min() {
+        assert_lowers_debug(deckmaste_authoring::Count::Min(
+            std::sync::Arc::new(minimal_count()),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_max() {
+        assert_lowers_debug(deckmaste_authoring::Count::Max(
+            std::sync::Arc::new(minimal_count()),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_plus() {
+        assert_lowers_debug(deckmaste_authoring::Count::Plus(
+            std::sync::Arc::new(minimal_count()),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_minus() {
+        assert_lowers_debug(deckmaste_authoring::Count::Minus(
+            std::sync::Arc::new(minimal_count()),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_times() {
+        assert_lowers_debug(deckmaste_authoring::Count::Times(
+            std::sync::Arc::new(minimal_count()),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_half() {
+        assert_lowers_debug(deckmaste_authoring::Count::Half(
+            minimal_round_mode(),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_divide() {
+        assert_lowers_debug(deckmaste_authoring::Count::Divide(
+            minimal_round_mode(),
+            std::sync::Arc::new(minimal_count()),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_mod() {
+        assert_lowers_debug(deckmaste_authoring::Count::Mod(
+            std::sync::Arc::new(minimal_count()),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_pow() {
+        assert_lowers_debug(deckmaste_authoring::Count::Pow(
+            std::sync::Arc::new(minimal_count()),
+            std::sync::Arc::new(minimal_count()),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_targets_of() {
+        assert_lowers_debug(deckmaste_authoring::Count::TargetsOf(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_count_that_many() {
+        assert_lowers_debug(deckmaste_authoring::Count::ThatMany);
+    }
+
+    #[test]
+    fn lowers_count_that_much() {
+        assert_lowers_debug(deckmaste_authoring::Count::ThatMuch);
+    }
+
+    #[test]
+    fn lowers_count_allotment() {
+        assert_lowers_debug(deckmaste_authoring::Count::Allotment);
+    }
+
+    #[test]
+    fn lowers_count_event_count() {
+        assert_lowers_debug(deckmaste_authoring::Count::EventCount(
+            std::sync::Arc::new(minimal_event_filter()),
+            minimal_lookback(),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_event_sum() {
+        assert_lowers_debug(deckmaste_authoring::Count::EventSum(
+            std::sync::Arc::new(minimal_event_filter()),
+            minimal_lookback(),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_noted() {
+        assert_lowers_debug(deckmaste_authoring::Count::Noted("X".into()));
+    }
+
+    #[test]
+    fn lowers_count_times_paid() {
+        assert_lowers_debug(deckmaste_authoring::Count::TimesPaid(minimal_cost_tag()));
+    }
+
+    #[test]
+    fn lowers_count_damage() {
+        assert_lowers_debug(deckmaste_authoring::Count::Damage(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_count_mana_available() {
+        assert_lowers_debug(deckmaste_authoring::Count::ManaAvailable(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_aggregate() {
+        assert_lowers_debug(deckmaste_authoring::Count::Aggregate(
+            minimal_aggregate_op(),
+            minimal_projection(),
+        ));
+    }
+
+    #[test]
+    fn lowers_count_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Count::Expanded(macro_ron::Expansion {
+            name: "X".into(),
+            args: macro_ron::ExpansionArgs::none(),
+            template: None,
+            value: Box::new(minimal_count()),
+        }));
+    }
+
+    #[test]
+    fn lowers_count_literal() {
+        assert_lowers_debug(deckmaste_authoring::Count::Literal(0));
+    }
+}

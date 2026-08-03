@@ -73,3 +73,122 @@ impl Lower for deckmaste_authoring::SubtypeRef {
         deckmaste_core::SubtypeRef(self.0.lower())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_type_artifact() {
+        assert_lowers(deckmaste_authoring::Type::Artifact);
+    }
+
+    #[test]
+    fn lowers_type_battle() {
+        assert_lowers(deckmaste_authoring::Type::Battle);
+    }
+
+    #[test]
+    fn lowers_type_creature() {
+        assert_lowers(deckmaste_authoring::Type::Creature);
+    }
+
+    #[test]
+    fn lowers_type_dungeon() {
+        assert_lowers(deckmaste_authoring::Type::Dungeon);
+    }
+
+    #[test]
+    fn lowers_type_enchantment() {
+        assert_lowers(deckmaste_authoring::Type::Enchantment);
+    }
+
+    #[test]
+    fn lowers_type_instant() {
+        assert_lowers(deckmaste_authoring::Type::Instant);
+    }
+
+    #[test]
+    fn lowers_type_kindred() {
+        assert_lowers(deckmaste_authoring::Type::Kindred);
+    }
+
+    #[test]
+    fn lowers_type_land() {
+        assert_lowers(deckmaste_authoring::Type::Land);
+    }
+
+    #[test]
+    fn lowers_type_planeswalker() {
+        assert_lowers(deckmaste_authoring::Type::Planeswalker);
+    }
+
+    #[test]
+    fn lowers_type_sorcery() {
+        assert_lowers(deckmaste_authoring::Type::Sorcery);
+    }
+
+    #[test]
+    fn lowers_supertype_basic() {
+        assert_lowers(deckmaste_authoring::Supertype::Basic);
+    }
+
+    #[test]
+    fn lowers_supertype_legendary() {
+        assert_lowers(deckmaste_authoring::Supertype::Legendary);
+    }
+
+    #[test]
+    fn lowers_supertype_ongoing() {
+        assert_lowers(deckmaste_authoring::Supertype::Ongoing);
+    }
+
+    #[test]
+    fn lowers_supertype_snow() {
+        assert_lowers(deckmaste_authoring::Supertype::Snow);
+    }
+
+    #[test]
+    fn lowers_supertype_world() {
+        assert_lowers(deckmaste_authoring::Supertype::World);
+    }
+
+    #[test]
+    fn lowers_subtype() {
+        assert_lowers(deckmaste_authoring::Subtype {
+            name: "X".into(),
+            types: [].into(),
+            confers: [].into(),
+        });
+    }
+
+    #[test]
+    fn lowers_type_def() {
+        assert_lowers(deckmaste_authoring::TypeDef {
+            name: "X".into(),
+            permanent: false,
+            confers: [].into(),
+        });
+    }
+
+    #[test]
+    fn lowers_type_ref() {
+        assert_lowers_debug(deckmaste_authoring::TypeRef(std::sync::Arc::new(
+            minimal_type_def(),
+        )));
+    }
+
+    #[test]
+    fn lowers_subtype_ref() {
+        assert_lowers_debug(deckmaste_authoring::SubtypeRef(std::sync::Arc::new(
+            minimal_subtype(),
+        )));
+    }
+}

@@ -44,3 +44,52 @@ impl Lower for deckmaste_authoring::Counter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_counter_ref() {
+        assert_lowers_debug(deckmaste_authoring::CounterRef("X".into()));
+    }
+
+    #[test]
+    fn lowers_counter_spec_named() {
+        assert_lowers(deckmaste_authoring::CounterSpec::Named(
+            minimal_counter_ref(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_counter_spec_all_kinds() {
+        assert_lowers(deckmaste_authoring::CounterSpec::AllKinds);
+    }
+
+    #[test]
+    fn lowers_counter_scope_object() {
+        assert_lowers(deckmaste_authoring::CounterScope::Object);
+    }
+
+    #[test]
+    fn lowers_counter_scope_player() {
+        assert_lowers(deckmaste_authoring::CounterScope::Player);
+    }
+
+    #[test]
+    fn lowers_counter() {
+        assert_lowers(deckmaste_authoring::Counter {
+            name: "X".into(),
+            scope: minimal_counter_scope(),
+            confers: Vec::new(),
+        });
+    }
+}

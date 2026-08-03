@@ -216,3 +216,480 @@ impl Lower for deckmaste_authoring::PlayerMod {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_duration_fixed_until() {
+        assert_lowers(deckmaste_authoring::Duration::FixedUntil(
+            minimal_turn_marker(),
+        ));
+    }
+
+    #[test]
+    fn lowers_duration_until_event() {
+        assert_lowers(deckmaste_authoring::Duration::UntilEvent(
+            minimal_event_filter(),
+        ));
+    }
+
+    #[test]
+    fn lowers_duration_for_as_long_as() {
+        assert_lowers(deckmaste_authoring::Duration::ForAsLongAs(
+            minimal_condition(),
+        ));
+    }
+
+    #[test]
+    fn lowers_duration_for_this_event() {
+        assert_lowers(deckmaste_authoring::Duration::ForThisEvent);
+    }
+
+    #[test]
+    fn lowers_duration_end_of_game() {
+        assert_lowers(deckmaste_authoring::Duration::EndOfGame);
+    }
+
+    #[test]
+    fn lowers_numeric_op_set() {
+        assert_lowers(deckmaste_authoring::NumericOp::Set(minimal_stat_value()));
+    }
+
+    #[test]
+    fn lowers_numeric_op_up() {
+        assert_lowers(deckmaste_authoring::NumericOp::Up(minimal_count()));
+    }
+
+    #[test]
+    fn lowers_numeric_op_down() {
+        assert_lowers(deckmaste_authoring::NumericOp::Down(minimal_count()));
+    }
+
+    #[test]
+    fn lowers_collection_op_set() {
+        assert_lowers(deckmaste_authoring::CollectionOp::<
+            deckmaste_authoring::Color,
+        >::Set([].into()));
+    }
+
+    #[test]
+    fn lowers_collection_op_add() {
+        assert_lowers(deckmaste_authoring::CollectionOp::<
+            deckmaste_authoring::Color,
+        >::Add(minimal_color()));
+    }
+
+    #[test]
+    fn lowers_collection_op_remove() {
+        assert_lowers(deckmaste_authoring::CollectionOp::<
+            deckmaste_authoring::Color,
+        >::Remove(minimal_color()));
+    }
+
+    #[test]
+    fn lowers_modification_power() {
+        assert_lowers_debug(deckmaste_authoring::Modification::Power(
+            minimal_numeric_op(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_toughness() {
+        assert_lowers_debug(deckmaste_authoring::Modification::Toughness(
+            minimal_numeric_op(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_switch_power_toughness() {
+        assert_lowers_debug(deckmaste_authoring::Modification::SwitchPowerToughness);
+    }
+
+    #[test]
+    fn lowers_modification_colors() {
+        assert_lowers_debug(deckmaste_authoring::Modification::Colors(
+            minimal_collection_op::<deckmaste_authoring::Color>(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_card_types() {
+        assert_lowers_debug(deckmaste_authoring::Modification::CardTypes(
+            minimal_collection_op::<deckmaste_authoring::Ident>(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_subtypes() {
+        assert_lowers_debug(deckmaste_authoring::Modification::Subtypes(
+            minimal_collection_op::<deckmaste_authoring::SubtypeRef>(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_supertypes() {
+        assert_lowers_debug(deckmaste_authoring::Modification::Supertypes(
+            minimal_collection_op::<deckmaste_authoring::Supertype>(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_gain_ability() {
+        assert_lowers_debug(deckmaste_authoring::Modification::GainAbility(
+            std::sync::Arc::new(minimal_ability()),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_lose_ability() {
+        assert_lowers_debug(deckmaste_authoring::Modification::LoseAbility("X".into()));
+    }
+
+    #[test]
+    fn lowers_modification_lose_all_abilities() {
+        assert_lowers_debug(deckmaste_authoring::Modification::LoseAllAbilities);
+    }
+
+    #[test]
+    fn lowers_modification_cant_have_ability() {
+        assert_lowers_debug(deckmaste_authoring::Modification::CantHaveAbility(
+            "X".into(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_set_controller() {
+        assert_lowers_debug(deckmaste_authoring::Modification::SetController(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_set_text() {
+        assert_lowers_debug(deckmaste_authoring::Modification::SetText(String::new()));
+    }
+
+    #[test]
+    fn lowers_modification_all_creature_types() {
+        assert_lowers_debug(deckmaste_authoring::Modification::AllCreatureTypes);
+    }
+
+    #[test]
+    fn lowers_modification_base_loyalty() {
+        assert_lowers_debug(deckmaste_authoring::Modification::BaseLoyalty(
+            minimal_numeric_op(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_base_defense() {
+        assert_lowers_debug(deckmaste_authoring::Modification::BaseDefense(
+            minimal_numeric_op(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_become_basic_land_type() {
+        assert_lowers_debug(deckmaste_authoring::Modification::BecomeBasicLandType(
+            [].into(),
+        ));
+    }
+
+    #[test]
+    fn lowers_modification_several() {
+        assert_lowers_debug(deckmaste_authoring::Modification::Several([].into()));
+    }
+
+    #[test]
+    fn lowers_modification_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Modification::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_modification()),
+            },
+        ));
+    }
+
+    #[test]
+    fn lowers_cost_change_increase() {
+        assert_lowers(deckmaste_authoring::CostChange::Increase([].into()));
+    }
+
+    #[test]
+    fn lowers_cost_change_reduce() {
+        assert_lowers(deckmaste_authoring::CostChange::Reduce([].into()));
+    }
+
+    #[test]
+    fn lowers_cost_change_additional() {
+        assert_lowers(deckmaste_authoring::CostChange::Additional {
+            components: [].into(),
+        });
+    }
+
+    #[test]
+    fn lowers_cost_change_scaled() {
+        assert_lowers(deckmaste_authoring::CostChange::Scaled {
+            change: std::sync::Arc::new(minimal_cost_change()),
+            times: minimal_count(),
+        });
+    }
+
+    #[test]
+    fn lowers_static_effect_modify() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::Modify(
+            minimal_reference(),
+            minimal_modification(),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_becomes_copy() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::BecomesCopy(
+            minimal_reference(),
+            minimal_copy_spec(),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_each() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::Each(
+            minimal_selection(),
+            std::sync::Arc::new(minimal_static_effect()),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_conditionally() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::Conditionally(
+            minimal_condition(),
+            std::sync::Arc::new(minimal_static_effect()),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_deontic() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::Deontic(minimal_deontic()));
+    }
+
+    #[test]
+    fn lowers_static_effect_cost_modifier() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::CostModifier {
+            of: minimal_predicate(),
+            change: minimal_cost_change(),
+        });
+    }
+
+    #[test]
+    fn lowers_static_effect_cost_option() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::CostOption(
+            minimal_optional_cost(),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_trigger_multiplier() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::TriggerMultiplier {
+            cause: minimal_event_filter(),
+            extra: minimal_count(),
+            affected: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_static_effect_modify_player() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::ModifyPlayer(
+            minimal_reference(),
+            minimal_player_mod(),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_replacement() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::Replacement(
+            std::sync::Arc::new(minimal_replacement()),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_prevention() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::Prevention(
+            std::sync::Arc::new(minimal_prevention()),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_cant_prevent() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::CantPrevent {
+            from: minimal_predicate(),
+            to: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_static_effect_spend_as_though() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::SpendAsThough {
+            mana_from: minimal_predicate(),
+            as_: minimal_symbol_pred(),
+        });
+    }
+
+    #[test]
+    fn lowers_static_effect_as_though() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::AsThough(
+            minimal_as_though(),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_sba() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::Sba {
+            when: std::sync::Arc::new(minimal_condition()),
+            then: std::sync::Arc::new(minimal_one_shot_effect()),
+        });
+    }
+
+    #[test]
+    fn lowers_static_effect_outcome_gate() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::OutcomeGate {
+            who: minimal_predicate(),
+            gate: minimal_outcome_gate_kind(),
+        });
+    }
+
+    #[test]
+    fn lowers_static_effect_cant_happen() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::CantHappen(
+            minimal_event_filter(),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_replace_roll() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::ReplaceRoll {
+            query: minimal_event_filter(),
+            extra: minimal_count(),
+            ignore: minimal_ignore_rule(),
+        });
+    }
+
+    #[test]
+    fn lowers_static_effect_pay_pips() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::PayPips(
+            minimal_pip_class(),
+            minimal_pay_act(),
+        ));
+    }
+
+    #[test]
+    fn lowers_static_effect_expanded() {
+        assert_lowers_debug(deckmaste_authoring::StaticEffect::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_static_effect()),
+            },
+        ));
+    }
+
+    #[test]
+    fn lowers_outcome_gate_kind_cant_lose() {
+        assert_lowers(deckmaste_authoring::OutcomeGateKind::CantLose);
+    }
+
+    #[test]
+    fn lowers_outcome_gate_kind_cant_win() {
+        assert_lowers(deckmaste_authoring::OutcomeGateKind::CantWin);
+    }
+
+    #[test]
+    fn lowers_ignore_rule_ignore_lowest() {
+        assert_lowers(deckmaste_authoring::IgnoreRule::IgnoreLowest);
+    }
+
+    #[test]
+    fn lowers_ignore_rule_ignore_chosen() {
+        assert_lowers(deckmaste_authoring::IgnoreRule::IgnoreChosen(0));
+    }
+
+    #[test]
+    fn lowers_pip_class_generic() {
+        assert_lowers(deckmaste_authoring::PipClass::Generic);
+    }
+
+    #[test]
+    fn lowers_pip_class_colored() {
+        assert_lowers(deckmaste_authoring::PipClass::Colored(minimal_color()));
+    }
+
+    #[test]
+    fn lowers_pay_act_tap_to_pay() {
+        assert_lowers(deckmaste_authoring::PayAct::TapToPay(minimal_predicate()));
+    }
+
+    #[test]
+    fn lowers_pay_act_exile_to_pay() {
+        assert_lowers(deckmaste_authoring::PayAct::ExileToPay(minimal_predicate()));
+    }
+
+    #[test]
+    fn lowers_player_attr_life() {
+        assert_lowers(deckmaste_authoring::PlayerAttr::Life);
+    }
+
+    #[test]
+    fn lowers_player_attr_hand_size() {
+        assert_lowers(deckmaste_authoring::PlayerAttr::HandSize);
+    }
+
+    #[test]
+    fn lowers_player_attr_hand_size_limit() {
+        assert_lowers(deckmaste_authoring::PlayerAttr::HandSizeLimit);
+    }
+
+    #[test]
+    fn lowers_player_attr_land_plays_per_turn() {
+        assert_lowers(deckmaste_authoring::PlayerAttr::LandPlaysPerTurn);
+    }
+
+    #[test]
+    fn lowers_player_mod_set_to() {
+        assert_lowers(deckmaste_authoring::PlayerMod::SetTo(
+            minimal_player_attr(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_player_mod_raise() {
+        assert_lowers(deckmaste_authoring::PlayerMod::Raise(
+            minimal_player_attr(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_player_mod_lower() {
+        assert_lowers(deckmaste_authoring::PlayerMod::Lower(
+            minimal_player_attr(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_player_mod_no_max() {
+        assert_lowers(deckmaste_authoring::PlayerMod::NoMax(minimal_player_attr()));
+    }
+}

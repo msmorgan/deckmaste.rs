@@ -23,3 +23,60 @@ impl Lower for deckmaste_authoring::Sort {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_sort_player() {
+        assert_lowers_debug(deckmaste_authoring::Sort::Player);
+    }
+
+    #[test]
+    fn lowers_sort_card() {
+        assert_lowers_debug(deckmaste_authoring::Sort::Card);
+    }
+
+    #[test]
+    fn lowers_sort_token() {
+        assert_lowers_debug(deckmaste_authoring::Sort::Token);
+    }
+
+    #[test]
+    fn lowers_sort_spell() {
+        assert_lowers_debug(deckmaste_authoring::Sort::Spell);
+    }
+
+    #[test]
+    fn lowers_sort_stack_object() {
+        assert_lowers_debug(deckmaste_authoring::Sort::StackObject);
+    }
+
+    #[test]
+    fn lowers_sort_permanent() {
+        assert_lowers_debug(deckmaste_authoring::Sort::Permanent);
+    }
+
+    #[test]
+    fn lowers_sort_of_type() {
+        assert_lowers_debug(deckmaste_authoring::Sort::OfType(minimal_type()));
+    }
+
+    #[test]
+    fn lowers_sort_amount() {
+        assert_lowers_debug(deckmaste_authoring::Sort::Amount);
+    }
+
+    #[test]
+    fn lowers_sort_pile() {
+        assert_lowers_debug(deckmaste_authoring::Sort::Pile);
+    }
+}

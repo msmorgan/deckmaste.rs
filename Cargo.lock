@@ -517,6 +517,7 @@ dependencies = [
  "deckmaste_core",
  "macro_ron",
  "ron",
+ "serde",
 ]
 
 [[package]]

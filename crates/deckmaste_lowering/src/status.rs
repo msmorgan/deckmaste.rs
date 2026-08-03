@@ -65,3 +65,94 @@ impl Lower for deckmaste_authoring::FaceDownCharacteristics {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_status_tapped() {
+        assert_lowers(deckmaste_authoring::Status::Tapped);
+    }
+
+    #[test]
+    fn lowers_status_untapped() {
+        assert_lowers(deckmaste_authoring::Status::Untapped);
+    }
+
+    #[test]
+    fn lowers_status_flipped() {
+        assert_lowers(deckmaste_authoring::Status::Flipped);
+    }
+
+    #[test]
+    fn lowers_status_unflipped() {
+        assert_lowers(deckmaste_authoring::Status::Unflipped);
+    }
+
+    #[test]
+    fn lowers_status_face_down() {
+        assert_lowers(deckmaste_authoring::Status::FaceDown);
+    }
+
+    #[test]
+    fn lowers_status_face_up() {
+        assert_lowers(deckmaste_authoring::Status::FaceUp);
+    }
+
+    #[test]
+    fn lowers_status_phased_out() {
+        assert_lowers(deckmaste_authoring::Status::PhasedOut);
+    }
+
+    #[test]
+    fn lowers_status_phased_in() {
+        assert_lowers(deckmaste_authoring::Status::PhasedIn);
+    }
+
+    #[test]
+    fn lowers_face_up() {
+        assert_lowers(deckmaste_authoring::Face::Up);
+    }
+
+    #[test]
+    fn lowers_face_down() {
+        assert_lowers(deckmaste_authoring::Face::Down);
+    }
+
+    #[test]
+    fn lowers_phasing_in() {
+        assert_lowers(deckmaste_authoring::Phasing::In);
+    }
+
+    #[test]
+    fn lowers_phasing_out() {
+        assert_lowers(deckmaste_authoring::Phasing::Out);
+    }
+
+    #[test]
+    fn lowers_face_down_spec_listed() {
+        assert_lowers(deckmaste_authoring::FaceDownSpec::Listed(
+            minimal_face_down_characteristics(),
+        ));
+    }
+
+    #[test]
+    fn lowers_face_down_characteristics() {
+        assert_lowers(deckmaste_authoring::FaceDownCharacteristics {
+            name: None,
+            types: Vec::new(),
+            subtypes: Vec::new(),
+            abilities: Vec::new(),
+            power: None,
+            toughness: None,
+        });
+    }
+}

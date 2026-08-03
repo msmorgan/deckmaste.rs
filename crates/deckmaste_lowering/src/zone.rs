@@ -21,3 +21,50 @@ impl Lower for deckmaste_authoring::Zone {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_zone_battlefield() {
+        assert_lowers_debug(deckmaste_authoring::Zone::Battlefield);
+    }
+
+    #[test]
+    fn lowers_zone_command() {
+        assert_lowers_debug(deckmaste_authoring::Zone::Command);
+    }
+
+    #[test]
+    fn lowers_zone_exile() {
+        assert_lowers_debug(deckmaste_authoring::Zone::Exile);
+    }
+
+    #[test]
+    fn lowers_zone_graveyard() {
+        assert_lowers_debug(deckmaste_authoring::Zone::Graveyard);
+    }
+
+    #[test]
+    fn lowers_zone_hand() {
+        assert_lowers_debug(deckmaste_authoring::Zone::Hand);
+    }
+
+    #[test]
+    fn lowers_zone_library() {
+        assert_lowers_debug(deckmaste_authoring::Zone::Library);
+    }
+
+    #[test]
+    fn lowers_zone_stack() {
+        assert_lowers_debug(deckmaste_authoring::Zone::Stack);
+    }
+}

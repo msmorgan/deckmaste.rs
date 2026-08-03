@@ -52,3 +52,85 @@ impl Lower for deckmaste_authoring::NotedKind {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_decider_spec_controller() {
+        assert_lowers(deckmaste_authoring::DeciderSpec::Controller);
+    }
+
+    #[test]
+    fn lowers_decider_spec_active_player() {
+        assert_lowers(deckmaste_authoring::DeciderSpec::ActivePlayer);
+    }
+
+    #[test]
+    fn lowers_decider_spec_defending_player() {
+        assert_lowers(deckmaste_authoring::DeciderSpec::DefendingPlayer);
+    }
+
+    #[test]
+    fn lowers_decider_spec_named() {
+        assert_lowers(deckmaste_authoring::DeciderSpec::Named(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_decider_spec_each_in_turn_order() {
+        assert_lowers(deckmaste_authoring::DeciderSpec::EachInTurnOrder);
+    }
+
+    #[test]
+    fn lowers_decider_spec_priority_holder() {
+        assert_lowers(deckmaste_authoring::DeciderSpec::PriorityHolder);
+    }
+
+    #[test]
+    fn lowers_decider_spec_rng() {
+        assert_lowers(deckmaste_authoring::DeciderSpec::Rng);
+    }
+
+    #[test]
+    fn lowers_visibility_open() {
+        assert_lowers(deckmaste_authoring::Visibility::Open);
+    }
+
+    #[test]
+    fn lowers_visibility_committed_hidden() {
+        assert_lowers(deckmaste_authoring::Visibility::CommittedHidden);
+    }
+
+    #[test]
+    fn lowers_chosen_value_kind_color() {
+        assert_lowers(deckmaste_authoring::ChosenValueKind::Color);
+    }
+
+    #[test]
+    fn lowers_chosen_value_kind_card_name() {
+        assert_lowers(deckmaste_authoring::ChosenValueKind::CardName);
+    }
+
+    #[test]
+    fn lowers_chosen_value_kind_number() {
+        assert_lowers(deckmaste_authoring::ChosenValueKind::Number);
+    }
+
+    #[test]
+    fn lowers_noted_kind_objects() {
+        assert_lowers(deckmaste_authoring::NotedKind::Objects);
+    }
+
+    #[test]
+    fn lowers_noted_kind_piles() {
+        assert_lowers(deckmaste_authoring::NotedKind::Piles);
+    }
+}

@@ -441,17 +441,36 @@ lowering invokes it and owns the cross-grammar mapping.
   in place — the crate IS the divergence ledger. Authored terms have no
   independent semantics: a term means its image under `lower`.
 - **Correctness story** (because the compiler forces totality, not
-  correctness): generated identity arms while mirrored; a debug-only raise
-  map enabling round-trip property tests on the mirrored subset;
-  per-variant mapping tests for every diverged arm; downstream gates
-  (engine suites, fidelity) as the backstop. **Definitions**: the
-  round-trip comparison is provenance-ERASED structural equality (compare
-  after `expand_all`-style wrapper erasure — stored `Expansion` equality
-  is deliberately provenance-sensitive and is NOT the comparison); the
-  mirrored subset is the set of terms all of whose nodes map via identity
-  arms. If a future contraction pass reorders slots, equivalence becomes
-  "equal up to consistent slot renumbering with `Distinct` edges
-  re-anchored," and that definition lands with that pass.
+  correctness): generated identity arms while mirrored; **per-variant
+  mapping tests for every variant**; a transcode differential oracle; and
+  downstream gates (engine suites, fidelity) as the backstop.
+
+  **The raise map is WITHDRAWN (owner-settled 2026-08-02, during
+  `lowering-crate`).** The original story here was a debug-only raise map
+  enabling a round-trip property (`raise(lower(t)) ≡α t`) over the
+  mirrored subset. It is not worth building: its coverage is defined as
+  the set of terms all of whose nodes map via identity arms, so it shrinks
+  monotonically as arms diverge — and `plugin-repoint` diverges the
+  `Expansion` arms almost immediately (§12), which is the first bite out
+  of it. A second full 150-impl mapping whose value decays from the day it
+  lands loses to per-variant tests that keep working after divergence,
+  which is exactly when a mapping test earns its keep.
+
+  What replaces it: **one test per variant**, and a **transcode oracle**.
+  The oracle exploits the mirror directly — because the two grammars are
+  byte-identical, `deckmaste_core::from_str(&authoring::to_string(&x))` is
+  an independent total identity lowering in a handful of lines, so
+  `lower(x) == transcode(x)` checks each arm against a path that shares no
+  code with it. That is the only check that catches a wrong-but-well-typed
+  arm, §13.2's named blind spot. It is scoped to values free of
+  `Expanded` wrappers: `Expansion`'s `Serialize` writes the INVOCATION
+  rather than the struct, so a transcode of a wrapped value is not
+  meaningful without the macro in scope.
+
+  If a future contraction pass reorders slots, per-variant expectations
+  are updated with that pass; the "equal up to consistent slot renumbering
+  with `Distinct` edges re-anchored" equivalence lands there if it is ever
+  needed.
 - The error taxonomy (authoring parse errors / lowering errors / core
   validation) gets its one deliberate pass here, where the layers meet.
 
@@ -520,8 +539,8 @@ the visible policy).
 - **Stage 3 — spelling consolidation**: `deckmaste_frames` →
   `deckmaste_spelling`; catalog merge; capability unification.
 - **Stage 4 — sugar and scope**: inline target sugar + elaboration rules.
-- **Throughout**: laws first — expansion equality and the structural
-  round-trip property are owned by `lowering-crate`;
+- **Throughout**: laws first — expansion equality and the per-variant
+  mapping tests are owned by `lowering-crate`;
   canonical-vs-exact-rendering semantics by the spelling side — and the
   legacy renderer + regex migrations run as shadow oracles with ratcheted
   coverage until each feature family crosses its gates (ratchets and kill
@@ -652,11 +671,14 @@ tracked tree); the deltas restated here are self-contained.
 2. The engine `It`→lone-target compatibility arm is deliberate, guarded,
    and self-documented — its removal requires the corpus re-spell sweep
    first (`engine-it-target-fallback-removal`).
-3. The raise-map round-trip property (provenance-erased structural
-   equality on the mirrored subset, §9 definitions) runs in CI while any
-   mirrored arm exists; `plugin-repoint`'s provenance relocation is the
-   moment the property's scope first shrinks, and that ticket owns
-   adjusting it.
+3. The per-variant mapping tests and the transcode oracle (§9) run in CI.
+   Per-variant coverage is total and stays total: a new variant on either
+   side is already a build error, and its test lands with it. The
+   transcode oracle is scoped to `Expanded`-free values, so
+   `plugin-repoint`'s provenance relocation narrows the oracle but not the
+   per-variant tests, and that ticket owns restating the scope. (The
+   raise-map round-trip property this obligation used to name is
+   withdrawn — see §9.)
 4. The coverage gate (reachability inventory: every row classified) and
    the collision diagnostic get negative fixtures each.
 5. The Ephemerate/Cloudshift pronoun pair and the §7 card list become

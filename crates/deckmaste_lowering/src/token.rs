@@ -54,3 +54,83 @@ impl Lower for deckmaste_authoring::Token {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_token_spec_token() {
+        assert_lowers(deckmaste_authoring::TokenSpec::Token(std::sync::Arc::new(
+            minimal_token(),
+        )));
+    }
+
+    #[test]
+    fn lowers_token_spec_named() {
+        assert_lowers(deckmaste_authoring::TokenSpec::Named(minimal_token_name()));
+    }
+
+    #[test]
+    fn lowers_token_spec_copy() {
+        assert_lowers(deckmaste_authoring::TokenSpec::Copy(std::sync::Arc::new(
+            minimal_copy_spec(),
+        )));
+    }
+
+    #[test]
+    fn lowers_token_name() {
+        assert_lowers_debug(deckmaste_authoring::TokenName("X".into()));
+    }
+
+    #[test]
+    fn lowers_predefined_token_treasure() {
+        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Treasure);
+    }
+
+    #[test]
+    fn lowers_predefined_token_food() {
+        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Food);
+    }
+
+    #[test]
+    fn lowers_predefined_token_gold() {
+        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Gold);
+    }
+
+    #[test]
+    fn lowers_predefined_token_clue() {
+        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Clue);
+    }
+
+    #[test]
+    fn lowers_predefined_token_blood() {
+        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Blood);
+    }
+
+    #[test]
+    fn lowers_predefined_token_vibranium() {
+        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Vibranium);
+    }
+
+    #[test]
+    fn lowers_token() {
+        assert_lowers(deckmaste_authoring::Token {
+            name: None,
+            color_indicator: [].into(),
+            supertypes: [].into(),
+            types: [].into(),
+            subtypes: [].into(),
+            abilities: [].into(),
+            power: None,
+            toughness: None,
+        });
+    }
+}

@@ -56,3 +56,73 @@ impl Lower for deckmaste_authoring::Card {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_card_face() {
+        assert_lowers(deckmaste_authoring::CardFace {
+            name: "x".into(),
+            mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
+                [deckmaste_authoring::ManaSymbol],
+            >::from([])),
+            color_indicator: Vec::new(),
+            supertypes: Vec::new(),
+            types: Vec::new(),
+            subtypes: Vec::new(),
+            abilities: Vec::new(),
+            power: None,
+            toughness: None,
+            loyalty: None,
+            defense: None,
+        });
+    }
+
+    #[test]
+    fn lowers_face_layout_transforming() {
+        assert_lowers(deckmaste_authoring::FaceLayout::Transforming);
+    }
+
+    #[test]
+    fn lowers_face_layout_modal_dfc() {
+        assert_lowers(deckmaste_authoring::FaceLayout::ModalDfc);
+    }
+
+    #[test]
+    fn lowers_face_layout_split() {
+        assert_lowers(deckmaste_authoring::FaceLayout::Split);
+    }
+
+    #[test]
+    fn lowers_face_layout_adventure() {
+        assert_lowers(deckmaste_authoring::FaceLayout::Adventure);
+    }
+
+    #[test]
+    fn lowers_face_layout_flip() {
+        assert_lowers(deckmaste_authoring::FaceLayout::Flip);
+    }
+
+    #[test]
+    fn lowers_card_normal() {
+        assert_lowers(deckmaste_authoring::Card::Normal(minimal_card_face()));
+    }
+
+    #[test]
+    fn lowers_card_two_faced() {
+        assert_lowers(deckmaste_authoring::Card::TwoFaced {
+            layout: minimal_face_layout(),
+            front: minimal_card_face(),
+            back: minimal_card_face(),
+        });
+    }
+}

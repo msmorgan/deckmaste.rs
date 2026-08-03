@@ -26,3 +26,46 @@ impl Lower for deckmaste_authoring::Property {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_property_ability() {
+        assert_lowers(deckmaste_authoring::Property::Ability(std::sync::Arc::new(
+            minimal_ability(),
+        )));
+    }
+
+    #[test]
+    fn lowers_property_continuous() {
+        assert_lowers(deckmaste_authoring::Property::Continuous(
+            minimal_reference(),
+            minimal_modification(),
+        ));
+    }
+
+    #[test]
+    fn lowers_property_state_based() {
+        assert_lowers(deckmaste_authoring::Property::StateBased {
+            condition: std::sync::Arc::new(minimal_condition()),
+            effect: std::sync::Arc::new(minimal_one_shot_effect()),
+        });
+    }
+
+    #[test]
+    fn lowers_property_turn_based() {
+        assert_lowers(deckmaste_authoring::Property::TurnBased {
+            at: minimal_phase_step(),
+            effect: std::sync::Arc::new(minimal_one_shot_effect()),
+        });
+    }
+}

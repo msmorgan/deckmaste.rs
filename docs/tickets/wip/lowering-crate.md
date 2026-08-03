@@ -12,10 +12,13 @@ the other — the build graph is the architecture.
 - `lower(authored) -> core` as a total mapping over the mirrored grammar:
   generated identity-shaped arms (generation of ARMS only — no shared
   schema layer defining both enums; see spec §13.1).
-- Correctness story from day one: a debug-only raise map over the mirrored
-  subset with a CI round-trip property (`raise(lower(t)) ≡α t`); the
-  convention that every future non-identity arm carries its justification
-  in place (the crate IS the divergence ledger) plus a per-variant test.
+- Correctness story from day one: **one mapping test per variant**, plus a
+  transcode differential oracle; the convention that every future
+  non-identity arm carries its justification in place (the crate IS the
+  divergence ledger). The raise map the spec used to require here is
+  WITHDRAWN (owner-settled 2026-08-02) — its coverage shrinks as arms
+  diverge and `plugin-repoint` takes the first bite, so a second full
+  150-impl mapping is not worth building; see spec §9.
 - If `card-crate-split` has landed, this crate also depends on
   `deckmaste_card` (lowering targets both engine-side crates).
 - Normalization (authored → authored normal form) lives in
@@ -28,6 +31,7 @@ the other — the build graph is the architecture.
 
 ## Gates
 
-Standard constraints apply. Round-trip property green over canon and
-wizards (lower every loaded authored term, raise, compare); exhaustiveness
-enforced by the compiler (no wildcard arms in the mapping).
+Standard constraints apply. One mapping test per variant, all green;
+transcode oracle green over canon and builtin (lower every loaded authored
+term, transcode the same term, compare); exhaustiveness enforced by the
+compiler (no wildcard arms in the mapping).

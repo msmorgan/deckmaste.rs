@@ -128,6 +128,62 @@ impl<T: Lower> Lower for Expansion<T> {
     }
 }
 
+/// The assertion every generated per-variant test goes through.
+///
+/// Asserts that an authored value and its lowered image serialize to the same
+/// RON. The comparison runs through the serde derives on BOTH sides, so it
+/// shares no code with the mapping arm under test: an arm that picked the wrong
+/// variant, or swapped two same-typed fields, changes the bytes and fails. That
+/// is the mapping's one blind spot — the compiler enforces totality, not
+/// correctness, so a wrong-but-well-typed arm is invisible to it
+/// (`docs/decisions/authoring-spelling-lowering.md` §13.2).
+///
+/// It replaces the withdrawn raise-map round-trip property (§9): a second full
+/// mapping would have covered only terms whose every node maps by identity, so
+/// its reach shrank with each divergence, starting with `plugin-repoint`'s
+/// erasure of the `Expansion` arms.
+#[cfg(test)]
+pub(crate) fn assert_lowers<A, C>(value: A)
+where
+    A: Lower<Target = C> + serde::Serialize,
+    C: serde::Serialize,
+{
+    let authored = deckmaste_authoring::ron::options()
+        .to_string(&value)
+        .expect("authored value serializes");
+    let lowered = deckmaste_core::ron::options()
+        .to_string(&value.lower())
+        .expect("lowered value serializes");
+    assert_eq!(
+        authored, lowered,
+        "lowering changed the serialized form of this variant"
+    );
+}
+
+/// The same assertion for grammar types that carry no `Serialize`.
+///
+/// A handful of types are never written to RON (computed costs, lookup enums),
+/// so the serialized comparison is unavailable. Derived `Debug` gives an
+/// equivalent structural witness: it prints variant and field names WITHOUT
+/// crate qualification, so the authored and engine renderings are directly
+/// comparable, and a wrong variant or a swapped field still changes the text.
+#[cfg(test)]
+pub(crate) fn assert_lowers_debug<A, C>(value: A)
+where
+    A: Lower<Target = C> + std::fmt::Debug,
+    C: std::fmt::Debug,
+{
+    let authored = format!("{value:?}");
+    let lowered = format!("{:?}", value.lower());
+    assert_eq!(
+        authored, lowered,
+        "lowering changed the structure of this variant"
+    );
+}
+
+#[cfg(test)]
+mod minimal;
+
 mod ability;
 mod action;
 mod binder;

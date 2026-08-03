@@ -16,3 +16,23 @@ impl Lower for deckmaste_authoring::DamageResultRule {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_damage_result_rule() {
+        assert_lowers(deckmaste_authoring::DamageResultRule {
+            recipient: minimal_predicate(),
+            remove: minimal_counter_ref(),
+        });
+    }
+}

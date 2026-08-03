@@ -33,3 +33,125 @@ impl Lower for deckmaste_authoring::Reference {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_reference_this() {
+        assert_lowers_debug(deckmaste_authoring::Reference::This);
+    }
+
+    #[test]
+    fn lowers_reference_single() {
+        assert_lowers_debug(deckmaste_authoring::Reference::Single(std::sync::Arc::new(
+            minimal_selection(),
+        )));
+    }
+
+    #[test]
+    fn lowers_reference_you() {
+        assert_lowers_debug(deckmaste_authoring::Reference::You);
+    }
+
+    #[test]
+    fn lowers_reference_opponent() {
+        assert_lowers_debug(deckmaste_authoring::Reference::Opponent);
+    }
+
+    #[test]
+    fn lowers_reference_it() {
+        assert_lowers_debug(deckmaste_authoring::Reference::It);
+    }
+
+    #[test]
+    fn lowers_reference_target() {
+        assert_lowers_debug(deckmaste_authoring::Reference::Target(0));
+    }
+
+    #[test]
+    fn lowers_reference_event_object() {
+        assert_lowers_debug(deckmaste_authoring::Reference::EventObject);
+    }
+
+    #[test]
+    fn lowers_reference_event_patient() {
+        assert_lowers_debug(deckmaste_authoring::Reference::EventPatient);
+    }
+
+    #[test]
+    fn lowers_reference_event_actor() {
+        assert_lowers_debug(deckmaste_authoring::Reference::EventActor);
+    }
+
+    #[test]
+    fn lowers_reference_defending_player() {
+        assert_lowers_debug(deckmaste_authoring::Reference::DefendingPlayer);
+    }
+
+    #[test]
+    fn lowers_reference_that() {
+        assert_lowers_debug(deckmaste_authoring::Reference::That(minimal_sort()));
+    }
+
+    #[test]
+    fn lowers_reference_bound() {
+        assert_lowers_debug(deckmaste_authoring::Reference::Bound("X".into()));
+    }
+
+    #[test]
+    fn lowers_reference_linked() {
+        assert_lowers_debug(deckmaste_authoring::Reference::Linked("X".into()));
+    }
+
+    #[test]
+    fn lowers_reference_controller_of() {
+        assert_lowers_debug(deckmaste_authoring::Reference::ControllerOf(
+            std::sync::Arc::new(minimal_reference()),
+        ));
+    }
+
+    #[test]
+    fn lowers_reference_coalesce() {
+        assert_lowers_debug(deckmaste_authoring::Reference::Coalesce([].into()));
+    }
+
+    #[test]
+    fn lowers_reference_owner_of() {
+        assert_lowers_debug(deckmaste_authoring::Reference::OwnerOf(
+            std::sync::Arc::new(minimal_reference()),
+        ));
+    }
+
+    #[test]
+    fn lowers_reference_attach_host_of() {
+        assert_lowers_debug(deckmaste_authoring::Reference::AttachHostOf(
+            std::sync::Arc::new(minimal_reference()),
+        ));
+    }
+
+    #[test]
+    fn lowers_reference_source() {
+        assert_lowers_debug(deckmaste_authoring::Reference::Source);
+    }
+
+    #[test]
+    fn lowers_reference_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Reference::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_reference()),
+            },
+        ));
+    }
+}

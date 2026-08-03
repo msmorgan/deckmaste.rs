@@ -85,3 +85,118 @@ impl Lower for deckmaste_authoring::DesignationDecl {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_designation_scope_object() {
+        assert_lowers(deckmaste_authoring::DesignationScope::Object);
+    }
+
+    #[test]
+    fn lowers_designation_scope_player() {
+        assert_lowers(deckmaste_authoring::DesignationScope::Player);
+    }
+
+    #[test]
+    fn lowers_designation_scope_game() {
+        assert_lowers(deckmaste_authoring::DesignationScope::Game);
+    }
+
+    #[test]
+    fn lowers_designation_shape_flag() {
+        assert_lowers(deckmaste_authoring::DesignationShape::Flag);
+    }
+
+    #[test]
+    fn lowers_designation_shape_number() {
+        assert_lowers(deckmaste_authoring::DesignationShape::Number);
+    }
+
+    #[test]
+    fn lowers_designation_shape_enum() {
+        assert_lowers(deckmaste_authoring::DesignationShape::Enum([].into()));
+    }
+
+    #[test]
+    fn lowers_designation_shape_relation() {
+        assert_lowers(deckmaste_authoring::DesignationShape::Relation);
+    }
+
+    #[test]
+    fn lowers_designation_uniqueness_none() {
+        assert_lowers(deckmaste_authoring::DesignationUniqueness::None);
+    }
+
+    #[test]
+    fn lowers_designation_uniqueness_per_player() {
+        assert_lowers(deckmaste_authoring::DesignationUniqueness::PerPlayer);
+    }
+
+    #[test]
+    fn lowers_designation_uniqueness_per_game() {
+        assert_lowers(deckmaste_authoring::DesignationUniqueness::PerGame);
+    }
+
+    #[test]
+    fn lowers_designation_persistence_object_lifetime() {
+        assert_lowers(deckmaste_authoring::DesignationPersistence::ObjectLifetime);
+    }
+
+    #[test]
+    fn lowers_designation_persistence_until_end_of_turn() {
+        assert_lowers(deckmaste_authoring::DesignationPersistence::UntilEndOfTurn);
+    }
+
+    #[test]
+    fn lowers_designation_persistence_effect_supplied() {
+        assert_lowers(deckmaste_authoring::DesignationPersistence::EffectSupplied);
+    }
+
+    #[test]
+    fn lowers_designation_persistence_permanently() {
+        assert_lowers(deckmaste_authoring::DesignationPersistence::Permanently);
+    }
+
+    #[test]
+    fn lowers_designation_def_stored() {
+        assert_lowers(deckmaste_authoring::DesignationDef::Stored {
+            scope: minimal_designation_scope(),
+            shape: minimal_designation_shape(),
+            uniqueness: minimal_designation_uniqueness(),
+            persistence: minimal_designation_persistence(),
+            payload: [].into(),
+        });
+    }
+
+    #[test]
+    fn lowers_designation_def_derived() {
+        assert_lowers(deckmaste_authoring::DesignationDef::Derived(
+            minimal_predicate(),
+        ));
+    }
+
+    #[test]
+    fn lowers_designation_def_derived_if() {
+        assert_lowers(deckmaste_authoring::DesignationDef::DerivedIf(
+            std::sync::Arc::new(minimal_condition()),
+        ));
+    }
+
+    #[test]
+    fn lowers_designation_decl() {
+        assert_lowers(deckmaste_authoring::DesignationDecl {
+            name: "X".into(),
+            definition: minimal_designation_def(),
+        });
+    }
+}

@@ -105,3 +105,147 @@ impl Lower for deckmaste_authoring::Ability {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_spell_ability() {
+        assert_lowers(deckmaste_authoring::SpellAbility {
+            ability_word: None,
+            effect: minimal_one_shot_effect(),
+        });
+    }
+
+    #[test]
+    fn lowers_activated_ability() {
+        assert_lowers(deckmaste_authoring::ActivatedAbility {
+            ability_word: None,
+            cost: minimal_cost(),
+            from: None,
+            window: None,
+            condition: None,
+            limits: [].into(),
+            effect: minimal_one_shot_effect(),
+        });
+    }
+
+    #[test]
+    fn lowers_use_limit_once_per_turn() {
+        assert_lowers(deckmaste_authoring::UseLimit::OncePerTurn);
+    }
+
+    #[test]
+    fn lowers_use_limit_once_per_game() {
+        assert_lowers(deckmaste_authoring::UseLimit::OncePerGame);
+    }
+
+    #[test]
+    fn lowers_use_limit_loyalty_once_per_turn() {
+        assert_lowers(deckmaste_authoring::UseLimit::LoyaltyOncePerTurn);
+    }
+
+    #[test]
+    fn lowers_triggered_ability() {
+        assert_lowers(deckmaste_authoring::TriggeredAbility {
+            ability_word: None,
+            event: minimal_event_filter(),
+            from: None,
+            condition: None,
+            limits: [].into(),
+            where_x: None,
+            effect: minimal_one_shot_effect(),
+        });
+    }
+
+    #[test]
+    fn lowers_choose_spec() {
+        assert_lowers(deckmaste_authoring::ChooseSpec {
+            count: minimal_quantity(),
+            up_to: false,
+            repeats: false,
+            chooser: minimal_reference(),
+            rider: None,
+        });
+    }
+
+    #[test]
+    fn lowers_modal_cost_rider_entwine() {
+        assert_lowers(deckmaste_authoring::ModalCostRider::Entwine(minimal_cost()));
+    }
+
+    #[test]
+    fn lowers_modal_cost_rider_escalate() {
+        assert_lowers(deckmaste_authoring::ModalCostRider::Escalate(minimal_cost()));
+    }
+
+    #[test]
+    fn lowers_mode() {
+        assert_lowers(deckmaste_authoring::Mode {
+            effect: minimal_one_shot_effect(),
+            cost: None,
+        });
+    }
+
+    #[test]
+    fn lowers_ability_static() {
+        assert_lowers_debug(deckmaste_authoring::Ability::Static(std::sync::Arc::new(
+            minimal_static_effect(),
+        )));
+    }
+
+    #[test]
+    fn lowers_ability_activated() {
+        assert_lowers_debug(deckmaste_authoring::Ability::Activated(
+            std::sync::Arc::new(minimal_activated_ability()),
+        ));
+    }
+
+    #[test]
+    fn lowers_ability_triggered() {
+        assert_lowers_debug(deckmaste_authoring::Ability::Triggered(
+            std::sync::Arc::new(minimal_triggered_ability()),
+        ));
+    }
+
+    #[test]
+    fn lowers_ability_spell() {
+        assert_lowers_debug(deckmaste_authoring::Ability::Spell(std::sync::Arc::new(
+            minimal_spell_ability(),
+        )));
+    }
+
+    #[test]
+    fn lowers_ability_keyword() {
+        assert_lowers_debug(deckmaste_authoring::Ability::Keyword(
+            minimal_keyword_ability(),
+        ));
+    }
+
+    #[test]
+    fn lowers_ability_innate() {
+        assert_lowers_debug(deckmaste_authoring::Ability::Innate(std::sync::Arc::new(
+            minimal_ability(),
+        )));
+    }
+
+    #[test]
+    fn lowers_ability_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Ability::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_ability()),
+            },
+        ));
+    }
+}

@@ -50,3 +50,141 @@ impl Lower for deckmaste_authoring::Condition {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_cmp_eq() {
+        assert_lowers(deckmaste_authoring::Cmp::Eq);
+    }
+
+    #[test]
+    fn lowers_cmp_at_least() {
+        assert_lowers(deckmaste_authoring::Cmp::AtLeast);
+    }
+
+    #[test]
+    fn lowers_cmp_at_most() {
+        assert_lowers(deckmaste_authoring::Cmp::AtMost);
+    }
+
+    #[test]
+    fn lowers_cmp_greater() {
+        assert_lowers(deckmaste_authoring::Cmp::Greater);
+    }
+
+    #[test]
+    fn lowers_cmp_less() {
+        assert_lowers(deckmaste_authoring::Cmp::Less);
+    }
+
+    #[test]
+    fn lowers_condition_compare() {
+        assert_lowers_debug(deckmaste_authoring::Condition::Compare(
+            minimal_count(),
+            minimal_cmp(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_condition_exists() {
+        assert_lowers_debug(deckmaste_authoring::Condition::Exists(minimal_predicate()));
+    }
+
+    #[test]
+    fn lowers_condition_matches() {
+        assert_lowers_debug(deckmaste_authoring::Condition::Matches(
+            minimal_reference(),
+            minimal_predicate(),
+        ));
+    }
+
+    #[test]
+    fn lowers_condition_legally_attached() {
+        assert_lowers_debug(deckmaste_authoring::Condition::LegallyAttached(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_condition_happened() {
+        assert_lowers_debug(deckmaste_authoring::Condition::Happened {
+            event: std::sync::Arc::new(minimal_event_filter()),
+            within: minimal_lookback(),
+        });
+    }
+
+    #[test]
+    fn lowers_condition_crossed() {
+        assert_lowers_debug(deckmaste_authoring::Condition::Crossed {
+            value: minimal_count(),
+            thresholds: [].into(),
+        });
+    }
+
+    #[test]
+    fn lowers_condition_paid_cost() {
+        assert_lowers_debug(deckmaste_authoring::Condition::PaidCost(minimal_cost_tag()));
+    }
+
+    #[test]
+    fn lowers_condition_cast_with() {
+        assert_lowers_debug(deckmaste_authoring::Condition::CastWith(minimal_cost_tag()));
+    }
+
+    #[test]
+    fn lowers_condition_your_turn() {
+        assert_lowers_debug(deckmaste_authoring::Condition::YourTurn);
+    }
+
+    #[test]
+    fn lowers_condition_turn_of() {
+        assert_lowers_debug(deckmaste_authoring::Condition::TurnOf(minimal_predicate()));
+    }
+
+    #[test]
+    fn lowers_condition_during_phase() {
+        assert_lowers_debug(deckmaste_authoring::Condition::DuringPhase(
+            minimal_phase_step(),
+        ));
+    }
+
+    #[test]
+    fn lowers_condition_and() {
+        assert_lowers_debug(deckmaste_authoring::Condition::And([].into()));
+    }
+
+    #[test]
+    fn lowers_condition_or() {
+        assert_lowers_debug(deckmaste_authoring::Condition::Or([].into()));
+    }
+
+    #[test]
+    fn lowers_condition_not() {
+        assert_lowers_debug(deckmaste_authoring::Condition::Not(std::sync::Arc::new(
+            minimal_condition(),
+        )));
+    }
+
+    #[test]
+    fn lowers_condition_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Condition::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_condition()),
+            },
+        ));
+    }
+}

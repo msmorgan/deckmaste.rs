@@ -56,3 +56,108 @@ impl Lower for deckmaste_authoring::KeywordAbility {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_keyword_ref() {
+        assert_lowers_debug(deckmaste_authoring::KeywordRef("X".into()));
+    }
+
+    #[test]
+    fn lowers_param_shape_none() {
+        assert_lowers(deckmaste_authoring::ParamShape::None);
+    }
+
+    #[test]
+    fn lowers_param_shape_counted() {
+        assert_lowers(deckmaste_authoring::ParamShape::Counted);
+    }
+
+    #[test]
+    fn lowers_param_shape_costed() {
+        assert_lowers(deckmaste_authoring::ParamShape::Costed);
+    }
+
+    #[test]
+    fn lowers_param_shape_counted_cost() {
+        assert_lowers(deckmaste_authoring::ParamShape::CountedCost);
+    }
+
+    #[test]
+    fn lowers_param_shape_predicated() {
+        assert_lowers(deckmaste_authoring::ParamShape::Predicated);
+    }
+
+    #[test]
+    fn lowers_param_shape_predicated_costed() {
+        assert_lowers(deckmaste_authoring::ParamShape::PredicatedCosted);
+    }
+
+    #[test]
+    fn lowers_param_shape_named() {
+        assert_lowers(deckmaste_authoring::ParamShape::Named);
+    }
+
+    #[test]
+    fn lowers_keyword_decl() {
+        assert_lowers(deckmaste_authoring::KeywordDecl {
+            name: "X".into(),
+            shape: minimal_param_shape(),
+        });
+    }
+
+    #[test]
+    fn lowers_keyword_ability_first_strike() {
+        assert_lowers_debug(deckmaste_authoring::KeywordAbility::FirstStrike);
+    }
+
+    #[test]
+    fn lowers_keyword_ability_double_strike() {
+        assert_lowers_debug(deckmaste_authoring::KeywordAbility::DoubleStrike);
+    }
+
+    #[test]
+    fn lowers_keyword_ability_deathtouch() {
+        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Deathtouch);
+    }
+
+    #[test]
+    fn lowers_keyword_ability_trample() {
+        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Trample);
+    }
+
+    #[test]
+    fn lowers_keyword_ability_vigilance() {
+        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Vigilance);
+    }
+
+    #[test]
+    fn lowers_keyword_ability_composite() {
+        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Composite {
+            name: "X".into(),
+            abilities: Vec::new(),
+        });
+    }
+
+    #[test]
+    fn lowers_keyword_ability_expanded() {
+        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_keyword_ability()),
+            },
+        ));
+    }
+}

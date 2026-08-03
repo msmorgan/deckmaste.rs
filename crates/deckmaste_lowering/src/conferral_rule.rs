@@ -16,3 +16,23 @@ impl Lower for deckmaste_authoring::ConferralRule {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_conferral_rule() {
+        assert_lowers(deckmaste_authoring::ConferralRule {
+            scope: minimal_predicate(),
+            confer: minimal_property(),
+        });
+    }
+}

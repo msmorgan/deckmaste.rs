@@ -214,3 +214,477 @@ impl Lower for deckmaste_authoring::CopyRetarget {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_anchor_from_top() {
+        assert_lowers_debug(deckmaste_authoring::Anchor::FromTop(minimal_count()));
+    }
+
+    #[test]
+    fn lowers_anchor_from_bottom() {
+        assert_lowers_debug(deckmaste_authoring::Anchor::FromBottom(minimal_count()));
+    }
+
+    #[test]
+    fn lowers_destination_zone() {
+        assert_lowers_debug(deckmaste_authoring::Destination::Zone(minimal_zone()));
+    }
+
+    #[test]
+    fn lowers_destination_library() {
+        assert_lowers_debug(deckmaste_authoring::Destination::Library(minimal_anchor()));
+    }
+
+    #[test]
+    fn lowers_enter_rider_tapped() {
+        assert_lowers_debug(deckmaste_authoring::EnterRider::Tapped);
+    }
+
+    #[test]
+    fn lowers_enter_rider_face_down() {
+        assert_lowers_debug(deckmaste_authoring::EnterRider::FaceDown);
+    }
+
+    #[test]
+    fn lowers_enter_rider_under_control_of() {
+        assert_lowers_debug(deckmaste_authoring::EnterRider::UnderControlOf(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_enter_rider_under_owners_control() {
+        assert_lowers_debug(deckmaste_authoring::EnterRider::UnderOwnersControl);
+    }
+
+    #[test]
+    fn lowers_enter_rider_attacking() {
+        assert_lowers_debug(deckmaste_authoring::EnterRider::Attacking(None));
+    }
+
+    #[test]
+    fn lowers_enter_rider_with_counters() {
+        assert_lowers_debug(deckmaste_authoring::EnterRider::WithCounters(
+            minimal_counter_ref(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_enter_rider_as_copy() {
+        assert_lowers_debug(deckmaste_authoring::EnterRider::AsCopy(minimal_copy_spec()));
+    }
+
+    #[test]
+    fn lowers_arrangement_chosen_order() {
+        assert_lowers_debug(deckmaste_authoring::Arrangement::ChosenOrder(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_arrangement_any_order() {
+        assert_lowers_debug(deckmaste_authoring::Arrangement::AnyOrder);
+    }
+
+    #[test]
+    fn lowers_arrangement_same_order() {
+        assert_lowers_debug(deckmaste_authoring::Arrangement::SameOrder);
+    }
+
+    #[test]
+    fn lowers_arrangement_random_order() {
+        assert_lowers_debug(deckmaste_authoring::Arrangement::RandomOrder);
+    }
+
+    #[test]
+    fn lowers_action_deal_damage() {
+        assert_lowers_debug(deckmaste_authoring::Action::DealDamage(
+            minimal_reference(),
+            minimal_count(),
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_counter() {
+        assert_lowers_debug(deckmaste_authoring::Action::Counter(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_transform() {
+        assert_lowers_debug(deckmaste_authoring::Action::Transform(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_cease() {
+        assert_lowers_debug(deckmaste_authoring::Action::Cease(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_attach() {
+        assert_lowers_debug(deckmaste_authoring::Action::Attach {
+            what: minimal_reference(),
+            to: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_action_unattach() {
+        assert_lowers_debug(deckmaste_authoring::Action::Unattach(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_move() {
+        assert_lowers_debug(deckmaste_authoring::Action::Move(
+            minimal_reference(),
+            minimal_destination(),
+            [].into(),
+            None,
+        ));
+    }
+
+    #[test]
+    fn lowers_action_move_group() {
+        assert_lowers_debug(deckmaste_authoring::Action::MoveGroup {
+            group: minimal_selection(),
+            arrangement: minimal_arrangement(),
+            to: minimal_destination(),
+            riders: [].into(),
+        });
+    }
+
+    #[test]
+    fn lowers_action_gain_control() {
+        assert_lowers_debug(deckmaste_authoring::Action::GainControl(
+            minimal_reference(),
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_extra_phase() {
+        assert_lowers_debug(deckmaste_authoring::Action::ExtraPhase(
+            minimal_phase_kind(),
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_become_day() {
+        assert_lowers_debug(deckmaste_authoring::Action::BecomeDay);
+    }
+
+    #[test]
+    fn lowers_action_become_night() {
+        assert_lowers_debug(deckmaste_authoring::Action::BecomeNight);
+    }
+
+    #[test]
+    fn lowers_action_the_ring_tempts() {
+        assert_lowers_debug(deckmaste_authoring::Action::TheRingTempts(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_move_counters() {
+        assert_lowers_debug(deckmaste_authoring::Action::MoveCounters(
+            minimal_counter_spec(),
+            minimal_reference(),
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_create_replacement() {
+        assert_lowers_debug(deckmaste_authoring::Action::CreateReplacement {
+            replacement: std::sync::Arc::new(minimal_replacement()),
+            duration: minimal_duration(),
+            one_shot: false,
+        });
+    }
+
+    #[test]
+    fn lowers_action_composite() {
+        assert_lowers_debug(deckmaste_authoring::Action::Composite {
+            name: minimal_verb_name(),
+            body: std::sync::Arc::new(minimal_one_shot_effect()),
+        });
+    }
+
+    #[test]
+    fn lowers_action_change_life() {
+        assert_lowers_debug(deckmaste_authoring::Action::ChangeLife(
+            minimal_reference(),
+            minimal_life_op(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_add_mana() {
+        assert_lowers_debug(deckmaste_authoring::Action::AddMana(
+            minimal_reference(),
+            minimal_count(),
+            minimal_mana_production(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_create() {
+        assert_lowers_debug(deckmaste_authoring::Action::Create {
+            agent: minimal_reference(),
+            count: minimal_count(),
+            token: minimal_token_spec(),
+            riders: [].into(),
+        });
+    }
+
+    #[test]
+    fn lowers_action_sacrifice() {
+        assert_lowers_debug(deckmaste_authoring::Action::Sacrifice(
+            minimal_reference(),
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_draw_card() {
+        assert_lowers_debug(deckmaste_authoring::Action::DrawCard(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_venture_into_dungeon() {
+        assert_lowers_debug(deckmaste_authoring::Action::VentureIntoDungeon(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_tap() {
+        assert_lowers_debug(deckmaste_authoring::Action::Tap(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_untap() {
+        assert_lowers_debug(deckmaste_authoring::Action::Untap(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_get_emblem() {
+        assert_lowers_debug(deckmaste_authoring::Action::GetEmblem(
+            minimal_reference(),
+            [].into(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_get_designation() {
+        assert_lowers_debug(deckmaste_authoring::Action::GetDesignation(
+            minimal_reference(),
+            "X".into(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_choose_value() {
+        assert_lowers_debug(deckmaste_authoring::Action::ChooseValue(
+            minimal_reference(),
+            minimal_chosen_value_kind(),
+            "X".into(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_copy_spell() {
+        assert_lowers_debug(deckmaste_authoring::Action::CopySpell {
+            controller: minimal_reference(),
+            spec: minimal_copy_spec(),
+            retarget: minimal_copy_retarget(),
+        });
+    }
+
+    #[test]
+    fn lowers_action_cast_copy() {
+        assert_lowers_debug(deckmaste_authoring::Action::CastCopy(
+            minimal_reference(),
+            minimal_copy_spec(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_cast() {
+        assert_lowers_debug(deckmaste_authoring::Action::Cast(
+            minimal_reference(),
+            minimal_reference(),
+            None,
+        ));
+    }
+
+    #[test]
+    fn lowers_action_retarget() {
+        assert_lowers_debug(deckmaste_authoring::Action::Retarget {
+            mode: minimal_retarget_mode(),
+            of: minimal_reference(),
+            by: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_action_flip_coins() {
+        assert_lowers_debug(deckmaste_authoring::Action::FlipCoins(
+            minimal_reference(),
+            minimal_count(),
+            false,
+        ));
+    }
+
+    #[test]
+    fn lowers_action_roll_dice() {
+        assert_lowers_debug(deckmaste_authoring::Action::RollDice(
+            minimal_reference(),
+            minimal_count(),
+            0,
+        ));
+    }
+
+    #[test]
+    fn lowers_action_roll_planar_die() {
+        assert_lowers_debug(deckmaste_authoring::Action::RollPlanarDie(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_put_counters() {
+        assert_lowers_debug(deckmaste_authoring::Action::PutCounters(
+            minimal_reference(),
+            minimal_counter_ref(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_remove_counters() {
+        assert_lowers_debug(deckmaste_authoring::Action::RemoveCounters(
+            minimal_reference(),
+            minimal_counter_ref(),
+            minimal_count(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_win_game() {
+        assert_lowers_debug(deckmaste_authoring::Action::WinGame(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_lose_game() {
+        assert_lowers_debug(deckmaste_authoring::Action::LoseGame(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_action_restart_game() {
+        assert_lowers_debug(deckmaste_authoring::Action::RestartGame);
+    }
+
+    #[test]
+    fn lowers_action_shuffle() {
+        assert_lowers_debug(deckmaste_authoring::Action::Shuffle(minimal_selection()));
+    }
+
+    #[test]
+    fn lowers_action_reveal() {
+        assert_lowers_debug(deckmaste_authoring::Action::Reveal {
+            what: minimal_reference(),
+            to: None,
+        });
+    }
+
+    #[test]
+    fn lowers_action_remove_damage() {
+        assert_lowers_debug(deckmaste_authoring::Action::RemoveDamage(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_action_pay() {
+        assert_lowers_debug(deckmaste_authoring::Action::Pay(minimal_cost()));
+    }
+
+    #[test]
+    fn lowers_action_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Action::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_action()),
+            },
+        ));
+    }
+
+    #[test]
+    fn lowers_life_op_set() {
+        assert_lowers_debug(deckmaste_authoring::LifeOp::Set(minimal_count()));
+    }
+
+    #[test]
+    fn lowers_life_op_up() {
+        assert_lowers_debug(deckmaste_authoring::LifeOp::Up(minimal_count()));
+    }
+
+    #[test]
+    fn lowers_life_op_down() {
+        assert_lowers_debug(deckmaste_authoring::LifeOp::Down(minimal_count()));
+    }
+
+    #[test]
+    fn lowers_retarget_mode_change_all() {
+        assert_lowers_debug(deckmaste_authoring::RetargetMode::ChangeAll);
+    }
+
+    #[test]
+    fn lowers_retarget_mode_change_one() {
+        assert_lowers_debug(deckmaste_authoring::RetargetMode::ChangeOne);
+    }
+
+    #[test]
+    fn lowers_retarget_mode_change_any() {
+        assert_lowers_debug(deckmaste_authoring::RetargetMode::ChangeAny);
+    }
+
+    #[test]
+    fn lowers_retarget_mode_choose_new() {
+        assert_lowers_debug(deckmaste_authoring::RetargetMode::ChooseNew);
+    }
+
+    #[test]
+    fn lowers_copy_retarget_as_is() {
+        assert_lowers_debug(deckmaste_authoring::CopyRetarget::AsIs);
+    }
+
+    #[test]
+    fn lowers_copy_retarget_may_choose_new() {
+        assert_lowers_debug(deckmaste_authoring::CopyRetarget::MayChooseNew);
+    }
+
+    #[test]
+    fn lowers_copy_retarget_targets_that() {
+        assert_lowers_debug(deckmaste_authoring::CopyRetarget::TargetsThat(
+            minimal_reference(),
+        ));
+    }
+}

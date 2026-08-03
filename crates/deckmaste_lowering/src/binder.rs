@@ -59,3 +59,84 @@ impl Lower for deckmaste_authoring::Binder {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_binder_the_ref() {
+        assert_lowers_debug(deckmaste_authoring::Binder::TheRef(minimal_reference()));
+    }
+
+    #[test]
+    fn lowers_binder_choose_one() {
+        assert_lowers_debug(deckmaste_authoring::Binder::ChooseOne {
+            filter: minimal_predicate(),
+            by: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_binder_produce() {
+        assert_lowers_debug(deckmaste_authoring::Binder::Produce(std::sync::Arc::new(
+            minimal_action(),
+        )));
+    }
+
+    #[test]
+    fn lowers_binder_search_one() {
+        assert_lowers_debug(deckmaste_authoring::Binder::SearchOne {
+            filter: minimal_predicate(),
+            by: minimal_reference(),
+            whose: minimal_reference(),
+            from: [].into(),
+            if_none: None,
+        });
+    }
+
+    #[test]
+    fn lowers_binder_choose() {
+        assert_lowers_debug(deckmaste_authoring::Binder::Choose {
+            quantity: minimal_quantity(),
+            filter: minimal_predicate(),
+            by: minimal_reference(),
+        });
+    }
+
+    #[test]
+    fn lowers_binder_existing() {
+        assert_lowers_debug(deckmaste_authoring::Binder::Existing(minimal_selection()));
+    }
+
+    #[test]
+    fn lowers_binder_search() {
+        assert_lowers_debug(deckmaste_authoring::Binder::Search {
+            quantity: minimal_quantity(),
+            filter: minimal_predicate(),
+            by: minimal_reference(),
+            whose: minimal_reference(),
+            from: [].into(),
+            if_none: None,
+        });
+    }
+
+    #[test]
+    fn lowers_binder_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Binder::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_binder()),
+            },
+        ));
+    }
+}

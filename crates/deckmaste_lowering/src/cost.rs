@@ -72,3 +72,111 @@ impl Lower for deckmaste_authoring::TotalCost {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_cost_component_mana() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::Mana(
+            deckmaste_authoring::ManaCost::from(
+                std::sync::Arc::<[deckmaste_authoring::ManaSymbol]>::from([]),
+            ),
+        ));
+    }
+
+    #[test]
+    fn lowers_cost_component_mana_cost_of() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::ManaCostOf(
+            minimal_reference(),
+        ));
+    }
+
+    #[test]
+    fn lowers_cost_component_tap() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::Tap);
+    }
+
+    #[test]
+    fn lowers_cost_component_untap() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::Untap);
+    }
+
+    #[test]
+    fn lowers_cost_component_do() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::Do(std::sync::Arc::new(
+            minimal_action(),
+        )));
+    }
+
+    #[test]
+    fn lowers_cost_component_cost() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::Cost(minimal_cost()));
+    }
+
+    #[test]
+    fn lowers_cost_component_tap_total() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::TapTotal {
+            stat: minimal_stat(),
+            cmp: minimal_cmp(),
+            count: minimal_count(),
+            filter: std::sync::Arc::new(minimal_predicate()),
+        });
+    }
+
+    #[test]
+    fn lowers_cost_component_with() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::With {
+            binder: std::sync::Arc::new(minimal_binder()),
+            body: minimal_cost(),
+        });
+    }
+
+    #[test]
+    fn lowers_cost_component_expanded() {
+        assert_lowers_debug(deckmaste_authoring::CostComponent::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_cost_component()),
+            },
+        ));
+    }
+
+    #[test]
+    fn lowers_cost() {
+        assert_lowers(deckmaste_authoring::Cost([].into()));
+    }
+
+    #[test]
+    fn lowers_cost_tag() {
+        assert_lowers_debug(deckmaste_authoring::CostTag("X".into()));
+    }
+
+    #[test]
+    fn lowers_optional_cost() {
+        assert_lowers(deckmaste_authoring::OptionalCost {
+            components: [].into(),
+            tag: minimal_cost_tag(),
+            repeatable: false,
+        });
+    }
+
+    #[test]
+    fn lowers_total_cost() {
+        assert_lowers_debug(deckmaste_authoring::TotalCost {
+            base: [].into(),
+            trace: [].into(),
+            locked: false,
+        });
+    }
+}

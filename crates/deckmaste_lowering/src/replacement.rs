@@ -54,3 +54,77 @@ impl Lower for deckmaste_authoring::Prevention {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_replacement_instead() {
+        assert_lowers_debug(deckmaste_authoring::Replacement::Instead {
+            would: minimal_event_filter(),
+            instead: minimal_one_shot_effect(),
+        });
+    }
+
+    #[test]
+    fn lowers_replacement_skip() {
+        assert_lowers_debug(deckmaste_authoring::Replacement::Skip {
+            what: minimal_phase_step(),
+        });
+    }
+
+    #[test]
+    fn lowers_replacement_also() {
+        assert_lowers_debug(deckmaste_authoring::Replacement::Also {
+            would: minimal_event_filter(),
+            also: minimal_one_shot_effect(),
+        });
+    }
+
+    #[test]
+    fn lowers_replacement_expanded() {
+        assert_lowers_debug(deckmaste_authoring::Replacement::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_replacement()),
+            },
+        ));
+    }
+
+    #[test]
+    fn lowers_prevention_prevent_next() {
+        assert_lowers(deckmaste_authoring::Prevention::PreventNext {
+            n: minimal_count(),
+            from: minimal_predicate(),
+            to: minimal_predicate(),
+            duration: None,
+        });
+    }
+
+    #[test]
+    fn lowers_prevention_prevent_next_instance() {
+        assert_lowers(deckmaste_authoring::Prevention::PreventNextInstance {
+            from: minimal_predicate(),
+            to: minimal_predicate(),
+        });
+    }
+
+    #[test]
+    fn lowers_prevention_prevent_all() {
+        assert_lowers(deckmaste_authoring::Prevention::PreventAll {
+            from: minimal_predicate(),
+            to: minimal_predicate(),
+            duration: None,
+        });
+    }
+}

@@ -17,3 +17,43 @@ impl Lower for deckmaste_authoring::TargetSpec {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        unused_imports,
+        reason = "a module may need only one assertion, or no helper"
+    )]
+
+    use crate::assert_lowers;
+    use crate::assert_lowers_debug;
+    use crate::minimal::*;
+
+    #[test]
+    fn lowers_target_spec_target() {
+        assert_lowers_debug(deckmaste_authoring::TargetSpec::Target(
+            minimal_quantity(),
+            minimal_predicate(),
+        ));
+    }
+
+    #[test]
+    fn lowers_target_spec_distinct() {
+        assert_lowers_debug(deckmaste_authoring::TargetSpec::Distinct(
+            [].into(),
+            std::sync::Arc::new(minimal_target_spec()),
+        ));
+    }
+
+    #[test]
+    fn lowers_target_spec_expanded() {
+        assert_lowers_debug(deckmaste_authoring::TargetSpec::Expanded(
+            macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_target_spec()),
+            },
+        ));
+    }
+}
