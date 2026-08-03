@@ -172,7 +172,10 @@ where
     raised
 }
 
-/// The card a rendered object came from, or `None` for a token or emblem.
+/// The `CardId` a rendered object came from, or `None` for a player object. A
+/// token or emblem still answers `Some`: it is minted with a `CardId` past the
+/// end of the deck's card table, so it is `CardProvenance::get` that resolves
+/// it to `None`, not this.
 fn card_id(state: &GameState, id: ObjectId) -> Option<deckmaste_engine::CardId> {
     match state.objects.obj(id).source {
         ObjectSource::Card(c) => Some(c),

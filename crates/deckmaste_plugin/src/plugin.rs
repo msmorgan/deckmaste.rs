@@ -50,6 +50,12 @@ pub struct Plugin {
     /// object through a `CardId` past the end of the card companion table, so
     /// this is their only indexing opportunity.
     pub provenance: crate::provenance::ProvenanceIndex,
+    /// Token files this load could not read or expand, with the reason. Each
+    /// is a hole in `provenance`: the token still mints, but its abilities
+    /// render as `[unrendered: …]`. Loading tokens is deliberately lenient
+    /// (one malformed file must not fail the whole plugin), so this is where
+    /// the leniency stays accountable — empty for a clean load.
+    pub skipped_tokens: Vec<(PathBuf, String)>,
     pub subtypes: HashMap<Ident, Subtype>,
     /// The card types defined by `macros/`, fully expanded — keyed by the
     /// value's **printed name** ([CR#300.1]), mirroring `subtypes` exactly.
@@ -319,7 +325,7 @@ impl Plugin {
 
         expand_counters(&macros, declared_counters, &mut provenance, &mut counters)?;
         expand_designations(&macros, declared_designations, &mut designations)?;
-        index_tokens(&root, &macros, &mut provenance)?;
+        let skipped_tokens = index_tokens(&root, &macros, &mut provenance)?;
 
         let sba_rules = load_sba_rules(&root, &macros)?;
         let conferral_rules = load_conferral_rules(&root, &macros)?;
@@ -329,6 +335,7 @@ impl Plugin {
             root,
             macros,
             provenance,
+            skipped_tokens,
             subtypes,
             types,
             counters,
@@ -614,19 +621,27 @@ fn expand_designations(
 /// Unlike the registry expansions, a token file is loaded on demand, so this
 /// pass indexes what it can and leaves a malformed token to fail at its own
 /// load site rather than failing every plugin load.
+/// A file this pass skipped is REPORTED, not silent: the token still mints,
+/// but with no provenance entry its abilities render as `[unrendered: …]`
+/// with nothing anywhere saying why. The skips are returned for the caller to
+/// surface.
 fn index_tokens(
     root: &Path,
     macros: &MacroSet,
     provenance: &mut crate::provenance::ProvenanceIndex,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<(PathBuf, String)>> {
+    let mut skipped = Vec::new();
     for path in ron_files_recursive(&root.join(TOKENS_DIR))? {
-        let Ok(source) = read(&path) else { continue };
-        if let Ok(token) = macros.read_str::<deckmaste_authoring::Token>(&source) {
-            provenance.insert_token(&token);
+        match read(&path) {
+            Err(e) => skipped.push((path, format!("reading: {e}"))),
+            Ok(source) => match macros.read_str::<deckmaste_authoring::Token>(&source) {
+                Err(e) => skipped.push((path, format!("expanding: {e}"))),
+                Ok(token) => provenance.insert_token(&token),
+            },
         }
     }
     provenance.insert_predefined_tokens();
-    Ok(())
+    Ok(skipped)
 }
 
 /// Whether a signature takes no arguments, in either shape.
@@ -1025,6 +1040,31 @@ mod tests {
             .err()
             .expect("expected duplicate error");
         assert!(format!("{err:#}").contains("already defined"), "{err:#}");
+    }
+
+    /// A malformed token file does not fail the load (leniency is deliberate)
+    /// but is no longer dropped on the floor: it lands in `skipped_tokens`
+    /// with its reason, so the `[unrendered: …]` the pane would show for that
+    /// token has a stated cause.
+    #[test]
+    fn a_malformed_token_file_is_reported_not_silently_skipped() {
+        let root = tempfile::tempdir().unwrap();
+        let tokens_dir = root.path().join(TOKENS_DIR);
+        std::fs::create_dir_all(&tokens_dir).unwrap();
+        std::fs::write(tokens_dir.join("broken.ron"), "Token(this is not RON").unwrap();
+
+        let plugin = Plugin::load(root.path()).unwrap();
+        assert_eq!(
+            plugin.skipped_tokens.len(),
+            1,
+            "the malformed file is reported: {:?}",
+            plugin.skipped_tokens
+        );
+        assert!(
+            plugin.skipped_tokens[0].0.ends_with("broken.ron"),
+            "the report names the file: {:?}",
+            plugin.skipped_tokens
+        );
     }
 
     /// A plugin root with no `rules/grant/` directory at all loads with an

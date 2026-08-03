@@ -397,9 +397,7 @@ impl GameState {
     }
 
     /// Returns the effect of the spell's first `Ability::Spell(SpellAbility {
-    /// effect, .. })`, cloned. Looks through `Ability::Expanded` the way
-    /// `derive::tap_mana_ability` does. Returns `None` if there is no Spell
-    /// ability.
+    /// effect, .. })`, cloned. Returns `None` if there is no Spell ability.
     #[must_use]
     pub(crate) fn spell_effect(&self, id: ObjectId) -> Option<OneShotEffect> {
         crate::derive::abilities(self, id)
@@ -424,8 +422,7 @@ pub(crate) fn spell_targets(view: &crate::layer::LayeredView, id: ObjectId) -> V
         .map_or_else(Vec::new, |e| top_targets(e).to_vec())
 }
 
-/// Extracts the `OneShotEffect` from the first `Ability::Spell` arm, looking
-/// through `Ability::Expanded`.
+/// Extracts the `OneShotEffect` from the first `Ability::Spell` arm.
 fn spell_ability_effect(ability: &Ability) -> Option<&OneShotEffect> {
     match ability {
         Ability::Spell(s) => Some(&s.effect),
@@ -445,8 +442,8 @@ fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
     }
 }
 
-/// The targets declared on a top-level `Targeted` wrapper (peeling
-/// `Expanded`), or `&[]` when the effect isn't a wrapper — the announce-list
+/// The targets declared on a top-level `Targeted` wrapper, or `&[]` when the
+/// effect isn't a wrapper — the announce-list
 /// home after the migration ([CR#115.1,601.2c]). A single top-level wrapper is
 /// the only shape today; a nested wrapper would need a per-scope target stack.
 pub(crate) fn top_targets(effect: &OneShotEffect) -> &[TargetSpec] {
@@ -556,11 +553,10 @@ mod tests {
         );
     }
 
-    /// `top_targets` reads the targets off a top-level `Targeted` (peeling
-    /// `Expanded`) and returns empty for a non-wrapper effect
-    /// ([CR#115.1,601.2c]).
+    /// `top_targets` reads the targets off a top-level `Targeted` and returns
+    /// empty for a non-wrapper effect ([CR#115.1,601.2c]).
     #[test]
-    fn top_targets_reads_wrapper_and_peels_expanded() {
+    fn top_targets_reads_wrapper_and_is_empty_otherwise() {
         let spec = deckmaste_core::TargetSpec::Target(
             deckmaste_core::Quantity::one(),
             Predicate::creature(),
