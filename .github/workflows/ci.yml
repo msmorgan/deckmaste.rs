@@ -76,6 +76,16 @@ jobs:
       # report `ignored` below while the run looks green.
       - name: re-run build scripts against the staged fixtures
         run: touch crates/*/build.rs
+      # KNOWN GAP — `deckmaste_frames`'s `gen_catalogs` cfg is OFF here, so its
+      # 37 unify/render fixtures and 4 pilot tests report `ignored`. They parse
+      # real oracle text against `data/gen/catalogs`, which `cargo xtask
+      # catalogs` derives from `data/rules/cr.txt` — and the mirror carries no
+      # CR text snapshot (`fetch_data --minimal` takes `cr/keywords`, not
+      # `link/cr`), so no step above can produce that directory — and shipping
+      # cr.txt in the mirror is barred, rule text is never committed. Closing
+      # it means generating the twelve derived name lists somewhere, either
+      # here from a runtime-fetched cr.txt or in the mirror's refresh job; see
+      # item 4 of docs/tickets/planned/ci-noncanon-gate-and-mirror-pinning.md.
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test

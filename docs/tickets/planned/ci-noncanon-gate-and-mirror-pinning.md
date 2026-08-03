@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-Two CI coverage holes plus a hermeticity hazard around the data mirror:
+Three CI coverage holes plus a hermeticity hazard around the data mirror:
 
 1. **The noncanon keep-green gate never runs in CI.** The WC99 suite
    (crates/deckmaste_noncanon/tests/wc99.rs) is behind the non-default
@@ -29,3 +29,29 @@ Two CI coverage holes plus a hermeticity hazard around the data mirror:
    panics `CardSource::card` in the ungated smoke test). Pin the mirror
    checkout to a commit (with a documented bump procedure), and either
    document the `--minimal`-vs-full divergence as accepted or close it.
+
+4. **The frames unify/render fixtures never run in CI.** They parse real
+   oracle text against `data/gen/catalogs`, which `cargo xtask catalogs`
+   derives from `data/rules/cr.txt` — and the mirror carries no CR text
+   snapshot (`scripts/fetch_data --minimal` fetches `cr/keywords`, not
+   `link/cr`), so the directory cannot exist on a runner. They were
+   *unguarded* and panicked 37 tests on every push until the
+   `gen_catalogs` build.rs gate landed; the gate makes CI green and honest
+   but reports them and the 4 pilot tests `ignored`, leaving
+   `deckmaste_frames` with only its 45 fixture-free unit tests in CI.
+
+   The obvious close — commit `cr.txt` to the mirror — is **barred**: rule
+   text is never committed, only derived artifacts. The twelve generated
+   catalogs are themselves bare name lists (~7 KB total), the same class of
+   derived artifact the mirror already ships as `keywords.json` and the
+   Scryfall dumps, so either of these works:
+
+   - **Runtime fetch.** ci.yml pulls `link/cr` into the gitignored `data/`
+     and runs `cargo xtask catalogs`; nothing is committed. One step, but
+     it puts api.academyruins.com on trunk's critical path — the same
+     red/green-with-no-repo-change hazard as item 3.
+   - **Mirror-side generation.** The mirror's refresh workflow fetches
+     cr.txt into its own gitignored tree and commits only the twelve
+     derived lists. Hermetic, and CI just stages them like the rest — but
+     it needs the deckmaste toolchain in a repo that is currently a fish
+     fetch script.

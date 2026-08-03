@@ -1095,7 +1095,10 @@ mod tests {
     /// oracle text against. Load-bearing rather than incidental:
     /// `Catalogs::default()` has zero entries in every catalog, so
     /// `KeywordLine` frames and catalog nouns such as "creature" cannot parse
-    /// against it at all.
+    /// against it at all. Only ever reached from
+    /// `#[cfg_attr(not(gen_catalogs), ignore)]` tests, so `data/gen/catalogs`
+    /// is guaranteed present when this runs (build.rs sets the `gen_catalogs`
+    /// cfg from the directory's presence).
     fn real_catalogs() -> Catalogs {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
         let load = |name: &str| -> Vec<String> {
@@ -1260,6 +1263,7 @@ mod tests {
     /// bare pronoun "it" as a `Reference` — recovery is still total, which is
     /// the point.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn deal_damage_recovers_all_three_args() {
         let target = parse(
             "Lightning Bolt deals 3 damage to it.",
@@ -1296,6 +1300,7 @@ mod tests {
     /// pins the nullary shape and the absence of a spurious self-ambiguity
     /// (the pro-form frame is registered at two categories) as well.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_self_referential_subject_recovers_as_the_this_constant() {
         let target = parse(
             "Lightning Bolt deals 3 damage to any target.",
@@ -1338,6 +1343,7 @@ mod tests {
     /// constituent, which is the only place a bare-hole pattern is reachable
     /// (against a whole `Fragment` the unpeeled pattern aligns first).
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_bare_hole_frame_matches_only_when_its_hole_discriminates() {
         // A captured constituent: the payload of a fragment, with no
         // `Fragment` wrapper of its own.
@@ -1390,6 +1396,7 @@ mod tests {
     /// subject comes back from the guard — as the spelling the catalog
     /// authored, not the expanded canonical form.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn imperative_draw_recovers_the_you_guard() {
         let target = parse("Draw three cards.", FragmentKind::Sentence, "");
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
@@ -1406,6 +1413,7 @@ mod tests {
     /// the partial node it binds is itself matched — by `Creature`, whose own
     /// frame is a full four-field nominal.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn filter_slice_hole_matches_inside_target() {
         let target = parse("target creature", FragmentKind::Nominal, "");
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
@@ -1421,6 +1429,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn unmatched_text_is_residual_not_error() {
         let target = parse("The sky is blue.", FragmentKind::Sentence, "");
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
@@ -1438,6 +1447,7 @@ mod tests {
     /// assumed the three-field set would bind the frame's own "you control"
     /// into the argument and `Creature` would not match what came out.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_two_field_slice_binds_only_the_fields_it_claims() {
         let target = parse("creature you control", FragmentKind::Nominal, "");
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
@@ -1466,6 +1476,7 @@ mod tests {
     /// A `~` hole against the `ThisCard` leaf — the form the sigil itself
     /// compiles to — with a field slice and a numeral in the same frame.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_self_reference_hole_matches_the_this_card_leaf() {
         let target = parse(
             "Lightning Bolt deals 3 damage to each creature.",
@@ -1494,6 +1505,7 @@ mod tests {
     /// to cope with the form either way, since 99.2% of the corpus's
     /// "Sacrifice this `<TYPE>`" lines are spelled this way.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_self_reference_hole_matches_the_demonstrative_nominal() {
         let lexicon = sole(
             "SacrificeThis",
@@ -1525,6 +1537,7 @@ mod tests {
     /// has to be denotational, and a frame like this would be unmatchable if
     /// it were raw tree equality.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_non_linear_self_reference_agrees_across_differently_shaped_sites() {
         let lexicon = sole(
             "DealsDamageToSelf",
@@ -1564,6 +1577,7 @@ mod tests {
     /// card ("You gain") and a third-person one ("Target player gains") must
     /// both reach it.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn hole_driven_agreement_is_neutralized_before_comparison() {
         for text in ["You gain 3 life.", "Target player gains 3 life."] {
             let target = parse(text, FragmentKind::Sentence, "");
@@ -1587,6 +1601,7 @@ mod tests {
     /// always records `Arabic` (its witness is the numeral `41`), so a card
     /// that spells its count out has to reach the same recovery.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn spelled_out_and_arabic_counts_recover_the_same_literal() {
         let spelled = unify(
             &parse("Draw three cards.", FragmentKind::Sentence, ""),
@@ -1606,6 +1621,7 @@ mod tests {
     /// imperative frame is `position: Main`, so in a trigger's subordinate
     /// clause it is not a candidate and the unguarded `Draw` wins instead.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_guards_position_key_gates_the_frame() {
         let target = parse("Draw three cards.", FragmentKind::Sentence, "");
         let main = unify(&target, &fixture().lexicon, FramePosition::Main);
@@ -1623,6 +1639,7 @@ mod tests {
     /// `Draws`' guarded one. The tie is broken deterministically (the guarded
     /// frame is more specific) and the loser is recorded rather than dropped.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn competing_root_matches_are_recorded_as_an_ambiguity() {
         let target = parse("Draw three cards.", FragmentKind::Sentence, "");
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
@@ -1637,6 +1654,7 @@ mod tests {
     /// A subject hole recurses: the filler is itself an invocation, recovered
     /// from a frame at a different category.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_subtree_hole_recurses_into_a_nested_entry() {
         // "artifact", not "player": a fix-round finding gave `Player` its own
         // frame (`filter/Player.ron` — `DealsDamageToEach`'s own recipient
@@ -1672,6 +1690,7 @@ mod tests {
     /// "player" now recovers cleanly through its own pro-form-like `Player`
     /// frame (`filter/Player.ron`), the same way `Creature` already did.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn player_now_recovers_through_its_own_frame() {
         let target = parse(
             "Target player draws three cards.",
@@ -1693,6 +1712,7 @@ mod tests {
 
     /// A zero-hole frame at a category that needs a populated catalog.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_hole_free_keyword_frame_matches() {
         let target = parse("flying", FragmentKind::KeywordLine, "");
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
@@ -1708,6 +1728,7 @@ mod tests {
     /// satisfied by a card-side `Range(Some(1), Some(1))` — the same value,
     /// a different spelling.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn guard_holds_compares_expanded_canonical_forms() {
         use deckmaste_authoring::Count;
         use deckmaste_authoring::Quantity;
@@ -1736,6 +1757,7 @@ mod tests {
     /// guard *fail*, never error. Selection then falls through to a
     /// less-specific frame and totality is preserved.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_non_ground_argument_fails_a_guard_rather_than_erroring() {
         /// Serializes exactly as `macro_ron`'s free-hole term does, which is
         /// what `guard::ensure_ground` refuses.
@@ -1773,6 +1795,7 @@ mod tests {
     /// comparing: two assemblies in *one* process read the same `MacroSet`
     /// and so would agree even unsorted.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn assembled_entry_order_is_total_and_deterministic() {
         let entries = fixture().lexicon.entries();
         let key = |entry: &Entry| {
@@ -1811,6 +1834,7 @@ mod tests {
     /// `kinds:` resolve to — `Draws` four, and a macro registered under
     /// several macro kinds still only once.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn assemble_registers_each_macro_frame_once_at_its_resolved_category() {
         let lexicon = &fixture().lexicon;
         let mut labels: Vec<String> = lexicon
@@ -1877,6 +1901,7 @@ mod tests {
     /// is what bridges them. Mirrors the real catalog entry at
     /// `plugins/builtin/frames/constructors.ron`.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn body_entry_assembles_params_into_the_canonical_spelling() {
         let lexicon = lexicon_over(&[
             catalog_entry(
@@ -1919,6 +1944,7 @@ mod tests {
     /// `Target(0)`, the `Targeted`/`Act` spine — are fixed material the
     /// comparison holds the recovery to exactly.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn body_entry_matches_announce_list_authoring() {
         let lexicon = lexicon_over(&announced_damage_catalog());
 
@@ -1974,6 +2000,7 @@ mod tests {
     /// non-announcement. Neither entry's name matches the other's, so
     /// `same_authored_frame`'s tie carve-out is not what separates them.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn announce_only_hole_rejects_plain_filler_and_plain_hole_rejects_announced() {
         let lexicon = lexicon_over(&announced_damage_catalog());
 
@@ -2072,6 +2099,7 @@ mod tests {
     /// nominals directly, and declaring `Target` here would need a matching
     /// `TargetedDraws` body first.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn the_shipped_catalog_declares_exactly_any_target_as_an_announcement() {
         let names: Vec<&str> = fixture()
             .lexicon
@@ -2085,6 +2113,7 @@ mod tests {
     /// argument is silently dropped. The near-miss the check is really for is
     /// a body authored as a *string*, which holes nothing at all.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn assemble_rejects_a_body_that_drops_a_declared_param() {
         for (body, why) in [
             (r"body: GainLife(Param(1))", "param 0 unholed"),
@@ -2229,6 +2258,7 @@ mod tests {
     /// entries and makes `try_entry` `O(lexicon × tree)` against categories
     /// the target could never actually be rooted at).
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_constructor_frame_is_registered_only_at_its_declared_kind() {
         let lexicon = &fixture().lexicon;
         let kinds = |name: &str| {

@@ -824,7 +824,10 @@ mod tests {
     /// oracle text against — identical to `unify.rs`'s own fixture helper of
     /// the same name (kept as a small, deliberate per-file duplication
     /// rather than a shared test-only crate export, matching this crate's
-    /// existing fixture-duplication convention).
+    /// existing fixture-duplication convention). Only ever reached from
+    /// `#[cfg_attr(not(gen_catalogs), ignore)]` tests, so `data/gen/catalogs`
+    /// is guaranteed present when this runs (build.rs sets the `gen_catalogs`
+    /// cfg from the directory's presence).
     fn real_catalogs() -> Catalogs {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
         let load = |name: &str| -> Vec<String> {
@@ -890,6 +893,7 @@ mod tests {
     /// unguarded frame's citation-form "draws" is already correct for
     /// *any* third-person subject, `Target player` included) in one pair.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn draw_renders_the_imperative_and_the_declarative() {
         let imperative = recover("Draw three cards.", FragmentKind::Sentence, "");
         assert_eq!(
@@ -918,6 +922,7 @@ mod tests {
     /// not a bug — `render_invocation_with`, given the card's real name, has
     /// no such gap and renders exactly what the legacy renderer would.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn self_reference_needs_a_real_identity() {
         let recovered = recover(
             "Lightning Bolt deals 3 damage to each creature.",
@@ -956,6 +961,7 @@ mod tests {
     /// `KeywordLine`) and this test would pass without ever exercising the
     /// catalog gap it is named for.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_keyword_line_frame_needs_a_populated_catalog() {
         let recovered = recover("flying", FragmentKind::KeywordLine, "");
         assert!(
@@ -996,6 +1002,7 @@ mod tests {
     /// all), exactly the gap that made every canon `Keyword(Flying)` line
     /// silently invisible to G3/G4.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_keyword_line_matches_the_real_capitalized_corpus_spelling() {
         let recovered = recover("Flying", FragmentKind::KeywordLine, "");
         assert!(
@@ -1023,6 +1030,7 @@ mod tests {
     /// render-direction mirror of `unify`'s own totality: a gap in coverage
     /// is a graceful error, never a panic or a fabricated answer.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn an_unreconstructable_residual_fails_the_render_rather_than_guessing() {
         let recovered = recover(
             "Lightning Bolt deals 3 damage to it.",
@@ -1061,6 +1069,7 @@ mod tests {
     /// must actually succeed with the exact expected wording, and `Nominal`
     /// must actually fail, naming the entry it could not find.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn the_callers_category_decides_how_a_constructor_render_is_parsed_back() {
         let this = || Recovered::Invocation {
             entry: "This".to_string(),
@@ -1110,6 +1119,7 @@ mod tests {
     /// "draw one cards" instead of "Draw a card." — the exact wrong output a
     /// textual guard comparison produces and a canonical-form one does not.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_guard_matches_any_ground_spelling_of_its_constant_not_just_its_own() {
         let tagged = Recovered::Invocation {
             entry: "Draws".to_string(),
@@ -1134,6 +1144,7 @@ mod tests {
     /// guard makes selection fall through to a less specific one — never a
     /// mid-render error.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_mismatched_guard_falls_through_to_a_less_specific_frame_rather_than_erroring() {
         let recovered = Recovered::Invocation {
             entry: "Draw".to_string(),
@@ -1196,6 +1207,7 @@ mod tests {
     /// exactly and must still render, so the check cannot be passing by
     /// refusing everything.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_filler_that_reassembles_the_frame_differently_is_refused() {
         let lexicon = Lexicon::from_entries(
             vec![
@@ -1248,6 +1260,7 @@ mod tests {
     /// tie, not resolved silently by whichever the lexicon happened to
     /// assemble first.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn incomparable_guards_are_reported_rather_than_resolved_silently() {
         let macros = fixture().lexicon.macros();
         let params: Vec<String> = vec!["Reference".to_string(), "Count".to_string()];

@@ -53,7 +53,10 @@ fn plugin_dir() -> PathBuf {
 /// every catalog, so a `KeywordLine` frame can never parse against it (the
 /// keyword-line grammar recognizes a keyword atom by catalog lookup, not
 /// free parsing); see the G5 report for this finding in full, discovered
-/// while authoring `Flying`/`Protection`.
+/// while authoring `Flying`/`Protection`. Only ever reached from
+/// `#[cfg_attr(not(gen_catalogs), ignore)]` tests, so `data/gen/catalogs` is
+/// guaranteed present when this runs (build.rs sets the `gen_catalogs` cfg
+/// from the directory's presence).
 fn real_catalogs() -> Catalogs {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
     let load = |name: &str| -> Vec<String> {
@@ -133,6 +136,7 @@ const EXPECTED_FRAMED_MACROS: [&str; 10] = [
 ];
 
 #[test]
+#[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
 fn every_framed_macro_and_constructor_entry_compiles_clean() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
@@ -233,6 +237,7 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
 /// any more — it still asserts something real: each macro has exactly one
 /// frame, and it's the exact text this report's story depends on.
 #[test]
+#[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
 fn controlled_by_you_and_sacrifice_this_carry_their_resolved_wording() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
@@ -283,6 +288,7 @@ fn controlled_by_you_and_sacrifice_this_carry_their_resolved_wording() {
 /// real params rather than trusting `def.frames()[0]`, so it still catches a
 /// regression in `classify()` itself, not just in the `.ron` file's content.
 #[test]
+#[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
 fn controlled_by_you_complement_side_field_slice_compiles() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
@@ -331,6 +337,7 @@ fn controlled_by_you_complement_side_field_slice_compiles() {
 /// so this test's role narrowed to exactly what it says: `~` compiles, to
 /// the wrong shape, which is why it wasn't the frame adopted.
 #[test]
+#[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
 fn sacrifice_this_self_reference_sigil_compiles_as_self_ref() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
