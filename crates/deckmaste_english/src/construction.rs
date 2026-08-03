@@ -22,6 +22,12 @@ impl fmt::Display for ConstructionId {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub(crate) struct ProductionId {
+    pub(crate) construction: ConstructionId,
+    pub(crate) ordinal: u16,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstructionOwner {
     Handwritten,

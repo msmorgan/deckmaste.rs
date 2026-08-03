@@ -7,6 +7,7 @@ use hashbrown::HashMap;
 use hashbrown::hash_map::Entry;
 
 use crate::chart::RuleId;
+use crate::construction::ProductionId;
 use crate::features::ExactParse;
 use crate::features::SurfaceWitnessPayload;
 
@@ -210,6 +211,7 @@ impl<N, L, F, M> NodeKey<N, L, F, M> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PackedAlternative<W: SurfaceWitnessPayload> {
     pub(crate) rule: Option<RuleId>,
+    pub(crate) production: Option<ProductionId>,
     pub(crate) children: Vec<NodeId>,
     pub(crate) local_cost: ParseCost,
     pub(crate) surface: W,
@@ -473,6 +475,7 @@ mod tests {
             key.clone(),
             PackedAlternative {
                 rule: Some(RuleId::new(0)),
+                production: None,
                 children: Vec::new(),
                 local_cost: ParseCost::default(),
                 surface: Comma::Absent,
@@ -482,6 +485,7 @@ mod tests {
             key,
             PackedAlternative {
                 rule: Some(RuleId::new(0)),
+                production: None,
                 children: Vec::new(),
                 local_cost: ParseCost::default(),
                 surface: Comma::Present,
@@ -528,6 +532,7 @@ mod tests {
             key.clone(),
             PackedAlternative {
                 rule: Some(RuleId::new(4)),
+                production: None,
                 children: Vec::new(),
                 local_cost: ParseCost {
                     precedence: 2,
@@ -540,6 +545,7 @@ mod tests {
             key,
             PackedAlternative {
                 rule: Some(RuleId::new(3)),
+                production: None,
                 children: Vec::new(),
                 local_cost: ParseCost {
                     precedence: 1,
@@ -571,6 +577,7 @@ mod tests {
                 key.clone(),
                 PackedAlternative {
                     rule: Some(RuleId::new(4)),
+                    production: None,
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
                     surface: (),
@@ -581,6 +588,7 @@ mod tests {
             key,
             PackedAlternative {
                 rule: Some(RuleId::new(3)),
+                production: None,
                 children: Vec::new(),
                 local_cost: ParseCost::default(),
                 surface: (),
@@ -603,6 +611,7 @@ mod tests {
                 NodeKey::nonterminal("sentence", 0, 1, "first"),
                 PackedAlternative {
                     rule: Some(RuleId::new(1)),
+                    production: None,
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
                     surface: (),
@@ -614,6 +623,7 @@ mod tests {
                 NodeKey::nonterminal("sentence", 0, 1, "second"),
                 PackedAlternative {
                     rule: Some(RuleId::new(2)),
+                    production: None,
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
                     surface: (),

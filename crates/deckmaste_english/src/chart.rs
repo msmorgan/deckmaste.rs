@@ -6,6 +6,7 @@ use std::rc::Rc;
 use hashbrown::HashMap;
 use hashbrown::hash_map::Entry;
 
+use crate::construction::ProductionId;
 use crate::features::ChartFeatureBundle;
 use crate::features::SurfaceWitnessPayload;
 use crate::forest::NodeId;
@@ -35,6 +36,7 @@ pub(crate) enum Expected<N, L> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Rule<N, L> {
+    pub(crate) production: ProductionId,
     pub(crate) lhs: N,
     pub(crate) rhs: Vec<Expected<N, L>>,
     pub(crate) local_cost: ParseCost,
@@ -313,10 +315,11 @@ where
     ) -> Result<(), GrammarError> {
         let rule = &self.grammar.rules()[item.rule.index()];
         let lhs = rule.lhs;
+        let production = rule.production;
         let local_cost = rule.local_cost;
         match rule.rhs.get(item.dot).copied() {
             None => {
-                self.complete_item(position, item, lhs, local_cost);
+                self.complete_item(position, item, lhs, production, local_cost);
                 Ok(())
             }
             Some(Expected::Nonterminal(nonterminal)) => {
@@ -332,6 +335,7 @@ where
         position: usize,
         item: &ItemKey<G::Features>,
         lhs: G::Nonterminal,
+        production: ProductionId,
         rule_cost: ParseCost,
     ) {
         let children = item
@@ -356,6 +360,7 @@ where
             NodeKey::nonterminal(lhs, item.origin, position, reduction.features),
             PackedAlternative {
                 rule: Some(item.rule),
+                production: Some(production),
                 children: vec![intermediate],
                 local_cost: rule_cost + reduction.local_cost,
                 surface,
@@ -477,6 +482,7 @@ where
             ),
             PackedAlternative {
                 rule: None,
+                production: None,
                 children,
                 local_cost: intermediate_cost,
                 surface: G::SurfaceWitness::default(),
@@ -521,6 +527,7 @@ where
                 ),
                 PackedAlternative {
                     rule: None,
+                    production: None,
                     children: Vec::new(),
                     local_cost: lexical_match.local_cost,
                     surface,
@@ -633,6 +640,8 @@ mod tests {
     use super::Rule;
     use super::RuleId;
     use super::parse_chart;
+    use crate::construction::ConstructionId;
+    use crate::construction::ProductionId;
     use crate::forest::ForestSymbol;
     use crate::forest::ParseCost;
 
@@ -720,6 +729,10 @@ mod tests {
 
     fn rule(lhs: N, rhs: Vec<Expected<N, L>>) -> Rule<N, L> {
         Rule {
+            production: ProductionId {
+                construction: ConstructionId::new("chart_test"),
+                ordinal: 0,
+            },
             lhs,
             rhs,
             local_cost: ParseCost::default(),

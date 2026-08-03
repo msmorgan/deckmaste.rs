@@ -31,6 +31,7 @@ pub(crate) use parse_support::parse_nonterminal_with_self_reference;
 use reduction::Reduced;
 use reduction::propagate;
 use reduction::reduce;
+use rules::RegistrationOrder;
 use rules::RuleBuilder;
 use scan::accepts_keyword_grant_prefix;
 use scan::accepts_possessive_modifier_prefix;
@@ -1899,6 +1900,24 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         opacity_mode: OpacityMode,
         self_reference: SelfReference,
     ) -> Self {
+        Self::with_opacity_mode_and_registration_order(
+            source,
+            catalogs,
+            start,
+            opacity_mode,
+            self_reference,
+            RegistrationOrder::Normal,
+        )
+    }
+
+    fn with_opacity_mode_and_registration_order(
+        source: &'source str,
+        catalogs: &'catalogs Catalogs,
+        start: Nonterminal,
+        opacity_mode: OpacityMode,
+        self_reference: SelfReference,
+        registration_order: RegistrationOrder,
+    ) -> Self {
         let mut builder = RuleBuilder::default();
         builder.add_nominal_rules();
         builder.add_clause_rules();
@@ -1941,13 +1960,14 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // exist only to retain the final member of coordinated PP objects and
         // must not renumber the established grammar.
         builder.add_rules_object_attachment_rules();
+        let rule_book = builder.finish(registration_order);
         Self {
             source,
             catalogs,
             start,
-            rules: builder.rules,
-            tags: builder.tags,
-            rules_by_lhs: builder.rules_by_lhs,
+            rules: rule_book.rules,
+            tags: rule_book.tags,
+            rules_by_lhs: rule_book.rules_by_lhs,
             opacity_mode,
             self_reference,
         }
