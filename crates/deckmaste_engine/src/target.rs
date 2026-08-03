@@ -110,15 +110,15 @@ pub(crate) fn source_of(state: &GameState, id: ObjectId) -> Option<ObjectId> {
 }
 
 /// The combinator arms shared by every `Predicate` matcher: the logical
-/// `And`/`Or`/`Not`, the transparent look-through of an `Expanded` filter
-/// macro, and the `Any` wildcard. Returns `Some(result)` for one of those arms
-/// — recursing each sub-filter through `eval`, the caller's own leaf-aware
-/// matcher (which re-enters this walker for nested combinators) — and `None`
-/// for any other (leaf) predicate, which the caller evaluates itself. This owns
-/// the combinator recursion in one place so the live ([`matches_with`]),
-/// snapshot (`GameState::filter_matches_snapshot`), and derived-view
-/// (`layer::matches_derived`) matchers share it instead of hand-copying it; the
-/// leaves legitimately differ (live / snapshot / derived) and stay per-caller.
+/// `And`/`Or`/`Not` and the `Any` wildcard. Returns `Some(result)` for one of
+/// those arms — recursing each sub-filter through `eval`, the caller's own
+/// leaf-aware matcher (which re-enters this walker for nested combinators) —
+/// and `None` for any other (leaf) predicate, which the caller evaluates
+/// itself. This owns the combinator recursion in one place so the live
+/// ([`matches_with`]), snapshot (`GameState::filter_matches_snapshot`), and
+/// derived-view (`layer::matches_derived`) matchers share it instead of
+/// hand-copying it; the leaves legitimately differ (live / snapshot / derived)
+/// and stay per-caller.
 pub(crate) fn walk_combinators<F>(filter: &Predicate, eval: F) -> Option<bool>
 where
     F: Fn(&Predicate) -> bool,
@@ -149,8 +149,8 @@ pub fn matches_with(
     filter: &Predicate,
     watcher: Option<ObjectSource>,
 ) -> bool {
-    // Combinators (`And`/`Or`/`Not`/`Expanded`/`Any`) recurse through this
-    // same matcher via the shared walker; leaves fall through to the match.
+    // Combinators (`And`/`Or`/`Not`/`Any`) recurse through this same matcher
+    // via the shared walker; leaves fall through to the match.
     if let Some(result) = walk_combinators(filter, |f| matches_with(state, id, f, watcher)) {
         return result;
     }
@@ -163,13 +163,14 @@ pub fn matches_with(
         // player proxy (zone None) never matches InZone.
         Predicate::State(StatePredicate::InZone(z)) => state.objects.obj(id).zone == Some(*z),
         // Combinators are handled by `walk_combinators` before this match.
-        Predicate::And(_)
-        | Predicate::Or(_)
-        | Predicate::Not(_)
-        | Predicate::Expanded(_)
-        | Predicate::Any => {
+        Predicate::And(_) | Predicate::Or(_) | Predicate::Not(_) | Predicate::Any => {
             unreachable!("combinator filters are handled by walk_combinators before the match")
         }
+        // NOT a combinator, and not walked: provenance is erased at `lower`
+        // (`deckmaste_lowering`), so no loaded value reaches here wrapped. The
+        // arm survives only because the variant does; `core-demacro` deletes
+        // both.
+        Predicate::Expanded(_) => unreachable!("provenance erased at lower"),
         // [CR#702.11d] "abilities … from [quality] sources": strict to stack
         // ABILITIES by construction — the candidate is an activated/triggered
         // ability on the stack whose SOURCE (the generating object,

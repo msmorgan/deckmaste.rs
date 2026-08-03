@@ -495,7 +495,7 @@ impl GameState {
         let CostComponent::With { binder, .. } = with else {
             unreachable!("cost_summary collects only With components into `withs`");
         };
-        match crate::resolve::peel_binder(binder) {
+        match &**binder {
             // A captured reference / existing selection resolves directly.
             Binder::TheRef(_) | Binder::Existing(_) => true,
             // ≥ 1 candidate to choose ([CR#601.2b]).
@@ -521,7 +521,10 @@ impl GameState {
                  are not yet wired (no runtime produce-and-capture / library-search primitive)"
                 )
             }
-            Binder::Expanded(_) => unreachable!("peeled above"),
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both.
+            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
         }
     }
 

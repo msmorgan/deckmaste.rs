@@ -23,8 +23,6 @@ use super::action::composite_body_whose;
 use super::action::composite_move_src;
 use super::deref_quantity;
 use super::occurrence_of;
-use super::peel_binder;
-use super::peel_effect;
 use super::top_targets;
 use crate::agenda::WorkItem;
 use crate::event::Act;
@@ -96,12 +94,10 @@ impl GameState {
     fn lock_deontic_subject(&self, deontic: &Deontic, frame: &Frame) -> (Vec<ObjectId>, Deontic) {
         let mut locked = deontic.clone();
         let mut ids = Vec::new();
-        if let Some(action) = deontic_action_mut(&mut locked) {
-            for slot in deontic_subject_slots(action) {
-                if let Predicate::Ref(r) = slot {
-                    ids.push(self.eval_reference(r, frame));
-                    *slot = Predicate::Ref(Reference::It);
-                }
+        for slot in deontic_subject_slots(deontic_action_mut(&mut locked)) {
+            if let Predicate::Ref(r) = slot {
+                ids.push(self.eval_reference(r, frame));
+                *slot = Predicate::Ref(Reference::It);
             }
         }
         (ids, locked)
@@ -147,7 +143,7 @@ impl GameState {
         frame: &Frame,
     ) -> Vec<ObjectId> {
         use deckmaste_core::Binder;
-        match peel_binder(binder) {
+        match binder {
             Binder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
             Binder::Existing(selection) => self.eval_selection_set(selection, frame),
             Binder::ChooseOne { .. } | Binder::Choose { .. } => frame
@@ -174,7 +170,10 @@ impl GameState {
                 "Binder::Search/SearchOne: no library-search/tutor primitive — searching hidden \
                  zones (reveal + shuffle) is not yet wired"
             ),
-            Binder::Expanded(_) => unreachable!("peeled above"),
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both.
+            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
         }
     }
 
@@ -185,7 +184,7 @@ impl GameState {
         use deckmaste_core::Binder;
 
         use crate::stack::Cardinality;
-        match peel_binder(binder) {
+        match binder {
             // `Produce`/`SearchOne` are One-binders (Idris `Bindable b One …`);
             // `Search` is Many. This cardinality is a pure structural fact from
             // the Idris constructors, valid independent of the resolution seam.
@@ -196,7 +195,10 @@ impl GameState {
             Binder::Choose { .. } | Binder::Existing(_) | Binder::Search { .. } => {
                 Cardinality::Many
             }
-            Binder::Expanded(_) => unreachable!("peeled above"),
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both.
+            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
         }
     }
 
@@ -226,7 +228,7 @@ impl GameState {
         // `candidates_with`/`frame_watcher` pair `Selection::SelectAll`
         // already uses.
         let watcher = Some(self.frame_watcher(frame));
-        match peel_binder(binder) {
+        match binder {
             Binder::ChooseOne { filter, by } => Some((
                 self.acting_player(by, frame),
                 crate::target::candidates_with(self, filter, watcher),
@@ -260,7 +262,7 @@ impl GameState {
         }
     }
 
-    /// [CR#701.9b] "at random": when `binder` (after macro-peeling) is
+    /// [CR#701.9b] "at random": when `binder` is
     /// `Existing(Selection::Random(quantity, filter))` and no pick is bound
     /// yet, sample uniformly via the seeded rng right here — no decision is
     /// surfaced (there is no choice, unlike `Choose`/`ChooseOne`) — and bind
@@ -279,7 +281,7 @@ impl GameState {
         if next.anaphora.chosen.is_some() {
             return next;
         }
-        if let Binder::Existing(Selection::Random(quantity, filter)) = peel_binder(binder) {
+        if let Binder::Existing(Selection::Random(quantity, filter)) = binder {
             let watcher = Some(self.frame_watcher(frame));
             let candidates = crate::target::candidates_with(self, filter, watcher);
             let (_, max) = self.choice_bounds(quantity, candidates.len(), frame);
@@ -335,7 +337,7 @@ impl GameState {
         crate::object::ObjectId,
         Option<deckmaste_core::Cost>,
     )> {
-        match peel_effect(&may.effect) {
+        match &*may.effect {
             OneShotEffect::Act(Action::Cast(actor, what, for_cost)) => Some((
                 self.acting_player(actor, frame),
                 self.eval_reference(what, frame),
@@ -460,7 +462,7 @@ impl GameState {
             OneShotEffect::Simultaneously(children) => {
                 let mut member_events: Vec<Vec<GameEvent>> = Vec::new();
                 for child in children.iter() {
-                    let OneShotEffect::Act(action) = peel_effect(child) else {
+                    let OneShotEffect::Act(action) = child else {
                         todo!("a non-verb Simultaneously member is not yet supported: {child:?}")
                     };
                     let mut events = Vec::new();
@@ -739,7 +741,7 @@ impl GameState {
                     next.anaphora.chosen = None;
                     next
                 };
-                match peel_effect(&each.effect) {
+                match &*each.effect {
                     OneShotEffect::Act(action)
                         if !matches!(action, Action::CreateReplacement { .. }) =>
                     {
@@ -831,7 +833,7 @@ impl GameState {
                 // move record, so after the action's zone change applies the
                 // body's `That` resolves to the product. Only `Move` produces
                 // in this cut — other actions stay a labeled seam.
-                if let deckmaste_core::Binder::Produce(action) = peel_binder(&with.binder) {
+                if let deckmaste_core::Binder::Produce(action) = &with.binder {
                     let deckmaste_core::Action::Move(subject, _, _, _) = action.as_ref() else {
                         unimplemented!(
                             "Binder::Produce over a non-Move action: only zone-moves \
@@ -960,7 +962,7 @@ impl GameState {
                 // Cast-referent gate below. A branchless `May` (`if_did`/
                 // `if_not` both `None`) rides the exact same path — one node
                 // serves both, so there is no separate "plain Pay" arm.
-                if let OneShotEffect::Act(Action::Pay(cost)) = peel_effect(&may.effect) {
+                if let OneShotEffect::Act(Action::Pay(cost)) = &*may.effect {
                     let payer = self.acting_player(&may.who, frame);
                     // Normalize at this boundary: read is faithful, so a
                     // macro-spliced cost arrives lumpy (a nested
@@ -1196,7 +1198,7 @@ impl GameState {
                 let n = self.eval_count(&count, frame);
                 if n == 0 {
                     // Clean no-op — mirrors `Repeat`.
-                } else if let Some(unit) = batch_act_unit(peel_effect(&body)) {
+                } else if let Some(unit) = batch_act_unit(&body) {
                     if let Some(head) = self.batch_act_head(&unit, frame) {
                         let verb = deckmaste_core::VerbName::from(head.verb);
                         let act = GameEvent::Act(Act {
@@ -1675,8 +1677,8 @@ impl GameState {
     /// The move verbs (destroy/discard/mill) vet their coordinates directly in
     /// `composite_items` instead.
     pub(crate) fn composite_body_would_act(&self, body: &OneShotEffect, frame: &Frame) -> bool {
-        match peel_effect(body) {
-            OneShotEffect::Each(each) => match peel_binder(&each.binder) {
+        match body {
+            OneShotEffect::Each(each) => match &each.binder {
                 deckmaste_core::Binder::Existing(_) | deckmaste_core::Binder::TheRef(_) => {
                     !self.resolve_binder(&each.binder, frame).is_empty()
                 }
@@ -1699,7 +1701,7 @@ impl GameState {
     /// whose cards the controller is granted visibility over.
     fn is_top_of_library_peek(binder: &deckmaste_core::Binder) -> bool {
         matches!(
-            peel_binder(binder),
+            binder,
             deckmaste_core::Binder::Existing(Selection::TopOfLibrary { .. })
         )
     }
@@ -1710,7 +1712,7 @@ impl GameState {
     /// [`Destination::Library`] anchor (scry/surveil's top pick, fateseal);
     /// false for a graveyard-only body (mill — the graveyard is unordered).
     fn body_repositions_ordered(effect: &OneShotEffect) -> bool {
-        match peel_effect(effect) {
+        match effect {
             OneShotEffect::Act(a) => Self::action_moves_to_library(a),
             OneShotEffect::Sequentially(v) | OneShotEffect::Simultaneously(v) => {
                 v.iter().any(Self::body_repositions_ordered)
@@ -1821,12 +1823,12 @@ fn among_noted_choice(
     }
 }
 
-/// If `effect` is a `ForThisEvent` rider clause — `Until(ForThisEvent, parts)`,
-/// peeling `Expanded` — return its `parts`: the instruction-scoped statics to
+/// If `effect` is a `ForThisEvent` rider clause — `Until(ForThisEvent, parts)`
+/// — return its `parts`: the instruction-scoped statics to
 /// fold onto the preceding sibling in `Sequentially` lowering ([CR#611.2a]).
 /// `None` for every other effect.
 fn for_this_event_rider(effect: &OneShotEffect) -> Option<&[StaticEffect]> {
-    match peel_effect(effect) {
+    match effect {
         OneShotEffect::Until(deckmaste_core::Duration::ForThisEvent, parts) => Some(parts),
         _ => None,
     }
@@ -1878,12 +1880,10 @@ struct BatchActHead {
 }
 
 /// The mutable structural [`DeonticAction`] of a `Deontic`
-/// (May/Cant/Must/Gate). `None` for an unexpanded `Expanded` macro — by
-/// resolution time deontics are expanded, so this is only a defensive floor
-/// (lock nothing, leave it).
-fn deontic_action_mut(d: &mut Deontic) -> Option<&mut DeonticAction> {
+/// (May/Cant/Must/Gate).
+fn deontic_action_mut(d: &mut Deontic) -> &mut DeonticAction {
     match d {
-        Deontic::May(a) | Deontic::Cant(a) | Deontic::Must(a) | Deontic::Gate(a, _) => Some(a),
+        Deontic::May(a) | Deontic::Cant(a) | Deontic::Must(a) | Deontic::Gate(a, _) => a,
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.

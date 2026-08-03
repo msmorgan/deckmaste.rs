@@ -758,7 +758,7 @@ fn matches_derived(
     let Some(c) = working.get(&id).map(|d| &d.characteristics) else {
         return false;
     };
-    // Combinators (`And`/`Or`/`Not`/`Expanded`; `Any` handled above so it
+    // Combinators (`And`/`Or`/`Not`; `Any` handled above so it
     // matches even for ids absent from `working`) recurse through this same
     // derived matcher via the shared walker; characteristic leaves fall through
     // below and everything else delegates to the printed matcher.

@@ -418,8 +418,8 @@ impl GameState {
                 }
             },
 
-            // Combinators (`And`/`Or`/`Not`/`Expanded`/`Any`) are handled
-            // by `walk_combinators` before this match.
+            // Combinators (`And`/`Or`/`Not`/`Any`) are handled by
+            // `walk_combinators` before this match.
             other => todo!("stage 3 does not evaluate snapshot filter {other:?}"),
         }
     }

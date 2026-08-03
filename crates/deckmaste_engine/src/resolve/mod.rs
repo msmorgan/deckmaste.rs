@@ -433,16 +433,6 @@ fn spell_ability_effect(ability: &Ability) -> Option<&OneShotEffect> {
     }
 }
 
-/// Look through a [`Binder::Expanded`](deckmaste_core::Binder::Expanded) macro
-/// invocation to the structural binder underneath — the binder twin of the
-/// effect/selection `peel`s elsewhere.
-pub(crate) fn peel_binder(binder: &deckmaste_core::Binder) -> &deckmaste_core::Binder {
-    binder
-}
-
-/// Look through an
-/// [`OneShotEffect::Expanded`](deckmaste_core::OneShotEffect::Expanded) macro
-/// invocation to the structural effect underneath.
 /// Look through `Quantity` macro expansions (`Exactly`, `AtLeast`, …) to
 /// the underlying `Range` primitive.
 fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
@@ -453,12 +443,6 @@ fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
         // the variant does; `core-demacro` deletes both.
         deckmaste_core::Quantity::Expanded(_) => unreachable!("provenance erased at lower"),
     }
-}
-
-pub(crate) fn peel_effect(
-    effect: &deckmaste_core::OneShotEffect,
-) -> &deckmaste_core::OneShotEffect {
-    effect
 }
 
 /// The targets declared on a top-level `Targeted` wrapper (peeling

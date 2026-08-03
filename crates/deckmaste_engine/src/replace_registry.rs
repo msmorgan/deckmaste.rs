@@ -429,12 +429,15 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
 /// `would` (Instead/Also) matches per `replacement_watches`. Returns `false`
 /// for `Skip` (handled by the step-elision pass, Task 9) and `Expanded`.
 fn replacement_would(state: &GameState, r: &Replacement, source: ObjectId, e: &GameEvent) -> bool {
-    match crate::replace::look_through_replacement(r) {
+    match r {
         Replacement::Instead { would, .. } | Replacement::Also { would, .. } => {
             replacement_watches(state, would, source, e)
         }
         Replacement::Skip { .. } => false, // handled in begin_step, Task 9
-        Replacement::Expanded(_) => unreachable!("look_through_replacement strips Expanded"),
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Replacement::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -474,14 +477,13 @@ fn floating_watches(
     if affected(e) != Some(Affected::Object(subject)) {
         return false;
     }
-    let would = match crate::replace::look_through_replacement(replacement) {
+    let would = match replacement {
         Replacement::Instead { would, .. } | Replacement::Also { would, .. } => would,
         Replacement::Skip { .. } => return false,
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-        // loaded value reaches here wrapped — `look_through_replacement`
-        // above strips it first regardless. The arm survives only because
+        // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        Replacement::Expanded(_) => unreachable!("look_through_replacement strips Expanded"),
+        Replacement::Expanded(_) => unreachable!("provenance erased at lower"),
     };
     let Some(fact) = crate::eval::FactView::of(state, e) else {
         return false;
@@ -653,7 +655,7 @@ fn apply_one(
     }
     match &a.effect {
         ApplicableEffect::Replacement(replacement) => {
-            match crate::replace::look_through_replacement(replacement).clone() {
+            match (**replacement).clone() {
                 Replacement::Instead { instead, .. } => {
                     // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
                     // Schedule the `instead` body; consume a one-shot shield if present.
@@ -679,9 +681,10 @@ fn apply_one(
                     // Skip is handled by the step-elision pass (Task 9), not here.
                     Some(e)
                 }
-                Replacement::Expanded(_) => {
-                    unreachable!("look_through_replacement strips Expanded")
-                }
+                // Provenance is erased at `lower` (`deckmaste_lowering`), so
+                // no loaded value reaches here wrapped. The arm survives only
+                // because the variant does; `core-demacro` deletes both.
+                Replacement::Expanded(_) => unreachable!("provenance erased at lower"),
             }
         }
         ApplicableEffect::Prevention(prevention) => {

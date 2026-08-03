@@ -10,7 +10,6 @@
 
 use std::sync::Arc;
 
-use macro_ron::Expansion;
 use macro_ron::ExpansionArgs;
 use macro_ron::Ident;
 
@@ -91,22 +90,6 @@ impl<T: Lower + Clone> Lower for Arc<[T]> {
 
     fn lower(self) -> Self::Target {
         self.iter().cloned().map(Lower::lower).collect()
-    }
-}
-
-/// Invocation provenance. Identity-shaped for now; `runtime-prose-link` turns
-/// this into the crate's first erasure arm
-/// (`docs/decisions/authoring-spelling-lowering.md` §12).
-impl<T: Lower> Lower for Expansion<T> {
-    type Target = Expansion<T::Target>;
-
-    fn lower(self) -> Self::Target {
-        Expansion {
-            name: self.name,
-            args: self.args,
-            template: self.template,
-            value: self.value.lower(),
-        }
     }
 }
 

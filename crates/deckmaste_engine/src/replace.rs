@@ -37,7 +37,7 @@ impl GameState {
         for ability in self.enters_fold_abilities(source, entering) {
             if let Ability::Static(s) = ability.peel_innate()
                 && let StaticEffect::Replacement(replacement) = s.as_ref()
-                && let Replacement::Also { would, also } = look_through_replacement(replacement)
+                && let Replacement::Also { would, also } = &**replacement
                 && would_is_self_enter(would)
             {
                 self.apply_as_enters(also, entering, &mut status);
@@ -83,7 +83,7 @@ impl GameState {
             .any(|ability| {
                 let Ability::Static(s) = ability else { return false };
                 matches!(s.as_ref(), StaticEffect::Replacement(r)
-                    if matches!(look_through_replacement(r), Replacement::Also { would, also }
+                    if matches!(&**r, Replacement::Also { would, also }
                         if would_is_self_enter(would) && also_is_self_attach(also)))
             })
     }
@@ -204,28 +204,20 @@ fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Predicate> {
     }
 }
 
-/// Whether a `Reference` is this object itself (`This`), looked through any
-/// remembered macro invocation.
+/// Whether a `Reference` is this object itself (`This`).
 fn is_self_reference(r: &Reference) -> bool {
     matches!(r, Reference::This)
 }
 
 /// Whether an `also` effect is this object attaching itself on entry — the
-/// enters-attached shape `With(ChooseOne(quality), Attach(This, That))`,
-/// looked through `Expanded`.
+/// enters-attached shape `With(ChooseOne(quality), Attach(This, That))`.
 fn also_is_self_attach(effect: &OneShotEffect) -> bool {
     enters_attached_quality(effect).is_some()
 }
 
-/// Look through a remembered `Replacement` macro invocation (`AsEnters`, …) to
-/// the form it expanded to.
-pub(crate) fn look_through_replacement(replacement: &Replacement) -> &Replacement {
-    replacement
-}
-
 /// Whether `would` is an enter-the-battlefield event for the watching object
-/// itself — the `Enters(This)`/`Enters(Ref(This))` shape, looked through any
-/// remembered macro invocation. Such a `would` on a static replacement is the
+/// itself — the `Enters(This)`/`Enters(Ref(This))` shape. Such a `would` on a
+/// static replacement is the
 /// object's own self-enter (the watcher in `as_enters_status` is always self),
 /// so a `Ref(This)`/`Any` `what` both qualify.
 fn would_is_self_enter(would: &EventFilter) -> bool {
