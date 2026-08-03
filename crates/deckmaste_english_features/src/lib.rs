@@ -266,6 +266,14 @@ impl Conjunction {
             Self::AndOr => "and/or",
         }
     }
+
+    /// Returns the canonical conjunction represented by `spelling`.
+    #[must_use]
+    pub fn from_spelling(spelling: &str) -> Option<Self> {
+        [Self::And, Self::Or, Self::Then, Self::Plus, Self::AndOr]
+            .into_iter()
+            .find(|conjunction| spelling.eq_ignore_ascii_case(conjunction.spelling()))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -401,6 +409,28 @@ mod tests {
                 "{stratum:?} has no declared feature",
             );
         }
+    }
+
+    #[test]
+    fn conjunction_parses_every_canonical_spelling() {
+        for conjunction in [
+            Conjunction::And,
+            Conjunction::Or,
+            Conjunction::Then,
+            Conjunction::Plus,
+            Conjunction::AndOr,
+        ] {
+            assert_eq!(
+                Conjunction::from_spelling(conjunction.spelling()),
+                Some(conjunction),
+            );
+            assert_eq!(
+                Conjunction::from_spelling(&conjunction.spelling().to_ascii_uppercase()),
+                Some(conjunction),
+            );
+        }
+        assert_eq!(Conjunction::from_spelling("and or"), None);
+        assert_eq!(Conjunction::from_spelling(""), None);
     }
 
     #[test]

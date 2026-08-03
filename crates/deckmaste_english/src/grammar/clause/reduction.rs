@@ -1,7 +1,6 @@
 use super::Agreement;
 use super::Auxiliary;
 use super::AuxiliaryInflection;
-use super::AuxiliaryInstance;
 use super::BareNominalAdjunct;
 use super::Child;
 use super::ContractedSubjectKey;
@@ -409,17 +408,9 @@ pub(in crate::grammar) fn reduction_cost(
             ..
         })
     );
-    let open_exception_list = tag == RuleTag::ClauseExcepted
-        && matches!(
-            children.get(2).map(|child| child.features),
-            Some(Features::ExceptionRider {
-                oxford_pending: true
-            })
-        );
     ParseCost {
         precedence,
-        reading_dispreference: u32::from(finite_first_shared_predicate)
-            + u32::from(open_exception_list),
+        reading_dispreference: u32::from(finite_first_shared_predicate),
         ..ParseCost::default()
     }
 }
@@ -1035,13 +1026,14 @@ pub(super) enum PredicateAttachment {
 /// direct object only as a recipient passive's retained theme, and never keeps
 /// an explicit indirect object.
 pub(super) fn fold_auxiliary_passive(
-    auxiliary: AuxiliaryInstance,
+    auxiliary: impl Into<super::AuxiliaryFeatures>,
     child_form: PredicateForm,
     child_passive: bool,
     object: PredicateObjectState,
     indirect_object: bool,
     frame: PredicateFrame,
 ) -> Option<bool> {
+    let auxiliary = auxiliary.into();
     let passive = child_passive
         || (auxiliary.auxiliary == Auxiliary::Be && child_form == PredicateForm::PastParticiple);
     // A direct object survives passivization only under a recipient-passive
@@ -1949,14 +1941,12 @@ pub(super) fn reduce_composed_clause(
             else {
                 return None;
             };
-            Some(Features::ExceptionRider {
-                oxford_pending: false,
-            })
+            Some(Features::ExceptionRider)
         }
         RuleTag::ExceptionRiderConjoined
         | RuleTag::ExceptionRiderComma
         | RuleTag::ExceptionRiderOxford => {
-            if !matches!(children.first()?.features, Features::ExceptionRider { .. }) {
+            if !matches!(children.first()?.features, Features::ExceptionRider) {
                 return None;
             }
             let Features::Clause {
@@ -1973,9 +1963,7 @@ pub(super) fn reduce_composed_clause(
                     return None;
                 };
             }
-            Some(Features::ExceptionRider {
-                oxford_pending: tag == RuleTag::ExceptionRiderComma,
-            })
+            Some(Features::ExceptionRider)
         }
         RuleTag::ClauseExcepted => {
             let Features::Clause {
@@ -1992,7 +1980,7 @@ pub(super) fn reduce_composed_clause(
             if *subjunctive {
                 return None;
             }
-            if !matches!(children.get(2)?.features, Features::ExceptionRider { .. }) {
+            if !matches!(children.get(2)?.features, Features::ExceptionRider) {
                 return None;
             }
             Some(Features::Clause {
@@ -2294,9 +2282,10 @@ pub(super) const fn predicate_form(slot: VerbSlot) -> PredicateForm {
 }
 
 pub(super) fn auxiliary_form(
-    auxiliary: AuxiliaryInstance,
+    auxiliary: impl Into<super::AuxiliaryFeatures>,
     child: PredicateForm,
 ) -> Option<PredicateForm> {
+    let auxiliary = auxiliary.into();
     let accepts_child = match auxiliary.auxiliary {
         Auxiliary::Be => matches!(
             child,
@@ -2338,5 +2327,88 @@ pub(super) fn auxiliary_form(
         AuxiliaryInflection::PastSubjunctive => Some(PredicateForm::Finite(None)),
         AuxiliaryInflection::PresentParticiple => Some(PredicateForm::PresentParticiple),
         AuxiliaryInflection::PastParticiple => Some(PredicateForm::PastParticiple),
+    }
+}
+
+#[cfg(test)]
+mod feature_identity_tests {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hash;
+    use std::hash::Hasher;
+
+    use super::*;
+    use crate::word::AuxiliaryInstance;
+
+    fn hash(features: Features) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        features.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn standalone_clause() -> Features {
+        Features::Clause {
+            agreement: None,
+            standalone: true,
+            finite: true,
+            host_addressee_subject: false,
+            host_modal: false,
+            subjunctive: false,
+        }
+    }
+
+    #[test]
+    fn auxiliary_surface_witness_does_not_change_chart_features() {
+        let full = AuxiliaryInstance {
+            auxiliary: Auxiliary::Do,
+            inflection: AuxiliaryInflection::Base,
+            contracted_negation: false,
+        };
+        let contracted = AuxiliaryInstance {
+            contracted_negation: true,
+            ..full
+        };
+
+        let full_auxiliary = Features::auxiliary(full);
+        let contracted_auxiliary = Features::auxiliary(contracted);
+        assert_eq!(full_auxiliary, contracted_auxiliary);
+        assert_eq!(hash(full_auxiliary), hash(contracted_auxiliary));
+
+        let subject = ContractedSubjectKey::Pronoun(crate::word::Pronoun::You);
+        let agreement = subject.agreement();
+        let full_subject = Features::SubjectAuxiliary {
+            subject,
+            agreement,
+            auxiliary: full.into(),
+        };
+        let contracted_subject = Features::SubjectAuxiliary {
+            subject,
+            agreement,
+            auxiliary: contracted.into(),
+        };
+        assert_eq!(full_subject, contracted_subject);
+        assert_eq!(hash(full_subject), hash(contracted_subject));
+    }
+
+    #[test]
+    fn exception_punctuation_does_not_change_chart_features() {
+        let ignored = Features::None;
+        let clause = standalone_clause();
+        let single = reduce_composed_clause(
+            RuleTag::ExceptionRiderSingle,
+            &[Child { features: &ignored }, Child { features: &clause }],
+        )
+        .expect("single exception rider must reduce");
+        let comma = reduce_composed_clause(
+            RuleTag::ExceptionRiderComma,
+            &[
+                Child { features: &single },
+                Child { features: &ignored },
+                Child { features: &clause },
+            ],
+        )
+        .expect("comma exception rider must reduce");
+
+        assert_eq!(single, comma);
+        assert_eq!(hash(single), hash(comma));
     }
 }

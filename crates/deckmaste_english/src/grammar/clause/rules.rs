@@ -588,10 +588,9 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
         [n(N::VerbPhrase), n(N::VerbPhrase)],
     );
     // The exception rider: a leading `except` marker heading a coordinated list
-    // of finite clauses. Coordination lives on the dedicated `ExceptionRider`
-    // nonterminal so a copular or possessive-subject conjunct (`it's legendary`,
-    // `its name is X`) — which the general clause coordination cannot form as a
-    // non-first member — joins an Oxford list here.
+    // of finite clauses. An asyndetic comma run lives on `ExceptionRiderList`
+    // until it closes; this keeps punctuation-derived list state out of chart
+    // features while preserving the dispreferred direct attachment fallback.
     builder.add(
         RuleTag::ExceptionRiderSingle,
         N::ExceptionRider,
@@ -603,10 +602,24 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
         [n(N::ExceptionRider), l(L::Conjunction), n(N::Clause)],
     );
     builder.add(
-        RuleTag::ExceptionRiderComma,
+        RuleTag::ExceptionRiderConjoined,
         N::ExceptionRider,
+        [n(N::ExceptionRiderList), l(L::Conjunction), n(N::Clause)],
+    );
+    builder.add(
+        RuleTag::ExceptionRiderComma,
+        N::ExceptionRiderList,
         [
             n(N::ExceptionRider),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::Clause),
+        ],
+    );
+    builder.add(
+        RuleTag::ExceptionRiderComma,
+        N::ExceptionRiderList,
+        [
+            n(N::ExceptionRiderList),
             l(L::Punctuation(Punctuation::Comma)),
             n(N::Clause),
         ],
@@ -622,6 +635,16 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
         ],
     );
     builder.add(
+        RuleTag::ExceptionRiderOxford,
+        N::ExceptionRider,
+        [
+            n(N::ExceptionRiderList),
+            l(L::Punctuation(Punctuation::Comma)),
+            l(L::Conjunction),
+            n(N::Clause),
+        ],
+    );
+    builder.add(
         RuleTag::ClauseExcepted,
         N::Clause,
         [
@@ -629,6 +652,19 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
             l(L::Punctuation(Punctuation::Comma)),
             n(N::ExceptionRider),
         ],
+    );
+    builder.add_with_cost(
+        RuleTag::ClauseExcepted,
+        N::Clause,
+        [
+            n(N::Clause),
+            l(L::Punctuation(Punctuation::Comma)),
+            n(N::ExceptionRiderList),
+        ],
+        ParseCost {
+            reading_dispreference: 1,
+            ..ParseCost::default()
+        },
     );
 
     // A trailing run of two or more coordinated `only …` timing restrictions.

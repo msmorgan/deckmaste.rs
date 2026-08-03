@@ -12,6 +12,7 @@ use crate::catalog::CatalogValue;
 use crate::catalog::Catalogs;
 use crate::catalog::is_named_keyword_argument_label;
 use crate::chart::ChartStats;
+use crate::features::Conjunction;
 use crate::forest::ForestStats;
 use crate::forest::ParseCost;
 use crate::identity::SelfReference;
@@ -62,7 +63,6 @@ use crate::syntax::Paragraph;
 use crate::syntax::Phrase;
 use crate::syntax::PowerToughness;
 use crate::syntax::Predicate;
-use crate::syntax::PredicateConjunction;
 use crate::syntax::PredicatedArgument;
 use crate::syntax::PredicatedQuality;
 use crate::syntax::Preposition;
@@ -1039,8 +1039,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         for (index, token) in tokens.iter().enumerate() {
             if depth.is_top_level() {
                 let conjunction = match self.token_text(token) {
-                    text if text.eq_ignore_ascii_case("and") => Some(PredicateConjunction::And),
-                    text if text.eq_ignore_ascii_case("or") => Some(PredicateConjunction::Or),
+                    text if text.eq_ignore_ascii_case("and") => Some(Conjunction::And),
+                    text if text.eq_ignore_ascii_case("or") => Some(Conjunction::Or),
                     _ => None,
                 };
                 let next_introducer = tokens
@@ -1499,7 +1499,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         coordinated
             .rest
             .iter()
-            .any(|coordination| coordination.conjunction == Some(PredicateConjunction::Or))
+            .any(|coordination| coordination.conjunction == Some(Conjunction::Or))
     }
 
     /// Parses a modal ability's header like [`Self::parse_paragraph`], but each
@@ -3003,6 +3003,7 @@ mod tests {
     use crate::Numeral;
     use crate::catalog::CatalogKind;
     use crate::catalog::Catalogs;
+    use crate::features::Conjunction;
     use crate::parse::DiagnosticKind;
     use crate::parse::ParseReport;
     use crate::parse::parse_with_catalogs;
@@ -3382,9 +3383,11 @@ mod tests {
             );
         };
         assert_eq!(coordination.junctions().len(), 3);
-        assert!(coordination.junctions().iter().all(|junction| {
-            junction.conjunction == Some(PredicateConjunction::Then) && junction.comma
-        }));
+        assert!(
+            coordination.junctions().iter().all(|junction| {
+                junction.conjunction == Some(Conjunction::Then) && junction.comma
+            })
+        );
     }
 
     #[test]
@@ -3409,7 +3412,7 @@ mod tests {
         assert_eq!(coordination.junctions()[0].conjunction, None);
         assert_eq!(
             coordination.junctions()[1].conjunction,
-            Some(PredicateConjunction::Then)
+            Some(Conjunction::Then)
         );
         assert_eq!(
             render(&report),
@@ -6293,7 +6296,7 @@ mod tests {
         assert!(matches!(
             triggered.conditions.rest.as_slice(),
             [TriggerConditionCoordination {
-                conjunction: PredicateConjunction::And,
+                conjunction: Conjunction::And,
                 condition: TriggerCondition {
                     introducer: TriggerWord::Whenever,
                     event: TriggerEvent::Clause(_),
@@ -6314,7 +6317,7 @@ mod tests {
         assert!(matches!(
             triggered.conditions.rest.as_slice(),
             [TriggerConditionCoordination {
-                conjunction: PredicateConjunction::Or,
+                conjunction: Conjunction::Or,
                 condition: TriggerCondition {
                     introducer: TriggerWord::When,
                     ..

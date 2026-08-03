@@ -315,7 +315,7 @@ impl EnglishGrammar<'_, '_> {
                             features: Features::SubjectAuxiliary {
                                 subject: *subject,
                                 agreement: Agreement { person, number },
-                                auxiliary,
+                                auxiliary: auxiliary.into(),
                             },
                             meaning: MeaningKey::SubjectAuxiliary(SubjectAuxiliaryKey {
                                 subject: *subject,
@@ -445,17 +445,12 @@ impl EnglishGrammar<'_, '_> {
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let conjunction = if surface.eq_ignore_ascii_case("and") {
-            Conjunction::And
-        } else if surface.eq_ignore_ascii_case("or") {
-            Conjunction::Or
-        } else if surface.eq_ignore_ascii_case("then") {
-            Conjunction::Then
-        } else if surface.eq_ignore_ascii_case("and/or") {
-            Conjunction::AndOr
-        } else {
+        let Some(conjunction) = Conjunction::from_spelling(surface) else {
             return Vec::new();
         };
+        if conjunction == Conjunction::Plus {
+            return Vec::new();
+        }
         vec![LexicalMatch {
             end: start + 1,
             features: Features::Conjunction(conjunction),
@@ -941,7 +936,7 @@ pub(super) fn lexical_word_matches(
         ),
         WordMatch::Auxiliary(auxiliary) => vec![LexicalMatch {
             end,
-            features: Features::Auxiliary(auxiliary),
+            features: Features::auxiliary(auxiliary),
             meaning: MeaningKey::Auxiliary(auxiliary),
             local_cost: ParseCost {
                 // `were`/`weren't` are ambiguous between indicative

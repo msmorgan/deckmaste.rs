@@ -248,6 +248,25 @@ pub(crate) enum ContractedSubjectKey {
     Demonstrative(Demonstrative),
 }
 
+/// The grammatical contribution of an auxiliary to chart identity.
+///
+/// Exact contraction is retained by [`MeaningKey`]; it does not change which
+/// constructions the auxiliary can enter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct AuxiliaryFeatures {
+    auxiliary: Auxiliary,
+    inflection: AuxiliaryInflection,
+}
+
+impl From<AuxiliaryInstance> for AuxiliaryFeatures {
+    fn from(instance: AuxiliaryInstance) -> Self {
+        Self {
+            auxiliary: instance.auxiliary,
+            inflection: instance.inflection,
+        }
+    }
+}
+
 impl ContractedSubjectKey {
     fn agreement(self) -> Agreement {
         match self {
@@ -417,6 +436,10 @@ pub(crate) enum Nonterminal {
     /// finite-clause coordination never competes with the general clause
     /// coordination.
     ExceptionRider,
+    /// An exception rider whose latest member was added by an asyndetic comma
+    /// (`except A, B`). It may grow or close with a conjunction; attaching it
+    /// directly to the host remains a dispreferred fallback.
+    ExceptionRiderList,
     /// One `only <adjunct>` restriction-run member. Internal to the run; never
     /// attaches to a clause on its own.
     RestrictionMember,
@@ -1130,7 +1153,7 @@ pub(crate) enum Features {
         /// the same relative rather than attach as a reduced sibling.
         bare_copular_tail: bool,
     },
-    Auxiliary(AuxiliaryInstance),
+    Auxiliary(AuxiliaryFeatures),
     Conjunction(Conjunction),
     Existential {
         number: Number,
@@ -1139,17 +1162,12 @@ pub(crate) enum Features {
     SubjectAuxiliary {
         subject: ContractedSubjectKey,
         agreement: Agreement,
-        auxiliary: AuxiliaryInstance,
+        auxiliary: AuxiliaryFeatures,
     },
     /// A coordinated list of exception clauses gathered under a leading
     /// `except` marker. The rider carries no agreement of its own — each
     /// conjunct is an independently agreeing finite clause.
-    ExceptionRider {
-        /// The rider currently ends in an asyndetic comma member (`except A,
-        /// B`). Attaching that open list to its host is permitted, but loses to
-        /// an available Oxford close (`except A, B, and C`).
-        oxford_pending: bool,
-    },
+    ExceptionRider,
     /// One `only …` restriction-run member. Fieldless, mirroring
     /// `ExceptionRider`.
     RestrictionMember,
@@ -1180,6 +1198,12 @@ pub(crate) enum Features {
         initial_sound: InitialSound,
         all_adjectives: bool,
     },
+}
+
+impl Features {
+    fn auxiliary(instance: AuxiliaryInstance) -> Self {
+        Self::Auxiliary(instance.into())
+    }
 }
 
 impl ChartFeatureBundle for Features {}
