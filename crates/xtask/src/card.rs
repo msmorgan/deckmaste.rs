@@ -5,7 +5,6 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use deckmaste_core::Expand;
 use deckmaste_plugin::plugin::Plugin;
 
 #[derive(Debug, Args)]
@@ -31,13 +30,13 @@ pub fn run(args: CardArgs) -> anyhow::Result<()> {
         show_expansions,
     } = args;
     let plugin = Plugin::load_with_sibling_prelude(&plugin_dir)?;
-    let card = plugin.card(&card_name)?.core;
+    let loaded = plugin.card(&card_name)?;
 
     println!("{} expands to:\n", plugin.card_path(&card_name).display());
     if show_expansions {
-        println!("{card:#?}");
+        println!("{:#?}", loaded.core);
     } else {
-        println!("{:#?}", card.expand_all());
+        println!("{:#?}", loaded.expanded());
     }
 
     Ok(())

@@ -46,8 +46,8 @@
 //!   `type Target = deckmaste_card::Card;`), so flagging the declaration is
 //!   noise and following it is name resolution.
 //! - a read at a generic parameter, `let v: A = macros.read_str(s)?` with `A`
-//!   chosen by the caller — what `deckmaste_lowering/tests/corpus.rs` does.
-//!   Knowing `A` is `Card` here is monomorphisation, not parsing.
+//!   chosen by the caller — what `tests/corpus_identity.rs`'s core-reader
+//!   oracle does. Knowing `A` is `Card` here is monomorphisation, not parsing.
 //! - a macro body whose tokens parse as neither expressions nor statements
 //!   (`matches!(x, Ok(_))` — `Ok(_)` is a pattern), and macros that assemble
 //!   the call out of fragments rather than spelling it.

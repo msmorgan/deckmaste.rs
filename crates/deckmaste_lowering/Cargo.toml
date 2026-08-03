@@ -22,9 +22,7 @@ deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 
 [dev-dependencies]
-# The corpus gate reads canon/builtin macro definitions to expand real cards.
-# It deliberately does NOT depend on `deckmaste_plugin`: the loader is
-# `plugin-repoint`'s to retarget, and this crate needs only the ~40-line core of
-# it (see tests/support/corpus.rs).
-ron = "0.12.1"
+# `assert_lowers` compares serializations for types a pattern cannot reach. No
+# `ron`: the corpus gate that needed a reader here now runs on the real loader,
+# in `deckmaste_plugin/tests/corpus_identity.rs`.
 serde = { version = "1.0.228", features = ["derive", "rc"] }

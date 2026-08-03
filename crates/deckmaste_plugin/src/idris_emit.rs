@@ -3886,9 +3886,10 @@ pub fn emit_card_expr(card: &Card, plugin: &Plugin) -> R {
 
 /// Every non-todo card in `plugin_dir/cards/**/*.ron`, parsed through
 /// `plugin`'s macro scope (its builtin sibling prelude already loaded) —
-/// mirrors `validate::validate_plugin`'s card walk, returning the parsed
-/// values (still macro-`Expanded`-wrapped; callers `expand_all()` them)
-/// instead of pass/fail counts.
+/// mirrors `validate::validate_plugin`'s card walk, returning the loaded
+/// pairs (still macro-`Expanded`-wrapped; callers
+/// [`LoadedCard::expanded`](crate::LoadedCard::expanded) them) instead of
+/// pass/fail counts.
 ///
 /// # Errors
 /// If a directory isn't listable, a file isn't readable, or a non-todo card
@@ -3896,7 +3897,7 @@ pub fn emit_card_expr(card: &Card, plugin: &Plugin) -> R {
 pub fn load_all_cards(
     plugin_dir: &std::path::Path,
     plugin: &crate::plugin::Plugin,
-) -> anyhow::Result<Arc<[Card]>> {
+) -> anyhow::Result<Arc<[crate::LoadedCard]>> {
     use anyhow::Context;
     use deckmaste_core::plugin::CARDS_DIR;
     use deckmaste_core::plugin::is_todo_source;
@@ -3907,13 +3908,13 @@ pub fn load_all_cards(
         if is_todo_source(&source) {
             continue;
         }
-        // `.core`: the Idris mirror emits the engine image. Repointing it at
-        // the authored term is `runtime-prose-link`, which lands the
-        // provenance index this emitter would need.
+        // The pair, not just `.core`: the Idris mirror emits the engine image,
+        // but the expansion that precedes it runs on the authored half.
+        // Repointing the emitter itself at the authored term is
+        // `runtime-prose-link`, which lands the provenance index it would need.
         let card = plugin
             .card_from_str(&source)
-            .with_context(|| format!("parsing {}", path.display()))?
-            .core;
+            .with_context(|| format!("parsing {}", path.display()))?;
         cards.push(card);
     }
     Ok(cards.into())

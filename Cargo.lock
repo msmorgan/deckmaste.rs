@@ -456,7 +456,6 @@ name = "deckmaste_card"
 version = "0.1.0"
 dependencies = [
  "deckmaste_core",
- "macro_ron",
  "serde",
 ]
 
@@ -516,7 +515,6 @@ dependencies = [
  "deckmaste_card",
  "deckmaste_core",
  "macro_ron",
- "ron",
  "serde",
 ]
 

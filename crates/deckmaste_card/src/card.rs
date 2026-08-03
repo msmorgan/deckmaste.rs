@@ -7,11 +7,10 @@ use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
 use deckmaste_core::TypeDef;
-use macro_ron::Expand;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct CardFace {
     pub name: Arc<str>,
 
@@ -52,7 +51,7 @@ pub struct CardFace {
 /// engine's job, not the grammar's. Single-faced "layouts" (saga, class,
 /// leveler, …) are NOT here: their mechanics ride subtypes and abilities on a
 /// `Normal` card.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum FaceLayout {
     /// A transforming (nonmodal) double-faced card ([CR#712.2]).
     Transforming,
@@ -67,7 +66,7 @@ pub enum FaceLayout {
     Flip,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 // `TwoFaced` (two full `CardFace`s) is inherently larger than `Normal` (one).
 // Boxing a face would push `Box::new` into every construction/read site and
 // complicate the RON derive for no runtime gain — a `Card` is a rarely-copied

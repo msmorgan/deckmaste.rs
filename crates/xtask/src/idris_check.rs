@@ -25,7 +25,6 @@ use std::process::Command;
 use anyhow::Context;
 use clap::Args;
 use deckmaste_card::Card;
-use deckmaste_core::Expand;
 use deckmaste_plugin::idris_emit;
 use deckmaste_plugin::plugin::Plugin;
 
@@ -99,8 +98,7 @@ fn run_single(plugin: &Plugin, card_name: &str, idris_dir: &Path) -> anyhow::Res
     let card = plugin
         .card(card_name)
         .with_context(|| format!("loading card {card_name:?}"))?
-        .core
-        .expand_all();
+        .expanded();
     let ident = idris_emit::sanitize_ident(card_name);
     let module_name = format!("IdrisCheckSingle_{ident}");
 
@@ -145,7 +143,7 @@ fn run_batch(
     let named_cards: Vec<(String, String, Card)> = cards
         .iter()
         .map(|card| {
-            let card = card.clone().expand_all();
+            let card = card.expanded();
             let name = idris_emit::card_display_name(&card).to_string();
             let mut ident = idris_emit::sanitize_ident(&name);
             while !used_idents.insert(ident.clone()) {

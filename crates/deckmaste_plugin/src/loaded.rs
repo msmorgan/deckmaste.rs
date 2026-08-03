@@ -15,6 +15,23 @@ pub struct LoadedCard {
     pub core: deckmaste_card::Card,
 }
 
+impl LoadedCard {
+    /// The engine image with every remembered macro invocation stripped — what
+    /// the Idris mirror emits and `xtask card` prints by default.
+    ///
+    /// Expansion runs on the AUTHORED term: `Expand` is the authoring
+    /// grammar's trait, and `deckmaste_card` does not depend on `macro_ron` at
+    /// all. Lowering the expanded term (rather than expanding the lowered one)
+    /// keeps `lower` inside this crate, where the erasure point lives.
+    #[must_use]
+    pub fn expanded(&self) -> deckmaste_card::Card {
+        use deckmaste_lowering::Lower as _;
+        use macro_ron::Expand as _;
+
+        self.authored.clone().expand_all().lower()
+    }
+}
+
 /// A token as loaded. Mirrors [`LoadedCard`].
 #[derive(Debug)]
 pub struct LoadedToken {
