@@ -985,7 +985,7 @@ impl<'identity> Renderer<'identity> {
             IndependentClause::Coordinated(coordinated) => {
                 let mut rendered = self.independent_clause(&coordinated.first)?;
                 for coordination in &coordinated.rest {
-                    if coordination.comma {
+                    if coordination.comma.is_present() {
                         rendered.push(',');
                     }
                     rendered.push(' ');
@@ -1021,7 +1021,7 @@ impl<'identity> Renderer<'identity> {
                     .expect("a validated coordination has a first conjunct");
                 let mut rendered = self.predicate_expression(subject, first)?;
                 for (junction, expression) in coordination.junctions().iter().zip(conjuncts) {
-                    if junction.comma {
+                    if junction.comma.is_present() {
                         rendered.push(',');
                     }
                     rendered.push(' ');
@@ -1097,7 +1097,7 @@ impl<'identity> Renderer<'identity> {
             .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
         {
             rendered.push_str(&self.clause_attachment(&attachment.payload)?);
-            if attachment.comma {
+            if attachment.comma.is_present() {
                 rendered.push(',');
             }
             rendered.push(' ');
@@ -1107,7 +1107,7 @@ impl<'identity> Renderer<'identity> {
             .iter()
             .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
         {
-            if attachment.comma {
+            if attachment.comma.is_present() {
                 rendered.push(',');
             }
             rendered.push(' ');
@@ -1208,7 +1208,7 @@ impl<'identity> Renderer<'identity> {
         rendered_subject: &mut String,
         head: &PredicateHead,
     ) -> Result<usize, RenderError> {
-        if !head.first_auxiliary_contracted_with_subject {
+        if !head.first_auxiliary_contracted_with_subject.is_contracted() {
             return Ok(0);
         }
         let auxiliary = head
@@ -1329,7 +1329,7 @@ impl<'identity> Renderer<'identity> {
         head: &PredicateHead,
         auxiliary_start: usize,
     ) -> Result<String, RenderError> {
-        if head.distributive_each && head.first_auxiliary_contracted_with_subject {
+        if head.distributive_each && head.first_auxiliary_contracted_with_subject.is_contracted() {
             return Err(RenderError::InvalidDistributiveEachContraction);
         }
         let mut parts =
@@ -1476,7 +1476,7 @@ impl<'identity> Renderer<'identity> {
         let subject = self.subject(subject)?;
         let complement = self.copular_complement(&predicate.complement)?;
         let mut parts = Vec::with_capacity(predicate.adjuncts.len() + 2);
-        if predicate.copula.contracted_with_subject {
+        if predicate.copula.contracted_with_subject.is_contracted() {
             parts.push(format!(
                 "{subject}{}",
                 contraction_suffix(predicate.copula.auxiliary)?
@@ -1558,7 +1558,7 @@ impl<'identity> Renderer<'identity> {
             .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
         {
             rendered.push_str(&self.dependent_clause(&attachment.payload)?);
-            if attachment.comma {
+            if attachment.comma.is_present() {
                 rendered.push(',');
             }
             rendered.push(' ');
@@ -1569,7 +1569,7 @@ impl<'identity> Renderer<'identity> {
             .iter()
             .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
         {
-            if attachment.comma {
+            if attachment.comma.is_present() {
                 rendered.push(',');
             }
             rendered.push(' ');
@@ -1596,28 +1596,37 @@ impl<'identity> Renderer<'identity> {
         .to_owned();
         let body = match &clause.body {
             RelativeBody::SubjectGap(Predicate::Transitive(predicate))
-                if predicate.head.first_auxiliary_contracted_with_subject =>
+                if predicate
+                    .head
+                    .first_auxiliary_contracted_with_subject
+                    .is_contracted() =>
             {
                 let auxiliary_start =
                     Self::contract_with_first_auxiliary(&mut marker, &predicate.head)?;
                 self.transitive_predicate_from(predicate, auxiliary_start)?
             }
             RelativeBody::SubjectGap(Predicate::Intransitive(predicate))
-                if predicate.head.first_auxiliary_contracted_with_subject =>
+                if predicate
+                    .head
+                    .first_auxiliary_contracted_with_subject
+                    .is_contracted() =>
             {
                 let auxiliary_start =
                     Self::contract_with_first_auxiliary(&mut marker, &predicate.head)?;
                 self.intransitive_predicate_from(predicate, auxiliary_start)?
             }
             RelativeBody::SubjectGap(Predicate::Passive(predicate))
-                if predicate.head.first_auxiliary_contracted_with_subject =>
+                if predicate
+                    .head
+                    .first_auxiliary_contracted_with_subject
+                    .is_contracted() =>
             {
                 let auxiliary_start =
                     Self::contract_with_first_auxiliary(&mut marker, &predicate.head)?;
                 self.passive_predicate_from(predicate, auxiliary_start)?
             }
             RelativeBody::SubjectGap(Predicate::Copular(predicate))
-                if predicate.copula.contracted_with_subject =>
+                if predicate.copula.contracted_with_subject.is_contracted() =>
             {
                 marker.push_str(contraction_suffix(predicate.copula.auxiliary)?);
                 let mut parts = Vec::new();
@@ -1683,7 +1692,7 @@ impl<'identity> Renderer<'identity> {
                 rendered.push(' ');
                 rendered.push_str(&self.nominal_phrase(&coordinated.first)?);
                 for coordination in &coordinated.rest {
-                    if coordination.comma {
+                    if coordination.comma.is_present() {
                         rendered.push(',');
                     }
                     rendered.push(' ');
@@ -1702,7 +1711,7 @@ impl<'identity> Renderer<'identity> {
             NounPhrase::Coordinated(coordinated) => {
                 let mut rendered = self.noun_phrase(&coordinated.first)?;
                 for coordination in &coordinated.rest {
-                    if coordination.comma {
+                    if coordination.comma.is_present() {
                         rendered.push(',');
                     }
                     rendered.push(' ');
@@ -1716,7 +1725,7 @@ impl<'identity> Renderer<'identity> {
             }
             NounPhrase::SetException(exception) => {
                 let mut rendered = self.noun_phrase(&exception.included)?;
-                if exception.comma {
+                if exception.comma.is_present() {
                     rendered.push(',');
                 }
                 rendered.push_str(match exception.marker {
@@ -3387,7 +3396,7 @@ mod tests {
                     person: Person::Third,
                     number: Number::Singular,
                 },
-                contracted_negation: false,
+                contracted_negation: crate::features::Contraction::Full,
             }],
             verb_phrase(Vocab::Pass, VerbSlot::PastParticiple, vec![]),
         ));
@@ -3407,7 +3416,7 @@ mod tests {
             vec![AuxiliaryInstance {
                 auxiliary: Auxiliary::Can,
                 inflection: AuxiliaryInflection::Base,
-                contracted_negation: true,
+                contracted_negation: crate::features::Contraction::Contracted,
             }],
             verb_phrase(
                 Vocab::Cast,
@@ -3491,7 +3500,7 @@ mod tests {
                 PredicateExpression::Simple(Predicate::Transitive(first)),
                 crate::syntax::CoordinationJunction {
                     conjunction: Some(Conjunction::And),
-                    comma: false,
+                    comma: crate::features::Comma::Absent,
                 },
                 PredicateExpression::Simple(second),
             )),
@@ -4086,7 +4095,7 @@ mod tests {
                     person: Person::Second,
                     number: Number::Singular,
                 },
-                contracted_negation: true,
+                contracted_negation: crate::features::Contraction::Contracted,
             });
             predicate
         } else {
@@ -4234,9 +4243,9 @@ mod tests {
                     auxiliary: AuxiliaryInstance {
                         auxiliary: Auxiliary::Be,
                         inflection: auxiliary_inflection(phrase.verb.slot),
-                        contracted_negation: false,
+                        contracted_negation: crate::features::Contraction::Full,
                     },
-                    contracted_with_subject: false,
+                    contracted_with_subject: crate::features::Contraction::Full,
                 },
                 distributive_each: false,
                 precomplement_adverbs: vec![],
@@ -4247,7 +4256,7 @@ mod tests {
 
         let head = PredicateHead {
             auxiliaries: phrase.auxiliaries,
-            first_auxiliary_contracted_with_subject: false,
+            first_auxiliary_contracted_with_subject: crate::features::Contraction::Full,
             preverb_modifiers: phrase.preverb_modifiers,
             verb: phrase.verb,
             distributive_each: false,
@@ -4425,7 +4434,7 @@ mod tests {
     fn distributive_each_renders_before_the_verb_and_rejects_contraction() {
         let head = PredicateHead {
             auxiliaries: vec![],
-            first_auxiliary_contracted_with_subject: false,
+            first_auxiliary_contracted_with_subject: crate::features::Contraction::Full,
             preverb_modifiers: vec![],
             verb: VerbInstance {
                 verb: Verb::Word(Vocab::Draw),
@@ -4437,7 +4446,7 @@ mod tests {
         assert_eq!(renderer.predicate_head_from(&head, 0).unwrap(), "each draw");
 
         let contracted = PredicateHead {
-            first_auxiliary_contracted_with_subject: true,
+            first_auxiliary_contracted_with_subject: crate::features::Contraction::Contracted,
             ..head
         };
         assert_eq!(

@@ -12,6 +12,7 @@ use super::clause::RelativeClause;
 use super::clause::TransitivePredicate;
 use crate::Numeral;
 use crate::catalog::CatalogAtom;
+use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::word::Adjective;
 use crate::word::ColorWord;
@@ -591,7 +592,7 @@ pub enum NounPhrase {
 pub struct SetExceptionNounPhrase {
     pub included: Box<NounPhrase>,
     pub marker: SetExceptionMarker,
-    pub comma: bool,
+    pub comma: Comma,
     pub excluded: Box<NounPhrase>,
 }
 
@@ -662,7 +663,7 @@ pub struct CoordinatedNominalPhrase {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhraseCoordination {
     pub conjunction: Option<Conjunction>,
-    pub comma: bool,
+    pub comma: Comma,
     pub phrase: NominalPhrase,
 }
 
@@ -673,7 +674,7 @@ pub struct NounPhraseCoordination {
     /// in `artifact, enchantment, or land`); `Some` on a bare `and`/`or`/`plus`
     /// member and on the final Oxford member.
     pub conjunction: Option<Conjunction>,
-    pub comma: bool,
+    pub comma: Comma,
     pub phrase: NounPhrase,
 }
 

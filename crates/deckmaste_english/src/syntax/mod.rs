@@ -1180,7 +1180,7 @@ mod tests {
             first: Box::new(known_nominal(Vocab::Card)),
             rest: vec![NominalPhraseCoordination {
                 conjunction: Some(NounPhraseConjunction::Or),
-                comma: false,
+                comma: crate::features::Comma::Absent,
                 phrase: known_nominal(Vocab::Spell),
             }],
             complements: vec![NominalComplement::Prepositional(
@@ -1246,7 +1246,7 @@ mod tests {
     fn predicate_head(vocab: Vocab) -> PredicateHead {
         PredicateHead {
             auxiliaries: vec![],
-            first_auxiliary_contracted_with_subject: false,
+            first_auxiliary_contracted_with_subject: crate::features::Contraction::Full,
             preverb_modifiers: vec![],
             verb: VerbInstance {
                 verb: Verb::Word(vocab),

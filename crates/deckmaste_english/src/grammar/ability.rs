@@ -1432,7 +1432,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 matrix: Box::new(matrix),
                 attachments: vec![ClauseAttachment {
                     position: AttachmentPosition::AfterMatrix,
-                    comma: false,
+                    comma: crate::features::Comma::Absent,
                     payload: ClauseAttachmentKind::Appositive(Box::new(body)),
                 }],
             })),
@@ -3383,11 +3383,9 @@ mod tests {
             );
         };
         assert_eq!(coordination.junctions().len(), 3);
-        assert!(
-            coordination.junctions().iter().all(|junction| {
-                junction.conjunction == Some(Conjunction::Then) && junction.comma
-            })
-        );
+        assert!(coordination.junctions().iter().all(|junction| {
+            junction.conjunction == Some(Conjunction::Then) && junction.comma.is_present()
+        }));
     }
 
     #[test]

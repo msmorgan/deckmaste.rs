@@ -8,6 +8,8 @@ use deckmaste_english::parse_with_catalogs;
 use deckmaste_english::parse_with_identity;
 use deckmaste_english::syntax::*;
 use deckmaste_english::word::*;
+use serde::Serialize;
+use serde::ser;
 
 #[test]
 fn feature_vocabulary() {
@@ -42,6 +44,242 @@ fn feature_vocabulary() {
         deckmaste_english::syntax::PredicateConjunction::And;
     let nominal: deckmaste_english::syntax::NounPhraseConjunction = canonical;
     assert_eq!(nominal, deckmaste_english::features::Conjunction::And);
+}
+
+#[test]
+fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
+    use deckmaste_english::features::Contraction;
+    use deckmaste_english::features::Number;
+    use deckmaste_english::features::Person;
+    use deckmaste_english::features::VerbSlot;
+
+    for (source, slot, contraction, variant) in [
+        (
+            "There is a creature.",
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+            Contraction::Full,
+            "Is",
+        ),
+        (
+            "There's a creature.",
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+            Contraction::Contracted,
+            "ContractedIs",
+        ),
+        (
+            "There are creatures.",
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Plural,
+            },
+            Contraction::Full,
+            "Are",
+        ),
+        (
+            "There was a creature.",
+            VerbSlot::Past {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+            Contraction::Full,
+            "Was",
+        ),
+        (
+            "There were creatures.",
+            VerbSlot::Past {
+                person: Person::Third,
+                number: Number::Plural,
+            },
+            Contraction::Full,
+            "Were",
+        ),
+    ] {
+        let report = parse_with_catalogs(source, &Catalogs::default());
+        let AbilityKind::Paragraph(paragraph) = &report.ast().abilities[0].kind else {
+            panic!("expected a paragraph for {source:?}");
+        };
+        let SentenceBody::Independent(IndependentClause::Existential(existential)) =
+            &paragraph.sentences[0].body
+        else {
+            panic!("expected an existential clause for {source:?}");
+        };
+        assert_eq!(existential.form.verb_slot(), slot, "{source}");
+        assert_eq!(existential.form.contraction(), contraction, "{source}");
+        assert_eq!(
+            serialize_unit_variant(existential.form),
+            variant,
+            "{source}"
+        );
+    }
+
+    assert_eq!(
+        ExistentialForm::new(
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Plural,
+            },
+            Contraction::Contracted,
+        ),
+        None,
+    );
+}
+
+fn serialize_unit_variant(value: impl Serialize) -> &'static str {
+    value
+        .serialize(UnitVariantSerializer)
+        .expect("the value must serialize as a unit variant")
+}
+
+#[derive(Debug)]
+struct UnitVariantSerializationError;
+
+impl fmt::Display for UnitVariantSerializationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("expected a unit-variant serialization")
+    }
+}
+
+impl std::error::Error for UnitVariantSerializationError {}
+
+impl ser::Error for UnitVariantSerializationError {
+    fn custom<T: fmt::Display>(_message: T) -> Self {
+        Self
+    }
+}
+
+struct UnitVariantSerializer;
+
+macro_rules! unsupported_unit_variant_serialization {
+    ($($name:ident($($argument:ident: $type:ty),*)),+ $(,)?) => {
+        $(
+            fn $name(self, $($argument: $type),*) -> Result<Self::Ok, Self::Error> {
+                Err(UnitVariantSerializationError)
+            }
+        )+
+    };
+}
+
+impl ser::Serializer for UnitVariantSerializer {
+    type Ok = &'static str;
+    type Error = UnitVariantSerializationError;
+    type SerializeSeq = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTuple = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleStruct = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleVariant = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeMap = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeStruct = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeStructVariant = ser::Impossible<Self::Ok, Self::Error>;
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<Self::Ok, Self::Error> {
+        Ok(variant)
+    }
+
+    unsupported_unit_variant_serialization!(
+        serialize_bool(_value: bool),
+        serialize_i8(_value: i8),
+        serialize_i16(_value: i16),
+        serialize_i32(_value: i32),
+        serialize_i64(_value: i64),
+        serialize_i128(_value: i128),
+        serialize_u8(_value: u8),
+        serialize_u16(_value: u16),
+        serialize_u32(_value: u32),
+        serialize_u64(_value: u64),
+        serialize_u128(_value: u128),
+        serialize_f32(_value: f32),
+        serialize_f64(_value: f64),
+        serialize_char(_value: char),
+        serialize_str(_value: &str),
+        serialize_bytes(_value: &[u8]),
+        serialize_none(),
+        serialize_unit(),
+        serialize_unit_struct(_name: &'static str),
+    );
+
+    fn serialize_some<T: ?Sized + Serialize>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_newtype_struct<T: ?Sized + Serialize>(
+        self,
+        _name: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_newtype_variant<T: ?Sized + Serialize>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_seq(self, _length: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple(self, _length: usize) -> Result<Self::SerializeTuple, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        _name: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_map(self, _length: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeStruct, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_struct_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeStructVariant, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn collect_str<T: ?Sized + fmt::Display>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
 }
 
 #[test]
@@ -1725,7 +1963,7 @@ fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
             coordination.rest.as_slice(),
             [NounPhraseCoordination {
                 conjunction: Some(NounPhraseConjunction::And),
-                comma: false,
+                comma: deckmaste_english::features::Comma::Absent,
                 phrase: NounPhrase::Nominal(NominalPhrase {
                     head: NounInstance::Mass(Noun::Word(Vocab::Toughness)),
                     complements,

@@ -371,6 +371,7 @@ mod tests {
             land.conjunction,
             Some(crate::syntax::NounPhraseConjunction::Or)
         );
+        assert_eq!(land.comma, crate::features::Comma::Absent);
         assert!(land.phrase.determiner.is_none());
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -445,17 +446,17 @@ mod tests {
             [
                 crate::syntax::NounPhraseCoordination {
                     conjunction: None,
-                    comma: true,
+                    comma: crate::features::Comma::Present,
                     ..
                 },
                 crate::syntax::NounPhraseCoordination {
                     conjunction: None,
-                    comma: true,
+                    comma: crate::features::Comma::Present,
                     ..
                 },
                 crate::syntax::NounPhraseCoordination {
                     conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
-                    comma: true,
+                    comma: crate::features::Comma::Present,
                     ..
                 }
             ]
@@ -741,7 +742,7 @@ mod tests {
                 first.clone(),
                 crate::syntax::NounPhraseCoordination {
                     conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
-                    comma: false,
+                    comma: crate::features::Comma::Absent,
                     phrase: next,
                 },
             );
@@ -873,7 +874,7 @@ mod tests {
             first,
             crate::syntax::NounPhraseCoordination {
                 conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
-                comma: false,
+                comma: crate::features::Comma::Absent,
                 phrase: next,
             },
         );
@@ -1137,7 +1138,7 @@ mod tests {
                 panic!("expected a set-exception noun phrase for {source:?}");
             };
             assert_eq!(exception.marker, expected_marker);
-            assert_eq!(exception.comma, comma);
+            assert_eq!(exception.comma, crate::features::Comma::from(comma));
             assert_eq!(
                 matches!(
                     exception.included.as_ref(),
@@ -1168,7 +1169,7 @@ mod tests {
     }
 
     #[test]
-    fn oxford_head_list_records_comma_and_final_conjunction_per_member() {
+    fn oxford_head_list_coordination_records_comma_and_final_conjunction_per_member() {
         // The interior members carry a comma with no conjunction; the final
         // member carries the closing conjunction with its comma — the exact
         // surface the renderer replays.
@@ -1184,12 +1185,12 @@ mod tests {
             panic!("expected two continuations, got {:#?}", coordinated.rest);
         };
         assert_eq!(interior.conjunction, None);
-        assert!(interior.comma);
+        assert_eq!(interior.comma, crate::features::Comma::Present);
         assert_eq!(
             final_member.conjunction,
             Some(crate::syntax::NounPhraseConjunction::Or)
         );
-        assert!(final_member.comma);
+        assert_eq!(final_member.comma, crate::features::Comma::Present);
     }
 
     #[test]
@@ -2985,7 +2986,8 @@ mod tests {
                             Predicate::Transitive(TransitivePredicate {
                                 head: PredicateHead {
                                     auxiliaries: vec![],
-                                    first_auxiliary_contracted_with_subject: false,
+                                    first_auxiliary_contracted_with_subject:
+                                        crate::features::Contraction::Full,
                                     preverb_modifiers: vec![],
                                     verb: VerbInstance {
                                         verb: Verb::Word(Vocab::Draw),

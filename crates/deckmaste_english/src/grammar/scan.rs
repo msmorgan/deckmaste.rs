@@ -308,7 +308,7 @@ impl EnglishGrammar<'_, '_> {
                         let auxiliary = AuxiliaryInstance {
                             auxiliary: *auxiliary,
                             inflection: AuxiliaryInflection::Present { person, number },
-                            contracted_negation: false,
+                            contracted_negation: crate::features::Contraction::Full,
                         };
                         LexicalMatch {
                             end,

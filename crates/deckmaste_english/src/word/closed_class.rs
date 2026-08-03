@@ -1,6 +1,7 @@
 use super::Number;
 use super::Person;
 use super::Vocabulary;
+use crate::features::Contraction;
 /// Compatibility name for the inherent-realization gender feature.
 pub use crate::features::Gender;
 /// Compatibility name for the inherent-realization pronoun-case feature.
@@ -53,7 +54,7 @@ pub enum AuxiliaryInflection {
 pub struct AuxiliaryInstance {
     pub auxiliary: Auxiliary,
     pub inflection: AuxiliaryInflection,
-    pub contracted_negation: bool,
+    pub contracted_negation: Contraction,
 }
 
 impl Vocabulary {
@@ -146,10 +147,12 @@ pub(super) fn auxiliary_instances() -> impl Iterator<Item = AuxiliaryInstance> {
 
     AUXILIARIES.into_iter().flat_map(|auxiliary| {
         INFLECTIONS.into_iter().flat_map(move |inflection| {
-            [false, true].map(move |contracted_negation| AuxiliaryInstance {
-                auxiliary,
-                inflection,
-                contracted_negation,
+            [Contraction::Full, Contraction::Contracted].map(move |contracted_negation| {
+                AuxiliaryInstance {
+                    auxiliary,
+                    inflection,
+                    contracted_negation,
+                }
             })
         })
     })
@@ -161,7 +164,7 @@ pub(super) const fn render_auxiliary(instance: AuxiliaryInstance) -> Option<&'st
     use Number as N;
     use Person as P;
 
-    if instance.contracted_negation {
+    if instance.contracted_negation.is_contracted() {
         return match (instance.auxiliary, instance.inflection) {
             (A::Can, I::Base) => Some("can't"),
             (A::Could, I::Base) => Some("couldn't"),

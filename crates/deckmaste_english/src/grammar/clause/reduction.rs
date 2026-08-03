@@ -2362,10 +2362,10 @@ mod feature_identity_tests {
         let full = AuxiliaryInstance {
             auxiliary: Auxiliary::Do,
             inflection: AuxiliaryInflection::Base,
-            contracted_negation: false,
+            contracted_negation: crate::features::Contraction::Full,
         };
         let contracted = AuxiliaryInstance {
-            contracted_negation: true,
+            contracted_negation: crate::features::Contraction::Contracted,
             ..full
         };
 

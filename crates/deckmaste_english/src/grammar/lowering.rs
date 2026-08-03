@@ -1296,7 +1296,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 NounPhrase::Nominal(first),
                 crate::syntax::NounPhraseCoordination {
                     conjunction: Some(conjunction),
-                    comma: false,
+                    comma: crate::features::Comma::Absent,
                     phrase: NounPhrase::Nominal(next),
                 },
             )))
@@ -1337,7 +1337,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                     first: Box::new(first),
                     rest: vec![crate::syntax::NominalPhraseCoordination {
                         conjunction: Some(conjunction),
-                        comma: false,
+                        comma: crate::features::Comma::Absent,
                         phrase: next,
                     }],
                     complements: group_complements,
@@ -1362,7 +1362,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 SetExceptionNounPhrase {
                     included: Box::new(included),
                     marker,
-                    comma,
+                    comma: crate::features::Comma::from(comma),
                     excluded: Box::new(excluded),
                 },
             )))
@@ -1497,7 +1497,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             };
             let coordination = crate::syntax::NounPhraseCoordination {
                 conjunction: Some(conjunction),
-                comma: false,
+                comma: crate::features::Comma::Absent,
                 phrase: next,
             };
             Some(Lowered::NounPhrase(push_noun_phrase_coordination(
@@ -1524,7 +1524,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             };
             let coordination = crate::syntax::NounPhraseCoordination {
                 conjunction,
-                comma: true,
+                comma: crate::features::Comma::Present,
                 phrase: next,
             };
             Some(Lowered::NounPhrase(push_noun_phrase_coordination(
@@ -1571,7 +1571,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 first,
                 crate::syntax::NounPhraseCoordination {
                     conjunction: Some(conjunction),
-                    comma,
+                    comma: crate::features::Comma::from(comma),
                     phrase: next,
                 },
             );
@@ -1842,7 +1842,7 @@ pub(super) fn push_noun_phrase_coordination(
 fn push_into_last_prepositional_object(
     host: &mut NominalPhrase,
     conjunction: Option<Conjunction>,
-    comma: bool,
+    comma: crate::features::Comma,
     next: &NominalPhrase,
 ) -> bool {
     if !shared_determiner_member(conjunction, comma) {
@@ -1922,7 +1922,7 @@ fn push_into_last_prepositional_object(
 fn push_into_last_shared_determiner(
     coordinated: &mut crate::syntax::CoordinatedNounPhrase,
     conjunction: Option<Conjunction>,
-    comma: bool,
+    comma: crate::features::Comma,
     next: &mut Option<NominalPhrase>,
 ) -> bool {
     let Some(candidate) = next.as_ref() else {
@@ -2024,11 +2024,14 @@ fn take_trailing_group_complements(
 /// Whether one coordination edge belongs to nominal material rather than an
 /// arithmetic value. An asyndetic member is only licensed after a comma; the
 /// closing member must use a noun-phrase conjunction, never additive `plus`.
-fn shared_determiner_member(conjunction: Option<Conjunction>, comma: bool) -> bool {
+fn shared_determiner_member(
+    conjunction: Option<Conjunction>,
+    comma: crate::features::Comma,
+) -> bool {
     matches!(
         conjunction,
         Some(Conjunction::And | Conjunction::Or | Conjunction::AndOr)
-    ) || conjunction.is_none() && comma
+    ) || conjunction.is_none() && comma.is_present()
 }
 
 /// A determinerless singular count nominal is not a complete English noun
@@ -2049,10 +2052,11 @@ fn shared_determiner_accepts(determiner: &Determiner, nominal: &NominalPhrase) -
 fn shared_determiner_group_can_extend(
     coordinated: &crate::syntax::CoordinatedNominalPhrase,
     conjunction: Option<Conjunction>,
-    comma: bool,
+    comma: crate::features::Comma,
 ) -> bool {
     coordinated.rest.last().is_none_or(|last| {
-        shared_determiner_can_open(&last.phrase) || last.comma && comma && conjunction.is_some()
+        shared_determiner_can_open(&last.phrase)
+            || last.comma.is_present() && comma.is_present() && conjunction.is_some()
     })
 }
 
@@ -2130,7 +2134,7 @@ fn singular_has_invariant_plural(head: &NounInstance) -> bool {
 fn coordination_run_extends(
     conjunctions: impl DoubleEndedIterator<Item = Option<Conjunction>>,
     conjunction: Option<Conjunction>,
-    comma: bool,
+    comma: crate::features::Comma,
 ) -> bool {
-    comma || conjunctions.rev().flatten().next() == conjunction
+    comma.is_present() || conjunctions.rev().flatten().next() == conjunction
 }

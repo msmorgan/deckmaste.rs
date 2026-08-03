@@ -1279,7 +1279,7 @@ mod tests {
         let contracted_can = AuxiliaryInstance {
             auxiliary: Auxiliary::Can,
             inflection: AuxiliaryInflection::Base,
-            contracted_negation: true,
+            contracted_negation: crate::features::Contraction::Contracted,
         };
 
         assert_eq!(
@@ -1301,7 +1301,7 @@ mod tests {
             vocabulary.render_auxiliary(AuxiliaryInstance {
                 auxiliary: Auxiliary::May,
                 inflection: AuxiliaryInflection::Base,
-                contracted_negation: true,
+                contracted_negation: crate::features::Contraction::Contracted,
             }),
             None
         );

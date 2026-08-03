@@ -355,7 +355,7 @@ fn while_fronts_a_gerund_clause_before_the_matrix() {
         panic!("expected exactly one fronted attachment");
     };
     assert_eq!(attachment.position, AttachmentPosition::BeforeMatrix);
-    assert!(attachment.comma);
+    assert!(attachment.comma.is_present());
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::While,
         SubordinateBody::Gerund(_),
@@ -461,7 +461,7 @@ fn the_next_time_frame_fronts_a_subordinate_clause() {
         panic!("expected exactly one fronted attachment");
     };
     assert_eq!(attachment.position, AttachmentPosition::BeforeMatrix);
-    assert!(attachment.comma);
+    assert!(attachment.comma.is_present());
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::TheNextTime,
         SubordinateBody::Finite(condition),
@@ -615,7 +615,7 @@ fn trailing_where_clause_binds_a_variable_definition() {
         panic!("expected exactly one trailing attachment");
     };
     assert_eq!(attachment.position, AttachmentPosition::AfterMatrix);
-    assert!(attachment.comma);
+    assert!(attachment.comma.is_present());
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::Where,
         SubordinateBody::Finite(body),
@@ -690,7 +690,7 @@ fn as_though_clause_attachment_shape() {
         panic!("expected exactly one trailing attachment");
     };
     assert_eq!(attachment.position, AttachmentPosition::AfterMatrix);
-    assert!(!attachment.comma);
+    assert!(!attachment.comma.is_present());
     assert!(matches!(
         &attachment.payload,
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
@@ -935,7 +935,7 @@ fn as_though_mana_copula_structural_shape() {
         predicate.copula.auxiliary.inflection,
         AuxiliaryInflection::PastSubjunctive
     );
-    assert!(!predicate.copula.contracted_with_subject);
+    assert!(!predicate.copula.contracted_with_subject.is_contracted());
     assert!(matches!(
         predicate.complement,
         CopularComplement::NounPhrase(_)
@@ -1870,7 +1870,7 @@ fn common_head_object_survives_following_finite_clause_coordination() {
         coordination.rest.as_slice(),
         [ClauseCoordination {
             conjunction: Some(PredicateConjunction::And),
-            comma: true,
+            comma: crate::features::Comma::Present,
             member: CoordinatedClauseMember::Independent(_),
         }]
     ));
@@ -2106,7 +2106,7 @@ fn coordinated_only_restrictions_form_one_restriction_attachment() {
     );
     assert_eq!(complex.attachments.len(), 1);
     let attachment = &complex.attachments[0];
-    assert!(!attachment.comma);
+    assert!(!attachment.comma.is_present());
     let ClauseAttachmentKind::Restriction(run) = &attachment.payload else {
         panic!("expected a Restriction attachment: {attachment:#?}");
     };
@@ -2271,7 +2271,7 @@ fn single_only_if_restriction_keeps_its_dependent_attachment() {
         ))]
     ));
     assert_eq!(complex.attachments.len(), 1);
-    assert!(!complex.attachments[0].comma);
+    assert!(!complex.attachments[0].comma.is_present());
     assert!(matches!(
         &complex.attachments[0].payload,
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::If, _))
@@ -2735,7 +2735,7 @@ fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
     let [
         ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
-            comma: true,
+            comma: crate::features::Comma::Present,
             payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition)),
         },
     ] = complex.attachments.as_slice()
@@ -2829,7 +2829,7 @@ fn then_can_modify_a_following_independent_clause() {
         complex.attachments.as_slice(),
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
-            comma: false,
+            comma: crate::features::Comma::Absent,
             payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
         }]
     ));
@@ -2857,7 +2857,7 @@ fn otherwise_fronts_a_following_imperative_clause() {
         complex.attachments.as_slice(),
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
-            comma: true,
+            comma: crate::features::Comma::Present,
             payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
         }]
     ));
@@ -2885,7 +2885,7 @@ fn otherwise_fronts_a_finite_clause() {
         complex.attachments.as_slice(),
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
-            comma: true,
+            comma: crate::features::Comma::Present,
             payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
         }]
     ));
@@ -2909,7 +2909,7 @@ fn otherwise_fronts_a_modal_clause() {
         complex.attachments.as_slice(),
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
-            comma: true,
+            comma: crate::features::Comma::Present,
             payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
         }]
     ));
@@ -2936,7 +2936,10 @@ fn otherwise_fronting_renders_its_comma() {
             complex.attachments
         );
     };
-    assert!(*comma, "expected comma: true on the otherwise attachment");
+    assert!(
+        comma.is_present(),
+        "expected a comma on the otherwise attachment"
+    );
 }
 
 #[test]
@@ -3000,7 +3003,7 @@ fn then_fronting_is_unchanged() {
         complex.attachments.as_slice(),
         [ClauseAttachment {
             position: AttachmentPosition::BeforeMatrix,
-            comma: false,
+            comma: crate::features::Comma::Absent,
             payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
         }]
     ));
@@ -3125,7 +3128,13 @@ fn participle_position_distinguishes_modifier_from_passive_predicate() {
 #[test]
 fn subject_copula_contractions_are_structural() {
     let catalogs = fixture_catalogs();
-    for (source, contracted) in [("you are the monarch", false), ("you're the monarch", true)] {
+    for (source, contraction) in [
+        ("you are the monarch", crate::features::Contraction::Full),
+        (
+            "you're the monarch",
+            crate::features::Contraction::Contracted,
+        ),
+    ] {
         let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Clause)
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
         let Some(Clause::Independent(IndependentClause::Copular(subject, predicate))) =
@@ -3148,7 +3157,7 @@ fn subject_copula_contractions_are_structural() {
                 number: Number::Singular,
             }
         );
-        assert_eq!(predicate.copula.contracted_with_subject, contracted);
+        assert_eq!(predicate.copula.contracted_with_subject, contraction);
         assert!(matches!(
             predicate.complement,
             crate::syntax::CopularComplement::NounPhrase(_)
@@ -3158,7 +3167,13 @@ fn subject_copula_contractions_are_structural() {
 
 #[test]
 fn copular_adverbs_precede_the_complement() {
-    for (source, contracted) in [("It is still a land.", false), ("It's still a land.", true)] {
+    for (source, contraction) in [
+        ("It is still a land.", crate::features::Contraction::Full),
+        (
+            "It's still a land.",
+            crate::features::Contraction::Contracted,
+        ),
+    ] {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         let SentenceBody::Independent(IndependentClause::Copular(subject, predicate)) =
@@ -3173,7 +3188,7 @@ fn copular_adverbs_precede_the_complement() {
                 case: PronounCase::Subject,
             })
         ));
-        assert_eq!(predicate.copula.contracted_with_subject, contracted);
+        assert_eq!(predicate.copula.contracted_with_subject, contraction);
         assert_eq!(predicate.precomplement_adverbs.len(), 1);
         assert_eq!(predicate.precomplement_adverbs[0].spelling(), "still");
         assert!(matches!(
@@ -3208,7 +3223,10 @@ fn contracted_copular_predications_carry_a_free_standing_negation() {
             panic!("expected a copular clause: {:#?}", parsed.sentence());
         };
         assert_eq!(predicate.negated, negated, "{source}");
-        assert!(predicate.copula.contracted_with_subject, "{source}");
+        assert!(
+            predicate.copula.contracted_with_subject.is_contracted(),
+            "{source}"
+        );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
     }
 }
@@ -3276,8 +3294,18 @@ fn negation_spellings_do_not_both_fire_on_one_predication() {
     else {
         panic!("expected a copular clause: {:#?}", parsed.sentence());
     };
-    assert!(predicate.copula.auxiliary.contracted_negation, "{source}");
-    assert!(!predicate.copula.contracted_with_subject, "{source}");
+    assert!(
+        predicate
+            .copula
+            .auxiliary
+            .contracted_negation
+            .is_contracted(),
+        "{source}"
+    );
+    assert!(
+        !predicate.copula.contracted_with_subject.is_contracted(),
+        "{source}"
+    );
     assert!(!predicate.negated, "{source}");
 }
 
@@ -3322,7 +3350,12 @@ fn contracted_subject_auxiliaries_are_structural() {
             case: PronounCase::Subject,
         })
     ));
-    assert!(predicate.head.first_auxiliary_contracted_with_subject);
+    assert!(
+        predicate
+            .head
+            .first_auxiliary_contracted_with_subject
+            .is_contracted()
+    );
     assert!(matches!(
         predicate.head.auxiliaries.as_slice(),
         [auxiliary] if auxiliary.auxiliary == Auxiliary::Have
@@ -3345,7 +3378,12 @@ fn contracted_subject_auxiliaries_are_structural() {
             case: PronounCase::Subject,
         })
     ));
-    assert!(predicate.head.first_auxiliary_contracted_with_subject);
+    assert!(
+        predicate
+            .head
+            .first_auxiliary_contracted_with_subject
+            .is_contracted()
+    );
     assert!(matches!(
         predicate.head.auxiliaries.as_slice(),
         [auxiliary] if auxiliary.auxiliary == Auxiliary::Be
@@ -3364,7 +3402,7 @@ fn contracted_subject_auxiliaries_are_structural() {
         subject,
         Subject(NounPhrase::Demonstrative(Demonstrative::That))
     ));
-    assert!(predicate.copula.contracted_with_subject);
+    assert!(predicate.copula.contracted_with_subject.is_contracted());
 
     let parsed = parse_nonterminal(
         "a spell that's one or more colors",
@@ -3382,7 +3420,7 @@ fn contracted_subject_auxiliaries_are_structural() {
                 marker: RelativeMarker::That,
                 gap: RelativeGap::Subject,
                 body: RelativeBody::SubjectGap(Predicate::Copular(predicate)),
-            })] if predicate.copula.contracted_with_subject
+            })] if predicate.copula.contracted_with_subject.is_contracted()
         ),
         "{nominal:#?}"
     );
@@ -3400,7 +3438,7 @@ fn rather_than_introduces_a_bare_infinitive_clause() {
         complex.attachments.as_slice(),
         [ClauseAttachment {
             position: AttachmentPosition::AfterMatrix,
-            comma: false,
+            comma: crate::features::Comma::Absent,
             payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                 Subordinator::RatherThan,
                 SubordinateBody::Infinitive(crate::syntax::InfinitiveClause {
@@ -3450,7 +3488,7 @@ fn rather_than_can_contrast_gerund_clauses() {
         gerund.attachments.as_slice(),
         [DependentAttachment {
             position: AttachmentPosition::AfterMatrix,
-            comma: false,
+            comma: crate::features::Comma::Absent,
             payload: DependentClause::Subordinate(
                 Subordinator::RatherThan,
                 SubordinateBody::Gerund(alternative),
@@ -4335,7 +4373,12 @@ fn contracted_subject_recipient_passive_parses() {
     else {
         panic!("expected a passive clause");
     };
-    assert!(predicate.head.first_auxiliary_contracted_with_subject);
+    assert!(
+        predicate
+            .head
+            .first_auxiliary_contracted_with_subject
+            .is_contracted()
+    );
     assert!(matches!(
         &predicate.retained_object,
         Some(PredicateObject::NounPhrase(NounPhrase::Nominal(damage)))
@@ -4381,7 +4424,7 @@ fn contracted_subject_passive_rejects_a_non_recipient_direct_object() {
             person: Person::Third,
             number: Number::Singular,
         },
-        contracted_negation: false,
+        contracted_negation: crate::features::Contraction::Full,
     };
     let frame = Verb::Word(Vocab::Destroy).predicate_frames()[0];
     assert!(!frame.is_recipient_passive());
@@ -5414,7 +5457,9 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
         "{subject:#?}"
     );
     assert!(
-        predicate_head.first_auxiliary_contracted_with_subject,
+        predicate_head
+            .first_auxiliary_contracted_with_subject
+            .is_contracted(),
         "{predicate_head:#?}"
     );
     let auxiliaries: Vec<crate::word::Auxiliary> = predicate_head
@@ -5905,7 +5950,11 @@ fn this_step_is_still_a_temporal_adjunct() {
         },
         "{subject:#?}"
     );
-    assert!(predicate_head.first_auxiliary_contracted_with_subject);
+    assert!(
+        predicate_head
+            .first_auxiliary_contracted_with_subject
+            .is_contracted()
+    );
     let temporal_adjuncts: Vec<&NounPhrase> = predicate_elements
         .iter()
         .filter_map(|element| match element {
@@ -6562,7 +6611,7 @@ fn shared_deontic_with_vp_ellipsis_preserves_the_first_deontic_ellipsis() {
         panic!("expected proform and deontic predicate conjuncts: {coordination:#?}");
     };
     assert_eq!(auxiliary.auxiliary, Auxiliary::Do);
-    assert!(auxiliary.contracted_negation);
+    assert!(auxiliary.contracted_negation.is_contracted());
     assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
     assert!(matches!(predicate.as_ref(), Predicate::Intransitive(_)));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -6577,7 +6626,7 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
             auxiliary: crate::word::AuxiliaryInstance {
                 auxiliary: Auxiliary::Can,
                 inflection: AuxiliaryInflection::Base,
-                contracted_negation: true,
+                contracted_negation: crate::features::Contraction::Contracted,
             },
         },
         inner: None,
@@ -6594,7 +6643,7 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
             PredicateExpression::Simple(Predicate::Transitive(first_predicate)),
             CoordinationJunction {
                 conjunction: Some(PredicateConjunction::And),
-                comma: false,
+                comma: crate::features::Comma::Absent,
             },
             PredicateExpression::Simple(second),
         )),
@@ -6615,7 +6664,7 @@ fn changed_predicate_connective_nests_the_completed_left_group() {
         outer.junctions(),
         [CoordinationJunction {
             conjunction: Some(PredicateConjunction::And),
-            comma: false,
+            comma: crate::features::Comma::Absent,
         }]
     ));
     let [
@@ -6630,7 +6679,7 @@ fn changed_predicate_connective_nests_the_completed_left_group() {
         inner.junctions(),
         [CoordinationJunction {
             conjunction: Some(PredicateConjunction::Or),
-            comma: false,
+            comma: crate::features::Comma::Absent,
         }]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -6656,7 +6705,7 @@ fn mixed_complete_clause_connectives_keep_both_punctuation_groups() {
             left.rest.as_slice(),
             [ClauseCoordination {
                 conjunction: Some(PredicateConjunction::Then),
-                comma: true,
+                comma: crate::features::Comma::Present,
                 ..
             }]
         ))
@@ -6664,7 +6713,7 @@ fn mixed_complete_clause_connectives_keep_both_punctuation_groups() {
     let [
         ClauseCoordination {
             conjunction: Some(PredicateConjunction::Or),
-            comma: true,
+            comma: crate::features::Comma::Present,
             member: CoordinatedClauseMember::Independent(right),
         },
     ] = outer.rest.as_slice()
@@ -6676,7 +6725,7 @@ fn mixed_complete_clause_connectives_keep_both_punctuation_groups() {
             right.rest.as_slice(),
             [ClauseCoordination {
                 conjunction: Some(PredicateConjunction::And),
-                comma: false,
+                comma: crate::features::Comma::Absent,
                 ..
             }]
         ))
@@ -6698,7 +6747,7 @@ fn and_or_clause_coordination_preserves_opaque_named_card_search() {
         coordination.rest.as_slice(),
         [ClauseCoordination {
             conjunction: Some(PredicateConjunction::AndOr),
-            comma: false,
+            comma: crate::features::Comma::Absent,
             ..
         }]
     ));
@@ -6720,12 +6769,12 @@ fn uniform_clause_and_predicate_runs_remain_flat() {
         [
             ClauseCoordination {
                 conjunction: Some(PredicateConjunction::And),
-                comma: false,
+                comma: crate::features::Comma::Absent,
                 ..
             },
             ClauseCoordination {
                 conjunction: Some(PredicateConjunction::And),
-                comma: false,
+                comma: crate::features::Comma::Absent,
                 ..
             }
         ]
@@ -6840,7 +6889,7 @@ fn additive_type_copular_continuations_share_the_finite_subject() {
             [CoordinationJunction {
                 conjunction: actual_conjunction,
                 comma: actual_comma,
-            }] if *actual_conjunction == conjunction && *actual_comma == comma
+            }] if *actual_conjunction == conjunction && actual_comma.is_present() == comma
         ));
 
         let rendered = render_sentence(parsed.sentence().unwrap());

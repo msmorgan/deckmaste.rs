@@ -136,7 +136,7 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
             };
             matrix.attachments.push(DependentAttachment {
                 position: AttachmentPosition::AfterMatrix,
-                comma: false,
+                comma: crate::features::Comma::Absent,
                 payload: DependentClause::Subordinate(
                     crate::syntax::Subordinator::RatherThan,
                     SubordinateBody::Gerund(alternative),
@@ -887,7 +887,7 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
                         negated: false,
                         copula: crate::syntax::Copula {
                             auxiliary: subject_auxiliary.auxiliary,
-                            contracted_with_subject: true,
+                            contracted_with_subject: crate::features::Contraction::Contracted,
                         },
                         distributive_each: false,
                         precomplement_adverbs: vec![],
@@ -1040,7 +1040,7 @@ pub(super) fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Op
             subject_auxiliary.subject,
             crate::syntax::Copula {
                 auxiliary: subject_auxiliary.auxiliary,
-                contracted_with_subject: true,
+                contracted_with_subject: crate::features::Contraction::Contracted,
             },
             1,
         )
@@ -1055,7 +1055,7 @@ pub(super) fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Op
             Subject(subject),
             crate::syntax::Copula {
                 auxiliary,
-                contracted_with_subject: false,
+                contracted_with_subject: crate::features::Contraction::Full,
             },
             2,
         )
@@ -1099,7 +1099,7 @@ pub(super) fn lower_variable_value_constraint(children: &mut [Lowered]) -> Optio
                 negated: false,
                 copula: crate::syntax::Copula {
                     auxiliary: be,
-                    contracted_with_subject: false,
+                    contracted_with_subject: crate::features::Contraction::Full,
                 },
                 distributive_each: false,
                 precomplement_adverbs: Vec::new(),
@@ -1174,7 +1174,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     matrix,
                     ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
-                        comma: false,
+                        comma: crate::features::Comma::Absent,
                         payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
                     },
                 ),
@@ -1192,7 +1192,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     matrix,
                     ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
-                        comma: true,
+                        comma: crate::features::Comma::Present,
                         payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
                     },
                 ),
@@ -1210,7 +1210,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     matrix,
                     ClauseAttachment {
                         position: AttachmentPosition::BeforeMatrix,
-                        comma: true,
+                        comma: crate::features::Comma::Present,
                         payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(
                             preposition,
                         )),
@@ -1335,7 +1335,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     matrix,
                     ClauseAttachment {
                         position: AttachmentPosition::AfterMatrix,
-                        comma: true,
+                        comma: crate::features::Comma::Present,
                         payload: ClauseAttachmentKind::Exception(rider),
                     },
                 ),
@@ -1403,7 +1403,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                         matrix,
                         ClauseAttachment {
                             position: AttachmentPosition::AfterMatrix,
-                            comma: false,
+                            comma: crate::features::Comma::Absent,
                             payload: ClauseAttachmentKind::Restriction(run),
                         },
                     ),
@@ -1513,7 +1513,10 @@ pub(super) fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Opti
     let Lowered::SimpleClause(next) = take(children, clause_index)? else {
         return None;
     };
-    let junction = CoordinationJunction { conjunction, comma };
+    let junction = CoordinationJunction {
+        conjunction,
+        comma: crate::features::Comma::from(comma),
+    };
     let coordinated = if next.subject.is_some() {
         let next = finish_simple_clause(next)?;
         append_complete_clause(first, junction, next)
@@ -1592,7 +1595,7 @@ fn lower_shared_copular_coordination(tag: RuleTag, children: &mut [Lowered]) -> 
     let predicate = Predicate::Copular(crate::syntax::CopularPredicate {
         copula: crate::syntax::Copula {
             auxiliary,
-            contracted_with_subject: false,
+            contracted_with_subject: crate::features::Contraction::Full,
         },
         negated: false,
         distributive_each: false,
@@ -1602,7 +1605,10 @@ fn lower_shared_copular_coordination(tag: RuleTag, children: &mut [Lowered]) -> 
     });
     let coordinated = append_shared_predicate(
         first,
-        CoordinationJunction { conjunction, comma },
+        CoordinationJunction {
+            conjunction,
+            comma: crate::features::Comma::from(comma),
+        },
         predicate,
     )?;
     Some(Lowered::Clause(Clause::Independent(coordinated)))
@@ -2017,7 +2023,7 @@ fn append_complete_clause(
                     .find_map(|member| member.conjunction),
                 junction.conjunction,
             );
-            if changed && junction.comma {
+            if changed && junction.comma.is_present() {
                 return IndependentClause::Coordinated(CoordinatedIndependentClause {
                     first: Box::new(IndependentClause::Coordinated(coordinated)),
                     rest: vec![continuation],
@@ -2054,7 +2060,7 @@ pub(super) fn starts_new_clause_group(
     let IndependentClause::Coordinated(coordinated) = clause else {
         return false;
     };
-    junction.comma
+    junction.comma.is_present()
         && coordinated.rest.last().is_some_and(|previous| {
             matches!(
                 (previous.conjunction, junction.conjunction),
@@ -2122,7 +2128,7 @@ pub(super) fn conditional_body(
             matrix,
             ClauseAttachment {
                 position,
-                comma,
+                comma: crate::features::Comma::from(comma),
                 payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                     subordinator,
                     body,
@@ -2385,7 +2391,9 @@ pub(super) fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredica
     }
     let head = PredicateHead {
         auxiliaries: phrase.auxiliaries,
-        first_auxiliary_contracted_with_subject: phrase.first_auxiliary_contracted_with_subject,
+        first_auxiliary_contracted_with_subject: crate::features::Contraction::from(
+            phrase.first_auxiliary_contracted_with_subject,
+        ),
         preverb_modifiers: phrase.preverb_modifiers,
         verb: phrase.verb,
         distributive_each: phrase.distributive_each,
@@ -2445,7 +2453,7 @@ pub(super) fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredica
             auxiliary: AuxiliaryInstance {
                 auxiliary: Auxiliary::Do,
                 inflection: proform_inflection(head.verb.slot),
-                contracted_negation: false,
+                contracted_negation: crate::features::Contraction::Full,
             },
         })
     } else if head.auxiliaries.len() == 1

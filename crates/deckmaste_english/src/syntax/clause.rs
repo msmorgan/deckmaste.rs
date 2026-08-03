@@ -12,7 +12,9 @@ use super::phrase::PowerToughness;
 use super::phrase::PrepositionalPhrase;
 use super::phrase::Quantity;
 use crate::catalog::CatalogAtom;
+use crate::features::Comma;
 use crate::features::Conjunction;
+use crate::features::Contraction;
 use crate::features::GapState;
 use crate::word::AuxiliaryInstance;
 use crate::word::VerbInstance;
@@ -138,7 +140,7 @@ pub struct PredicateHead {
     /// `cannot`/`does not`/`do not`/`is not`/`did not`/`are not`, against
     /// `can't` 3131 / `don't` 728 / `doesn't` 450 / `isn't` 246 / `didn't`
     /// 128 / `aren't` 54 — the corpus has no variation to store.
-    pub first_auxiliary_contracted_with_subject: bool,
+    pub first_auxiliary_contracted_with_subject: Contraction,
     pub preverb_modifiers: Vec<PreverbModifier>,
     pub verb: VerbInstance,
     /// The finite verbal quantifier float (`Two target creatures each get
@@ -251,7 +253,7 @@ pub struct Copula {
     /// **subject pronominality**, not copular position, predicts contraction
     /// — and even that is not exact (`it's` 1132 vs `it is` 73 on the
     /// supported corpus). Field stays stored.
-    pub contracted_with_subject: bool,
+    pub contracted_with_subject: Contraction,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -507,7 +509,7 @@ pub struct ComplexClause {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Attachment<T> {
     pub position: AttachmentPosition,
-    pub comma: bool,
+    pub comma: Comma,
     pub payload: T,
 }
 
@@ -642,7 +644,7 @@ pub struct CoordinationJunction {
     /// `None` records an asyndetic comma junction; coordinated junctions carry
     /// their overt connective.
     pub conjunction: Option<Conjunction>,
-    pub comma: bool,
+    pub comma: Comma,
 }
 
 /// A validated coordination of two or more uniform conjuncts.
@@ -722,7 +724,7 @@ pub struct CoordinatedIndependentClause {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClauseCoordination {
     pub conjunction: Option<Conjunction>,
-    pub comma: bool,
+    pub comma: Comma,
     pub member: CoordinatedClauseMember,
 }
 
@@ -808,7 +810,7 @@ pub struct ExistentialClause {
     pub adjuncts: Vec<PredicateAdjunct>,
 }
 
-/// **Measured, `ContractedIs` KEPT** (surface-fact diet, 2026-07-30
+/// **Measured, contracted `is` KEPT** (surface-fact diet, 2026-07-30
 /// measurement round): unlike its `PredicateHead`/`Copula` siblings, this one
 /// cleanly confirms half of the ticket's hypothesis. Deriving "sentence-
 /// initial existential never contracts" (`ContractedIs → Is` unconditionally)
@@ -822,23 +824,97 @@ pub struct ExistentialClause {
 /// the hypothesis holds too, precisely on the residual; deriving would need
 /// clause-position context this node doesn't carry, so the field stays
 /// stored rather than half-deriving it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum ExistentialForm {
-    Is,
-    ContractedIs,
-    Are,
-    Was,
-    Were,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ExistentialForm {
+    verb_slot: crate::features::VerbSlot,
+    contraction: Contraction,
 }
 
 impl ExistentialForm {
+    const IS: Self = Self {
+        verb_slot: crate::features::VerbSlot::Present {
+            person: crate::features::Person::Third,
+            number: crate::features::Number::Singular,
+        },
+        contraction: Contraction::Full,
+    };
+    const CONTRACTED_IS: Self = Self {
+        verb_slot: crate::features::VerbSlot::Present {
+            person: crate::features::Person::Third,
+            number: crate::features::Number::Singular,
+        },
+        contraction: Contraction::Contracted,
+    };
+    const ARE: Self = Self {
+        verb_slot: crate::features::VerbSlot::Present {
+            person: crate::features::Person::Third,
+            number: crate::features::Number::Plural,
+        },
+        contraction: Contraction::Full,
+    };
+    const WAS: Self = Self {
+        verb_slot: crate::features::VerbSlot::Past {
+            person: crate::features::Person::Third,
+            number: crate::features::Number::Singular,
+        },
+        contraction: Contraction::Full,
+    };
+    const WERE: Self = Self {
+        verb_slot: crate::features::VerbSlot::Past {
+            person: crate::features::Person::Third,
+            number: crate::features::Number::Plural,
+        },
+        contraction: Contraction::Full,
+    };
+
     pub(crate) const FORMS: &'static [(Self, &'static str)] = &[
-        (Self::Is, "there is"),
-        (Self::ContractedIs, "there's"),
-        (Self::Are, "there are"),
-        (Self::Was, "there was"),
-        (Self::Were, "there were"),
+        (Self::IS, "there is"),
+        (Self::CONTRACTED_IS, "there's"),
+        (Self::ARE, "there are"),
+        (Self::WAS, "there was"),
+        (Self::WERE, "there were"),
     ];
+
+    #[must_use]
+    pub const fn new(
+        verb_slot: crate::features::VerbSlot,
+        contraction: Contraction,
+    ) -> Option<Self> {
+        match (verb_slot, contraction) {
+            (
+                crate::features::VerbSlot::Present {
+                    person: crate::features::Person::Third,
+                    number: crate::features::Number::Singular,
+                },
+                Contraction::Full | Contraction::Contracted,
+            )
+            | (
+                crate::features::VerbSlot::Present {
+                    person: crate::features::Person::Third,
+                    number: crate::features::Number::Plural,
+                }
+                | crate::features::VerbSlot::Past {
+                    person: crate::features::Person::Third,
+                    number: crate::features::Number::Singular | crate::features::Number::Plural,
+                },
+                Contraction::Full,
+            ) => Some(Self {
+                verb_slot,
+                contraction,
+            }),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn verb_slot(self) -> crate::features::VerbSlot {
+        self.verb_slot
+    }
+
+    #[must_use]
+    pub const fn contraction(self) -> Contraction {
+        self.contraction
+    }
 
     pub(crate) fn spelling(self) -> &'static str {
         Self::FORMS
@@ -848,9 +924,58 @@ impl ExistentialForm {
     }
 
     pub(crate) const fn number(self) -> crate::word::Number {
-        match self {
-            Self::Is | Self::ContractedIs | Self::Was => crate::word::Number::Singular,
-            Self::Are | Self::Were => crate::word::Number::Plural,
+        match self.verb_slot {
+            crate::features::VerbSlot::Present { number, .. }
+            | crate::features::VerbSlot::Past { number, .. } => number,
+            _ => unreachable!(),
         }
+    }
+
+    const fn legacy_variant(self) -> (u32, &'static str) {
+        match (self.verb_slot, self.contraction) {
+            (
+                crate::features::VerbSlot::Present {
+                    number: crate::features::Number::Singular,
+                    ..
+                },
+                Contraction::Full,
+            ) => (0, "Is"),
+            (
+                crate::features::VerbSlot::Present {
+                    number: crate::features::Number::Singular,
+                    ..
+                },
+                Contraction::Contracted,
+            ) => (1, "ContractedIs"),
+            (
+                crate::features::VerbSlot::Present {
+                    number: crate::features::Number::Plural,
+                    ..
+                },
+                Contraction::Full,
+            ) => (2, "Are"),
+            (
+                crate::features::VerbSlot::Past {
+                    number: crate::features::Number::Singular,
+                    ..
+                },
+                Contraction::Full,
+            ) => (3, "Was"),
+            (
+                crate::features::VerbSlot::Past {
+                    number: crate::features::Number::Plural,
+                    ..
+                },
+                Contraction::Full,
+            ) => (4, "Were"),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl serde::Serialize for ExistentialForm {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let (variant_index, variant) = self.legacy_variant();
+        serializer.serialize_unit_variant("ExistentialForm", variant_index, variant)
     }
 }
