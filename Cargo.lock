@@ -571,6 +571,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "deckmaste_card",
  "deckmaste_core",
  "deckmaste_engine",
  "deckmaste_plugin",

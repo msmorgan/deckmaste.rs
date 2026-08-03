@@ -6,6 +6,7 @@
 //! single read so nothing downstream can be comparing two parses that drifted.
 
 /// A card as loaded: the authored term and its engine image.
+#[derive(Debug)]
 pub struct LoadedCard {
     /// The authored term — what the spelling side and the Idris mirror read.
     pub authored: deckmaste_authoring::Card,
@@ -15,6 +16,7 @@ pub struct LoadedCard {
 }
 
 /// A token as loaded. Mirrors [`LoadedCard`].
+#[derive(Debug)]
 pub struct LoadedToken {
     pub authored: deckmaste_authoring::Token,
     pub core: deckmaste_core::Token,

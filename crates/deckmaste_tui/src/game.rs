@@ -1,6 +1,7 @@
 //! Builds the demo `GameState` from committed plugin data + decklist files.
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Result;
 use deckmaste_engine::GameConfig;
@@ -56,6 +57,8 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
 
     let p0 = goblins.resolve(&[&canon, &builtin, &wizards])?;
     let p1 = elves.resolve(&[&canon, &builtin, &wizards])?;
+    let p0: Vec<Arc<deckmaste_card::Card>> = p0.iter().map(|l| Arc::new(l.core.clone())).collect();
+    let p1: Vec<Arc<deckmaste_card::Card>> = p1.iter().map(|l| Arc::new(l.core.clone())).collect();
 
     let sba_rules = canon
         .sba_rules
@@ -103,10 +106,7 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
     types.extend(wizards.types.clone());
 
     Ok(GameState::new(GameConfig {
-        players: vec![
-            PlayerConfig { deck: p0.to_vec() },
-            PlayerConfig { deck: p1.to_vec() },
-        ],
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),

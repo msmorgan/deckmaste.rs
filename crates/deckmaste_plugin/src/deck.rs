@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
-use deckmaste_card::Card;
 
+use crate::LoadedCard;
 use crate::plugin::Plugin;
 
 /// A decklist: a name and the `(count, card-name)` entries it lists.
@@ -68,16 +68,19 @@ impl Deck {
     /// Resolves every entry to `count` clones of its card, looking each name up
     /// across `plugins` in order (first match wins).
     ///
+    /// Retains BOTH halves: the authored term is what the render side links
+    /// back to, and it cannot be recovered downstream without a reparse.
+    ///
     /// # Errors
     /// If a card name resolves in none of the plugins.
-    pub fn resolve(&self, plugins: &[&Plugin]) -> Result<Arc<[Arc<Card>]>> {
+    pub fn resolve(&self, plugins: &[&Plugin]) -> Result<Arc<[Arc<LoadedCard>]>> {
         let mut out = Vec::new();
         for entry in self.entries.iter() {
             let card = plugins
                 .iter()
                 .find_map(|p| p.card(&entry.card).ok())
                 .with_context(|| format!("deck {:?}: unknown card {:?}", self.name, entry.card))?;
-            let card = Arc::new(card.core);
+            let card = Arc::new(card);
             out.extend(std::iter::repeat_n(Arc::clone(&card), entry.count));
         }
         Ok(out.into())
@@ -159,5 +162,24 @@ mod tests {
         let msg = error.to_string();
         assert!(msg.contains("unknown card"), "unexpected error: {msg}");
         assert!(msg.contains("Nonexistent Card"), "unexpected error: {msg}");
+    }
+
+    /// Resolution keeps the authored half. The composition layer downstream
+    /// needs it to link engine cards back to what they were written as;
+    /// collapsing here would make that unrecoverable without a reparse.
+    #[test]
+    fn resolve_retains_the_authored_half() {
+        let plugin = Plugin::load(plugins_dir("../../plugins/builtin")).unwrap();
+        let deck = Deck::parse("1 Forest\n").unwrap();
+        let resolved = deck.resolve(&[&plugin]).unwrap();
+        assert_eq!(resolved.len(), 1);
+
+        let deckmaste_authoring::Card::Normal(authored_face) = &resolved[0].authored else {
+            panic!("Forest is a Normal card");
+        };
+        let deckmaste_card::Card::Normal(core_face) = &resolved[0].core else {
+            panic!("Forest is a Normal card");
+        };
+        assert_eq!(authored_face.name, core_face.name);
     }
 }
