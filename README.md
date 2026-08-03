@@ -11,6 +11,13 @@ that description.
 > The Gathering. I've long wondered if the rules text of Magic cards was a
 > structured data language in disguise. This is that project.
 
+![The interactive terminal client mid-game: the hotseat demo's board across
+every zone, priority and blocker prompts, and card detail text rendered from
+the cards' authored definitions.](docs/assets/tui-demo.webp)
+
+*`cargo run` — the interactive client playing the hotseat demo, Goblins vs.
+Elves.*
+
 ---
 
 ## Design
