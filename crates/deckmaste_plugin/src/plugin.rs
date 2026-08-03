@@ -573,7 +573,7 @@ fn nullary(params: &crate::macros::Params) -> bool {
 /// The `.ron` files under `dir` at any depth, sorted; an absent directory is
 /// empty. Entries are classified by [`std::fs::DirEntry::file_type`], so a
 /// directory named like a file is recursed into, not read.
-pub(crate) fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+pub fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     if !dir.exists() {
         return Ok(vec![]);
     }

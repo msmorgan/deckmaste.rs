@@ -9,7 +9,7 @@
 //! damage to you.`) rides as a second effect in the same resolution.
 
 use deckmaste_authoring::ColorOrColorless;
-use deckmaste_plugin::template::index::TemplateIndex;
+use deckmaste_legacy_render::template::index::TemplateIndex;
 
 use crate::parsers::cost::VariableMana;
 use crate::parsers::cost::{self};

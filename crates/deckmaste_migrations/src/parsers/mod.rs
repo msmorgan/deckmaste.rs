@@ -29,8 +29,8 @@ pub(crate) mod test_ctx {
     use std::path::Path;
     use std::sync::LazyLock;
 
+    use deckmaste_legacy_render::template::index::TemplateIndex;
     use deckmaste_plugin::plugin::Plugin;
-    use deckmaste_plugin::template::index::TemplateIndex;
 
     use crate::resolve::CardKind;
     use crate::resolve::ResolveCtx;

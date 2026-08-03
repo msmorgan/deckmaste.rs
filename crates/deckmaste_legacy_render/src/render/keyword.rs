@@ -51,8 +51,9 @@ fn has_args(args: &ExpansionArgs) -> bool {
 mod tests {
     use std::path::Path;
 
+    use deckmaste_plugin::plugin::Plugin;
+
     use super::keyword_name;
-    use crate::plugin::Plugin;
 
     fn kw(src: &str) -> deckmaste_core::KeywordAbility {
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");

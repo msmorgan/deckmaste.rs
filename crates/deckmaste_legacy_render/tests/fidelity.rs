@@ -9,8 +9,8 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_plugin::fidelity;
-use deckmaste_plugin::fidelity::Oracle;
+use deckmaste_legacy_render::fidelity;
+use deckmaste_legacy_render::fidelity::Oracle;
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")

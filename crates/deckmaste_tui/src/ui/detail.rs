@@ -13,9 +13,9 @@ use deckmaste_engine::ObjectId;
 use deckmaste_engine::ObjectSource;
 use deckmaste_engine::StackObject;
 use deckmaste_engine::face;
-use deckmaste_plugin::render::CardView;
-use deckmaste_plugin::render::RenderedCard;
-use deckmaste_plugin::render::render as render_card_view;
+use deckmaste_legacy_render::render::CardView;
+use deckmaste_legacy_render::render::RenderedCard;
+use deckmaste_legacy_render::render::render as render_card_view;
 use ratatui::text::Text;
 
 use crate::ui::board::Selected;

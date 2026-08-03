@@ -7,8 +7,8 @@ use std::path::Path;
 
 use anyhow::Context as _;
 use deckmaste_core::plugin::is_ron_todo_file;
+use deckmaste_legacy_render::template::index::TemplateIndex;
 use deckmaste_plugin::plugin::Plugin;
-use deckmaste_plugin::template::index::TemplateIndex;
 use rayon::prelude::*;
 
 use crate::todo_card::RawIdent;

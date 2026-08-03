@@ -1,0 +1,29 @@
+[package]
+publish = false
+name = "deckmaste_legacy_render"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { version = "1.0.102" }
+# The renderer reads AUTHORED terms: they keep their `Expanded` invocation
+# provenance, and so keep the rules-text templates that produce good prose.
+# Lowered core is a compiled artifact and carries none
+# (docs/decisions/authoring-spelling-lowering.md §12).
+deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
+# The fidelity harness walks a loaded corpus; it needs the loader, not a second
+# grammar. `deckmaste_core` arrives transitively through this and only through
+# this — there is deliberately no direct dependency on it.
+deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }
+# TEMPORARY: dropped at the end of the retype step. Present only so the pure
+# file move has a compiling checkpoint before the types change.
+deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
+macro_ron = { version = "0.1.0", path = "../macro_ron" }
+regex = "1.12.3"
+ron = "0.12.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"

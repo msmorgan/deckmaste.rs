@@ -1,7 +1,7 @@
 //! The shared `Condition`-macro routing: an English condition phrase (the
 //! clause after "if"/"as long as") → a `Condition`-kind macro invocation, via
 //! the reverse
-//! [`TemplateIndex`](deckmaste_plugin::template::index::TemplateIndex).
+//! [`TemplateIndex`](deckmaste_legacy_render::template::index::TemplateIndex).
 //! A nullary phrase ("you have the city's blessing") matches through the
 //! bare-name index; a slot-bearing phrase ("you control ${0}", "${0} is
 //! ${1}") fills each `${i}` via [`slot_reader`]. The one routing point BOTH

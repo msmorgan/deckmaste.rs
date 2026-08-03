@@ -12,13 +12,13 @@ use std::io::BufRead;
 use std::io::Write;
 
 use deckmaste_authoring::ManaCost;
+use deckmaste_legacy_render::template::index::TemplateIndex;
 use deckmaste_migrations::resolve::resolve_card;
 use deckmaste_migrations::todo_card::RawIdent;
 use deckmaste_migrations::todo_card::TodoAbility;
 use deckmaste_migrations::todo_card::TodoCard;
 use deckmaste_migrations::todo_card::TodoCardFace;
 use deckmaste_plugin::plugin::Plugin;
-use deckmaste_plugin::template::index::TemplateIndex;
 
 fn parses(line: &str, kind: &str, index: &TemplateIndex) -> bool {
     let types = if kind == "Spell" {

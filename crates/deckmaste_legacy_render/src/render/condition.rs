@@ -250,8 +250,8 @@ fn matches_phrase(reference: &Reference, pred: &Predicate, ctx: &Ctx, negate: bo
 /// creature" — the lowercase twin of `render/ability.rs`'s
 /// `reference_subject` (which capitalizes for sentence-start use). Any other
 /// reference declines — this composition's subject vocabulary is the closed
-/// set `crate::parsers`' condition routing accepts (see the migrations-side
-/// `SUBJECT_WORDS`).
+/// set `deckmaste_migrations::parsers`' condition routing accepts (see the
+/// migrations-side `SUBJECT_WORDS`).
 fn condition_subject(r: &Reference, ctx: &Ctx) -> Option<String> {
     match r {
         Reference::This => Some(ctx.subject.to_string()),
@@ -266,8 +266,9 @@ fn condition_subject(r: &Reference, ctx: &Ctx) -> Option<String> {
 /// combat/tap state (attacking/blocking/tapped/untapped), a color, "legendary"
 /// ([`Supertype::Legendary`]), or — falling through — a full
 /// object-description noun phrase ([`object_phrase`]). Mirrors
-/// `crate::parsers::condition::condition_predicate`'s parse-side vocabulary
-/// exactly, so nothing this composition parses renders as `None` here.
+/// `deckmaste_migrations::parsers::condition::condition_predicate`'s parse-side
+/// vocabulary exactly, so nothing this composition parses renders as `None`
+/// here.
 fn state_predicate_phrase(pred: &Predicate) -> Option<String> {
     match strip_expanded(pred) {
         Predicate::State(StatePredicate::Attacking) => Some("attacking".to_string()),
@@ -286,11 +287,11 @@ fn state_predicate_phrase(pred: &Predicate) -> Option<String> {
 
 /// A singular object-description `Predicate` -> its indefinite noun phrase —
 /// the reverse of the CLOSED vocabulary
-/// `crate::parsers::condition::condition_predicate`'s
-/// [`crate::parsers::filter::parse_phrase`] fallback accepts: a bare card
-/// type / a creature-type subtype noun (bare, "a Human", OR as an adjective
-/// before an explicit type noun, "a Domri planeswalker"/"a Griffin creature")
-/// / a single color or multicolored/colorless adjective / the
+/// `deckmaste_migrations::parsers::condition::condition_predicate`'s
+/// [`deckmaste_migrations::parsers::filter::parse_phrase`] fallback accepts: a
+/// bare card type / a creature-type subtype noun (bare, "a Human", OR as an
+/// adjective before an explicit type noun, "a Domri planeswalker"/"a Griffin
+/// creature") / a single color or multicolored/colorless adjective / the
 /// "other"/"another" self-exclusion. `None` for a filter built from any other
 /// atom — the caller then falls back to a visible marker rather than
 /// dropped/garbled English.
@@ -534,8 +535,8 @@ mod tests {
         );
         // A BARE creature-type subtype noun ("a Human") carries the implicit
         // `Permanent` scope atom — a macro-provenance `Expanded` value, the
-        // exact shape `crate::parsers::filter::parse_phrase` emits — which
-        // must NOT print as "a Human permanent".
+        // exact shape `deckmaste_migrations::parsers::filter::parse_phrase` emits —
+        // which must NOT print as "a Human permanent".
         let permanent = Predicate::Expanded(deckmaste_core::Expansion {
             name: deckmaste_core::Ident::from("Permanent"),
             args: deckmaste_core::ExpansionArgs::none(),

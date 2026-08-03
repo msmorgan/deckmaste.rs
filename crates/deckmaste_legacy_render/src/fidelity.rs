@@ -37,10 +37,10 @@ use deckmaste_card::Card;
 use deckmaste_card::CardFace;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;
+use deckmaste_plugin::plugin::Plugin;
+use deckmaste_plugin::plugin::read;
+use deckmaste_plugin::plugin::ron_files_recursive;
 
-use crate::plugin::Plugin;
-use crate::plugin::read;
-use crate::plugin::ron_files_recursive;
 use crate::render::render_card_face;
 
 /// The oracle snapshot's default location, relative to the workspace root.
@@ -373,7 +373,7 @@ pub fn normalize(line: &str, name: &str) -> String {
     // Fold spelled-number energy ("six {E}") to a `{E}` run on BOTH sides so a
     // count past five diffs clean regardless of which side spells it (the
     // render threshold spells it, the oracle spells it — this makes them meet).
-    s = crate::energy::normalize_spelled_energy(&s);
+    s = deckmaste_plugin::energy::normalize_spelled_energy(&s);
     collapse_spaces(s.trim())
 }
 

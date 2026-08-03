@@ -2716,10 +2716,10 @@ mod tests {
     /// layer rather than raw ctors.
     fn kw(src: &str) -> OneShotEffect {
         use std::sync::LazyLock;
-        static BUILTIN: LazyLock<crate::plugin::Plugin> = LazyLock::new(|| {
+        static BUILTIN: LazyLock<deckmaste_plugin::plugin::Plugin> = LazyLock::new(|| {
             let root =
                 std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin");
-            crate::plugin::Plugin::load(root).expect("load builtin plugin")
+            deckmaste_plugin::plugin::Plugin::load(root).expect("load builtin plugin")
         });
         BUILTIN
             .macros
@@ -2844,8 +2844,7 @@ mod tests {
         use std::path::Path;
 
         use deckmaste_core::CostComponent;
-
-        use crate::plugin::Plugin;
+        use deckmaste_plugin::plugin::Plugin;
 
         let ctx = Ctx {
             subject: "it",
@@ -3025,13 +3024,13 @@ mod tests {
     /// The one-sided "bite" shape's render round-trip ([CR#120]; `Fight`'s
     /// [CR#701.14a] reciprocal-less half): `StatOf(This, Power)` prints "…
     /// equal to its power", faithfully round-tripping
-    /// [`crate::parsers::effect`]'s `deal_damage_bite_equal_to_its_power`
-    /// parse ("~ deals damage equal to its power to target creature." — the
-    /// corpus's actual word order: the variable-amount clause sits between
-    /// "damage" and "to <target>", unlike a literal numeral). Regression for
-    /// the ungrammatical "it's power" a naive `reference(This, ctx) + "'s"`
-    /// composition would print inside a triggered/activated body (ctx
-    /// subject "it").
+    /// [`deckmaste_migrations::parsers::effect`]'s
+    /// `deal_damage_bite_equal_to_its_power` parse ("~ deals damage equal
+    /// to its power to target creature." — the corpus's actual word order:
+    /// the variable-amount clause sits between "damage" and "to <target>",
+    /// unlike a literal numeral). Regression for the ungrammatical "it's
+    /// power" a naive `reference(This, ctx) + "'s"` composition would print
+    /// inside a triggered/activated body (ctx subject "it").
     #[test]
     fn deal_damage_stat_of_this_power_renders_its_power() {
         use deckmaste_core::Stat;
@@ -3829,7 +3828,7 @@ mod tests {
     fn deals_damage_to_each_round_trips_render() {
         use std::path::Path;
 
-        use crate::plugin::Plugin;
+        use deckmaste_plugin::plugin::Plugin;
 
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let plugin = Plugin::load(plugins.join("builtin")).unwrap();
@@ -3998,7 +3997,7 @@ mod tests {
     fn shuffle_your_graveyard_into_your_library_renders_via_template() {
         use std::path::Path;
 
-        use crate::plugin::Plugin;
+        use deckmaste_plugin::plugin::Plugin;
 
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let plugin = Plugin::load(plugins.join("builtin")).unwrap();

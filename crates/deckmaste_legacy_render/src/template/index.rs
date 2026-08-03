@@ -396,8 +396,9 @@ fn match_nullary(pattern: &ParsePattern, input: &str) -> Option<usize> {
 mod tests {
     use std::path::Path;
 
+    use deckmaste_plugin::plugin::Plugin;
+
     use super::*;
-    use crate::plugin::Plugin;
 
     fn builtin() -> TemplateIndex {
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
@@ -533,7 +534,7 @@ mod tests {
     /// nothing in the input disambiguates which macro the card meant.
     #[test]
     fn ambiguous_templates_error() {
-        let mut set = crate::macros::macro_set();
+        let mut set = deckmaste_plugin::macros::macro_set();
         let boost = |name: &str, body: &str| -> macro_ron::MacroDef {
             deckmaste_core::ron::options()
                 .from_str(&format!(

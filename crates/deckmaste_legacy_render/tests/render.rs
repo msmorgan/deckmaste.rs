@@ -9,11 +9,11 @@ use deckmaste_core::KeywordAbility;
 use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
 use deckmaste_core::Type;
+use deckmaste_legacy_render::render::CardView;
+use deckmaste_legacy_render::render::RenderedCard;
+use deckmaste_legacy_render::render::render;
+use deckmaste_legacy_render::render::render_card_face;
 use deckmaste_plugin::plugin::Plugin;
-use deckmaste_plugin::render::CardView;
-use deckmaste_plugin::render::RenderedCard;
-use deckmaste_plugin::render::render;
-use deckmaste_plugin::render::render_card_face;
 
 fn canon_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon")
@@ -1182,7 +1182,7 @@ fn renders_trigger_with_turnof_intervening_if() {
 /// The `EntersWithCounters` macro ([CR#122.6a]) — an `Ability`-kind macro
 /// invocation (`plugins/builtin/macros/replacement/EntersWithCounters.ron`)
 /// parsed through the REAL builtin plugin, so this exercises both the
-/// `Ability::Expanded` render-peeling ([`deckmaste_plugin::render`]'s
+/// `Ability::Expanded` render-peeling ([`deckmaste_legacy_render::render`]'s
 /// `rules()`, which previously dropped an `Ability`-kind macro invocation
 /// silently — no prior card exercised that path) and the dedicated
 /// `Replacement::Also` render arm that prints the idiomatic "~ enters with

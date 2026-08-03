@@ -516,6 +516,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_legacy_render"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deckmaste_authoring",
+ "deckmaste_card",
+ "deckmaste_core",
+ "deckmaste_plugin",
+ "macro_ron",
+ "regex",
+ "ron",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "deckmaste_lowering"
 version = "0.1.0"
 dependencies = [
@@ -533,6 +549,7 @@ dependencies = [
  "anyhow",
  "deckmaste_authoring",
  "deckmaste_core",
+ "deckmaste_legacy_render",
  "deckmaste_lowering",
  "deckmaste_plugin",
  "rayon",
@@ -581,6 +598,7 @@ dependencies = [
  "deckmaste_card",
  "deckmaste_core",
  "deckmaste_engine",
+ "deckmaste_legacy_render",
  "deckmaste_plugin",
  "ratatui",
 ]
@@ -1980,6 +1998,7 @@ dependencies = [
  "deckmaste_core",
  "deckmaste_english",
  "deckmaste_frames",
+ "deckmaste_legacy_render",
  "deckmaste_migrations",
  "deckmaste_plugin",
  "macro_ron",

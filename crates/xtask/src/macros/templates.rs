@@ -1,7 +1,7 @@
 //! `cargo xtask macro templates` — the D10 coexistence contract: every
 //! framed macro definition's checked-in `template:` field (the legacy
-//! rules-text mini-language `deckmaste_plugin::template` renders from) must
-//! equal [`project`]ion of its first frame's authored text, so `template:`
+//! rules-text mini-language `deckmaste_legacy_render::template` renders from)
+//! must equal [`project`]ion of its first frame's authored text, so `template:`
 //! and `frames:` can't quietly drift into two different sources of truth
 //! for the same rendering.
 //!

@@ -12,6 +12,7 @@ anyhow = { version = "1.0.102" }
 deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
 # No `deckmaste_card`: nothing here speaks the engine's card type any more.
 deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }
+deckmaste_legacy_render = { version = "0.1.0", path = "../deckmaste_legacy_render" }
 # Only for `deckmaste_core::plugin` — the path conventions, which the ADR keeps
 # core-side. No card content in this crate is spelled in core terms.
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }

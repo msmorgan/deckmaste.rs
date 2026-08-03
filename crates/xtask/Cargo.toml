@@ -12,6 +12,7 @@ anyhow = { version = "1.0.102" }
 clap = { version = "4.6.1", features = ["derive"] }
 deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }
+deckmaste_legacy_render = { version = "0.1.0", path = "../deckmaste_legacy_render" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 deckmaste_english = { version = "0.1.0", path = "../deckmaste_english" }
 # `macro inspect` compiles a frame (needs `CompiledFrame`/`compile`); `macro

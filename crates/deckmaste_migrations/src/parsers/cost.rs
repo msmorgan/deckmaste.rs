@@ -7,7 +7,7 @@
 
 use deckmaste_authoring::ManaCost;
 use deckmaste_authoring::ManaSymbol;
-use deckmaste_plugin::template::index::TemplateIndex;
+use deckmaste_legacy_render::template::index::TemplateIndex;
 
 use crate::parsers::effect;
 use crate::parsers::filter;

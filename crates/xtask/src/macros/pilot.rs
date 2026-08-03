@@ -5,12 +5,12 @@
 //!   `Origin::Macro` lexicon entry — not the raw constructor entries), does
 //!   [`render_invocation_with`] reproduce, byte-for-byte after `fidelity`-style
 //!   normalization, the same text the legacy per-ability renderer
-//!   ([`deckmaste_plugin::render`]) already prints for that ability? AND does
-//!   `cargo xtask fidelity` still hold at its established figure — this command
-//!   re-runs that exact check rather than asking a caller to remember to run
-//!   both. (The plan states that figure as canon's 73 clean / 7 waived / 0
-//!   failing; the total this command prints sums all four covered plugins, 78 /
-//!   7 / 0, and is what [`COVERAGE_FLOOR`] pins.)
+//!   ([`deckmaste_legacy_render::render`]) already prints for that ability? AND
+//!   does `cargo xtask fidelity` still hold at its established figure — this
+//!   command re-runs that exact check rather than asking a caller to remember
+//!   to run both. (The plan states that figure as canon's 73 clean / 7 waived /
+//!   0 failing; the total this command prints sums all four covered plugins, 78
+//!   / 7 / 0, and is what [`COVERAGE_FLOOR`] pins.)
 //! - **G4 ground truth**: for every canon ability line whose parse `unify`s to
 //!   a non-`Residual` under the pilot lexicon, does the recovered structure —
 //!   emitted as RON text and expanded — equal the card's own authored value,
@@ -115,13 +115,13 @@ use deckmaste_frames::lexicon::Origin;
 use deckmaste_frames::render_invocation_with;
 use deckmaste_frames::unify;
 use deckmaste_frames::view;
-use deckmaste_plugin::fidelity;
-use deckmaste_plugin::fidelity::Oracle;
-use deckmaste_plugin::fidelity::Outcome as FidelityOutcome;
+use deckmaste_legacy_render::fidelity;
+use deckmaste_legacy_render::fidelity::Oracle;
+use deckmaste_legacy_render::fidelity::Outcome as FidelityOutcome;
+use deckmaste_legacy_render::render::CardView;
+use deckmaste_legacy_render::render::render;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::plugin::read;
-use deckmaste_plugin::render::CardView;
-use deckmaste_plugin::render::render;
 use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 use macro_ron::frames::load_constructor_frames;
@@ -533,7 +533,7 @@ pub(super) fn faces(card: &Card) -> Vec<&CardFace> {
 }
 
 /// Peels a leading `Ability::Expanded` wrapper — mirrors
-/// `deckmaste_plugin::render`'s own private `peel_expanded`, which this
+/// `deckmaste_legacy_render::render`'s own private `peel_expanded`, which this
 /// module cannot call (it is not exported), kept minimal since only the
 /// two ability kinds below are ever isolated.
 pub(super) fn peel_expanded(ability: &Ability) -> &Ability {
@@ -555,9 +555,9 @@ pub(super) fn peel_expanded(ability: &Ability) -> &Ability {
 /// real usage untested. Its `event`/`condition`/`ability_word` are dropped
 /// and `effect` alone is re-wrapped as a synthetic `Ability::Spell` for
 /// rendering, reaching the *identical* `effect::effect` renderer a real
-/// spell's effect does (`deckmaste_plugin::render::rules`'s own dispatch) —
-/// only the surrounding sentence frame (capitalization, no "When …,"
-/// lead-in) differs, which does not matter here: this sweep tests the
+/// spell's effect does (`deckmaste_legacy_render::render::rules`'s own
+/// dispatch) — only the surrounding sentence frame (capitalization, no "When
+/// …," lead-in) differs, which does not matter here: this sweep tests the
 /// effect's own structure, not the trigger wrapping it.
 fn testable_line(
     path: &Path,

@@ -91,7 +91,7 @@ pub(super) fn fill_with(
                     let raw = lookup_arg(args, key.trim())?;
                     let n: usize = raw.trim().parse().ok()?;
                     if n > 5 {
-                        out.push_str(&crate::energy::spell_number(n));
+                        out.push_str(&deckmaste_plugin::energy::spell_number(n));
                         out.push(' ');
                         out.push_str(literal);
                     } else {
@@ -679,7 +679,8 @@ mod tests {
     fn pay_energy_round_trips_render_and_parse() {
         use std::path::Path;
 
-        use crate::plugin::Plugin;
+        use deckmaste_plugin::plugin::Plugin;
+
         use crate::template::index::TemplateIndex;
 
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
@@ -708,7 +709,8 @@ mod tests {
     fn gain_energy_round_trips_render_and_parse() {
         use std::path::Path;
 
-        use crate::plugin::Plugin;
+        use deckmaste_plugin::plugin::Plugin;
+
         use crate::template::index::TemplateIndex;
 
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
