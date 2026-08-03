@@ -501,6 +501,27 @@ fn authored_faces(card: &deckmaste_authoring::Card) -> Vec<&deckmaste_authoring:
     }
 }
 
+/// Every `Ability` reachable from `ability`, at ANY depth, in pre-order —
+/// `ability` itself plus the full transitive closure of
+/// [`nested_abilities`](deckmaste_authoring::Ability::nested_abilities).
+/// This is the authored-side walk
+/// [`ProvenanceIndex::insert_ability_owned`](deckmaste_plugin::provenance::ProvenanceIndex)
+/// does when indexing (`crates/deckmaste_plugin/src/provenance.rs`) — an
+/// ability granting an ability that itself grants an ability is indexed at
+/// every depth there, so this test has to visit every depth too, or a
+/// context-dependence bug two-or-more `Ability`-levels down would pass
+/// silently. Reuses `nested_abilities` (one level) recursively rather than
+/// re-implementing the walk.
+fn authored_ability_subterms(
+    ability: &deckmaste_authoring::Ability,
+) -> Vec<&deckmaste_authoring::Ability> {
+    let mut out = vec![ability];
+    for child in ability.nested_abilities() {
+        out.extend(authored_ability_subterms(child));
+    }
+    out
+}
+
 /// One authored source file, loaded through the real plugin API, keeping the
 /// authored/core pair intact — the pair [`load_card`] already reads, minus
 /// the write-back re-serialization
@@ -707,8 +728,9 @@ fn ability_contains(ability: &deckmaste_core::Ability, image: &deckmaste_core::A
 /// Lowering is context-free at `Ability` granularity: an ability's image does
 /// not depend on what surrounds it. Erasure is the crate's first non-identity
 /// arm family, so this is the property that says the erasure did not smuggle
-/// in a context dependence — every authored ability subterm's lowering
-/// appears verbatim in its lowered card.
+/// in a context dependence — every authored ability subterm's lowering, AT
+/// ANY NESTING DEPTH (an ability granting an ability that itself grants an
+/// ability, and so on), appears verbatim in its lowered card.
 #[test]
 fn every_authored_ability_subterm_appears_in_its_lowered_card() {
     let canon = Plugin::load_with_sibling_prelude(plugin_dir("canon", "")).unwrap();
@@ -718,7 +740,7 @@ fn every_authored_ability_subterm_appears_in_its_lowered_card() {
         let lowered: Vec<&deckmaste_core::Ability> = core_abilities(&loaded.core).collect();
         for face in authored_faces(&loaded.authored) {
             for authored in &face.abilities {
-                for subterm in std::iter::once(authored).chain(authored.nested_abilities()) {
+                for subterm in authored_ability_subterms(authored) {
                     let image = subterm.clone().lower();
                     assert!(
                         lowered.iter().any(|a| **a == image) || nested_in_any(&lowered, &image),
