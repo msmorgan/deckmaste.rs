@@ -202,7 +202,6 @@ fn reader(param_type: &str) -> Option<Reader> {
         "NumericOp" => dc::NumericOp,
         "OneShotEffect" => dc::OneShotEffect,
         "Predicate" => dc::Predicate,
-        "Preference" => dc::strategy::Preference,
         "Quantity" => dc::Quantity,
         "Reference" => dc::Reference,
         "Replacement" => dc::Replacement,

@@ -39,8 +39,8 @@ pub use macro_ron::Params;
 // `kind_names_track_the_core_types`.
 #[must_use]
 pub fn kinds() -> KindSet {
-    // Every macroable kind (including the strategy `Preference`) lives in core's
-    // shared registry; cards adds none of its own.
+    // Every macroable kind lives in core's shared registry; cards adds none of
+    // its own.
     deckmaste_core::ron::kinds()
 }
 
@@ -116,7 +116,6 @@ pub fn param_types() -> ParamTypeSet {
     // call site).
     param_types.add_typed::<dc::TypeDef>("TypeDef");
     param_types.add_typed::<dc::Zone>("Zone");
-    param_types.add_typed::<dc::strategy::Preference>("Preference");
     // A plain non-negative literal number (`PayEnergy(2)`) — distinct from the
     // `Count` enum: a fixed count with no "for each …" reading. Read as the core
     // `Uint`, the type `Count::Literal` wraps.
@@ -171,7 +170,6 @@ mod tests {
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
-    use deckmaste_core::strategy::Preference;
 
     use super::*;
 
@@ -220,7 +218,6 @@ mod tests {
             name_of::<ManaSymbol>(),
             name_of::<StatValue>(),
             name_of::<Modification>(),
-            name_of::<Preference>(),
             name_of::<Quantity>(),
             name_of::<Reference>(),
             name_of::<Replacement>(),
@@ -1128,7 +1125,6 @@ mod tests {
             "Subtype",
             "Zone",
             "AsThough",
-            "Preference",
             // Shaped exceptions.
             "Color",
             "Cost",
@@ -1293,10 +1289,25 @@ mod tests {
     /// `Strategy`/`Rule` — sensing positions are macro-aware for free
     /// (core's `Condition` does the fall-through). Lets strategy-guide
     /// vocabulary (`Always`, …) be macros.
+    ///
+    /// The real `Strategy`/`Rule` types now live in `deckmaste_engine` (Task
+    /// 1's move — strategy RON is engine config, not card content), a crate
+    /// this one does not depend on; these local stand-ins mirror their shape
+    /// (a `when: Condition` nested under an outer struct) closely enough to
+    /// prove the same point without that dependency.
     #[test]
     fn strategy_when_position_expands_a_condition_macro() {
         use deckmaste_core::Condition;
-        use deckmaste_core::strategy::Strategy;
+
+        #[derive(serde::Deserialize)]
+        struct Rule {
+            when: Condition,
+        }
+        #[derive(serde::Deserialize)]
+        struct Strategy {
+            rules: Vec<Rule>,
+        }
+
         let mut macros = macro_set();
         macros
             .insert(&def(
@@ -1310,25 +1321,5 @@ mod tests {
             panic!("expected expanded condition, got {:?}", s.rules[0].when);
         };
         assert_eq!(exp.name, "Always");
-    }
-
-    /// `Preference` is a registered macroable kind, so choose-a-play vocabulary
-    /// (`AttackAll`, …) at a `prefer:` position expands to a literal variant.
-    #[test]
-    fn strategy_prefer_position_expands_a_preference_macro() {
-        use deckmaste_core::strategy::Strategy;
-        let mut macros = macro_set();
-        macros
-            .insert(&def(
-                r#"(name: "AttackAll", kinds: [Preference], body: Attack(what: (pick: First, by: Literal(1))))"#,
-            ))
-            .unwrap();
-        let s: Strategy = macros
-            .read_str(r#"(name: "M", rules: [(when: YourTurn, prefer: AttackAll)])"#)
-            .unwrap();
-        let Preference::Expanded(exp) = &s.rules[0].prefer else {
-            panic!("expected expanded preference, got {:?}", s.rules[0].prefer);
-        };
-        assert_eq!(exp.name, "AttackAll");
     }
 }

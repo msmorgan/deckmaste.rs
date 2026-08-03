@@ -205,6 +205,14 @@ pub use zone::Zones;
 mod strategy;
 pub use strategy::StrategyEvaluator;
 
+mod strategy_def;
+pub use strategy_def::BlockPolicy;
+pub use strategy_def::Extremum;
+pub use strategy_def::Preference;
+pub use strategy_def::Rule;
+pub use strategy_def::Selector;
+pub use strategy_def::Strategy as StrategyDef;
+
 /// Self-play simulation harness for tests and benchmarks — not a stable API.
 #[doc(hidden)]
 pub mod sim;

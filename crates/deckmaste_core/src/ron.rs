@@ -61,8 +61,6 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::Selection::kind());
     kinds.add(crate::StaticEffect::kind());
     kinds.add(crate::TargetSpec::kind());
-    // Play-policy: the choose-a-play vocabulary expands at `prefer:` positions.
-    kinds.add(crate::strategy::Preference::kind());
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
     // Type-kind macros (the ten builtin `Artifact`..`Sorcery` defs) expand to

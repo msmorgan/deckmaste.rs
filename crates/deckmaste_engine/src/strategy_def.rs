@@ -6,30 +6,29 @@
 //! `Reference` verbatim, and its branching is an ordered rule list an evaluator
 //! walks — the same way the engine walks `Vec<Ability>`. The types here are
 //! pure data; the evaluator that turns a strategy + game state into a decision
-//! lives in `deckmaste_engine`.
+//! lives alongside them in this crate, in [`crate::strategy`].
 //!
-//! Namespaced under this module and **not** re-exported at the crate root, so
-//! the rules-primitive namespace (`deckmaste_core::Condition`, …) stays
-//! separate from play policy (`deckmaste_core::strategy::Strategy`, …).
+//! Named `strategy_def` (not `strategy`) because `crate::strategy` is already
+//! the evaluator module, and `crate::sim::Strategy` is a seat trait — three
+//! things named "strategy" in one crate. Strategy RON is engine
+//! configuration, not card content, so it plays no part in the macro layer:
+//! these types are plain serde, read raw via
+//! [`deckmaste_core::ron::options()`](deckmaste_core::ron::options).
 //!
-//! [`Condition`]: crate::Condition
-//! [`Predicate`]: crate::Predicate
-//! [`Count`]: crate::Count
+//! [`Condition`]: deckmaste_core::Condition
+//! [`Predicate`]: deckmaste_core::Predicate
+//! [`Count`]: deckmaste_core::Count
 
 use std::sync::Arc;
 
+use deckmaste_core::Condition;
+use deckmaste_core::Count;
+use deckmaste_core::Predicate;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::Condition;
-use crate::Count;
-use crate::Expand;
-use crate::Expansion;
-use crate::Predicate;
-use crate::SupportsMacros;
-
 /// Which end of a ranked candidate set a selector picks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Extremum {
     /// The minimum by the selector's ranking count.
     Min,
@@ -44,8 +43,8 @@ pub enum Extremum {
 /// matching `among`. The workhorse of a strategy: most decisions reduce to
 /// "the X-est legal option".
 ///
-/// [`Count`]: crate::Count
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
+/// [`Count`]: deckmaste_core::Count
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Selector {
     /// Which end of the ranking to take.
     pub pick: Extremum,
@@ -58,7 +57,7 @@ pub struct Selector {
 }
 
 /// How a strategy declares blocks. Coarse for v1; grows as block math matures.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum BlockPolicy {
     /// Block as many attackers as possible.
     BlockAll,
@@ -71,10 +70,8 @@ pub enum BlockPolicy {
 /// A chosen play at a decision point — the genuinely new "choose a play" half
 /// of the strategy language. Cards never choose their controller's plays, so
 /// this has no card analog; but every option it carries reuses [`Selector`]
-/// (and through it core's `Count`/`Predicate`). `Preference` is itself a
-/// macroable kind, so choose-a-play vocabulary (`AttackAll`, `Mulligan`, …) can
-/// be authored as macros that expand to these literal variants.
-#[derive(Debug, Clone, PartialEq, Eq, SupportsMacros)]
+/// (and through it core's `Count`/`Predicate`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Preference {
     /// Pass priority.
     Pass,
@@ -113,10 +110,6 @@ pub enum Preference {
         /// Which card to discard.
         what: Selector,
     },
-    /// A remembered `Preference` macro invocation (choose-a-play vocabulary).
-    /// Serialized as the invocation, not the expanded variant.
-    #[macro_ron(expanded)]
-    Expanded(Expansion<Preference>),
 }
 
 /// One rule of a strategy: when `when` holds (and `prefer` resolves to a legal
@@ -147,7 +140,7 @@ mod tests {
     use super::*;
 
     fn read<T: serde::de::DeserializeOwned>(src: &str) -> T {
-        crate::ron::options().from_str(src).unwrap()
+        deckmaste_core::ron::options().from_str(src).unwrap()
     }
 
     #[test]
@@ -162,8 +155,8 @@ mod tests {
     /// re-invented.
     #[test]
     fn selector_embeds_core_count_and_filter() {
-        use crate::Reference;
-        use crate::Stat;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Stat;
         let s: Selector = read("(pick: Max, by: StatOf(This, Power), among: Any)");
         assert_eq!(s.pick, Extremum::Max);
         assert_eq!(s.by, Count::StatOf(Reference::This, Stat::Power));
@@ -267,7 +260,7 @@ mod tests {
                 ],
             )"#,
         );
-        let written = crate::ron::options().to_string(&s).unwrap();
+        let written = deckmaste_core::ron::options().to_string(&s).unwrap();
         let again: Strategy = read(&written);
         assert_eq!(s, again);
     }

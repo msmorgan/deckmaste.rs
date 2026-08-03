@@ -9,11 +9,6 @@
 use deckmaste_core::Count;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Uint;
-use deckmaste_core::strategy::BlockPolicy;
-use deckmaste_core::strategy::Extremum;
-use deckmaste_core::strategy::Preference;
-use deckmaste_core::strategy::Selector;
-use deckmaste_core::strategy::Strategy as StrategyDef;
 
 use crate::Action;
 use crate::Decision;
@@ -22,6 +17,11 @@ use crate::object::ObjectId;
 use crate::player::PlayerId;
 use crate::stack::Frame;
 use crate::state::GameState;
+use crate::strategy_def::BlockPolicy;
+use crate::strategy_def::Extremum;
+use crate::strategy_def::Preference;
+use crate::strategy_def::Selector;
+use crate::strategy_def::Strategy as StrategyDef;
 
 /// The evaluation frame for scoring a `candidate` option from `seat`'s
 /// perspective: `Reference::You` resolves to `seat`, and `Reference::This`/`~`
@@ -32,17 +32,6 @@ use crate::state::GameState;
 /// against this exactly as they do during effect resolution.
 pub(crate) fn eval_frame(state: &GameState, seat: PlayerId, candidate: Option<ObjectId>) -> Frame {
     Frame::bare(candidate.unwrap_or_else(|| state.player(seat).object), seat)
-}
-
-/// Look through a remembered `Preference` macro invocation to the variant it
-/// expanded to (the choose-a-play vocabulary), so the handlers match on the
-/// concrete preference regardless of whether it was authored literally or as a
-/// macro.
-fn resolved(prefer: &Preference) -> &Preference {
-    match prefer {
-        Preference::Expanded(e) => resolved(&e.value),
-        other => other,
-    }
 }
 
 /// A data-driven seat: answers the engine's decisions by walking a
@@ -152,7 +141,6 @@ impl StrategyEvaluator {
             }
             // Not priority-window plays — handled at their own decision kinds.
             Preference::Attack { .. } | Preference::Block(_) | Preference::Discard { .. } => None,
-            Preference::Expanded(e) => self.priority_action(state, &e.value, legal),
         }
     }
 
@@ -203,9 +191,9 @@ impl StrategyEvaluator {
     }
 
     /// The shared rule-walk: top-to-bottom, the first rule whose `when` holds
-    /// (over a candidate-less sensing frame) for which `f` of its
-    /// (macro-resolved) `prefer` yields a value. Each per-decision handler
-    /// passes an `f` that extracts the part of the preference it needs.
+    /// (over a candidate-less sensing frame) for which `f` of its `prefer`
+    /// yields a value. Each per-decision handler passes an `f` that extracts
+    /// the part of the preference it needs.
     fn first_applicable<'a, T>(
         &'a self,
         state: &GameState,
@@ -216,7 +204,7 @@ impl StrategyEvaluator {
             .rules
             .iter()
             .filter(|r| state.condition_holds(&r.when, &frame))
-            .find_map(|r| f(resolved(&r.prefer)))
+            .find_map(|r| f(&r.prefer))
     }
 
     /// Choose a target SET per spec slot ([CR#601.2c,115.7e]): pick each slot's
@@ -587,12 +575,6 @@ mod tests {
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
-    use deckmaste_core::strategy::BlockPolicy;
-    use deckmaste_core::strategy::Extremum;
-    use deckmaste_core::strategy::Preference;
-    use deckmaste_core::strategy::Rule;
-    use deckmaste_core::strategy::Selector;
-    use deckmaste_core::strategy::Strategy as StrategyDef;
     use deckmaste_plugin::plugin::Plugin;
 
     use super::StrategyEvaluator;
@@ -608,6 +590,12 @@ mod tests {
     use crate::state::GameState;
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
+    use crate::strategy_def::BlockPolicy;
+    use crate::strategy_def::Extremum;
+    use crate::strategy_def::Preference;
+    use crate::strategy_def::Rule;
+    use crate::strategy_def::Selector;
+    use crate::strategy_def::Strategy as StrategyDef;
 
     fn empty_two_player() -> GameState {
         GameState::new(GameConfig {
