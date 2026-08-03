@@ -1,5 +1,6 @@
 pub(crate) mod ability;
 mod clause;
+pub(crate) mod construction;
 mod opacity;
 
 #[cfg(test)]
@@ -1520,7 +1521,8 @@ pub(crate) struct SubjectAuxiliaryKey {
     auxiliary: AuxiliaryFeatures,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
 enum RuleTag {
     QuantityExact,
     QuantityAtLeast,

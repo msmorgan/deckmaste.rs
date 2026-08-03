@@ -14,6 +14,7 @@
 pub mod catalog;
 pub use deckmaste_english_features as features;
 mod chart;
+mod construction;
 mod forest;
 mod fragment;
 mod grammar;
@@ -30,6 +31,12 @@ pub mod word;
 pub use catalog::CatalogKind;
 pub use catalog::Catalogs;
 pub use chart::ChartStats;
+pub use construction::ConstructionBackend;
+pub use construction::ConstructionEvidence;
+pub use construction::ConstructionEvidenceKind;
+pub use construction::ConstructionFamily;
+pub use construction::ConstructionId;
+pub use construction::ConstructionOwner;
 pub use forest::ForestStats;
 pub use fragment::Fragment;
 pub use fragment::FragmentKind;
@@ -53,3 +60,15 @@ pub use parse::parse_with_identity;
 pub use renderer::RenderError;
 pub use span::Span;
 pub use surface::SurfaceDiagnosticKind;
+
+/// The active English construction-family inventory.
+#[must_use]
+pub fn construction_families() -> &'static [ConstructionFamily] {
+    grammar::construction::families()
+}
+
+/// Looks up one active construction family by stable identity.
+#[must_use]
+pub fn construction_family(id: ConstructionId) -> Option<ConstructionFamily> {
+    grammar::construction::family_by_id(id)
+}

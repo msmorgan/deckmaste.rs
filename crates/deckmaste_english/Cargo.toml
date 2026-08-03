@@ -16,6 +16,7 @@ hashbrown = "0.15.5"
 # visitor that every AST change must be mirrored into. Serialize only — nothing
 # reconstructs an AST from data.
 serde = { version = "1.0.228", features = ["derive", "rc"] }
+strum = { version = "0.26.3", features = ["derive"] }
 
 [dev-dependencies]
 proptest = "1.11.0"
