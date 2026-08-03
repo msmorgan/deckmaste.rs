@@ -19,14 +19,16 @@ Usage: scripts/todo <command> [<slug>] [--slugs-only]
     exit 2
 end
 
-set -l cmd $argv[1]
-set -e argv[1]
-set -l slugs_only ''
-if contains -- --slugs-only $argv
-    set slugs_only 1
-    set -e argv[(contains -i -- --slugs-only $argv)]
+argparse -S s/slugs-only h/help -- $argv
+or return
+
+if set -q _flag_help
+    __todo_usage
+    return 0
 end
-set -l slug $argv[1]
+
+set -l cmd $argv[1]
+set -l slug $argv[2]
 
 # All graph work happens in one perl pass. It prints, per requested command, the
 # lines fish needs. Folder = status: a need is satisfied iff its target sits in done/.
@@ -34,7 +36,7 @@ set -l perl_out (TODO_ROOT=$TODO_ROOT TODO_CENSUS=$TODO_CENSUS \
     perl (status dirname)/lib/todo_graph.pl "$cmd" "$slug")
 or return 1
 
-if test -n "$slugs_only"
+if test -q _flag_slugs_only
     # Keep only the bare slug column (first whitespace token) of each line.
     printf '%s\n' $perl_out | string replace -r '\s.*$' ''
 else
