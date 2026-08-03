@@ -778,3 +778,14 @@ fn amass_decomposes_into_core_primitives() {
     };
     assert_eq!(added.as_str(), "Zombie", "becomes a Zombie in addition");
 }
+
+/// The rules tables are authored containers too (ticket scope): they parse at
+/// authoring kinds and reach the engine only through `lower`.
+#[test]
+fn rules_tables_load_through_the_authored_grammar() {
+    let plugin = Plugin::load(builtin_path()).unwrap();
+    assert!(
+        !plugin.sba_rules.is_empty(),
+        "builtin ships SBA rules; an empty table means the loader silently stopped finding them"
+    );
+}

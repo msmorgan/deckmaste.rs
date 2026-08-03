@@ -14,7 +14,6 @@ use deckmaste_core::Counter;
 use deckmaste_core::DesignationDecl;
 use deckmaste_core::Ident;
 use deckmaste_core::KeywordDecl;
-use deckmaste_core::ParamShape;
 use deckmaste_core::Subtype;
 use deckmaste_core::TypeDef;
 use deckmaste_core::plugin::MACROS_DIR;
@@ -58,11 +57,11 @@ pub struct Plugin {
     /// vocabulary for undeclared names (an open vocabulary).
     pub designations: HashMap<Ident, DesignationDecl>,
     /// The keyword registry ([CR#702]): one row per `KeywordAbility`-kind
-    /// macro, its [`ParamShape`] DERIVED from the macro's typed parameter
-    /// signature (`params: [Cost]` ⇒ `Costed`) — the macro file is the
-    /// registry data, so the two can't drift. A `KeywordAbility` macro whose
-    /// signature fits no shape fails the load: keyword one-liners take typed
-    /// args from the closed shape vocabulary.
+    /// macro, its [`deckmaste_core::ParamShape`] DERIVED from the macro's typed
+    /// parameter signature (`params: [Cost]` ⇒ `Costed`) — the macro file
+    /// is the registry data, so the two can't drift. A `KeywordAbility`
+    /// macro whose signature fits no shape fails the load: keyword
+    /// one-liners take typed args from the closed shape vocabulary.
     pub keywords: HashMap<Ident, KeywordDecl>,
     /// The keyword-action verb registry ([CR#701]): one row per
     /// `KeywordAction`-kind macro (`Destroy`, `Mill`, `Draw`, `Scry`, …),
@@ -236,7 +235,8 @@ impl Plugin {
                                     def.name.as_str()
                                 )
                             })
-                            .with_context(|| format!(r#"loading "{}""#, path.display()))?;
+                            .with_context(|| format!(r#"loading "{}""#, path.display()))?
+                            .lower();
                             keywords.insert(
                                 def.name,
                                 KeywordDecl {
@@ -284,9 +284,10 @@ impl Plugin {
         // fills the table — keyed by the value's printed name, which is
         // what card values carry and the lint looks up.
         for name in declared {
-            let subtype: Subtype = macros
+            let subtype: deckmaste_authoring::Subtype = macros
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding subtype `{name}`"))?;
+            let subtype = subtype.lower();
             subtypes.insert(subtype.name, subtype);
         }
 
@@ -294,9 +295,10 @@ impl Plugin {
         // table — keyed by the value's printed name, mirroring the subtype
         // expansion above exactly.
         for name in declared_types {
-            let type_def: TypeDef = macros
+            let type_def: deckmaste_authoring::TypeDef = macros
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding type `{name}`"))?;
+            let type_def = type_def.lower();
             types.insert(type_def.name, type_def);
         }
 
@@ -304,18 +306,20 @@ impl Plugin {
         // table — keyed by the counter's identity (the `name` field, what a
         // `CounterRef` resolves to).
         for name in declared_counters {
-            let counter: Counter = macros
+            let counter: deckmaste_authoring::Counter = macros
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding counter `{name}`"))?;
+            let counter = counter.lower();
             counters.insert(counter.name, counter);
         }
 
         // Expanding each declared designation validates its body and fills
         // the table — keyed by the decl's own name.
         for name in declared_designations {
-            let decl: DesignationDecl = macros
+            let decl: deckmaste_authoring::DesignationDecl = macros
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding designation `{name}`"))?;
+            let decl = decl.lower();
             designations.insert(decl.name, decl);
         }
 
@@ -428,14 +432,15 @@ fn verb_params(params: &crate::macros::Params) -> Vec<Ident> {
     }
 }
 
-/// The [`ParamShape`] a keyword macro's typed parameter signature spells
-/// ([CR#702] keyword one-liners): nothing, a `Count`, a `Cost`, `Count` then
-/// `Cost` (suspend/awaken), a `Predicate` (landwalk, hexproof-from),
-/// `Predicate` then `Cost` (splice), or a `String` name (partner-with). `None`
-/// = the signature fits no shape — a load error, keeping the arg vocabulary
-/// closed. Named single-param signatures (`{"from": Default(Predicate, Any)}`)
-/// map by their one value type.
-fn keyword_shape(params: &crate::macros::Params) -> Option<ParamShape> {
+/// The [`deckmaste_authoring::ParamShape`] a keyword macro's typed parameter
+/// signature spells ([CR#702] keyword one-liners): nothing, a `Count`, a
+/// `Cost`, `Count` then `Cost` (suspend/awaken), a `Predicate` (landwalk,
+/// hexproof-from), `Predicate` then `Cost` (splice), or a `String` name
+/// (partner-with). `None` = the signature fits no shape — a load error,
+/// keeping the arg vocabulary closed. Named single-param signatures
+/// (`{"from": Default(Predicate, Any)}`) map by their one value type. The
+/// caller lowers the result at the insert, like every other registry row.
+fn keyword_shape(params: &crate::macros::Params) -> Option<deckmaste_authoring::ParamShape> {
     use crate::macros::Params;
     let names: Vec<&str> = match params {
         Params::Positional(list) => list.iter().map(|p| p.name.as_str()).collect(),
@@ -447,13 +452,15 @@ fn keyword_shape(params: &crate::macros::Params) -> Option<ParamShape> {
         }
     };
     Some(match names.as_slice() {
-        [] => ParamShape::None,
-        ["Count"] => ParamShape::Counted,
-        ["Cost"] => ParamShape::Costed,
-        ["Count", "Cost"] | ["Cost", "Count"] => ParamShape::CountedCost,
-        ["Predicate"] => ParamShape::Predicated,
-        ["Predicate", "Cost"] | ["Cost", "Predicate"] => ParamShape::PredicatedCosted,
-        ["String"] => ParamShape::Named,
+        [] => deckmaste_authoring::ParamShape::None,
+        ["Count"] => deckmaste_authoring::ParamShape::Counted,
+        ["Cost"] => deckmaste_authoring::ParamShape::Costed,
+        ["Count", "Cost"] | ["Cost", "Count"] => deckmaste_authoring::ParamShape::CountedCost,
+        ["Predicate"] => deckmaste_authoring::ParamShape::Predicated,
+        ["Predicate", "Cost"] | ["Cost", "Predicate"] => {
+            deckmaste_authoring::ParamShape::PredicatedCosted
+        }
+        ["String"] => deckmaste_authoring::ParamShape::Named,
         _ => return Option::None,
     })
 }
@@ -468,10 +475,10 @@ fn load_sba_rules(root: &Path, macros: &MacroSet) -> anyhow::Result<Vec<deckmast
     let mut rules = Vec::new();
     for path in ron_files_recursive(&dir)? {
         let source = read(&path)?;
-        let file: Vec<deckmaste_core::SbaRule> = macros
+        let file: Vec<deckmaste_authoring::SbaRule> = macros
             .read_str(&source)
             .with_context(|| format!(r#"loading SBA rules from "{}""#, path.display()))?;
-        rules.extend(file);
+        rules.extend(file.into_iter().map(Lower::lower));
     }
     Ok(rules)
 }
@@ -490,10 +497,10 @@ fn load_conferral_rules(
     let mut rules = Vec::new();
     for path in ron_files_recursive(&dir)? {
         let source = read(&path)?;
-        let file: Vec<deckmaste_core::ConferralRule> = macros
+        let file: Vec<deckmaste_authoring::ConferralRule> = macros
             .read_str(&source)
             .with_context(|| format!(r#"loading conferral rules from "{}""#, path.display()))?;
-        rules.extend(file);
+        rules.extend(file.into_iter().map(Lower::lower));
     }
     Ok(rules)
 }
@@ -512,10 +519,10 @@ fn load_damage_result_rules(
     let mut rules = Vec::new();
     for path in ron_files_recursive(&dir)? {
         let source = read(&path)?;
-        let file: Vec<deckmaste_core::DamageResultRule> = macros
+        let file: Vec<deckmaste_authoring::DamageResultRule> = macros
             .read_str(&source)
             .with_context(|| format!(r#"loading damage result rules from "{}""#, path.display()))?;
-        rules.extend(file);
+        rules.extend(file.into_iter().map(Lower::lower));
     }
     Ok(rules)
 }
