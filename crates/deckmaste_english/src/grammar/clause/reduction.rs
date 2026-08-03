@@ -1767,8 +1767,9 @@ pub(super) fn reduce_composed_clause(
         | RuleTag::ClauseCoordinationAsyndetic => {
             if tag != RuleTag::ClauseCoordinationAsyndetic {
                 let conjunction_index = if tag == RuleTag::ClauseCoordinationComma { 2 } else { 1 };
-                let Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::Then) =
-                    children.get(conjunction_index)?.features
+                let Features::Conjunction(
+                    Conjunction::And | Conjunction::Or | Conjunction::Then | Conjunction::AndOr,
+                ) = children.get(conjunction_index)?.features
                 else {
                     return None;
                 };

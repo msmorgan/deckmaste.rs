@@ -1502,8 +1502,10 @@ pub(super) fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Opti
                 return None;
             };
             match conjunction {
-                Conjunction::And | Conjunction::Or | Conjunction::Then => Some(conjunction),
-                Conjunction::Plus | Conjunction::AndOr => return None,
+                Conjunction::And | Conjunction::Or | Conjunction::Then | Conjunction::AndOr => {
+                    Some(conjunction)
+                }
+                Conjunction::Plus => return None,
             }
         }
         None => None,

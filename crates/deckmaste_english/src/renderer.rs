@@ -2704,10 +2704,10 @@ fn render_subordinator(subordinator: Subordinator) -> &'static str {
 
 fn render_predicate_conjunction(conjunction: Conjunction) -> &'static str {
     match conjunction {
-        Conjunction::And | Conjunction::Or | Conjunction::Then => conjunction.spelling(),
-        Conjunction::Plus | Conjunction::AndOr => {
-            panic!("invalid predicate conjunction: {conjunction:?}")
+        Conjunction::And | Conjunction::Or | Conjunction::Then | Conjunction::AndOr => {
+            conjunction.spelling()
         }
+        Conjunction::Plus => panic!("invalid predicate conjunction: {conjunction:?}"),
     }
 }
 

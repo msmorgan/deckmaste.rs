@@ -6685,6 +6685,27 @@ fn mixed_complete_clause_connectives_keep_both_punctuation_groups() {
 }
 
 #[test]
+fn and_or_clause_coordination_preserves_opaque_named_card_search() {
+    let source = "Search your library and/or graveyard for a card named TARDIS.";
+    let parsed = parse(source);
+    assert_eq!(parsed.opacity_mode(), OpacityMode::OpaqueNouns);
+    let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected clause coordination: {:#?}", parsed.sentence());
+    };
+    assert!(matches!(
+        coordination.rest.as_slice(),
+        [ClauseCoordination {
+            conjunction: Some(PredicateConjunction::AndOr),
+            comma: false,
+            ..
+        }]
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
 fn uniform_clause_and_predicate_runs_remain_flat() {
     let clauses = "You draw a card and you discard a card and you gain 1 life.";
     let parsed = parse(clauses);
