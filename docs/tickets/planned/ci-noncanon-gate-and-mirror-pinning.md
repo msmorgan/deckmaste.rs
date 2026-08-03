@@ -30,21 +30,37 @@ Three CI coverage holes plus a hermeticity hazard around the data mirror:
    checkout to a commit (with a documented bump procedure), and either
    document the `--minimal`-vs-full divergence as accepted or close it.
 
-4. **The frames unify/render fixtures never run in CI.** They parse real
-   oracle text against `data/gen/catalogs`, which `cargo xtask catalogs`
-   derives from `data/rules/cr.txt` — and the mirror carries no CR text
-   snapshot (`scripts/fetch_data --minimal` fetches `cr/keywords`, not
-   `link/cr`), so the directory cannot exist on a runner. They were
-   *unguarded* and panicked 37 tests on every push until the
-   `gen_catalogs` build.rs gate landed; the gate makes CI green and honest
-   but reports them and the 4 pilot tests `ignored`, leaving
-   `deckmaste_frames` with only its 45 fixture-free unit tests in CI.
+4. **62 corpus-parsing tests are `ignored` in CI, across two fixtures.**
+   Both were *unguarded* and panicked the runner on every push until the
+   build.rs gates landed (`deckmaste_frames`, then `xtask`); `cargo test`
+   fail-stops at the first failing binary, so the second fixture only
+   surfaced once the first was gated. Reproduce either by staging a `data/`
+   holding **only** `catalogs`, `rules`, and `mtgjson/AtomicCards.json` —
+   exactly what ci.yml stages — then `cargo test --workspace
+   --no-fail-fast`.
 
-   The obvious close — commit `cr.txt` to the mirror — is **barred**: rule
-   text is never committed, only derived artifacts. The twelve generated
-   catalogs are themselves bare name lists (~7 KB total), the same class of
-   derived artifact the mirror already ships as `keywords.json` and the
-   Scryfall dumps, so either of these works:
+   - **`gen_catalogs`** — `data/gen/catalogs`, written by `cargo xtask
+     catalogs` from `data/rules/cr.txt`. 37 frames unify/render + 4 frames
+     pilot + 13 xtask tests. The mirror carries no CR text snapshot
+     (`fetch_data --minimal` takes `cr/keywords`, not `link/cr`), and
+     committing one is **barred** — rule text is never committed, only
+     derived artifacts.
+   - **`derived_cards`** — `data/derived/cards.jsonl`, the 35k-row oracle
+     snapshot (`deckmaste_plugin::fidelity::ORACLE_SNAPSHOT`). 8 xtask
+     tests, plus the already-skipping `deckmaste_plugin` fidelity gate.
+
+   **`cards.jsonl` is the recoverable one, and should be recovered.** It is
+   a flat per-face projection of mtgjson AtomicCards carrying that dump's
+   own field names (`manaCost`, `manaValue`, `colorIdentity`,
+   `supertypes`) — produced once by an ad-hoc jq transform and then read
+   throughout the tree by accretion; nothing in the repo writes it. CI
+   already decompresses `AtomicCards.json`, so an xtask subcommand
+   reproducing that projection would un-gate all 8 tests, retire an
+   undocumented hand-made dependency, and commit nothing. Do this one.
+
+   The catalogs are the harder half — the twelve outputs are bare name
+   lists (~7 KB, the same class of derived artifact the mirror already
+   ships as `keywords.json` and the Scryfall dumps), so either:
 
    - **Runtime fetch.** ci.yml pulls `link/cr` into the gitignored `data/`
      and runs `cargo xtask catalogs`; nothing is committed. One step, but

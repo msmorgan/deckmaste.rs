@@ -284,6 +284,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn generated_catalogs_classify_current_artifact_types() {
         let catalogs = load_catalogs(&default_catalogs_path()).unwrap();
 
@@ -330,6 +331,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn scryfall_flavor_words_license_a_header_peel() {
         // The flavor-word catalog is the one Scryfall-only catalog `load_catalogs`
         // reads from the dump rather than the generated bare-text files.

@@ -1423,6 +1423,7 @@ mod tests {
     /// `player`, and `<P> you control` are the framed predicates; a creature
     /// type is not one).
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn the_three_classes_are_told_apart() {
         let (lexicon, catalogs) = fixture_lexicon();
         for (line, expected) in [
@@ -1459,6 +1460,7 @@ mod tests {
     /// spellings as scalars). A key that kept scalar values would give them a
     /// row each and rank nothing.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_residual_signature_is_stable() {
         let (lexicon, catalogs) = fixture_lexicon();
         let line = fixture("Pyroclasm", "Pyroclasm deals 2 damage to each Goblin.");
@@ -1516,6 +1518,7 @@ mod tests {
     /// prints is an assertion, so without the floor that run exits 0 —
     /// the same shape as any regression that shrinks the corpus.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn an_absent_corpus_breaches_the_floor() {
         let error = run(ResidualArgs {
             plugin_dir: None,
@@ -1646,6 +1649,7 @@ mod tests {
     /// `frames:` text are the honest answer here, not a defect in the
     /// drafter.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_draft_from_the_partial_fixture_compiles() {
         let (lexicon, catalogs) = fixture_lexicon();
         let line = fixture("Pyroclasm", "Pyroclasm deals 2 damage to each Goblin.");
@@ -1699,6 +1703,7 @@ mod tests {
     /// *type* (`Reference`), never its lexicon identity (`This`) — the
     /// latter is not a legal `deckmaste_plugin::macros::param_types()` name.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_self_reference_hole_carves_the_cards_own_name() {
         let (lexicon, _catalogs) = fixture_lexicon();
         let holes = vec![TypedHole {
@@ -1721,6 +1726,7 @@ mod tests {
     /// falls in the sentence — and, like `This`, drafts as its type
     /// (`Reference`), not its entry name.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_you_hole_carves_the_pronoun() {
         let (lexicon, _catalogs) = fixture_lexicon();
         let holes = vec![TypedHole {
@@ -1736,6 +1742,7 @@ mod tests {
     /// than guessed at: the literal text survives, and `params:` gains no
     /// entry for it.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn an_unresolvable_hole_is_left_as_literal_text() {
         let (lexicon, _catalogs) = fixture_lexicon();
         let holes = vec![TypedHole {
@@ -1760,6 +1767,7 @@ mod tests {
     /// second field a human has to fix by hand, breaching D11's "only
     /// `body:` blank" contract as surely as a wrong hole would.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_hole_with_no_legal_param_type_is_left_as_literal_text() {
         let (lexicon, _catalogs) = fixture_lexicon();
         let holes = vec![TypedHole {
@@ -1810,6 +1818,7 @@ mod tests {
     /// whatever the live corpus's own top rows happen to need it for today
     /// (see `every_draft_omits_body_and_leaks_no_witness` for that count).
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_row_that_cannot_be_rendered_is_dropped_with_a_reason() {
         let (lexicon, catalogs) = fixture_lexicon();
         let row = Row {
@@ -1847,6 +1856,7 @@ mod tests {
     /// generator owes (`a_row_that_cannot_be_rendered_is_dropped_with_a_reason`
     /// pins the mechanism itself).
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn every_draft_omits_body_and_leaks_no_witness() {
         let (lexicon, catalogs) = fixture_lexicon();
         let root = workspace_root();

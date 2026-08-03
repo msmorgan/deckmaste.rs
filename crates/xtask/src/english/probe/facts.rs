@@ -177,6 +177,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
     fn facts_expose_one_ability_per_sentence() {
         let facts = facts_for("Draw a card.", &catalogs());
         assert_eq!(facts.abilities.len(), 1);
@@ -187,6 +191,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
     fn facts_separate_two_abilities() {
         let facts = facts_for("Draw a card.\nYou gain 1 life.", &catalogs());
         assert_eq!(facts.abilities.len(), 2, "each ability gets its own fact");
@@ -202,6 +210,10 @@ mod tests {
     /// solo re-parse: if it were, this assertion would hold vacuously, so it is
     /// paired with the one below.
     #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
     fn benign_abilities_parse_the_same_in_context_as_alone() {
         let catalogs = catalogs();
         let joint = facts_for("Draw a card.\nYou gain 1 life.", &catalogs);
@@ -222,6 +234,10 @@ mod tests {
     /// `facts_for` were re-parsing the slice and fingerprinting the wrapper,
     /// the label would be `OracleText{…}` and this fails.
     #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
     fn a_fingerprint_is_the_ability_node_not_the_wrapper() {
         let facts = facts_for("Draw a card.", &catalogs());
         assert!(
@@ -240,6 +256,10 @@ mod tests {
     /// anonymous, non-legendary identity — the same identity `facts_for`
     /// always parses under.
     #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
     fn a_recovery_site_is_not_double_counted_by_its_wrapper_and_payload() {
         let facts = facts_for("Aang, Aang enters, and La attack", &catalogs());
         assert_eq!(

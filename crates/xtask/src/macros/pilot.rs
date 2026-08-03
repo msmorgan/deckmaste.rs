@@ -1141,6 +1141,7 @@ mod tests {
     /// every printed level and the verdicts still read `is_empty()`. Only an
     /// end-to-end run can show that a shrunken population now fails.
     #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn an_absent_corpus_breaches_the_floor_instead_of_printing_pass() {
         let error = run(PilotArgs {
             plugin_dir: None,

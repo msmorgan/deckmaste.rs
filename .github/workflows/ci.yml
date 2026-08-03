@@ -76,16 +76,17 @@ jobs:
       # report `ignored` below while the run looks green.
       - name: re-run build scripts against the staged fixtures
         run: touch crates/*/build.rs
-      # KNOWN GAP — `deckmaste_frames`'s `gen_catalogs` cfg is OFF here, so its
-      # 37 unify/render fixtures and 4 pilot tests report `ignored`. They parse
-      # real oracle text against `data/gen/catalogs`, which `cargo xtask
-      # catalogs` derives from `data/rules/cr.txt` — and the mirror carries no
-      # CR text snapshot (`fetch_data --minimal` takes `cr/keywords`, not
-      # `link/cr`), so no step above can produce that directory — and shipping
-      # cr.txt in the mirror is barred, rule text is never committed. Closing
-      # it means generating the twelve derived name lists somewhere, either
-      # here from a runtime-fetched cr.txt or in the mirror's refresh job; see
-      # item 4 of docs/tickets/planned/ci-noncanon-gate-and-mirror-pinning.md.
+      # KNOWN GAP — two fixture cfgs are OFF here, so 62 corpus-parsing tests
+      # report `ignored`: `gen_catalogs` (`data/gen/catalogs`, from `cargo
+      # xtask catalogs` over `data/rules/cr.txt`) and `derived_cards`
+      # (`data/derived/cards.jsonl`, the oracle snapshot). No step above can
+      # produce either — the mirror carries no CR text snapshot and no oracle
+      # corpus, and committing them is barred. Note `cargo test` fail-stops at
+      # the first failing binary, so a gap here hides the next one; to see the
+      # whole picture, stage a data/ holding only catalogs + rules +
+      # mtgjson/AtomicCards.json and run with --no-fail-fast. cards.jsonl is
+      # regenerable from the AtomicCards this job already stages; see item 4 of
+      # docs/tickets/planned/ci-noncanon-gate-and-mirror-pinning.md.
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test

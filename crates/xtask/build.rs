@@ -1,0 +1,34 @@
+// Detects the two local-only `data/` fixtures xtask's english/macros tests
+// parse real oracle text against, and sets a cfg per fixture:
+//
+// - `gen_catalogs`  — `data/gen/catalogs`, the CR-derived bare-text catalogs
+//   `cargo xtask catalogs` writes from `data/rules/cr.txt`.
+// - `derived_cards` — `data/derived/cards.jsonl`, the mtgjson-derived oracle
+//   snapshot (`deckmaste_plugin::fidelity::ORACLE_SNAPSHOT`).
+//
+// Neither can exist on a bare runner: the whole `data/` tree is gitignored,
+// and the CI data mirror carries neither a CR text snapshot to regenerate the
+// catalogs from nor the 17 MB oracle corpus (both are barred by the
+// no-committed-corpus policy, not merely absent). So the tests that need them
+// carry `#[cfg_attr(not(<cfg>), ignore = "…")]` and report as `ignored` there
+// while running for real locally. `OracleDataArgs::load` reads cards.jsonl AND
+// the catalogs, so its callers carry BOTH attributes.
+//
+// Detection is by path presence. With no `rerun-if-changed` emitted, cargo
+// re-runs this script whenever a package file changes, so ordinary edits pick
+// up freshly-generated fixtures; a regen with no other change needs `touch
+// build.rs` (CI does exactly that after staging).
+use std::path::Path;
+
+fn main() {
+    println!("cargo::rustc-check-cfg=cfg(gen_catalogs)");
+    println!("cargo::rustc-check-cfg=cfg(derived_cards)");
+    let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR set by cargo");
+    let data = Path::new(&manifest).join("../../data");
+    if data.join("gen/catalogs").is_dir() {
+        println!("cargo::rustc-cfg=gen_catalogs");
+    }
+    if data.join("derived/cards.jsonl").is_file() {
+        println!("cargo::rustc-cfg=derived_cards");
+    }
+}

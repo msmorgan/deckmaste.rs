@@ -382,6 +382,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
     fn bonfire_dump_exposes_shared_target_and_full_recipient_coordination() {
         let data = OracleDataArgs::default()
             .load()
@@ -459,6 +463,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
     fn supported_corpus_selected_provenance_is_laminar() {
         let data = OracleDataArgs::default()
             .load()

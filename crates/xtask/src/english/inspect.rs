@@ -339,6 +339,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
     fn local_card_snapshot_structurally_round_trips_without_source_text() {
         use std::time::Instant;
 
