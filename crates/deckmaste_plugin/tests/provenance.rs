@@ -333,3 +333,87 @@ fn indexes_an_inline_created_tokens_abilities() {
         "the created token's flying is not indexed",
     );
 }
+
+/// A copy exception's `GainAbility` payload ([CR#707.9a], "except it has
+/// [ability]") is indexed. Unlike a copy token's other copiable
+/// characteristics — which come from the copied object and are indexed
+/// wherever that object's own abilities were ([CR#707.2]) — this payload
+/// exists ONLY inside the `CopySpec`, and the engine pushes it onto the
+/// object verbatim (`deckmaste_engine::copy::apply_modification`), the same
+/// verbatim-clone shape as a layer-6 grant.
+///
+/// No canon or builtin copy exception grants an ability today (every one
+/// that exists only touches Power/Toughness/Colors/Subtypes), so the
+/// fixture is built directly rather than loaded through a plugin: an
+/// activated ability that creates a copy token, except the copy also has
+/// Trample — a `KeywordAbility` chosen because it is one of the five
+/// intrinsic variants and needs no macro expansion.
+#[test]
+fn indexes_a_copy_exceptions_granted_ability() {
+    use std::sync::Arc;
+
+    use deckmaste_authoring::Ability;
+    use deckmaste_authoring::Action;
+    use deckmaste_authoring::ActivatedAbility;
+    use deckmaste_authoring::CopyException;
+    use deckmaste_authoring::CopySource;
+    use deckmaste_authoring::CopySpec;
+    use deckmaste_authoring::Cost;
+    use deckmaste_authoring::Count;
+    use deckmaste_authoring::KeywordAbility;
+    use deckmaste_authoring::Modification;
+    use deckmaste_authoring::OneShotEffect;
+    use deckmaste_authoring::Reference;
+    use deckmaste_authoring::Token;
+    use deckmaste_authoring::TokenSpec;
+
+    let granted = Ability::Keyword(KeywordAbility::Trample);
+    let spec = CopySpec {
+        source: CopySource::Object(Reference::Target(0)),
+        exceptions: vec![CopyException::Modify(Modification::GainAbility(Arc::new(
+            granted.clone(),
+        )))],
+    };
+    let card_ability = Ability::activated(ActivatedAbility {
+        ability_word: None,
+        cost: Cost(Arc::new([])),
+        from: None,
+        window: None,
+        condition: None,
+        limits: Arc::new([]),
+        effect: OneShotEffect::Act(Action::Create {
+            agent: Reference::You,
+            count: Count::Literal(1),
+            token: TokenSpec::Copy(Arc::new(spec)),
+            riders: Arc::new([]),
+        }),
+    });
+
+    // The walker reaches the granted ability, buried four grammar levels
+    // below it (`Activated` -> `Act` -> `Create` -> `TokenSpec::Copy` ->
+    // `CopySpec` -> `CopyException::Modify` -> `Modification::GainAbility`).
+    let reached = card_ability.nested_abilities();
+    assert!(
+        reached.contains(&&granted),
+        "the walker never reached the copy exception's granted ability; got {reached:#?}",
+    );
+
+    // And `ProvenanceIndex` can resolve its lowered form, the same way it
+    // would for any other permanent's ability.
+    let token = Token {
+        name: Some("Provenance Fixture".into()),
+        color_indicator: Arc::new([]),
+        supertypes: Arc::new([]),
+        types: Arc::new([]),
+        subtypes: Arc::new([]),
+        abilities: Arc::new([card_ability]),
+        power: None,
+        toughness: None,
+    };
+    let mut index = ProvenanceIndex::default();
+    index.insert_token(&token);
+    assert!(
+        index.ability(&granted.lower()).is_some(),
+        "the copy exception's granted ability is not indexed",
+    );
+}

@@ -109,6 +109,9 @@ impl AbilitySubterms for crate::StaticEffect {
             Self::Modify(_, m) => m.push_abilities(out),
             Self::Each(_, e) | Self::Conditionally(_, e) => e.push_abilities(out),
             Self::Expanded(e) => e.value.push_abilities(out),
+            // "X becomes a copy of Y" ([CR#707.4]) — a copy delivery site;
+            // see `AbilitySubterms for CopySpec`.
+            Self::BecomesCopy(_, spec) => spec.push_abilities(out),
             // No other `StaticEffect` shape carries an `Ability`. Spelled as a
             // catch-all rather than an exhaustive list because this enum grows;
             // the corpus oracle is what catches a new ability-bearing variant.
@@ -190,14 +193,59 @@ impl AbilitySubterms for crate::Action {
             Self::GetEmblem(_, abilities) => abilities.push_abilities(out),
             // A created token's abilities are the token's own ([CR#111.3]) and
             // reach an object verbatim through `Cards::push_token`, so they are
-            // a grant position like any other.
-            Self::Create { token, .. } => token.push_abilities(out),
+            // a grant position like any other. `riders` can carry
+            // `EnterRider::AsCopy`, a fourth copy delivery site with its own
+            // `CopySpec` — see `AbilitySubterms for CopySpec`.
+            Self::Create { token, riders, .. } => {
+                token.push_abilities(out);
+                riders.push_abilities(out);
+            }
+            // "`agent` casts a copy of `spec`" ([CR#707.12]) — a copy delivery
+            // site; see `AbilitySubterms for CopySpec`.
+            Self::CastCopy(_, spec) => spec.push_abilities(out),
             // As with `StaticEffect`: 44 variants, few of them ability-bearing,
             // and the list churns. The corpus oracle catches any ability-bearing
             // variant the canon corpus actually exercises — a position no canon
-            // card reaches is caught by nothing, which is why the two positions
+            // card reaches is caught by nothing, which is why the positions
             // that DO bear abilities are named above rather than left to it.
             _ => {}
+        }
+    }
+}
+
+impl AbilitySubterms for crate::CopySpec {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a Ability>) {
+        self.exceptions.push_abilities(out);
+    }
+}
+
+impl AbilitySubterms for crate::CopyException {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a Ability>) {
+        // Exhaustive on purpose, like `Modification`: `Modify` is the
+        // [CR#707.9a] "except it has [ability]" clause, a `GainAbility`
+        // payload that lives ONLY inside a `CopySpec` (see the module-level
+        // reasoning at `AbilitySubterms for TokenSpec`'s call site) — a new
+        // variant here must be a compile error, not an oracle failure.
+        match self {
+            Self::Modify(m) => m.push_abilities(out),
+            Self::AdditionalEffect(rider) => rider.push_abilities(out),
+            Self::Retain(_) => {}
+        }
+    }
+}
+
+impl AbilitySubterms for crate::EnterRider {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a Ability>) {
+        match self {
+            // The fourth copy delivery site ([CR#707.5]); see
+            // `AbilitySubterms for CopySpec`.
+            Self::AsCopy(spec) => spec.push_abilities(out),
+            Self::Tapped
+            | Self::FaceDown
+            | Self::UnderControlOf(_)
+            | Self::UnderOwnersControl
+            | Self::Attacking(_)
+            | Self::WithCounters(..) => {}
         }
     }
 }
@@ -206,13 +254,21 @@ impl AbilitySubterms for crate::TokenSpec {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a Ability>) {
         match self {
             Self::Token(t) => t.abilities.push_abilities(out),
-            // Neither of these borrows an ability from here. A predefined
-            // token ([CR#111.10]) resolves to an OWNED `Token` built on
-            // demand, so `ProvenanceIndex::insert_predefined_tokens` indexes
-            // that closed set from the definitions themselves; a copy token's
-            // characteristics are the copied object's ([CR#707.2]), indexed
-            // wherever that object's own abilities were.
-            Self::Named(_) | Self::Copy(_) => {}
+            // A predefined token ([CR#111.10]) resolves to an OWNED `Token`
+            // built on demand, so `ProvenanceIndex::insert_predefined_tokens`
+            // indexes that closed set from the definitions themselves.
+            Self::Named(_) => {}
+            // A copy token's COPIABLE characteristics are the copied
+            // object's ([CR#707.2]) and are indexed wherever that object's
+            // own abilities were — but a copy EXCEPTION can itself carry a
+            // `GainAbility` payload ([CR#707.9a], "except it has [ability]")
+            // that exists ONLY inside this `CopySpec`; the engine pushes it
+            // onto the object verbatim
+            // (`deckmaste_engine::copy::apply_modification`), the same
+            // verbatim-clone shape as the layer-6 grant `Modification`
+            // already covers above. It must be indexed from here or nothing
+            // ever reaches it.
+            Self::Copy(spec) => spec.push_abilities(out),
         }
     }
 }

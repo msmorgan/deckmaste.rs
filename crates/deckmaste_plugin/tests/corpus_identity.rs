@@ -609,6 +609,8 @@ impl CoreAbilitySubterms for deckmaste_core::StaticEffect {
             Self::Modify(_, m) => m.push_abilities(out),
             Self::Each(_, e) | Self::Conditionally(_, e) => e.push_abilities(out),
             Self::Expanded(e) => e.value.push_abilities(out),
+            // A copy delivery site ([CR#707.4]); mirrors the authoring side.
+            Self::BecomesCopy(_, spec) => spec.push_abilities(out),
             // No other `StaticEffect` shape carries an `Ability` — same
             // catch-all the authoring twin uses, for the same reason.
             _ => {}
@@ -686,10 +688,47 @@ impl CoreAbilitySubterms for deckmaste_core::TokenSpec {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
             Self::Token(t) => t.abilities.push_abilities(out),
-            // Mirrors the authoring side: neither borrows an ability from
-            // here — a predefined token's are built on demand, a copy
-            // token's come from the copied object.
-            Self::Named(_) | Self::Copy(_) => {}
+            // Mirrors the authoring side: a predefined token's abilities are
+            // built on demand.
+            Self::Named(_) => {}
+            // A copy token's COPIABLE characteristics come from the copied
+            // object, but a copy EXCEPTION can carry a `GainAbility` payload
+            // ([CR#707.9a]) that lives only inside this `CopySpec`; mirrors
+            // the authoring side.
+            Self::Copy(spec) => spec.push_abilities(out),
+        }
+    }
+}
+
+impl CoreAbilitySubterms for deckmaste_core::CopySpec {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
+        self.exceptions.push_abilities(out);
+    }
+}
+
+impl CoreAbilitySubterms for deckmaste_core::CopyException {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
+        // Exhaustive, mirroring the authoring side: `Modify` is the
+        // [CR#707.9a] "except it has [ability]" clause.
+        match self {
+            Self::Modify(m) => m.push_abilities(out),
+            Self::AdditionalEffect(rider) => rider.push_abilities(out),
+            Self::Retain(_) => {}
+        }
+    }
+}
+
+impl CoreAbilitySubterms for deckmaste_core::EnterRider {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
+        match self {
+            // A copy delivery site ([CR#707.5]); mirrors the authoring side.
+            Self::AsCopy(spec) => spec.push_abilities(out),
+            Self::Tapped
+            | Self::FaceDown
+            | Self::UnderControlOf(_)
+            | Self::UnderOwnersControl
+            | Self::Attacking(_)
+            | Self::WithCounters(..) => {}
         }
     }
 }
@@ -698,7 +737,14 @@ impl CoreAbilitySubterms for deckmaste_core::Action {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
             Self::GetEmblem(_, abilities) => abilities.push_abilities(out),
-            Self::Create { token, .. } => token.push_abilities(out),
+            // `riders` can carry `EnterRider::AsCopy`, a copy delivery site;
+            // mirrors the authoring side.
+            Self::Create { token, riders, .. } => {
+                token.push_abilities(out);
+                riders.push_abilities(out);
+            }
+            // A copy delivery site ([CR#707.12]); mirrors the authoring side.
+            Self::CastCopy(_, spec) => spec.push_abilities(out),
             // As with `StaticEffect`: dozens of variants, few ability-
             // bearing, and the list churns; the catch-all mirrors the
             // authoring side.
