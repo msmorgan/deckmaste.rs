@@ -224,6 +224,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -233,6 +236,10 @@ mod tests {
         assert_lowers(deckmaste_authoring::Duration::FixedUntil(
             minimal_turn_marker(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Duration::FixedUntil(minimal_turn_marker()).lower(),
+            deckmaste_core::Duration::FixedUntil(..)
+        );
     }
 
     #[test]
@@ -240,6 +247,10 @@ mod tests {
         assert_lowers(deckmaste_authoring::Duration::UntilEvent(
             minimal_event_filter(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Duration::UntilEvent(minimal_event_filter()).lower(),
+            deckmaste_core::Duration::UntilEvent(..)
+        );
     }
 
     #[test]
@@ -247,31 +258,55 @@ mod tests {
         assert_lowers(deckmaste_authoring::Duration::ForAsLongAs(
             minimal_condition(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Duration::ForAsLongAs(minimal_condition()).lower(),
+            deckmaste_core::Duration::ForAsLongAs(..)
+        );
     }
 
     #[test]
     fn lowers_duration_for_this_event() {
         assert_lowers(deckmaste_authoring::Duration::ForThisEvent);
+        assert_matches!(
+            deckmaste_authoring::Duration::ForThisEvent.lower(),
+            deckmaste_core::Duration::ForThisEvent
+        );
     }
 
     #[test]
     fn lowers_duration_end_of_game() {
         assert_lowers(deckmaste_authoring::Duration::EndOfGame);
+        assert_matches!(
+            deckmaste_authoring::Duration::EndOfGame.lower(),
+            deckmaste_core::Duration::EndOfGame
+        );
     }
 
     #[test]
     fn lowers_numeric_op_set() {
         assert_lowers(deckmaste_authoring::NumericOp::Set(minimal_stat_value()));
+        assert_matches!(
+            deckmaste_authoring::NumericOp::Set(minimal_stat_value()).lower(),
+            deckmaste_core::NumericOp::Set(..)
+        );
     }
 
     #[test]
     fn lowers_numeric_op_up() {
         assert_lowers(deckmaste_authoring::NumericOp::Up(minimal_count()));
+        assert_matches!(
+            deckmaste_authoring::NumericOp::Up(minimal_count()).lower(),
+            deckmaste_core::NumericOp::Up(..)
+        );
     }
 
     #[test]
     fn lowers_numeric_op_down() {
         assert_lowers(deckmaste_authoring::NumericOp::Down(minimal_count()));
+        assert_matches!(
+            deckmaste_authoring::NumericOp::Down(minimal_count()).lower(),
+            deckmaste_core::NumericOp::Down(..)
+        );
     }
 
     #[test]
@@ -279,6 +314,10 @@ mod tests {
         assert_lowers(deckmaste_authoring::CollectionOp::<
             deckmaste_authoring::Color,
         >::Set([].into()));
+        assert_matches!(
+            deckmaste_authoring::CollectionOp::<deckmaste_authoring::Color>::Set([].into()).lower(),
+            deckmaste_core::CollectionOp::Set(..)
+        );
     }
 
     #[test]
@@ -286,6 +325,11 @@ mod tests {
         assert_lowers(deckmaste_authoring::CollectionOp::<
             deckmaste_authoring::Color,
         >::Add(minimal_color()));
+        assert_matches!(
+            deckmaste_authoring::CollectionOp::<deckmaste_authoring::Color>::Add(minimal_color())
+                .lower(),
+            deckmaste_core::CollectionOp::Add(..)
+        );
     }
 
     #[test]
@@ -293,6 +337,7 @@ mod tests {
         assert_lowers(deckmaste_authoring::CollectionOp::<
             deckmaste_authoring::Color,
         >::Remove(minimal_color()));
+        assert_matches!(deckmaste_authoring::CollectionOp::<deckmaste_authoring::Color>::Remove(minimal_color()).lower(), deckmaste_core::CollectionOp::Remove(..));
     }
 
     #[test]
@@ -300,6 +345,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::Power(
             minimal_numeric_op(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::Power(minimal_numeric_op()).lower(),
+            deckmaste_core::Modification::Power(..)
+        );
     }
 
     #[test]
@@ -307,11 +356,19 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::Toughness(
             minimal_numeric_op(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::Toughness(minimal_numeric_op()).lower(),
+            deckmaste_core::Modification::Toughness(..)
+        );
     }
 
     #[test]
     fn lowers_modification_switch_power_toughness() {
         assert_lowers_debug(deckmaste_authoring::Modification::SwitchPowerToughness);
+        assert_matches!(
+            deckmaste_authoring::Modification::SwitchPowerToughness.lower(),
+            deckmaste_core::Modification::SwitchPowerToughness
+        );
     }
 
     #[test]
@@ -319,6 +376,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::Colors(
             minimal_collection_op::<deckmaste_authoring::Color>(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::Colors(minimal_collection_op::<
+                deckmaste_authoring::Color,
+            >())
+            .lower(),
+            deckmaste_core::Modification::Colors(..)
+        );
     }
 
     #[test]
@@ -326,6 +390,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::CardTypes(
             minimal_collection_op::<deckmaste_authoring::Ident>(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::CardTypes(minimal_collection_op::<
+                deckmaste_authoring::Ident,
+            >())
+            .lower(),
+            deckmaste_core::Modification::CardTypes(..)
+        );
     }
 
     #[test]
@@ -333,6 +404,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::Subtypes(
             minimal_collection_op::<deckmaste_authoring::SubtypeRef>(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::Subtypes(minimal_collection_op::<
+                deckmaste_authoring::SubtypeRef,
+            >())
+            .lower(),
+            deckmaste_core::Modification::Subtypes(..)
+        );
     }
 
     #[test]
@@ -340,6 +418,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::Supertypes(
             minimal_collection_op::<deckmaste_authoring::Supertype>(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::Supertypes(minimal_collection_op::<
+                deckmaste_authoring::Supertype,
+            >())
+            .lower(),
+            deckmaste_core::Modification::Supertypes(..)
+        );
     }
 
     #[test]
@@ -347,16 +432,29 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::GainAbility(
             std::sync::Arc::new(minimal_ability()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::GainAbility(std::sync::Arc::new(minimal_ability()))
+                .lower(),
+            deckmaste_core::Modification::GainAbility(..)
+        );
     }
 
     #[test]
     fn lowers_modification_lose_ability() {
         assert_lowers_debug(deckmaste_authoring::Modification::LoseAbility("X".into()));
+        assert_matches!(
+            deckmaste_authoring::Modification::LoseAbility("X".into()).lower(),
+            deckmaste_core::Modification::LoseAbility(..)
+        );
     }
 
     #[test]
     fn lowers_modification_lose_all_abilities() {
         assert_lowers_debug(deckmaste_authoring::Modification::LoseAllAbilities);
+        assert_matches!(
+            deckmaste_authoring::Modification::LoseAllAbilities.lower(),
+            deckmaste_core::Modification::LoseAllAbilities
+        );
     }
 
     #[test]
@@ -364,6 +462,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::CantHaveAbility(
             "X".into(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::CantHaveAbility("X".into()).lower(),
+            deckmaste_core::Modification::CantHaveAbility(..)
+        );
     }
 
     #[test]
@@ -371,16 +473,28 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::SetController(
             minimal_reference(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::SetController(minimal_reference()).lower(),
+            deckmaste_core::Modification::SetController(..)
+        );
     }
 
     #[test]
     fn lowers_modification_set_text() {
         assert_lowers_debug(deckmaste_authoring::Modification::SetText(String::new()));
+        assert_matches!(
+            deckmaste_authoring::Modification::SetText(String::new()).lower(),
+            deckmaste_core::Modification::SetText(..)
+        );
     }
 
     #[test]
     fn lowers_modification_all_creature_types() {
         assert_lowers_debug(deckmaste_authoring::Modification::AllCreatureTypes);
+        assert_matches!(
+            deckmaste_authoring::Modification::AllCreatureTypes.lower(),
+            deckmaste_core::Modification::AllCreatureTypes
+        );
     }
 
     #[test]
@@ -388,6 +502,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::BaseLoyalty(
             minimal_numeric_op(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::BaseLoyalty(minimal_numeric_op()).lower(),
+            deckmaste_core::Modification::BaseLoyalty(..)
+        );
     }
 
     #[test]
@@ -395,6 +513,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::BaseDefense(
             minimal_numeric_op(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::BaseDefense(minimal_numeric_op()).lower(),
+            deckmaste_core::Modification::BaseDefense(..)
+        );
     }
 
     #[test]
@@ -402,11 +524,19 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Modification::BecomeBasicLandType(
             [].into(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::BecomeBasicLandType([].into()).lower(),
+            deckmaste_core::Modification::BecomeBasicLandType(..)
+        );
     }
 
     #[test]
     fn lowers_modification_several() {
         assert_lowers_debug(deckmaste_authoring::Modification::Several([].into()));
+        assert_matches!(
+            deckmaste_authoring::Modification::Several([].into()).lower(),
+            deckmaste_core::Modification::Several(..)
+        );
     }
 
     #[test]
@@ -419,16 +549,34 @@ mod tests {
                 value: Box::new(minimal_modification()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::Modification::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_modification())
+            })
+            .lower(),
+            deckmaste_core::Modification::Expanded(..)
+        );
     }
 
     #[test]
     fn lowers_cost_change_increase() {
         assert_lowers(deckmaste_authoring::CostChange::Increase([].into()));
+        assert_matches!(
+            deckmaste_authoring::CostChange::Increase([].into()).lower(),
+            deckmaste_core::CostChange::Increase(..)
+        );
     }
 
     #[test]
     fn lowers_cost_change_reduce() {
         assert_lowers(deckmaste_authoring::CostChange::Reduce([].into()));
+        assert_matches!(
+            deckmaste_authoring::CostChange::Reduce([].into()).lower(),
+            deckmaste_core::CostChange::Reduce(..)
+        );
     }
 
     #[test]
@@ -436,6 +584,13 @@ mod tests {
         assert_lowers(deckmaste_authoring::CostChange::Additional {
             components: [].into(),
         });
+        assert_matches!(
+            deckmaste_authoring::CostChange::Additional {
+                components: [].into()
+            }
+            .lower(),
+            deckmaste_core::CostChange::Additional { .. }
+        );
     }
 
     #[test]
@@ -444,6 +599,14 @@ mod tests {
             change: std::sync::Arc::new(minimal_cost_change()),
             times: minimal_count(),
         });
+        assert_matches!(
+            deckmaste_authoring::CostChange::Scaled {
+                change: std::sync::Arc::new(minimal_cost_change()),
+                times: minimal_count()
+            }
+            .lower(),
+            deckmaste_core::CostChange::Scaled { .. }
+        );
     }
 
     #[test]
@@ -452,6 +615,11 @@ mod tests {
             minimal_reference(),
             minimal_modification(),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::Modify(minimal_reference(), minimal_modification())
+                .lower(),
+            deckmaste_core::StaticEffect::Modify(..)
+        );
     }
 
     #[test]
@@ -460,6 +628,14 @@ mod tests {
             minimal_reference(),
             minimal_copy_spec(),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::BecomesCopy(
+                minimal_reference(),
+                minimal_copy_spec()
+            )
+            .lower(),
+            deckmaste_core::StaticEffect::BecomesCopy(..)
+        );
     }
 
     #[test]
@@ -468,6 +644,14 @@ mod tests {
             minimal_selection(),
             std::sync::Arc::new(minimal_static_effect()),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::Each(
+                minimal_selection(),
+                std::sync::Arc::new(minimal_static_effect())
+            )
+            .lower(),
+            deckmaste_core::StaticEffect::Each(..)
+        );
     }
 
     #[test]
@@ -476,11 +660,23 @@ mod tests {
             minimal_condition(),
             std::sync::Arc::new(minimal_static_effect()),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::Conditionally(
+                minimal_condition(),
+                std::sync::Arc::new(minimal_static_effect())
+            )
+            .lower(),
+            deckmaste_core::StaticEffect::Conditionally(..)
+        );
     }
 
     #[test]
     fn lowers_static_effect_deontic() {
         assert_lowers_debug(deckmaste_authoring::StaticEffect::Deontic(minimal_deontic()));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::Deontic(minimal_deontic()).lower(),
+            deckmaste_core::StaticEffect::Deontic(..)
+        );
     }
 
     #[test]
@@ -489,6 +685,14 @@ mod tests {
             of: minimal_predicate(),
             change: minimal_cost_change(),
         });
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::CostModifier {
+                of: minimal_predicate(),
+                change: minimal_cost_change()
+            }
+            .lower(),
+            deckmaste_core::StaticEffect::CostModifier { .. }
+        );
     }
 
     #[test]
@@ -496,6 +700,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::StaticEffect::CostOption(
             minimal_optional_cost(),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::CostOption(minimal_optional_cost()).lower(),
+            deckmaste_core::StaticEffect::CostOption(..)
+        );
     }
 
     #[test]
@@ -505,6 +713,15 @@ mod tests {
             extra: minimal_count(),
             affected: minimal_predicate(),
         });
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::TriggerMultiplier {
+                cause: minimal_event_filter(),
+                extra: minimal_count(),
+                affected: minimal_predicate()
+            }
+            .lower(),
+            deckmaste_core::StaticEffect::TriggerMultiplier { .. }
+        );
     }
 
     #[test]
@@ -513,6 +730,14 @@ mod tests {
             minimal_reference(),
             minimal_player_mod(),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::ModifyPlayer(
+                minimal_reference(),
+                minimal_player_mod()
+            )
+            .lower(),
+            deckmaste_core::StaticEffect::ModifyPlayer(..)
+        );
     }
 
     #[test]
@@ -520,6 +745,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::StaticEffect::Replacement(
             std::sync::Arc::new(minimal_replacement()),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::Replacement(std::sync::Arc::new(
+                minimal_replacement()
+            ))
+            .lower(),
+            deckmaste_core::StaticEffect::Replacement(..)
+        );
     }
 
     #[test]
@@ -527,6 +759,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::StaticEffect::Prevention(
             std::sync::Arc::new(minimal_prevention()),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::Prevention(
+                std::sync::Arc::new(minimal_prevention())
+            )
+            .lower(),
+            deckmaste_core::StaticEffect::Prevention(..)
+        );
     }
 
     #[test]
@@ -535,6 +774,14 @@ mod tests {
             from: minimal_predicate(),
             to: minimal_predicate(),
         });
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::CantPrevent {
+                from: minimal_predicate(),
+                to: minimal_predicate()
+            }
+            .lower(),
+            deckmaste_core::StaticEffect::CantPrevent { .. }
+        );
     }
 
     #[test]
@@ -543,6 +790,14 @@ mod tests {
             mana_from: minimal_predicate(),
             as_: minimal_symbol_pred(),
         });
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::SpendAsThough {
+                mana_from: minimal_predicate(),
+                as_: minimal_symbol_pred()
+            }
+            .lower(),
+            deckmaste_core::StaticEffect::SpendAsThough { .. }
+        );
     }
 
     #[test]
@@ -550,6 +805,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::StaticEffect::AsThough(
             minimal_as_though(),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::AsThough(minimal_as_though()).lower(),
+            deckmaste_core::StaticEffect::AsThough(..)
+        );
     }
 
     #[test]
@@ -558,6 +817,14 @@ mod tests {
             when: std::sync::Arc::new(minimal_condition()),
             then: std::sync::Arc::new(minimal_one_shot_effect()),
         });
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::Sba {
+                when: std::sync::Arc::new(minimal_condition()),
+                then: std::sync::Arc::new(minimal_one_shot_effect())
+            }
+            .lower(),
+            deckmaste_core::StaticEffect::Sba { .. }
+        );
     }
 
     #[test]
@@ -566,6 +833,14 @@ mod tests {
             who: minimal_predicate(),
             gate: minimal_outcome_gate_kind(),
         });
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::OutcomeGate {
+                who: minimal_predicate(),
+                gate: minimal_outcome_gate_kind()
+            }
+            .lower(),
+            deckmaste_core::StaticEffect::OutcomeGate { .. }
+        );
     }
 
     #[test]
@@ -573,6 +848,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::StaticEffect::CantHappen(
             minimal_event_filter(),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::CantHappen(minimal_event_filter()).lower(),
+            deckmaste_core::StaticEffect::CantHappen(..)
+        );
     }
 
     #[test]
@@ -582,6 +861,15 @@ mod tests {
             extra: minimal_count(),
             ignore: minimal_ignore_rule(),
         });
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::ReplaceRoll {
+                query: minimal_event_filter(),
+                extra: minimal_count(),
+                ignore: minimal_ignore_rule()
+            }
+            .lower(),
+            deckmaste_core::StaticEffect::ReplaceRoll { .. }
+        );
     }
 
     #[test]
@@ -590,6 +878,11 @@ mod tests {
             minimal_pip_class(),
             minimal_pay_act(),
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::PayPips(minimal_pip_class(), minimal_pay_act())
+                .lower(),
+            deckmaste_core::StaticEffect::PayPips(..)
+        );
     }
 
     #[test]
@@ -602,66 +895,124 @@ mod tests {
                 value: Box::new(minimal_static_effect()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::StaticEffect::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_static_effect())
+            })
+            .lower(),
+            deckmaste_core::StaticEffect::Expanded(..)
+        );
     }
 
     #[test]
     fn lowers_outcome_gate_kind_cant_lose() {
         assert_lowers(deckmaste_authoring::OutcomeGateKind::CantLose);
+        assert_matches!(
+            deckmaste_authoring::OutcomeGateKind::CantLose.lower(),
+            deckmaste_core::OutcomeGateKind::CantLose
+        );
     }
 
     #[test]
     fn lowers_outcome_gate_kind_cant_win() {
         assert_lowers(deckmaste_authoring::OutcomeGateKind::CantWin);
+        assert_matches!(
+            deckmaste_authoring::OutcomeGateKind::CantWin.lower(),
+            deckmaste_core::OutcomeGateKind::CantWin
+        );
     }
 
     #[test]
     fn lowers_ignore_rule_ignore_lowest() {
         assert_lowers(deckmaste_authoring::IgnoreRule::IgnoreLowest);
+        assert_matches!(
+            deckmaste_authoring::IgnoreRule::IgnoreLowest.lower(),
+            deckmaste_core::IgnoreRule::IgnoreLowest
+        );
     }
 
     #[test]
     fn lowers_ignore_rule_ignore_chosen() {
         assert_lowers(deckmaste_authoring::IgnoreRule::IgnoreChosen(0));
+        assert_matches!(
+            deckmaste_authoring::IgnoreRule::IgnoreChosen(0).lower(),
+            deckmaste_core::IgnoreRule::IgnoreChosen(..)
+        );
     }
 
     #[test]
     fn lowers_pip_class_generic() {
         assert_lowers(deckmaste_authoring::PipClass::Generic);
+        assert_matches!(
+            deckmaste_authoring::PipClass::Generic.lower(),
+            deckmaste_core::PipClass::Generic
+        );
     }
 
     #[test]
     fn lowers_pip_class_colored() {
         assert_lowers(deckmaste_authoring::PipClass::Colored(minimal_color()));
+        assert_matches!(
+            deckmaste_authoring::PipClass::Colored(minimal_color()).lower(),
+            deckmaste_core::PipClass::Colored(..)
+        );
     }
 
     #[test]
     fn lowers_pay_act_tap_to_pay() {
         assert_lowers(deckmaste_authoring::PayAct::TapToPay(minimal_predicate()));
+        assert_matches!(
+            deckmaste_authoring::PayAct::TapToPay(minimal_predicate()).lower(),
+            deckmaste_core::PayAct::TapToPay(..)
+        );
     }
 
     #[test]
     fn lowers_pay_act_exile_to_pay() {
         assert_lowers(deckmaste_authoring::PayAct::ExileToPay(minimal_predicate()));
+        assert_matches!(
+            deckmaste_authoring::PayAct::ExileToPay(minimal_predicate()).lower(),
+            deckmaste_core::PayAct::ExileToPay(..)
+        );
     }
 
     #[test]
     fn lowers_player_attr_life() {
         assert_lowers(deckmaste_authoring::PlayerAttr::Life);
+        assert_matches!(
+            deckmaste_authoring::PlayerAttr::Life.lower(),
+            deckmaste_core::PlayerAttr::Life
+        );
     }
 
     #[test]
     fn lowers_player_attr_hand_size() {
         assert_lowers(deckmaste_authoring::PlayerAttr::HandSize);
+        assert_matches!(
+            deckmaste_authoring::PlayerAttr::HandSize.lower(),
+            deckmaste_core::PlayerAttr::HandSize
+        );
     }
 
     #[test]
     fn lowers_player_attr_hand_size_limit() {
         assert_lowers(deckmaste_authoring::PlayerAttr::HandSizeLimit);
+        assert_matches!(
+            deckmaste_authoring::PlayerAttr::HandSizeLimit.lower(),
+            deckmaste_core::PlayerAttr::HandSizeLimit
+        );
     }
 
     #[test]
     fn lowers_player_attr_land_plays_per_turn() {
         assert_lowers(deckmaste_authoring::PlayerAttr::LandPlaysPerTurn);
+        assert_matches!(
+            deckmaste_authoring::PlayerAttr::LandPlaysPerTurn.lower(),
+            deckmaste_core::PlayerAttr::LandPlaysPerTurn
+        );
     }
 
     #[test]
@@ -670,6 +1021,10 @@ mod tests {
             minimal_player_attr(),
             minimal_count(),
         ));
+        assert_matches!(
+            deckmaste_authoring::PlayerMod::SetTo(minimal_player_attr(), minimal_count()).lower(),
+            deckmaste_core::PlayerMod::SetTo(..)
+        );
     }
 
     #[test]
@@ -678,6 +1033,10 @@ mod tests {
             minimal_player_attr(),
             minimal_count(),
         ));
+        assert_matches!(
+            deckmaste_authoring::PlayerMod::Raise(minimal_player_attr(), minimal_count()).lower(),
+            deckmaste_core::PlayerMod::Raise(..)
+        );
     }
 
     #[test]
@@ -686,10 +1045,18 @@ mod tests {
             minimal_player_attr(),
             minimal_count(),
         ));
+        assert_matches!(
+            deckmaste_authoring::PlayerMod::Lower(minimal_player_attr(), minimal_count()).lower(),
+            deckmaste_core::PlayerMod::Lower(..)
+        );
     }
 
     #[test]
     fn lowers_player_mod_no_max() {
         assert_lowers(deckmaste_authoring::PlayerMod::NoMax(minimal_player_attr()));
+        assert_matches!(
+            deckmaste_authoring::PlayerMod::NoMax(minimal_player_attr()).lower(),
+            deckmaste_core::PlayerMod::NoMax(..)
+        );
     }
 }

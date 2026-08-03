@@ -64,48 +64,79 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_keyword_ref() {
-        assert_lowers_debug(deckmaste_authoring::KeywordRef("X".into()));
+        assert_lowers(deckmaste_authoring::KeywordRef("X".into()));
     }
 
     #[test]
     fn lowers_param_shape_none() {
         assert_lowers(deckmaste_authoring::ParamShape::None);
+        assert_matches!(
+            deckmaste_authoring::ParamShape::None.lower(),
+            deckmaste_core::ParamShape::None
+        );
     }
 
     #[test]
     fn lowers_param_shape_counted() {
         assert_lowers(deckmaste_authoring::ParamShape::Counted);
+        assert_matches!(
+            deckmaste_authoring::ParamShape::Counted.lower(),
+            deckmaste_core::ParamShape::Counted
+        );
     }
 
     #[test]
     fn lowers_param_shape_costed() {
         assert_lowers(deckmaste_authoring::ParamShape::Costed);
+        assert_matches!(
+            deckmaste_authoring::ParamShape::Costed.lower(),
+            deckmaste_core::ParamShape::Costed
+        );
     }
 
     #[test]
     fn lowers_param_shape_counted_cost() {
         assert_lowers(deckmaste_authoring::ParamShape::CountedCost);
+        assert_matches!(
+            deckmaste_authoring::ParamShape::CountedCost.lower(),
+            deckmaste_core::ParamShape::CountedCost
+        );
     }
 
     #[test]
     fn lowers_param_shape_predicated() {
         assert_lowers(deckmaste_authoring::ParamShape::Predicated);
+        assert_matches!(
+            deckmaste_authoring::ParamShape::Predicated.lower(),
+            deckmaste_core::ParamShape::Predicated
+        );
     }
 
     #[test]
     fn lowers_param_shape_predicated_costed() {
         assert_lowers(deckmaste_authoring::ParamShape::PredicatedCosted);
+        assert_matches!(
+            deckmaste_authoring::ParamShape::PredicatedCosted.lower(),
+            deckmaste_core::ParamShape::PredicatedCosted
+        );
     }
 
     #[test]
     fn lowers_param_shape_named() {
         assert_lowers(deckmaste_authoring::ParamShape::Named);
+        assert_matches!(
+            deckmaste_authoring::ParamShape::Named.lower(),
+            deckmaste_core::ParamShape::Named
+        );
     }
 
     #[test]
@@ -119,26 +150,46 @@ mod tests {
     #[test]
     fn lowers_keyword_ability_first_strike() {
         assert_lowers_debug(deckmaste_authoring::KeywordAbility::FirstStrike);
+        assert_matches!(
+            deckmaste_authoring::KeywordAbility::FirstStrike.lower(),
+            deckmaste_core::KeywordAbility::FirstStrike
+        );
     }
 
     #[test]
     fn lowers_keyword_ability_double_strike() {
         assert_lowers_debug(deckmaste_authoring::KeywordAbility::DoubleStrike);
+        assert_matches!(
+            deckmaste_authoring::KeywordAbility::DoubleStrike.lower(),
+            deckmaste_core::KeywordAbility::DoubleStrike
+        );
     }
 
     #[test]
     fn lowers_keyword_ability_deathtouch() {
         assert_lowers_debug(deckmaste_authoring::KeywordAbility::Deathtouch);
+        assert_matches!(
+            deckmaste_authoring::KeywordAbility::Deathtouch.lower(),
+            deckmaste_core::KeywordAbility::Deathtouch
+        );
     }
 
     #[test]
     fn lowers_keyword_ability_trample() {
         assert_lowers_debug(deckmaste_authoring::KeywordAbility::Trample);
+        assert_matches!(
+            deckmaste_authoring::KeywordAbility::Trample.lower(),
+            deckmaste_core::KeywordAbility::Trample
+        );
     }
 
     #[test]
     fn lowers_keyword_ability_vigilance() {
         assert_lowers_debug(deckmaste_authoring::KeywordAbility::Vigilance);
+        assert_matches!(
+            deckmaste_authoring::KeywordAbility::Vigilance.lower(),
+            deckmaste_core::KeywordAbility::Vigilance
+        );
     }
 
     #[test]
@@ -147,6 +198,14 @@ mod tests {
             name: "X".into(),
             abilities: Vec::new(),
         });
+        assert_matches!(
+            deckmaste_authoring::KeywordAbility::Composite {
+                name: "X".into(),
+                abilities: Vec::new()
+            }
+            .lower(),
+            deckmaste_core::KeywordAbility::Composite { .. }
+        );
     }
 
     #[test]
@@ -159,5 +218,15 @@ mod tests {
                 value: Box::new(minimal_keyword_ability()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::KeywordAbility::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_keyword_ability())
+            })
+            .lower(),
+            deckmaste_core::KeywordAbility::Expanded(..)
+        );
     }
 }

@@ -37,6 +37,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -44,35 +47,63 @@ mod tests {
     #[test]
     fn lowers_color_white() {
         assert_lowers_debug(deckmaste_authoring::Color::White);
+        assert_matches!(
+            deckmaste_authoring::Color::White.lower(),
+            deckmaste_core::Color::White
+        );
     }
 
     #[test]
     fn lowers_color_blue() {
         assert_lowers_debug(deckmaste_authoring::Color::Blue);
+        assert_matches!(
+            deckmaste_authoring::Color::Blue.lower(),
+            deckmaste_core::Color::Blue
+        );
     }
 
     #[test]
     fn lowers_color_black() {
         assert_lowers_debug(deckmaste_authoring::Color::Black);
+        assert_matches!(
+            deckmaste_authoring::Color::Black.lower(),
+            deckmaste_core::Color::Black
+        );
     }
 
     #[test]
     fn lowers_color_red() {
         assert_lowers_debug(deckmaste_authoring::Color::Red);
+        assert_matches!(
+            deckmaste_authoring::Color::Red.lower(),
+            deckmaste_core::Color::Red
+        );
     }
 
     #[test]
     fn lowers_color_green() {
         assert_lowers_debug(deckmaste_authoring::Color::Green);
+        assert_matches!(
+            deckmaste_authoring::Color::Green.lower(),
+            deckmaste_core::Color::Green
+        );
     }
 
     #[test]
     fn lowers_color_or_colorless_colorless() {
         assert_lowers_debug(deckmaste_authoring::ColorOrColorless::Colorless);
+        assert_matches!(
+            deckmaste_authoring::ColorOrColorless::Colorless.lower(),
+            deckmaste_core::ColorOrColorless::Colorless
+        );
     }
 
     #[test]
     fn lowers_color_or_colorless_color() {
         assert_lowers_debug(deckmaste_authoring::ColorOrColorless::Color(minimal_color()));
+        assert_matches!(
+            deckmaste_authoring::ColorOrColorless::Color(minimal_color()).lower(),
+            deckmaste_core::ColorOrColorless::Color(..)
+        );
     }
 }

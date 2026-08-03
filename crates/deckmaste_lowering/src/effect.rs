@@ -208,6 +208,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -215,11 +218,19 @@ mod tests {
     #[test]
     fn lowers_one_shot_effect_act() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Act(minimal_action()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Act(minimal_action()).lower(),
+            deckmaste_core::OneShotEffect::Act(..)
+        );
     }
 
     #[test]
     fn lowers_one_shot_effect_sequentially() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Sequentially([].into()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Sequentially([].into()).lower(),
+            deckmaste_core::OneShotEffect::Sequentially(..)
+        );
     }
 
     #[test]
@@ -227,6 +238,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Simultaneously(
             [].into(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Simultaneously([].into()).lower(),
+            deckmaste_core::OneShotEffect::Simultaneously(..)
+        );
     }
 
     #[test]
@@ -234,6 +249,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Continuously(
             minimal_continuously(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Continuously(minimal_continuously()).lower(),
+            deckmaste_core::OneShotEffect::Continuously(..)
+        );
     }
 
     #[test]
@@ -242,11 +261,19 @@ mod tests {
             minimal_duration(),
             [].into(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Until(minimal_duration(), [].into()).lower(),
+            deckmaste_core::OneShotEffect::Until(..)
+        );
     }
 
     #[test]
     fn lowers_one_shot_effect_label() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Label(minimal_label()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Label(minimal_label()).lower(),
+            deckmaste_core::OneShotEffect::Label(..)
+        );
     }
 
     #[test]
@@ -254,6 +281,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::SeparatePiles(
             minimal_separate_piles(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::SeparatePiles(minimal_separate_piles()).lower(),
+            deckmaste_core::OneShotEffect::SeparatePiles(..)
+        );
     }
 
     #[test]
@@ -261,16 +292,28 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::ChoosePile(
             minimal_choose_pile(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::ChoosePile(minimal_choose_pile()).lower(),
+            deckmaste_core::OneShotEffect::ChoosePile(..)
+        );
     }
 
     #[test]
     fn lowers_one_shot_effect_may() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::May(minimal_may()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::May(minimal_may()).lower(),
+            deckmaste_core::OneShotEffect::May(..)
+        );
     }
 
     #[test]
     fn lowers_one_shot_effect_if() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::If(minimal_if()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::If(minimal_if()).lower(),
+            deckmaste_core::OneShotEffect::If(..)
+        );
     }
 
     #[test]
@@ -278,16 +321,28 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::AdditionalCost(
             minimal_additional_cost(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::AdditionalCost(minimal_additional_cost()).lower(),
+            deckmaste_core::OneShotEffect::AdditionalCost(..)
+        );
     }
 
     #[test]
     fn lowers_one_shot_effect_each() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Each(minimal_each()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Each(minimal_each()).lower(),
+            deckmaste_core::OneShotEffect::Each(..)
+        );
     }
 
     #[test]
     fn lowers_one_shot_effect_with() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::With(minimal_with()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::With(minimal_with()).lower(),
+            deckmaste_core::OneShotEffect::With(..)
+        );
     }
 
     #[test]
@@ -295,11 +350,19 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Distribute(
             minimal_distribute(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Distribute(minimal_distribute()).lower(),
+            deckmaste_core::OneShotEffect::Distribute(..)
+        );
     }
 
     #[test]
     fn lowers_one_shot_effect_noting() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Noting(minimal_noting()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Noting(minimal_noting()).lower(),
+            deckmaste_core::OneShotEffect::Noting(..)
+        );
     }
 
     #[test]
@@ -307,6 +370,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Delayed(
             std::sync::Arc::new(minimal_triggered_ability()),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Delayed(std::sync::Arc::new(
+                minimal_triggered_ability()
+            ))
+            .lower(),
+            deckmaste_core::OneShotEffect::Delayed(..)
+        );
     }
 
     #[test]
@@ -314,11 +384,22 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Reflexive(
             std::sync::Arc::new(minimal_triggered_ability()),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Reflexive(std::sync::Arc::new(
+                minimal_triggered_ability()
+            ))
+            .lower(),
+            deckmaste_core::OneShotEffect::Reflexive(..)
+        );
     }
 
     #[test]
     fn lowers_one_shot_effect_modal() {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Modal(minimal_modal()));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Modal(minimal_modal()).lower(),
+            deckmaste_core::OneShotEffect::Modal(..)
+        );
     }
 
     #[test]
@@ -326,6 +407,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::Targeted(
             minimal_targeted(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Targeted(minimal_targeted()).lower(),
+            deckmaste_core::OneShotEffect::Targeted(..)
+        );
     }
 
     #[test]
@@ -334,6 +419,14 @@ mod tests {
             minimal_count(),
             std::sync::Arc::new(minimal_one_shot_effect()),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Repeat(
+                minimal_count(),
+                std::sync::Arc::new(minimal_one_shot_effect())
+            )
+            .lower(),
+            deckmaste_core::OneShotEffect::Repeat(..)
+        );
     }
 
     #[test]
@@ -342,6 +435,14 @@ mod tests {
             minimal_count(),
             std::sync::Arc::new(minimal_one_shot_effect()),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Batch(
+                minimal_count(),
+                std::sync::Arc::new(minimal_one_shot_effect())
+            )
+            .lower(),
+            deckmaste_core::OneShotEffect::Batch(..)
+        );
     }
 
     #[test]
@@ -349,6 +450,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::OneShotEffect::RevealUntil(
             minimal_reveal_until(),
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::RevealUntil(minimal_reveal_until()).lower(),
+            deckmaste_core::OneShotEffect::RevealUntil(..)
+        );
     }
 
     #[test]
@@ -361,6 +466,16 @@ mod tests {
                 value: Box::new(minimal_one_shot_effect()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::OneShotEffect::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_one_shot_effect())
+            })
+            .lower(),
+            deckmaste_core::OneShotEffect::Expanded(..)
+        );
     }
 
     #[test]
@@ -488,6 +603,10 @@ mod tests {
     #[test]
     fn lowers_pile_source_labels() {
         assert_lowers(deckmaste_authoring::PileSource::Labels([].into()));
+        assert_matches!(
+            deckmaste_authoring::PileSource::Labels([].into()).lower(),
+            deckmaste_core::PileSource::Labels(..)
+        );
     }
 
     #[test]
@@ -496,5 +615,13 @@ mod tests {
             note: "X".into(),
             of: minimal_reference(),
         });
+        assert_matches!(
+            deckmaste_authoring::PileSource::Noted {
+                note: "X".into(),
+                of: minimal_reference()
+            }
+            .lower(),
+            deckmaste_core::PileSource::Noted { .. }
+        );
     }
 }

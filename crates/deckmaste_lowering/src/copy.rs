@@ -66,6 +66,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -81,11 +84,19 @@ mod tests {
     #[test]
     fn lowers_copy_source_object() {
         assert_lowers_debug(deckmaste_authoring::CopySource::Object(minimal_reference()));
+        assert_matches!(
+            deckmaste_authoring::CopySource::Object(minimal_reference()).lower(),
+            deckmaste_core::CopySource::Object(..)
+        );
     }
 
     #[test]
     fn lowers_copy_source_self_card() {
         assert_lowers_debug(deckmaste_authoring::CopySource::SelfCard);
+        assert_matches!(
+            deckmaste_authoring::CopySource::SelfCard.lower(),
+            deckmaste_core::CopySource::SelfCard
+        );
     }
 
     #[test]
@@ -93,6 +104,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::CopyException::Modify(
             minimal_modification(),
         ));
+        assert_matches!(
+            deckmaste_authoring::CopyException::Modify(minimal_modification()).lower(),
+            deckmaste_core::CopyException::Modify(..)
+        );
     }
 
     #[test]
@@ -100,6 +115,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::CopyException::Retain(
             minimal_characteristic(),
         ));
+        assert_matches!(
+            deckmaste_authoring::CopyException::Retain(minimal_characteristic()).lower(),
+            deckmaste_core::CopyException::Retain(..)
+        );
     }
 
     #[test]
@@ -107,6 +126,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::CopyException::AdditionalEffect(
             minimal_enter_rider(),
         ));
+        assert_matches!(
+            deckmaste_authoring::CopyException::AdditionalEffect(minimal_enter_rider()).lower(),
+            deckmaste_core::CopyException::AdditionalEffect(..)
+        );
     }
 
     #[test]

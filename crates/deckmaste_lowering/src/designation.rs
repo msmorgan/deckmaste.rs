@@ -93,6 +93,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -100,71 +103,127 @@ mod tests {
     #[test]
     fn lowers_designation_scope_object() {
         assert_lowers(deckmaste_authoring::DesignationScope::Object);
+        assert_matches!(
+            deckmaste_authoring::DesignationScope::Object.lower(),
+            deckmaste_core::DesignationScope::Object
+        );
     }
 
     #[test]
     fn lowers_designation_scope_player() {
         assert_lowers(deckmaste_authoring::DesignationScope::Player);
+        assert_matches!(
+            deckmaste_authoring::DesignationScope::Player.lower(),
+            deckmaste_core::DesignationScope::Player
+        );
     }
 
     #[test]
     fn lowers_designation_scope_game() {
         assert_lowers(deckmaste_authoring::DesignationScope::Game);
+        assert_matches!(
+            deckmaste_authoring::DesignationScope::Game.lower(),
+            deckmaste_core::DesignationScope::Game
+        );
     }
 
     #[test]
     fn lowers_designation_shape_flag() {
         assert_lowers(deckmaste_authoring::DesignationShape::Flag);
+        assert_matches!(
+            deckmaste_authoring::DesignationShape::Flag.lower(),
+            deckmaste_core::DesignationShape::Flag
+        );
     }
 
     #[test]
     fn lowers_designation_shape_number() {
         assert_lowers(deckmaste_authoring::DesignationShape::Number);
+        assert_matches!(
+            deckmaste_authoring::DesignationShape::Number.lower(),
+            deckmaste_core::DesignationShape::Number
+        );
     }
 
     #[test]
     fn lowers_designation_shape_enum() {
         assert_lowers(deckmaste_authoring::DesignationShape::Enum([].into()));
+        assert_matches!(
+            deckmaste_authoring::DesignationShape::Enum([].into()).lower(),
+            deckmaste_core::DesignationShape::Enum(..)
+        );
     }
 
     #[test]
     fn lowers_designation_shape_relation() {
         assert_lowers(deckmaste_authoring::DesignationShape::Relation);
+        assert_matches!(
+            deckmaste_authoring::DesignationShape::Relation.lower(),
+            deckmaste_core::DesignationShape::Relation
+        );
     }
 
     #[test]
     fn lowers_designation_uniqueness_none() {
         assert_lowers(deckmaste_authoring::DesignationUniqueness::None);
+        assert_matches!(
+            deckmaste_authoring::DesignationUniqueness::None.lower(),
+            deckmaste_core::DesignationUniqueness::None
+        );
     }
 
     #[test]
     fn lowers_designation_uniqueness_per_player() {
         assert_lowers(deckmaste_authoring::DesignationUniqueness::PerPlayer);
+        assert_matches!(
+            deckmaste_authoring::DesignationUniqueness::PerPlayer.lower(),
+            deckmaste_core::DesignationUniqueness::PerPlayer
+        );
     }
 
     #[test]
     fn lowers_designation_uniqueness_per_game() {
         assert_lowers(deckmaste_authoring::DesignationUniqueness::PerGame);
+        assert_matches!(
+            deckmaste_authoring::DesignationUniqueness::PerGame.lower(),
+            deckmaste_core::DesignationUniqueness::PerGame
+        );
     }
 
     #[test]
     fn lowers_designation_persistence_object_lifetime() {
         assert_lowers(deckmaste_authoring::DesignationPersistence::ObjectLifetime);
+        assert_matches!(
+            deckmaste_authoring::DesignationPersistence::ObjectLifetime.lower(),
+            deckmaste_core::DesignationPersistence::ObjectLifetime
+        );
     }
 
     #[test]
     fn lowers_designation_persistence_until_end_of_turn() {
         assert_lowers(deckmaste_authoring::DesignationPersistence::UntilEndOfTurn);
+        assert_matches!(
+            deckmaste_authoring::DesignationPersistence::UntilEndOfTurn.lower(),
+            deckmaste_core::DesignationPersistence::UntilEndOfTurn
+        );
     }
 
     #[test]
     fn lowers_designation_persistence_effect_supplied() {
         assert_lowers(deckmaste_authoring::DesignationPersistence::EffectSupplied);
+        assert_matches!(
+            deckmaste_authoring::DesignationPersistence::EffectSupplied.lower(),
+            deckmaste_core::DesignationPersistence::EffectSupplied
+        );
     }
 
     #[test]
     fn lowers_designation_persistence_permanently() {
         assert_lowers(deckmaste_authoring::DesignationPersistence::Permanently);
+        assert_matches!(
+            deckmaste_authoring::DesignationPersistence::Permanently.lower(),
+            deckmaste_core::DesignationPersistence::Permanently
+        );
     }
 
     #[test]
@@ -176,6 +235,17 @@ mod tests {
             persistence: minimal_designation_persistence(),
             payload: [].into(),
         });
+        assert_matches!(
+            deckmaste_authoring::DesignationDef::Stored {
+                scope: minimal_designation_scope(),
+                shape: minimal_designation_shape(),
+                uniqueness: minimal_designation_uniqueness(),
+                persistence: minimal_designation_persistence(),
+                payload: [].into()
+            }
+            .lower(),
+            deckmaste_core::DesignationDef::Stored { .. }
+        );
     }
 
     #[test]
@@ -183,6 +253,10 @@ mod tests {
         assert_lowers(deckmaste_authoring::DesignationDef::Derived(
             minimal_predicate(),
         ));
+        assert_matches!(
+            deckmaste_authoring::DesignationDef::Derived(minimal_predicate()).lower(),
+            deckmaste_core::DesignationDef::Derived(..)
+        );
     }
 
     #[test]
@@ -190,6 +264,13 @@ mod tests {
         assert_lowers(deckmaste_authoring::DesignationDef::DerivedIf(
             std::sync::Arc::new(minimal_condition()),
         ));
+        assert_matches!(
+            deckmaste_authoring::DesignationDef::DerivedIf(
+                std::sync::Arc::new(minimal_condition())
+            )
+            .lower(),
+            deckmaste_core::DesignationDef::DerivedIf(..)
+        );
     }
 
     #[test]

@@ -139,6 +139,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -146,86 +149,154 @@ mod tests {
     #[test]
     fn lowers_stat_power() {
         assert_lowers(deckmaste_authoring::Stat::Power);
+        assert_matches!(
+            deckmaste_authoring::Stat::Power.lower(),
+            deckmaste_core::Stat::Power
+        );
     }
 
     #[test]
     fn lowers_stat_toughness() {
         assert_lowers(deckmaste_authoring::Stat::Toughness);
+        assert_matches!(
+            deckmaste_authoring::Stat::Toughness.lower(),
+            deckmaste_core::Stat::Toughness
+        );
     }
 
     #[test]
     fn lowers_stat_mana_value() {
         assert_lowers(deckmaste_authoring::Stat::ManaValue);
+        assert_matches!(
+            deckmaste_authoring::Stat::ManaValue.lower(),
+            deckmaste_core::Stat::ManaValue
+        );
     }
 
     #[test]
     fn lowers_stat_loyalty() {
         assert_lowers(deckmaste_authoring::Stat::Loyalty);
+        assert_matches!(
+            deckmaste_authoring::Stat::Loyalty.lower(),
+            deckmaste_core::Stat::Loyalty
+        );
     }
 
     #[test]
     fn lowers_stat_defense() {
         assert_lowers(deckmaste_authoring::Stat::Defense);
+        assert_matches!(
+            deckmaste_authoring::Stat::Defense.lower(),
+            deckmaste_core::Stat::Defense
+        );
     }
 
     #[test]
     fn lowers_round_mode_round_up() {
         assert_lowers(deckmaste_authoring::RoundMode::RoundUp);
+        assert_matches!(
+            deckmaste_authoring::RoundMode::RoundUp.lower(),
+            deckmaste_core::RoundMode::RoundUp
+        );
     }
 
     #[test]
     fn lowers_round_mode_round_down() {
         assert_lowers(deckmaste_authoring::RoundMode::RoundDown);
+        assert_matches!(
+            deckmaste_authoring::RoundMode::RoundDown.lower(),
+            deckmaste_core::RoundMode::RoundDown
+        );
     }
 
     #[test]
     fn lowers_characteristic_colors() {
         assert_lowers(deckmaste_authoring::Characteristic::Colors);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::Colors.lower(),
+            deckmaste_core::Characteristic::Colors
+        );
     }
 
     #[test]
     fn lowers_characteristic_types() {
         assert_lowers(deckmaste_authoring::Characteristic::Types);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::Types.lower(),
+            deckmaste_core::Characteristic::Types
+        );
     }
 
     #[test]
     fn lowers_characteristic_subtypes() {
         assert_lowers(deckmaste_authoring::Characteristic::Subtypes);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::Subtypes.lower(),
+            deckmaste_core::Characteristic::Subtypes
+        );
     }
 
     #[test]
     fn lowers_characteristic_basic_land_types() {
         assert_lowers(deckmaste_authoring::Characteristic::BasicLandTypes);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::BasicLandTypes.lower(),
+            deckmaste_core::Characteristic::BasicLandTypes
+        );
     }
 
     #[test]
     fn lowers_characteristic_supertypes() {
         assert_lowers(deckmaste_authoring::Characteristic::Supertypes);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::Supertypes.lower(),
+            deckmaste_core::Characteristic::Supertypes
+        );
     }
 
     #[test]
     fn lowers_characteristic_power() {
         assert_lowers(deckmaste_authoring::Characteristic::Power);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::Power.lower(),
+            deckmaste_core::Characteristic::Power
+        );
     }
 
     #[test]
     fn lowers_characteristic_toughness() {
         assert_lowers(deckmaste_authoring::Characteristic::Toughness);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::Toughness.lower(),
+            deckmaste_core::Characteristic::Toughness
+        );
     }
 
     #[test]
     fn lowers_characteristic_defense() {
         assert_lowers(deckmaste_authoring::Characteristic::Defense);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::Defense.lower(),
+            deckmaste_core::Characteristic::Defense
+        );
     }
 
     #[test]
     fn lowers_characteristic_mana_cost() {
         assert_lowers(deckmaste_authoring::Characteristic::ManaCost);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::ManaCost.lower(),
+            deckmaste_core::Characteristic::ManaCost
+        );
     }
 
     #[test]
     fn lowers_characteristic_name() {
         assert_lowers(deckmaste_authoring::Characteristic::Name);
+        assert_matches!(
+            deckmaste_authoring::Characteristic::Name.lower(),
+            deckmaste_core::Characteristic::Name
+        );
     }
 
     #[test]
@@ -233,6 +304,11 @@ mod tests {
         assert_lowers(deckmaste_authoring::Countable::Objects(
             std::sync::Arc::new(minimal_predicate()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Countable::Objects(std::sync::Arc::new(minimal_predicate()))
+                .lower(),
+            deckmaste_core::Countable::Objects(..)
+        );
     }
 
     #[test]
@@ -240,6 +316,11 @@ mod tests {
         assert_lowers(deckmaste_authoring::Countable::Players(
             std::sync::Arc::new(minimal_predicate()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Countable::Players(std::sync::Arc::new(minimal_predicate()))
+                .lower(),
+            deckmaste_core::Countable::Players(..)
+        );
     }
 
     #[test]
@@ -248,6 +329,14 @@ mod tests {
             std::sync::Arc::new(minimal_reference()),
             minimal_symbol_pred(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Countable::ManaSymbols(
+                std::sync::Arc::new(minimal_reference()),
+                minimal_symbol_pred()
+            )
+            .lower(),
+            deckmaste_core::Countable::ManaSymbols(..)
+        );
     }
 
     #[test]
@@ -255,6 +344,11 @@ mod tests {
         assert_lowers(deckmaste_authoring::Countable::Singleton(
             std::sync::Arc::new(minimal_reference()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Countable::Singleton(std::sync::Arc::new(minimal_reference()))
+                .lower(),
+            deckmaste_core::Countable::Singleton(..)
+        );
     }
 
     #[test]
@@ -263,21 +357,41 @@ mod tests {
             std::sync::Arc::new(minimal_reference()),
             minimal_symbol_pred(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Countable::ManaSpentMatching(
+                std::sync::Arc::new(minimal_reference()),
+                minimal_symbol_pred()
+            )
+            .lower(),
+            deckmaste_core::Countable::ManaSpentMatching(..)
+        );
     }
 
     #[test]
     fn lowers_aggregate_op_sum_of() {
         assert_lowers(deckmaste_authoring::AggregateOp::SumOf);
+        assert_matches!(
+            deckmaste_authoring::AggregateOp::SumOf.lower(),
+            deckmaste_core::AggregateOp::SumOf
+        );
     }
 
     #[test]
     fn lowers_aggregate_op_min_of() {
         assert_lowers(deckmaste_authoring::AggregateOp::MinOf);
+        assert_matches!(
+            deckmaste_authoring::AggregateOp::MinOf.lower(),
+            deckmaste_core::AggregateOp::MinOf
+        );
     }
 
     #[test]
     fn lowers_aggregate_op_max_of() {
         assert_lowers(deckmaste_authoring::AggregateOp::MaxOf);
+        assert_matches!(
+            deckmaste_authoring::AggregateOp::MaxOf.lower(),
+            deckmaste_core::AggregateOp::MaxOf
+        );
     }
 
     #[test]
@@ -285,6 +399,10 @@ mod tests {
         assert_lowers(deckmaste_authoring::AggregateOp::AverageOf(
             minimal_round_mode(),
         ));
+        assert_matches!(
+            deckmaste_authoring::AggregateOp::AverageOf(minimal_round_mode()).lower(),
+            deckmaste_core::AggregateOp::AverageOf(..)
+        );
     }
 
     #[test]
@@ -298,11 +416,19 @@ mod tests {
     #[test]
     fn lowers_count_x() {
         assert_lowers_debug(deckmaste_authoring::Count::X);
+        assert_matches!(
+            deckmaste_authoring::Count::X.lower(),
+            deckmaste_core::Count::X
+        );
     }
 
     #[test]
     fn lowers_count_count_of() {
         assert_lowers_debug(deckmaste_authoring::Count::CountOf(minimal_countable()));
+        assert_matches!(
+            deckmaste_authoring::Count::CountOf(minimal_countable()).lower(),
+            deckmaste_core::Count::CountOf(..)
+        );
     }
 
     #[test]
@@ -311,6 +437,14 @@ mod tests {
             minimal_characteristic(),
             minimal_countable(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::CountDistinct(
+                minimal_characteristic(),
+                minimal_countable()
+            )
+            .lower(),
+            deckmaste_core::Count::CountDistinct(..)
+        );
     }
 
     #[test]
@@ -319,6 +453,10 @@ mod tests {
             minimal_reference(),
             minimal_stat(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::StatOf(minimal_reference(), minimal_stat()).lower(),
+            deckmaste_core::Count::StatOf(..)
+        );
     }
 
     #[test]
@@ -327,11 +465,20 @@ mod tests {
             minimal_reference(),
             minimal_player_attr(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::PlayerStatOf(minimal_reference(), minimal_player_attr())
+                .lower(),
+            deckmaste_core::Count::PlayerStatOf(..)
+        );
     }
 
     #[test]
     fn lowers_count_opponents() {
         assert_lowers_debug(deckmaste_authoring::Count::Opponents(minimal_reference()));
+        assert_matches!(
+            deckmaste_authoring::Count::Opponents(minimal_reference()).lower(),
+            deckmaste_core::Count::Opponents(..)
+        );
     }
 
     #[test]
@@ -340,6 +487,14 @@ mod tests {
             std::sync::Arc::new(minimal_reference()),
             minimal_counter_ref(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::CounterCount(
+                std::sync::Arc::new(minimal_reference()),
+                minimal_counter_ref()
+            )
+            .lower(),
+            deckmaste_core::Count::CounterCount(..)
+        );
     }
 
     #[test]
@@ -348,6 +503,14 @@ mod tests {
             std::sync::Arc::new(minimal_count()),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Min(
+                std::sync::Arc::new(minimal_count()),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Min(..)
+        );
     }
 
     #[test]
@@ -356,6 +519,14 @@ mod tests {
             std::sync::Arc::new(minimal_count()),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Max(
+                std::sync::Arc::new(minimal_count()),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Max(..)
+        );
     }
 
     #[test]
@@ -364,6 +535,14 @@ mod tests {
             std::sync::Arc::new(minimal_count()),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Plus(
+                std::sync::Arc::new(minimal_count()),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Plus(..)
+        );
     }
 
     #[test]
@@ -372,6 +551,14 @@ mod tests {
             std::sync::Arc::new(minimal_count()),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Minus(
+                std::sync::Arc::new(minimal_count()),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Minus(..)
+        );
     }
 
     #[test]
@@ -380,6 +567,14 @@ mod tests {
             std::sync::Arc::new(minimal_count()),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Times(
+                std::sync::Arc::new(minimal_count()),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Times(..)
+        );
     }
 
     #[test]
@@ -388,6 +583,14 @@ mod tests {
             minimal_round_mode(),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Half(
+                minimal_round_mode(),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Half(..)
+        );
     }
 
     #[test]
@@ -397,6 +600,15 @@ mod tests {
             std::sync::Arc::new(minimal_count()),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Divide(
+                minimal_round_mode(),
+                std::sync::Arc::new(minimal_count()),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Divide(..)
+        );
     }
 
     #[test]
@@ -405,6 +617,14 @@ mod tests {
             std::sync::Arc::new(minimal_count()),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Mod(
+                std::sync::Arc::new(minimal_count()),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Mod(..)
+        );
     }
 
     #[test]
@@ -413,26 +633,50 @@ mod tests {
             std::sync::Arc::new(minimal_count()),
             std::sync::Arc::new(minimal_count()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Pow(
+                std::sync::Arc::new(minimal_count()),
+                std::sync::Arc::new(minimal_count())
+            )
+            .lower(),
+            deckmaste_core::Count::Pow(..)
+        );
     }
 
     #[test]
     fn lowers_count_targets_of() {
         assert_lowers_debug(deckmaste_authoring::Count::TargetsOf(minimal_reference()));
+        assert_matches!(
+            deckmaste_authoring::Count::TargetsOf(minimal_reference()).lower(),
+            deckmaste_core::Count::TargetsOf(..)
+        );
     }
 
     #[test]
     fn lowers_count_that_many() {
         assert_lowers_debug(deckmaste_authoring::Count::ThatMany);
+        assert_matches!(
+            deckmaste_authoring::Count::ThatMany.lower(),
+            deckmaste_core::Count::ThatMany
+        );
     }
 
     #[test]
     fn lowers_count_that_much() {
         assert_lowers_debug(deckmaste_authoring::Count::ThatMuch);
+        assert_matches!(
+            deckmaste_authoring::Count::ThatMuch.lower(),
+            deckmaste_core::Count::ThatMuch
+        );
     }
 
     #[test]
     fn lowers_count_allotment() {
         assert_lowers_debug(deckmaste_authoring::Count::Allotment);
+        assert_matches!(
+            deckmaste_authoring::Count::Allotment.lower(),
+            deckmaste_core::Count::Allotment
+        );
     }
 
     #[test]
@@ -441,6 +685,14 @@ mod tests {
             std::sync::Arc::new(minimal_event_filter()),
             minimal_lookback(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::EventCount(
+                std::sync::Arc::new(minimal_event_filter()),
+                minimal_lookback()
+            )
+            .lower(),
+            deckmaste_core::Count::EventCount(..)
+        );
     }
 
     #[test]
@@ -449,21 +701,41 @@ mod tests {
             std::sync::Arc::new(minimal_event_filter()),
             minimal_lookback(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::EventSum(
+                std::sync::Arc::new(minimal_event_filter()),
+                minimal_lookback()
+            )
+            .lower(),
+            deckmaste_core::Count::EventSum(..)
+        );
     }
 
     #[test]
     fn lowers_count_noted() {
         assert_lowers_debug(deckmaste_authoring::Count::Noted("X".into()));
+        assert_matches!(
+            deckmaste_authoring::Count::Noted("X".into()).lower(),
+            deckmaste_core::Count::Noted(..)
+        );
     }
 
     #[test]
     fn lowers_count_times_paid() {
         assert_lowers_debug(deckmaste_authoring::Count::TimesPaid(minimal_cost_tag()));
+        assert_matches!(
+            deckmaste_authoring::Count::TimesPaid(minimal_cost_tag()).lower(),
+            deckmaste_core::Count::TimesPaid(..)
+        );
     }
 
     #[test]
     fn lowers_count_damage() {
         assert_lowers_debug(deckmaste_authoring::Count::Damage(minimal_reference()));
+        assert_matches!(
+            deckmaste_authoring::Count::Damage(minimal_reference()).lower(),
+            deckmaste_core::Count::Damage(..)
+        );
     }
 
     #[test]
@@ -471,6 +743,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Count::ManaAvailable(
             minimal_reference(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::ManaAvailable(minimal_reference()).lower(),
+            deckmaste_core::Count::ManaAvailable(..)
+        );
     }
 
     #[test]
@@ -479,6 +755,11 @@ mod tests {
             minimal_aggregate_op(),
             minimal_projection(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Count::Aggregate(minimal_aggregate_op(), minimal_projection())
+                .lower(),
+            deckmaste_core::Count::Aggregate(..)
+        );
     }
 
     #[test]
@@ -489,10 +770,24 @@ mod tests {
             template: None,
             value: Box::new(minimal_count()),
         }));
+        assert_matches!(
+            deckmaste_authoring::Count::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_count())
+            })
+            .lower(),
+            deckmaste_core::Count::Expanded(..)
+        );
     }
 
     #[test]
     fn lowers_count_literal() {
         assert_lowers_debug(deckmaste_authoring::Count::Literal(0));
+        assert_matches!(
+            deckmaste_authoring::Count::Literal(0).lower(),
+            deckmaste_core::Count::Literal(..)
+        );
     }
 }

@@ -113,6 +113,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -141,16 +144,28 @@ mod tests {
     #[test]
     fn lowers_use_limit_once_per_turn() {
         assert_lowers(deckmaste_authoring::UseLimit::OncePerTurn);
+        assert_matches!(
+            deckmaste_authoring::UseLimit::OncePerTurn.lower(),
+            deckmaste_core::UseLimit::OncePerTurn
+        );
     }
 
     #[test]
     fn lowers_use_limit_once_per_game() {
         assert_lowers(deckmaste_authoring::UseLimit::OncePerGame);
+        assert_matches!(
+            deckmaste_authoring::UseLimit::OncePerGame.lower(),
+            deckmaste_core::UseLimit::OncePerGame
+        );
     }
 
     #[test]
     fn lowers_use_limit_loyalty_once_per_turn() {
         assert_lowers(deckmaste_authoring::UseLimit::LoyaltyOncePerTurn);
+        assert_matches!(
+            deckmaste_authoring::UseLimit::LoyaltyOncePerTurn.lower(),
+            deckmaste_core::UseLimit::LoyaltyOncePerTurn
+        );
     }
 
     #[test]
@@ -180,11 +195,19 @@ mod tests {
     #[test]
     fn lowers_modal_cost_rider_entwine() {
         assert_lowers(deckmaste_authoring::ModalCostRider::Entwine(minimal_cost()));
+        assert_matches!(
+            deckmaste_authoring::ModalCostRider::Entwine(minimal_cost()).lower(),
+            deckmaste_core::ModalCostRider::Entwine(..)
+        );
     }
 
     #[test]
     fn lowers_modal_cost_rider_escalate() {
         assert_lowers(deckmaste_authoring::ModalCostRider::Escalate(minimal_cost()));
+        assert_matches!(
+            deckmaste_authoring::ModalCostRider::Escalate(minimal_cost()).lower(),
+            deckmaste_core::ModalCostRider::Escalate(..)
+        );
     }
 
     #[test]
@@ -200,6 +223,11 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Ability::Static(std::sync::Arc::new(
             minimal_static_effect(),
         )));
+        assert_matches!(
+            deckmaste_authoring::Ability::Static(std::sync::Arc::new(minimal_static_effect()))
+                .lower(),
+            deckmaste_core::Ability::Static(..)
+        );
     }
 
     #[test]
@@ -207,6 +235,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Ability::Activated(
             std::sync::Arc::new(minimal_activated_ability()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Ability::Activated(std::sync::Arc::new(
+                minimal_activated_ability()
+            ))
+            .lower(),
+            deckmaste_core::Ability::Activated(..)
+        );
     }
 
     #[test]
@@ -214,6 +249,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Ability::Triggered(
             std::sync::Arc::new(minimal_triggered_ability()),
         ));
+        assert_matches!(
+            deckmaste_authoring::Ability::Triggered(std::sync::Arc::new(
+                minimal_triggered_ability()
+            ))
+            .lower(),
+            deckmaste_core::Ability::Triggered(..)
+        );
     }
 
     #[test]
@@ -221,6 +263,11 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Ability::Spell(std::sync::Arc::new(
             minimal_spell_ability(),
         )));
+        assert_matches!(
+            deckmaste_authoring::Ability::Spell(std::sync::Arc::new(minimal_spell_ability()))
+                .lower(),
+            deckmaste_core::Ability::Spell(..)
+        );
     }
 
     #[test]
@@ -228,6 +275,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Ability::Keyword(
             minimal_keyword_ability(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Ability::Keyword(minimal_keyword_ability()).lower(),
+            deckmaste_core::Ability::Keyword(..)
+        );
     }
 
     #[test]
@@ -235,6 +286,10 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Ability::Innate(std::sync::Arc::new(
             minimal_ability(),
         )));
+        assert_matches!(
+            deckmaste_authoring::Ability::Innate(std::sync::Arc::new(minimal_ability())).lower(),
+            deckmaste_core::Ability::Innate(..)
+        );
     }
 
     #[test]
@@ -247,5 +302,15 @@ mod tests {
                 value: Box::new(minimal_ability()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::Ability::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_ability())
+            })
+            .lower(),
+            deckmaste_core::Ability::Expanded(..)
+        );
     }
 }

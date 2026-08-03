@@ -29,6 +29,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -36,35 +39,63 @@ mod tests {
     #[test]
     fn lowers_zone_battlefield() {
         assert_lowers_debug(deckmaste_authoring::Zone::Battlefield);
+        assert_matches!(
+            deckmaste_authoring::Zone::Battlefield.lower(),
+            deckmaste_core::Zone::Battlefield
+        );
     }
 
     #[test]
     fn lowers_zone_command() {
         assert_lowers_debug(deckmaste_authoring::Zone::Command);
+        assert_matches!(
+            deckmaste_authoring::Zone::Command.lower(),
+            deckmaste_core::Zone::Command
+        );
     }
 
     #[test]
     fn lowers_zone_exile() {
         assert_lowers_debug(deckmaste_authoring::Zone::Exile);
+        assert_matches!(
+            deckmaste_authoring::Zone::Exile.lower(),
+            deckmaste_core::Zone::Exile
+        );
     }
 
     #[test]
     fn lowers_zone_graveyard() {
         assert_lowers_debug(deckmaste_authoring::Zone::Graveyard);
+        assert_matches!(
+            deckmaste_authoring::Zone::Graveyard.lower(),
+            deckmaste_core::Zone::Graveyard
+        );
     }
 
     #[test]
     fn lowers_zone_hand() {
         assert_lowers_debug(deckmaste_authoring::Zone::Hand);
+        assert_matches!(
+            deckmaste_authoring::Zone::Hand.lower(),
+            deckmaste_core::Zone::Hand
+        );
     }
 
     #[test]
     fn lowers_zone_library() {
         assert_lowers_debug(deckmaste_authoring::Zone::Library);
+        assert_matches!(
+            deckmaste_authoring::Zone::Library.lower(),
+            deckmaste_core::Zone::Library
+        );
     }
 
     #[test]
     fn lowers_zone_stack() {
         assert_lowers_debug(deckmaste_authoring::Zone::Stack);
+        assert_matches!(
+            deckmaste_authoring::Zone::Stack.lower(),
+            deckmaste_core::Zone::Stack
+        );
     }
 }

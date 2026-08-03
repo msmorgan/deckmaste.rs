@@ -34,6 +34,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -43,6 +46,10 @@ mod tests {
         assert_lowers(deckmaste_authoring::Property::Ability(std::sync::Arc::new(
             minimal_ability(),
         )));
+        assert_matches!(
+            deckmaste_authoring::Property::Ability(std::sync::Arc::new(minimal_ability())).lower(),
+            deckmaste_core::Property::Ability(..)
+        );
     }
 
     #[test]
@@ -51,6 +58,11 @@ mod tests {
             minimal_reference(),
             minimal_modification(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Property::Continuous(minimal_reference(), minimal_modification())
+                .lower(),
+            deckmaste_core::Property::Continuous(..)
+        );
     }
 
     #[test]
@@ -59,6 +71,14 @@ mod tests {
             condition: std::sync::Arc::new(minimal_condition()),
             effect: std::sync::Arc::new(minimal_one_shot_effect()),
         });
+        assert_matches!(
+            deckmaste_authoring::Property::StateBased {
+                condition: std::sync::Arc::new(minimal_condition()),
+                effect: std::sync::Arc::new(minimal_one_shot_effect())
+            }
+            .lower(),
+            deckmaste_core::Property::StateBased { .. }
+        );
     }
 
     #[test]
@@ -67,5 +87,13 @@ mod tests {
             at: minimal_phase_step(),
             effect: std::sync::Arc::new(minimal_one_shot_effect()),
         });
+        assert_matches!(
+            deckmaste_authoring::Property::TurnBased {
+                at: minimal_phase_step(),
+                effect: std::sync::Arc::new(minimal_one_shot_effect())
+            }
+            .lower(),
+            deckmaste_core::Property::TurnBased { .. }
+        );
     }
 }

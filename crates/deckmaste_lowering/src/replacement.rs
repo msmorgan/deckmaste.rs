@@ -62,6 +62,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -72,6 +75,14 @@ mod tests {
             would: minimal_event_filter(),
             instead: minimal_one_shot_effect(),
         });
+        assert_matches!(
+            deckmaste_authoring::Replacement::Instead {
+                would: minimal_event_filter(),
+                instead: minimal_one_shot_effect()
+            }
+            .lower(),
+            deckmaste_core::Replacement::Instead { .. }
+        );
     }
 
     #[test]
@@ -79,6 +90,13 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::Replacement::Skip {
             what: minimal_phase_step(),
         });
+        assert_matches!(
+            deckmaste_authoring::Replacement::Skip {
+                what: minimal_phase_step()
+            }
+            .lower(),
+            deckmaste_core::Replacement::Skip { .. }
+        );
     }
 
     #[test]
@@ -87,6 +105,14 @@ mod tests {
             would: minimal_event_filter(),
             also: minimal_one_shot_effect(),
         });
+        assert_matches!(
+            deckmaste_authoring::Replacement::Also {
+                would: minimal_event_filter(),
+                also: minimal_one_shot_effect()
+            }
+            .lower(),
+            deckmaste_core::Replacement::Also { .. }
+        );
     }
 
     #[test]
@@ -99,6 +125,16 @@ mod tests {
                 value: Box::new(minimal_replacement()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::Replacement::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_replacement())
+            })
+            .lower(),
+            deckmaste_core::Replacement::Expanded(..)
+        );
     }
 
     #[test]
@@ -109,6 +145,16 @@ mod tests {
             to: minimal_predicate(),
             duration: None,
         });
+        assert_matches!(
+            deckmaste_authoring::Prevention::PreventNext {
+                n: minimal_count(),
+                from: minimal_predicate(),
+                to: minimal_predicate(),
+                duration: None
+            }
+            .lower(),
+            deckmaste_core::Prevention::PreventNext { .. }
+        );
     }
 
     #[test]
@@ -117,6 +163,14 @@ mod tests {
             from: minimal_predicate(),
             to: minimal_predicate(),
         });
+        assert_matches!(
+            deckmaste_authoring::Prevention::PreventNextInstance {
+                from: minimal_predicate(),
+                to: minimal_predicate()
+            }
+            .lower(),
+            deckmaste_core::Prevention::PreventNextInstance { .. }
+        );
     }
 
     #[test]
@@ -126,5 +180,14 @@ mod tests {
             to: minimal_predicate(),
             duration: None,
         });
+        assert_matches!(
+            deckmaste_authoring::Prevention::PreventAll {
+                from: minimal_predicate(),
+                to: minimal_predicate(),
+                duration: None
+            }
+            .lower(),
+            deckmaste_core::Prevention::PreventAll { .. }
+        );
     }
 }

@@ -62,6 +62,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -71,11 +74,19 @@ mod tests {
         assert_lowers(deckmaste_authoring::TokenSpec::Token(std::sync::Arc::new(
             minimal_token(),
         )));
+        assert_matches!(
+            deckmaste_authoring::TokenSpec::Token(std::sync::Arc::new(minimal_token())).lower(),
+            deckmaste_core::TokenSpec::Token(..)
+        );
     }
 
     #[test]
     fn lowers_token_spec_named() {
         assert_lowers(deckmaste_authoring::TokenSpec::Named(minimal_token_name()));
+        assert_matches!(
+            deckmaste_authoring::TokenSpec::Named(minimal_token_name()).lower(),
+            deckmaste_core::TokenSpec::Named(..)
+        );
     }
 
     #[test]
@@ -83,41 +94,69 @@ mod tests {
         assert_lowers(deckmaste_authoring::TokenSpec::Copy(std::sync::Arc::new(
             minimal_copy_spec(),
         )));
+        assert_matches!(
+            deckmaste_authoring::TokenSpec::Copy(std::sync::Arc::new(minimal_copy_spec())).lower(),
+            deckmaste_core::TokenSpec::Copy(..)
+        );
     }
 
     #[test]
     fn lowers_token_name() {
-        assert_lowers_debug(deckmaste_authoring::TokenName("X".into()));
+        assert_lowers(deckmaste_authoring::TokenName("X".into()));
     }
 
     #[test]
     fn lowers_predefined_token_treasure() {
         assert_lowers_debug(deckmaste_authoring::PredefinedToken::Treasure);
+        assert_matches!(
+            deckmaste_authoring::PredefinedToken::Treasure.lower(),
+            deckmaste_core::PredefinedToken::Treasure
+        );
     }
 
     #[test]
     fn lowers_predefined_token_food() {
         assert_lowers_debug(deckmaste_authoring::PredefinedToken::Food);
+        assert_matches!(
+            deckmaste_authoring::PredefinedToken::Food.lower(),
+            deckmaste_core::PredefinedToken::Food
+        );
     }
 
     #[test]
     fn lowers_predefined_token_gold() {
         assert_lowers_debug(deckmaste_authoring::PredefinedToken::Gold);
+        assert_matches!(
+            deckmaste_authoring::PredefinedToken::Gold.lower(),
+            deckmaste_core::PredefinedToken::Gold
+        );
     }
 
     #[test]
     fn lowers_predefined_token_clue() {
         assert_lowers_debug(deckmaste_authoring::PredefinedToken::Clue);
+        assert_matches!(
+            deckmaste_authoring::PredefinedToken::Clue.lower(),
+            deckmaste_core::PredefinedToken::Clue
+        );
     }
 
     #[test]
     fn lowers_predefined_token_blood() {
         assert_lowers_debug(deckmaste_authoring::PredefinedToken::Blood);
+        assert_matches!(
+            deckmaste_authoring::PredefinedToken::Blood.lower(),
+            deckmaste_core::PredefinedToken::Blood
+        );
     }
 
     #[test]
     fn lowers_predefined_token_vibranium() {
         assert_lowers_debug(deckmaste_authoring::PredefinedToken::Vibranium);
+        assert_matches!(
+            deckmaste_authoring::PredefinedToken::Vibranium.lower(),
+            deckmaste_core::PredefinedToken::Vibranium
+        );
     }
 
     #[test]

@@ -73,6 +73,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -80,61 +83,109 @@ mod tests {
     #[test]
     fn lowers_status_tapped() {
         assert_lowers(deckmaste_authoring::Status::Tapped);
+        assert_matches!(
+            deckmaste_authoring::Status::Tapped.lower(),
+            deckmaste_core::Status::Tapped
+        );
     }
 
     #[test]
     fn lowers_status_untapped() {
         assert_lowers(deckmaste_authoring::Status::Untapped);
+        assert_matches!(
+            deckmaste_authoring::Status::Untapped.lower(),
+            deckmaste_core::Status::Untapped
+        );
     }
 
     #[test]
     fn lowers_status_flipped() {
         assert_lowers(deckmaste_authoring::Status::Flipped);
+        assert_matches!(
+            deckmaste_authoring::Status::Flipped.lower(),
+            deckmaste_core::Status::Flipped
+        );
     }
 
     #[test]
     fn lowers_status_unflipped() {
         assert_lowers(deckmaste_authoring::Status::Unflipped);
+        assert_matches!(
+            deckmaste_authoring::Status::Unflipped.lower(),
+            deckmaste_core::Status::Unflipped
+        );
     }
 
     #[test]
     fn lowers_status_face_down() {
         assert_lowers(deckmaste_authoring::Status::FaceDown);
+        assert_matches!(
+            deckmaste_authoring::Status::FaceDown.lower(),
+            deckmaste_core::Status::FaceDown
+        );
     }
 
     #[test]
     fn lowers_status_face_up() {
         assert_lowers(deckmaste_authoring::Status::FaceUp);
+        assert_matches!(
+            deckmaste_authoring::Status::FaceUp.lower(),
+            deckmaste_core::Status::FaceUp
+        );
     }
 
     #[test]
     fn lowers_status_phased_out() {
         assert_lowers(deckmaste_authoring::Status::PhasedOut);
+        assert_matches!(
+            deckmaste_authoring::Status::PhasedOut.lower(),
+            deckmaste_core::Status::PhasedOut
+        );
     }
 
     #[test]
     fn lowers_status_phased_in() {
         assert_lowers(deckmaste_authoring::Status::PhasedIn);
+        assert_matches!(
+            deckmaste_authoring::Status::PhasedIn.lower(),
+            deckmaste_core::Status::PhasedIn
+        );
     }
 
     #[test]
     fn lowers_face_up() {
         assert_lowers(deckmaste_authoring::Face::Up);
+        assert_matches!(
+            deckmaste_authoring::Face::Up.lower(),
+            deckmaste_core::Face::Up
+        );
     }
 
     #[test]
     fn lowers_face_down() {
         assert_lowers(deckmaste_authoring::Face::Down);
+        assert_matches!(
+            deckmaste_authoring::Face::Down.lower(),
+            deckmaste_core::Face::Down
+        );
     }
 
     #[test]
     fn lowers_phasing_in() {
         assert_lowers(deckmaste_authoring::Phasing::In);
+        assert_matches!(
+            deckmaste_authoring::Phasing::In.lower(),
+            deckmaste_core::Phasing::In
+        );
     }
 
     #[test]
     fn lowers_phasing_out() {
         assert_lowers(deckmaste_authoring::Phasing::Out);
+        assert_matches!(
+            deckmaste_authoring::Phasing::Out.lower(),
+            deckmaste_core::Phasing::Out
+        );
     }
 
     #[test]
@@ -142,6 +193,10 @@ mod tests {
         assert_lowers(deckmaste_authoring::FaceDownSpec::Listed(
             minimal_face_down_characteristics(),
         ));
+        assert_matches!(
+            deckmaste_authoring::FaceDownSpec::Listed(minimal_face_down_characteristics()).lower(),
+            deckmaste_core::FaceDownSpec::Listed(..)
+        );
     }
 
     #[test]

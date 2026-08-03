@@ -24,6 +24,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -31,6 +34,10 @@ mod tests {
     #[test]
     fn lowers_quantity_range() {
         assert_lowers_debug(deckmaste_authoring::Quantity::Range(None, None));
+        assert_matches!(
+            deckmaste_authoring::Quantity::Range(None, None).lower(),
+            deckmaste_core::Quantity::Range(..)
+        );
     }
 
     #[test]
@@ -43,5 +50,15 @@ mod tests {
                 value: Box::new(minimal_quantity()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::Quantity::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_quantity())
+            })
+            .lower(),
+            deckmaste_core::Quantity::Expanded(..)
+        );
     }
 }

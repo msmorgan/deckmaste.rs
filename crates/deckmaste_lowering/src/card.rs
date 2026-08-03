@@ -64,6 +64,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -90,31 +93,55 @@ mod tests {
     #[test]
     fn lowers_face_layout_transforming() {
         assert_lowers(deckmaste_authoring::FaceLayout::Transforming);
+        assert_matches!(
+            deckmaste_authoring::FaceLayout::Transforming.lower(),
+            deckmaste_card::FaceLayout::Transforming
+        );
     }
 
     #[test]
     fn lowers_face_layout_modal_dfc() {
         assert_lowers(deckmaste_authoring::FaceLayout::ModalDfc);
+        assert_matches!(
+            deckmaste_authoring::FaceLayout::ModalDfc.lower(),
+            deckmaste_card::FaceLayout::ModalDfc
+        );
     }
 
     #[test]
     fn lowers_face_layout_split() {
         assert_lowers(deckmaste_authoring::FaceLayout::Split);
+        assert_matches!(
+            deckmaste_authoring::FaceLayout::Split.lower(),
+            deckmaste_card::FaceLayout::Split
+        );
     }
 
     #[test]
     fn lowers_face_layout_adventure() {
         assert_lowers(deckmaste_authoring::FaceLayout::Adventure);
+        assert_matches!(
+            deckmaste_authoring::FaceLayout::Adventure.lower(),
+            deckmaste_card::FaceLayout::Adventure
+        );
     }
 
     #[test]
     fn lowers_face_layout_flip() {
         assert_lowers(deckmaste_authoring::FaceLayout::Flip);
+        assert_matches!(
+            deckmaste_authoring::FaceLayout::Flip.lower(),
+            deckmaste_card::FaceLayout::Flip
+        );
     }
 
     #[test]
     fn lowers_card_normal() {
         assert_lowers(deckmaste_authoring::Card::Normal(minimal_card_face()));
+        assert_matches!(
+            deckmaste_authoring::Card::Normal(minimal_card_face()).lower(),
+            deckmaste_card::Card::Normal(..)
+        );
     }
 
     #[test]
@@ -124,5 +151,14 @@ mod tests {
             front: minimal_card_face(),
             back: minimal_card_face(),
         });
+        assert_matches!(
+            deckmaste_authoring::Card::TwoFaced {
+                layout: minimal_face_layout(),
+                front: minimal_card_face(),
+                back: minimal_card_face()
+            }
+            .lower(),
+            deckmaste_card::Card::TwoFaced { .. }
+        );
     }
 }

@@ -25,6 +25,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -35,6 +38,11 @@ mod tests {
             minimal_quantity(),
             minimal_predicate(),
         ));
+        assert_matches!(
+            deckmaste_authoring::TargetSpec::Target(minimal_quantity(), minimal_predicate())
+                .lower(),
+            deckmaste_core::TargetSpec::Target(..)
+        );
     }
 
     #[test]
@@ -43,6 +51,14 @@ mod tests {
             [].into(),
             std::sync::Arc::new(minimal_target_spec()),
         ));
+        assert_matches!(
+            deckmaste_authoring::TargetSpec::Distinct(
+                [].into(),
+                std::sync::Arc::new(minimal_target_spec())
+            )
+            .lower(),
+            deckmaste_core::TargetSpec::Distinct(..)
+        );
     }
 
     #[test]
@@ -55,5 +71,15 @@ mod tests {
                 value: Box::new(minimal_target_spec()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::TargetSpec::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_target_spec())
+            })
+            .lower(),
+            deckmaste_core::TargetSpec::Expanded(..)
+        );
     }
 }

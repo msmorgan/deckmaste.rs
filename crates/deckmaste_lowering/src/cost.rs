@@ -80,6 +80,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -91,6 +94,13 @@ mod tests {
                 std::sync::Arc::<[deckmaste_authoring::ManaSymbol]>::from([]),
             ),
         ));
+        assert_matches!(
+            deckmaste_authoring::CostComponent::Mana(deckmaste_authoring::ManaCost::from(
+                std::sync::Arc::<[deckmaste_authoring::ManaSymbol]>::from([])
+            ))
+            .lower(),
+            deckmaste_core::CostComponent::Mana(..)
+        );
     }
 
     #[test]
@@ -98,16 +108,28 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::CostComponent::ManaCostOf(
             minimal_reference(),
         ));
+        assert_matches!(
+            deckmaste_authoring::CostComponent::ManaCostOf(minimal_reference()).lower(),
+            deckmaste_core::CostComponent::ManaCostOf(..)
+        );
     }
 
     #[test]
     fn lowers_cost_component_tap() {
         assert_lowers_debug(deckmaste_authoring::CostComponent::Tap);
+        assert_matches!(
+            deckmaste_authoring::CostComponent::Tap.lower(),
+            deckmaste_core::CostComponent::Tap
+        );
     }
 
     #[test]
     fn lowers_cost_component_untap() {
         assert_lowers_debug(deckmaste_authoring::CostComponent::Untap);
+        assert_matches!(
+            deckmaste_authoring::CostComponent::Untap.lower(),
+            deckmaste_core::CostComponent::Untap
+        );
     }
 
     #[test]
@@ -115,11 +137,19 @@ mod tests {
         assert_lowers_debug(deckmaste_authoring::CostComponent::Do(std::sync::Arc::new(
             minimal_action(),
         )));
+        assert_matches!(
+            deckmaste_authoring::CostComponent::Do(std::sync::Arc::new(minimal_action())).lower(),
+            deckmaste_core::CostComponent::Do(..)
+        );
     }
 
     #[test]
     fn lowers_cost_component_cost() {
         assert_lowers_debug(deckmaste_authoring::CostComponent::Cost(minimal_cost()));
+        assert_matches!(
+            deckmaste_authoring::CostComponent::Cost(minimal_cost()).lower(),
+            deckmaste_core::CostComponent::Cost(..)
+        );
     }
 
     #[test]
@@ -130,6 +160,16 @@ mod tests {
             count: minimal_count(),
             filter: std::sync::Arc::new(minimal_predicate()),
         });
+        assert_matches!(
+            deckmaste_authoring::CostComponent::TapTotal {
+                stat: minimal_stat(),
+                cmp: minimal_cmp(),
+                count: minimal_count(),
+                filter: std::sync::Arc::new(minimal_predicate())
+            }
+            .lower(),
+            deckmaste_core::CostComponent::TapTotal { .. }
+        );
     }
 
     #[test]
@@ -138,6 +178,14 @@ mod tests {
             binder: std::sync::Arc::new(minimal_binder()),
             body: minimal_cost(),
         });
+        assert_matches!(
+            deckmaste_authoring::CostComponent::With {
+                binder: std::sync::Arc::new(minimal_binder()),
+                body: minimal_cost()
+            }
+            .lower(),
+            deckmaste_core::CostComponent::With { .. }
+        );
     }
 
     #[test]
@@ -150,6 +198,16 @@ mod tests {
                 value: Box::new(minimal_cost_component()),
             },
         ));
+        assert_matches!(
+            deckmaste_authoring::CostComponent::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_cost_component())
+            })
+            .lower(),
+            deckmaste_core::CostComponent::Expanded(..)
+        );
     }
 
     #[test]
@@ -159,7 +217,7 @@ mod tests {
 
     #[test]
     fn lowers_cost_tag() {
-        assert_lowers_debug(deckmaste_authoring::CostTag("X".into()));
+        assert_lowers(deckmaste_authoring::CostTag("X".into()));
     }
 
     #[test]

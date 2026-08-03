@@ -160,13 +160,19 @@ where
     );
 }
 
-/// The same assertion for grammar types that carry no `Serialize`.
+/// The same rendering assertion for grammar types that carry no `Serialize`.
 ///
-/// A handful of types are never written to RON (computed costs, lookup enums),
-/// so the serialized comparison is unavailable. Derived `Debug` gives an
-/// equivalent structural witness: it prints variant and field names WITHOUT
-/// crate qualification, so the authored and engine renderings are directly
-/// comparable, and a wrong variant or a swapped field still changes the text.
+/// Some types are never written to RON (computed costs, lookup enums), so the
+/// serialized comparison is unavailable. Derived `Debug` is an equivalent
+/// structural witness: it prints variant and field names WITHOUT crate
+/// qualification, so the authored and engine renderings compare directly.
+///
+/// This runs alongside the `assert_matches!` shape check, not instead of it,
+/// and the two catch different defects. The pattern pins the TOP-LEVEL variant
+/// — what a diverged arm must state — while the rendering pins NESTED
+/// structure, so a defect inside a minimal value fails every test whose value
+/// contains it. Measured: mis-mapping one `Zone` variant fails 7 tests with the
+/// rendering assertions in place and 1 without.
 #[cfg(test)]
 pub(crate) fn assert_lowers_debug<A, C>(value: A)
 where

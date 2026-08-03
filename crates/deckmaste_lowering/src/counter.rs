@@ -52,13 +52,16 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_counter_ref() {
-        assert_lowers_debug(deckmaste_authoring::CounterRef("X".into()));
+        assert_lowers(deckmaste_authoring::CounterRef("X".into()));
     }
 
     #[test]
@@ -67,21 +70,37 @@ mod tests {
             minimal_counter_ref(),
             minimal_count(),
         ));
+        assert_matches!(
+            deckmaste_authoring::CounterSpec::Named(minimal_counter_ref(), minimal_count()).lower(),
+            deckmaste_core::CounterSpec::Named(..)
+        );
     }
 
     #[test]
     fn lowers_counter_spec_all_kinds() {
         assert_lowers(deckmaste_authoring::CounterSpec::AllKinds);
+        assert_matches!(
+            deckmaste_authoring::CounterSpec::AllKinds.lower(),
+            deckmaste_core::CounterSpec::AllKinds
+        );
     }
 
     #[test]
     fn lowers_counter_scope_object() {
         assert_lowers(deckmaste_authoring::CounterScope::Object);
+        assert_matches!(
+            deckmaste_authoring::CounterScope::Object.lower(),
+            deckmaste_core::CounterScope::Object
+        );
     }
 
     #[test]
     fn lowers_counter_scope_player() {
         assert_lowers(deckmaste_authoring::CounterScope::Player);
+        assert_matches!(
+            deckmaste_authoring::CounterScope::Player.lower(),
+            deckmaste_core::CounterScope::Player
+        );
     }
 
     #[test]

@@ -69,6 +69,9 @@ mod tests {
         reason = "a module may need only one assertion, or no helper"
     )]
 
+    use std::assert_matches;
+
+    use crate::Lower;
     use crate::assert_lowers;
     use crate::assert_lowers_debug;
     use crate::minimal::*;
@@ -76,16 +79,28 @@ mod tests {
     #[test]
     fn lowers_timing_instant_speed() {
         assert_lowers(deckmaste_authoring::Timing::InstantSpeed);
+        assert_matches!(
+            deckmaste_authoring::Timing::InstantSpeed.lower(),
+            deckmaste_core::Timing::InstantSpeed
+        );
     }
 
     #[test]
     fn lowers_timing_sorcery_speed() {
         assert_lowers(deckmaste_authoring::Timing::SorcerySpeed);
+        assert_matches!(
+            deckmaste_authoring::Timing::SorcerySpeed.lower(),
+            deckmaste_core::Timing::SorcerySpeed
+        );
     }
 
     #[test]
     fn lowers_timing_during_turn() {
         assert_lowers(deckmaste_authoring::Timing::DuringTurn(minimal_whose_turn()));
+        assert_matches!(
+            deckmaste_authoring::Timing::DuringTurn(minimal_whose_turn()).lower(),
+            deckmaste_core::Timing::DuringTurn(..)
+        );
     }
 
     #[test]
@@ -94,31 +109,56 @@ mod tests {
             minimal_phase_step(),
             minimal_whose_turn(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Timing::DuringStep(minimal_phase_step(), minimal_whose_turn())
+                .lower(),
+            deckmaste_core::Timing::DuringStep(..)
+        );
     }
 
     #[test]
     fn lowers_lookback_this_turn() {
         assert_lowers(deckmaste_authoring::Lookback::ThisTurn);
+        assert_matches!(
+            deckmaste_authoring::Lookback::ThisTurn.lower(),
+            deckmaste_core::Lookback::ThisTurn
+        );
     }
 
     #[test]
     fn lowers_lookback_this_game() {
         assert_lowers(deckmaste_authoring::Lookback::ThisGame);
+        assert_matches!(
+            deckmaste_authoring::Lookback::ThisGame.lower(),
+            deckmaste_core::Lookback::ThisGame
+        );
     }
 
     #[test]
     fn lowers_lookback_last_turn() {
         assert_lowers(deckmaste_authoring::Lookback::LastTurn);
+        assert_matches!(
+            deckmaste_authoring::Lookback::LastTurn.lower(),
+            deckmaste_core::Lookback::LastTurn
+        );
     }
 
     #[test]
     fn lowers_lookback_this_combat() {
         assert_lowers(deckmaste_authoring::Lookback::ThisCombat);
+        assert_matches!(
+            deckmaste_authoring::Lookback::ThisCombat.lower(),
+            deckmaste_core::Lookback::ThisCombat
+        );
     }
 
     #[test]
     fn lowers_lookback_this_step() {
         assert_lowers(deckmaste_authoring::Lookback::ThisStep);
+        assert_matches!(
+            deckmaste_authoring::Lookback::ThisStep.lower(),
+            deckmaste_core::Lookback::ThisStep
+        );
     }
 
     #[test]
@@ -126,70 +166,126 @@ mod tests {
         assert_lowers(deckmaste_authoring::Lookback::SinceYour(
             minimal_phase_step(),
         ));
+        assert_matches!(
+            deckmaste_authoring::Lookback::SinceYour(minimal_phase_step()).lower(),
+            deckmaste_core::Lookback::SinceYour(..)
+        );
     }
 
     #[test]
     fn lowers_turn_marker_end_of_turn() {
         assert_lowers(deckmaste_authoring::TurnMarker::EndOfTurn);
+        assert_matches!(
+            deckmaste_authoring::TurnMarker::EndOfTurn.lower(),
+            deckmaste_core::TurnMarker::EndOfTurn
+        );
     }
 
     #[test]
     fn lowers_turn_marker_end_of_combat() {
         assert_lowers(deckmaste_authoring::TurnMarker::EndOfCombat);
+        assert_matches!(
+            deckmaste_authoring::TurnMarker::EndOfCombat.lower(),
+            deckmaste_core::TurnMarker::EndOfCombat
+        );
     }
 
     #[test]
     fn lowers_turn_marker_your_next_turn() {
         assert_lowers(deckmaste_authoring::TurnMarker::YourNextTurn);
+        assert_matches!(
+            deckmaste_authoring::TurnMarker::YourNextTurn.lower(),
+            deckmaste_core::TurnMarker::YourNextTurn
+        );
     }
 
     #[test]
     fn lowers_lock_point_announce() {
         assert_lowers(deckmaste_authoring::LockPoint::Announce);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::Announce.lower(),
+            deckmaste_core::LockPoint::Announce
+        );
     }
 
     #[test]
     fn lowers_lock_point_stack_placement() {
         assert_lowers(deckmaste_authoring::LockPoint::StackPlacement);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::StackPlacement.lower(),
+            deckmaste_core::LockPoint::StackPlacement
+        );
     }
 
     #[test]
     fn lowers_lock_point_total_cost() {
         assert_lowers(deckmaste_authoring::LockPoint::TotalCost);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::TotalCost.lower(),
+            deckmaste_core::LockPoint::TotalCost
+        );
     }
 
     #[test]
     fn lowers_lock_point_payment() {
         assert_lowers(deckmaste_authoring::LockPoint::Payment);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::Payment.lower(),
+            deckmaste_core::LockPoint::Payment
+        );
     }
 
     #[test]
     fn lowers_lock_point_effect_begin() {
         assert_lowers(deckmaste_authoring::LockPoint::EffectBegin);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::EffectBegin.lower(),
+            deckmaste_core::LockPoint::EffectBegin
+        );
     }
 
     #[test]
     fn lowers_lock_point_copy_creation() {
         assert_lowers(deckmaste_authoring::LockPoint::CopyCreation);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::CopyCreation.lower(),
+            deckmaste_core::LockPoint::CopyCreation
+        );
     }
 
     #[test]
     fn lowers_lock_point_declaration() {
         assert_lowers(deckmaste_authoring::LockPoint::Declaration);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::Declaration.lower(),
+            deckmaste_core::LockPoint::Declaration
+        );
     }
 
     #[test]
     fn lowers_lock_point_pre_game() {
         assert_lowers(deckmaste_authoring::LockPoint::PreGame);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::PreGame.lower(),
+            deckmaste_core::LockPoint::PreGame
+        );
     }
 
     #[test]
     fn lowers_lock_point_resolution() {
         assert_lowers(deckmaste_authoring::LockPoint::Resolution);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::Resolution.lower(),
+            deckmaste_core::LockPoint::Resolution
+        );
     }
 
     #[test]
     fn lowers_lock_point_never() {
         assert_lowers(deckmaste_authoring::LockPoint::Never);
+        assert_matches!(
+            deckmaste_authoring::LockPoint::Never.lower(),
+            deckmaste_core::LockPoint::Never
+        );
     }
 }
