@@ -1,13 +1,18 @@
 //! `TodoCard` — the in-progress, on-disk form of a card during resolution: a
-//! mirror of core `Card` whose `abilities` may be `Unparsed("<oracle line>")`
-//! placeholders (not yet rewritten as RON) or verbatim structured abilities.
-//! `extract` builds and writes these; Plan 3's `resolve` reads, rewrites the
-//! `Unparsed` entries, and writes them back; `graduate` ignores this type and
-//! just tries to parse the file as core `Card`.
+//! mirror of the authored `Card` whose `abilities` may be
+//! `Unparsed("<oracle line>")` placeholders (not yet rewritten as RON) or
+//! verbatim structured abilities. `extract` builds and writes these; Plan 3's
+//! `resolve` reads, rewrites the `Unparsed` entries, and writes them back;
+//! `graduate` ignores this type and just tries to parse the file as an
+//! authored `Card`.
+//!
+//! Every field here is spelled in the AUTHORING grammar: a `.ron.todo` is a
+//! card-content container, so what is written back to disk is authored text
+//! (`docs/decisions/authoring-spelling-lowering.md` §4).
 
-use deckmaste_core::Color;
-use deckmaste_core::ManaCost;
-use deckmaste_core::StatValue;
+use deckmaste_authoring::Color;
+use deckmaste_authoring::ManaCost;
+use deckmaste_authoring::StatValue;
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::Serialize;
@@ -17,7 +22,7 @@ use serde::ser::Serializer;
 
 /// One ability slot in a `.ron.todo`: either a not-yet-rewritten oracle line,
 /// or a structured ability captured verbatim (so resolve preserves it and the
-/// graduation reader sees a bare core ability).
+/// graduation reader sees a bare authored ability).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TodoAbility {
     Unparsed(String),
@@ -67,8 +72,8 @@ impl Serialize for TodoAbility {
 /// A bare (unquoted) RON identifier — a macro-invocation name like `Bear`,
 /// `Creature`, or `TimeLord`. Card files reference their types, supertypes, and
 /// subtypes by bare name; the macro-aware reader expands them. We cannot use
-/// the core `Type` / `Supertype` / `Subtype` types here, because `Subtype` is a
-/// struct whose bare form (`Bear`) is macro sugar that plain serde cannot
+/// the authored `Type` / `Supertype` / `Subtype` types here, because `Subtype`
+/// is a struct whose bare form (`Bear`) is macro sugar that plain serde cannot
 /// parse. So we capture and re-emit the ident verbatim via `RawValue` — the
 /// same trick `TodoAbility::Parsed` uses for structured abilities.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,8 +95,8 @@ impl Serialize for RawIdent {
 }
 
 /// A face whose abilities are `TodoAbility`. Field set mirrors
-/// `deckmaste_card::CardFace`; the skip/default attrs match it so a fully
-/// resolved face is byte-identical to a core `CardFace`.
+/// `deckmaste_authoring::CardFace`; the skip/default attrs match it so a fully
+/// resolved face is byte-identical to an authored `CardFace`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct TodoCardFace {
     pub name: String,
@@ -116,29 +121,29 @@ pub struct TodoCardFace {
     pub defense: Option<StatValue>,
 }
 
-/// The card shapes core `Card` supports — the serialized form must stay
-/// byte-identical to core's (`Normal` / `TwoFaced { layout, front, back }`),
-/// so `TwoFaced.layout` reuses core's [`FaceLayout`] directly.
+/// The card shapes the authored `Card` supports — the serialized form must
+/// stay byte-identical to it (`Normal` / `TwoFaced { layout, front, back }`),
+/// so `TwoFaced.layout` reuses [`deckmaste_authoring::FaceLayout`] directly.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-// Mirrors core `Card`'s shape (see the `large_enum_variant` note there): the
-// `TwoFaced` variant is inherently larger and boxing buys nothing on an
-// authoring value.
+// Mirrors the authored `Card`'s shape (see the `large_enum_variant` note
+// there): the `TwoFaced` variant is inherently larger and boxing buys nothing
+// on an authoring value.
 #[expect(
     clippy::large_enum_variant,
-    reason = "mirrors core Card; boxing a face buys nothing"
+    reason = "mirrors the authored Card; boxing a face buys nothing"
 )]
 pub enum TodoCard {
     Normal(TodoCardFace),
     TwoFaced {
-        layout: deckmaste_card::FaceLayout,
+        layout: deckmaste_authoring::FaceLayout,
         front: TodoCardFace,
         back: TodoCardFace,
     },
 }
 
 /// Renders a `TodoCard` to house-style RON (shared `ron_output` config). When
-/// every ability is `Parsed`, the output is byte-identical to a finished core
-/// `Card`, so graduation's rename produces a valid `.ron`.
+/// every ability is `Parsed`, the output is byte-identical to a finished
+/// authored `Card`, so graduation's rename produces a valid `.ron`.
 ///
 /// # Errors
 ///
@@ -153,10 +158,13 @@ mod tests {
     use super::*;
 
     fn read(source: &str) -> TodoCard {
-        // The literal-aware facade (as graduation reads a `Card`): a bare
-        // `power: 1` is a `StatValue::Number` `#[macro_ron(literal)]`, spliced
-        // by the literal reader — raw `ron` can't read it.
-        deckmaste_core::ron::options().from_str(source).unwrap()
+        // The literal-aware AUTHORING facade (as graduation reads a `Card`, via
+        // `Plugin::card_from_str`): a bare `power: 1` is a `StatValue::Number`
+        // `#[macro_ron(literal)]`, spliced by the literal reader — raw `ron`
+        // can't read it.
+        deckmaste_authoring::ron::options()
+            .from_str(source)
+            .unwrap()
     }
 
     /// An `Unparsed("…")` ability reads as the placeholder; a bare structured

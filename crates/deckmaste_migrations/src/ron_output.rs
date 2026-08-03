@@ -4,10 +4,11 @@
 
 use serde::Serialize;
 
-/// The shared config from [`deckmaste_core::ron`]: its extensions are
-/// defaults, so no `#![enable(...)]` header is emitted.
+/// The shared config from [`deckmaste_authoring::ron`] — migration output is
+/// authored text, so it is written at the authoring grammar's config. Its
+/// extensions are defaults, so no `#![enable(...)]` header is emitted.
 pub(crate) fn ron_options() -> ron::Options {
-    deckmaste_core::ron::raw_options()
+    deckmaste_authoring::ron::raw_options()
 }
 
 /// Two-space indentation; multi-line text is written verbatim and arrays are

@@ -310,13 +310,14 @@ fn parse_requirement(subj: &str, pred: &str) -> Option<String> {
 }
 
 /// "<adjective> spell(s) [you cast] cost {N} less/more to cast" → a
-/// [`CostModifier`](deckmaste_core::StaticEffect) static ([CR#118.7,601.2f]):
-/// "less" is a `Reduce`, "more" an `Increase`, of {N} generic mana, whose `of`
-/// filter is the spell-subject predicate (Goblin Warchief = "Goblin spells you
-/// cast"). This is the PARSE half — the engine's total-cost
-/// application of the emitted row is engine-cost-modification. The amount is a
-/// bare mana run (`{X}` declines — a variable reduction is not a fixed pipeline
-/// step); anything else about the shape declines and the line stays `Unparsed`.
+/// [`CostModifier`](deckmaste_authoring::StaticEffect) static
+/// ([CR#118.7,601.2f]): "less" is a `Reduce`, "more" an `Increase`, of {N}
+/// generic mana, whose `of` filter is the spell-subject predicate (Goblin
+/// Warchief = "Goblin spells you cast"). This is the PARSE half — the engine's
+/// total-cost application of the emitted row is engine-cost-modification. The
+/// amount is a bare mana run (`{X}` declines — a variable reduction is not a
+/// fixed pipeline step); anything else about the shape declines and the line
+/// stays `Unparsed`.
 fn parse_cost_modifier(body: &str) -> Option<String> {
     use crate::parsers::cost::VariableMana;
 

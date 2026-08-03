@@ -525,8 +525,9 @@ name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "deckmaste_card",
+ "deckmaste_authoring",
  "deckmaste_core",
+ "deckmaste_lowering",
  "deckmaste_plugin",
  "rayon",
  "regex",

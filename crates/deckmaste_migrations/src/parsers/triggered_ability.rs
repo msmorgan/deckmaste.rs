@@ -183,10 +183,10 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
 /// - one subject over two verbs: `~ enters or attacks`.
 ///
 /// Each arm is parsed through the ordinary event production, then retained as
-/// its own [`EventFilter`](deckmaste_core::EventFilter) disjunct. Keeping the
-/// subject/event pairing per arm matters when the verbs name different master
-/// forms (`ZoneChange` vs. `AttackDeclared`), and makes the trigger fire only
-/// once if one occurrence happens to satisfy both arms ([CR#603.2c]).
+/// its own [`EventFilter`](deckmaste_authoring::EventFilter) disjunct. Keeping
+/// the subject/event pairing per arm matters when the verbs name different
+/// master forms (`ZoneChange` vs. `AttackDeclared`), and makes the trigger fire
+/// only once if one occurrence happens to satisfy both arms ([CR#603.2c]).
 ///
 /// Partner-style names use plural agreement after extraction (`~ enter or
 /// attack`). [`parse_compound_event_atom`] singularizes only these bounded
@@ -515,9 +515,9 @@ fn parse_cast_event(clause: &str) -> Option<String> {
 /// returning the `who:` RON atom and the rest of the clause (the `what:`
 /// phrase). Three subjects appear in real oracle text ([CR#601.2i]): the
 /// controller's own cast ("you cast" -> `Ref(You)`), any player's ("a player
-/// casts" -> `Player`, the [`Predicate`](deckmaste_core::Predicate) macro that
-/// expands to `Kind(Player)`), and specifically an opponent's ("an opponent
-/// casts" -> `OpponentOf(Ref(You))`, mirroring
+/// casts" -> `Player`, the [`Predicate`](deckmaste_authoring::Predicate) macro
+/// that expands to `Kind(Player)`), and specifically an opponent's ("an
+/// opponent casts" -> `OpponentOf(Ref(You))`, mirroring
 /// [`filter::recipient_phrase`]'s "an opponent" reading). Any other subject
 /// (an unrecognized phrase, "you cast or copy") declines — none of the three
 /// prefixes match, so `rest` is never produced and the caller's own

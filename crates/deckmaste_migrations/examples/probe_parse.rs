@@ -11,7 +11,7 @@
 use std::io::BufRead;
 use std::io::Write;
 
-use deckmaste_core::ManaCost;
+use deckmaste_authoring::ManaCost;
 use deckmaste_migrations::resolve::resolve_card;
 use deckmaste_migrations::todo_card::RawIdent;
 use deckmaste_migrations::todo_card::TodoAbility;

@@ -1299,7 +1299,7 @@ fn parse_destroy_macro_target(
 /// - `Sacrifice it/~ unless you pay <cost>.` -> the "unless you pay" toll
 ///   ([CR#118.12a]): the controller may pay the stated cost to keep the
 ///   permanent, else sacrifices it. Wrapped in an
-///   [`Unless`](deckmaste_core::OneShotEffect::Unless) whose payer is the
+///   [`Unless`](deckmaste_authoring::OneShotEffect::Unless) whose payer is the
 ///   default `You` (the controller — the trigger fires on your own upkeep).
 ///   Only a single mana cost is modeled (the overwhelmingly common upkeep tax);
 ///   a richer toll declines. Mirrors the kw-echo macro's `Unless(effect:
@@ -1367,9 +1367,9 @@ fn parse_attach(line: &str) -> Option<ParsedEffect> {
 /// `Counter target spell[ unless its controller pays <cost>].` -> a
 /// `TargetOne(Spell)` target on the stack and a `Counter(It)` body
 /// ([CR#701.6a]). The "unless its controller pays" rider wraps the counter in
-/// an [`Unless`](deckmaste_core::OneShotEffect::Unless) ([CR#118.12a]): the
-/// spell's controller (`who: ControllerOf(It)`) may pay the stated cost to stop
-/// the counter. Only the bare and the mana-tax riders parse; richer riders
+/// an [`Unless`](deckmaste_authoring::OneShotEffect::Unless) ([CR#118.12a]):
+/// the spell's controller (`who: ControllerOf(It)`) may pay the stated cost to
+/// stop the counter. Only the bare and the mana-tax riders parse; richer riders
 /// (replacement clauses, "you may cast …", restricted spell filters) are later
 /// productions. Case-insensitive lead (spell clause vs. trigger comma).
 fn parse_counter(line: &str) -> Option<ParsedEffect> {
@@ -1658,7 +1658,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
 ///   graveyard to the battlefield.` -> self-reanimation, no target (`Move(This,
 ///   Battlefield)`).
 ///
-/// No [`EnterRider`](deckmaste_core::EnterRider) is emitted: a "your
+/// No [`EnterRider`](deckmaste_authoring::EnterRider) is emitted: a "your
 /// graveyard" subject is already owned by the resolving player, and the
 /// engine derives battlefield-entry control from the object's stored
 /// `controller` field, which is forced to the owner while off the
@@ -1961,7 +1961,7 @@ fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
 /// Bounce-to-library productions (the library twin of
 /// [`parse_return_to_hand`]) — every arm emits the `Move(_, Library(anchor))`
 /// primitive with a MANDATORY anchor (a bare `Library` destination is
-/// rejected by the grammar; see [`deckmaste_core::Destination`]):
+/// rejected by the grammar; see [`deckmaste_authoring::Destination`]):
 /// - `Put ~ on top of its owner's library.` / `Put ~ on the bottom of its
 ///   owner's library.` -> a self-bounce (`Move(This, Library(FromTop(0)))` /
 ///   `Move(This, Library(FromBottom(0)))`), no target — the effect body of
@@ -2039,8 +2039,8 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
 }
 
 /// `Tap target <subject>.` / `Untap target <subject>.` -> the
-/// [`Tap`](deckmaste_core::Action::Tap) /
-/// [`Untap`](deckmaste_core::Action::Untap) verbs ([CR#701.26a..701.26b])
+/// [`Tap`](deckmaste_authoring::Action::Tap) /
+/// [`Untap`](deckmaste_authoring::Action::Untap) verbs ([CR#701.26a..701.26b])
 /// over a single target. The subject is parsed by [`object_target_filter`].
 /// Riders ("It doesn't untap …", "It gets …") leave trailing text past the
 /// period-terminated single sentence, so they decline cleanly here (each is a
@@ -2455,10 +2455,10 @@ fn parse_create_predefined_token(line: &str) -> Option<ParsedEffect> {
     // "<count-word> <Name>" — a literal count word then the predefined name.
     let (count_word, name) = descriptor.split_once(' ')?;
     let count = number_word(count_word)?;
-    // Only a name the engine can resolve to a builtin token may become a
-    // `Named(...)`; anything else (an unbuilt predefined token, a typo, a
-    // "tapped …" modifier left in `name`) declines cleanly.
-    deckmaste_core::PredefinedToken::from_name(name)?;
+    // Only a name the authored `Named(...)` position admits may be emitted;
+    // anything else (an unbuilt predefined token, a typo, a "tapped …" modifier
+    // left in `name`) declines cleanly.
+    deckmaste_authoring::PredefinedToken::from_name(name)?;
     Some(ParsedEffect {
         functional_zone: None,
         targets: Vec::new(),
@@ -3150,8 +3150,9 @@ mod tests {
         );
     }
 
-    /// The emitted invocations READ back through the builtin macros: the
-    /// declarative-subject keyword-action macros expand to their core
+    /// The emitted invocations READ back through the builtin macros, at the
+    /// AUTHORING grammar the emitted card file is read at: the
+    /// declarative-subject keyword-action macros expand to their
     /// `Composite` (`Mills(It, 2)` → `Composite(Mill(It, 2), …)`), remembered
     /// with their template so the render side prints the verb phrase back — the
     /// parse-via-macros round trip at the read boundary. (`Mills`/`Draws` are
@@ -3160,16 +3161,20 @@ mod tests {
     #[test]
     fn declarative_subject_emissions_read_back() {
         use std::path::Path;
+
+        use deckmaste_authoring::Action;
+        use deckmaste_authoring::OneShotEffect;
+
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let plugin = deckmaste_plugin::plugin::Plugin::load(plugins.join("builtin")).unwrap();
-        let effect: deckmaste_core::OneShotEffect = plugin
+        let effect: OneShotEffect = plugin
             .macros
             .read_str("Each(binder: Existing(SelectAll(Player)), effect: Mills(It, 2))")
             .unwrap();
-        let deckmaste_core::OneShotEffect::Each(each) = effect else {
+        let OneShotEffect::Each(each) = effect else {
             panic!("expected Each, got {effect:?}");
         };
-        let deckmaste_core::OneShotEffect::Expanded(exp) = &*each.effect else {
+        let OneShotEffect::Expanded(exp) = &*each.effect else {
             panic!(
                 "expected a remembered Mills expansion, got {:?}",
                 each.effect
@@ -3179,14 +3184,13 @@ mod tests {
         // `Mills(It, 2)` is the slice-family `Batch(2, Act(Composite(name:
         // Mill, …)))`; the performer (`It`) rides the body's `TopOfLibrary`
         // selection, not a typed atom.
-        let deckmaste_core::OneShotEffect::Batch(_, inner) = exp.value.as_ref() else {
+        let OneShotEffect::Batch(_, inner) = exp.value.as_ref() else {
             panic!("Mills(It, 2) expands to a Batch, got {:?}", exp.value);
         };
         assert!(
             matches!(
                 inner.as_ref(),
-                deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::Composite { name, .. })
-                    if name.as_str() == "Mill"
+                OneShotEffect::Act(Action::Composite { name, .. }) if name.as_str() == "Mill"
             ),
             "Mills(It, 2) is a Batch over Composite(name: Mill, …), got {inner:?}"
         );

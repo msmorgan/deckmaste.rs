@@ -25,8 +25,8 @@ use crate::todo_card::TodoCardFace;
 /// a space in the source text.
 const BULLET: char = '\u{2022}';
 
-/// How a header's "Choose …" instruction maps onto the engine's
-/// [`ChooseSpec`](deckmaste_core::ChooseSpec) fields — `count` is the bare
+/// How a header's "Choose …" instruction maps onto the authored
+/// [`ChooseSpec`](deckmaste_authoring::ChooseSpec) fields — `count` is the bare
 /// numeral written into the spec, `up_to`/`repeats` the two flags.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ChooseShape {

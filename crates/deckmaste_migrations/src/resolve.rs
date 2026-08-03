@@ -202,11 +202,12 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
             // A malformed `.ron.todo` aborts the run (via `?`): it means a bug in
             // the step that wrote it, which the engineer should fix before resolving.
             let source = std::fs::read_to_string(path)?;
-            // Read through the literal-aware facade (as graduation reads a `Card`):
-            // a bare `power: 2` is a `StatValue::Number` `#[macro_ron(literal)]`,
-            // spliced by the literal reader — raw `ron` sees `StatValue` as an enum
-            // and rejects the bare numeral ("invalid std identifier").
-            let mut card: TodoCard = deckmaste_core::ron::options()
+            // Read through the literal-aware AUTHORING facade (as graduation
+            // reads a `Card`, via `Plugin::card_from_str`): a bare `power: 2` is
+            // a `StatValue::Number` `#[macro_ron(literal)]`, spliced by the
+            // literal reader — raw `ron` sees `StatValue` as an enum and rejects
+            // the bare numeral ("invalid std identifier").
+            let mut card: TodoCard = deckmaste_authoring::ron::options()
                 .from_str(&source)
                 .with_context(|| format!("parsing {}", path.display()))?;
             if resolve_card(&mut card, &index)? {
@@ -240,7 +241,7 @@ mod tests {
 
     #[test]
     fn resolve_replaces_known_lines_only() {
-        use deckmaste_core::ManaCost;
+        use deckmaste_authoring::ManaCost;
         let mut card = TodoCard::Normal(TodoCardFace {
             name: "X".into(),
             mana_cost: ManaCost::default(),
@@ -388,7 +389,7 @@ mod tests {
     #[test]
     fn resolve_modal_dfc_resolves_both_faces() {
         let mut card = TodoCard::TwoFaced {
-            layout: deckmaste_card::FaceLayout::ModalDfc,
+            layout: deckmaste_authoring::FaceLayout::ModalDfc,
             front: TodoCardFace {
                 abilities: vec![TodoAbility::Unparsed("Flying".into())],
                 ..Default::default()
@@ -414,14 +415,14 @@ mod tests {
     #[test]
     fn ascend_on_spell_folds_into_spell_effect() {
         // A Sorcery with Ascend + a life-gain effect, both already
-        // line-resolved. `<E>` = `ChangeLife(You, Up(1))` — a CORE-PARSEABLE effect:
+        // line-resolved. `<E>` = `ChangeLife(You, Up(1))` — a BARE-PARSEABLE effect:
         // this is route (a) from the task. The migrations spell parser may emit
         // macro-flavored atoms (e.g. `Draws(2)`), but the round-trip assertion
-        // below uses the BARE `deckmaste_core::ron::options()` reader — the same
-        // reader `resolve_cards`/`graduate` round-trips card RON through — so the
-        // fixture must be one the bare core reader accepts. A bare one-token
+        // below uses the BARE `deckmaste_authoring::ron::options()` reader —
+        // macro-free, unlike the `Plugin::card_from_str` path graduation takes —
+        // so the fixture must be one the bare reader accepts. A bare one-token
         // player verb (`ChangeLife(You, Up(1))`) is exactly such a form; draw/mill are
-        // no longer bare-core (mill lowers to `Composite(Mill(who), …)` and
+        // no longer bare-parseable (mill lowers to `Composite(Mill(who), …)` and
         // draw to `Batch(n, By(who, DrawCard))`), so the Ascend fold is
         // exercised with a surviving bare `PlayerAction`.
         let mut face = TodoCardFace {
@@ -466,8 +467,9 @@ mod tests {
             spell.contains("ChangeLife(You, Up(1))"),
             "original effect preserved: {spell}"
         );
-        // The wrapped Spell string re-parses into a typed Ability (no garbage).
-        let _: deckmaste_core::Ability = deckmaste_core::ron::options()
+        // The wrapped Spell string re-parses into a typed authored Ability (no
+        // garbage) — the grammar the file it is written into is read at.
+        let _: deckmaste_authoring::Ability = deckmaste_authoring::ron::options()
             .from_str(&spell)
             .expect("wrapped Spell re-parses");
     }
@@ -507,13 +509,16 @@ mod tests {
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::StatePredicate;
         use deckmaste_core::Zone;
+        use deckmaste_lowering::Lower as _;
 
-        // Read through the literal-aware core reader — the one the graduation
-        // round-trip uses — so the bare `10` literal in `ASCEND_GATE` parses
-        // (the raw reader has no `literal` macro layer and would reject it).
-        let parsed: Condition = deckmaste_core::ron::options()
+        // `ASCEND_GATE` is spliced into card RON, so it is AUTHORED text: read it
+        // through the literal-aware AUTHORING reader (the bare `10` literal needs
+        // the `literal` macro layer; the raw reader would reject it), then lower
+        // — the claim is about the condition the ENGINE ends up with.
+        let parsed: deckmaste_authoring::Condition = deckmaste_authoring::ron::options()
             .from_str(ASCEND_GATE)
             .expect("ASCEND_GATE parses as a Condition");
+        let parsed: Condition = parsed.lower();
 
         let canonical = Condition::And(
             vec![
