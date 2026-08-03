@@ -17,7 +17,7 @@ distinct carriers by recipe).
 
 Reproduce the whole census:
 ```
-cargo run -q --release -p xtask -- english adversarial --per-rule 2
+cargo run -q --release -p xtask -- english adversarial --per-rule=2
 ```
 Reproduce a single case:
 ```
