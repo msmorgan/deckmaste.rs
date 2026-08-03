@@ -40,7 +40,7 @@
 //! markers are what make a row a draft frame rather than a complaint: they say
 //! which constituents are already spellable and which one is missing.
 //!
-//! `deckmaste_frames`'s own residual truncation is a *diagnostic* — it caps a
+//! `deckmaste_spelling`'s own residual truncation is a *diagnostic* — it caps a
 //! `Debug` string by character budget and keeps every scalar value in it — so
 //! it cannot serve here: two cards' instances of one shape would carry their
 //! own names and numbers and group into two rows.
@@ -82,7 +82,7 @@
 //! general one. A residual that is not a whole line (only reachable through
 //! [`Classification::Partial`]; the live corpus attests none) has no such
 //! shortcut, and falls back to
-//! [`deckmaste_frames::render::render_residual_text`]'s honest, narrower
+//! [`deckmaste_spelling::render::render_residual_text`]'s honest, narrower
 //! reconstruction; a shape neither path can render is skipped rather than
 //! guessed at.
 //!
@@ -106,7 +106,7 @@
 //! `body:`, a human would have to fix by hand.
 //!
 //! **Never a broken draft.** Every candidate is compiled
-//! ([`deckmaste_frames::compile::compile`]) before it is kept; a draft whose
+//! ([`deckmaste_spelling::compile::compile`]) before it is kept; a draft whose
 //! carved text does not compile at its own derived `kind` is dropped and the
 //! reason is reported, rather than shipping a skeleton a human would paste in
 //! and immediately get a build error from. `body:` is never set — D11's
@@ -128,18 +128,18 @@ use deckmaste_core::plugin::is_todo_source;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::parse_fragment;
-use deckmaste_frames::Lexicon;
-use deckmaste_frames::PathStep;
-use deckmaste_frames::Recovered;
-use deckmaste_frames::TreePath;
-use deckmaste_frames::View;
-use deckmaste_frames::render::render_residual_text;
-use deckmaste_frames::unify;
-use deckmaste_frames::view;
 use deckmaste_legacy_render::render::CardView;
 use deckmaste_legacy_render::render::render;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::plugin::read;
+use deckmaste_spelling::Lexicon;
+use deckmaste_spelling::PathStep;
+use deckmaste_spelling::Recovered;
+use deckmaste_spelling::TreePath;
+use deckmaste_spelling::View;
+use deckmaste_spelling::render::render_residual_text;
+use deckmaste_spelling::unify;
+use deckmaste_spelling::view;
 use macro_ron::frames::ConstructorFrames;
 use macro_ron::frames::FrameKind;
 use macro_ron::frames::FramePosition;
@@ -1070,7 +1070,7 @@ fn draft_for_row(
     let kind = residual_kind(&row.exemplar.view, row.exemplar.parsed_at);
     let spec = FrameSpec::bare(&text);
     if let Err(error) =
-        deckmaste_frames::compile::compile(&spec, kind, &params, catalogs, lexicon.macros())
+        deckmaste_spelling::compile::compile(&spec, kind, &params, catalogs, lexicon.macros())
     {
         return Draft::Skipped(format!(
             "`{}`: draft frame {text:?} did not compile: {error:#}",
@@ -1174,9 +1174,9 @@ fn fragment_kind_named(variant: &str) -> Option<FragmentKind> {
     }
 }
 
-/// Mirrors `deckmaste_frames::lexicon::fragment_kind_of`'s table, in reverse.
+/// Mirrors `deckmaste_spelling::lexicon::fragment_kind_of`'s table, in reverse.
 /// That function is private to its crate (a constructor entry's required
-/// `kind:` is the schema type; nothing in `deckmaste_frames` reads a
+/// `kind:` is the schema type; nothing in `deckmaste_spelling` reads a
 /// `FragmentKind` back out of one), so the five-arm match is repeated here
 /// rather than exposed for one caller.
 fn to_frame_kind(kind: FragmentKind) -> FrameKind {
@@ -1674,7 +1674,7 @@ mod tests {
         let text = draft.frames[0].text.clone();
         assert_eq!(text, "Goblin");
         assert!(
-            deckmaste_frames::witness::reserved_tokens(&text).is_empty(),
+            deckmaste_spelling::witness::reserved_tokens(&text).is_empty(),
             "a witness leaked into the surface text: {text}"
         );
         assert!(draft.body.is_none(), "D11's contract: body: is left absent");
@@ -1685,7 +1685,7 @@ mod tests {
         // from `draft_for_row`'s own internal gate: the draft's own frame
         // text really does compile at the draft's own declared kind.
         let fragment_kind = residual_kind(&row.exemplar.view, row.exemplar.parsed_at);
-        let compiled = deckmaste_frames::compile::compile(
+        let compiled = deckmaste_spelling::compile::compile(
             &draft.frames[0],
             fragment_kind,
             &draft.params,
@@ -1887,7 +1887,7 @@ mod tests {
             );
             for frame in &draft.frames {
                 assert!(
-                    deckmaste_frames::witness::reserved_tokens(&frame.text).is_empty(),
+                    deckmaste_spelling::witness::reserved_tokens(&frame.text).is_empty(),
                     "{}: a witness leaked into {:?}",
                     draft.constructor,
                     frame.text

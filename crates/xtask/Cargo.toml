@@ -19,7 +19,7 @@ deckmaste_english = { version = "0.1.0", path = "../deckmaste_english" }
 # `macro inspect` compiles a frame (needs `CompiledFrame`/`compile`); `macro
 # templates` only needs the schema (`macro_ron::frames`) and `MacroDef`, but
 # both live in the same two crates the frame layer split across.
-deckmaste_frames = { version = "0.1.0", path = "../deckmaste_frames" }
+deckmaste_spelling = { version = "0.1.0", path = "../deckmaste_spelling" }
 deckmaste_migrations = { version = "0.1.0", path = "../deckmaste_migrations" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 # `map enums`: parse Rust sources to find `pub enum` shapes; span-locations

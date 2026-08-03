@@ -15,7 +15,7 @@
 //!   a non-`Residual` under the pilot lexicon, does the recovered structure —
 //!   emitted as RON text and expanded — equal the card's own authored value,
 //!   likewise expanded? Both directions go through
-//!   [`deckmaste_frames::guard::normalized`]/`normalize_source`, the round's
+//!   [`deckmaste_spelling::guard::normalized`]/`normalize_source`, the round's
 //!   one canonicalizer, never a second implementation. The comparison is on
 //!   **values**: an entry may stand for a value whose RON shape is not the flat
 //!   application of its name, so one value has two spellings and only the
@@ -82,7 +82,7 @@
 //! *macro*" — so a top-level `Origin::Constructor` match, or one
 //! [`render_invocation_with`] cannot render for want of coverage (the
 //! identical residual limitation, one level up — see
-//! `deckmaste_frames::render`'s own module doc), is excluded from G3
+//! `deckmaste_spelling::render`'s own module doc), is excluded from G3
 //! specifically ([`ExclusionReason::NotMacroOrigin`]/
 //! [`ExclusionReason::RenderFailed`]), recorded in its own census rather than
 //! silently dropped. The one render failure that is **not** a coverage
@@ -106,15 +106,6 @@ use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::parse_fragment;
-use deckmaste_frames::Lexicon;
-use deckmaste_frames::ReassembledDifferently;
-use deckmaste_frames::Recovered;
-use deckmaste_frames::View;
-use deckmaste_frames::guard;
-use deckmaste_frames::lexicon::Origin;
-use deckmaste_frames::render_invocation_with;
-use deckmaste_frames::unify;
-use deckmaste_frames::view;
 use deckmaste_legacy_render::fidelity;
 use deckmaste_legacy_render::fidelity::Oracle;
 use deckmaste_legacy_render::fidelity::Outcome as FidelityOutcome;
@@ -122,6 +113,15 @@ use deckmaste_legacy_render::render::CardView;
 use deckmaste_legacy_render::render::render;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::plugin::read;
+use deckmaste_spelling::Lexicon;
+use deckmaste_spelling::ReassembledDifferently;
+use deckmaste_spelling::Recovered;
+use deckmaste_spelling::View;
+use deckmaste_spelling::guard;
+use deckmaste_spelling::lexicon::Origin;
+use deckmaste_spelling::render_invocation_with;
+use deckmaste_spelling::unify;
+use deckmaste_spelling::view;
 use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 use macro_ron::frames::load_constructor_frames;
@@ -692,7 +692,7 @@ enum ExclusionReason {
     NotMacroOrigin,
     /// (G3 only.) `render_invocation_with` itself returned `Err` — most
     /// commonly an unreconstructable residual filler (see
-    /// `deckmaste_frames::render`'s own module doc).
+    /// `deckmaste_spelling::render`'s own module doc).
     RenderFailed,
 }
 
@@ -795,16 +795,17 @@ fn evaluate_line<'a>(
 ///
 /// Both sides go through
 /// [`guard::normalize_source`]/
-/// [`normalized`](deckmaste_frames::guard::normalized) — read at the line's own
-/// RON type, fully expanded, compared as `View`s. So two spellings of one value
-/// are equal, which they must be: an entry's emission is its body term with the
-/// recovered arguments filled ([`Recovered::to_ron`]), and a body exists
-/// precisely because the value's RON shape is not the flat application of the
-/// entry's name. `ChangeLife(You, Up(3))` on the card and `ChangeLife(You,
-/// Up(Literal(3)))` from the recovery are the same `OneShotEffect`
-/// (`Literal(…)` is `Count`'s leniently-readable, never-written tagged spelling
-/// of a bare numeral); a string comparison would call them different, and did.
-/// The recovered RON text survives only as something to *print*.
+/// [`normalized`](deckmaste_spelling::guard::normalized) — read at the line's
+/// own RON type, fully expanded, compared as `View`s. So two spellings of one
+/// value are equal, which they must be: an entry's emission is its body term
+/// with the recovered arguments filled ([`Recovered::to_ron`]), and a body
+/// exists precisely because the value's RON shape is not the flat application
+/// of the entry's name. `ChangeLife(You, Up(3))` on the card and
+/// `ChangeLife(You, Up(Literal(3)))` from the recovery are the same
+/// `OneShotEffect` (`Literal(…)` is `Count`'s leniently-readable, never-written
+/// tagged spelling of a bare numeral); a string comparison would call them
+/// different, and did. The recovered RON text survives only as something to
+/// *print*.
 ///
 /// The one thing a value comparison still cannot do is compare against a
 /// non-value: a recovery holding a `Recovered::Residual` denotes nothing at

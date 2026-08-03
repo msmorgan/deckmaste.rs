@@ -505,19 +505,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_frames"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "deckmaste_authoring",
- "deckmaste_english",
- "deckmaste_plugin",
- "macro_ron",
- "ron",
- "serde",
-]
-
-[[package]]
 name = "deckmaste_legacy_render"
 version = "0.1.0"
 dependencies = [
@@ -587,6 +574,19 @@ dependencies = [
  "sha2",
  "syn",
  "tempfile",
+]
+
+[[package]]
+name = "deckmaste_spelling"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deckmaste_authoring",
+ "deckmaste_english",
+ "deckmaste_plugin",
+ "macro_ron",
+ "ron",
+ "serde",
 ]
 
 [[package]]
@@ -1999,10 +1999,10 @@ dependencies = [
  "deckmaste_card",
  "deckmaste_core",
  "deckmaste_english",
- "deckmaste_frames",
  "deckmaste_legacy_render",
  "deckmaste_migrations",
  "deckmaste_plugin",
+ "deckmaste_spelling",
  "macro_ron",
  "proc-macro2",
  "quote",

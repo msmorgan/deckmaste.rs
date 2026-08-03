@@ -1,4 +1,4 @@
-//! `deckmaste_frames` bridges RON macro definitions to Magic English through
+//! `deckmaste_spelling` bridges RON macro definitions to Magic English through
 //! "frames": English templates with typed holes.
 //!
 //! [`view`] is the foundation every other stage in this crate builds on: a

@@ -72,7 +72,7 @@ Execute as one vertical migration:
    derivable from member count and conjunction shape. Clause coordination and
    `CoordinationJunction` retain their documented surface witnesses.
 4. Flip the registry owner once for the whole family, migrate affected
-   `deckmaste_frames` and serialized-AST consumers, then delete the handwritten
+   `deckmaste_spelling` and serialized-AST consumers, then delete the handwritten
    parse, reduction, lowering, renderer, constructors, and duplicate
    registrations in the same change.
 5. Run the structural audit and the normal, reversed, and fixed-shuffle
@@ -92,7 +92,7 @@ AST fixtures pin the attachment and coordination invariants, with `inspect`
 naming the construction and decisive constraint on ambiguous fixtures;
 negative fixtures reject illegal binary Oxford commas as a
 noun/nominal-family rule (binary comma stays legitimate at clause level and
-in `CoordinationJunction`'s documented residue); `deckmaste_frames`
+in `CoordinationJunction`'s documented residue); `deckmaste_spelling`
 compile/unify/render gates stay green.
 
 Completion makes `english-derived-family-inventory` ready. That ticket is the

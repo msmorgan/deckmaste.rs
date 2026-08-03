@@ -195,7 +195,7 @@ declared rule, never a probabilistic authority. Direct AST assertions and
   selections unchanged unless declared precedence says otherwise; and
   compile-fail and negative deserialization fixtures prove sealed families
   cannot be bypassed.
-- Active consumers (`deckmaste_frames`, `xtask`) migrate in lockstep with
+- Active consumers (`deckmaste_spelling`, `xtask`) migrate in lockstep with
   affected families: AST visibility and constructor changes are migration
   work, not free cleanup.
 - The program is complete when every supported English family is derived,

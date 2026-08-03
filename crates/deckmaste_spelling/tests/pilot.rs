@@ -32,8 +32,8 @@ use std::path::PathBuf;
 use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
-use deckmaste_frames::HoleClass;
 use deckmaste_plugin::plugin::Plugin;
+use deckmaste_spelling::HoleClass;
 use macro_ron::Ident;
 use macro_ron::MacroDef;
 use macro_ron::Params;
@@ -149,9 +149,9 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
         }
         framed_names.push(def.name.as_str());
         let params = positional_params(def);
-        let kind = deckmaste_frames::lexicon::macro_fragment_kind(def);
+        let kind = deckmaste_spelling::lexicon::macro_fragment_kind(def);
         for (index, spec) in def.frames().iter().enumerate() {
-            deckmaste_frames::compile(spec, kind, &params, &catalogs, &plugin.macros)
+            deckmaste_spelling::compile(spec, kind, &params, &catalogs, &plugin.macros)
                 .unwrap_or_else(|error| {
                     panic!(
                         "`{}` frame [{index}] ({:?}) at {kind:?}: {error:#}",
@@ -184,7 +184,7 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
         constructor_names.push(entry.constructor.as_str());
         // This test only needs *a* category for the frame to compile clean,
         // not the catalog's own resolution of `entry.kind` to
-        // `FragmentKind` (that conversion is `deckmaste_frames::lexicon`
+        // `FragmentKind` (that conversion is `deckmaste_spelling::lexicon`
         // internal); picking by name keeps this test independent of it.
         let kind = if matches!(
             entry.constructor.as_str(),
@@ -195,7 +195,7 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
             FragmentKind::Sentence
         };
         for (index, spec) in entry.frames.iter().enumerate() {
-            deckmaste_frames::compile(spec, kind, &entry.params, &catalogs, &plugin.macros)
+            deckmaste_spelling::compile(spec, kind, &entry.params, &catalogs, &plugin.macros)
                 .unwrap_or_else(|error| {
                     panic!(
                         "constructor `{}` frame [{index}] ({:?}) at {kind:?}: {error:#}",
@@ -212,7 +212,7 @@ fn every_framed_macro_and_constructor_entry_compiles_clean() {
         // unmatched residual; `AnyTarget` is the announce-list pro-form and
         // `TargetedDealDamage` its accompanying body entry. All compile
         // clean here like any other entry, which is this test's job; the
-        // matching side is covered in `deckmaste_frames::unify`'s suite.
+        // matching side is covered in `deckmaste_spelling::unify`'s suite.
         vec![
             "AnyTarget",
             "DealDamage",
@@ -298,7 +298,7 @@ fn controlled_by_you_complement_side_field_slice_compiles() {
         .expect("ControlledByYou must be loaded");
     let params = positional_params(def);
 
-    let frame = deckmaste_frames::compile(
+    let frame = deckmaste_spelling::compile(
         &FrameSpec::bare("<Param(0)> you control"),
         FragmentKind::Nominal,
         &params,
@@ -312,7 +312,7 @@ fn controlled_by_you_complement_side_field_slice_compiles() {
     assert_eq!(frame.holes.len(), 1);
     assert_eq!(
         frame.holes[0].class,
-        deckmaste_frames::HoleClass::FieldSlice {
+        deckmaste_spelling::HoleClass::FieldSlice {
             claimed: vec!["modifiers", "head"],
         },
         "the frame owns the postmodifier; the hole is the premodifiers and head"
@@ -354,7 +354,7 @@ fn sacrifice_this_self_reference_sigil_compiles_as_self_ref() {
     );
     let params = positional_params(def);
 
-    let frame = deckmaste_frames::compile(
+    let frame = deckmaste_spelling::compile(
         &FrameSpec::bare("Sacrifice ~"),
         FragmentKind::Cost,
         &params,

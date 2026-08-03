@@ -14,7 +14,7 @@
 // field (the frame's own "you control"), leaving the hole with
 // `modifiers`+`head` — the mirror image of `target <Param(0)>` (frame
 // claims `determiner`, hole takes the rest). See `field_slice()` in
-// `crates/deckmaste_frames/src/compile.rs`.
+// `crates/deckmaste_spelling/src/compile.rs`.
 //
 // Named distinctly from the existing `Condition`-kind `YouControl`
 // (`plugins/builtin/macros/condition/YouControl.ron`, "you control ${0}",

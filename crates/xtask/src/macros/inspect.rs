@@ -1,7 +1,7 @@
 //! `cargo xtask macro inspect` — dump a compiled frame: text, kind, holes
 //! with classes and paths, agreement dependencies, and guards. The authoring
 //! schema and loader are `macro_ron::frames`' and the compiler is
-//! `deckmaste_frames::compile`'s; xtask owns only the CLI and the printing.
+//! `deckmaste_spelling::compile`'s; xtask owns only the CLI and the printing.
 
 use std::io;
 use std::path::Path;
@@ -12,11 +12,11 @@ use clap::Args;
 use clap::ValueEnum;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
-use deckmaste_frames::CompiledFrame;
-use deckmaste_frames::HoleClass;
-use deckmaste_frames::View;
-use deckmaste_frames::lexicon::macro_fragment_kind;
 use deckmaste_plugin::plugin::Plugin;
+use deckmaste_spelling::CompiledFrame;
+use deckmaste_spelling::HoleClass;
+use deckmaste_spelling::View;
+use deckmaste_spelling::lexicon::macro_fragment_kind;
 use macro_ron::MacroDef;
 use macro_ron::Params;
 use macro_ron::frames::FrameSpec;
@@ -47,7 +47,7 @@ impl From<Kind> for FragmentKind {
 }
 
 /// Where a name's frames are authored. A `clap`-friendly mirror of
-/// [`deckmaste_frames::lexicon::Origin`], for the same reason [`Kind`]
+/// [`deckmaste_spelling::lexicon::Origin`], for the same reason [`Kind`]
 /// mirrors [`FragmentKind`]: the real type lives in a crate with no `clap`
 /// dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -112,7 +112,7 @@ pub(super) fn run(args: InspectArgs) -> anyhow::Result<()> {
             println!("position: {position:?}");
         }
 
-        let compiled = deckmaste_frames::compile(spec, kind, &params, &catalogs, &plugin.macros)
+        let compiled = deckmaste_spelling::compile(spec, kind, &params, &catalogs, &plugin.macros)
             .with_context(|| format!("compiling frame [{index}] of `{}` at {kind:?}", args.name))?;
         write_compiled(io::stdout().lock(), &compiled)?;
     }
@@ -148,11 +148,11 @@ struct Resolved {
 /// in every corpus pair only one side is framed at all, so half the time the
 /// answer was a spurious "has no frames defined yet". Two things fix that,
 /// both borrowed from
-/// [`Lexicon::assemble`](deckmaste_frames::Lexicon::assemble) rather than
+/// [`Lexicon::assemble`](deckmaste_spelling::Lexicon::assemble) rather than
 /// invented here: only framed definitions are candidates (the set `assemble`
 /// draws entries from), and the survivors are ordered by the key `assemble`
 /// sorts entries by — English category first, via
-/// [`kind_rank`](deckmaste_frames::lexicon::kind_rank), with the declared
+/// [`kind_rank`](deckmaste_spelling::lexicon::kind_rank), with the declared
 /// kinds as the final tiebreak for two definitions that resolve to one
 /// category (which `assemble` refuses outright, and this tool may still be
 /// pointed at while that is being fixed).
@@ -268,7 +268,7 @@ fn definitions_named<'plugin>(plugin: &'plugin Plugin, name: &str) -> Vec<&'plug
     }
     found.sort_by_key(|def| {
         (
-            deckmaste_frames::lexicon::kind_rank(macro_fragment_kind(def)),
+            deckmaste_spelling::lexicon::kind_rank(macro_fragment_kind(def)),
             declared_kinds(def),
         )
     });
@@ -600,9 +600,9 @@ mod tests {
     fn write_compiled_renders_a_field_slice_hole_as_one_claimed_group() {
         // The catalog's own `Target` shape: `target <Param(0)>` at `Nominal`
         // claims `modifiers`/`head`/`complements` as one hole — three tree
-        // sites, one `Hole` entry (`crate::deckmaste_frames::compile`'s
+        // sites, one `Hole` entry (`crate::deckmaste_spelling::compile`'s
         // `HoleClass::FieldSlice` doc).
-        let frame = deckmaste_frames::compile(
+        let frame = deckmaste_spelling::compile(
             &FrameSpec::bare("target <Param(0)>"),
             FragmentKind::Nominal,
             &["Predicate".to_string()],
@@ -634,7 +634,7 @@ mod tests {
     fn write_compiled_counts_every_site_of_a_repeated_self_reference() {
         // `~ and ~` shares one `Hole` entry (SelfRef) but has two tree
         // sites; `Hole::path` alone would only ever point at the first.
-        let frame = deckmaste_frames::compile(
+        let frame = deckmaste_spelling::compile(
             &FrameSpec::bare("~ and ~ get +<Param(0)>/+<Param(1)>"),
             FragmentKind::Sentence,
             &["Count".to_string(), "Count".to_string()],

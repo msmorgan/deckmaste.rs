@@ -12,7 +12,7 @@ review; all predate that round and sat outside its declared scope
   into gate output on failure**, directing users to a file absent from
   any fresh checkout.
 - `crates/macro_ron/src/frames.rs:47`
-- `crates/deckmaste_frames/tests/pilot.rs:22` and `:122`
+- `crates/deckmaste_spelling/tests/pilot.rs:22` and `:122`
 
 Line numbers are as of round-2 exit — re-grep at claim time:
 `rg 'docs/superpowers|docs/memory' crates plugins`.

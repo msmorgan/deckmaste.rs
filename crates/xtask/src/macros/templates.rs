@@ -15,7 +15,7 @@
 //! Neither mode ever touches `frames:`. A guard's stored spelling
 //! (`when: [(0, "Exactly(1)")]`) is the readable sugar on purpose — guard
 //! *satisfaction* is defined on the fully-expanded canonical form
-//! (`deckmaste_frames::guard`), but the catalog keeps the sugar, and
+//! (`deckmaste_spelling::guard`), but the catalog keeps the sugar, and
 //! `project` must not silently "fix" that by expanding it: `project` only
 //! ever looks at a frame's `text`, never its `when`.
 //!

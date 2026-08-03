@@ -62,7 +62,7 @@ use crate::syntax::Sentence;
 /// [`Self::Cost`], [`Self::KeywordLine`] and [`Self::Ability`] have **no**
 /// chart rules at all and live entirely in the hand-written ability layer.
 // `Serialize` is load-bearing, not incidental: the bridge crate builds its
-// `View` tree from a fragment through `deckmaste_frames::view::of<T: Serialize>`.
+// `View` tree from a fragment through `deckmaste_spelling::view::of<T: Serialize>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum FragmentKind {
     /// A noun phrase — `creature you control`, `a 1/1 white Soldier creature
@@ -102,7 +102,7 @@ pub enum FragmentKind {
               sizes would make a fragment a different value from the subtree it splices into"
 )]
 // `Serialize` is load-bearing, not incidental: the bridge crate builds its
-// `View` tree from a fragment through `deckmaste_frames::view::of<T: Serialize>`.
+// `View` tree from a fragment through `deckmaste_spelling::view::of<T: Serialize>`.
 // Every `crate::syntax` node it wraps already derives it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Fragment {

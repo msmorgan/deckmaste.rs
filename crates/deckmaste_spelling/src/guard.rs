@@ -74,7 +74,7 @@ pub fn normalize_source(macros: &MacroSet, param_type: &str, source: &str) -> an
     let read = reader(param_type).ok_or_else(|| {
         anyhow::anyhow!(
             "guard names param type `{param_type}`, which has no RON reader; \
-             see `deckmaste_frames::guard`'s table"
+             see `deckmaste_spelling::guard`'s table"
         )
     })?;
     let normalized = read(macros, source).map_err(|error| {

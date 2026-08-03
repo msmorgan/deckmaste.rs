@@ -67,7 +67,7 @@
     // Matchable because a frame whose entire tree peels down to one hole is
     // admissible when the hole discriminates: a `SelfRef` hole accepts a
     // self-reference and nothing else, unlike a `Subtree` hole. See
-    // `try_entry` in `crates/deckmaste_frames/src/unify.rs`.
+    // `try_entry` in `crates/deckmaste_spelling/src/unify.rs`.
     //
     // No `params`, so no `<Param(i)>` may appear in the text; recovery is
     // the nullary invocation `This` — the same shape the `Creature`

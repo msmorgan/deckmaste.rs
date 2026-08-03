@@ -127,8 +127,8 @@ launches the client:
   truth every card-content container is written in — card files, token files,
   and the engine's rules tables — plus the macro layer and normalization
   (sugar desugars at load; the explicit form is always the meaning).
-- **`deckmaste_frames`** — the authored ⇄ English relation (slated to be
-  renamed `deckmaste_spelling`), built on *frames*: English templates with
+- **`deckmaste_spelling`** — the authored ⇄ English relation, built on
+  *frames*: English templates with
   typed holes, compiled from a macro definition and unified back against real
   card text.
 - **`deckmaste_lowering`** — the one-way compile from authored form to the
