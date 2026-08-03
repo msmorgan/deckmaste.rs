@@ -429,7 +429,6 @@ pub(crate) fn spell_targets(view: &crate::layer::LayeredView, id: ObjectId) -> V
 fn spell_ability_effect(ability: &Ability) -> Option<&OneShotEffect> {
     match ability {
         Ability::Spell(s) => Some(&s.effect),
-        Ability::Expanded(e) => spell_ability_effect(&e.value),
         _ => None,
     }
 }
@@ -438,10 +437,7 @@ fn spell_ability_effect(ability: &Ability) -> Option<&OneShotEffect> {
 /// invocation to the structural binder underneath — the binder twin of the
 /// effect/selection `peel`s elsewhere.
 pub(crate) fn peel_binder(binder: &deckmaste_core::Binder) -> &deckmaste_core::Binder {
-    match binder {
-        deckmaste_core::Binder::Expanded(e) => peel_binder(&e.value),
-        other => other,
-    }
+    binder
 }
 
 /// Look through an
@@ -451,18 +447,18 @@ pub(crate) fn peel_binder(binder: &deckmaste_core::Binder) -> &deckmaste_core::B
 /// the underlying `Range` primitive.
 fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
     match q {
-        deckmaste_core::Quantity::Expanded(e) => deref_quantity(&e.value),
         range @ deckmaste_core::Quantity::Range(..) => range,
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        deckmaste_core::Quantity::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
 pub(crate) fn peel_effect(
     effect: &deckmaste_core::OneShotEffect,
 ) -> &deckmaste_core::OneShotEffect {
-    match effect {
-        deckmaste_core::OneShotEffect::Expanded(e) => peel_effect(&e.value),
-        other => other,
-    }
+    effect
 }
 
 /// The targets declared on a top-level `Targeted` wrapper (peeling
@@ -472,7 +468,6 @@ pub(crate) fn peel_effect(
 pub(crate) fn top_targets(effect: &OneShotEffect) -> &[TargetSpec] {
     match effect {
         OneShotEffect::Targeted(te) => &te.targets,
-        OneShotEffect::Expanded(e) => top_targets(&e.value),
         _ => &[],
     }
 }

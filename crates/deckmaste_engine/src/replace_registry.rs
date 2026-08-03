@@ -147,10 +147,7 @@ pub(crate) fn replacement_watches(
 /// Look through a remembered `EventFilter` macro invocation (`Expanded`) to
 /// the underlying structural form.
 pub(crate) fn look_through_event(event: &EventFilter) -> &EventFilter {
-    match event {
-        EventFilter::Expanded(e) => look_through_event(&e.value),
-        other => other,
-    }
+    event
 }
 
 /// [CR#614.17]: whether any battlefield static makes `e` unable to happen.
@@ -479,7 +476,12 @@ fn floating_watches(
     }
     let would = match crate::replace::look_through_replacement(replacement) {
         Replacement::Instead { would, .. } | Replacement::Also { would, .. } => would,
-        Replacement::Skip { .. } | Replacement::Expanded(_) => return false,
+        Replacement::Skip { .. } => return false,
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped — `look_through_replacement`
+        // above strips it first regardless. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Replacement::Expanded(_) => unreachable!("look_through_replacement strips Expanded"),
     };
     let Some(fact) = crate::eval::FactView::of(state, e) else {
         return false;

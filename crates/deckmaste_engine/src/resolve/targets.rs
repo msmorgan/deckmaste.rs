@@ -104,7 +104,10 @@ pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Predicat
         // Distinctness lives in the SET checks, not the filter: peel to the
         // inner `Target`'s predicate ([CR#115.7e]).
         TargetSpec::Distinct(_, inner) => target_spec_filter(inner),
-        TargetSpec::Expanded(e) => target_spec_filter(&e.value),
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        TargetSpec::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -115,7 +118,10 @@ pub(crate) fn target_spec_quantity(spec: &TargetSpec) -> &deckmaste_core::Quanti
     match spec {
         TargetSpec::Target(q, _) => q,
         TargetSpec::Distinct(_, inner) => target_spec_quantity(inner),
-        TargetSpec::Expanded(e) => target_spec_quantity(&e.value),
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        TargetSpec::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -126,8 +132,11 @@ pub(crate) fn target_spec_quantity(spec: &TargetSpec) -> &deckmaste_core::Quanti
 pub(crate) fn distinct_siblings(spec: &TargetSpec) -> &[usize] {
     match spec {
         TargetSpec::Distinct(siblings, _) => siblings,
-        TargetSpec::Expanded(e) => distinct_siblings(&e.value),
         TargetSpec::Target(..) => &[],
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        TargetSpec::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -139,7 +148,6 @@ pub(crate) fn distinct_siblings(spec: &TargetSpec) -> &[usize] {
 fn const_target_count(count: &Count) -> Uint {
     match count {
         Count::Literal(n) => *n,
-        Count::Expanded(e) => const_target_count(&e.value),
         other => todo!(
             "engine-target-distinctness: a dynamic target-count bound {other:?} needs a \
              carrier frame — only literal target quantities are wired (mirrors const_count)"

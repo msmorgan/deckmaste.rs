@@ -25,17 +25,19 @@ use crate::player::PlayerId;
 use crate::stack::StackObject;
 use crate::state::GameState;
 
-/// The proposed-action pattern inside a deontic row, looking through the
-/// `Expanded` provenance wrappers.
+/// The proposed-action pattern inside a deontic row.
 fn deontic_action(d: &Deontic) -> &DeonticAction {
     match d {
         Deontic::May(a) | Deontic::Cant(a) | Deontic::Must(a) | Deontic::Gate(a, _) => a,
-        Deontic::Expanded(e) => deontic_action(&e.value),
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Deontic::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
 /// Whether `id`'s derived view carries any static matching `pred`, looking
-/// through composites and macro `Expanded` wrappers at every level. A
+/// through composites and `Innate`/`Each` wrappers at every level. A
 /// short-circuiting wrapper over the single [`statics_on`] walker: it stops
 /// the descent the moment `pred` accepts.
 pub(crate) fn object_has_static<F: Fn(&StaticEffect) -> bool>(
@@ -90,56 +92,41 @@ fn guard_deontic_seam(
     }
 }
 
-/// Whether a deontic row's polarity is `Cant`, through `Expanded` wrappers.
+/// Whether a deontic row's polarity is `Cant`.
 fn is_cant(d: &Deontic) -> bool {
-    match d {
-        Deontic::Cant(_) => true,
-        Deontic::Expanded(e) => is_cant(&e.value),
-        _ => false,
-    }
+    matches!(d, Deontic::Cant(_))
 }
 
-/// Whether a deontic row's polarity is `May`, through `Expanded` wrappers.
+/// Whether a deontic row's polarity is `May`.
 fn is_may(d: &Deontic) -> bool {
-    match d {
-        Deontic::May(_) => true,
-        Deontic::Expanded(e) => is_may(&e.value),
-        _ => false,
-    }
+    matches!(d, Deontic::May(_))
 }
 
-/// Whether a deontic row's polarity is `Must`, through `Expanded` wrappers.
+/// Whether a deontic row's polarity is `Must`.
 fn is_must(d: &Deontic) -> bool {
-    match d {
-        Deontic::Must(_) => true,
-        Deontic::Expanded(e) => is_must(&e.value),
-        _ => false,
-    }
+    matches!(d, Deontic::Must(_))
 }
 
-/// The action under a `Cant` polarity, through `Expanded` wrappers.
+/// The action under a `Cant` polarity.
 fn cant_action(d: &Deontic) -> Option<&DeonticAction> {
     match d {
         Deontic::Cant(a) => Some(a),
-        Deontic::Expanded(e) => cant_action(&e.value),
         _ => None,
     }
 }
 
-/// The action under a `Must` polarity, through `Expanded` wrappers.
+/// The action under a `Must` polarity.
 fn must_action(d: &Deontic) -> Option<&DeonticAction> {
     match d {
         Deontic::Must(a) => Some(a),
-        Deontic::Expanded(e) => must_action(&e.value),
         _ => None,
     }
 }
 
-/// The action under a `May` polarity, through `Expanded` wrappers.
+/// The action under a `May` polarity.
 fn may_action(d: &Deontic) -> Option<&DeonticAction> {
     match d {
         Deontic::May(a) => Some(a),
-        Deontic::Expanded(e) => may_action(&e.value),
         _ => None,
     }
 }
@@ -732,7 +719,7 @@ pub(crate) fn cant_activate(
 /// The single ability-tree walker. Descends an ability list with the
 /// look-through rules every static read needs (static-ability effect lists,
 /// keyword composites — flying's evasion `Cant` lives inside
-/// `Keyword(Composite)` — and macro `Expanded` wrappers at every level),
+/// `Keyword(Composite)` — and `Innate`/`Each` wrappers at every level),
 /// calling `visit` on each static effect. The `ControlFlow` return lets a
 /// caller short-circuit: [`object_has_static`] (the boolean "any" form) breaks
 /// on the first match, while the visit-each callers always
@@ -774,7 +761,6 @@ where
         match a {
             Ability::Static(s) => in_static(s, enter, visit),
             Ability::Keyword(k) => in_keyword(k, enter, visit),
-            Ability::Expanded(e) => in_ability(&e.value, enter, visit),
             // Peel `Innate` — its inner static is consumed normally
             // ([CR#113.12,604.1]).
             Ability::Innate(inner) => in_ability(inner, enter, visit),
@@ -793,7 +779,6 @@ where
                 }
                 ControlFlow::Continue(())
             }
-            KeywordAbility::Expanded(e) => in_keyword(&e.value, enter, visit),
             _ => ControlFlow::Continue(()),
         }
     }
@@ -803,7 +788,6 @@ where
         G: FnMut(&deckmaste_core::Condition) -> bool,
     {
         match e {
-            StaticEffect::Expanded(x) => in_static(&x.value, enter, visit),
             // Distributed statics ([`StaticEffect::Each`]) are looked through to
             // their inner effect for this presence scan: the walker's callers
             // (Cant/Sba/CostModifier row collectors) match on the effect KIND,
@@ -1162,7 +1146,7 @@ fn premise_removes_keyword(premise: &Predicate) -> Option<&'static str> {
     }
 }
 
-/// Whether `a` is (or wraps, through `Expanded`/`Innate`) the keyword ability
+/// Whether `a` is (or wraps, through `Innate`) the keyword ability
 /// named `name` — the mask predicate the counterfactual uses to drop a
 /// candidate's keyword. Matches by name via
 /// [`KeywordAbility::as_str`](deckmaste_core::KeywordAbility::as_str), the same
@@ -1170,7 +1154,6 @@ fn premise_removes_keyword(premise: &Predicate) -> Option<&'static str> {
 fn ability_names_keyword(a: &Ability, name: &str) -> bool {
     match a {
         Ability::Keyword(k) => k.as_str() == name,
-        Ability::Expanded(e) => ability_names_keyword(&e.value, name),
         Ability::Innate(inner) => ability_names_keyword(inner, name),
         _ => false,
     }
@@ -1562,13 +1545,13 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
-    use deckmaste_core::Expansion;
     use deckmaste_core::Ident;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::OutcomeGateKind;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::RelationPredicate;
+    use deckmaste_core::Selection;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Timing;
     use deckmaste_core::Type;
@@ -1595,45 +1578,39 @@ mod tests {
         }
     }
 
-    fn expand<T>(value: T) -> Expansion<T> {
-        Expansion {
-            name: Ident::new("Wrapper"),
-            args: deckmaste_core::ExpansionArgs::none(),
-            template: None,
-            value: Box::new(value),
-        }
-    }
-
     fn static_ability(effect: StaticEffect) -> Ability {
         Ability::r#static(effect)
     }
 
     /// A tree exercising every look-through path the one walker must descend:
-    /// a plain `Static` effect, an `Expanded`-wrapped effect (its own
-    /// `Static` — each ability now carries exactly one `effect`, so what was
-    /// once two effects on one ability is now two sibling abilities), a
-    /// `Static` reached through a `Composite` keyword, and a `Static` reached
-    /// through an `Expanded` ability wrapper.
+    /// a plain `Static` effect, a `Static` reached through an `Each`
+    /// distribution wrapper (its own `Static` — each ability now carries
+    /// exactly one `effect`, so what was once two effects on one ability is
+    /// now two sibling abilities), a `Static` reached through a `Composite`
+    /// keyword, and a `Static` reached through an `Innate` ability wrapper.
     fn sample_tree() -> Vec<Ability> {
         use OutcomeGateKind::CantLose;
         use OutcomeGateKind::CantWin;
         vec![
             // [0] plain static effect.
             static_ability(gate(CantLose)),
-            // [0b] an Expanded-wrapped effect, as a sibling ability.
-            static_ability(StaticEffect::Expanded(expand(gate(CantWin)))),
+            // [0b] effect reached through an `Each` wrapper, as a sibling ability.
+            static_ability(StaticEffect::Each(
+                Selection::SelectAll(Predicate::Any),
+                Arc::new(gate(CantWin)),
+            )),
             // [1] effect reached through a keyword composite.
             Ability::Keyword(KeywordAbility::Composite {
                 name: Ident::new("Kw"),
                 abilities: vec![static_ability(gate(CantLose))],
             }),
-            // [2] effect reached through an Expanded ability wrapper.
-            Ability::Expanded(expand(static_ability(gate(CantWin)))),
+            // [2] effect reached through an Innate ability wrapper.
+            Ability::Innate(Arc::new(static_ability(gate(CantWin)))),
         ]
     }
 
     /// The visit-each form sees every static effect, descending through
-    /// static-ability effect lists, keyword composites, and `Expanded`
+    /// `Each` distribution wrappers, keyword composites, and `Innate`
     /// wrappers at every level — in DFS order.
     #[test]
     fn walk_visits_every_effect_through_all_wrappers() {
@@ -1673,8 +1650,8 @@ mod tests {
             }
         });
         assert!(hit.is_break(), "the matching effect must break the walk");
-        // Stops at the SECOND effect (CantLose, then the wrapped CantWin) —
-        // it does not go on to visit the composite/Expanded branches.
+        // Stops at the SECOND effect (CantLose, then the Each-wrapped CantWin)
+        // — it does not go on to visit the composite/Innate branches.
         assert_eq!(visited, 2, "the walk must not visit effects past the match");
     }
 

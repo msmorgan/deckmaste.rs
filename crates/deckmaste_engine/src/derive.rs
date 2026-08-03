@@ -325,13 +325,6 @@ fn printed_base_len(state: &GameState, id: ObjectId) -> usize {
 /// placement + resolution read the same flattened list), so peeling keeps it
 /// consistent.
 pub(crate) fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
-    // Look through a remembered Ability-kind macro invocation (`Chapter`,
-    // [CR#714.2b]) — the engine enumerates its expansion, exactly like a
-    // keyword's `Expanded` is looked through in `composite_members`.
-    if let Ability::Expanded(e) = ability {
-        flatten_composites(&e.value, out);
-        return;
-    }
     // Peel any `Innate` wrapper first, then re-dispatch on the inner ability
     // (which may itself be a composite keyword to splice).
     if let Ability::Innate(inner) = ability {
@@ -353,7 +346,6 @@ pub(crate) fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
 /// macro invocation; `None` for intrinsics and other keyword shapes.
 fn composite_members(keyword: &deckmaste_core::KeywordAbility) -> Option<&Vec<Ability>> {
     match keyword {
-        deckmaste_core::KeywordAbility::Expanded(e) => composite_members(&e.value),
         deckmaste_core::KeywordAbility::Composite { abilities, .. } => Some(abilities),
         _ => None,
     }
@@ -382,7 +374,6 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
                 _ => None,
             }
         }
-        Ability::Expanded(e) => tap_mana_ability(&e.value),
         _ => None,
     }
 }

@@ -393,7 +393,10 @@ pub(crate) fn unless_cost_action(
         // agent-silent ([CR#701.26a..701.26b]), so `who` has no slot to ride.
         CostComponent::Tap => Action::Tap(Reference::This),
         CostComponent::Untap => Action::Untap(Reference::This),
-        CostComponent::Expanded(e) => unless_cost_action(&e.value, who),
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        CostComponent::Expanded(_) => unreachable!("provenance erased at lower"),
         // A cost-side `With` ([CR#601.2b]) is a choose-then-pay step with no
         // single-`Action` rendering — it must surface a payment-time choice and
         // bind `That`/`Those`. Every caller that can see a `With` routes through
@@ -445,7 +448,6 @@ pub(crate) fn toll_item(
             cost: mc.clone(),
             subject: frame.source,
         },
-        deckmaste_core::CostComponent::Expanded(e) => toll_item(&e.value, who, payer, frame),
         other => WorkItem::RunEffect {
             effect: Arc::new(unless_cost_effect(other, who)),
             frame: frame.clone(),
@@ -478,9 +480,6 @@ pub(crate) fn unless_cost_effect(
             binder: (**binder).clone(),
             body: Arc::new(cost_body_effect(body, who)),
         }),
-        // Look through a remembered macro invocation so a wrapped `With` is
-        // still intercepted here (not delegated to the Action-only path).
-        CostComponent::Expanded(e) => unless_cost_effect(&e.value, who),
         other => OneShotEffect::Act(unless_cost_action(other, who)),
     }
 }

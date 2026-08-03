@@ -472,7 +472,10 @@ impl GameState {
                     }
                 }
             }
-            Count::Expanded(e) => self.eval_count(&e.value, frame),
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both.
+            Count::Expanded(_) => unreachable!("provenance erased at lower"),
         }
     }
 
@@ -1781,8 +1784,11 @@ mod tests {
 
             // `canon()` (not `builtin()`): the filter names the canon-declared
             // `Goblin` subtype, whose macro lives in canon — a bare `Subtype(Goblin)`
-            // only expands with that macro in scope.
-            let parsed: Predicate = canon().macros.read_str(filter).unwrap();
+            // only expands with that macro in scope. Parsed through the
+            // AUTHORED path (`authoring::Predicate` → `lower()`), the path
+            // production now takes.
+            let authored: deckmaste_authoring::Predicate = canon().macros.read_str(filter).unwrap();
+            let parsed: Predicate = deckmaste_lowering::Lower::lower(authored);
             let frame = frame_src(source);
             let before = state.zones.battlefield.len();
             state.run_effect(

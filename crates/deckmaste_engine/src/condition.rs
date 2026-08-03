@@ -113,8 +113,10 @@ impl GameState {
             Condition::Or(cs) => cs.iter().any(|c| self.condition_holds(c, frame)),
             Condition::Not(c) => !self.condition_holds(c, frame),
 
-            // Look through a macro.
-            Condition::Expanded(e) => self.condition_holds(&e.value, frame),
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both.
+            Condition::Expanded(_) => unreachable!("provenance erased at lower"),
 
             // "[event] happened within [lookback]" ([CR#608.2i]): any
             // recorded fact matching the pattern through the one evaluator's
@@ -225,7 +227,6 @@ impl GameState {
                 crate::trigger::EventPatient::Object(s) => Some(s),
                 crate::trigger::EventPatient::Player(_) => None,
             },
-            Reference::Expanded(e) => Self::bound_snapshot(&e.value, frame),
             _ => None,
         }
     }

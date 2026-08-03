@@ -728,18 +728,12 @@ pub(crate) fn zone_ok(constraint: Option<Zone>, actual: Option<Zone>) -> bool {
 
 /// Looks through remembered `Predicate` macros to the structural filter.
 pub(crate) fn deref_filter(f: &Predicate) -> &Predicate {
-    match f {
-        Predicate::Expanded(e) => deref_filter(&e.value),
-        other => other,
-    }
+    f
 }
 
 /// Looks through remembered `Reference` macros to the structural reference.
 pub(crate) fn deref_reference(r: &Reference) -> &Reference {
-    match r {
-        Reference::Expanded(e) => deref_reference(&e.value),
-        other => other,
-    }
+    r
 }
 
 impl GameState {
@@ -766,8 +760,10 @@ impl GameState {
         bindings: &Bindings<'_>,
     ) -> bool {
         match pred {
-            // Look through a remembered macro invocation (`Dies`, `Enters`).
-            EventFilter::Expanded(e) => self.eval(&e.value, fact, lane, bindings),
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both.
+            EventFilter::Expanded(_) => unreachable!("provenance erased at lower"),
 
             // [CR#603.6]: zone constraints + cause narrowing + the moved
             // object's filter against its candidate view.

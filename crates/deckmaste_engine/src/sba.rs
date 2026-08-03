@@ -356,7 +356,6 @@ fn run_sba_effect(
                 out.extend(run_sba_effect(state, child, frame));
             }
         }
-        OneShotEffect::Expanded(e) => out.extend(run_sba_effect(state, &e.value, frame)),
         other => todo!("SBA effect is only Act/Sequentially in this stage (got {other:?})"),
     }
     out

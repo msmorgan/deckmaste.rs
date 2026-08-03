@@ -507,7 +507,6 @@ fn verb_mentions_cost_x(verb: &CoreAction) -> bool {
         CoreAction::ChangeLife(_, deckmaste_core::LifeOp::Down(count))
         | CoreAction::PutCounters(_, _, count)
         | CoreAction::RemoveCounters(_, _, count) => count.mentions_x(),
-        CoreAction::Expanded(e) => verb_mentions_cost_x(&e.value),
         // An X-discard ("discard X cards") — the count rides the body's
         // `With` binder's `Quantity`.
         CoreAction::Composite { name, body } if name.as_str() == "Discard" => {
@@ -1487,10 +1486,6 @@ impl GameState {
             })
             .filter_map(|e| match e {
                 deckmaste_core::StaticEffect::CostOption(oc) => Some(oc.clone()),
-                deckmaste_core::StaticEffect::Expanded(exp) => match exp.value.as_ref() {
-                    deckmaste_core::StaticEffect::CostOption(oc) => Some(oc.clone()),
-                    _ => None,
-                },
                 _ => None,
             })
             .collect()

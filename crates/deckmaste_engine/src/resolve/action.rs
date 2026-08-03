@@ -890,7 +890,6 @@ fn composite_body_move(body: &deckmaste_core::OneShotEffect) -> Option<(Zone, Op
     use deckmaste_core::Action as A;
     use deckmaste_core::OneShotEffect as Ose;
     match body {
-        Ose::Expanded(e) => composite_body_move(&e.value),
         Ose::Act(A::Move(_, Destination::Zone(z), _, guard)) => Some((*z, *guard)),
         _ => None,
     }
@@ -909,7 +908,6 @@ pub(crate) fn composite_body_group(
     use deckmaste_core::Action as A;
     use deckmaste_core::OneShotEffect as Ose;
     match body {
-        Ose::Expanded(e) => composite_body_group(&e.value),
         Ose::Act(A::MoveGroup {
             group,
             to: Destination::Zone(z),
@@ -945,7 +943,6 @@ pub(crate) fn composite_body_whose(
     use deckmaste_core::OneShotEffect as Ose;
     use deckmaste_core::Selection as S;
     match body {
-        Ose::Expanded(e) => composite_body_whose(&e.value),
         Ose::Each(each) => match &each.binder {
             Binder::Existing(S::TopOfLibrary { whose, .. }) => Some(whose),
             _ => None,

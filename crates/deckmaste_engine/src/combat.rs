@@ -40,9 +40,8 @@ pub fn has_keyword(view: &LayeredView, object: ObjectId, kw: &KeywordAbility) ->
 /// the `Ident`-keyed modification ops use ([CR#613.1f]).
 ///
 /// Delegates per ability to [`crate::layer::ability_is_named`], the canonical
-/// name matcher, so a keyword carried INSIDE an `Ability::Expanded` wrapper
-/// (a composite/static that expanded to a keyword) is found — the look-through
-/// a hand-rolled top-level `matches!` would miss.
+/// name matcher, so a `Composite`-named keyword is found by name — the
+/// look-through a hand-rolled top-level `matches!` would miss.
 #[must_use]
 pub fn has_keyword_named(view: &LayeredView, object: ObjectId, name: &str) -> bool {
     let name = Ident::from(name);
@@ -383,9 +382,6 @@ mod tests {
         assert_eq!(cs.target_of(a), None, "the target entry is cleared");
     }
 
-    use deckmaste_core::Expansion;
-    use deckmaste_core::ExpansionArgs;
-
     use crate::layer::LayeredView;
 
     /// A plain top-level keyword is matched by name.
@@ -400,27 +396,22 @@ mod tests {
         assert!(!has_keyword_named(&view, obj, "Flying"));
     }
 
-    /// [CR#613.1f]: a keyword that lives INSIDE an `Ability::Expanded` wrapper
-    /// (e.g. granted through a composite/static that expanded to a keyword) is
-    /// still found by name — the look-through `ability_is_named` provides. This
-    /// is the latent miss the old hand-rolled `matches!(Keyword(k) …)` body
-    /// had: it only inspected the top level.
+    /// [CR#613.1f]: a `Composite`-named keyword (granted through a
+    /// composite/static that expanded to a keyword) is found by NAME, not
+    /// just by its intrinsic variant. This is the latent miss the old
+    /// hand-rolled `matches!(Keyword(k) …)` body had: it only recognized
+    /// intrinsic keyword variants.
     #[test]
-    fn has_keyword_named_looks_through_expanded() {
+    fn has_keyword_named_matches_composite_keyword() {
         let obj = id(1);
-        let wrapped = Ability::Expanded(Expansion {
+        let composite = Ability::Keyword(KeywordAbility::Composite {
             name: "Lifelink".into(),
-            args: ExpansionArgs::none(),
-            template: None,
-            value: Box::new(Ability::Keyword(KeywordAbility::Composite {
-                name: "Lifelink".into(),
-                abilities: Vec::new(),
-            })),
+            abilities: Vec::new(),
         });
-        let view = LayeredView::single_with_abilities(obj, vec![wrapped]);
+        let view = LayeredView::single_with_abilities(obj, vec![composite]);
         assert!(
             has_keyword_named(&view, obj, "Lifelink"),
-            "an Expanded-wrapped keyword must be found by name"
+            "a Composite keyword must be found by name"
         );
     }
 }

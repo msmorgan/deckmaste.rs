@@ -374,13 +374,16 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
         // Layer 7d: switch ([CR#613.4d]).
         Modification::SwitchPowerToughness => Some(Layer::L7d),
         // No layer. Loyalty/defense are not [CR#613] characteristics here;
-        // `Several`/`Expanded` are change-bundling expansion artifacts that
+        // `Several` is a change-bundling expansion artifact that
         // `Modification::flatten` (run at the `gather` boundary) splices away
-        // and strips before the layer pass, so neither reaches it — defensive.
-        Modification::BaseLoyalty(_)
-        | Modification::BaseDefense(_)
-        | Modification::Several(_)
-        | Modification::Expanded(_) => None,
+        // and strips before the layer pass, so it never reaches it — defensive.
+        Modification::BaseLoyalty(_) | Modification::BaseDefense(_) | Modification::Several(_) => {
+            None
+        }
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Modification::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -706,8 +709,6 @@ fn resolve_source_relative(
             .into_iter()
             .filter_map(|id| state.objects.get(id).and_then(|o| o.attached_to))
             .collect(),
-        // Look through a remembered macro invocation.
-        Reference::Expanded(e) => resolve_source_relative(state, source, &e.value),
         // Frame-dependent references only: `Target`, bindings (`Bound`,
         // `Linked`, `EventObject`, `EventActor`) — and the player-valued
         // `You`/`ControllerOf`/`OwnerOf` — cannot be resolved without a `Frame`
@@ -918,9 +919,10 @@ fn condition_holds_derived(
         Condition::Not(condition) => {
             !condition_holds_derived(state, working, condition, watcher, controller)
         }
-        Condition::Expanded(expanded) => {
-            condition_holds_derived(state, working, &expanded.value, watcher, controller)
-        }
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Condition::Expanded(_) => unreachable!("provenance erased at lower"),
         Condition::YourTurn => state.turn.active_player == controller,
         Condition::TurnOf(filter) => condition_predicate_matches(
             state,
@@ -998,7 +1000,6 @@ fn resolve_count_ref(
                 .and_then(crate::object::GameObject::card_id)
                 .map(|_| state.player(state.owner_of(id)).object)
         }
-        Reference::Expanded(e) => resolve_count_ref(state, working, &e.value, watcher, controller),
         _ => {
             let source = state.objects.iter().find(|o| Some(o.source) == watcher)?.id;
             resolve_source_relative(state, source, reference)
@@ -1337,7 +1338,10 @@ fn eval_count(
             | Countable::ManaSpentMatching(..)
             | Countable::Players(..) => 0,
         },
-        Count::Expanded(e) => eval_count(&e.value, state, working, watcher, controller),
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Count::Expanded(_) => unreachable!("provenance erased at lower"),
         // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
         // `EventSum`, `Noted`) is unavailable during layer derivation — those
         // need a resolution `Frame` (`resolve.rs::eval_count`), so a continuous
@@ -1428,7 +1432,6 @@ fn distinct_keys_derived(
 pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
     match a {
         Ability::Keyword(kw) => name == kw.as_str(),
-        Ability::Expanded(e) => ability_is_named(&e.value, name),
         // Engine machinery sees THROUGH the rule-of-the-object wrapper
         // ([CR#604.1] — the conferred ability still functions); the
         // layer-6 removal arms guard on `is_innate` BEFORE consulting the

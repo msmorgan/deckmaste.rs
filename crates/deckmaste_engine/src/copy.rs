@@ -246,17 +246,20 @@ fn apply_modification(result: &mut CopiableValues, m: &Modification) {
             .abilities
             .retain(|a| a.is_innate() || !crate::layer::ability_is_named(a, name)),
         Modification::LoseAllAbilities => result.abilities.retain(Ability::is_innate),
-        // `Several`/`Expanded` are normally flattened away before the engine
-        // ever sees them (`Modification::flatten`, `continuous.rs`), but
-        // `apply_exceptions` gets no such guarantee from its caller — recurse
-        // rather than assume, so a not-yet-flattened exception still folds
-        // correctly instead of silently dropping ops (never-crash).
+        // `Several` is normally flattened away before the engine ever sees it
+        // (`Modification::flatten`, `continuous.rs`), but `apply_exceptions`
+        // gets no such guarantee from its caller — recurse rather than
+        // assume, so a not-yet-flattened exception still folds correctly
+        // instead of silently dropping ops (never-crash).
         Modification::Several(changes) => {
             for change in changes.iter() {
                 apply_modification(result, change);
             }
         }
-        Modification::Expanded(expansion) => apply_modification(result, &expansion.value),
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Modification::Expanded(_) => unreachable!("provenance erased at lower"),
         // Not meaningful for a copiable-characteristics SNAPSHOT
         // ([CR#707.2]): `CantHaveAbility` is a standing restriction (no
         // field on `CopiableValues` to carry it), `SetController`/`SetText`
@@ -435,7 +438,10 @@ fn minimal_subtype(name: &Ident) -> deckmaste_core::Subtype {
 /// Follow-up: `engine-copy-cda-generalize`.
 fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {
     match ability {
-        Ability::Expanded(e) => defines_pt(&e.value, axis),
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Ability::Expanded(_) => unreachable!("provenance erased at lower"),
         Ability::Innate(inner) => defines_pt(inner, axis),
         Ability::Static(effect) => static_defines_pt(effect, axis),
         Ability::Activated(_) | Ability::Triggered(_) | Ability::Spell(_) | Ability::Keyword(_) => {
@@ -458,7 +464,6 @@ fn modification_defines_pt(m: &Modification, axis: PtAxis) -> bool {
         Modification::Power(NumericOp::Set(_)) => axis == PtAxis::Power,
         Modification::Toughness(NumericOp::Set(_)) => axis == PtAxis::Toughness,
         Modification::Several(list) => list.iter().any(|m| modification_defines_pt(m, axis)),
-        Modification::Expanded(e) => modification_defines_pt(&e.value, axis),
         _ => false,
     }
 }

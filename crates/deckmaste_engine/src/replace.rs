@@ -138,7 +138,6 @@ impl GameState {
                     self.apply_as_enters(otherwise, entering, status);
                 }
             }
-            OneShotEffect::Expanded(e) => self.apply_as_enters(&e.value, entering, status),
             other => todo!("stage 3 does not interpret enters-replacement effect {other:?}"),
         }
     }
@@ -192,7 +191,6 @@ fn enters_attached_quality(effect: &OneShotEffect) -> Option<&Predicate> {
             );
             if body_is_self_attach { host_quality(&with.binder) } else { None }
         }
-        OneShotEffect::Expanded(e) => enters_attached_quality(&e.value),
         _ => None,
     }
 }
@@ -202,7 +200,6 @@ fn enters_attached_quality(effect: &OneShotEffect) -> Option<&Predicate> {
 fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Predicate> {
     match binder {
         deckmaste_core::Binder::ChooseOne { filter, .. } => Some(filter),
-        deckmaste_core::Binder::Expanded(e) => host_quality(&e.value),
         _ => None,
     }
 }
@@ -210,11 +207,7 @@ fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Predicate> {
 /// Whether a `Reference` is this object itself (`This`), looked through any
 /// remembered macro invocation.
 fn is_self_reference(r: &Reference) -> bool {
-    match r {
-        Reference::This => true,
-        Reference::Expanded(e) => is_self_reference(&e.value),
-        _ => false,
-    }
+    matches!(r, Reference::This)
 }
 
 /// Whether an `also` effect is this object attaching itself on entry — the
@@ -227,10 +220,7 @@ fn also_is_self_attach(effect: &OneShotEffect) -> bool {
 /// Look through a remembered `Replacement` macro invocation (`AsEnters`, …) to
 /// the form it expanded to.
 pub(crate) fn look_through_replacement(replacement: &Replacement) -> &Replacement {
-    match replacement {
-        Replacement::Expanded(e) => look_through_replacement(&e.value),
-        other => other,
-    }
+    replacement
 }
 
 /// Whether `would` is an enter-the-battlefield event for the watching object
@@ -240,8 +230,6 @@ pub(crate) fn look_through_replacement(replacement: &Replacement) -> &Replacemen
 /// so a `Ref(This)`/`Any` `what` both qualify.
 fn would_is_self_enter(would: &EventFilter) -> bool {
     match would {
-        // Look through `Enters(…)` and any other remembered Event macro.
-        EventFilter::Expanded(e) => would_is_self_enter(&e.value),
         // A move *to* the battlefield, of this object (or match-anything).
         EventFilter::ZoneChange { what, to, .. } => {
             *to == Some(Zone::Battlefield)

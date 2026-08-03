@@ -1208,7 +1208,6 @@ fn contains_one_or_more(pattern: &EventFilter) -> bool {
         | EventFilter::Nth { of: inner, .. }
         | EventFilter::When(inner, _)
         | EventFilter::Within(inner, _) => contains_one_or_more(inner),
-        EventFilter::Expanded(e) => contains_one_or_more(&e.value),
         _ => false,
     }
 }
@@ -2187,10 +2186,13 @@ mod tests {
     fn destroyed_matches_destroy_caused_death() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern: EventFilter = canon()
+        // Parsed through the AUTHORED path (`authoring::EventFilter` →
+        // `lower()`), the path production now takes.
+        let authored: deckmaste_authoring::EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
+        let pattern: EventFilter = deckmaste_lowering::Lower::lower(authored);
         let event = zone_changed_with_cause(
             &state,
             bear,
@@ -2210,10 +2212,13 @@ mod tests {
     fn destroyed_does_not_match_uncaused_death() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern: EventFilter = canon()
+        // Parsed through the AUTHORED path (`authoring::EventFilter` →
+        // `lower()`), the path production now takes.
+        let authored: deckmaste_authoring::EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
+        let pattern: EventFilter = deckmaste_lowering::Lower::lower(authored);
         let event = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
         assert!(
             !state.event_matches(&pattern, &event, watcher_source),
@@ -2227,10 +2232,13 @@ mod tests {
     fn destroyed_does_not_match_sacrifice() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let pattern: EventFilter = canon()
+        // Parsed through the AUTHORED path (`authoring::EventFilter` →
+        // `lower()`), the path production now takes.
+        let authored: deckmaste_authoring::EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
+        let pattern: EventFilter = deckmaste_lowering::Lower::lower(authored);
         let event = zone_changed_with_cause(
             &state,
             bear,

@@ -473,8 +473,10 @@ name = "deckmaste_engine"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "deckmaste_authoring",
  "deckmaste_card",
  "deckmaste_core",
+ "deckmaste_lowering",
  "deckmaste_plugin",
  "rand 0.10.1",
  "rand_chacha 0.10.0",

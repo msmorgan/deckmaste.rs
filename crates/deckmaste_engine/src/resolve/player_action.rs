@@ -819,8 +819,10 @@ impl GameState {
             // still reaches here, fizzle rather than crash (this is a
             // guarded seam, never a live path that used to work).
             Action::Pay(_) => vec![],
-            // Look through a remembered macro invocation.
-            Action::Expanded(e) => self.player_action_items(&e.value, frame),
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both.
+            Action::Expanded(_) => unreachable!("provenance erased at lower"),
             // `action_items` dispatches every object/effect-agent verb
             // directly and only falls through to this function for the
             // former-`PlayerAction` family — these variants never reach here.
@@ -1268,29 +1270,6 @@ mod tests {
         }
         assert!(state.zones.hands[0].is_empty());
         assert_eq!(state.zones.graveyards[0].len(), hand_before);
-    }
-
-    /// A remembered `Action` macro invocation resolves through its
-    /// expanded body.
-    #[test]
-    fn expanded_player_action_resolves_through_body() {
-        use deckmaste_core::Expansion;
-        use deckmaste_core::ExpansionArgs;
-        use deckmaste_core::LifeOp;
-
-        let (state, src) = bear_on_field();
-        let frame = frame_src(src);
-        let body = Action::ChangeLife(Reference::You, LifeOp::Up(Count::Literal(2)));
-        let expanded = Action::Expanded(Expansion {
-            name: "GainTwo".into(),
-            args: ExpansionArgs::none(),
-            template: None,
-            value: Box::new(body.clone()),
-        });
-        assert_eq!(
-            state.action_items(&expanded, &frame),
-            state.action_items(&body, &frame),
-        );
     }
 
     /// [CR#701.7a,111.2]: `Create(2, token)` puts two token permanents onto
@@ -1874,8 +1853,12 @@ mod tests {
             .find(|&&id| id != src)
             .expect("the creature token to populate");
 
-        // Drive the ACTUAL macro expansion.
-        let populate: OneShotEffect = builtin().macros.read_str("Populate").unwrap();
+        // Drive the ACTUAL macro expansion, through the AUTHORED path
+        // (`authoring::OneShotEffect` → `lower()`), the path production now
+        // takes.
+        let authored: deckmaste_authoring::OneShotEffect =
+            builtin().macros.read_str("Populate").unwrap();
+        let populate: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
         state.run_effect(populate, &frame_src(src));
 
         // The `With(ChooseOne(...))` surfaces the pick.
@@ -1970,8 +1953,12 @@ mod tests {
         );
 
         // Drive the ACTUAL macro expansion: amass Zombies 2 (the subtype is a
-        // declared `Subtype` param, spelled bare).
-        let amass: OneShotEffect = builtin().macros.read_str("Amass(Zombie, 2)").unwrap();
+        // declared `Subtype` param, spelled bare) — through the AUTHORED path
+        // (`authoring::OneShotEffect` → `lower()`), the path production now
+        // takes.
+        let authored: deckmaste_authoring::OneShotEffect =
+            builtin().macros.read_str("Amass(Zombie, 2)").unwrap();
+        let amass: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
         state.run_effect(amass, &frame_src(src));
 
         // Step 1's guard (`Not(Exists(Army creature you control))`) is FALSE —

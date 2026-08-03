@@ -41,7 +41,6 @@ use crate::trigger::TriggerBindings;
 pub(crate) fn as_activated(ability: &Ability) -> Option<&ActivatedAbility> {
     match ability {
         Ability::Activated(a) => Some(a),
-        Ability::Expanded(e) => as_activated(&e.value),
         _ => None,
     }
 }
@@ -177,17 +176,10 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
             // checks the binder's choose-feasibility and the pay step runs each
             // as an `OneShotEffect::With` (mirroring `ManaCostOf`/`TapTotal`).
             CostComponent::With { .. } => withs.push(component.clone()),
-            // Recurse through macro wrappers.
-            CostComponent::Expanded(e) => {
-                let inner = cost_summary(std::slice::from_ref(&e.value))?;
-                symbols.extend_from_slice(&inner.mana);
-                tap |= inner.tap;
-                untap |= inner.untap;
-                verbs.extend(inner.verbs);
-                mana_cost_of.extend(inner.mana_cost_of);
-                tap_totals.extend(inner.tap_totals);
-                withs.extend(inner.withs);
-            }
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both.
+            CostComponent::Expanded(_) => unreachable!("provenance erased at lower"),
             // A nested cost (the macro list-splice shape) survives faithful
             // read; recurse to splice it into the summary — this walk is the
             // pay path's `Cost::normalize`, inlined.
@@ -726,8 +718,6 @@ impl GameState {
                     self.zones.hands[player.index()].len() >= need
                 }
             }
-            // Look through a remembered macro invocation.
-            Action::Expanded(e) => self.verb_cost_payable(&e.value, player, frame),
             // `cost_summary` only collects cost-eligible actions, so nothing
             // else reaches here.
             other => unreachable!("non-cost-eligible action in a cost summary: {other:?}"),
@@ -874,24 +864,6 @@ mod tests {
     }
 
     #[test]
-    fn as_activated_looks_through_expanded() {
-        use deckmaste_core::Expansion;
-        use deckmaste_core::ExpansionArgs;
-        use deckmaste_core::Ident;
-        let act = activated(vec![], noop_effect());
-        let expanded = Ability::Expanded(Expansion {
-            name: Ident::new("Foo"),
-            args: ExpansionArgs::none(),
-            template: None,
-            value: Box::new(Ability::activated(act)),
-        });
-        assert!(
-            as_activated(&expanded).is_some(),
-            "as_activated must look through Expanded"
-        );
-    }
-
-    #[test]
     fn as_activated_returns_none_for_non_activated() {
         assert!(
             // The effect's content is immaterial here — only the
@@ -1006,17 +978,10 @@ mod tests {
     }
 
     #[test]
-    fn cost_summary_sees_untap_through_expanded() {
-        use deckmaste_core::Expansion;
-        use deckmaste_core::ExpansionArgs;
-        let cost = vec![CostComponent::Expanded(Expansion {
-            name: "Q".into(),
-            args: ExpansionArgs::none(),
-            template: None,
-            value: Box::new(CostComponent::Untap),
-        })];
-        let summary = cost_summary(&cost).expect("a wrapped {Q} should summarize");
-        assert!(summary.untap, "{{Q}} is seen through the macro wrapper");
+    fn cost_summary_sees_untap() {
+        let cost = vec![CostComponent::Untap];
+        let summary = cost_summary(&cost).expect("a {Q} cost should summarize");
+        assert!(summary.untap, "{{Q}} is seen");
         assert!(!summary.tap);
     }
 

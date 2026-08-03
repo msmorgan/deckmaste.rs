@@ -127,7 +127,6 @@ where
         Predicate::And(fs) => Some(fs.iter().all(&eval)),
         Predicate::Or(fs) => Some(fs.iter().any(&eval)),
         Predicate::Not(f) => Some(!eval(f)),
-        Predicate::Expanded(e) => Some(eval(&e.value)),
         Predicate::Any => Some(true),
         _ => None,
     }
@@ -673,7 +672,6 @@ pub(crate) fn stat_satisfies(
 fn const_count(count: &deckmaste_core::Count) -> Uint {
     match count {
         deckmaste_core::Count::Literal(n) => *n,
-        deckmaste_core::Count::Expanded(e) => const_count(&e.value),
         other => todo!(
             "engine-filter-breadth: dynamic filter bound {other:?} needs a carrier frame \
              (only literal bounds evaluate in the frameless matcher)"
@@ -888,11 +886,17 @@ mod tests {
 
     #[test]
     fn any_target_is_creatures_and_players_not_lands() {
-        // `read_str` returns the remembered `TargetSpec::Expanded(AnyTarget)`.
-        // `resolve::target_spec_filter` is the engine's own TargetSpec→Predicate
-        // extraction — the path real targeting funnels through — so the test
-        // exercises it rather than hand-unwrapping the expansion.
-        let any_target: TargetSpec = builtin().macros.read_str("AnyTarget").unwrap();
+        // Parse `AnyTarget` through the AUTHORED macro registry, then lower —
+        // the path production now takes (`authoring::TargetSpec` → `lower()`),
+        // which erases the `Expanded` wrapper before the engine ever sees the
+        // value. `resolve::target_spec_filter` is the engine's own
+        // TargetSpec→Predicate extraction — the path real targeting funnels
+        // through — so the test exercises it rather than hand-unwrapping the
+        // expansion.
+        use deckmaste_lowering::Lower;
+        let authored: deckmaste_authoring::TargetSpec =
+            builtin().macros.read_str("AnyTarget").unwrap();
+        let any_target: TargetSpec = authored.lower();
         let filter = crate::resolve::target_spec_filter(&any_target);
         let (state, bear) = game_with_a_bear_on_the_field();
         let targets = candidates(&state, filter);
@@ -904,22 +908,28 @@ mod tests {
         assert_eq!(targets.len(), 3);
     }
 
-    /// A filter-position macro (`kinds: [Predicate]`) survives expansion as
-    /// `Predicate::Expanded`; `matches` must look through it transparently.
-    /// Guards the delegation arm against being mistaken for dead code.
+    /// A filter-position macro (`kinds: [Predicate]`) survives AUTHORED
+    /// expansion as `authoring::Predicate::Expanded`, but `lower` (the path
+    /// production now takes) erases the wrapper before the engine ever sees
+    /// the value — so `matches`/`candidates` must still evaluate the lowered
+    /// body correctly. Guards the corpus-value path against being mistaken
+    /// for dead code.
     #[test]
-    fn matches_looks_through_a_filter_macro() {
-        // `CreatureOrPlayer` reads as `Predicate::Expanded(.., value: Or([..]))`:
-        // the invocation survives, wrapping its expanded body.
-        let wrapped: Predicate = builtin().macros.read_str("CreatureOrPlayer").unwrap();
+    fn matches_a_predicate_lowered_from_a_filter_macro() {
+        use deckmaste_lowering::Lower;
+        // `CreatureOrPlayer` reads (authored) as
+        // `Predicate::Expanded(.., value: Or([..]))`: the invocation survives
+        // pre-lowering, wrapping its expanded body.
+        let authored: deckmaste_authoring::Predicate =
+            builtin().macros.read_str("CreatureOrPlayer").unwrap();
         assert!(
-            matches!(wrapped, Predicate::Expanded(_)),
-            "a filter macro should survive as Predicate::Expanded, got {wrapped:?}"
+            matches!(authored, deckmaste_authoring::Predicate::Expanded(_)),
+            "a filter macro should survive authored parse as Predicate::Expanded, got {authored:?}"
         );
+        let filter: Predicate = authored.lower();
         let (state, bear) = game_with_a_bear_on_the_field();
-        // Evaluating the wrapped macro reaches the battlefield creature through
-        // the remembered body — delegation is transparent.
-        assert!(candidates(&state, &wrapped).contains(&bear));
+        // Evaluating the lowered macro body reaches the battlefield creature.
+        assert!(candidates(&state, &filter).contains(&bear));
     }
 
     /// `InHand(who)` ([CR#701.9a] discard's domain) composes `InZone(Hand)`
@@ -931,8 +941,14 @@ mod tests {
     /// `matches_with` with an explicit watcher, not the frameless `matches`.
     #[test]
     fn in_hand_matches_a_card_in_the_named_players_hand() {
+        use deckmaste_lowering::Lower;
+
         let (state, bear, _ghoul) = game_with_bear_and_ghoul();
-        let filter: Predicate = builtin().macros.read_str("InHand(You)").unwrap();
+        // Parsed through the AUTHORED path (`authoring::Predicate` →
+        // `lower()`), the path production now takes.
+        let authored: deckmaste_authoring::Predicate =
+            builtin().macros.read_str("InHand(You)").unwrap();
+        let filter: Predicate = authored.lower();
         // Watched by the battlefield bear — still P0-controlled, so `You`
         // resolves to P0.
         let carrier = Some(state.objects.obj(bear).source);

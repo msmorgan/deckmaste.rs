@@ -633,10 +633,6 @@ impl GameState {
             OneShotEffect::Label(label) => {
                 self.run_effect(Arc::unwrap_or_clone(label.effect), frame);
             }
-            // A remembered macro expansion (e.g. an `OneShotEffect`-kind macro like
-            // `PumpThisUntilEot`) is transparent to resolution — run its value,
-            // matching how every other engine layer sees through `*::Expanded`.
-            OneShotEffect::Expanded(e) => self.run_effect(*e.value, frame),
             // [CR#607.2a]: fact-backed product groups — run the inner
             // effect between a BeginNote/EndNote pair; every past-form
             // `ZoneChange` fact the clause ACTUALLY enacts (its whole apply cascade sits
@@ -1734,7 +1730,6 @@ impl GameState {
             }
             OneShotEffect::Targeted(t) => Self::body_repositions_ordered(&t.effect),
             OneShotEffect::Label(l) => Self::body_repositions_ordered(&l.effect),
-            OneShotEffect::Expanded(e) => Self::body_repositions_ordered(&e.value),
             _ => false,
         }
     }
@@ -1814,7 +1809,6 @@ fn among_noted_choice(
     selection: &Selection,
 ) -> Option<(&deckmaste_core::Ident, &deckmaste_core::Quantity)> {
     match selection {
-        Selection::Expanded(e) => among_noted_choice(&e.value),
         Selection::AmongNoted(label, quantity)
             if !matches!(
                 deref_quantity(quantity),
@@ -1890,7 +1884,10 @@ struct BatchActHead {
 fn deontic_action_mut(d: &mut Deontic) -> Option<&mut DeonticAction> {
     match d {
         Deontic::May(a) | Deontic::Cant(a) | Deontic::Must(a) | Deontic::Gate(a, _) => Some(a),
-        Deontic::Expanded(_) => None,
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        Deontic::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -1911,7 +1908,10 @@ fn deontic_subject_slots(a: &mut DeonticAction) -> Vec<&mut Predicate> {
         | DeonticAction::Play { what, by, .. }
         | DeonticAction::Activate { what, by, .. } => vec![by, what],
         DeonticAction::Untap { what } => vec![what],
-        DeonticAction::Expanded(_) => vec![],
+        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+        // loaded value reaches here wrapped. The arm survives only because
+        // the variant does; `core-demacro` deletes both.
+        DeonticAction::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -3178,10 +3178,13 @@ mod tests {
         // Re-home `other` to player 1 so the exchange crosses seats.
         state.objects.obj_mut(other).controller = PlayerId(1);
 
-        let effect: OneShotEffect = builtin()
+        // Parsed through the AUTHORED path (`authoring::OneShotEffect` →
+        // `lower()`), the path production now takes.
+        let authored: deckmaste_authoring::OneShotEffect = builtin()
             .macros
             .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
+        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
         let frame = frame_src_targets(mine, vec![mine, other]);
         state.run_effect(effect, &frame);
 
@@ -3222,10 +3225,13 @@ mod tests {
     #[test]
     fn same_controller_exchange_does_nothing() {
         let (mut state, mine, other) = two_permanents_on_field();
-        let effect: OneShotEffect = builtin()
+        // Parsed through the AUTHORED path (`authoring::OneShotEffect` →
+        // `lower()`), the path production now takes.
+        let authored: deckmaste_authoring::OneShotEffect = builtin()
             .macros
             .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
+        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
         let frame = frame_src_targets(mine, vec![mine, other]);
         state.run_effect(effect, &frame);
         assert!(
@@ -5535,7 +5541,11 @@ mod tests {
         let source = explorer_on_field(&mut state);
         let land = mint_library_top(&mut state, p0, "Forest", Type::Land);
 
-        let effect: OneShotEffect = builtin().macros.read_str("Explore").unwrap();
+        // Parsed through the AUTHORED path (`authoring::OneShotEffect` →
+        // `lower()`), the path production now takes.
+        let authored: deckmaste_authoring::OneShotEffect =
+            builtin().macros.read_str("Explore").unwrap();
+        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
         state.run_effect(effect, &frame_src(source));
         let _ = drain_progress(&mut state, 80);
 
@@ -5575,7 +5585,11 @@ mod tests {
         let source = explorer_on_field(&mut state);
         let spell = mint_library_top(&mut state, p0, "Shock", Type::Instant);
 
-        let effect: OneShotEffect = builtin().macros.read_str("Explore").unwrap();
+        // Parsed through the AUTHORED path (`authoring::OneShotEffect` →
+        // `lower()`), the path production now takes.
+        let authored: deckmaste_authoring::OneShotEffect =
+            builtin().macros.read_str("Explore").unwrap();
+        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
         state.run_effect(effect, &frame_src(source));
         // Drains through the reveal + counter and STOPS at the may-to-graveyard
         // decision ([CR#701.44a]).
