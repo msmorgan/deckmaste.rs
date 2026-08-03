@@ -22,6 +22,19 @@ hardest-to-recover content first).
 - Classic slop is nearly absent: imperative narration ~72 lines,
   diff-speak ~205, commented-out code ~12, plan-speak ~5, TODOs 3.
 
+## Addendum (2026-08-03)
+
+External review re-confirmed the mini-essay as the sweep's primary target
+and measured the work-log dialect the phases must also strip:
+reviewer-directed scope negotiation ("a correctness rewrite this task
+does not sign up for" — `deckmaste_engine/src/sba.rs:~103-130` is the
+type specimen) and plan shorthand no outside reader can resolve — 89
+`Task N` references, 55 `P0.Wn` references, and 233 "seam" mentions
+across `crates/**/*.rs` (regenerate at claim time:
+`rg -nE '\bTask [0-9]|P0\.W[0-9]' crates`). Under the Phase 0 rules these
+compress to the bare invariant, or to a labeled `TODO`/`SEAM` naming a
+ticket slug; the essay and the negotiation are deleted.
+
 ## Phase 0 — decision doc
 
 Commit `docs/decisions/comments-state-what-code-cannot.md` with exactly the
