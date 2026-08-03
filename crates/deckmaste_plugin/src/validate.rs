@@ -9,9 +9,11 @@
 //! **Cost-eligibility lint**: for every parsed Card face and Token, every
 //! `CostComponent::Do(action)` must satisfy `Action::is_cost_eligible()`.
 //! Violations surface as [`Validation::lint_failures`] entries with a plain
-//! message, separate from the parse-error [`Validation::failures`] vec (which
-//! carries the restricted reader's own errors — [`ron::error::SpannedError`]
-//! values, uncontextualized, that can't be constructed by hand).
+//! message, kept separate from the parse-error [`Validation::failures`] vec
+//! because the two are different findings: a `failures` entry means the file
+//! never became a value at all, while a lint failure is a property of a value
+//! that read fine. Callers report them under different headings and a plugin
+//! can have either without the other.
 //!
 //! Earlier lint candidate: degenerate sequences once
 //! `OneShotEffect::Sequentially(Vec<OneShotEffect>)` lands.

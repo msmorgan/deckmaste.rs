@@ -9,19 +9,53 @@
 //! Parsing, not grepping, because the reads this must catch are multi-line —
 //! `let card: Card = plugin\n    .macros\n    .read_str(&source)` puts the type
 //! and the call on different lines, so no line-based pattern sees both. And the
-//! restriction is on the TYPE read, not on touching `Plugin::macros`: ~40
+//! restriction is on the TYPE read, not on touching `Plugin::macros`: many
 //! legitimate sites read `Ability`, `OneShotEffect`, `Predicate`, `TypeDef`,
 //! `EventFilter` and friends through the same macro set, and spec §4 leaves
 //! them alone ("restriction is opt-in at the entry, never a global default").
 //!
-//! Two forms are matched, both of which the routed inventory actually used: a
-//! turbofish (`read_str::<Card>(…)`) and a `let` annotation. A read whose type
-//! comes from neither — inferred from a function's return position, or hidden
-//! behind a generic parameter as `deckmaste_lowering/tests/corpus.rs` does —
-//! is out of reach; closing that would mean type inference, not parsing.
+//! # What is matched
+//!
+//! Every form below is pinned by `the_matcher_catches_every_form_it_claims_to`,
+//! which runs this visitor over inline fixtures — the gate reporting green must
+//! mean "found nothing", never "matches nothing".
+//!
+//! - a turbofish, `read_str::<Card>(…)`;
+//! - a `let` annotation, on one line or several, including the `let Ok(x) = …
+//!   else` form;
+//! - either of those wrapped — `Vec<Card>`, `Option<Card>`, `&Card`, `(Card,
+//!   Card)`, and nested combinations;
+//! - either of those inside a macro invocation (`assert_eq!(m.read_str::<Card>(
+//!   s).unwrap(), …)`), which `syn` keeps as an opaque token stream that no
+//!   visitor descends into by default. This idiom is everywhere in test code,
+//!   and test code is where more than a third of the routed inventory lived;
+//! - `use …::Card as Alias`, which would otherwise defeat the last-segment
+//!   match in every form above.
+//!
+//! # What is not
+//!
+//! Reachable in principle, not implemented, because nothing in the tree needs
+//! it and each would cost real machinery:
+//!
+//! - a read typed by its *binding* rather than an annotation — `let x =
+//!   m.read_str(s)?;` where `x` is pinned by the enclosing function's return
+//!   type or by a use further down. Return position is parseable; the general
+//!   case is not, so this would be a partial measure either way.
+//! - a `type MyCard = Card;` alias. Deliberate: the identical syntax is
+//!   pervasive and legitimate as an associated type (every `Lower` impl writes
+//!   `type Target = deckmaste_card::Card;`), so flagging the declaration is
+//!   noise and following it is name resolution.
+//! - a read at a generic parameter, `let v: A = macros.read_str(s)?` with `A`
+//!   chosen by the caller — what `deckmaste_lowering/tests/corpus.rs` does.
+//!   Knowing `A` is `Card` here is monomorphisation, not parsing.
+//! - a macro body whose tokens parse as neither expressions nor statements
+//!   (`matches!(x, Ok(_))` — `Ok(_)` is a pattern), and macros that assemble
+//!   the call out of fragments rather than spelling it.
 
 use std::path::Path;
 use std::path::PathBuf;
+
+use syn::parse::Parser as _;
 
 /// Files permitted to name a typed card read, with the reason each stands on.
 const ALLOWED: &[&str] = &[
@@ -29,10 +63,6 @@ const ALLOWED: &[&str] = &[
     "crates/deckmaste_plugin/src/plugin.rs",
     // macro_ron's own fixture types, unrelated to the grammar containers.
     "crates/macro_ron/src/tests.rs",
-    // The migration oracle: reads via BOTH readers by design, and dies with
-    // `core-demacro`. Belt and braces — it reads at a generic parameter today,
-    // which the matcher cannot see anyway (see module doc).
-    "crates/deckmaste_lowering/tests/corpus.rs",
 ];
 
 /// The container types whose reads are restricted. Matched on the LAST path
@@ -44,15 +74,23 @@ const RESTRICTED: &[&str] = &["Card", "CardFace", "Token"];
 fn typed_card_reads_go_through_the_restricted_api() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     // An allowance naming a file that no longer exists is unevaluatable rot:
-    // fail loudly so whoever deleted the file drops its entry too.
+    // fail loudly so whoever deleted the file drops its entry too. This also
+    // catches a mis-rooted walk — if `root` were wrong, none of these resolve.
     for allowed in ALLOWED {
         assert!(
             root.join(allowed).is_file(),
             "stale ALLOWED entry — no such file: {allowed}"
         );
     }
+    let sources = rust_sources(&root);
+    // Vacuity guard: a walk that found nothing would report green forever.
+    assert!(
+        !sources.is_empty(),
+        "no Rust sources found under {} — the walk is broken, not the tree clean",
+        root.display()
+    );
     let mut offenders = Vec::new();
-    for path in rust_sources(&root) {
+    for path in sources {
         let rel = path
             .strip_prefix(&root)
             .unwrap_or(&path)
@@ -67,9 +105,7 @@ fn typed_card_reads_go_through_the_restricted_api() {
         let Ok(file) = syn::parse_file(&source) else {
             continue;
         };
-        let mut visitor = ReadStrVisitor { hits: Vec::new() };
-        syn::visit::visit_file(&mut visitor, &file);
-        for hit in visitor.hits {
+        for hit in hits_in(&file) {
             offenders.push(format!("{rel}: {hit}"));
         }
     }
@@ -81,18 +117,219 @@ fn typed_card_reads_go_through_the_restricted_api() {
     );
 }
 
+/// The positive control this gate would be worthless without: every form the
+/// module doc claims to catch, caught here on a fixture. One form per row, so
+/// a regression names what it broke rather than just going quiet.
+#[test]
+fn the_matcher_catches_every_form_it_claims_to() {
+    let cases: &[(&str, &str, usize)] = &[
+        (
+            "turbofish",
+            "fn f() { let a = m.read_str::<Card>(s).unwrap(); }",
+            1,
+        ),
+        (
+            "turbofish, qualified",
+            "fn f() { let a = m.read_str::<deckmaste_card::Card>(s).unwrap(); }",
+            1,
+        ),
+        (
+            "turbofish, Token",
+            "fn f() { let a = m.read_str::<Token>(s).unwrap(); }",
+            1,
+        ),
+        (
+            "turbofish, CardFace",
+            "fn f() { let a = m.read_str::<CardFace>(s).unwrap(); }",
+            1,
+        ),
+        (
+            "annotation, one line",
+            "fn f() { let b: Card = m.read_str(s).unwrap(); }",
+            1,
+        ),
+        (
+            "annotation, multi-line",
+            r"fn f() {
+    let b: Card = plugin
+        .macros
+        .read_str(&source)
+        .unwrap();
+}",
+            1,
+        ),
+        (
+            "let-else with turbofish",
+            "fn f() { let Ok(c) = m.read_str::<Card>(s) else { return }; }",
+            1,
+        ),
+        (
+            "wrapped in Vec",
+            "fn f() { let e: Vec<Card> = m.read_str(s).unwrap(); }",
+            1,
+        ),
+        (
+            "wrapped in Option",
+            "fn f() { let e: Option<CardFace> = m.read_str(s).unwrap(); }",
+            1,
+        ),
+        (
+            "behind a reference",
+            "fn f() { let e: &Card = m.read_str(s).unwrap(); }",
+            1,
+        ),
+        (
+            "in a tuple",
+            "fn f() { let e: (Card, u8) = m.read_str(s).unwrap(); }",
+            1,
+        ),
+        (
+            "nested wrappers",
+            "fn f() { let e: Vec<Option<Box<Card>>> = m.read_str(s).unwrap(); }",
+            1,
+        ),
+        (
+            "turbofish, wrapped",
+            "fn f() { let a = m.read_str::<Vec<Card>>(s).unwrap(); }",
+            1,
+        ),
+        (
+            "inside a macro invocation",
+            "fn f() { assert_eq!(m.read_str::<Card>(s).unwrap(), want); }",
+            1,
+        ),
+        (
+            "annotation inside a macro body",
+            "fn f() { quoted! { let b: Card = m.read_str(s).unwrap(); } }",
+            1,
+        ),
+        (
+            "inside a nested macro invocation",
+            "fn f() { assert!(matches(m.read_str::<Card>(s), want), \"{}\", x); }",
+            1,
+        ),
+        ("aliased import", "use deckmaste_card::Card as CoreCard;", 1),
+        (
+            "aliased import, braced",
+            "use deckmaste_card::{Token as Tok};",
+            1,
+        ),
+        // Negative controls — spec §4 leaves these alone, and a matcher that
+        // flagged them would be worse than none.
+        (
+            "unrestricted turbofish",
+            "fn f() { let a = m.read_str::<Ability>(s).unwrap(); }",
+            0,
+        ),
+        (
+            "unrestricted annotation",
+            "fn f() { let b: EventFilter = m.read_str(s).unwrap(); }",
+            0,
+        ),
+        (
+            "unrestricted, wrapped",
+            "fn f() { let b: Vec<Ability> = m.read_str(s).unwrap(); }",
+            0,
+        ),
+        (
+            "restricted type, but not a read",
+            "fn f() { let b: Card = plugin.card_from_str(s).unwrap().core; }",
+            0,
+        ),
+        (
+            "restricted type in a macro, but not a read",
+            "fn f() { assert_eq!(plugin.card_from_str(s).unwrap().core, want); }",
+            0,
+        ),
+        (
+            "unaliased import",
+            "use deckmaste_card::Card;\nuse deckmaste_core::Token;",
+            0,
+        ),
+        (
+            "associated type is not an alias",
+            "impl Lower for X { type Target = deckmaste_card::Card; }",
+            0,
+        ),
+    ];
+    for (label, source, expected) in cases {
+        let file = syn::parse_file(source)
+            .unwrap_or_else(|e| panic!("{label}: the fixture itself does not parse: {e}"));
+        let hits = hits_in(&file);
+        assert_eq!(
+            hits.len(),
+            *expected,
+            "{label}: expected {expected} hit(s), got {hits:?}\n--- fixture ---\n{source}"
+        );
+    }
+}
+
+/// Every restricted read in one parsed file.
+fn hits_in(file: &syn::File) -> Vec<String> {
+    let mut visitor = ReadStrVisitor { hits: Vec::new() };
+    syn::visit::visit_file(&mut visitor, file);
+    visitor.hits
+}
+
 struct ReadStrVisitor {
     hits: Vec<String>,
 }
 
-/// The last path segment of a type, when it is one of [`RESTRICTED`].
+/// The name of a [`RESTRICTED`] container reachable in `ty`, matched on a
+/// path's LAST segment and recursed through the wrappers a read can hide
+/// behind: generic arguments (`Vec<Card>`), references, tuples, slices, arrays,
+/// and parens/groups. Without the recursion, `Vec<Card>` reads as `Vec` and
+/// passes.
 fn restricted_name(ty: &syn::Type) -> Option<String> {
-    let syn::Type::Path(p) = ty else { return None };
-    let last = p.path.segments.last()?.ident.to_string();
-    RESTRICTED.contains(&last.as_str()).then_some(last)
+    match ty {
+        syn::Type::Path(p) => {
+            let last = p.path.segments.last()?;
+            let name = last.ident.to_string();
+            if RESTRICTED.contains(&name.as_str()) {
+                return Some(name);
+            }
+            // Not restricted itself — but it may be wrapping one.
+            let syn::PathArguments::AngleBracketed(args) = &last.arguments else {
+                return None;
+            };
+            args.args.iter().find_map(|a| match a {
+                syn::GenericArgument::Type(inner) => restricted_name(inner),
+                _ => None,
+            })
+        }
+        syn::Type::Reference(r) => restricted_name(&r.elem),
+        syn::Type::Paren(p) => restricted_name(&p.elem),
+        syn::Type::Group(g) => restricted_name(&g.elem),
+        syn::Type::Slice(s) => restricted_name(&s.elem),
+        syn::Type::Array(a) => restricted_name(&a.elem),
+        syn::Type::Tuple(t) => t.elems.iter().find_map(restricted_name),
+        _ => None,
+    }
 }
 
-/// True when this expression tree contains a `.read_str(…)` method call.
+/// The statements a macro invocation's token stream parses into, best effort.
+///
+/// `syn` stores `Macro::tokens` as an opaque `TokenStream` and no visitor
+/// descends it, so without this every `assert_eq!(m.read_str::<Card>(s), …)` is
+/// invisible. Tried as a comma-separated expression list first (the shape of
+/// almost every macro *call*), then as a statement sequence (the shape of a
+/// `quote!`-style body). Neither parsing is an error — plenty of macro bodies
+/// are neither, and a body this cannot read is not evidence of a bypass.
+fn macro_body_stmts(mac: &syn::Macro) -> Vec<syn::Stmt> {
+    let exprs = syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated;
+    if let Ok(parsed) = exprs.parse2(mac.tokens.clone()) {
+        return parsed
+            .into_iter()
+            .map(|expr| syn::Stmt::Expr(expr, None))
+            .collect();
+    }
+    syn::Block::parse_within
+        .parse2(mac.tokens.clone())
+        .unwrap_or_default()
+}
+
+/// True when this expression tree contains a `.read_str(…)` method call —
+/// including inside a macro invocation it wraps.
 fn calls_read_str(expr: &syn::Expr) -> bool {
     struct Finder(bool);
     impl<'ast> syn::visit::Visit<'ast> for Finder {
@@ -101,6 +338,15 @@ fn calls_read_str(expr: &syn::Expr) -> bool {
                 self.0 = true;
             }
             syn::visit::visit_expr_method_call(self, node);
+        }
+
+        fn visit_macro(&mut self, node: &'ast syn::Macro) {
+            for stmt in macro_body_stmts(node) {
+                let mut inner = Finder(false);
+                syn::visit::visit_stmt(&mut inner, &stmt);
+                self.0 |= inner.0;
+            }
+            syn::visit::visit_macro(self, node);
         }
     }
     let mut finder = Finder(false);
@@ -125,6 +371,7 @@ impl<'ast> syn::visit::Visit<'ast> for ReadStrVisitor {
 
     /// Form 2 — the annotation, which spans lines:
     /// `let card: Card = plugin\n    .macros\n    .read_str(&source)?;`
+    /// Covers `let Ok(x) = …read_str::<Card>(…) else` too, via form 1.
     fn visit_local(&mut self, node: &'ast syn::Local) {
         if let syn::Pat::Type(pat) = &node.pat
             && let Some(name) = restricted_name(&pat.ty)
@@ -135,6 +382,35 @@ impl<'ast> syn::visit::Visit<'ast> for ReadStrVisitor {
                 .push(format!("annotated ``let … : {name} = …read_str(…)``"));
         }
         syn::visit::visit_local(self, node);
+    }
+
+    /// Form 3 — either of the above, inside a macro invocation.
+    fn visit_macro(&mut self, node: &'ast syn::Macro) {
+        for stmt in macro_body_stmts(node) {
+            let mut inner = ReadStrVisitor { hits: Vec::new() };
+            syn::visit::visit_stmt(&mut inner, &stmt);
+            self.hits.extend(
+                inner
+                    .hits
+                    .into_iter()
+                    .map(|hit| format!("{hit} (in a macro body)")),
+            );
+        }
+        syn::visit::visit_macro(self, node);
+    }
+
+    /// Form 4 — an aliased import, which would defeat every last-segment match
+    /// above. There is no legitimate reason to rename a grammar container on
+    /// import, so the rename itself is the finding.
+    fn visit_use_rename(&mut self, node: &'ast syn::UseRename) {
+        let original = node.ident.to_string();
+        if RESTRICTED.contains(&original.as_str()) {
+            self.hits.push(format!(
+                "`use …{original} as {}` — an alias hides the read from this gate",
+                node.rename
+            ));
+        }
+        syn::visit::visit_use_rename(self, node);
     }
 }
 

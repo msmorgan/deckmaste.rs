@@ -353,9 +353,16 @@ impl Plugin {
     ///
     /// This and its three siblings ([`Plugin::card_from_str`],
     /// [`Plugin::token`], [`Plugin::token_from_str`]) are the one restricted
-    /// read API (spec §4): nothing else may `read_str` a typed card, and
-    /// `tests/read_api_gate.rs` enforces it. The path-taking entries read the
-    /// file and delegate, so there is a single read path, not two that drift.
+    /// read API (spec §4): nothing else may `read_str` a typed card. The
+    /// path-taking entries read the file and delegate, so there is a single
+    /// read path, not two that drift.
+    ///
+    /// `tests/read_api_gate.rs` holds the line mechanically. It parses the
+    /// workspace and rejects a turbofish or annotated read of `Card`,
+    /// `CardFace` or `Token` — wrapped, inside a macro body, or behind an
+    /// aliased import — outside this API. It is a strong check, not a total
+    /// one; that test's module doc states exactly what it does and does not
+    /// reach, and is the thing to read before assuming a bypass is impossible.
     ///
     /// # Errors
     /// If the file is missing or doesn't expand to a card.
