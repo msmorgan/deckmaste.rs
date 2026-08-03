@@ -457,7 +457,7 @@ lowering invokes it and owns the cross-grammar mapping.
   enabling a round-trip property (`raise(lower(t)) ≡α t`) over the
   mirrored subset. It is not worth building: its coverage is defined as
   the set of terms all of whose nodes map via identity arms, so it shrinks
-  monotonically as arms diverge — and `plugin-repoint` diverges the
+  monotonically as arms diverge — and `runtime-prose-link` diverges the
   `Expansion` arms almost immediately (§12), which is the first bite out
   of it. A second mapping the size of the first, whose value decays from the day it
   lands loses to per-variant tests that keep working after divergence,
@@ -715,7 +715,7 @@ tracked tree); the deltas restated here are self-contained.
    stays total: a new variant on either side is already a build error, and
    its test lands with it. When an arm diverges, its test is edited to the
    new expected shape in place — which is why each test names that shape
-   rather than inferring it; `plugin-repoint` is the first ticket to do
+   rather than inferring it; `runtime-prose-link` is the first ticket to do
    this, for the `Expansion` arms it erases. (The raise-map round-trip
    property this obligation used to name is withdrawn — see §9.)
 4. The coverage gate (reachability inventory: every row classified) and

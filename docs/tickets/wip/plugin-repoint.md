@@ -53,6 +53,11 @@ values.
 
 Standard constraints apply. `lower(authored_read(src)) == core_read(src)`
 byte-identical over canon, builtin, and wizards; full workspace suites;
-`cargo xtask idris-check plugins/canon` no regressions; fidelity PASS;
-canon/wizards save-load round-trips byte-identical; no direct
-`read_str::<Card|Token>` outside the one restricted read API.
+`cargo xtask idris-check plugins/canon` no regressions; fidelity PASS; the
+authoring and core writers agree byte-for-byte on every canon/builtin/wizards
+file, so an invocation survives write-back through either grammar
+(`deckmaste_plugin/tests/corpus_identity.rs`); no direct
+`read_str::<Card|Token>` outside the one restricted read API — the migration
+oracle in that same file reads through BOTH grammars by design, but always at
+a generic parameter, so it is invisible to the gate's matcher rather than
+exempted by it, and it retires with `core-demacro`.

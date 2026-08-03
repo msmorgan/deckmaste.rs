@@ -17,3 +17,27 @@ batch `idris-check` currently PRINTS emitter/proof failures and still exits
 program (`docs/decisions/authoring-spelling-lowering.md` §16.1) are
 unauditable without this ticket: check in a pass/gap baseline and make the
 batch command FAIL on lost passes, new gaps, or proof failures.
+
+**Seed baseline (2026-08-03, measured on `plugin-repoint` at integration).**
+`cargo xtask idris-check plugins/canon` — 68/79 cards emit and typecheck; 11
+emitter gaps, every one an unmapped Rust grammar shape (no provenance-shaped
+failure among them):
+
+- `Anje's Ravager`, `Chandra, Torch of Defiance` — `Action::Cast`
+  (resolution-time cast-as-effect, [CR#608.2g]) has no Idris `OneShotEffect`
+  counterpart; Idris casts via the 601 permission pipeline
+- `Cursed Scroll` — `ChooseValue(You, CardName, Ident(…))` not mapped
+- `Deepwood Tantiv` — `BlockDeclared{of}` not mapped
+- `Delver of Secrets` — `Card::TwoFaced` not mapped
+- `Do or Die` — `OneShotEffect::SeparatePiles` not mapped (Idris's
+  `DivideAndChoose` has a different two-pile shape)
+- `Falkenrath Gorger` — unmapped keyword name `Madness`
+- `Otherworldly Journey` — `EnterRider` list has no Idris `Move`/`MoveGroup`
+  counterpart beyond a lone `Attacking(Some(_))`
+- `Phantasmal Bear` — `EventFilter::BecomesTarget` has no Idris `EventKind`
+- `Weather the Storm` — `Count::EventCount` (history lookback) not mapped
+- `Wild Dogs` — `Action::GainControl` has no Idris one-shot `Action` (only the
+  continuous `Modification`)
+
+This is a session measurement, recorded so the checked-in baseline has a
+starting artifact to diff against; re-measure before committing it.

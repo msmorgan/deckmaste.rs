@@ -1,9 +1,15 @@
-//! The byte-identity oracle, on the real loader: every authored file in the
-//! tree loads through [`Plugin`] and the restricted read API, its engine image
-//! re-serializes to the exact bytes on disk, and that image is structurally
-//! equal to what the pre-fork CORE-kinded reader produces from the same source
-//! — "zero behaviour change" at the stored-byte level
+//! The write-back identity oracle, on the real loader: every authored file in
+//! the tree loads through [`Plugin`] and the restricted read API, the two
+//! writers agree on what it stores — the authoring writer's rendering of the
+//! authored half is byte-identical to the core writer's rendering of its engine
+//! image — and that image is structurally equal to what the pre-fork
+//! CORE-kinded reader produces from the same source: "zero behaviour change"
 //! (`docs/decisions/authoring-spelling-lowering.md` §5).
+//!
+//! The byte comparison is between the two WRITERS, not against the file on
+//! disk — canon files carry `//` header comments that RON serialization never
+//! emits, so disk equality was never available. What it proves is that a macro
+//! invocation survives write-back identically through either grammar.
 //!
 //! Moved here from `deckmaste_lowering/tests/corpus.rs`, which hand-rolled the
 //! small part of a plugin loader a round-trip needs precisely to avoid
@@ -197,10 +203,11 @@ where
 }
 
 /// Reads every file in `dir` through `load` (the loader path under test) and
-/// asserts that its engine image both leaves the stored bytes unchanged AND
-/// lands on the exact value the core reader (`core_macros`) produces from the
-/// same source — structural equality, not just matching serialization (which
-/// `skip_serializing_if` can hide a difference behind).
+/// asserts that its engine image both writes to the same bytes the authored
+/// half does through the authoring writer AND lands on the exact value the core
+/// reader (`core_macros`) produces from the same source — structural equality,
+/// not just matching serialization (which `skip_serializing_if` can hide a
+/// difference behind).
 ///
 /// A file that fails to LOAD is counted, not fatal; everything past the load is
 /// always fatal. Every caller asserts the count is zero — see
@@ -242,7 +249,7 @@ where
         assert_eq!(
             before,
             after,
-            "loading changed the stored form of {}",
+            "the authoring and core writers disagree on the stored form of {}",
             path.display()
         );
         assert_eq!(
@@ -366,13 +373,13 @@ fn builtin_rules_tables_lower_unchanged() {
     );
 }
 
-/// The generated corpus — 7,294 cards, every one of which must load. The count
-/// exists because `plugins/wizards` is gitignored and regenerated, so a
-/// checkout holds whatever vintage it last generated; it is REPORTED with the
-/// failure rather than tolerated. A regeneration that introduces genuinely
-/// unparseable shapes is a signal worth seeing, not a tolerance worth keeping
-/// silent — and without this assertion a loader change that broke nearly the
-/// whole corpus would still report green.
+/// The generated corpus, every card of which must load. The count exists
+/// because `plugins/wizards` is gitignored and regenerated, so a checkout holds
+/// whatever vintage it last generated; it is REPORTED with the failure rather
+/// than tolerated. A regeneration that introduces genuinely unparseable shapes
+/// is a signal worth seeing, not a tolerance worth keeping silent — and without
+/// this assertion a loader change that broke nearly the whole corpus would
+/// still report green.
 #[test]
 #[cfg_attr(
     not(wizards_corpus),

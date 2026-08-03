@@ -28,7 +28,7 @@
 //! - either of those inside a macro invocation (`assert_eq!(m.read_str::<Card>(
 //!   s).unwrap(), …)`), which `syn` keeps as an opaque token stream that no
 //!   visitor descends into by default. This idiom is everywhere in test code,
-//!   and test code is where more than a third of the routed inventory lived;
+//!   and test code is where much of the routed inventory lived;
 //! - `use …::Card as Alias`, which would otherwise defeat the last-segment
 //!   match in every form above.
 //!
@@ -41,13 +41,25 @@
 //!   m.read_str(s)?;` where `x` is pinned by the enclosing function's return
 //!   type or by a use further down. Return position is parseable; the general
 //!   case is not, so this would be a partial measure either way.
-//! - a `type MyCard = Card;` alias. Deliberate: the identical syntax is
-//!   pervasive and legitimate as an associated type (every `Lower` impl writes
-//!   `type Target = deckmaste_card::Card;`), so flagging the declaration is
-//!   noise and following it is name resolution.
+//! - a `type MyCard = Card;` alias. Deliberate: *following* an alias to its use
+//!   sites is name resolution, not parsing, so flagging the declaration alone
+//!   would be a partial measure. (Distinguishing it from the associated type
+//!   every `Lower` impl writes — `type Target = deckmaste_card::Card;` — is not
+//!   the obstacle: `syn` visits standalone aliases through `visit_item_type`
+//!   and associated ones through `visit_impl_item_type`.)
 //! - a read at a generic parameter, `let v: A = macros.read_str(s)?` with `A`
 //!   chosen by the caller — what `tests/corpus_identity.rs`'s core-reader
 //!   oracle does. Knowing `A` is `Card` here is monomorphisation, not parsing.
+//!   That file is deliberately NOT in [`ALLOWED`]: every restricted read in it
+//!   arrives this way, so it has nothing for an allowance to permit — and
+//!   listing it would skip the file wholesale, hiding a literal
+//!   `read_str::<Card>(…)` added there later. It stays scannable.
+//! - a read spelled with a different ENTRY POINT —
+//!   `ron::de::from_str::<Card>(…)`, or any other deserializer.
+//!   `Card`/`CardFace`/`Token` all derive plain `Deserialize`, and this matcher
+//!   keys on the literal method name `read_str`, so a bypass that never names
+//!   it is invisible. The most reachable accidental hole here; widening the
+//!   matched name set is the fix if one ever appears.
 //! - a macro body whose tokens parse as neither expressions nor statements
 //!   (`matches!(x, Ok(_))` — `Ok(_)` is a pattern), and macros that assemble
 //!   the call out of fragments rather than spelling it.
@@ -63,6 +75,11 @@ const ALLOWED: &[&str] = &[
     "crates/deckmaste_plugin/src/plugin.rs",
     // macro_ron's own fixture types, unrelated to the grammar containers.
     "crates/macro_ron/src/tests.rs",
+    // NOT here: `tests/corpus_identity.rs`, the migration oracle that reads the
+    // corpus through both grammars. Its restricted reads all arrive at a
+    // generic parameter, so the matcher never sees them (see "What is not") and
+    // an entry would buy nothing while skipping the whole file — a literal
+    // `read_str::<Card>` added there later would go unflagged.
 ];
 
 /// The container types whose reads are restricted. Matched on the LAST path

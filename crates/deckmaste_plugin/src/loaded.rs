@@ -23,6 +23,11 @@ impl LoadedCard {
     /// grammar's trait, and `deckmaste_card` does not depend on `macro_ron` at
     /// all. Lowering the expanded term (rather than expanding the lowered one)
     /// keeps `lower` inside this crate, where the erasure point lives.
+    ///
+    /// Swapping the order is value-preserving only because every `Expansion`
+    /// arm in the lowering map is an identity and no arm case-analyses a
+    /// child's constructor — `runtime-prose-link`, which makes those arms
+    /// erase, has to re-establish it.
     #[must_use]
     pub fn expanded(&self) -> deckmaste_card::Card {
         use deckmaste_lowering::Lower as _;

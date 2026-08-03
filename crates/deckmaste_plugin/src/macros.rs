@@ -1182,11 +1182,12 @@ mod tests {
     /// (core's `Condition` does the fall-through). Lets strategy-guide
     /// vocabulary (`Always`, …) be macros.
     ///
-    /// The real `Strategy`/`Rule` types now live in `deckmaste_engine` (Task
-    /// 1's move — strategy RON is engine config, not card content), a crate
-    /// this one does not depend on; these local stand-ins mirror their shape
-    /// (a `when: Condition` nested under an outer struct) closely enough to
-    /// prove the same point without that dependency.
+    /// The real `Strategy`/`Rule` types now live in `deckmaste_engine` (moved
+    /// out of `deckmaste_core` by `plugin-repoint` — strategy RON is engine
+    /// config, not card content), a crate this one does not depend on; these
+    /// local stand-ins mirror their shape (a `when: Condition` nested under an
+    /// outer struct) closely enough to prove the same point without that
+    /// dependency.
     #[test]
     fn strategy_when_position_expands_a_condition_macro() {
         use deckmaste_core::Condition;

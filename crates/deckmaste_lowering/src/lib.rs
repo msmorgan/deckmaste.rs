@@ -94,8 +94,9 @@ impl<T: Lower + Clone> Lower for Arc<[T]> {
     }
 }
 
-/// Invocation provenance. Identity-shaped for now; `plugin-repoint` turns this
-/// into the crate's first erasure arm (spec §12).
+/// Invocation provenance. Identity-shaped for now; `runtime-prose-link` turns
+/// this into the crate's first erasure arm
+/// (`docs/decisions/authoring-spelling-lowering.md` §12).
 impl<T: Lower> Lower for Expansion<T> {
     type Target = Expansion<T::Target>;
 
