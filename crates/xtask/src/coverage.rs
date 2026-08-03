@@ -15,6 +15,13 @@ pub fn extract_bracket_rules(text: &str) -> Vec<String> {
         let Some(end) = rest.find(']') else { break };
         let body = &rest[..end];
         rest = &rest[end + 1..];
+        // An ellipsis-only body is prose *about* the citation format (a doc
+        // writing `[CR#…]`), not a citation — the shared fish checker resolves
+        // it as "placeholder" and ignores it; match that. Deliberately narrow:
+        // `[CR#]` and `[CR#rule]` still fall through, as those are typos.
+        if matches!(body.trim(), "..." | "…") {
+            continue;
+        }
         for tok in body.split(',') {
             let tok = tok.trim();
             if let Some((a, b)) = tok.split_once("..") {
@@ -482,6 +489,18 @@ mod tests {
             vec!["100.1", "200.2"]
         );
         assert!(extract_bracket_rules("no citations here").is_empty());
+    }
+
+    #[test]
+    fn brackets_ellipsis_placeholder_is_ignored() {
+        assert!(extract_bracket_rules("cite as [CR#...] in prose").is_empty());
+        assert!(extract_bracket_rules("cite as [CR#…] in prose").is_empty());
+        // Narrow on purpose: typo shapes still yield their (bogus) token.
+        assert_eq!(extract_bracket_rules("[CR#rule]"), vec!["rule"]);
+        assert_eq!(
+            extract_bracket_rules("[CR#…] then [CR#704.5g]"),
+            vec!["704.5g"]
+        );
     }
 
     #[test]
