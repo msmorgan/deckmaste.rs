@@ -304,6 +304,44 @@ impl EnglishSurfaceWitness {
 
 impl SurfaceWitnessPayload for EnglishSurfaceWitness {}
 
+fn matching_contraction(
+    surface: &str,
+    spelling: impl Fn(crate::features::Contraction) -> Option<&'static str>,
+) -> Option<crate::features::Contraction> {
+    let mut matches = [
+        crate::features::Contraction::Full,
+        crate::features::Contraction::Contracted,
+    ]
+    .into_iter()
+    .filter(|&contraction| {
+        spelling(contraction).is_some_and(|candidate| surface.eq_ignore_ascii_case(candidate))
+    });
+    let contraction = matches.next()?;
+    matches.next().is_none().then_some(contraction)
+}
+
+fn subject_auxiliary_surface_matches(key: SubjectAuxiliaryKey, surface: &str) -> bool {
+    SUBJECT_AUXILIARY_FORMS
+        .iter()
+        .filter(|(_, subject, auxiliaries)| {
+            if *subject != key.subject {
+                return false;
+            }
+            let Agreement { person, number } = subject.agreement();
+            auxiliaries.iter().any(|&auxiliary| {
+                AuxiliaryFeatures {
+                    auxiliary,
+                    inflection: AuxiliaryInflection::Present { person, number },
+                } == key.auxiliary
+            })
+        })
+        .filter(|(surface_index, _, _)| {
+            surface.eq_ignore_ascii_case(SUBJECT_AUXILIARY_SURFACES[*surface_index])
+        })
+        .count()
+        == 1
+}
+
 impl ContractedSubjectKey {
     fn agreement(self) -> Agreement {
         match self {
@@ -2308,32 +2346,46 @@ impl Grammar for EnglishGrammar<'_, '_> {
 
     fn lexical_surface_witness(
         &self,
-        _slot: Self::LexicalSlot,
+        slot: Self::LexicalSlot,
         tokens: &[Self::Token],
         start: usize,
         lexical_match: &LexicalMatch<Self::Features, Self::Meaning>,
     ) -> Self::SurfaceWitness {
-        let contraction = match lexical_match.meaning {
-            MeaningKey::SubjectAuxiliary(_) => crate::features::Contraction::Contracted,
-            MeaningKey::Auxiliary(_) | MeaningKey::Existential(_) => {
-                let Some(first) = tokens.get(start) else {
-                    return EnglishSurfaceWitness::None;
-                };
-                let Some(last) = tokens.get(lexical_match.end.saturating_sub(1)) else {
-                    return EnglishSurfaceWitness::None;
-                };
-                let Some(surface) = self.source.get(first.span.start..last.span.end) else {
-                    return EnglishSurfaceWitness::None;
-                };
-                crate::features::Contraction::from(
-                    surface
-                        .chars()
-                        .any(|character| matches!(character, '\'' | '’')),
-                )
+        if lexical_match.end <= start {
+            return EnglishSurfaceWitness::None;
+        }
+        let Some(first) = tokens.get(start) else {
+            return EnglishSurfaceWitness::None;
+        };
+        let Some(last) = tokens.get(lexical_match.end - 1) else {
+            return EnglishSurfaceWitness::None;
+        };
+        let Some(surface) = self.source.get(first.span.start..last.span.end) else {
+            return EnglishSurfaceWitness::None;
+        };
+        let contraction = match (&lexical_match.meaning, slot) {
+            (
+                MeaningKey::Auxiliary(key),
+                EnglishLexicalSlot::Auxiliary | EnglishLexicalSlot::Copula,
+            ) => matching_contraction(surface, |contraction| {
+                Vocabulary::new().render_auxiliary(key.with_contraction(contraction))
+            }),
+            (MeaningKey::Existential(key), EnglishLexicalSlot::Existential) => {
+                matching_contraction(surface, |contraction| {
+                    ExistentialForm::new(key.verb_slot, contraction).map(ExistentialForm::spelling)
+                })
+            }
+            (MeaningKey::SubjectAuxiliary(key), EnglishLexicalSlot::SubjectAuxiliary)
+                if subject_auxiliary_surface_matches(*key, surface) =>
+            {
+                Some(crate::features::Contraction::Contracted)
             }
             _ => return EnglishSurfaceWitness::None,
         };
-        EnglishSurfaceWitness::Contraction(contraction)
+        contraction.map_or(
+            EnglishSurfaceWitness::None,
+            EnglishSurfaceWitness::Contraction,
+        )
     }
 
     #[allow(
@@ -2966,4 +3018,147 @@ pub(crate) fn keyword_atom_carries_preposition(atom: &CatalogAtom) -> bool {
         .rsplit(' ')
         .next()
         .is_some_and(|last| crate::syntax::Preposition::from_spelling(last).is_some())
+}
+
+#[cfg(test)]
+mod surface_witness_tests {
+    use super::*;
+
+    fn witness_for(
+        source: &str,
+        slot: EnglishLexicalSlot,
+        meaning: MeaningKey,
+        start: usize,
+        end: usize,
+    ) -> EnglishSurfaceWitness {
+        let catalogs = Catalogs::default();
+        let grammar = EnglishGrammar::new(source, &catalogs, Nonterminal::Clause);
+        let tokens = lex(source).tokens;
+        grammar.lexical_surface_witness(
+            slot,
+            &tokens,
+            start,
+            &LexicalMatch {
+                end,
+                features: Features::None,
+                meaning,
+                local_cost: ParseCost::default(),
+            },
+        )
+    }
+
+    fn can_key() -> MeaningKey {
+        MeaningKey::Auxiliary(AuxiliaryFeatures {
+            auxiliary: Auxiliary::Can,
+            inflection: AuxiliaryInflection::Base,
+        })
+    }
+
+    fn singular_existential_key() -> MeaningKey {
+        MeaningKey::Existential(ExistentialKey {
+            verb_slot: VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+        })
+    }
+
+    fn you_have_key() -> MeaningKey {
+        MeaningKey::SubjectAuxiliary(SubjectAuxiliaryKey {
+            subject: ContractedSubjectKey::Pronoun(Pronoun::You),
+            auxiliary: AuxiliaryFeatures {
+                auxiliary: Auxiliary::Have,
+                inflection: AuxiliaryInflection::Present {
+                    person: Person::Second,
+                    number: Number::Singular,
+                },
+            },
+        })
+    }
+
+    #[test]
+    fn lexical_witness_validates_full_and_contracted_auxiliary_spellings() {
+        assert_eq!(
+            witness_for("CAN", EnglishLexicalSlot::Auxiliary, can_key(), 0, 1),
+            EnglishSurfaceWitness::Contraction(crate::features::Contraction::Full),
+        );
+        assert_eq!(
+            witness_for("CAN'T", EnglishLexicalSlot::Auxiliary, can_key(), 0, 1),
+            EnglishSurfaceWitness::Contraction(crate::features::Contraction::Contracted),
+        );
+        assert_eq!(
+            witness_for("ban", EnglishLexicalSlot::Auxiliary, can_key(), 0, 1),
+            EnglishSurfaceWitness::None,
+        );
+    }
+
+    #[test]
+    fn lexical_witness_validates_full_and_contracted_existential_spellings() {
+        assert_eq!(
+            witness_for(
+                "THERE IS",
+                EnglishLexicalSlot::Existential,
+                singular_existential_key(),
+                0,
+                2,
+            ),
+            EnglishSurfaceWitness::Contraction(crate::features::Contraction::Full),
+        );
+        assert_eq!(
+            witness_for(
+                "THERE'S",
+                EnglishLexicalSlot::Existential,
+                singular_existential_key(),
+                0,
+                1,
+            ),
+            EnglishSurfaceWitness::Contraction(crate::features::Contraction::Contracted),
+        );
+        assert_eq!(
+            witness_for(
+                "there as",
+                EnglishLexicalSlot::Existential,
+                singular_existential_key(),
+                0,
+                2,
+            ),
+            EnglishSurfaceWitness::None,
+        );
+    }
+
+    #[test]
+    fn lexical_witness_validates_contracted_subject_spelling_and_key() {
+        assert_eq!(
+            witness_for(
+                "YOU'VE",
+                EnglishLexicalSlot::SubjectAuxiliary,
+                you_have_key(),
+                0,
+                1,
+            ),
+            EnglishSurfaceWitness::Contraction(crate::features::Contraction::Contracted),
+        );
+        assert_eq!(
+            witness_for(
+                "you'd",
+                EnglishLexicalSlot::SubjectAuxiliary,
+                you_have_key(),
+                0,
+                1,
+            ),
+            EnglishSurfaceWitness::None,
+        );
+    }
+
+    #[test]
+    fn lexical_witness_rejects_out_of_range_and_overlong_spans() {
+        assert_eq!(
+            witness_for("can", EnglishLexicalSlot::Auxiliary, can_key(), 1, 2),
+            EnglishSurfaceWitness::None,
+        );
+        assert_eq!(
+            witness_for("can fly", EnglishLexicalSlot::Auxiliary, can_key(), 0, 2,),
+            EnglishSurfaceWitness::None,
+        );
+    }
 }
