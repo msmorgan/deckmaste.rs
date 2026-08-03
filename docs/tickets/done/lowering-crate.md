@@ -17,8 +17,8 @@ the other — the build graph is the architecture.
   non-identity arm carries its justification in place (the crate IS the
   divergence ledger). The raise map the spec used to require here is
   WITHDRAWN (owner-settled 2026-08-02) — its coverage shrinks as arms
-  diverge and `plugin-repoint` takes the first bite, so a second full
-  150-impl mapping is not worth building; see spec §9.
+  diverge and `plugin-repoint` takes the first bite, so a second
+  mapping the size of the first is not worth building; see spec §9.
 - If `card-crate-split` has landed, this crate also depends on
   `deckmaste_card` (lowering targets both engine-side crates).
 - Normalization (authored → authored normal form) lives in

@@ -452,7 +452,7 @@ lowering invokes it and owns the cross-grammar mapping.
   the set of terms all of whose nodes map via identity arms, so it shrinks
   monotonically as arms diverge — and `plugin-repoint` diverges the
   `Expansion` arms almost immediately (§12), which is the first bite out
-  of it. A second full 150-impl mapping whose value decays from the day it
+  of it. A second mapping the size of the first, whose value decays from the day it
   lands loses to per-variant tests that keep working after divergence,
   which is exactly when a mapping test earns its keep.
 

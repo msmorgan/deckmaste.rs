@@ -1,19 +1,12 @@
 //! The one-way compile: `deckmaste_authoring` → `deckmaste_core` /
 //! `deckmaste_card`.
 //!
-//! This crate is the only edge between the two grammars. Neither grammar crate
-//! depends on the other; the build graph is the architecture
+//! The only edge between the two grammars; neither depends on the other
 //! (`docs/decisions/authoring-spelling-lowering.md` §1, §9).
 //!
-//! **This crate IS the divergence ledger.** The mapping starts as an exact
-//! mirror because the fork duplicated the freshly-reshaped grammar, so every
-//! arm is currently an identity. Shapes stay mirrored unless a divergence earns
-//! its mapping complexity, and every non-identity arm carries its justification
-//! in place, in the module where it lives. Authored terms have no independent
-//! semantics: a term means its image under `lower`.
-//!
-//! One arm per grammar module, mirroring the fork's own layout, so a change on
-//! either side maps to exactly one file here.
+//! This crate is the divergence ledger: arms are identities while the grammars
+//! mirror each other, and any arm that stops being one carries its reason in
+//! place. One module per grammar module.
 
 use std::sync::Arc;
 
@@ -23,11 +16,8 @@ use macro_ron::Ident;
 
 /// The total map from an authored value to its engine image.
 ///
-/// Implemented for every type in the authored grammar (the generated arms in
-/// this crate's modules) and for the containers and leaves those types are
-/// built from (the blanket impls below). Uniformity is what let the arms be
-/// scaffolded: every field lowers by calling `.lower()` on it, so no arm needs
-/// to know what type a field holds.
+/// Every field lowers by calling `.lower()` on it, so no arm needs to know what
+/// type a field holds — which is what let the arms be scaffolded.
 pub trait Lower {
     /// The engine-side type this lowers to.
     type Target;
@@ -36,9 +26,8 @@ pub trait Lower {
     fn lower(self) -> Self::Target;
 }
 
-/// Leaves that are the SAME type on both sides: primitives, and the shared
-/// `macro_ron` vocabulary both grammars depend on. These are identities in the
-/// strict sense — target type equals source type — not merely identity-shaped.
+/// Leaves that are the same type on both sides: primitives and the shared
+/// `macro_ron` vocabulary.
 macro_rules! lower_identity {
     ($($t:ty),* $(,)?) => {$(
         impl Lower for $t {
@@ -91,8 +80,7 @@ impl<T: Lower + Clone> Lower for Arc<T> {
     type Target = Arc<T::Target>;
 
     fn lower(self) -> Self::Target {
-        // Reuse the allocation's contents when this is the last handle; clone
-        // only when the value is genuinely shared.
+        // Clone only when the value is genuinely shared.
         let inner = Arc::try_unwrap(self).unwrap_or_else(|shared| (*shared).clone());
         Arc::new(inner.lower())
     }
@@ -106,15 +94,8 @@ impl<T: Lower + Clone> Lower for Arc<[T]> {
     }
 }
 
-/// Invocation provenance: a remembered macro call carrying the value its body
-/// expanded to.
-///
-/// Identity-shaped for now — the wrapper survives lowering, so a core value can
-/// still carry `Expanded(…)`. `plugin-repoint` relocates provenance to the
-/// authored side and turns this into the first ERASURE arm in the crate
-/// (`self.value.lower()`, dropping name/args/template), at which point core
-/// values carry no wrappers at all and the ~97 `Expanded(…)` match sites in
-/// `deckmaste_engine` stop existing (spec §12).
+/// Invocation provenance. Identity-shaped for now; `plugin-repoint` turns this
+/// into the crate's first erasure arm (spec §12).
 impl<T: Lower> Lower for Expansion<T> {
     type Target = Expansion<T::Target>;
 
@@ -128,19 +109,9 @@ impl<T: Lower> Lower for Expansion<T> {
     }
 }
 
-/// The fallback assertion for a type a pattern cannot reach.
-///
-/// Every per-variant test states its expected engine shape with
-/// `assert_matches!`. Exactly one type defeats that: `ManaCost` wraps a PRIVATE
-/// field, and stable Rust cannot match a tuple struct with private fields from
-/// another crate. Comparing the two serializations gets the same evidence by
-/// another route — the comparison runs through the serde derives on BOTH sides,
-/// so it shares no code with the arm under test.
-///
-/// Together these replace the withdrawn raise-map round-trip property (§9): a
-/// second full mapping would have covered only terms whose every node maps by
-/// identity, so its reach shrank with each divergence, starting with
-/// `plugin-repoint`'s erasure of the `Expansion` arms.
+/// The fallback for a type a pattern cannot reach: `ManaCost` wraps a private
+/// field, which stable Rust cannot match across a crate boundary. Comparing
+/// serializations gets the same evidence through the serde derives instead.
 #[cfg(test)]
 pub(crate) fn assert_lowers<A, C>(value: A)
 where

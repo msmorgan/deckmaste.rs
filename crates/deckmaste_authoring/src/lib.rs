@@ -2,20 +2,12 @@
 //! container is written in — card files, token files, and the `rules/` engine
 //! tables.
 //!
-//! Forked from `deckmaste_core` as an exact mirror (see the fork commit for
-//! provenance). The two grammars are siblings: this crate owns the AUTHORED
-//! form and the macro layer, `deckmaste_core` owns the engine AST, and
-//! `deckmaste_lowering` is the one-way compile between them. This crate must
-//! never depend on `deckmaste_core` —
-//! `docs/decisions/authoring-spelling-lowering.md` §1.
+//! Forked from `deckmaste_core` as an exact mirror; see the fork commit for
+//! provenance. Must never depend on `deckmaste_core`
+//! (`docs/decisions/authoring-spelling-lowering.md` §1).
 //!
-//! Deliberately NOT forked, and staying core-side:
-//!
-//! - `plugin` — plugin-directory path conventions; loader infrastructure, not
-//!   grammar.
-//! - `strategy` — engine play policy, authored directly in core terms via plain
-//!   serde and explicitly outside the authoring program (§3, and the §4
-//!   container table).
+//! `plugin` (path conventions) and `strategy` (play policy, outside the
+//! authoring program per §3) deliberately stay core-side.
 
 use std::sync::Arc;
 
@@ -60,9 +52,7 @@ pub use action::fight_body_fighters;
 mod binder;
 pub use binder::Binder;
 
-// The authored container types. There are deliberately two card-type families
-// after the fork, one per side of `lower`: these are the AUTHORED ones, and
-// `deckmaste_card`'s are the engine's (§1, and this ticket's scope).
+// The authored container types; `deckmaste_card`'s are the engine's (§1).
 mod card;
 pub use card::Card;
 pub use card::CardFace;

@@ -1,26 +1,9 @@
-//! The corpus gate: every real authored file in the tree parses through the
-//! FORKED reader, lowers, and comes out byte-identical.
+//! Every real authored file parses through the forked reader, lowers, and comes
+//! out byte-identical — "zero behaviour change" at the stored-byte level
+//! (`docs/decisions/authoring-spelling-lowering.md` §5).
 //!
-//! This is the check the per-variant tests cannot make. Those build minimal
-//! values, one variant at a time, in isolation; these are the actual card,
-//! token and rules-table files — deeply nested, macro-expanded, carrying real
-//! `Expanded(…)` invocation provenance.
-//!
-//! It gates both halves of the claim at once:
-//!
-//! - `deckmaste_authoring` reads the whole corpus through its own kind registry
-//!   and param-type registry (the fork's own gate), and
-//! - `lower` is total on real data and changes no stored bytes — "zero
-//!   behaviour change" measured at the stored-byte level
-//!   (`docs/decisions/authoring-spelling-lowering.md` §5).
-//!
-//! Deliberately NOT built on `deckmaste_plugin`. That crate's loader is
-//! `plugin-repoint`'s to retarget, and touching it here would hand that ticket
-//! a half-migrated crate. All this gate needs is the ~40-line core of it: read
-//! the definition files, parse each as a `MacroDef`, retry until a pass stops
-//! making progress, insert. The registry side-tables the real loader also
-//! builds — subtypes, types, counters, designations, keywords, verbs — serve
-//! lints and the engine, and nothing here consults them.
+//! Not built on `deckmaste_plugin`: its loader is `plugin-repoint`'s to
+//! retarget, so this carries the small part of it a round-trip needs.
 
 use std::fs;
 use std::path::Path;
@@ -32,7 +15,6 @@ use deckmaste_lowering::Lower;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-/// The workspace root, from this crate's manifest directory.
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -41,11 +23,8 @@ fn workspace_root() -> PathBuf {
         .expect("workspace root resolves")
 }
 
-/// Every `*.ron` under `dir`, recursively, sorted so failures are reproducible.
-///
-/// Skips the legacy `.todo.ron` stubs: those hold a `Todo(…)` placeholder, not
-/// a card. (`.ron.todo`, the ungraduated form, does not end in `.ron` and never
-/// matches in the first place.)
+/// Every `*.ron` under `dir`, sorted. Skips `.todo.ron` stubs, which hold a
+/// `Todo(…)` placeholder rather than a card.
 fn ron_files(dir: &Path) -> Vec<PathBuf> {
     let mut found = Vec::new();
     let Ok(entries) = fs::read_dir(dir) else {
@@ -70,11 +49,8 @@ fn ron_files(dir: &Path) -> Vec<PathBuf> {
 
 /// The macro namespace the corpus is written against.
 ///
-/// File order is alphabetical happenstance and a definition may invoke a
-/// meta-macro from a file that has not loaded yet, so failures are retried
-/// until a pass stops making progress; only then is the first one real. Later
-/// plugins override inherited names, which is why this is `replace` and not
-/// `insert`.
+/// A definition may invoke a meta-macro from a file that has not loaded yet, so
+/// failures are retried until a pass stops making progress.
 fn load_macros(plugins: &[&str]) -> MacroSet {
     let root = workspace_root();
     let mut macros = deckmaste_authoring::macros::macro_set();
@@ -92,6 +68,7 @@ fn load_macros(plugins: &[&str]) -> MacroSet {
         let mut failures = Vec::new();
         for (path, source) in pending {
             match macros.read_str::<MacroDef>(&source) {
+                // Later plugins may override an inherited name.
                 Ok(def) => macros
                     .replace(&def)
                     .unwrap_or_else(|e| panic!("inserting {}: {e}", path.display())),
@@ -112,22 +89,17 @@ fn load_macros(plugins: &[&str]) -> MacroSet {
     macros
 }
 
-/// What a directory sweep found.
 struct Swept {
-    /// Files that parsed, lowered, and came out byte-identical.
     checked: usize,
-    /// Files that did not parse at all, with the first such error.
     unparsed: usize,
     first_error: Option<String>,
 }
 
-/// Reads every file in `dir` as `A`, lowers it, and asserts the stored bytes
-/// are unchanged.
+/// Reads every file in `dir` as `A` and asserts lowering leaves its stored
+/// bytes unchanged.
 ///
-/// A file that does not PARSE is counted, not fatal — see [`sweep_strict`] and
-/// [`wizards_cards_lower_unchanged`] for which callers tolerate that and why.
-/// Anything past the parse — lowering, and the byte comparison — is always
-/// fatal: that is the property under test, and no corpus condition excuses it.
+/// A file that fails to PARSE is counted, not fatal; everything past the parse
+/// is always fatal. See [`wizards_cards_lower_unchanged`] for who tolerates it.
 fn sweep<A>(macros: &MacroSet, dir: &Path) -> Swept
 where
     A: DeserializeOwned + Serialize + Lower,
@@ -169,9 +141,8 @@ where
     swept
 }
 
-/// [`sweep`] for the hand-authored corpora, where a file failing to parse IS a
-/// failure: canon, builtin and the rules tables are curated and every file in
-/// them must read.
+/// [`sweep`] for the curated corpora, where failing to parse is itself a
+/// failure.
 fn sweep_strict<A>(macros: &MacroSet, dir: &Path) -> usize
 where
     A: DeserializeOwned + Serialize + Lower,
@@ -199,7 +170,6 @@ fn canon_and_builtin_cards_lower_unchanged() {
     let builtin =
         sweep_strict::<deckmaste_authoring::Card>(&macros, &plugin_dir("builtin", "cards"));
     let canon = sweep_strict::<deckmaste_authoring::Card>(&macros, &plugin_dir("canon", "cards"));
-    // A silent zero would make this gate vacuous.
     assert!(builtin > 0 && canon > 0, "no cards found to check");
 }
 
@@ -211,8 +181,7 @@ fn builtin_tokens_lower_unchanged() {
     assert!(checked > 0, "no tokens found to check");
 }
 
-/// The `rules/` engine tables are authored containers too (§4's container
-/// table), which is why their types forked along with the card grammar.
+/// The `rules/` tables are authored containers too (spec §4).
 #[test]
 fn builtin_rules_tables_lower_unchanged() {
     let macros = load_macros(&["builtin"]);
@@ -228,41 +197,18 @@ fn builtin_rules_tables_lower_unchanged() {
     );
 }
 
-/// The generated corpus: far larger than canon and machine-written, so it
-/// exercises shapes a hand-authored file never reaches.
-///
-/// Unlike the curated corpora this one is swept LENIENTLY on parse, because it
-/// is known-incomplete by construction: `cargo xtask generate` emits cards
-/// referencing macros nobody has defined yet and says so as it runs ("other
-/// failures: 57", a list of unresolved macro names). `plugins/wizards` is also
-/// gitignored and regenerated per workspace, so its exact contents differ
-/// between checkouts — two provisioned workspaces here held 7,294 and 7,353
-/// cards. Demanding that every generated card parse would assert something the
-/// tree does not claim, and would fail differently depending on where it ran.
-///
-/// What IS asserted, and is the whole point: every generated card that parses
-/// lowers with its stored bytes unchanged. That is checked strictly — only the
-/// parse is forgiven. Closing the parse gap belongs to the corpus effort;
-/// `plugin-repoint` owns the wizards save-load round-trip proper.
-///
-/// **The parse RATE is deliberately not asserted.** It measures which vintage
-/// of a generated, gitignored corpus a checkout happens to hold, not the health
-/// of anything this crate owns: a freshly provisioned workspace parsed 7,294 of
-/// 7,294, while an older `default` checkout parsed 5,278 of 7,353. A ratio
-/// threshold over unversioned data is a coin flip on where it runs. The
-/// reproducible guard against a reader regression is the STRICT sweep of canon
-/// and builtin above — those are in git, and they fail loudly.
-///
-/// The counts are printed, so a collapse is visible in the log even though it
-/// is not what this test fails on.
+/// Swept leniently on parse: `plugins/wizards` is gitignored and regenerated,
+/// so a checkout holds whatever vintage it last generated, and one older than a
+/// grammar change spells syntax the reader no longer accepts. Lowering stays
+/// strict; the counts are printed rather than asserted.
 #[test]
 fn wizards_cards_lower_unchanged() {
     let macros = load_macros(&["builtin", "wizards"]);
     let swept = sweep::<deckmaste_authoring::Card>(&macros, &plugin_dir("wizards", "cards"));
     let total = swept.checked + swept.unparsed;
     println!(
-        "wizards: {} of {} cards parsed and lowered unchanged; {} unparsed (corpus vintage)",
-        swept.checked, total, swept.unparsed,
+        "wizards: {} of {total} cards lowered unchanged; {} unparsed (corpus vintage)",
+        swept.checked, swept.unparsed,
     );
     if let Some(first) = &swept.first_error {
         println!("  first unparsed: {first}");
@@ -270,7 +216,6 @@ fn wizards_cards_lower_unchanged() {
     assert!(total > 0, "no wizards cards found at all");
     assert!(
         swept.checked > 0,
-        "no wizards card parsed at all — with {total} present that is a reader failure, \
-         not corpus vintage",
+        "no wizards card parsed at all — with {total} present that is a reader failure",
     );
 }

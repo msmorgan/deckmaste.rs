@@ -3,9 +3,8 @@
 //! `plugins/*/macros/**/*.ron` (paths and file names are organizational only)
 //! and are invoked by name where a value of one of their kinds is expected.
 //!
-//! Forked alongside the grammar from `deckmaste_plugin::macros`. The plugin
-//! crate keeps its own copy until `plugin-repoint` retires it; both are live in
-//! the meantime, exactly as both grammars are (this ticket's scope note).
+//! Forked from `deckmaste_plugin::macros`, which keeps its own copy until
+//! `plugin-repoint` retires it.
 
 pub use macro_ron::InsertError;
 use macro_ron::KindSet;
@@ -37,10 +36,8 @@ pub fn kinds() -> KindSet {
 /// *list* form `Vec<CostComponent>`, the bracketed keyword-cost argument), and
 /// `Abilities` (the `Vec<Ability>` a `Composite`/keyword meta forwards).
 ///
-/// This registry is load-bearing for reading, not merely for validation:
-/// [`MacroSet::insert`] rejects any definition naming an unregistered param
-/// type (`InsertError::UnknownParamType`), so without these rows this crate
-/// could not read the corpus's own macro definitions at all.
+/// Load-bearing for reading, not just validation: [`MacroSet::insert`] rejects
+/// a definition naming an unregistered param type.
 #[must_use]
 pub fn param_types() -> ParamTypeSet {
     use crate as da;
@@ -99,10 +96,8 @@ pub fn param_types() -> ParamTypeSet {
     // call site).
     param_types.add_typed::<da::TypeDef>("TypeDef");
     param_types.add_typed::<da::Zone>("Zone");
-    // NOTE: core's registry also carries a `Preference` row for the play-policy
-    // grammar. Absent here for the same reason its kind is — strategy RON is
-    // outside the authoring program (§3/§4). Verified: no macro definition in
-    // any plugin declares a `Preference` param.
+    // No `Preference` row: strategy RON is outside the authoring program
+    // (§3/§4), and no plugin definition declares that param.
     // A plain non-negative literal number (`PayEnergy(2)`) — distinct from the
     // `Count` enum: a fixed count with no "for each …" reading. Read as `Uint`,
     // the type `Count::Literal` wraps.
