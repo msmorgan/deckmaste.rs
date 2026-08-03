@@ -575,7 +575,7 @@ spine    authoring-crate-fork → lowering-crate → plugin-repoint
 (waves     (side lane, off the pinch path: spelling-crate-rename —
  2–4):      needs only the fork)
 pinch:   plugin-repoint  (the one true serialization point; freeze window)
-wave 5:  macro-author-surface ∥ idris-mirror-authoring
+wave 5:  macro-author-surface ∥ idris-mirror-authoring ∥ runtime-prose-link
 wave 6:  core-demacro ∥ target-sugar-elaboration ∥ frames-catalog-merge
          ∥ macro-collision-diagnostic (resequenced 2026-08-02)
 ```
@@ -599,7 +599,12 @@ cross-interference a build error.
   rename) — the loader grows a dual-result contract (authored term AND
   lowered core value; provenance erased exactly at `lower`), and the ~97
   production `Expanded(…)` match sites across ~14 `deckmaste_engine`
-  modules stop existing once core values carry no wrappers.
+  modules stop existing once core values carry no wrappers. The plugin
+  crate's legacy renderer and fidelity hold a further ~30+
+  `core::…::Expanded` match sites outside that count; their input types
+  repoint to authored terms (`runtime-prose-link`, 2026-08-02) before
+  `core-demacro` deletes the variants — prose degrades already at
+  repoint, compilation breaks at demacro.
 - Blame/history lineage for the grammar types breaks at the fork; the fork
   commit message must state the provenance.
 - Existing `idris-*` and macro-machinery tickets re-aim at the authoring
@@ -668,10 +673,12 @@ tracked tree); the deltas restated here are self-contained.
 - Ticket map — Stage 0: `plugin-crate-split` (+ `card-crate-split`,
   cross-cutting/anytime). Stage 1: `authoring-crate-fork`,
   `lowering-crate`, `plugin-repoint`, `idris-mirror-authoring`,
+  `runtime-prose-link` (added 2026-08-02 — the render-side seam),
   `core-demacro`. Stage 2: `macro-author-surface` (rewritten),
   `macro-collision-diagnostic`. Stage 3: `spelling-crate-rename`,
   `frames-catalog-merge`. Stage 4: `target-sugar-elaboration`.
   Follow-ups: `plugin-rider-split`, `engine-base-characteristics`,
+  `engine-ability-origin-refs` (maybe, trigger-gated),
   `engine-it-target-fallback-removal`,
   `idris-distinct-position-proof`, `spelling-engine-requirements`,
   `post-reshape-comment-rot`, `ci-idris-gate` (the idris-check baseline),

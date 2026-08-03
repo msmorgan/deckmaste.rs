@@ -1,11 +1,17 @@
 ---
-needs: [plugin-repoint, idris-mirror-authoring]
+needs: [plugin-repoint, idris-mirror-authoring, runtime-prose-link]
 ---
 **Strip the macro machinery from `deckmaste_core`: pure engine AST, plain
 serde, no author-surface knowledge.** Design:
 `docs/decisions/authoring-spelling-lowering.md`
 (§1, §11-12). The priced big-boring item lives here: the test-fixture
 sweep.
+
+**Sequenced behind `runtime-prose-link` (2026-08-02):** deleting core's
+`Expanded` variants compile-breaks the legacy renderer + fidelity in
+`deckmaste_plugin` (~30+ match sites outside both this ticket's sweep
+and the repoint's ~97 `deckmaste_engine` sites); the input-type repoint
+to authored terms lands there first.
 
 ## Scope
 
