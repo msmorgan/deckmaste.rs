@@ -14,6 +14,7 @@ use super::Determiner;
 use super::EnglishGrammar;
 use super::EnglishLexicalSlot;
 use super::ExistentialForm;
+use super::ExistentialKey;
 use super::Features;
 use super::FrequencyBound;
 use super::FrequencyCount;
@@ -145,7 +146,7 @@ impl EnglishGrammar<'_, '_> {
                 .map(|_| LexicalMatch {
                     end: start + 1,
                     features: Features::None,
-                    meaning: MeaningKey::Punctuation(expected),
+                    meaning: MeaningKey::Punctuation,
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -286,7 +287,9 @@ impl EnglishGrammar<'_, '_> {
                         features: Features::Existential {
                             number: form.number(),
                         },
-                        meaning: MeaningKey::Existential(*form),
+                        meaning: MeaningKey::Existential(ExistentialKey {
+                            verb_slot: form.verb_slot(),
+                        }),
                         local_cost: ParseCost::default(),
                     })
             })
@@ -319,7 +322,7 @@ impl EnglishGrammar<'_, '_> {
                             },
                             meaning: MeaningKey::SubjectAuxiliary(SubjectAuxiliaryKey {
                                 subject: *subject,
-                                auxiliary,
+                                auxiliary: auxiliary.into(),
                             }),
                             local_cost: ParseCost {
                                 precedence: u32::from(
@@ -937,7 +940,7 @@ pub(super) fn lexical_word_matches(
         WordMatch::Auxiliary(auxiliary) => vec![LexicalMatch {
             end,
             features: Features::auxiliary(auxiliary),
-            meaning: MeaningKey::Auxiliary(auxiliary),
+            meaning: MeaningKey::Auxiliary(auxiliary.into()),
             local_cost: ParseCost {
                 // `were`/`weren't` are ambiguous between indicative
                 // Past{Third,Plural} and the subjunctive: prefer the
@@ -1083,7 +1086,9 @@ pub(super) fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) 
     }
 }
 
-pub(super) const fn copula_agreement(auxiliary: AuxiliaryInstance) -> Option<CopulaAgreement> {
+pub(super) const fn copula_agreement(
+    auxiliary: super::AuxiliaryFeatures,
+) -> Option<CopulaAgreement> {
     if !matches!(auxiliary.auxiliary, Auxiliary::Be) {
         return None;
     }

@@ -78,6 +78,7 @@ use crate::features::Onset as InitialSound;
 use crate::features::Person;
 use crate::features::PronounCase;
 use crate::features::PronounClass as Pronoun;
+use crate::features::SurfaceWitnessPayload;
 use crate::features::VerbSlot;
 use crate::forest::BestParse;
 use crate::forest::ForestError;
@@ -250,8 +251,8 @@ pub(crate) enum ContractedSubjectKey {
 
 /// The grammatical contribution of an auxiliary to chart identity.
 ///
-/// Exact contraction is retained by [`MeaningKey`]; it does not change which
-/// constructions the auxiliary can enter.
+/// Exact contraction is retained by [`EnglishSurfaceWitness`]; it does not
+/// change which constructions the auxiliary can enter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct AuxiliaryFeatures {
     auxiliary: Auxiliary,
@@ -266,6 +267,42 @@ impl From<AuxiliaryInstance> for AuxiliaryFeatures {
         }
     }
 }
+
+impl AuxiliaryFeatures {
+    const fn with_contraction(
+        self,
+        contraction: crate::features::Contraction,
+    ) -> AuxiliaryInstance {
+        AuxiliaryInstance {
+            auxiliary: self.auxiliary,
+            inflection: self.inflection,
+            contracted_negation: contraction,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct ExistentialKey {
+    verb_slot: VerbSlot,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum EnglishSurfaceWitness {
+    #[default]
+    None,
+    Contraction(crate::features::Contraction),
+}
+
+impl EnglishSurfaceWitness {
+    const fn contraction(self) -> Option<crate::features::Contraction> {
+        match self {
+            Self::None => None,
+            Self::Contraction(contraction) => Some(contraction),
+        }
+    }
+}
+
+impl SurfaceWitnessPayload for EnglishSurfaceWitness {}
 
 impl ContractedSubjectKey {
     fn agreement(self) -> Agreement {
@@ -1376,7 +1413,7 @@ pub(crate) enum MeaningKey {
     CoinResult(crate::syntax::CoinSide),
     Frequency(FrequencyPhrase),
     Pronoun(PronounInstance),
-    Auxiliary(AuxiliaryInstance),
+    Auxiliary(AuxiliaryFeatures),
     Verb(VerbAnalysis),
     Catalog(crate::catalog::CatalogAtom),
     OracleSymbol(OracleSymbol),
@@ -1387,11 +1424,11 @@ pub(crate) enum MeaningKey {
     /// [`parse_quoted_ability_fragment`](ability::parse_quoted_ability_fragment).
     QuotedAbility(Span),
     PowerToughness(PowerToughness),
-    Punctuation(Punctuation),
+    Punctuation,
     Conjunction(Conjunction),
     Subordinator(crate::syntax::Subordinator),
     RelativeMarker(RelativeMarker),
-    Existential(ExistentialForm),
+    Existential(ExistentialKey),
     SubjectAuxiliary(SubjectAuxiliaryKey),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
@@ -1444,7 +1481,7 @@ pub(crate) struct OpaqueKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct SubjectAuxiliaryKey {
     subject: ContractedSubjectKey,
-    auxiliary: AuxiliaryInstance,
+    auxiliary: AuxiliaryFeatures,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -2255,6 +2292,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
     type Token = Token;
     type Features = Features;
     type Meaning = MeaningKey;
+    type SurfaceWitness = EnglishSurfaceWitness;
 
     fn start(&self) -> Self::Nonterminal {
         self.start
@@ -2266,6 +2304,36 @@ impl Grammar for EnglishGrammar<'_, '_> {
 
     fn rules_for(&self, lhs: Self::Nonterminal) -> &[RuleId] {
         self.rules_by_lhs.get(&lhs).map_or(&[], Vec::as_slice)
+    }
+
+    fn lexical_surface_witness(
+        &self,
+        _slot: Self::LexicalSlot,
+        tokens: &[Self::Token],
+        start: usize,
+        lexical_match: &LexicalMatch<Self::Features, Self::Meaning>,
+    ) -> Self::SurfaceWitness {
+        let contraction = match lexical_match.meaning {
+            MeaningKey::SubjectAuxiliary(_) => crate::features::Contraction::Contracted,
+            MeaningKey::Auxiliary(_) | MeaningKey::Existential(_) => {
+                let Some(first) = tokens.get(start) else {
+                    return EnglishSurfaceWitness::None;
+                };
+                let Some(last) = tokens.get(lexical_match.end.saturating_sub(1)) else {
+                    return EnglishSurfaceWitness::None;
+                };
+                let Some(surface) = self.source.get(first.span.start..last.span.end) else {
+                    return EnglishSurfaceWitness::None;
+                };
+                crate::features::Contraction::from(
+                    surface
+                        .chars()
+                        .any(|character| matches!(character, '\'' | '’')),
+                )
+            }
+            _ => return EnglishSurfaceWitness::None,
+        };
+        EnglishSurfaceWitness::Contraction(contraction)
     }
 
     #[allow(

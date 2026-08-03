@@ -13,6 +13,7 @@ use super::ChartStats;
 use super::Clause;
 use super::EnglishGrammar;
 use super::EnglishLexicalSlot;
+use super::EnglishSurfaceWitness;
 use super::Features;
 use super::ForestError;
 use super::ForestStats;
@@ -38,8 +39,10 @@ use super::lowering::lower;
 use super::lowering::selected_rule_children;
 use super::parse_chart;
 
-type EnglishChart = ChartResult<Nonterminal, EnglishLexicalSlot, Features, MeaningKey>;
-pub(super) type EnglishForest = ParseForest<Nonterminal, EnglishLexicalSlot, Features, MeaningKey>;
+type EnglishChart =
+    ChartResult<Nonterminal, EnglishLexicalSlot, Features, MeaningKey, EnglishSurfaceWitness>;
+pub(super) type EnglishForest =
+    ParseForest<Nonterminal, EnglishLexicalSlot, Features, MeaningKey, EnglishSurfaceWitness>;
 
 #[derive(Debug)]
 pub(crate) struct ParsedNonterminal {

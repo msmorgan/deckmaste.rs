@@ -6,6 +6,8 @@ use std::rc::Rc;
 use hashbrown::HashMap;
 use hashbrown::hash_map::Entry;
 
+use crate::features::ChartFeatureBundle;
+use crate::features::SurfaceWitnessPayload;
 use crate::forest::NodeId;
 use crate::forest::NodeKey;
 use crate::forest::PackedAlternative;
@@ -74,8 +76,9 @@ pub(crate) trait Grammar {
     type Nonterminal: Clone + Copy + Eq + Hash;
     type LexicalSlot: Clone + Copy + Eq + Hash;
     type Token;
-    type Features: Clone + Eq + Hash;
+    type Features: ChartFeatureBundle + Clone + Eq + Hash;
     type Meaning: Clone + Eq + Hash;
+    type SurfaceWitness: Clone + Default + Eq + SurfaceWitnessPayload;
 
     fn start(&self) -> Self::Nonterminal;
     fn rules(&self) -> &[Rule<Self::Nonterminal, Self::LexicalSlot>];
@@ -91,6 +94,24 @@ pub(crate) trait Grammar {
         rule: RuleId,
         children: &[Child<'_, Self>],
     ) -> Option<Reduction<Self::Features>>;
+
+    fn lexical_surface_witness(
+        &self,
+        _slot: Self::LexicalSlot,
+        _tokens: &[Self::Token],
+        _start: usize,
+        _lexical_match: &LexicalMatch<Self::Features, Self::Meaning>,
+    ) -> Self::SurfaceWitness {
+        Self::SurfaceWitness::default()
+    }
+
+    fn reduction_surface_witness(
+        &self,
+        _rule: RuleId,
+        _children: &[Child<'_, Self>],
+    ) -> Self::SurfaceWitness {
+        Self::SurfaceWitness::default()
+    }
 
     /// Assign a cost to one concrete rule-prefix split. Unlike reduction
     /// cost, this stays on the packed intermediate alternative, so grammars
@@ -129,8 +150,8 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ChartResult<N, L, F, M> {
-    pub(crate) forest: ParseForest<N, L, F, M>,
+pub(crate) struct ChartResult<N, L, F, M, W: SurfaceWitnessPayload> {
+    pub(crate) forest: ParseForest<N, L, F, M, W>,
     pub(crate) roots: Vec<NodeId>,
     pub(crate) stats: ChartStats,
 }
@@ -140,6 +161,7 @@ type GrammarChartResult<G> = ChartResult<
     <G as Grammar>::LexicalSlot,
     <G as Grammar>::Features,
     <G as Grammar>::Meaning,
+    <G as Grammar>::SurfaceWitness,
 >;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -195,6 +217,7 @@ type GrammarForest<G> = ParseForest<
     <G as Grammar>::LexicalSlot,
     <G as Grammar>::Features,
     <G as Grammar>::Meaning,
+    <G as Grammar>::SurfaceWitness,
 >;
 type WaitingKey<N> = (usize, N);
 
@@ -320,6 +343,7 @@ where
         let Some(reduction) = reduction else {
             return;
         };
+        let surface = self.grammar.reduction_surface_witness(item.rule, &children);
         let Some(intermediate) = self.chart[position]
             .seen
             .get(&item.clone())
@@ -334,6 +358,7 @@ where
                 rule: Some(item.rule),
                 children: vec![intermediate],
                 local_cost: rule_cost + reduction.local_cost,
+                surface,
             },
         );
         if !interned.node_was_new {
@@ -454,6 +479,7 @@ where
                 rule: None,
                 children,
                 local_cost: intermediate_cost,
+                surface: G::SurfaceWitness::default(),
             },
         );
         enqueue(
@@ -482,6 +508,9 @@ where
                     end: lexical_match.end,
                 });
             }
+            let surface =
+                self.grammar
+                    .lexical_surface_witness(slot, self.tokens, position, &lexical_match);
             let interned = self.forest.intern_node(
                 NodeKey::lexical(
                     slot,
@@ -494,6 +523,7 @@ where
                     rule: None,
                     children: Vec::new(),
                     local_cost: lexical_match.local_cost,
+                    surface,
                 },
             );
             edges.push(LexicalEdge {
@@ -702,6 +732,7 @@ mod tests {
         type Meaning = Meaning;
         type Nonterminal = N;
         type Token = &'static str;
+        type SurfaceWitness = ();
 
         fn start(&self) -> Self::Nonterminal {
             N::Start
@@ -800,6 +831,7 @@ mod tests {
         type Meaning = Meaning;
         type Nonterminal = N;
         type Token = &'static str;
+        type SurfaceWitness = ();
 
         fn start(&self) -> Self::Nonterminal {
             N::Start
@@ -869,6 +901,7 @@ mod tests {
         type Meaning = Meaning;
         type Nonterminal = N;
         type Token = &'static str;
+        type SurfaceWitness = ();
 
         fn start(&self) -> Self::Nonterminal {
             N::Start

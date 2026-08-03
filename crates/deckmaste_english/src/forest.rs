@@ -7,6 +7,8 @@ use hashbrown::HashMap;
 use hashbrown::hash_map::Entry;
 
 use crate::chart::RuleId;
+use crate::features::ExactParse;
+use crate::features::SurfaceWitnessPayload;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub(crate) struct ParseCost {
@@ -206,16 +208,17 @@ impl<N, L, F, M> NodeKey<N, L, F, M> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PackedAlternative {
+pub(crate) struct PackedAlternative<W: SurfaceWitnessPayload> {
     pub(crate) rule: Option<RuleId>,
     pub(crate) children: Vec<NodeId>,
     pub(crate) local_cost: ParseCost,
+    pub(crate) surface: W,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ForestNode<N, L, F, M> {
+pub(crate) struct ForestNode<N, L, F, M, W: SurfaceWitnessPayload> {
     pub(crate) key: NodeKey<N, L, F, M>,
-    pub(crate) alternatives: Vec<PackedAlternative>,
+    pub(crate) alternatives: Vec<PackedAlternative<W>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -226,17 +229,18 @@ pub(crate) struct InternResult {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ParseForest<N, L, F, M> {
-    nodes: Vec<ForestNode<N, L, F, M>>,
+pub(crate) struct ParseForest<N, L, F, M, W: SurfaceWitnessPayload> {
+    nodes: Vec<ForestNode<N, L, F, M, W>>,
     node_ids: HashMap<NodeKey<N, L, F, M>, NodeId>,
 }
 
-impl<N, L, F, M> ParseForest<N, L, F, M>
+impl<N, L, F, M, W> ParseForest<N, L, F, M, W>
 where
     N: Clone + Eq + Hash,
     L: Clone + Eq + Hash,
     F: Clone + Eq + Hash,
     M: Clone + Eq + Hash,
+    W: Clone + Eq + SurfaceWitnessPayload,
 {
     pub(crate) fn new() -> Self {
         Self {
@@ -248,7 +252,7 @@ where
     pub(crate) fn intern_node(
         &mut self,
         key: NodeKey<N, L, F, M>,
-        alternative: PackedAlternative,
+        alternative: PackedAlternative<W>,
     ) -> InternResult {
         match self.node_ids.entry(key) {
             Entry::Occupied(entry) => {
@@ -281,13 +285,32 @@ where
         }
     }
 
-    pub(crate) fn node(&self, node: NodeId) -> &ForestNode<N, L, F, M> {
+    pub(crate) fn node(&self, node: NodeId) -> &ForestNode<N, L, F, M, W> {
         &self.nodes[node.index()]
     }
 
     #[cfg(test)]
-    pub(crate) fn nodes(&self) -> impl Iterator<Item = &ForestNode<N, L, F, M>> {
+    pub(crate) fn nodes(&self) -> impl Iterator<Item = &ForestNode<N, L, F, M, W>> {
         self.nodes.iter()
+    }
+
+    #[allow(
+        dead_code,
+        reason = "the retained-alternative exact-result carrier is staged for its public consumer"
+    )]
+    pub(crate) fn exact_result<T>(
+        &self,
+        node: NodeId,
+        alternative: usize,
+        ast: T,
+    ) -> Option<ExactParse<T, W>> {
+        let surface = self
+            .node(node)
+            .alternatives
+            .get(alternative)?
+            .surface
+            .clone();
+        Some(ExactParse::new(ast, surface))
     }
 
     pub(crate) fn stats(&self) -> ForestStats {
@@ -440,6 +463,37 @@ mod tests {
     use super::ParseCost;
     use super::ParseForest;
     use crate::chart::RuleId;
+    use crate::features::Comma;
+
+    #[test]
+    fn surface_witnesses_survive_packing_into_distinct_exact_results() {
+        let mut forest = ParseForest::<&str, (), (), &str, Comma>::new();
+        let key = NodeKey::nonterminal("expression", 0, 1, ());
+        let absent = forest.intern_node(
+            key.clone(),
+            PackedAlternative {
+                rule: Some(RuleId::new(0)),
+                children: Vec::new(),
+                local_cost: ParseCost::default(),
+                surface: Comma::Absent,
+            },
+        );
+        let present = forest.intern_node(
+            key,
+            PackedAlternative {
+                rule: Some(RuleId::new(0)),
+                children: Vec::new(),
+                local_cost: ParseCost::default(),
+                surface: Comma::Present,
+            },
+        );
+        assert_eq!(absent.node, present.node, "chart node is shared");
+        assert_eq!(forest.node(absent.node).alternatives.len(), 2);
+        assert_ne!(
+            forest.exact_result(absent.node, 0, "same ast").unwrap(),
+            forest.exact_result(absent.node, 1, "same ast").unwrap(),
+        );
+    }
 
     #[test]
     fn attachment_preferences_are_lexicographic() {
@@ -467,7 +521,7 @@ mod tests {
 
     #[test]
     fn equal_nodes_pack_alternatives_and_choose_the_lower_cost() {
-        let mut forest = ParseForest::<&str, (), (), &str>::new();
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
         let key = NodeKey::nonterminal("expression", 0, 1, ());
 
         let first = forest.intern_node(
@@ -479,6 +533,7 @@ mod tests {
                     precedence: 2,
                     ..ParseCost::default()
                 },
+                surface: (),
             },
         );
         let second = forest.intern_node(
@@ -490,6 +545,7 @@ mod tests {
                     precedence: 1,
                     ..ParseCost::default()
                 },
+                surface: (),
             },
         );
 
@@ -508,7 +564,7 @@ mod tests {
 
     #[test]
     fn equal_cost_uses_stable_rule_order_and_preserves_all_ties() {
-        let mut forest = ParseForest::<&str, (), (), &str>::new();
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
         let key = NodeKey::nonterminal("expression", 0, 1, ());
         let root = forest
             .intern_node(
@@ -517,6 +573,7 @@ mod tests {
                     rule: Some(RuleId::new(4)),
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
+                    surface: (),
                 },
             )
             .node;
@@ -526,6 +583,7 @@ mod tests {
                 rule: Some(RuleId::new(3)),
                 children: Vec::new(),
                 local_cost: ParseCost::default(),
+                surface: (),
             },
         );
 
@@ -539,7 +597,7 @@ mod tests {
 
     #[test]
     fn best_root_uses_cost_then_stable_node_order() {
-        let mut forest = ParseForest::<&str, (), &str, &str>::new();
+        let mut forest = ParseForest::<&str, (), &str, &str, ()>::new();
         let first = forest
             .intern_node(
                 NodeKey::nonterminal("sentence", 0, 1, "first"),
@@ -547,6 +605,7 @@ mod tests {
                     rule: Some(RuleId::new(1)),
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
+                    surface: (),
                 },
             )
             .node;
@@ -557,6 +616,7 @@ mod tests {
                     rule: Some(RuleId::new(2)),
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
+                    surface: (),
                 },
             )
             .node;

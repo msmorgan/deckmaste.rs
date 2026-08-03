@@ -14,6 +14,7 @@ use super::ContractedSubjectKey;
 use super::CopularRemainder;
 use super::Determiner;
 use super::EnglishGrammar;
+use super::EnglishSurfaceWitness;
 use super::ExistentialForm;
 use super::ForestSymbol;
 use super::FrequencyPhrase;
@@ -139,14 +140,18 @@ pub(super) fn lower(
     best: &BestParse,
 ) -> Option<Lowered> {
     let forest_node = forest.node(node);
+    let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
     match forest_node.key.symbol {
         ForestSymbol::Lexical(_) => {
-            return lower_lexical(grammar, forest_node.key.lexical_value()?);
+            return lower_lexical(
+                grammar,
+                forest_node.key.lexical_value()?,
+                &alternative.surface,
+            );
         }
         ForestSymbol::Intermediate { .. } => return None,
         ForestSymbol::Nonterminal(_) => {}
     }
-    let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
     let rule = alternative.rule?;
     let tag = *grammar.tags.get(rule.index())?;
     let [intermediate] = alternative.children.as_slice() else {
@@ -186,9 +191,10 @@ pub(super) fn selected_rule_children(
 pub(super) fn lower_lexical(
     grammar: &EnglishGrammar<'_, '_>,
     meaning: &MeaningKey,
+    surface: &EnglishSurfaceWitness,
 ) -> Option<Lowered> {
     Some(match meaning {
-        MeaningKey::Literal(_) | MeaningKey::Punctuation(_) => Lowered::Ignored,
+        MeaningKey::Literal(_) | MeaningKey::Punctuation => Lowered::Ignored,
         MeaningKey::Number(number) => Lowered::Number(*number),
         MeaningKey::Quantity(quantity) => Lowered::Quantity(*quantity),
         MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.clone()),
@@ -199,8 +205,13 @@ pub(super) fn lower_lexical(
         MeaningKey::CoinResult(side) => Lowered::CoinResult(*side),
         MeaningKey::Frequency(frequency) => Lowered::Frequency(*frequency),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
-        MeaningKey::Auxiliary(auxiliary) => Lowered::Auxiliary(*auxiliary),
+        MeaningKey::Auxiliary(auxiliary) => {
+            Lowered::Auxiliary(auxiliary.with_contraction(surface.contraction()?))
+        }
         MeaningKey::SubjectAuxiliary(subject_auxiliary) => {
+            if surface.contraction()? != crate::features::Contraction::Contracted {
+                return None;
+            }
             let subject = match subject_auxiliary.subject {
                 ContractedSubjectKey::Pronoun(pronoun) => NounPhrase::Pronoun {
                     pronoun,
@@ -212,7 +223,9 @@ pub(super) fn lower_lexical(
             };
             Lowered::SubjectAuxiliary(ContractedSubjectAuxiliary {
                 subject: Subject(subject),
-                auxiliary: subject_auxiliary.auxiliary,
+                auxiliary: subject_auxiliary
+                    .auxiliary
+                    .with_contraction(crate::features::Contraction::Full),
             })
         }
         MeaningKey::Verb(verb) => Lowered::Verb(verb.clone()),
@@ -233,7 +246,9 @@ pub(super) fn lower_lexical(
         MeaningKey::Conjunction(conjunction) => Lowered::Conjunction(*conjunction),
         MeaningKey::Subordinator(subordinator) => Lowered::Subordinator(*subordinator),
         MeaningKey::RelativeMarker(marker) => Lowered::RelativeMarker(*marker),
-        MeaningKey::Existential(form) => Lowered::Existential(*form),
+        MeaningKey::Existential(key) => {
+            Lowered::Existential(ExistentialForm::new(key.verb_slot, surface.contraction()?)?)
+        }
         MeaningKey::ThisCard(form) => Lowered::ThisCard(*form),
         MeaningKey::Preposition(preposition) => Lowered::Preposition(*preposition),
         MeaningKey::NegatedModifier(key) => Lowered::NominalModifier(key.build()),

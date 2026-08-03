@@ -81,6 +81,8 @@ pub trait ChartFeature: GrammaticalFeature {}
 /// A grouping of chart features.
 pub trait ChartFeatureBundle {}
 
+impl ChartFeatureBundle for () {}
+
 /// A value carried only to preserve an exact surface realization.
 pub trait SurfaceWitnessPayload {}
 
