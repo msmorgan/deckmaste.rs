@@ -3,8 +3,9 @@
 //! `plugins/*/macros/**/*.ron` (paths and file names are organizational only)
 //! and are invoked by name where a value of one of their kinds is expected.
 //!
-//! Forked from `deckmaste_plugin::macros`, which keeps its own copy until
-//! `plugin-repoint` retires it.
+//! The single macro configuration registry: `deckmaste_plugin::macros`
+//! re-exports `kinds`, `param_types`, and `macro_set` from here rather than
+//! keeping its own copy.
 
 pub use macro_ron::InsertError;
 use macro_ron::KindSet;

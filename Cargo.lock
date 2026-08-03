@@ -551,6 +551,7 @@ name = "deckmaste_plugin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deckmaste_authoring",
  "deckmaste_card",
  "deckmaste_core",
  "macro_ron",

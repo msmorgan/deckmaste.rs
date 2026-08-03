@@ -11,6 +11,10 @@ workspace = true
 anyhow = { version = "1.0.102" }
 deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+# The authored rules grammar: the loader parses THIS, and the macro
+# configuration (kinds, param types) is the authoring crate's, not a second
+# copy over core types (docs/decisions/authoring-spelling-lowering.md §1).
+deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 regex = "1.12.3"
 ron = "0.12.1"
