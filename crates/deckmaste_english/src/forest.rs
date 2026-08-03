@@ -7,12 +7,13 @@ use hashbrown::HashMap;
 use hashbrown::hash_map::Entry;
 
 use crate::chart::RuleId;
+use crate::construction::ConstructionRegistry;
 use crate::construction::ProductionId;
 use crate::features::ExactParse;
 use crate::features::SurfaceWitnessPayload;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-pub(crate) struct ParseCost {
+pub struct ParseCost {
     pub(crate) opaque_words: u32,
     pub(crate) opaque_lexemes: u32,
     pub(crate) generic_rules: u32,
@@ -44,6 +45,93 @@ pub(crate) struct ParseCost {
     /// have excluded unrelated phrase types.
     pub(crate) attachment_extent: u32,
     pub(crate) precedence: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ParseCostDimension {
+    OpaqueWords,
+    OpaqueLexemes,
+    GenericRules,
+    ReadingDispreference,
+    AttachmentCount,
+    AttachmentDistance,
+    AttachmentExtent,
+    Precedence,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SelectionReason {
+    Unique,
+    Cost(ParseCostDimension),
+    Dominance,
+    StableIdentity,
+}
+
+impl ParseCost {
+    #[must_use]
+    pub const fn opaque_words(self) -> u32 {
+        self.opaque_words
+    }
+
+    #[must_use]
+    pub const fn opaque_lexemes(self) -> u32 {
+        self.opaque_lexemes
+    }
+
+    #[must_use]
+    pub const fn generic_rules(self) -> u32 {
+        self.generic_rules
+    }
+
+    #[must_use]
+    pub const fn reading_dispreference(self) -> u32 {
+        self.reading_dispreference
+    }
+
+    #[must_use]
+    pub const fn attachment_count(self) -> u32 {
+        self.attachment_count
+    }
+
+    #[must_use]
+    pub const fn attachment_distance(self) -> u32 {
+        self.attachment_distance
+    }
+
+    #[must_use]
+    pub const fn attachment_extent(self) -> u32 {
+        self.attachment_extent
+    }
+
+    #[must_use]
+    pub const fn precedence(self) -> u32 {
+        self.precedence
+    }
+
+    /// Returns the first cost dimension that distinguishes two costs in the
+    /// same lexicographic order used by [`Ord`].
+    #[must_use]
+    pub const fn decisive_dimension(self, other: Self) -> Option<ParseCostDimension> {
+        if self.opaque_words != other.opaque_words {
+            Some(ParseCostDimension::OpaqueWords)
+        } else if self.opaque_lexemes != other.opaque_lexemes {
+            Some(ParseCostDimension::OpaqueLexemes)
+        } else if self.generic_rules != other.generic_rules {
+            Some(ParseCostDimension::GenericRules)
+        } else if self.reading_dispreference != other.reading_dispreference {
+            Some(ParseCostDimension::ReadingDispreference)
+        } else if self.attachment_count != other.attachment_count {
+            Some(ParseCostDimension::AttachmentCount)
+        } else if self.attachment_distance != other.attachment_distance {
+            Some(ParseCostDimension::AttachmentDistance)
+        } else if self.attachment_extent != other.attachment_extent {
+            Some(ParseCostDimension::AttachmentExtent)
+        } else if self.precedence != other.precedence {
+            Some(ParseCostDimension::Precedence)
+        } else {
+            None
+        }
+    }
 }
 
 impl Ord for ParseCost {
@@ -334,8 +422,9 @@ where
     pub(crate) fn best_root(
         &self,
         roots: impl IntoIterator<Item = NodeId>,
+        registry: &ConstructionRegistry,
     ) -> Result<Option<(NodeId, BestParse)>, ForestError> {
-        self.best_root_matching(roots, |_, _| true)
+        self.best_root_matching(roots, registry, |_, _| true)
     }
 
     /// Ranks complete roots by the ordinary cost and stable-node tiebreak,
@@ -348,30 +437,43 @@ where
     pub(crate) fn best_root_matching(
         &self,
         roots: impl IntoIterator<Item = NodeId>,
+        registry: &ConstructionRegistry,
         mut matches: impl FnMut(NodeId, &BestParse) -> bool,
     ) -> Result<Option<(NodeId, BestParse)>, ForestError> {
         let mut costs = vec![None; self.nodes.len()];
         let mut alternatives = vec![None; self.nodes.len()];
+        let mut selected_productions = vec![None; self.nodes.len()];
+        let mut equal_cost_alternatives = vec![Vec::new(); self.nodes.len()];
         let mut tied_alternatives = vec![Vec::new(); self.nodes.len()];
+        let mut reasons = vec![None; self.nodes.len()];
         let mut visiting = vec![false; self.nodes.len()];
         let mut candidates = Vec::new();
         for root in roots {
             let cost = self.best_cost(
                 root,
+                registry,
                 &mut costs,
                 &mut alternatives,
+                &mut selected_productions,
+                &mut equal_cost_alternatives,
                 &mut tied_alternatives,
+                &mut reasons,
                 &mut visiting,
             )?;
-            candidates.push((cost, root.index(), root));
+            let production = selected_productions[root.index()];
+            candidates.push((cost, production.is_none(), production, root.index(), root));
         }
         candidates.sort_unstable();
         let mut best = BestParse {
             cost: ParseCost::default(),
+            costs,
             alternatives,
+            selected_productions,
+            equal_cost_alternatives,
             tied_alternatives,
+            reasons,
         };
-        for (cost, _, root) in candidates {
+        for (cost, _, _, _, root) in candidates {
             best.cost = cost;
             if matches(root, &best) {
                 return Ok(Some((root, best)));
@@ -383,9 +485,13 @@ where
     fn best_cost(
         &self,
         node: NodeId,
+        registry: &ConstructionRegistry,
         costs: &mut [Option<ParseCost>],
         choices: &mut [Option<usize>],
+        selected_productions: &mut [Option<ProductionId>],
+        equal_cost_choices: &mut [Vec<usize>],
         ties: &mut [Vec<usize>],
+        reasons: &mut [Option<SelectionReason>],
         visiting: &mut [bool],
     ) -> Result<ParseCost, ForestError> {
         if let Some(cost) = costs[node.index()] {
@@ -397,38 +503,80 @@ where
         visiting[node.index()] = true;
 
         let forest_node = self.node(node);
-        let mut best: Option<(ParseCost, usize, usize)> = None;
+        let mut aggregate_costs = Vec::with_capacity(forest_node.alternatives.len());
         for (alternative_index, alternative) in forest_node.alternatives.iter().enumerate() {
             let mut cost = alternative.local_cost;
             for &child in &alternative.children {
-                cost += self.best_cost(child, costs, choices, ties, visiting)?;
+                cost += self.best_cost(
+                    child,
+                    registry,
+                    costs,
+                    choices,
+                    selected_productions,
+                    equal_cost_choices,
+                    ties,
+                    reasons,
+                    visiting,
+                )?;
             }
-            let rule_order = alternative.rule.map_or(usize::MAX, RuleId::index);
-            let candidate = (cost, rule_order, alternative_index);
-            match best {
-                None => {
-                    best = Some(candidate);
-                    ties[node.index()].push(alternative_index);
-                }
-                Some(current) if cost < current.0 => {
-                    best = Some(candidate);
-                    ties[node.index()].clear();
-                    ties[node.index()].push(alternative_index);
-                }
-                Some(current) if cost == current.0 => {
-                    ties[node.index()].push(alternative_index);
-                    if candidate < current {
-                        best = Some(candidate);
-                    }
-                }
-                Some(_) => {}
-            }
+            aggregate_costs.push((cost, alternative_index));
         }
 
         visiting[node.index()] = false;
-        let (cost, _, alternative) = best.ok_or(ForestError::MissingAlternative(node))?;
+        let cost = aggregate_costs
+            .iter()
+            .map(|(cost, _)| *cost)
+            .min()
+            .ok_or(ForestError::MissingAlternative(node))?;
+        let equal_cost = &mut equal_cost_choices[node.index()];
+        equal_cost.extend(
+            aggregate_costs
+                .iter()
+                .filter_map(|(candidate_cost, index)| (*candidate_cost == cost).then_some(*index)),
+        );
+
+        let viable = &mut ties[node.index()];
+        viable.extend(equal_cost.iter().copied().filter(|&candidate_index| {
+            let Some(candidate) = forest_node.alternatives[candidate_index].production else {
+                return true;
+            };
+            !equal_cost.iter().copied().any(|other_index| {
+                let Some(other) = forest_node.alternatives[other_index].production else {
+                    return false;
+                };
+                registry.dominates(other.construction, candidate.construction)
+            })
+        }));
+        viable.sort_unstable_by_key(|&index| {
+            let production = forest_node.alternatives[index].production;
+            (production.is_none(), production, index)
+        });
+
+        let &alternative = viable
+            .first()
+            .ok_or(ForestError::MissingAlternative(node))?;
+        let reason = if viable.len() < equal_cost.len() {
+            SelectionReason::Dominance
+        } else if viable.len() > 1 {
+            SelectionReason::StableIdentity
+        } else if aggregate_costs.len() > 1 {
+            let next_cost = aggregate_costs
+                .iter()
+                .map(|(candidate_cost, _)| *candidate_cost)
+                .filter(|candidate_cost| *candidate_cost > cost)
+                .min()
+                .expect("a unique cheapest alternative must have a cost competitor");
+            SelectionReason::Cost(
+                cost.decisive_dimension(next_cost)
+                    .expect("different costs must have a decisive dimension"),
+            )
+        } else {
+            SelectionReason::Unique
+        };
         costs[node.index()] = Some(cost);
         choices[node.index()] = Some(alternative);
+        selected_productions[node.index()] = forest_node.alternatives[alternative].production;
+        reasons[node.index()] = Some(reason);
         Ok(cost)
     }
 }
@@ -436,8 +584,12 @@ where
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct BestParse {
     pub(crate) cost: ParseCost,
+    costs: Vec<Option<ParseCost>>,
     alternatives: Vec<Option<usize>>,
+    selected_productions: Vec<Option<ProductionId>>,
+    equal_cost_alternatives: Vec<Vec<usize>>,
     tied_alternatives: Vec<Vec<usize>>,
+    reasons: Vec<Option<SelectionReason>>,
 }
 
 impl BestParse {
@@ -445,10 +597,31 @@ impl BestParse {
         self.alternatives.get(node.index()).copied().flatten()
     }
 
+    pub(crate) fn node_cost(&self, node: NodeId) -> Option<ParseCost> {
+        self.costs.get(node.index()).copied().flatten()
+    }
+
+    pub(crate) fn selected_production(&self, node: NodeId) -> Option<ProductionId> {
+        self.selected_productions
+            .get(node.index())
+            .copied()
+            .flatten()
+    }
+
+    pub(crate) fn equal_cost_alternatives(&self, node: NodeId) -> &[usize] {
+        self.equal_cost_alternatives
+            .get(node.index())
+            .map_or(&[], Vec::as_slice)
+    }
+
     pub(crate) fn tied_alternatives(&self, node: NodeId) -> &[usize] {
         self.tied_alternatives
             .get(node.index())
             .map_or(&[], Vec::as_slice)
+    }
+
+    pub(crate) fn reason(&self, node: NodeId) -> Option<SelectionReason> {
+        self.reasons.get(node.index()).copied().flatten()
     }
 }
 
@@ -463,9 +636,47 @@ mod tests {
     use super::NodeKey;
     use super::PackedAlternative;
     use super::ParseCost;
+    use super::ParseCostDimension;
     use super::ParseForest;
+    use super::SelectionReason;
     use crate::chart::RuleId;
+    use crate::construction::ConstructionBackend;
+    use crate::construction::ConstructionEvidence;
+    use crate::construction::ConstructionFamily;
+    use crate::construction::ConstructionId;
+    use crate::construction::ConstructionOwner;
+    use crate::construction::ConstructionRegistry;
+    use crate::construction::DominanceEdge;
+    use crate::construction::ProductionId;
     use crate::features::Comma;
+
+    fn production(construction: &'static str, ordinal: u16) -> ProductionId {
+        ProductionId {
+            construction: ConstructionId::new(construction),
+            ordinal,
+        }
+    }
+
+    fn test_family(id: ConstructionId) -> ConstructionFamily {
+        ConstructionFamily::new(
+            id,
+            ConstructionOwner::Handwritten,
+            ConstructionBackend::Chart,
+            ConstructionEvidence::structural("test production"),
+        )
+    }
+
+    fn test_registry(
+        ids: &[ConstructionId],
+        edges: impl IntoIterator<Item = DominanceEdge>,
+    ) -> ConstructionRegistry {
+        ConstructionRegistry::new(ids.iter().copied().map(test_family), edges)
+            .expect("test registry must be valid")
+    }
+
+    fn empty_registry() -> ConstructionRegistry {
+        test_registry(&[], [])
+    }
 
     #[test]
     fn surface_witnesses_survive_packing_into_distinct_exact_results() {
@@ -561,7 +772,7 @@ mod tests {
         assert_eq!(forest.node(first.node).alternatives.len(), 2);
 
         let (_, best) = forest
-            .best_root([first.node])
+            .best_root([first.node], &empty_registry())
             .expect("the node is acyclic")
             .expect("there is a root");
         assert_eq!(best.cost.precedence, 1);
@@ -569,15 +780,71 @@ mod tests {
     }
 
     #[test]
-    fn equal_cost_uses_stable_rule_order_and_preserves_all_ties() {
+    fn equal_cost_uses_stable_production_identity_and_preserves_incomparable_ties() {
+        let alpha = production("alpha", 0);
+        let zeta = production("zeta", 0);
+        let registry = test_registry(&[alpha.construction, zeta.construction], []);
+
+        for order in [[zeta, alpha], [alpha, zeta]] {
+            let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
+            let key = NodeKey::nonterminal("expression", 0, 1, ());
+            let root = forest
+                .intern_node(
+                    key.clone(),
+                    PackedAlternative {
+                        rule: Some(RuleId::new(4)),
+                        production: Some(order[0]),
+                        children: Vec::new(),
+                        local_cost: ParseCost::default(),
+                        surface: (),
+                    },
+                )
+                .node;
+            forest.intern_node(
+                key,
+                PackedAlternative {
+                    rule: Some(RuleId::new(3)),
+                    production: Some(order[1]),
+                    children: Vec::new(),
+                    local_cost: ParseCost::default(),
+                    surface: (),
+                },
+            );
+
+            let (_, best) = forest
+                .best_root([root], &registry)
+                .expect("the node is acyclic")
+                .expect("there is a root");
+            assert_eq!(best.selected_production(root), Some(alpha));
+            let viable = best
+                .tied_alternatives(root)
+                .iter()
+                .map(|&index| forest.node(root).alternatives[index].production.unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(viable, [alpha, zeta]);
+            assert_eq!(best.reason(root), Some(SelectionReason::StableIdentity));
+        }
+    }
+
+    #[test]
+    fn declared_dominance_removes_only_the_subordinate_from_viable_ties() {
+        let dominant = production("generic", 0);
+        let subordinate = production("specific", 0);
+        let registry = test_registry(
+            &[dominant.construction, subordinate.construction],
+            [DominanceEdge::new(
+                dominant.construction,
+                subordinate.construction,
+            )],
+        );
         let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
         let key = NodeKey::nonterminal("expression", 0, 1, ());
         let root = forest
             .intern_node(
                 key.clone(),
                 PackedAlternative {
-                    rule: Some(RuleId::new(4)),
-                    production: None,
+                    rule: Some(RuleId::new(1)),
+                    production: Some(subordinate),
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
                     surface: (),
@@ -587,8 +854,8 @@ mod tests {
         forest.intern_node(
             key,
             PackedAlternative {
-                rule: Some(RuleId::new(3)),
-                production: None,
+                rule: Some(RuleId::new(9)),
+                production: Some(dominant),
                 children: Vec::new(),
                 local_cost: ParseCost::default(),
                 surface: (),
@@ -596,34 +863,89 @@ mod tests {
         );
 
         let (_, best) = forest
-            .best_root([root])
+            .best_root([root], &registry)
             .expect("the node is acyclic")
             .expect("there is a root");
-        assert_eq!(best.alternative(root), Some(1));
-        assert_eq!(best.tied_alternatives(root), &[0, 1]);
+        assert_eq!(best.tied_alternatives(root), &[1]);
+        assert_eq!(best.equal_cost_alternatives(root), &[0, 1]);
+        assert_eq!(best.reason(root), Some(SelectionReason::Dominance));
     }
 
     #[test]
-    fn best_root_uses_cost_then_stable_node_order() {
+    fn a_named_cost_dimension_remains_decisive_before_dominance() {
+        let dominant = production("generic", 0);
+        let subordinate = production("specific", 0);
+        let registry = test_registry(
+            &[dominant.construction, subordinate.construction],
+            [DominanceEdge::new(
+                dominant.construction,
+                subordinate.construction,
+            )],
+        );
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
+        let key = NodeKey::nonterminal("expression", 0, 1, ());
+        let root = forest
+            .intern_node(
+                key.clone(),
+                PackedAlternative {
+                    rule: Some(RuleId::new(1)),
+                    production: Some(dominant),
+                    children: Vec::new(),
+                    local_cost: ParseCost {
+                        precedence: 1,
+                        ..ParseCost::default()
+                    },
+                    surface: (),
+                },
+            )
+            .node;
+        forest.intern_node(
+            key,
+            PackedAlternative {
+                rule: Some(RuleId::new(9)),
+                production: Some(subordinate),
+                children: Vec::new(),
+                local_cost: ParseCost::default(),
+                surface: (),
+            },
+        );
+
+        let (_, best) = forest
+            .best_root([root], &registry)
+            .expect("the node is acyclic")
+            .expect("there is a root");
+        assert_eq!(best.alternative(root), Some(1));
+        assert_eq!(best.node_cost(root), Some(ParseCost::default()));
+        assert_eq!(
+            best.reason(root),
+            Some(SelectionReason::Cost(ParseCostDimension::Precedence))
+        );
+    }
+
+    #[test]
+    fn best_root_uses_cost_then_stable_production_identity() {
         let mut forest = ParseForest::<&str, (), &str, &str, ()>::new();
-        let first = forest
+        let zeta = production("zeta_root", 0);
+        let alpha = production("alpha_root", 0);
+        let registry = test_registry(&[alpha.construction, zeta.construction], []);
+        let first_node = forest
             .intern_node(
                 NodeKey::nonterminal("sentence", 0, 1, "first"),
                 PackedAlternative {
                     rule: Some(RuleId::new(1)),
-                    production: None,
+                    production: Some(zeta),
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
                     surface: (),
                 },
             )
             .node;
-        let second = forest
+        let second_node = forest
             .intern_node(
                 NodeKey::nonterminal("sentence", 0, 1, "second"),
                 PackedAlternative {
                     rule: Some(RuleId::new(2)),
-                    production: None,
+                    production: Some(alpha),
                     children: Vec::new(),
                     local_cost: ParseCost::default(),
                     surface: (),
@@ -632,10 +954,10 @@ mod tests {
             .node;
 
         let (selected, _) = forest
-            .best_root([second, first])
+            .best_root([first_node, second_node], &registry)
             .expect("the nodes are acyclic")
             .expect("there are roots");
 
-        assert_eq!(selected, first);
+        assert_eq!(selected, second_node);
     }
 }

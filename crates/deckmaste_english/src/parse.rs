@@ -118,13 +118,12 @@ impl ParseSelection {
         self.rule
     }
 
-    /// Indices of all alternatives at this selection's root with the minimum
-    /// parse cost, including the selected alternative itself.
+    /// Indices of the undominated alternatives at this selection's root with
+    /// the minimum parse cost, including the selected alternative itself.
     ///
     /// A successful forest selection therefore has at least one index here;
     /// only a length greater than one indicates an equal-cost tie. The forest
-    /// resolves such a tie deterministically by grammar-rule order and then
-    /// alternative index.
+    /// resolves such a tie deterministically by stable production identity.
     #[must_use]
     pub fn tied_alternatives(&self) -> &[usize] {
         &self.tied_alternatives

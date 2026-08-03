@@ -39,17 +39,47 @@ fn family(tag: RuleTag) -> ConstructionFamily {
     )
 }
 
+fn dominance_edges() -> [DominanceEdge; 13] {
+    let edge = |dominant, subordinate| {
+        DominanceEdge::new(construction_id(dominant), construction_id(subordinate))
+    };
+    [
+        // These relationships make the grammar's former insertion-order
+        // preferences explicit. They were censused against the full English
+        // suite when construction identity replaced numeric rule order.
+        edge(
+            RuleTag::NominalQuantityModifier,
+            RuleTag::NominalPrepositional,
+        ),
+        edge(
+            RuleTag::NominalQuantityModifier,
+            RuleTag::NominalPostpositiveAdjective,
+        ),
+        edge(RuleTag::NominalQuantityModifier, RuleTag::NominalComparison),
+        edge(RuleTag::NominalDeterminer, RuleTag::NominalComparison),
+        edge(RuleTag::NominalPrepositional, RuleTag::NominalInfinitive),
+        edge(
+            RuleTag::NominalPrepositional,
+            RuleTag::NominalCoordinatedModifier,
+        ),
+        edge(
+            RuleTag::NominalPrepositional,
+            RuleTag::NominalKeywordPredicatedArgument,
+        ),
+        edge(RuleTag::NounPhraseNominal, RuleTag::NounPhraseCoordination),
+        edge(RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
+        edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdjective),
+        edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdverb),
+        edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAbility),
+        edge(RuleTag::ClauseSimple, RuleTag::ClauseCopular),
+    ]
+}
+
 pub(super) fn registry() -> &'static ConstructionRegistry {
     static REGISTRY: OnceLock<ConstructionRegistry> = OnceLock::new();
     REGISTRY.get_or_init(|| {
-        ConstructionRegistry::new(
-            RuleTag::iter().map(family),
-            [DominanceEdge::new(
-                construction_id(RuleTag::NominalPrepositional),
-                construction_id(RuleTag::NominalKeywordPredicatedArgument),
-            )],
-        )
-        .expect("static construction registry must be valid")
+        ConstructionRegistry::new(RuleTag::iter().map(family), dominance_edges())
+            .expect("static construction registry must be valid")
     })
 }
 
@@ -100,11 +130,40 @@ mod tests {
     }
 
     #[test]
-    fn known_registration_accident_is_declared_as_dominance() {
-        assert!(registry().dominates(
-            construction_id(RuleTag::NominalPrepositional),
-            construction_id(RuleTag::NominalKeywordPredicatedArgument),
-        ));
+    fn historic_registration_preferences_are_declared_as_dominance() {
+        let preferences = [
+            (
+                RuleTag::NominalQuantityModifier,
+                RuleTag::NominalPrepositional,
+            ),
+            (
+                RuleTag::NominalQuantityModifier,
+                RuleTag::NominalPostpositiveAdjective,
+            ),
+            (RuleTag::NominalQuantityModifier, RuleTag::NominalComparison),
+            (RuleTag::NominalDeterminer, RuleTag::NominalComparison),
+            (RuleTag::NominalPrepositional, RuleTag::NominalInfinitive),
+            (
+                RuleTag::NominalPrepositional,
+                RuleTag::NominalCoordinatedModifier,
+            ),
+            (
+                RuleTag::NominalPrepositional,
+                RuleTag::NominalKeywordPredicatedArgument,
+            ),
+            (RuleTag::NounPhraseNominal, RuleTag::NounPhraseCoordination),
+            (RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
+            (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdjective),
+            (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdverb),
+            (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAbility),
+            (RuleTag::ClauseSimple, RuleTag::ClauseCopular),
+        ];
+        for (dominant, subordinate) in preferences {
+            assert!(
+                registry().dominates(construction_id(dominant), construction_id(subordinate)),
+                "{dominant:?} must dominate {subordinate:?}",
+            );
+        }
     }
 
     #[test]

@@ -118,8 +118,22 @@ impl ParsedNonterminal {
         self.best.tied_alternatives(self.root)
     }
 
-    pub(crate) const fn cost(&self) -> ParseCost {
-        self.best.cost
+    pub(crate) fn root_equal_cost_alternatives(&self) -> &[usize] {
+        self.best.equal_cost_alternatives(self.root)
+    }
+
+    pub(crate) fn root_production(&self) -> Option<crate::construction::ProductionId> {
+        self.best.selected_production(self.root)
+    }
+
+    pub(crate) fn root_reason(&self) -> Option<crate::forest::SelectionReason> {
+        self.best.reason(self.root)
+    }
+
+    pub(crate) fn cost(&self) -> ParseCost {
+        self.best
+            .node_cost(self.root)
+            .expect("a selected root must have an aggregate cost")
     }
 
     pub(crate) const fn chart_stats(&self) -> ChartStats {
@@ -211,10 +225,14 @@ pub(super) fn parse_nonterminal_with_mode(
     let mut syntax = None;
     let (root, best) = chart
         .forest
-        .best_root_matching(chart.roots.iter().copied(), |root, best| {
-            syntax = lower(&grammar, forest, root, best);
-            syntax.is_some()
-        })
+        .best_root_matching(
+            chart.roots.iter().copied(),
+            super::construction::registry(),
+            |root, best| {
+                syntax = lower(&grammar, forest, root, best);
+                syntax.is_some()
+            },
+        )
         .map_err(ParseNonterminalError::Forest)?
         .ok_or(ParseNonterminalError::Lowering)?;
     let syntax = syntax.ok_or(ParseNonterminalError::Lowering)?;
@@ -668,7 +686,10 @@ mod root_lowering_tests {
             parse_chart(&grammar, &surface.tokens).map_err(ParseNonterminalError::Grammar)?;
         let (root, best) = chart
             .forest
-            .best_root(chart.roots.iter().copied())
+            .best_root(
+                chart.roots.iter().copied(),
+                super::super::construction::registry(),
+            )
             .map_err(ParseNonterminalError::Forest)?
             .ok_or(ParseNonterminalError::NoCompleteParse(nonterminal))?;
         let syntax =
