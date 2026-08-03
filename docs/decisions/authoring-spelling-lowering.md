@@ -57,9 +57,12 @@ deckmaste_english ◄════════════════► deckmas
   orphan rule permits it), with `CardRef<T: BaseCharacteristics>`
   engine-local at the object/state boundary; grammar enums stay
   monomorphic. Neither the trait nor `CardRef` is built yet:
-  `card-crate-split` landed as a pure move and deferred them, enforcing
-  only the negative half of the contract — that core gains no
-  characteristics abstraction. A future shared characteristics-atoms
+  `card-crate-split` landed as a pure move and enforced only the negative
+  half of the contract — that core gains no characteristics abstraction.
+  The positive half is owned by `engine-base-characteristics`, which also
+  records that only two of the three named base sources are live today
+  (`FaceDownCharacteristics` has no reader until `engine-face-down`).
+  A future shared characteristics-atoms
   crate below both grammars (killing atom mirroring) is booked as a
   design-gated follow-up (`characteristics-atoms-crate`), deliberately
   NOT part of Stage 1.
@@ -631,7 +634,8 @@ tracked tree); the deltas restated here are self-contained.
   `core-demacro`. Stage 2: `macro-author-surface` (rewritten),
   `macro-collision-diagnostic`. Stage 3: `spelling-crate-rename`,
   `frames-catalog-merge`. Stage 4: `target-sugar-elaboration`.
-  Follow-ups: `plugin-rider-split`, `engine-it-target-fallback-removal`,
+  Follow-ups: `plugin-rider-split`, `engine-base-characteristics`,
+  `engine-it-target-fallback-removal`,
   `idris-distinct-position-proof`, `spelling-engine-requirements`,
   `post-reshape-comment-rot`, `ci-idris-gate` (the idris-check baseline),
   the re-aimed `core-remove-default-args`, and the design-gated
