@@ -84,39 +84,29 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_cost_component_mana() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::Mana(
-            deckmaste_authoring::ManaCost::from(
-                std::sync::Arc::<[deckmaste_authoring::ManaSymbol]>::from([]),
-            ),
-        ));
         assert_matches!(
             deckmaste_authoring::CostComponent::Mana(deckmaste_authoring::ManaCost::from(
                 std::sync::Arc::<[deckmaste_authoring::ManaSymbol]>::from([])
             ))
             .lower(),
-            deckmaste_core::CostComponent::Mana(..)
+            deckmaste_core::CostComponent::Mana(_)
         );
     }
 
     #[test]
     fn lowers_cost_component_mana_cost_of() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::ManaCostOf(
-            minimal_reference(),
-        ));
         assert_matches!(
             deckmaste_authoring::CostComponent::ManaCostOf(minimal_reference()).lower(),
-            deckmaste_core::CostComponent::ManaCostOf(..)
+            deckmaste_core::CostComponent::ManaCostOf(deckmaste_core::Reference::This)
         );
     }
 
     #[test]
     fn lowers_cost_component_tap() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::Tap);
         assert_matches!(
             deckmaste_authoring::CostComponent::Tap.lower(),
             deckmaste_core::CostComponent::Tap
@@ -125,7 +115,6 @@ mod tests {
 
     #[test]
     fn lowers_cost_component_untap() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::Untap);
         assert_matches!(
             deckmaste_authoring::CostComponent::Untap.lower(),
             deckmaste_core::CostComponent::Untap
@@ -134,32 +123,22 @@ mod tests {
 
     #[test]
     fn lowers_cost_component_do() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::Do(std::sync::Arc::new(
-            minimal_action(),
-        )));
         assert_matches!(
             deckmaste_authoring::CostComponent::Do(std::sync::Arc::new(minimal_action())).lower(),
-            deckmaste_core::CostComponent::Do(..)
+            deckmaste_core::CostComponent::Do(_)
         );
     }
 
     #[test]
     fn lowers_cost_component_cost() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::Cost(minimal_cost()));
         assert_matches!(
             deckmaste_authoring::CostComponent::Cost(minimal_cost()).lower(),
-            deckmaste_core::CostComponent::Cost(..)
+            deckmaste_core::CostComponent::Cost(deckmaste_core::Cost(_))
         );
     }
 
     #[test]
     fn lowers_cost_component_tap_total() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::TapTotal {
-            stat: minimal_stat(),
-            cmp: minimal_cmp(),
-            count: minimal_count(),
-            filter: std::sync::Arc::new(minimal_predicate()),
-        });
         assert_matches!(
             deckmaste_authoring::CostComponent::TapTotal {
                 stat: minimal_stat(),
@@ -168,36 +147,32 @@ mod tests {
                 filter: std::sync::Arc::new(minimal_predicate())
             }
             .lower(),
-            deckmaste_core::CostComponent::TapTotal { .. }
+            deckmaste_core::CostComponent::TapTotal {
+                stat: deckmaste_core::Stat::Power,
+                cmp: deckmaste_core::Cmp::Eq,
+                count: deckmaste_core::Count::X,
+                filter: _
+            }
         );
     }
 
     #[test]
     fn lowers_cost_component_with() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::With {
-            binder: std::sync::Arc::new(minimal_binder()),
-            body: minimal_cost(),
-        });
         assert_matches!(
             deckmaste_authoring::CostComponent::With {
                 binder: std::sync::Arc::new(minimal_binder()),
                 body: minimal_cost()
             }
             .lower(),
-            deckmaste_core::CostComponent::With { .. }
+            deckmaste_core::CostComponent::With {
+                binder: _,
+                body: deckmaste_core::Cost(_)
+            }
         );
     }
 
     #[test]
     fn lowers_cost_component_expanded() {
-        assert_lowers_debug(deckmaste_authoring::CostComponent::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_cost_component()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::CostComponent::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -206,35 +181,57 @@ mod tests {
                 value: Box::new(minimal_cost_component())
             })
             .lower(),
-            deckmaste_core::CostComponent::Expanded(..)
+            deckmaste_core::CostComponent::Expanded(_)
         );
     }
 
     #[test]
     fn lowers_cost() {
-        assert_lowers(deckmaste_authoring::Cost([].into()));
+        assert_matches!(
+            deckmaste_authoring::Cost([].into()).lower(),
+            deckmaste_core::Cost(_)
+        );
     }
 
     #[test]
     fn lowers_cost_tag() {
-        assert_lowers(deckmaste_authoring::CostTag("X".into()));
+        assert_matches!(
+            deckmaste_authoring::CostTag("X".into()).lower(),
+            deckmaste_core::CostTag(_)
+        );
     }
 
     #[test]
     fn lowers_optional_cost() {
-        assert_lowers(deckmaste_authoring::OptionalCost {
-            components: [].into(),
-            tag: minimal_cost_tag(),
-            repeatable: false,
-        });
+        assert_matches!(
+            deckmaste_authoring::OptionalCost {
+                components: [].into(),
+                tag: minimal_cost_tag(),
+                repeatable: false
+            }
+            .lower(),
+            deckmaste_core::OptionalCost {
+                components: _,
+                tag: deckmaste_core::CostTag(_),
+                repeatable: false
+            }
+        );
     }
 
     #[test]
     fn lowers_total_cost() {
-        assert_lowers_debug(deckmaste_authoring::TotalCost {
-            base: [].into(),
-            trace: [].into(),
-            locked: false,
-        });
+        assert_matches!(
+            deckmaste_authoring::TotalCost {
+                base: [].into(),
+                trace: [].into(),
+                locked: false
+            }
+            .lower(),
+            deckmaste_core::TotalCost {
+                base: _,
+                trace: _,
+                locked: false
+            }
+        );
     }
 }

@@ -71,54 +71,41 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_binder_the_ref() {
-        assert_lowers_debug(deckmaste_authoring::Binder::TheRef(minimal_reference()));
         assert_matches!(
             deckmaste_authoring::Binder::TheRef(minimal_reference()).lower(),
-            deckmaste_core::Binder::TheRef(..)
+            deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This)
         );
     }
 
     #[test]
     fn lowers_binder_choose_one() {
-        assert_lowers_debug(deckmaste_authoring::Binder::ChooseOne {
-            filter: minimal_predicate(),
-            by: minimal_reference(),
-        });
         assert_matches!(
             deckmaste_authoring::Binder::ChooseOne {
                 filter: minimal_predicate(),
                 by: minimal_reference()
             }
             .lower(),
-            deckmaste_core::Binder::ChooseOne { .. }
+            deckmaste_core::Binder::ChooseOne {
+                filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Reference::This
+            }
         );
     }
 
     #[test]
     fn lowers_binder_produce() {
-        assert_lowers_debug(deckmaste_authoring::Binder::Produce(std::sync::Arc::new(
-            minimal_action(),
-        )));
         assert_matches!(
             deckmaste_authoring::Binder::Produce(std::sync::Arc::new(minimal_action())).lower(),
-            deckmaste_core::Binder::Produce(..)
+            deckmaste_core::Binder::Produce(_)
         );
     }
 
     #[test]
     fn lowers_binder_search_one() {
-        assert_lowers_debug(deckmaste_authoring::Binder::SearchOne {
-            filter: minimal_predicate(),
-            by: minimal_reference(),
-            whose: minimal_reference(),
-            from: [].into(),
-            if_none: None,
-        });
         assert_matches!(
             deckmaste_authoring::Binder::SearchOne {
                 filter: minimal_predicate(),
@@ -128,17 +115,18 @@ mod tests {
                 if_none: None
             }
             .lower(),
-            deckmaste_core::Binder::SearchOne { .. }
+            deckmaste_core::Binder::SearchOne {
+                filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Reference::This,
+                whose: deckmaste_core::Reference::This,
+                from: _,
+                if_none: None
+            }
         );
     }
 
     #[test]
     fn lowers_binder_choose() {
-        assert_lowers_debug(deckmaste_authoring::Binder::Choose {
-            quantity: minimal_quantity(),
-            filter: minimal_predicate(),
-            by: minimal_reference(),
-        });
         assert_matches!(
             deckmaste_authoring::Binder::Choose {
                 quantity: minimal_quantity(),
@@ -146,29 +134,26 @@ mod tests {
                 by: minimal_reference()
             }
             .lower(),
-            deckmaste_core::Binder::Choose { .. }
+            deckmaste_core::Binder::Choose {
+                quantity: deckmaste_core::Quantity::Range(None, None),
+                filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Reference::This
+            }
         );
     }
 
     #[test]
     fn lowers_binder_existing() {
-        assert_lowers_debug(deckmaste_authoring::Binder::Existing(minimal_selection()));
         assert_matches!(
             deckmaste_authoring::Binder::Existing(minimal_selection()).lower(),
-            deckmaste_core::Binder::Existing(..)
+            deckmaste_core::Binder::Existing(deckmaste_core::Selection::SelectAll(
+                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            ))
         );
     }
 
     #[test]
     fn lowers_binder_search() {
-        assert_lowers_debug(deckmaste_authoring::Binder::Search {
-            quantity: minimal_quantity(),
-            filter: minimal_predicate(),
-            by: minimal_reference(),
-            whose: minimal_reference(),
-            from: [].into(),
-            if_none: None,
-        });
         assert_matches!(
             deckmaste_authoring::Binder::Search {
                 quantity: minimal_quantity(),
@@ -179,20 +164,19 @@ mod tests {
                 if_none: None
             }
             .lower(),
-            deckmaste_core::Binder::Search { .. }
+            deckmaste_core::Binder::Search {
+                quantity: deckmaste_core::Quantity::Range(None, None),
+                filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Reference::This,
+                whose: deckmaste_core::Reference::This,
+                from: _,
+                if_none: None
+            }
         );
     }
 
     #[test]
     fn lowers_binder_expanded() {
-        assert_lowers_debug(deckmaste_authoring::Binder::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_binder()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::Binder::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -201,7 +185,7 @@ mod tests {
                 value: Box::new(minimal_binder())
             })
             .lower(),
-            deckmaste_core::Binder::Expanded(..)
+            deckmaste_core::Binder::Expanded(_)
         );
     }
 }

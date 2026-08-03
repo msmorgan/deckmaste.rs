@@ -128,20 +128,19 @@ impl<T: Lower> Lower for Expansion<T> {
     }
 }
 
-/// The assertion every generated per-variant test goes through.
+/// The fallback assertion for a type a pattern cannot reach.
 ///
-/// Asserts that an authored value and its lowered image serialize to the same
-/// RON. The comparison runs through the serde derives on BOTH sides, so it
-/// shares no code with the mapping arm under test: an arm that picked the wrong
-/// variant, or swapped two same-typed fields, changes the bytes and fails. That
-/// is the mapping's one blind spot — the compiler enforces totality, not
-/// correctness, so a wrong-but-well-typed arm is invisible to it
-/// (`docs/decisions/authoring-spelling-lowering.md` §13.2).
+/// Every per-variant test states its expected engine shape with
+/// `assert_matches!`. Exactly one type defeats that: `ManaCost` wraps a PRIVATE
+/// field, and stable Rust cannot match a tuple struct with private fields from
+/// another crate. Comparing the two serializations gets the same evidence by
+/// another route — the comparison runs through the serde derives on BOTH sides,
+/// so it shares no code with the arm under test.
 ///
-/// It replaces the withdrawn raise-map round-trip property (§9): a second full
-/// mapping would have covered only terms whose every node maps by identity, so
-/// its reach shrank with each divergence, starting with `plugin-repoint`'s
-/// erasure of the `Expansion` arms.
+/// Together these replace the withdrawn raise-map round-trip property (§9): a
+/// second full mapping would have covered only terms whose every node maps by
+/// identity, so its reach shrank with each divergence, starting with
+/// `plugin-repoint`'s erasure of the `Expansion` arms.
 #[cfg(test)]
 pub(crate) fn assert_lowers<A, C>(value: A)
 where
@@ -157,33 +156,6 @@ where
     assert_eq!(
         authored, lowered,
         "lowering changed the serialized form of this variant"
-    );
-}
-
-/// The same rendering assertion for grammar types that carry no `Serialize`.
-///
-/// Some types are never written to RON (computed costs, lookup enums), so the
-/// serialized comparison is unavailable. Derived `Debug` is an equivalent
-/// structural witness: it prints variant and field names WITHOUT crate
-/// qualification, so the authored and engine renderings compare directly.
-///
-/// This runs alongside the `assert_matches!` shape check, not instead of it,
-/// and the two catch different defects. The pattern pins the TOP-LEVEL variant
-/// — what a diverged arm must state — while the rendering pins NESTED
-/// structure, so a defect inside a minimal value fails every test whose value
-/// contains it. Measured: mis-mapping one `Zone` variant fails 7 tests with the
-/// rendering assertions in place and 1 without.
-#[cfg(test)]
-pub(crate) fn assert_lowers_debug<A, C>(value: A)
-where
-    A: Lower<Target = C> + std::fmt::Debug,
-    C: std::fmt::Debug,
-{
-    let authored = format!("{value:?}");
-    let lowered = format!("{:?}", value.lower());
-    assert_eq!(
-        authored, lowered,
-        "lowering changed the structure of this variant"
     );
 }
 

@@ -66,65 +66,71 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_replacement_instead() {
-        assert_lowers_debug(deckmaste_authoring::Replacement::Instead {
-            would: minimal_event_filter(),
-            instead: minimal_one_shot_effect(),
-        });
         assert_matches!(
             deckmaste_authoring::Replacement::Instead {
                 would: minimal_event_filter(),
                 instead: minimal_one_shot_effect()
             }
             .lower(),
-            deckmaste_core::Replacement::Instead { .. }
+            deckmaste_core::Replacement::Instead {
+                would: deckmaste_core::EventFilter::ZoneChange {
+                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                    from: None,
+                    to: None,
+                    cause: None
+                },
+                instead: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::This,
+                    deckmaste_core::Count::X,
+                    deckmaste_core::Reference::This
+                ))
+            }
         );
     }
 
     #[test]
     fn lowers_replacement_skip() {
-        assert_lowers_debug(deckmaste_authoring::Replacement::Skip {
-            what: minimal_phase_step(),
-        });
         assert_matches!(
             deckmaste_authoring::Replacement::Skip {
                 what: minimal_phase_step()
             }
             .lower(),
-            deckmaste_core::Replacement::Skip { .. }
+            deckmaste_core::Replacement::Skip {
+                what: deckmaste_core::PhaseStep::Beginning(deckmaste_core::BeginningStep::Untap)
+            }
         );
     }
 
     #[test]
     fn lowers_replacement_also() {
-        assert_lowers_debug(deckmaste_authoring::Replacement::Also {
-            would: minimal_event_filter(),
-            also: minimal_one_shot_effect(),
-        });
         assert_matches!(
             deckmaste_authoring::Replacement::Also {
                 would: minimal_event_filter(),
                 also: minimal_one_shot_effect()
             }
             .lower(),
-            deckmaste_core::Replacement::Also { .. }
+            deckmaste_core::Replacement::Also {
+                would: deckmaste_core::EventFilter::ZoneChange {
+                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                    from: None,
+                    to: None,
+                    cause: None
+                },
+                also: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::This,
+                    deckmaste_core::Count::X,
+                    deckmaste_core::Reference::This
+                ))
+            }
         );
     }
 
     #[test]
     fn lowers_replacement_expanded() {
-        assert_lowers_debug(deckmaste_authoring::Replacement::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_replacement()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::Replacement::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -133,18 +139,12 @@ mod tests {
                 value: Box::new(minimal_replacement())
             })
             .lower(),
-            deckmaste_core::Replacement::Expanded(..)
+            deckmaste_core::Replacement::Expanded(_)
         );
     }
 
     #[test]
     fn lowers_prevention_prevent_next() {
-        assert_lowers(deckmaste_authoring::Prevention::PreventNext {
-            n: minimal_count(),
-            from: minimal_predicate(),
-            to: minimal_predicate(),
-            duration: None,
-        });
         assert_matches!(
             deckmaste_authoring::Prevention::PreventNext {
                 n: minimal_count(),
@@ -153,33 +153,32 @@ mod tests {
                 duration: None
             }
             .lower(),
-            deckmaste_core::Prevention::PreventNext { .. }
+            deckmaste_core::Prevention::PreventNext {
+                n: deckmaste_core::Count::X,
+                from: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                duration: None
+            }
         );
     }
 
     #[test]
     fn lowers_prevention_prevent_next_instance() {
-        assert_lowers(deckmaste_authoring::Prevention::PreventNextInstance {
-            from: minimal_predicate(),
-            to: minimal_predicate(),
-        });
         assert_matches!(
             deckmaste_authoring::Prevention::PreventNextInstance {
                 from: minimal_predicate(),
                 to: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::Prevention::PreventNextInstance { .. }
+            deckmaste_core::Prevention::PreventNextInstance {
+                from: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            }
         );
     }
 
     #[test]
     fn lowers_prevention_prevent_all() {
-        assert_lowers(deckmaste_authoring::Prevention::PreventAll {
-            from: minimal_predicate(),
-            to: minimal_predicate(),
-            duration: None,
-        });
         assert_matches!(
             deckmaste_authoring::Prevention::PreventAll {
                 from: minimal_predicate(),
@@ -187,7 +186,11 @@ mod tests {
                 duration: None
             }
             .lower(),
-            deckmaste_core::Prevention::PreventAll { .. }
+            deckmaste_core::Prevention::PreventAll {
+                from: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                duration: None
+            }
         );
     }
 }

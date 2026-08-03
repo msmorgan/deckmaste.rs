@@ -56,29 +56,29 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_counter_ref() {
-        assert_lowers(deckmaste_authoring::CounterRef("X".into()));
+        assert_matches!(
+            deckmaste_authoring::CounterRef("X".into()).lower(),
+            deckmaste_core::CounterRef(_)
+        );
     }
 
     #[test]
     fn lowers_counter_spec_named() {
-        assert_lowers(deckmaste_authoring::CounterSpec::Named(
-            minimal_counter_ref(),
-            minimal_count(),
-        ));
         assert_matches!(
             deckmaste_authoring::CounterSpec::Named(minimal_counter_ref(), minimal_count()).lower(),
-            deckmaste_core::CounterSpec::Named(..)
+            deckmaste_core::CounterSpec::Named(
+                deckmaste_core::CounterRef(_),
+                deckmaste_core::Count::X
+            )
         );
     }
 
     #[test]
     fn lowers_counter_spec_all_kinds() {
-        assert_lowers(deckmaste_authoring::CounterSpec::AllKinds);
         assert_matches!(
             deckmaste_authoring::CounterSpec::AllKinds.lower(),
             deckmaste_core::CounterSpec::AllKinds
@@ -87,7 +87,6 @@ mod tests {
 
     #[test]
     fn lowers_counter_scope_object() {
-        assert_lowers(deckmaste_authoring::CounterScope::Object);
         assert_matches!(
             deckmaste_authoring::CounterScope::Object.lower(),
             deckmaste_core::CounterScope::Object
@@ -96,7 +95,6 @@ mod tests {
 
     #[test]
     fn lowers_counter_scope_player() {
-        assert_lowers(deckmaste_authoring::CounterScope::Player);
         assert_matches!(
             deckmaste_authoring::CounterScope::Player.lower(),
             deckmaste_core::CounterScope::Player
@@ -105,10 +103,18 @@ mod tests {
 
     #[test]
     fn lowers_counter() {
-        assert_lowers(deckmaste_authoring::Counter {
-            name: "X".into(),
-            scope: minimal_counter_scope(),
-            confers: Vec::new(),
-        });
+        assert_matches!(
+            deckmaste_authoring::Counter {
+                name: "X".into(),
+                scope: minimal_counter_scope(),
+                confers: Vec::new()
+            }
+            .lower(),
+            deckmaste_core::Counter {
+                name: _,
+                scope: deckmaste_core::CounterScope::Object,
+                confers: _
+            }
+        );
     }
 }

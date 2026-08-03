@@ -146,12 +146,10 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_alternative_cost_free() {
-        assert_lowers(deckmaste_authoring::AlternativeCost::Free);
         assert_matches!(
             deckmaste_authoring::AlternativeCost::Free.lower(),
             deckmaste_core::AlternativeCost::Free
@@ -160,16 +158,14 @@ mod tests {
 
     #[test]
     fn lowers_alternative_cost_components() {
-        assert_lowers(deckmaste_authoring::AlternativeCost::Components([].into()));
         assert_matches!(
             deckmaste_authoring::AlternativeCost::Components([].into()).lower(),
-            deckmaste_core::AlternativeCost::Components(..)
+            deckmaste_core::AlternativeCost::Components(_)
         );
     }
 
     #[test]
     fn lowers_cost_predicate_includes_tap_symbol() {
-        assert_lowers(deckmaste_authoring::CostPredicate::IncludesTapSymbol);
         assert_matches!(
             deckmaste_authoring::CostPredicate::IncludesTapSymbol.lower(),
             deckmaste_core::CostPredicate::IncludesTapSymbol
@@ -178,30 +174,21 @@ mod tests {
 
     #[test]
     fn lowers_as_though_counterfactual() {
-        assert_lowers_debug(deckmaste_authoring::AsThough::Counterfactual {
-            premise: minimal_predicate(),
-            then: std::sync::Arc::new(minimal_deontic()),
-        });
         assert_matches!(
             deckmaste_authoring::AsThough::Counterfactual {
                 premise: minimal_predicate(),
                 then: std::sync::Arc::new(minimal_deontic())
             }
             .lower(),
-            deckmaste_core::AsThough::Counterfactual { .. }
+            deckmaste_core::AsThough::Counterfactual {
+                premise: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                then: _
+            }
         );
     }
 
     #[test]
     fn lowers_as_though_expanded() {
-        assert_lowers_debug(deckmaste_authoring::AsThough::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_as_though()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::AsThough::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -210,86 +197,82 @@ mod tests {
                 value: Box::new(minimal_as_though())
             })
             .lower(),
-            deckmaste_core::AsThough::Expanded(..)
+            deckmaste_core::AsThough::Expanded(_)
         );
     }
 
     #[test]
     fn lowers_count_bound_eq() {
-        assert_lowers(deckmaste_authoring::CountBound::Eq(minimal_count()));
         assert_matches!(
             deckmaste_authoring::CountBound::Eq(minimal_count()).lower(),
-            deckmaste_core::CountBound::Eq(..)
+            deckmaste_core::CountBound::Eq(deckmaste_core::Count::X)
         );
     }
 
     #[test]
     fn lowers_count_bound_at_least() {
-        assert_lowers(deckmaste_authoring::CountBound::AtLeast(minimal_count()));
         assert_matches!(
             deckmaste_authoring::CountBound::AtLeast(minimal_count()).lower(),
-            deckmaste_core::CountBound::AtLeast(..)
+            deckmaste_core::CountBound::AtLeast(deckmaste_core::Count::X)
         );
     }
 
     #[test]
     fn lowers_count_bound_at_most() {
-        assert_lowers(deckmaste_authoring::CountBound::AtMost(minimal_count()));
         assert_matches!(
             deckmaste_authoring::CountBound::AtMost(minimal_count()).lower(),
-            deckmaste_core::CountBound::AtMost(..)
+            deckmaste_core::CountBound::AtMost(deckmaste_core::Count::X)
         );
     }
 
     #[test]
     fn lowers_count_bound_greater() {
-        assert_lowers(deckmaste_authoring::CountBound::Greater(minimal_count()));
         assert_matches!(
             deckmaste_authoring::CountBound::Greater(minimal_count()).lower(),
-            deckmaste_core::CountBound::Greater(..)
+            deckmaste_core::CountBound::Greater(deckmaste_core::Count::X)
         );
     }
 
     #[test]
     fn lowers_count_bound_less() {
-        assert_lowers(deckmaste_authoring::CountBound::Less(minimal_count()));
         assert_matches!(
             deckmaste_authoring::CountBound::Less(minimal_count()).lower(),
-            deckmaste_core::CountBound::Less(..)
+            deckmaste_core::CountBound::Less(deckmaste_core::Count::X)
         );
     }
 
     #[test]
     fn lowers_deed_agent() {
-        assert_lowers(deckmaste_authoring::DeedAgent {
-            stack_object: None,
-            source: None,
-        });
+        assert_matches!(
+            deckmaste_authoring::DeedAgent {
+                stack_object: None,
+                source: None
+            }
+            .lower(),
+            deckmaste_core::DeedAgent {
+                stack_object: None,
+                source: None
+            }
+        );
     }
 
     #[test]
     fn lowers_deontic_action_attack() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Attack {
-            by: minimal_predicate(),
-            on: minimal_predicate(),
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Attack {
                 by: minimal_predicate(),
                 on: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::DeonticAction::Attack { .. }
+            deckmaste_core::DeonticAction::Attack {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_block() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Block {
-            by: minimal_predicate(),
-            on: minimal_predicate(),
-            count: None,
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Block {
                 by: minimal_predicate(),
@@ -297,52 +280,49 @@ mod tests {
                 count: None
             }
             .lower(),
-            deckmaste_core::DeonticAction::Block { .. }
+            deckmaste_core::DeonticAction::Block {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                count: None
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_target() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Target {
-            by: minimal_deed_agent(),
-            on: minimal_predicate(),
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Target {
                 by: minimal_deed_agent(),
                 on: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::DeonticAction::Target { .. }
+            deckmaste_core::DeonticAction::Target {
+                by: deckmaste_core::DeedAgent {
+                    stack_object: None,
+                    source: None
+                },
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_attach() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Attach {
-            what: minimal_predicate(),
-            to: minimal_predicate(),
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Attach {
                 what: minimal_predicate(),
                 to: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::DeonticAction::Attach { .. }
+            deckmaste_core::DeonticAction::Attach {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_cast() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Cast {
-            what: minimal_predicate(),
-            by: minimal_predicate(),
-            from: None,
-            window: None,
-            cost: None,
-            tag: None,
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Cast {
                 what: minimal_predicate(),
@@ -353,17 +333,19 @@ mod tests {
                 tag: None
             }
             .lower(),
-            deckmaste_core::DeonticAction::Cast { .. }
+            deckmaste_core::DeonticAction::Cast {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                from: None,
+                window: None,
+                cost: None,
+                tag: None
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_play() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Play {
-            what: minimal_predicate(),
-            by: minimal_predicate(),
-            from: None,
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Play {
                 what: minimal_predicate(),
@@ -371,17 +353,16 @@ mod tests {
                 from: None
             }
             .lower(),
-            deckmaste_core::DeonticAction::Play { .. }
+            deckmaste_core::DeonticAction::Play {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                from: None
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_activate() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Activate {
-            what: minimal_predicate(),
-            by: minimal_predicate(),
-            cost: None,
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Activate {
                 what: minimal_predicate(),
@@ -389,66 +370,59 @@ mod tests {
                 cost: None
             }
             .lower(),
-            deckmaste_core::DeonticAction::Activate { .. }
+            deckmaste_core::DeonticAction::Activate {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                cost: None
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_regenerate() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Regenerate {
-            by: minimal_predicate(),
-            on: minimal_predicate(),
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Regenerate {
                 by: minimal_predicate(),
                 on: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::DeonticAction::Regenerate { .. }
+            deckmaste_core::DeonticAction::Regenerate {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_counter() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Counter {
-            by: minimal_predicate(),
-            on: minimal_predicate(),
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Counter {
                 by: minimal_predicate(),
                 on: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::DeonticAction::Counter { .. }
+            deckmaste_core::DeonticAction::Counter {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_untap() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Untap {
-            what: minimal_predicate(),
-        });
         assert_matches!(
             deckmaste_authoring::DeonticAction::Untap {
                 what: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::DeonticAction::Untap { .. }
+            deckmaste_core::DeonticAction::Untap {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            }
         );
     }
 
     #[test]
     fn lowers_deontic_action_expanded() {
-        assert_lowers_debug(deckmaste_authoring::DeonticAction::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_deontic_action()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::DeonticAction::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -457,59 +431,59 @@ mod tests {
                 value: Box::new(minimal_deontic_action())
             })
             .lower(),
-            deckmaste_core::DeonticAction::Expanded(..)
+            deckmaste_core::DeonticAction::Expanded(_)
         );
     }
 
     #[test]
     fn lowers_deontic_may() {
-        assert_lowers_debug(deckmaste_authoring::Deontic::May(minimal_deontic_action()));
         assert_matches!(
             deckmaste_authoring::Deontic::May(minimal_deontic_action()).lower(),
-            deckmaste_core::Deontic::May(..)
+            deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Attack {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            })
         );
     }
 
     #[test]
     fn lowers_deontic_cant() {
-        assert_lowers_debug(deckmaste_authoring::Deontic::Cant(minimal_deontic_action()));
         assert_matches!(
             deckmaste_authoring::Deontic::Cant(minimal_deontic_action()).lower(),
-            deckmaste_core::Deontic::Cant(..)
+            deckmaste_core::Deontic::Cant(deckmaste_core::DeonticAction::Attack {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            })
         );
     }
 
     #[test]
     fn lowers_deontic_must() {
-        assert_lowers_debug(deckmaste_authoring::Deontic::Must(minimal_deontic_action()));
         assert_matches!(
             deckmaste_authoring::Deontic::Must(minimal_deontic_action()).lower(),
-            deckmaste_core::Deontic::Must(..)
+            deckmaste_core::Deontic::Must(deckmaste_core::DeonticAction::Attack {
+                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            })
         );
     }
 
     #[test]
     fn lowers_deontic_gate() {
-        assert_lowers_debug(deckmaste_authoring::Deontic::Gate(
-            minimal_deontic_action(),
-            [].into(),
-        ));
         assert_matches!(
             deckmaste_authoring::Deontic::Gate(minimal_deontic_action(), [].into()).lower(),
-            deckmaste_core::Deontic::Gate(..)
+            deckmaste_core::Deontic::Gate(
+                deckmaste_core::DeonticAction::Attack {
+                    by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                    on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                },
+                _
+            )
         );
     }
 
     #[test]
     fn lowers_deontic_expanded() {
-        assert_lowers_debug(deckmaste_authoring::Deontic::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_deontic()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::Deontic::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -518,7 +492,7 @@ mod tests {
                 value: Box::new(minimal_deontic())
             })
             .lower(),
-            deckmaste_core::Deontic::Expanded(..)
+            deckmaste_core::Deontic::Expanded(_)
         );
     }
 }

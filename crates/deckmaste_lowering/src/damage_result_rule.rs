@@ -28,14 +28,20 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_damage_result_rule() {
-        assert_lowers(deckmaste_authoring::DamageResultRule {
-            recipient: minimal_predicate(),
-            remove: minimal_counter_ref(),
-        });
+        assert_matches!(
+            deckmaste_authoring::DamageResultRule {
+                recipient: minimal_predicate(),
+                remove: minimal_counter_ref()
+            }
+            .lower(),
+            deckmaste_core::DamageResultRule {
+                recipient: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                remove: deckmaste_core::CounterRef(_)
+            }
+        );
     }
 }

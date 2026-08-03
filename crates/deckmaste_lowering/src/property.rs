@@ -38,62 +38,57 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_property_ability() {
-        assert_lowers(deckmaste_authoring::Property::Ability(std::sync::Arc::new(
-            minimal_ability(),
-        )));
         assert_matches!(
             deckmaste_authoring::Property::Ability(std::sync::Arc::new(minimal_ability())).lower(),
-            deckmaste_core::Property::Ability(..)
+            deckmaste_core::Property::Ability(_)
         );
     }
 
     #[test]
     fn lowers_property_continuous() {
-        assert_lowers(deckmaste_authoring::Property::Continuous(
-            minimal_reference(),
-            minimal_modification(),
-        ));
         assert_matches!(
             deckmaste_authoring::Property::Continuous(minimal_reference(), minimal_modification())
                 .lower(),
-            deckmaste_core::Property::Continuous(..)
+            deckmaste_core::Property::Continuous(
+                deckmaste_core::Reference::This,
+                deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
+                    deckmaste_core::StatValue::DefinedByAbility
+                ))
+            )
         );
     }
 
     #[test]
     fn lowers_property_state_based() {
-        assert_lowers(deckmaste_authoring::Property::StateBased {
-            condition: std::sync::Arc::new(minimal_condition()),
-            effect: std::sync::Arc::new(minimal_one_shot_effect()),
-        });
         assert_matches!(
             deckmaste_authoring::Property::StateBased {
                 condition: std::sync::Arc::new(minimal_condition()),
                 effect: std::sync::Arc::new(minimal_one_shot_effect())
             }
             .lower(),
-            deckmaste_core::Property::StateBased { .. }
+            deckmaste_core::Property::StateBased {
+                condition: _,
+                effect: _
+            }
         );
     }
 
     #[test]
     fn lowers_property_turn_based() {
-        assert_lowers(deckmaste_authoring::Property::TurnBased {
-            at: minimal_phase_step(),
-            effect: std::sync::Arc::new(minimal_one_shot_effect()),
-        });
         assert_matches!(
             deckmaste_authoring::Property::TurnBased {
                 at: minimal_phase_step(),
                 effect: std::sync::Arc::new(minimal_one_shot_effect())
             }
             .lower(),
-            deckmaste_core::Property::TurnBased { .. }
+            deckmaste_core::Property::TurnBased {
+                at: deckmaste_core::PhaseStep::Beginning(deckmaste_core::BeginningStep::Untap),
+                effect: _
+            }
         );
     }
 }

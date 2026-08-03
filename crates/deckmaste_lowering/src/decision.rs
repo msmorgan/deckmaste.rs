@@ -64,12 +64,10 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_decider_spec_controller() {
-        assert_lowers(deckmaste_authoring::DeciderSpec::Controller);
         assert_matches!(
             deckmaste_authoring::DeciderSpec::Controller.lower(),
             deckmaste_core::DeciderSpec::Controller
@@ -78,7 +76,6 @@ mod tests {
 
     #[test]
     fn lowers_decider_spec_active_player() {
-        assert_lowers(deckmaste_authoring::DeciderSpec::ActivePlayer);
         assert_matches!(
             deckmaste_authoring::DeciderSpec::ActivePlayer.lower(),
             deckmaste_core::DeciderSpec::ActivePlayer
@@ -87,7 +84,6 @@ mod tests {
 
     #[test]
     fn lowers_decider_spec_defending_player() {
-        assert_lowers(deckmaste_authoring::DeciderSpec::DefendingPlayer);
         assert_matches!(
             deckmaste_authoring::DeciderSpec::DefendingPlayer.lower(),
             deckmaste_core::DeciderSpec::DefendingPlayer
@@ -96,16 +92,14 @@ mod tests {
 
     #[test]
     fn lowers_decider_spec_named() {
-        assert_lowers(deckmaste_authoring::DeciderSpec::Named(minimal_reference()));
         assert_matches!(
             deckmaste_authoring::DeciderSpec::Named(minimal_reference()).lower(),
-            deckmaste_core::DeciderSpec::Named(..)
+            deckmaste_core::DeciderSpec::Named(deckmaste_core::Reference::This)
         );
     }
 
     #[test]
     fn lowers_decider_spec_each_in_turn_order() {
-        assert_lowers(deckmaste_authoring::DeciderSpec::EachInTurnOrder);
         assert_matches!(
             deckmaste_authoring::DeciderSpec::EachInTurnOrder.lower(),
             deckmaste_core::DeciderSpec::EachInTurnOrder
@@ -114,7 +108,6 @@ mod tests {
 
     #[test]
     fn lowers_decider_spec_priority_holder() {
-        assert_lowers(deckmaste_authoring::DeciderSpec::PriorityHolder);
         assert_matches!(
             deckmaste_authoring::DeciderSpec::PriorityHolder.lower(),
             deckmaste_core::DeciderSpec::PriorityHolder
@@ -123,7 +116,6 @@ mod tests {
 
     #[test]
     fn lowers_decider_spec_rng() {
-        assert_lowers(deckmaste_authoring::DeciderSpec::Rng);
         assert_matches!(
             deckmaste_authoring::DeciderSpec::Rng.lower(),
             deckmaste_core::DeciderSpec::Rng
@@ -132,7 +124,6 @@ mod tests {
 
     #[test]
     fn lowers_visibility_open() {
-        assert_lowers(deckmaste_authoring::Visibility::Open);
         assert_matches!(
             deckmaste_authoring::Visibility::Open.lower(),
             deckmaste_core::Visibility::Open
@@ -141,7 +132,6 @@ mod tests {
 
     #[test]
     fn lowers_visibility_committed_hidden() {
-        assert_lowers(deckmaste_authoring::Visibility::CommittedHidden);
         assert_matches!(
             deckmaste_authoring::Visibility::CommittedHidden.lower(),
             deckmaste_core::Visibility::CommittedHidden
@@ -150,7 +140,6 @@ mod tests {
 
     #[test]
     fn lowers_chosen_value_kind_color() {
-        assert_lowers(deckmaste_authoring::ChosenValueKind::Color);
         assert_matches!(
             deckmaste_authoring::ChosenValueKind::Color.lower(),
             deckmaste_core::ChosenValueKind::Color
@@ -159,7 +148,6 @@ mod tests {
 
     #[test]
     fn lowers_chosen_value_kind_card_name() {
-        assert_lowers(deckmaste_authoring::ChosenValueKind::CardName);
         assert_matches!(
             deckmaste_authoring::ChosenValueKind::CardName.lower(),
             deckmaste_core::ChosenValueKind::CardName
@@ -168,7 +156,6 @@ mod tests {
 
     #[test]
     fn lowers_chosen_value_kind_number() {
-        assert_lowers(deckmaste_authoring::ChosenValueKind::Number);
         assert_matches!(
             deckmaste_authoring::ChosenValueKind::Number.lower(),
             deckmaste_core::ChosenValueKind::Number
@@ -177,7 +164,6 @@ mod tests {
 
     #[test]
     fn lowers_noted_kind_objects() {
-        assert_lowers(deckmaste_authoring::NotedKind::Objects);
         assert_matches!(
             deckmaste_authoring::NotedKind::Objects.lower(),
             deckmaste_core::NotedKind::Objects
@@ -186,7 +172,6 @@ mod tests {
 
     #[test]
     fn lowers_noted_kind_piles() {
-        assert_lowers(deckmaste_authoring::NotedKind::Piles);
         assert_matches!(
             deckmaste_authoring::NotedKind::Piles.lower(),
             deckmaste_core::NotedKind::Piles

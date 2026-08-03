@@ -125,12 +125,10 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_object_kind_ability() {
-        assert_lowers(deckmaste_authoring::ObjectKind::Ability);
         assert_matches!(
             deckmaste_authoring::ObjectKind::Ability.lower(),
             deckmaste_core::ObjectKind::Ability
@@ -139,7 +137,6 @@ mod tests {
 
     #[test]
     fn lowers_object_kind_card() {
-        assert_lowers(deckmaste_authoring::ObjectKind::Card);
         assert_matches!(
             deckmaste_authoring::ObjectKind::Card.lower(),
             deckmaste_core::ObjectKind::Card
@@ -148,7 +145,6 @@ mod tests {
 
     #[test]
     fn lowers_object_kind_card_copy() {
-        assert_lowers(deckmaste_authoring::ObjectKind::CardCopy);
         assert_matches!(
             deckmaste_authoring::ObjectKind::CardCopy.lower(),
             deckmaste_core::ObjectKind::CardCopy
@@ -157,7 +153,6 @@ mod tests {
 
     #[test]
     fn lowers_object_kind_emblem() {
-        assert_lowers(deckmaste_authoring::ObjectKind::Emblem);
         assert_matches!(
             deckmaste_authoring::ObjectKind::Emblem.lower(),
             deckmaste_core::ObjectKind::Emblem
@@ -166,7 +161,6 @@ mod tests {
 
     #[test]
     fn lowers_object_kind_player() {
-        assert_lowers(deckmaste_authoring::ObjectKind::Player);
         assert_matches!(
             deckmaste_authoring::ObjectKind::Player.lower(),
             deckmaste_core::ObjectKind::Player
@@ -175,7 +169,6 @@ mod tests {
 
     #[test]
     fn lowers_object_kind_spell() {
-        assert_lowers(deckmaste_authoring::ObjectKind::Spell);
         assert_matches!(
             deckmaste_authoring::ObjectKind::Spell.lower(),
             deckmaste_core::ObjectKind::Spell
@@ -184,7 +177,6 @@ mod tests {
 
     #[test]
     fn lowers_object_kind_token() {
-        assert_lowers(deckmaste_authoring::ObjectKind::Token);
         assert_matches!(
             deckmaste_authoring::ObjectKind::Token.lower(),
             deckmaste_core::ObjectKind::Token
@@ -193,66 +185,46 @@ mod tests {
 
     #[test]
     fn lowers_characteristic_predicate_type() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Type(
-            minimal_type_ref(),
-        ));
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::Type(minimal_type_ref()).lower(),
-            deckmaste_core::CharacteristicPredicate::Type(..)
+            deckmaste_core::CharacteristicPredicate::Type(deckmaste_core::TypeRef(_))
         );
     }
 
     #[test]
     fn lowers_characteristic_predicate_subtype() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Subtype(
-            minimal_subtype_ref(),
-        ));
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::Subtype(minimal_subtype_ref()).lower(),
-            deckmaste_core::CharacteristicPredicate::Subtype(..)
+            deckmaste_core::CharacteristicPredicate::Subtype(deckmaste_core::SubtypeRef(_))
         );
     }
 
     #[test]
     fn lowers_characteristic_predicate_supertype() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Supertype(
-            minimal_supertype(),
-        ));
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::Supertype(minimal_supertype()).lower(),
-            deckmaste_core::CharacteristicPredicate::Supertype(..)
+            deckmaste_core::CharacteristicPredicate::Supertype(deckmaste_core::Supertype::Basic)
         );
     }
 
     #[test]
     fn lowers_characteristic_predicate_color_is() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::ColorIs(
-            minimal_color(),
-        ));
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::ColorIs(minimal_color()).lower(),
-            deckmaste_core::CharacteristicPredicate::ColorIs(..)
+            deckmaste_core::CharacteristicPredicate::ColorIs(deckmaste_core::Color::White)
         );
     }
 
     #[test]
     fn lowers_characteristic_predicate_named() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Named(
-            "X".into(),
-        ));
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::Named("X".into()).lower(),
-            deckmaste_core::CharacteristicPredicate::Named(..)
+            deckmaste_core::CharacteristicPredicate::Named(_)
         );
     }
 
     #[test]
     fn lowers_characteristic_predicate_stat() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Stat(
-            minimal_stat(),
-            minimal_cmp(),
-            minimal_count(),
-        ));
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::Stat(
                 minimal_stat(),
@@ -260,13 +232,16 @@ mod tests {
                 minimal_count()
             )
             .lower(),
-            deckmaste_core::CharacteristicPredicate::Stat(..)
+            deckmaste_core::CharacteristicPredicate::Stat(
+                deckmaste_core::Stat::Power,
+                deckmaste_core::Cmp::Eq,
+                deckmaste_core::Count::X
+            )
         );
     }
 
     #[test]
     fn lowers_characteristic_predicate_multicolored() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Multicolored);
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::Multicolored.lower(),
             deckmaste_core::CharacteristicPredicate::Multicolored
@@ -275,7 +250,6 @@ mod tests {
 
     #[test]
     fn lowers_characteristic_predicate_colorless() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Colorless);
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::Colorless.lower(),
             deckmaste_core::CharacteristicPredicate::Colorless
@@ -284,36 +258,30 @@ mod tests {
 
     #[test]
     fn lowers_characteristic_predicate_has() {
-        assert_lowers_debug(deckmaste_authoring::CharacteristicPredicate::Has(
-            minimal_keyword_ref(),
-        ));
         assert_matches!(
             deckmaste_authoring::CharacteristicPredicate::Has(minimal_keyword_ref()).lower(),
-            deckmaste_core::CharacteristicPredicate::Has(..)
+            deckmaste_core::CharacteristicPredicate::Has(deckmaste_core::KeywordRef(_))
         );
     }
 
     #[test]
     fn lowers_state_predicate_in_zone() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::InZone(minimal_zone()));
         assert_matches!(
             deckmaste_authoring::StatePredicate::InZone(minimal_zone()).lower(),
-            deckmaste_core::StatePredicate::InZone(..)
+            deckmaste_core::StatePredicate::InZone(deckmaste_core::Zone::Battlefield)
         );
     }
 
     #[test]
     fn lowers_state_predicate_status() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::Status(minimal_status()));
         assert_matches!(
             deckmaste_authoring::StatePredicate::Status(minimal_status()).lower(),
-            deckmaste_core::StatePredicate::Status(..)
+            deckmaste_core::StatePredicate::Status(deckmaste_core::Status::Tapped)
         );
     }
 
     #[test]
     fn lowers_state_predicate_summoning_sick() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::SummoningSick);
         assert_matches!(
             deckmaste_authoring::StatePredicate::SummoningSick.lower(),
             deckmaste_core::StatePredicate::SummoningSick
@@ -322,43 +290,34 @@ mod tests {
 
     #[test]
     fn lowers_state_predicate_has_counter() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::HasCounter(
-            minimal_counter_ref(),
-        ));
         assert_matches!(
             deckmaste_authoring::StatePredicate::HasCounter(minimal_counter_ref()).lower(),
-            deckmaste_core::StatePredicate::HasCounter(..)
+            deckmaste_core::StatePredicate::HasCounter(deckmaste_core::CounterRef(_))
         );
     }
 
     #[test]
     fn lowers_state_predicate_designated() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::Designated("X".into()));
         assert_matches!(
             deckmaste_authoring::StatePredicate::Designated("X".into()).lower(),
-            deckmaste_core::StatePredicate::Designated(..)
+            deckmaste_core::StatePredicate::Designated(_)
         );
     }
 
     #[test]
     fn lowers_state_predicate_related_by() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::RelatedBy(
-            "X".into(),
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::StatePredicate::RelatedBy(
                 "X".into(),
                 std::sync::Arc::new(minimal_predicate())
             )
             .lower(),
-            deckmaste_core::StatePredicate::RelatedBy(..)
+            deckmaste_core::StatePredicate::RelatedBy(_, _)
         );
     }
 
     #[test]
     fn lowers_state_predicate_attacking() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::Attacking);
         assert_matches!(
             deckmaste_authoring::StatePredicate::Attacking.lower(),
             deckmaste_core::StatePredicate::Attacking
@@ -367,7 +326,6 @@ mod tests {
 
     #[test]
     fn lowers_state_predicate_blocking() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::Blocking);
         assert_matches!(
             deckmaste_authoring::StatePredicate::Blocking.lower(),
             deckmaste_core::StatePredicate::Blocking
@@ -376,7 +334,6 @@ mod tests {
 
     #[test]
     fn lowers_state_predicate_unblocked() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::Unblocked);
         assert_matches!(
             deckmaste_authoring::StatePredicate::Unblocked.lower(),
             deckmaste_core::StatePredicate::Unblocked
@@ -385,159 +342,124 @@ mod tests {
 
     #[test]
     fn lowers_state_predicate_targets() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::Targets(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::StatePredicate::Targets(std::sync::Arc::new(minimal_predicate()))
                 .lower(),
-            deckmaste_core::StatePredicate::Targets(..)
+            deckmaste_core::StatePredicate::Targets(_)
         );
     }
 
     #[test]
     fn lowers_state_predicate_target_count() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::TargetCount(
-            minimal_count_bound(),
-        ));
         assert_matches!(
             deckmaste_authoring::StatePredicate::TargetCount(minimal_count_bound()).lower(),
-            deckmaste_core::StatePredicate::TargetCount(..)
+            deckmaste_core::StatePredicate::TargetCount(deckmaste_core::CountBound::Eq(
+                deckmaste_core::Count::X
+            ))
         );
     }
 
     #[test]
     fn lowers_state_predicate_was_paid_with() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::WasPaidWith(
-            minimal_cost_tag(),
-        ));
         assert_matches!(
             deckmaste_authoring::StatePredicate::WasPaidWith(minimal_cost_tag()).lower(),
-            deckmaste_core::StatePredicate::WasPaidWith(..)
+            deckmaste_core::StatePredicate::WasPaidWith(deckmaste_core::CostTag(_))
         );
     }
 
     #[test]
     fn lowers_state_predicate_was_cast_with() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::WasCastWith(
-            minimal_cost_tag(),
-        ));
         assert_matches!(
             deckmaste_authoring::StatePredicate::WasCastWith(minimal_cost_tag()).lower(),
-            deckmaste_core::StatePredicate::WasCastWith(..)
+            deckmaste_core::StatePredicate::WasCastWith(deckmaste_core::CostTag(_))
         );
     }
 
     #[test]
     fn lowers_state_predicate_was_put_from() {
-        assert_lowers_debug(deckmaste_authoring::StatePredicate::WasPutFrom(
-            minimal_zone(),
-        ));
         assert_matches!(
             deckmaste_authoring::StatePredicate::WasPutFrom(minimal_zone()).lower(),
-            deckmaste_core::StatePredicate::WasPutFrom(..)
+            deckmaste_core::StatePredicate::WasPutFrom(deckmaste_core::Zone::Battlefield)
         );
     }
 
     #[test]
     fn lowers_relation_predicate_controlled_by() {
-        assert_lowers_debug(deckmaste_authoring::RelationPredicate::ControlledBy(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::RelationPredicate::ControlledBy(std::sync::Arc::new(
                 minimal_predicate()
             ))
             .lower(),
-            deckmaste_core::RelationPredicate::ControlledBy(..)
+            deckmaste_core::RelationPredicate::ControlledBy(_)
         );
     }
 
     #[test]
     fn lowers_relation_predicate_controls() {
-        assert_lowers_debug(deckmaste_authoring::RelationPredicate::Controls(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::RelationPredicate::Controls(std::sync::Arc::new(
                 minimal_predicate()
             ))
             .lower(),
-            deckmaste_core::RelationPredicate::Controls(..)
+            deckmaste_core::RelationPredicate::Controls(_)
         );
     }
 
     #[test]
     fn lowers_relation_predicate_owner() {
-        assert_lowers_debug(deckmaste_authoring::RelationPredicate::Owner(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::RelationPredicate::Owner(std::sync::Arc::new(minimal_predicate()))
                 .lower(),
-            deckmaste_core::RelationPredicate::Owner(..)
+            deckmaste_core::RelationPredicate::Owner(_)
         );
     }
 
     #[test]
     fn lowers_relation_predicate_opponent_of() {
-        assert_lowers_debug(deckmaste_authoring::RelationPredicate::OpponentOf(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::RelationPredicate::OpponentOf(std::sync::Arc::new(
                 minimal_predicate()
             ))
             .lower(),
-            deckmaste_core::RelationPredicate::OpponentOf(..)
+            deckmaste_core::RelationPredicate::OpponentOf(_)
         );
     }
 
     #[test]
     fn lowers_relation_predicate_teammate_of() {
-        assert_lowers_debug(deckmaste_authoring::RelationPredicate::TeammateOf(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::RelationPredicate::TeammateOf(std::sync::Arc::new(
                 minimal_predicate()
             ))
             .lower(),
-            deckmaste_core::RelationPredicate::TeammateOf(..)
+            deckmaste_core::RelationPredicate::TeammateOf(_)
         );
     }
 
     #[test]
     fn lowers_relation_predicate_attached_to() {
-        assert_lowers_debug(deckmaste_authoring::RelationPredicate::AttachedTo(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::RelationPredicate::AttachedTo(std::sync::Arc::new(
                 minimal_predicate()
             ))
             .lower(),
-            deckmaste_core::RelationPredicate::AttachedTo(..)
+            deckmaste_core::RelationPredicate::AttachedTo(_)
         );
     }
 
     #[test]
     fn lowers_relation_predicate_attachment() {
-        assert_lowers_debug(deckmaste_authoring::RelationPredicate::Attachment(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::RelationPredicate::Attachment(std::sync::Arc::new(
                 minimal_predicate()
             ))
             .lower(),
-            deckmaste_core::RelationPredicate::Attachment(..)
+            deckmaste_core::RelationPredicate::Attachment(_)
         );
     }
 
     #[test]
     fn lowers_adjacency_above() {
-        assert_lowers(deckmaste_authoring::Adjacency::Above);
         assert_matches!(
             deckmaste_authoring::Adjacency::Above.lower(),
             deckmaste_core::Adjacency::Above
@@ -546,7 +468,6 @@ mod tests {
 
     #[test]
     fn lowers_adjacency_below() {
-        assert_lowers(deckmaste_authoring::Adjacency::Below);
         assert_matches!(
             deckmaste_authoring::Adjacency::Below.lower(),
             deckmaste_core::Adjacency::Below
@@ -555,76 +476,63 @@ mod tests {
 
     #[test]
     fn lowers_predicate_kind() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Kind(minimal_object_kind()));
         assert_matches!(
             deckmaste_authoring::Predicate::Kind(minimal_object_kind()).lower(),
-            deckmaste_core::Predicate::Kind(..)
+            deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
         );
     }
 
     #[test]
     fn lowers_predicate_characteristic() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Characteristic(
-            minimal_characteristic_predicate(),
-        ));
         assert_matches!(
             deckmaste_authoring::Predicate::Characteristic(minimal_characteristic_predicate())
                 .lower(),
-            deckmaste_core::Predicate::Characteristic(..)
+            deckmaste_core::Predicate::Characteristic(
+                deckmaste_core::CharacteristicPredicate::Type(deckmaste_core::TypeRef(_))
+            )
         );
     }
 
     #[test]
     fn lowers_predicate_state() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::State(
-            minimal_state_predicate(),
-        ));
         assert_matches!(
             deckmaste_authoring::Predicate::State(minimal_state_predicate()).lower(),
-            deckmaste_core::Predicate::State(..)
+            deckmaste_core::Predicate::State(deckmaste_core::StatePredicate::InZone(
+                deckmaste_core::Zone::Battlefield
+            ))
         );
     }
 
     #[test]
     fn lowers_predicate_relation() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Relation(
-            minimal_relation_predicate(),
-        ));
         assert_matches!(
             deckmaste_authoring::Predicate::Relation(minimal_relation_predicate()).lower(),
-            deckmaste_core::Predicate::Relation(..)
+            deckmaste_core::Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(_))
         );
     }
 
     #[test]
     fn lowers_predicate_ref() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Ref(minimal_reference()));
         assert_matches!(
             deckmaste_authoring::Predicate::Ref(minimal_reference()).lower(),
-            deckmaste_core::Predicate::Ref(..)
+            deckmaste_core::Predicate::Ref(deckmaste_core::Reference::This)
         );
     }
 
     #[test]
     fn lowers_predicate_adjacent() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Adjacent(
-            minimal_adjacency(),
-            minimal_reference(),
-        ));
         assert_matches!(
             deckmaste_authoring::Predicate::Adjacent(minimal_adjacency(), minimal_reference())
                 .lower(),
-            deckmaste_core::Predicate::Adjacent(..)
+            deckmaste_core::Predicate::Adjacent(
+                deckmaste_core::Adjacency::Above,
+                deckmaste_core::Reference::This
+            )
         );
     }
 
     #[test]
     fn lowers_predicate_player_stat_cmp() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::PlayerStatCmp(
-            minimal_player_attr(),
-            minimal_cmp(),
-            minimal_count(),
-        ));
         assert_matches!(
             deckmaste_authoring::Predicate::PlayerStatCmp(
                 minimal_player_attr(),
@@ -632,65 +540,57 @@ mod tests {
                 minimal_count()
             )
             .lower(),
-            deckmaste_core::Predicate::PlayerStatCmp(..)
+            deckmaste_core::Predicate::PlayerStatCmp(
+                deckmaste_core::PlayerAttr::Life,
+                deckmaste_core::Cmp::Eq,
+                deckmaste_core::Count::X
+            )
         );
     }
 
     #[test]
     fn lowers_predicate_from_source() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::FromSource(
-            std::sync::Arc::new(minimal_predicate()),
-        ));
         assert_matches!(
             deckmaste_authoring::Predicate::FromSource(std::sync::Arc::new(minimal_predicate()))
                 .lower(),
-            deckmaste_core::Predicate::FromSource(..)
+            deckmaste_core::Predicate::FromSource(_)
         );
     }
 
     #[test]
     fn lowers_predicate_and() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::And([].into()));
         assert_matches!(
             deckmaste_authoring::Predicate::And([].into()).lower(),
-            deckmaste_core::Predicate::And(..)
+            deckmaste_core::Predicate::And(_)
         );
     }
 
     #[test]
     fn lowers_predicate_or() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Or([].into()));
         assert_matches!(
             deckmaste_authoring::Predicate::Or([].into()).lower(),
-            deckmaste_core::Predicate::Or(..)
+            deckmaste_core::Predicate::Or(_)
         );
     }
 
     #[test]
     fn lowers_predicate_not() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Not(std::sync::Arc::new(
-            minimal_predicate(),
-        )));
         assert_matches!(
             deckmaste_authoring::Predicate::Not(std::sync::Arc::new(minimal_predicate())).lower(),
-            deckmaste_core::Predicate::Not(..)
+            deckmaste_core::Predicate::Not(_)
         );
     }
 
     #[test]
     fn lowers_predicate_where() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Where(std::sync::Arc::new(
-            minimal_condition(),
-        )));
         assert_matches!(
             deckmaste_authoring::Predicate::Where(std::sync::Arc::new(minimal_condition())).lower(),
-            deckmaste_core::Predicate::Where(..)
+            deckmaste_core::Predicate::Where(_)
         );
     }
 
     #[test]
     fn lowers_predicate_any() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Any);
         assert_matches!(
             deckmaste_authoring::Predicate::Any.lower(),
             deckmaste_core::Predicate::Any
@@ -699,14 +599,6 @@ mod tests {
 
     #[test]
     fn lowers_predicate_expanded() {
-        assert_lowers_debug(deckmaste_authoring::Predicate::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_predicate()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::Predicate::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -715,7 +607,7 @@ mod tests {
                 value: Box::new(minimal_predicate())
             })
             .lower(),
-            deckmaste_core::Predicate::Expanded(..)
+            deckmaste_core::Predicate::Expanded(_)
         );
     }
 }

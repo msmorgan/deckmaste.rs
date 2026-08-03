@@ -29,15 +29,30 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_sba_rule() {
-        assert_lowers(deckmaste_authoring::SbaRule {
-            scope: minimal_predicate(),
-            when: minimal_condition(),
-            then: minimal_one_shot_effect(),
-        });
+        assert_matches!(
+            deckmaste_authoring::SbaRule {
+                scope: minimal_predicate(),
+                when: minimal_condition(),
+                then: minimal_one_shot_effect()
+            }
+            .lower(),
+            deckmaste_core::SbaRule {
+                scope: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                when: deckmaste_core::Condition::Compare(
+                    deckmaste_core::Count::X,
+                    deckmaste_core::Cmp::Eq,
+                    deckmaste_core::Count::X
+                ),
+                then: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::This,
+                    deckmaste_core::Count::X,
+                    deckmaste_core::Reference::This
+                ))
+            }
+        );
     }
 }

@@ -30,12 +30,10 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_stat_value_defined_by_ability() {
-        assert_lowers_debug(deckmaste_authoring::StatValue::DefinedByAbility);
         assert_matches!(
             deckmaste_authoring::StatValue::DefinedByAbility.lower(),
             deckmaste_core::StatValue::DefinedByAbility
@@ -44,7 +42,6 @@ mod tests {
 
     #[test]
     fn lowers_stat_value_variable() {
-        assert_lowers_debug(deckmaste_authoring::StatValue::Variable);
         assert_matches!(
             deckmaste_authoring::StatValue::Variable.lower(),
             deckmaste_core::StatValue::Variable
@@ -53,19 +50,17 @@ mod tests {
 
     #[test]
     fn lowers_stat_value_number() {
-        assert_lowers_debug(deckmaste_authoring::StatValue::Number(0));
         assert_matches!(
             deckmaste_authoring::StatValue::Number(0).lower(),
-            deckmaste_core::StatValue::Number(..)
+            deckmaste_core::StatValue::Number(0)
         );
     }
 
     #[test]
     fn lowers_stat_value_count() {
-        assert_lowers_debug(deckmaste_authoring::StatValue::Count(minimal_count()));
         assert_matches!(
             deckmaste_authoring::StatValue::Count(minimal_count()).lower(),
-            deckmaste_core::StatValue::Count(..)
+            deckmaste_core::StatValue::Count(deckmaste_core::Count::X)
         );
     }
 }

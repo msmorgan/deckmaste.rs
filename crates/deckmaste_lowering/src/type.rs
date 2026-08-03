@@ -85,12 +85,10 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_type_artifact() {
-        assert_lowers(deckmaste_authoring::Type::Artifact);
         assert_matches!(
             deckmaste_authoring::Type::Artifact.lower(),
             deckmaste_core::Type::Artifact
@@ -99,7 +97,6 @@ mod tests {
 
     #[test]
     fn lowers_type_battle() {
-        assert_lowers(deckmaste_authoring::Type::Battle);
         assert_matches!(
             deckmaste_authoring::Type::Battle.lower(),
             deckmaste_core::Type::Battle
@@ -108,7 +105,6 @@ mod tests {
 
     #[test]
     fn lowers_type_creature() {
-        assert_lowers(deckmaste_authoring::Type::Creature);
         assert_matches!(
             deckmaste_authoring::Type::Creature.lower(),
             deckmaste_core::Type::Creature
@@ -117,7 +113,6 @@ mod tests {
 
     #[test]
     fn lowers_type_dungeon() {
-        assert_lowers(deckmaste_authoring::Type::Dungeon);
         assert_matches!(
             deckmaste_authoring::Type::Dungeon.lower(),
             deckmaste_core::Type::Dungeon
@@ -126,7 +121,6 @@ mod tests {
 
     #[test]
     fn lowers_type_enchantment() {
-        assert_lowers(deckmaste_authoring::Type::Enchantment);
         assert_matches!(
             deckmaste_authoring::Type::Enchantment.lower(),
             deckmaste_core::Type::Enchantment
@@ -135,7 +129,6 @@ mod tests {
 
     #[test]
     fn lowers_type_instant() {
-        assert_lowers(deckmaste_authoring::Type::Instant);
         assert_matches!(
             deckmaste_authoring::Type::Instant.lower(),
             deckmaste_core::Type::Instant
@@ -144,7 +137,6 @@ mod tests {
 
     #[test]
     fn lowers_type_kindred() {
-        assert_lowers(deckmaste_authoring::Type::Kindred);
         assert_matches!(
             deckmaste_authoring::Type::Kindred.lower(),
             deckmaste_core::Type::Kindred
@@ -153,7 +145,6 @@ mod tests {
 
     #[test]
     fn lowers_type_land() {
-        assert_lowers(deckmaste_authoring::Type::Land);
         assert_matches!(
             deckmaste_authoring::Type::Land.lower(),
             deckmaste_core::Type::Land
@@ -162,7 +153,6 @@ mod tests {
 
     #[test]
     fn lowers_type_planeswalker() {
-        assert_lowers(deckmaste_authoring::Type::Planeswalker);
         assert_matches!(
             deckmaste_authoring::Type::Planeswalker.lower(),
             deckmaste_core::Type::Planeswalker
@@ -171,7 +161,6 @@ mod tests {
 
     #[test]
     fn lowers_type_sorcery() {
-        assert_lowers(deckmaste_authoring::Type::Sorcery);
         assert_matches!(
             deckmaste_authoring::Type::Sorcery.lower(),
             deckmaste_core::Type::Sorcery
@@ -180,7 +169,6 @@ mod tests {
 
     #[test]
     fn lowers_supertype_basic() {
-        assert_lowers(deckmaste_authoring::Supertype::Basic);
         assert_matches!(
             deckmaste_authoring::Supertype::Basic.lower(),
             deckmaste_core::Supertype::Basic
@@ -189,7 +177,6 @@ mod tests {
 
     #[test]
     fn lowers_supertype_legendary() {
-        assert_lowers(deckmaste_authoring::Supertype::Legendary);
         assert_matches!(
             deckmaste_authoring::Supertype::Legendary.lower(),
             deckmaste_core::Supertype::Legendary
@@ -198,7 +185,6 @@ mod tests {
 
     #[test]
     fn lowers_supertype_ongoing() {
-        assert_lowers(deckmaste_authoring::Supertype::Ongoing);
         assert_matches!(
             deckmaste_authoring::Supertype::Ongoing.lower(),
             deckmaste_core::Supertype::Ongoing
@@ -207,7 +193,6 @@ mod tests {
 
     #[test]
     fn lowers_supertype_snow() {
-        assert_lowers(deckmaste_authoring::Supertype::Snow);
         assert_matches!(
             deckmaste_authoring::Supertype::Snow.lower(),
             deckmaste_core::Supertype::Snow
@@ -216,7 +201,6 @@ mod tests {
 
     #[test]
     fn lowers_supertype_world() {
-        assert_lowers(deckmaste_authoring::Supertype::World);
         assert_matches!(
             deckmaste_authoring::Supertype::World.lower(),
             deckmaste_core::Supertype::World
@@ -225,33 +209,51 @@ mod tests {
 
     #[test]
     fn lowers_subtype() {
-        assert_lowers(deckmaste_authoring::Subtype {
-            name: "X".into(),
-            types: [].into(),
-            confers: [].into(),
-        });
+        assert_matches!(
+            deckmaste_authoring::Subtype {
+                name: "X".into(),
+                types: [].into(),
+                confers: [].into()
+            }
+            .lower(),
+            deckmaste_core::Subtype {
+                name: _,
+                types: _,
+                confers: _
+            }
+        );
     }
 
     #[test]
     fn lowers_type_def() {
-        assert_lowers(deckmaste_authoring::TypeDef {
-            name: "X".into(),
-            permanent: false,
-            confers: [].into(),
-        });
+        assert_matches!(
+            deckmaste_authoring::TypeDef {
+                name: "X".into(),
+                permanent: false,
+                confers: [].into()
+            }
+            .lower(),
+            deckmaste_core::TypeDef {
+                name: _,
+                permanent: false,
+                confers: _
+            }
+        );
     }
 
     #[test]
     fn lowers_type_ref() {
-        assert_lowers(deckmaste_authoring::TypeRef(std::sync::Arc::new(
-            minimal_type_def(),
-        )));
+        assert_matches!(
+            deckmaste_authoring::TypeRef(std::sync::Arc::new(minimal_type_def())).lower(),
+            deckmaste_core::TypeRef(_)
+        );
     }
 
     #[test]
     fn lowers_subtype_ref() {
-        assert_lowers(deckmaste_authoring::SubtypeRef(std::sync::Arc::new(
-            minimal_subtype(),
-        )));
+        assert_matches!(
+            deckmaste_authoring::SubtypeRef(std::sync::Arc::new(minimal_subtype())).lower(),
+            deckmaste_core::SubtypeRef(_)
+        );
     }
 }

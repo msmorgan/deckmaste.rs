@@ -28,28 +28,18 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_quantity_range() {
-        assert_lowers_debug(deckmaste_authoring::Quantity::Range(None, None));
         assert_matches!(
             deckmaste_authoring::Quantity::Range(None, None).lower(),
-            deckmaste_core::Quantity::Range(..)
+            deckmaste_core::Quantity::Range(None, None)
         );
     }
 
     #[test]
     fn lowers_quantity_expanded() {
-        assert_lowers_debug(deckmaste_authoring::Quantity::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_quantity()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::Quantity::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -58,7 +48,7 @@ mod tests {
                 value: Box::new(minimal_quantity())
             })
             .lower(),
-            deckmaste_core::Quantity::Expanded(..)
+            deckmaste_core::Quantity::Expanded(_)
         );
     }
 }

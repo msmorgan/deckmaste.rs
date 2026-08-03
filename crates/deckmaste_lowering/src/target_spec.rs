@@ -29,48 +29,34 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_target_spec_target() {
-        assert_lowers_debug(deckmaste_authoring::TargetSpec::Target(
-            minimal_quantity(),
-            minimal_predicate(),
-        ));
         assert_matches!(
             deckmaste_authoring::TargetSpec::Target(minimal_quantity(), minimal_predicate())
                 .lower(),
-            deckmaste_core::TargetSpec::Target(..)
+            deckmaste_core::TargetSpec::Target(
+                deckmaste_core::Quantity::Range(None, None),
+                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            )
         );
     }
 
     #[test]
     fn lowers_target_spec_distinct() {
-        assert_lowers_debug(deckmaste_authoring::TargetSpec::Distinct(
-            [].into(),
-            std::sync::Arc::new(minimal_target_spec()),
-        ));
         assert_matches!(
             deckmaste_authoring::TargetSpec::Distinct(
                 [].into(),
                 std::sync::Arc::new(minimal_target_spec())
             )
             .lower(),
-            deckmaste_core::TargetSpec::Distinct(..)
+            deckmaste_core::TargetSpec::Distinct(_, _)
         );
     }
 
     #[test]
     fn lowers_target_spec_expanded() {
-        assert_lowers_debug(deckmaste_authoring::TargetSpec::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_target_spec()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::TargetSpec::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -79,7 +65,7 @@ mod tests {
                 value: Box::new(minimal_target_spec())
             })
             .lower(),
-            deckmaste_core::TargetSpec::Expanded(..)
+            deckmaste_core::TargetSpec::Expanded(_)
         );
     }
 }

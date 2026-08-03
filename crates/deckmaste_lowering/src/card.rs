@@ -68,31 +68,45 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_card_face() {
-        assert_lowers(deckmaste_authoring::CardFace {
-            name: "x".into(),
-            mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
-                [deckmaste_authoring::ManaSymbol],
-            >::from([])),
-            color_indicator: Vec::new(),
-            supertypes: Vec::new(),
-            types: Vec::new(),
-            subtypes: Vec::new(),
-            abilities: Vec::new(),
-            power: None,
-            toughness: None,
-            loyalty: None,
-            defense: None,
-        });
+        assert_matches!(
+            deckmaste_authoring::CardFace {
+                name: "x".into(),
+                mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
+                    [deckmaste_authoring::ManaSymbol],
+                >::from([])),
+                color_indicator: Vec::new(),
+                supertypes: Vec::new(),
+                types: Vec::new(),
+                subtypes: Vec::new(),
+                abilities: Vec::new(),
+                power: None,
+                toughness: None,
+                loyalty: None,
+                defense: None
+            }
+            .lower(),
+            deckmaste_card::CardFace {
+                name: _,
+                mana_cost: _,
+                color_indicator: _,
+                supertypes: _,
+                types: _,
+                subtypes: _,
+                abilities: _,
+                power: None,
+                toughness: None,
+                loyalty: None,
+                defense: None
+            }
+        );
     }
 
     #[test]
     fn lowers_face_layout_transforming() {
-        assert_lowers(deckmaste_authoring::FaceLayout::Transforming);
         assert_matches!(
             deckmaste_authoring::FaceLayout::Transforming.lower(),
             deckmaste_card::FaceLayout::Transforming
@@ -101,7 +115,6 @@ mod tests {
 
     #[test]
     fn lowers_face_layout_modal_dfc() {
-        assert_lowers(deckmaste_authoring::FaceLayout::ModalDfc);
         assert_matches!(
             deckmaste_authoring::FaceLayout::ModalDfc.lower(),
             deckmaste_card::FaceLayout::ModalDfc
@@ -110,7 +123,6 @@ mod tests {
 
     #[test]
     fn lowers_face_layout_split() {
-        assert_lowers(deckmaste_authoring::FaceLayout::Split);
         assert_matches!(
             deckmaste_authoring::FaceLayout::Split.lower(),
             deckmaste_card::FaceLayout::Split
@@ -119,7 +131,6 @@ mod tests {
 
     #[test]
     fn lowers_face_layout_adventure() {
-        assert_lowers(deckmaste_authoring::FaceLayout::Adventure);
         assert_matches!(
             deckmaste_authoring::FaceLayout::Adventure.lower(),
             deckmaste_card::FaceLayout::Adventure
@@ -128,7 +139,6 @@ mod tests {
 
     #[test]
     fn lowers_face_layout_flip() {
-        assert_lowers(deckmaste_authoring::FaceLayout::Flip);
         assert_matches!(
             deckmaste_authoring::FaceLayout::Flip.lower(),
             deckmaste_card::FaceLayout::Flip
@@ -137,20 +147,26 @@ mod tests {
 
     #[test]
     fn lowers_card_normal() {
-        assert_lowers(deckmaste_authoring::Card::Normal(minimal_card_face()));
         assert_matches!(
             deckmaste_authoring::Card::Normal(minimal_card_face()).lower(),
-            deckmaste_card::Card::Normal(..)
+            deckmaste_card::Card::Normal(deckmaste_card::CardFace {
+                name: _,
+                mana_cost: _,
+                color_indicator: _,
+                supertypes: _,
+                types: _,
+                subtypes: _,
+                abilities: _,
+                power: None,
+                toughness: None,
+                loyalty: None,
+                defense: None
+            })
         );
     }
 
     #[test]
     fn lowers_card_two_faced() {
-        assert_lowers(deckmaste_authoring::Card::TwoFaced {
-            layout: minimal_face_layout(),
-            front: minimal_card_face(),
-            back: minimal_card_face(),
-        });
         assert_matches!(
             deckmaste_authoring::Card::TwoFaced {
                 layout: minimal_face_layout(),
@@ -158,7 +174,35 @@ mod tests {
                 back: minimal_card_face()
             }
             .lower(),
-            deckmaste_card::Card::TwoFaced { .. }
+            deckmaste_card::Card::TwoFaced {
+                layout: deckmaste_card::FaceLayout::Transforming,
+                front: deckmaste_card::CardFace {
+                    name: _,
+                    mana_cost: _,
+                    color_indicator: _,
+                    supertypes: _,
+                    types: _,
+                    subtypes: _,
+                    abilities: _,
+                    power: None,
+                    toughness: None,
+                    loyalty: None,
+                    defense: None
+                },
+                back: deckmaste_card::CardFace {
+                    name: _,
+                    mana_cost: _,
+                    color_indicator: _,
+                    supertypes: _,
+                    types: _,
+                    subtypes: _,
+                    abilities: _,
+                    power: None,
+                    toughness: None,
+                    loyalty: None,
+                    defense: None
+                }
+            }
         );
     }
 }

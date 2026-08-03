@@ -35,12 +35,10 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_sort_player() {
-        assert_lowers(deckmaste_authoring::Sort::Player);
         assert_matches!(
             deckmaste_authoring::Sort::Player.lower(),
             deckmaste_core::Sort::Player
@@ -49,7 +47,6 @@ mod tests {
 
     #[test]
     fn lowers_sort_card() {
-        assert_lowers(deckmaste_authoring::Sort::Card);
         assert_matches!(
             deckmaste_authoring::Sort::Card.lower(),
             deckmaste_core::Sort::Card
@@ -58,7 +55,6 @@ mod tests {
 
     #[test]
     fn lowers_sort_token() {
-        assert_lowers(deckmaste_authoring::Sort::Token);
         assert_matches!(
             deckmaste_authoring::Sort::Token.lower(),
             deckmaste_core::Sort::Token
@@ -67,7 +63,6 @@ mod tests {
 
     #[test]
     fn lowers_sort_spell() {
-        assert_lowers(deckmaste_authoring::Sort::Spell);
         assert_matches!(
             deckmaste_authoring::Sort::Spell.lower(),
             deckmaste_core::Sort::Spell
@@ -76,7 +71,6 @@ mod tests {
 
     #[test]
     fn lowers_sort_stack_object() {
-        assert_lowers(deckmaste_authoring::Sort::StackObject);
         assert_matches!(
             deckmaste_authoring::Sort::StackObject.lower(),
             deckmaste_core::Sort::StackObject
@@ -85,7 +79,6 @@ mod tests {
 
     #[test]
     fn lowers_sort_permanent() {
-        assert_lowers(deckmaste_authoring::Sort::Permanent);
         assert_matches!(
             deckmaste_authoring::Sort::Permanent.lower(),
             deckmaste_core::Sort::Permanent
@@ -94,16 +87,14 @@ mod tests {
 
     #[test]
     fn lowers_sort_of_type() {
-        assert_lowers(deckmaste_authoring::Sort::OfType(minimal_type()));
         assert_matches!(
             deckmaste_authoring::Sort::OfType(minimal_type()).lower(),
-            deckmaste_core::Sort::OfType(..)
+            deckmaste_core::Sort::OfType(deckmaste_core::Type::Artifact)
         );
     }
 
     #[test]
     fn lowers_sort_amount() {
-        assert_lowers(deckmaste_authoring::Sort::Amount);
         assert_matches!(
             deckmaste_authoring::Sort::Amount.lower(),
             deckmaste_core::Sort::Amount
@@ -112,7 +103,6 @@ mod tests {
 
     #[test]
     fn lowers_sort_pile() {
-        assert_lowers(deckmaste_authoring::Sort::Pile);
         assert_matches!(
             deckmaste_authoring::Sort::Pile.lower(),
             deckmaste_core::Sort::Pile

@@ -70,29 +70,33 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_copy_spec() {
-        assert_lowers(deckmaste_authoring::CopySpec {
-            source: minimal_copy_source(),
-            exceptions: Vec::new(),
-        });
+        assert_matches!(
+            deckmaste_authoring::CopySpec {
+                source: minimal_copy_source(),
+                exceptions: Vec::new()
+            }
+            .lower(),
+            deckmaste_core::CopySpec {
+                source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::This),
+                exceptions: _
+            }
+        );
     }
 
     #[test]
     fn lowers_copy_source_object() {
-        assert_lowers_debug(deckmaste_authoring::CopySource::Object(minimal_reference()));
         assert_matches!(
             deckmaste_authoring::CopySource::Object(minimal_reference()).lower(),
-            deckmaste_core::CopySource::Object(..)
+            deckmaste_core::CopySource::Object(deckmaste_core::Reference::This)
         );
     }
 
     #[test]
     fn lowers_copy_source_self_card() {
-        assert_lowers_debug(deckmaste_authoring::CopySource::SelfCard);
         assert_matches!(
             deckmaste_authoring::CopySource::SelfCard.lower(),
             deckmaste_core::CopySource::SelfCard
@@ -101,53 +105,62 @@ mod tests {
 
     #[test]
     fn lowers_copy_exception_modify() {
-        assert_lowers_debug(deckmaste_authoring::CopyException::Modify(
-            minimal_modification(),
-        ));
         assert_matches!(
             deckmaste_authoring::CopyException::Modify(minimal_modification()).lower(),
-            deckmaste_core::CopyException::Modify(..)
+            deckmaste_core::CopyException::Modify(deckmaste_core::Modification::Power(
+                deckmaste_core::NumericOp::Set(deckmaste_core::StatValue::DefinedByAbility)
+            ))
         );
     }
 
     #[test]
     fn lowers_copy_exception_retain() {
-        assert_lowers_debug(deckmaste_authoring::CopyException::Retain(
-            minimal_characteristic(),
-        ));
         assert_matches!(
             deckmaste_authoring::CopyException::Retain(minimal_characteristic()).lower(),
-            deckmaste_core::CopyException::Retain(..)
+            deckmaste_core::CopyException::Retain(deckmaste_core::Characteristic::Colors)
         );
     }
 
     #[test]
     fn lowers_copy_exception_additional_effect() {
-        assert_lowers_debug(deckmaste_authoring::CopyException::AdditionalEffect(
-            minimal_enter_rider(),
-        ));
         assert_matches!(
             deckmaste_authoring::CopyException::AdditionalEffect(minimal_enter_rider()).lower(),
-            deckmaste_core::CopyException::AdditionalEffect(..)
+            deckmaste_core::CopyException::AdditionalEffect(deckmaste_core::EnterRider::Tapped)
         );
     }
 
     #[test]
     fn lowers_copiable_values() {
-        assert_lowers(deckmaste_authoring::CopiableValues {
-            name: "x".into(),
-            mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
-                [deckmaste_authoring::ManaSymbol],
-            >::from([])),
-            color_indicator: Vec::new(),
-            supertypes: Vec::new(),
-            types: Vec::new(),
-            subtypes: Vec::new(),
-            abilities: Vec::new(),
-            power: None,
-            toughness: None,
-            loyalty: None,
-            defense: None,
-        });
+        assert_matches!(
+            deckmaste_authoring::CopiableValues {
+                name: "x".into(),
+                mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
+                    [deckmaste_authoring::ManaSymbol],
+                >::from([])),
+                color_indicator: Vec::new(),
+                supertypes: Vec::new(),
+                types: Vec::new(),
+                subtypes: Vec::new(),
+                abilities: Vec::new(),
+                power: None,
+                toughness: None,
+                loyalty: None,
+                defense: None
+            }
+            .lower(),
+            deckmaste_core::CopiableValues {
+                name: _,
+                mana_cost: _,
+                color_indicator: _,
+                supertypes: _,
+                types: _,
+                subtypes: _,
+                abilities: _,
+                power: None,
+                toughness: None,
+                loyalty: None,
+                defense: None
+            }
+        );
     }
 }

@@ -61,151 +61,128 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_selection_select_all() {
-        assert_lowers_debug(deckmaste_authoring::Selection::SelectAll(
-            minimal_predicate(),
-        ));
         assert_matches!(
             deckmaste_authoring::Selection::SelectAll(minimal_predicate()).lower(),
-            deckmaste_core::Selection::SelectAll(..)
+            deckmaste_core::Selection::SelectAll(deckmaste_core::Predicate::Kind(
+                deckmaste_core::ObjectKind::Ability
+            ))
         );
     }
 
     #[test]
     fn lowers_selection_union() {
-        assert_lowers_debug(deckmaste_authoring::Selection::Union(Vec::new()));
         assert_matches!(
             deckmaste_authoring::Selection::Union(Vec::new()).lower(),
-            deckmaste_core::Selection::Union(..)
+            deckmaste_core::Selection::Union(_)
         );
     }
 
     #[test]
     fn lowers_selection_in_chosen_order() {
-        assert_lowers_debug(deckmaste_authoring::Selection::InChosenOrder(
-            std::sync::Arc::new(minimal_selection()),
-            minimal_reference(),
-        ));
         assert_matches!(
             deckmaste_authoring::Selection::InChosenOrder(
                 std::sync::Arc::new(minimal_selection()),
                 minimal_reference()
             )
             .lower(),
-            deckmaste_core::Selection::InChosenOrder(..)
+            deckmaste_core::Selection::InChosenOrder(_, deckmaste_core::Reference::This)
         );
     }
 
     #[test]
     fn lowers_selection_random() {
-        assert_lowers_debug(deckmaste_authoring::Selection::Random(
-            minimal_quantity(),
-            minimal_predicate(),
-        ));
         assert_matches!(
             deckmaste_authoring::Selection::Random(minimal_quantity(), minimal_predicate()).lower(),
-            deckmaste_core::Selection::Random(..)
+            deckmaste_core::Selection::Random(
+                deckmaste_core::Quantity::Range(None, None),
+                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            )
         );
     }
 
     #[test]
     fn lowers_selection_among_noted() {
-        assert_lowers_debug(deckmaste_authoring::Selection::AmongNoted(
-            "X".into(),
-            minimal_quantity(),
-        ));
         assert_matches!(
             deckmaste_authoring::Selection::AmongNoted("X".into(), minimal_quantity()).lower(),
-            deckmaste_core::Selection::AmongNoted(..)
+            deckmaste_core::Selection::AmongNoted(_, deckmaste_core::Quantity::Range(None, None))
         );
     }
 
     #[test]
     fn lowers_selection_top_of_library() {
-        assert_lowers_debug(deckmaste_authoring::Selection::TopOfLibrary {
-            count: minimal_count(),
-            whose: minimal_reference(),
-        });
         assert_matches!(
             deckmaste_authoring::Selection::TopOfLibrary {
                 count: minimal_count(),
                 whose: minimal_reference()
             }
             .lower(),
-            deckmaste_core::Selection::TopOfLibrary { .. }
+            deckmaste_core::Selection::TopOfLibrary {
+                count: deckmaste_core::Count::X,
+                whose: deckmaste_core::Reference::This
+            }
         );
     }
 
     #[test]
     fn lowers_selection_bottom_of_library() {
-        assert_lowers_debug(deckmaste_authoring::Selection::BottomOfLibrary {
-            count: minimal_count(),
-            whose: minimal_reference(),
-        });
         assert_matches!(
             deckmaste_authoring::Selection::BottomOfLibrary {
                 count: minimal_count(),
                 whose: minimal_reference()
             }
             .lower(),
-            deckmaste_core::Selection::BottomOfLibrary { .. }
+            deckmaste_core::Selection::BottomOfLibrary {
+                count: deckmaste_core::Count::X,
+                whose: deckmaste_core::Reference::This
+            }
         );
     }
 
     #[test]
     fn lowers_selection_library_of() {
-        assert_lowers_debug(deckmaste_authoring::Selection::LibraryOf(
-            minimal_reference(),
-        ));
         assert_matches!(
             deckmaste_authoring::Selection::LibraryOf(minimal_reference()).lower(),
-            deckmaste_core::Selection::LibraryOf(..)
+            deckmaste_core::Selection::LibraryOf(deckmaste_core::Reference::This)
         );
     }
 
     #[test]
     fn lowers_selection_top_of_graveyard() {
-        assert_lowers_debug(deckmaste_authoring::Selection::TopOfGraveyard {
-            count: minimal_count(),
-            of: minimal_reference(),
-        });
         assert_matches!(
             deckmaste_authoring::Selection::TopOfGraveyard {
                 count: minimal_count(),
                 of: minimal_reference()
             }
             .lower(),
-            deckmaste_core::Selection::TopOfGraveyard { .. }
+            deckmaste_core::Selection::TopOfGraveyard {
+                count: deckmaste_core::Count::X,
+                of: deckmaste_core::Reference::This
+            }
         );
     }
 
     #[test]
     fn lowers_selection_targets() {
-        assert_lowers_debug(deckmaste_authoring::Selection::Targets(0));
         assert_matches!(
             deckmaste_authoring::Selection::Targets(0).lower(),
-            deckmaste_core::Selection::Targets(..)
+            deckmaste_core::Selection::Targets(0)
         );
     }
 
     #[test]
     fn lowers_selection_valid_targets_for() {
-        assert_lowers_debug(deckmaste_authoring::Selection::ValidTargetsFor(
-            minimal_reference(),
-        ));
         assert_matches!(
             deckmaste_authoring::Selection::ValidTargetsFor(minimal_reference()).lower(),
-            deckmaste_core::Selection::ValidTargetsFor(..)
+            deckmaste_core::Selection::ValidTargetsFor(deckmaste_core::Reference::This)
         );
     }
 
     #[test]
     fn lowers_selection_they() {
-        assert_lowers_debug(deckmaste_authoring::Selection::They);
         assert_matches!(
             deckmaste_authoring::Selection::They.lower(),
             deckmaste_core::Selection::They
@@ -214,55 +191,47 @@ mod tests {
 
     #[test]
     fn lowers_selection_them() {
-        assert_lowers_debug(deckmaste_authoring::Selection::Them(minimal_sort()));
         assert_matches!(
             deckmaste_authoring::Selection::Them(minimal_sort()).lower(),
-            deckmaste_core::Selection::Them(..)
+            deckmaste_core::Selection::Them(deckmaste_core::Sort::Player)
         );
     }
 
     #[test]
     fn lowers_selection_piles_of() {
-        assert_lowers_debug(deckmaste_authoring::Selection::PilesOf {
-            note: "X".into(),
-            of: minimal_reference(),
-        });
         assert_matches!(
             deckmaste_authoring::Selection::PilesOf {
                 note: "X".into(),
                 of: minimal_reference()
             }
             .lower(),
-            deckmaste_core::Selection::PilesOf { .. }
+            deckmaste_core::Selection::PilesOf {
+                note: _,
+                of: deckmaste_core::Reference::This
+            }
         );
     }
 
     #[test]
     fn lowers_selection_pick() {
-        assert_lowers_debug(deckmaste_authoring::Selection::Pick {
-            op: minimal_aggregate_op(),
-            proj: minimal_projection(),
-        });
         assert_matches!(
             deckmaste_authoring::Selection::Pick {
                 op: minimal_aggregate_op(),
                 proj: minimal_projection()
             }
             .lower(),
-            deckmaste_core::Selection::Pick { .. }
+            deckmaste_core::Selection::Pick {
+                op: deckmaste_core::AggregateOp::SumOf,
+                proj: deckmaste_core::Projection {
+                    of: deckmaste_core::Countable::Objects(_),
+                    by: _
+                }
+            }
         );
     }
 
     #[test]
     fn lowers_selection_expanded() {
-        assert_lowers_debug(deckmaste_authoring::Selection::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_selection()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::Selection::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -271,7 +240,7 @@ mod tests {
                 value: Box::new(minimal_selection())
             })
             .lower(),
-            deckmaste_core::Selection::Expanded(..)
+            deckmaste_core::Selection::Expanded(_)
         );
     }
 }

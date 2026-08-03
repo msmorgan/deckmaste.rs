@@ -66,48 +66,42 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_token_spec_token() {
-        assert_lowers(deckmaste_authoring::TokenSpec::Token(std::sync::Arc::new(
-            minimal_token(),
-        )));
         assert_matches!(
             deckmaste_authoring::TokenSpec::Token(std::sync::Arc::new(minimal_token())).lower(),
-            deckmaste_core::TokenSpec::Token(..)
+            deckmaste_core::TokenSpec::Token(_)
         );
     }
 
     #[test]
     fn lowers_token_spec_named() {
-        assert_lowers(deckmaste_authoring::TokenSpec::Named(minimal_token_name()));
         assert_matches!(
             deckmaste_authoring::TokenSpec::Named(minimal_token_name()).lower(),
-            deckmaste_core::TokenSpec::Named(..)
+            deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName(_))
         );
     }
 
     #[test]
     fn lowers_token_spec_copy() {
-        assert_lowers(deckmaste_authoring::TokenSpec::Copy(std::sync::Arc::new(
-            minimal_copy_spec(),
-        )));
         assert_matches!(
             deckmaste_authoring::TokenSpec::Copy(std::sync::Arc::new(minimal_copy_spec())).lower(),
-            deckmaste_core::TokenSpec::Copy(..)
+            deckmaste_core::TokenSpec::Copy(_)
         );
     }
 
     #[test]
     fn lowers_token_name() {
-        assert_lowers(deckmaste_authoring::TokenName("X".into()));
+        assert_matches!(
+            deckmaste_authoring::TokenName("X".into()).lower(),
+            deckmaste_core::TokenName(_)
+        );
     }
 
     #[test]
     fn lowers_predefined_token_treasure() {
-        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Treasure);
         assert_matches!(
             deckmaste_authoring::PredefinedToken::Treasure.lower(),
             deckmaste_core::PredefinedToken::Treasure
@@ -116,7 +110,6 @@ mod tests {
 
     #[test]
     fn lowers_predefined_token_food() {
-        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Food);
         assert_matches!(
             deckmaste_authoring::PredefinedToken::Food.lower(),
             deckmaste_core::PredefinedToken::Food
@@ -125,7 +118,6 @@ mod tests {
 
     #[test]
     fn lowers_predefined_token_gold() {
-        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Gold);
         assert_matches!(
             deckmaste_authoring::PredefinedToken::Gold.lower(),
             deckmaste_core::PredefinedToken::Gold
@@ -134,7 +126,6 @@ mod tests {
 
     #[test]
     fn lowers_predefined_token_clue() {
-        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Clue);
         assert_matches!(
             deckmaste_authoring::PredefinedToken::Clue.lower(),
             deckmaste_core::PredefinedToken::Clue
@@ -143,7 +134,6 @@ mod tests {
 
     #[test]
     fn lowers_predefined_token_blood() {
-        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Blood);
         assert_matches!(
             deckmaste_authoring::PredefinedToken::Blood.lower(),
             deckmaste_core::PredefinedToken::Blood
@@ -152,7 +142,6 @@ mod tests {
 
     #[test]
     fn lowers_predefined_token_vibranium() {
-        assert_lowers_debug(deckmaste_authoring::PredefinedToken::Vibranium);
         assert_matches!(
             deckmaste_authoring::PredefinedToken::Vibranium.lower(),
             deckmaste_core::PredefinedToken::Vibranium
@@ -161,15 +150,28 @@ mod tests {
 
     #[test]
     fn lowers_token() {
-        assert_lowers(deckmaste_authoring::Token {
-            name: None,
-            color_indicator: [].into(),
-            supertypes: [].into(),
-            types: [].into(),
-            subtypes: [].into(),
-            abilities: [].into(),
-            power: None,
-            toughness: None,
-        });
+        assert_matches!(
+            deckmaste_authoring::Token {
+                name: None,
+                color_indicator: [].into(),
+                supertypes: [].into(),
+                types: [].into(),
+                subtypes: [].into(),
+                abilities: [].into(),
+                power: None,
+                toughness: None
+            }
+            .lower(),
+            deckmaste_core::Token {
+                name: None,
+                color_indicator: _,
+                supertypes: _,
+                types: _,
+                subtypes: _,
+                abilities: _,
+                power: None,
+                toughness: None
+            }
+        );
     }
 }

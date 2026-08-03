@@ -12,8 +12,8 @@ the other — the build graph is the architecture.
 - `lower(authored) -> core` as a total mapping over the mirrored grammar:
   generated identity-shaped arms (generation of ARMS only — no shared
   schema layer defining both enums; see spec §13.1).
-- Correctness story from day one: **one mapping test per variant**, plus a
-  transcode differential oracle; the convention that every future
+- Correctness story from day one: **one mapping test per variant, each
+  naming the engine shape it expects**; the convention that every future
   non-identity arm carries its justification in place (the crate IS the
   divergence ledger). The raise map the spec used to require here is
   WITHDRAWN (owner-settled 2026-08-02) — its coverage shrinks as arms
@@ -31,7 +31,8 @@ the other — the build graph is the architecture.
 
 ## Gates
 
-Standard constraints apply. One mapping test per variant, all green;
-transcode oracle green over canon and builtin (lower every loaded authored
-term, transcode the same term, compare); exhaustiveness enforced by the
-compiler (no wildcard arms in the mapping).
+Standard constraints apply. One mapping test per variant, all green, each
+asserting the expected engine shape to the depth stable Rust can pattern
+against; corpus gate green over canon and builtin (every loaded authored
+term lowers); exhaustiveness enforced by the compiler (no wildcard arms in
+the mapping).

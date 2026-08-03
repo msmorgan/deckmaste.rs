@@ -441,9 +441,9 @@ lowering invokes it and owns the cross-grammar mapping.
   in place — the crate IS the divergence ledger. Authored terms have no
   independent semantics: a term means its image under `lower`.
 - **Correctness story** (because the compiler forces totality, not
-  correctness): generated identity arms while mirrored; **per-variant
-  mapping tests for every variant**; a transcode differential oracle; and
-  downstream gates (engine suites, fidelity) as the backstop.
+  correctness): generated identity arms while mirrored; **one mapping test
+  per variant, each naming the engine shape it expects**; and downstream
+  gates (engine suites, fidelity) as the backstop.
 
   **The raise map is WITHDRAWN (owner-settled 2026-08-02, during
   `lowering-crate`).** The original story here was a debug-only raise map
@@ -456,16 +456,31 @@ lowering invokes it and owns the cross-grammar mapping.
   lands loses to per-variant tests that keep working after divergence,
   which is exactly when a mapping test earns its keep.
 
-  What replaces it: **one test per variant**, and a **transcode oracle**.
-  The oracle exploits the mirror directly — because the two grammars are
-  byte-identical, `deckmaste_core::from_str(&authoring::to_string(&x))` is
-  an independent total identity lowering in a handful of lines, so
-  `lower(x) == transcode(x)` checks each arm against a path that shares no
-  code with it. That is the only check that catches a wrong-but-well-typed
-  arm, §13.2's named blind spot. It is scoped to values free of
-  `Expanded` wrappers: `Expansion`'s `Serialize` writes the INVOCATION
-  rather than the struct, so a transcode of a wrapped value is not
-  meaningful without the macro in scope.
+  What replaces it: **one test per variant, stating the expected engine
+  shape** — `assert_matches!(authored.lower(), core::T::V(<nested…>))`.
+  The pattern is written to the depth stable Rust can reach: it spells
+  nested variants and `None`/numeric leaves exactly as the test's value
+  builds them, and bottoms out at `_` only where no pattern can go
+  (behind `Arc`/`Box`, and at `String`/`Arc<str>`/`Ident`, which have no
+  matchable literal form). Values come from a well-foundedness fixpoint
+  over the grammar, so no fixtures are hand-written.
+
+  This is what catches a wrong-but-well-typed arm — §13.2's named blind
+  spot. Note the spot is narrower than it looks: swapping two variants
+  with differently-typed payloads is a COMPILE error, so the tests are
+  covering the residue the type system leaves, chiefly variants sharing a
+  payload type. A **serialization comparison**
+  (`core::to_string(lower(x))` vs `authoring::to_string(x)`) was carried
+  alongside for a while and measured redundant once the patterns were
+  written to full depth — identical detection on a mutation sweep — so it
+  survives for exactly one type: `ManaCost` wraps a private field, and
+  stable Rust cannot match a tuple struct with private fields across a
+  crate boundary.
+
+  Known limit, honestly stated: two same-typed fields whose minimal values
+  are equal (four `Option<StatValue>` on `CardFace`, all `None`) cannot be
+  told apart by any assertion over minimal values. Closing that needs
+  distinguishable values per field, not a different assertion.
 
   If a future contraction pass reorders slots, per-variant expectations
   are updated with that pass; the "equal up to consistent slot renumbering
@@ -671,14 +686,13 @@ tracked tree); the deltas restated here are self-contained.
 2. The engine `It`→lone-target compatibility arm is deliberate, guarded,
    and self-documented — its removal requires the corpus re-spell sweep
    first (`engine-it-target-fallback-removal`).
-3. The per-variant mapping tests and the transcode oracle (§9) run in CI.
-   Per-variant coverage is total and stays total: a new variant on either
-   side is already a build error, and its test lands with it. The
-   transcode oracle is scoped to `Expanded`-free values, so
-   `plugin-repoint`'s provenance relocation narrows the oracle but not the
-   per-variant tests, and that ticket owns restating the scope. (The
-   raise-map round-trip property this obligation used to name is
-   withdrawn — see §9.)
+3. The per-variant mapping tests (§9) run in CI. Coverage is total and
+   stays total: a new variant on either side is already a build error, and
+   its test lands with it. When an arm diverges, its test is edited to the
+   new expected shape in place — which is why each test names that shape
+   rather than inferring it; `plugin-repoint` is the first ticket to do
+   this, for the `Expansion` arms it erases. (The raise-map round-trip
+   property this obligation used to name is withdrawn — see §9.)
 4. The coverage gate (reachability inventory: every row classified) and
    the collision diagnostic get negative fixtures each.
 5. The Ephemerate/Cloudshift pronoun pair and the §7 card list become

@@ -45,12 +45,10 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_reference_this() {
-        assert_lowers_debug(deckmaste_authoring::Reference::This);
         assert_matches!(
             deckmaste_authoring::Reference::This.lower(),
             deckmaste_core::Reference::This
@@ -59,19 +57,15 @@ mod tests {
 
     #[test]
     fn lowers_reference_single() {
-        assert_lowers_debug(deckmaste_authoring::Reference::Single(std::sync::Arc::new(
-            minimal_selection(),
-        )));
         assert_matches!(
             deckmaste_authoring::Reference::Single(std::sync::Arc::new(minimal_selection()))
                 .lower(),
-            deckmaste_core::Reference::Single(..)
+            deckmaste_core::Reference::Single(_)
         );
     }
 
     #[test]
     fn lowers_reference_you() {
-        assert_lowers_debug(deckmaste_authoring::Reference::You);
         assert_matches!(
             deckmaste_authoring::Reference::You.lower(),
             deckmaste_core::Reference::You
@@ -80,7 +74,6 @@ mod tests {
 
     #[test]
     fn lowers_reference_opponent() {
-        assert_lowers_debug(deckmaste_authoring::Reference::Opponent);
         assert_matches!(
             deckmaste_authoring::Reference::Opponent.lower(),
             deckmaste_core::Reference::Opponent
@@ -89,7 +82,6 @@ mod tests {
 
     #[test]
     fn lowers_reference_it() {
-        assert_lowers_debug(deckmaste_authoring::Reference::It);
         assert_matches!(
             deckmaste_authoring::Reference::It.lower(),
             deckmaste_core::Reference::It
@@ -98,16 +90,14 @@ mod tests {
 
     #[test]
     fn lowers_reference_target() {
-        assert_lowers_debug(deckmaste_authoring::Reference::Target(0));
         assert_matches!(
             deckmaste_authoring::Reference::Target(0).lower(),
-            deckmaste_core::Reference::Target(..)
+            deckmaste_core::Reference::Target(0)
         );
     }
 
     #[test]
     fn lowers_reference_event_object() {
-        assert_lowers_debug(deckmaste_authoring::Reference::EventObject);
         assert_matches!(
             deckmaste_authoring::Reference::EventObject.lower(),
             deckmaste_core::Reference::EventObject
@@ -116,7 +106,6 @@ mod tests {
 
     #[test]
     fn lowers_reference_event_patient() {
-        assert_lowers_debug(deckmaste_authoring::Reference::EventPatient);
         assert_matches!(
             deckmaste_authoring::Reference::EventPatient.lower(),
             deckmaste_core::Reference::EventPatient
@@ -125,7 +114,6 @@ mod tests {
 
     #[test]
     fn lowers_reference_event_actor() {
-        assert_lowers_debug(deckmaste_authoring::Reference::EventActor);
         assert_matches!(
             deckmaste_authoring::Reference::EventActor.lower(),
             deckmaste_core::Reference::EventActor
@@ -134,7 +122,6 @@ mod tests {
 
     #[test]
     fn lowers_reference_defending_player() {
-        assert_lowers_debug(deckmaste_authoring::Reference::DefendingPlayer);
         assert_matches!(
             deckmaste_authoring::Reference::DefendingPlayer.lower(),
             deckmaste_core::Reference::DefendingPlayer
@@ -143,79 +130,65 @@ mod tests {
 
     #[test]
     fn lowers_reference_that() {
-        assert_lowers_debug(deckmaste_authoring::Reference::That(minimal_sort()));
         assert_matches!(
             deckmaste_authoring::Reference::That(minimal_sort()).lower(),
-            deckmaste_core::Reference::That(..)
+            deckmaste_core::Reference::That(deckmaste_core::Sort::Player)
         );
     }
 
     #[test]
     fn lowers_reference_bound() {
-        assert_lowers_debug(deckmaste_authoring::Reference::Bound("X".into()));
         assert_matches!(
             deckmaste_authoring::Reference::Bound("X".into()).lower(),
-            deckmaste_core::Reference::Bound(..)
+            deckmaste_core::Reference::Bound(_)
         );
     }
 
     #[test]
     fn lowers_reference_linked() {
-        assert_lowers_debug(deckmaste_authoring::Reference::Linked("X".into()));
         assert_matches!(
             deckmaste_authoring::Reference::Linked("X".into()).lower(),
-            deckmaste_core::Reference::Linked(..)
+            deckmaste_core::Reference::Linked(_)
         );
     }
 
     #[test]
     fn lowers_reference_controller_of() {
-        assert_lowers_debug(deckmaste_authoring::Reference::ControllerOf(
-            std::sync::Arc::new(minimal_reference()),
-        ));
         assert_matches!(
             deckmaste_authoring::Reference::ControllerOf(std::sync::Arc::new(minimal_reference()))
                 .lower(),
-            deckmaste_core::Reference::ControllerOf(..)
+            deckmaste_core::Reference::ControllerOf(_)
         );
     }
 
     #[test]
     fn lowers_reference_coalesce() {
-        assert_lowers_debug(deckmaste_authoring::Reference::Coalesce([].into()));
         assert_matches!(
             deckmaste_authoring::Reference::Coalesce([].into()).lower(),
-            deckmaste_core::Reference::Coalesce(..)
+            deckmaste_core::Reference::Coalesce(_)
         );
     }
 
     #[test]
     fn lowers_reference_owner_of() {
-        assert_lowers_debug(deckmaste_authoring::Reference::OwnerOf(
-            std::sync::Arc::new(minimal_reference()),
-        ));
         assert_matches!(
             deckmaste_authoring::Reference::OwnerOf(std::sync::Arc::new(minimal_reference()))
                 .lower(),
-            deckmaste_core::Reference::OwnerOf(..)
+            deckmaste_core::Reference::OwnerOf(_)
         );
     }
 
     #[test]
     fn lowers_reference_attach_host_of() {
-        assert_lowers_debug(deckmaste_authoring::Reference::AttachHostOf(
-            std::sync::Arc::new(minimal_reference()),
-        ));
         assert_matches!(
             deckmaste_authoring::Reference::AttachHostOf(std::sync::Arc::new(minimal_reference()))
                 .lower(),
-            deckmaste_core::Reference::AttachHostOf(..)
+            deckmaste_core::Reference::AttachHostOf(_)
         );
     }
 
     #[test]
     fn lowers_reference_source() {
-        assert_lowers_debug(deckmaste_authoring::Reference::Source);
         assert_matches!(
             deckmaste_authoring::Reference::Source.lower(),
             deckmaste_core::Reference::Source
@@ -224,14 +197,6 @@ mod tests {
 
     #[test]
     fn lowers_reference_expanded() {
-        assert_lowers_debug(deckmaste_authoring::Reference::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_reference()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::Reference::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -240,7 +205,7 @@ mod tests {
                 value: Box::new(minimal_reference())
             })
             .lower(),
-            deckmaste_core::Reference::Expanded(..)
+            deckmaste_core::Reference::Expanded(_)
         );
     }
 }

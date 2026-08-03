@@ -33,12 +33,10 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_zone_battlefield() {
-        assert_lowers_debug(deckmaste_authoring::Zone::Battlefield);
         assert_matches!(
             deckmaste_authoring::Zone::Battlefield.lower(),
             deckmaste_core::Zone::Battlefield
@@ -47,7 +45,6 @@ mod tests {
 
     #[test]
     fn lowers_zone_command() {
-        assert_lowers_debug(deckmaste_authoring::Zone::Command);
         assert_matches!(
             deckmaste_authoring::Zone::Command.lower(),
             deckmaste_core::Zone::Command
@@ -56,7 +53,6 @@ mod tests {
 
     #[test]
     fn lowers_zone_exile() {
-        assert_lowers_debug(deckmaste_authoring::Zone::Exile);
         assert_matches!(
             deckmaste_authoring::Zone::Exile.lower(),
             deckmaste_core::Zone::Exile
@@ -65,7 +61,6 @@ mod tests {
 
     #[test]
     fn lowers_zone_graveyard() {
-        assert_lowers_debug(deckmaste_authoring::Zone::Graveyard);
         assert_matches!(
             deckmaste_authoring::Zone::Graveyard.lower(),
             deckmaste_core::Zone::Graveyard
@@ -74,7 +69,6 @@ mod tests {
 
     #[test]
     fn lowers_zone_hand() {
-        assert_lowers_debug(deckmaste_authoring::Zone::Hand);
         assert_matches!(
             deckmaste_authoring::Zone::Hand.lower(),
             deckmaste_core::Zone::Hand
@@ -83,7 +77,6 @@ mod tests {
 
     #[test]
     fn lowers_zone_library() {
-        assert_lowers_debug(deckmaste_authoring::Zone::Library);
         assert_matches!(
             deckmaste_authoring::Zone::Library.lower(),
             deckmaste_core::Zone::Library
@@ -92,7 +85,6 @@ mod tests {
 
     #[test]
     fn lowers_zone_stack() {
-        assert_lowers_debug(deckmaste_authoring::Zone::Stack);
         assert_matches!(
             deckmaste_authoring::Zone::Stack.lower(),
             deckmaste_core::Zone::Stack

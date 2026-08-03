@@ -28,14 +28,20 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_conferral_rule() {
-        assert_lowers(deckmaste_authoring::ConferralRule {
-            scope: minimal_predicate(),
-            confer: minimal_property(),
-        });
+        assert_matches!(
+            deckmaste_authoring::ConferralRule {
+                scope: minimal_predicate(),
+                confer: minimal_property()
+            }
+            .lower(),
+            deckmaste_core::ConferralRule {
+                scope: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                confer: deckmaste_core::Property::Ability(_)
+            }
+        );
     }
 }

@@ -68,17 +68,18 @@ mod tests {
 
     use crate::Lower;
     use crate::assert_lowers;
-    use crate::assert_lowers_debug;
     use crate::minimal::*;
 
     #[test]
     fn lowers_keyword_ref() {
-        assert_lowers(deckmaste_authoring::KeywordRef("X".into()));
+        assert_matches!(
+            deckmaste_authoring::KeywordRef("X".into()).lower(),
+            deckmaste_core::KeywordRef(_)
+        );
     }
 
     #[test]
     fn lowers_param_shape_none() {
-        assert_lowers(deckmaste_authoring::ParamShape::None);
         assert_matches!(
             deckmaste_authoring::ParamShape::None.lower(),
             deckmaste_core::ParamShape::None
@@ -87,7 +88,6 @@ mod tests {
 
     #[test]
     fn lowers_param_shape_counted() {
-        assert_lowers(deckmaste_authoring::ParamShape::Counted);
         assert_matches!(
             deckmaste_authoring::ParamShape::Counted.lower(),
             deckmaste_core::ParamShape::Counted
@@ -96,7 +96,6 @@ mod tests {
 
     #[test]
     fn lowers_param_shape_costed() {
-        assert_lowers(deckmaste_authoring::ParamShape::Costed);
         assert_matches!(
             deckmaste_authoring::ParamShape::Costed.lower(),
             deckmaste_core::ParamShape::Costed
@@ -105,7 +104,6 @@ mod tests {
 
     #[test]
     fn lowers_param_shape_counted_cost() {
-        assert_lowers(deckmaste_authoring::ParamShape::CountedCost);
         assert_matches!(
             deckmaste_authoring::ParamShape::CountedCost.lower(),
             deckmaste_core::ParamShape::CountedCost
@@ -114,7 +112,6 @@ mod tests {
 
     #[test]
     fn lowers_param_shape_predicated() {
-        assert_lowers(deckmaste_authoring::ParamShape::Predicated);
         assert_matches!(
             deckmaste_authoring::ParamShape::Predicated.lower(),
             deckmaste_core::ParamShape::Predicated
@@ -123,7 +120,6 @@ mod tests {
 
     #[test]
     fn lowers_param_shape_predicated_costed() {
-        assert_lowers(deckmaste_authoring::ParamShape::PredicatedCosted);
         assert_matches!(
             deckmaste_authoring::ParamShape::PredicatedCosted.lower(),
             deckmaste_core::ParamShape::PredicatedCosted
@@ -132,7 +128,6 @@ mod tests {
 
     #[test]
     fn lowers_param_shape_named() {
-        assert_lowers(deckmaste_authoring::ParamShape::Named);
         assert_matches!(
             deckmaste_authoring::ParamShape::Named.lower(),
             deckmaste_core::ParamShape::Named
@@ -141,15 +136,21 @@ mod tests {
 
     #[test]
     fn lowers_keyword_decl() {
-        assert_lowers(deckmaste_authoring::KeywordDecl {
-            name: "X".into(),
-            shape: minimal_param_shape(),
-        });
+        assert_matches!(
+            deckmaste_authoring::KeywordDecl {
+                name: "X".into(),
+                shape: minimal_param_shape()
+            }
+            .lower(),
+            deckmaste_core::KeywordDecl {
+                name: _,
+                shape: deckmaste_core::ParamShape::None
+            }
+        );
     }
 
     #[test]
     fn lowers_keyword_ability_first_strike() {
-        assert_lowers_debug(deckmaste_authoring::KeywordAbility::FirstStrike);
         assert_matches!(
             deckmaste_authoring::KeywordAbility::FirstStrike.lower(),
             deckmaste_core::KeywordAbility::FirstStrike
@@ -158,7 +159,6 @@ mod tests {
 
     #[test]
     fn lowers_keyword_ability_double_strike() {
-        assert_lowers_debug(deckmaste_authoring::KeywordAbility::DoubleStrike);
         assert_matches!(
             deckmaste_authoring::KeywordAbility::DoubleStrike.lower(),
             deckmaste_core::KeywordAbility::DoubleStrike
@@ -167,7 +167,6 @@ mod tests {
 
     #[test]
     fn lowers_keyword_ability_deathtouch() {
-        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Deathtouch);
         assert_matches!(
             deckmaste_authoring::KeywordAbility::Deathtouch.lower(),
             deckmaste_core::KeywordAbility::Deathtouch
@@ -176,7 +175,6 @@ mod tests {
 
     #[test]
     fn lowers_keyword_ability_trample() {
-        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Trample);
         assert_matches!(
             deckmaste_authoring::KeywordAbility::Trample.lower(),
             deckmaste_core::KeywordAbility::Trample
@@ -185,7 +183,6 @@ mod tests {
 
     #[test]
     fn lowers_keyword_ability_vigilance() {
-        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Vigilance);
         assert_matches!(
             deckmaste_authoring::KeywordAbility::Vigilance.lower(),
             deckmaste_core::KeywordAbility::Vigilance
@@ -194,30 +191,21 @@ mod tests {
 
     #[test]
     fn lowers_keyword_ability_composite() {
-        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Composite {
-            name: "X".into(),
-            abilities: Vec::new(),
-        });
         assert_matches!(
             deckmaste_authoring::KeywordAbility::Composite {
                 name: "X".into(),
                 abilities: Vec::new()
             }
             .lower(),
-            deckmaste_core::KeywordAbility::Composite { .. }
+            deckmaste_core::KeywordAbility::Composite {
+                name: _,
+                abilities: _
+            }
         );
     }
 
     #[test]
     fn lowers_keyword_ability_expanded() {
-        assert_lowers_debug(deckmaste_authoring::KeywordAbility::Expanded(
-            macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_keyword_ability()),
-            },
-        ));
         assert_matches!(
             deckmaste_authoring::KeywordAbility::Expanded(macro_ron::Expansion {
                 name: "X".into(),
@@ -226,7 +214,7 @@ mod tests {
                 value: Box::new(minimal_keyword_ability())
             })
             .lower(),
-            deckmaste_core::KeywordAbility::Expanded(..)
+            deckmaste_core::KeywordAbility::Expanded(_)
         );
     }
 }
