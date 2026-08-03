@@ -50,7 +50,6 @@ use verb::PHASE_PREDICATE_FRAMES;
 pub(crate) use verb::PROFORM_PREDICATE_FRAMES;
 pub(crate) use verb::PredicateComplementKind;
 pub(crate) use verb::PredicateFrame;
-pub(crate) use verb::PrepositionalRole;
 use verb::RECIPIENT_PASSIVE_PREDICATE_FRAMES;
 use verb::REQUIRED_OBJECT_PREDICATE_FRAMES;
 pub(crate) use verb::VERB_SLOTS;
@@ -59,17 +58,11 @@ pub use verb::VerbDefinition;
 pub use verb::VerbForm;
 pub use verb::VerbInstance;
 pub use verb::VerbSlot;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum Person {
-    Second,
-    Third,
-}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum Number {
-    Singular,
-    Plural,
-}
+/// Compatibility name for the inherent-realization number feature.
+pub use crate::features::Number;
+/// Compatibility name for the inherent-realization person feature.
+pub use crate::features::Person;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Tense {

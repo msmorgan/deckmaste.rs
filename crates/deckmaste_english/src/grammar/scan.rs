@@ -440,12 +440,20 @@ impl EnglishGrammar<'_, '_> {
         tokens: &[Token],
         start: usize,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        use crate::syntax::PredicateConjunction;
+        use crate::features::Conjunction;
 
         let Some(surface) = self.token_text(tokens, start) else {
             return Vec::new();
         };
-        let Some(conjunction) = PredicateConjunction::from_spelling(surface) else {
+        let conjunction = if surface.eq_ignore_ascii_case("and") {
+            Conjunction::And
+        } else if surface.eq_ignore_ascii_case("or") {
+            Conjunction::Or
+        } else if surface.eq_ignore_ascii_case("then") {
+            Conjunction::Then
+        } else if surface.eq_ignore_ascii_case("and/or") {
+            Conjunction::AndOr
+        } else {
             return Vec::new();
         };
         vec![LexicalMatch {
@@ -1254,7 +1262,7 @@ pub(super) fn accepts_keyword_grant_prefix(
     }
     matches!(
         latest_child,
-        Features::Conjunction(crate::syntax::PredicateConjunction::And)
+        Features::Conjunction(crate::features::Conjunction::And)
     )
 }
 

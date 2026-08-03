@@ -12,6 +12,8 @@ use super::phrase::PowerToughness;
 use super::phrase::PrepositionalPhrase;
 use super::phrase::Quantity;
 use crate::catalog::CatalogAtom;
+use crate::features::Conjunction;
+use crate::features::GapState;
 use crate::word::AuxiliaryInstance;
 use crate::word::VerbInstance;
 use crate::word::Vocab;
@@ -322,7 +324,7 @@ pub struct PredicateObjectCoordination {
     /// list; `Some` on a bare `and`/`or` member and on the final Oxford
     /// member. Mirrors
     /// [`NounPhraseCoordination`](super::phrase::NounPhraseCoordination).
-    pub conjunction: Option<PredicateConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub object: PredicateObject,
 }
 
@@ -437,7 +439,7 @@ pub enum InfinitiveMarker {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RelativeClause {
     pub marker: RelativeMarker,
-    pub gap: RelativeGap,
+    pub gap: GapState,
     pub body: RelativeBody,
 }
 
@@ -472,11 +474,8 @@ pub enum RelativeMarker {
     Zero,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum RelativeGap {
-    Subject,
-    Object,
-}
+/// Compatibility name for the selection-stratum gap-state feature.
+pub use crate::features::GapState as RelativeGap;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum RelativeBody {
@@ -579,7 +578,7 @@ pub struct RestrictionCoordination {
     /// `None` on the asyndetic comma-separated interior members of an Oxford
     /// list; `Some(PredicateConjunction::And)` on a bare `and` member and on
     /// the final Oxford member. Mirrors [`ExceptionConjunct`].
-    pub conjunction: Option<PredicateConjunction>,
+    pub conjunction: Option<Conjunction>,
     /// See [`RestrictionRun::first`] for why this is a (non-empty) list.
     pub adjuncts: Vec<PredicateAdjunct>,
 }
@@ -609,7 +608,7 @@ pub struct ExceptionRider {
 /// and [`TriggerConditionCoordination`](crate::syntax::TriggerConditionCoordination).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExceptionConjunct {
-    pub conjunction: Option<PredicateConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub clause: IndependentClause,
 }
 
@@ -642,7 +641,7 @@ pub enum AttachmentPosition {
 pub struct CoordinationJunction {
     /// `None` records an asyndetic comma junction; coordinated junctions carry
     /// their overt connective.
-    pub conjunction: Option<PredicateConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub comma: bool,
 }
 
@@ -722,7 +721,7 @@ pub struct CoordinatedIndependentClause {
 /// the parser can recover, so the bit stays stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClauseCoordination {
-    pub conjunction: Option<PredicateConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub comma: bool,
     pub member: CoordinatedClauseMember,
 }
@@ -799,42 +798,8 @@ impl Subordinator {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum PredicateConjunction {
-    And,
-    Or,
-    Then,
-    /// The disjunctive-or-conjunctive connective spelled `and/or`, lexed as a
-    /// single word token. It joins coordinated nominal modifiers (`white and/or
-    /// blue`, Amphibious Kavu); it is never a valid clause, predicate-object,
-    /// or noun-phrase connective, so every coordination outside the
-    /// modifier list rejects it.
-    AndOr,
-}
-
-impl PredicateConjunction {
-    const FORMS: &'static [(Self, &'static str)] = &[
-        (Self::And, "and"),
-        (Self::Or, "or"),
-        (Self::Then, "then"),
-        (Self::AndOr, "and/or"),
-    ];
-
-    pub(crate) fn from_spelling(surface: &str) -> Option<Self> {
-        Self::FORMS.iter().find_map(|(conjunction, spelling)| {
-            surface
-                .eq_ignore_ascii_case(spelling)
-                .then_some(*conjunction)
-        })
-    }
-
-    pub(crate) fn spelling(self) -> &'static str {
-        Self::FORMS
-            .iter()
-            .find_map(|(conjunction, spelling)| (*conjunction == self).then_some(*spelling))
-            .expect("every predicate conjunction has one spelling")
-    }
-}
+/// Compatibility name for the selection-stratum conjunction feature.
+pub use crate::features::Conjunction as PredicateConjunction;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExistentialClause {

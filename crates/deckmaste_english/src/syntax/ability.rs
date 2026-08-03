@@ -1,7 +1,6 @@
 use super::clause::DependentClause;
 use super::clause::IndependentClause;
 use super::clause::Predicate;
-use super::clause::PredicateConjunction;
 use super::phrase::NounPhrase;
 use super::phrase::NumberLiteral;
 use super::phrase::OracleSymbol;
@@ -11,6 +10,7 @@ use super::phrase::Preposition;
 use super::phrase::Quantity;
 use super::phrase::RecoveredText;
 use crate::catalog::CatalogAtom;
+use crate::features::Conjunction;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct OracleText {
@@ -252,7 +252,7 @@ pub struct TriggerConditionList {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TriggerConditionCoordination {
-    pub conjunction: PredicateConjunction,
+    pub conjunction: Conjunction,
     pub condition: TriggerCondition,
 }
 

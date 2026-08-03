@@ -40,6 +40,8 @@
 
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
+use deckmaste_english::features::Number;
+use deckmaste_english::features::Person;
 use deckmaste_english::parse_fragment;
 use macro_ron::MacroSet;
 use macro_ron::frames::FrameSpec;
@@ -204,12 +206,9 @@ pub enum AgreeKind {
 pub enum Normalization {
     /// A `VerbSlot`'s agreement features were reset to the citation slot
     /// (third person singular). The fields carry what was there before.
-    VerbAgreement {
-        person: &'static str,
-        number: &'static str,
-    },
+    VerbAgreement { person: Person, number: Number },
     /// A plural head noun was reset to singular.
-    NounNumber { from: &'static str },
+    NounNumber { from: Number },
     /// A hole-bearing `NominalModifier::Quantity` was moved into the empty
     /// `determiner` slot as `Determiner::Quantity`.
     ///
@@ -948,25 +947,23 @@ fn normalize_citation(
             else {
                 return (applied, None);
             };
-            let mut was = ("Third", "Singular");
+            let mut was = (Person::Third, Number::Singular);
             let mut changed = false;
-            for (name, citation, keep) in [
-                ("person", "Third", &mut was.0),
-                ("number", "Singular", &mut was.1),
-            ] {
-                let Some((_, value)) = slot.iter_mut().find(|(field, _)| *field == name) else {
-                    continue;
-                };
-                let View::Unit { variant, .. } = value else {
-                    continue;
-                };
-                if let Some(current) = *variant {
-                    *keep = current;
-                    if current != citation {
-                        changed = true;
-                    }
-                }
-                *variant = Some(citation);
+            if let Some((_, View::Unit { variant, .. })) =
+                slot.iter_mut().find(|(field, _)| *field == "person")
+                && let Some(current) = variant.and_then(person_from_variant)
+            {
+                was.0 = current;
+                changed |= current != Person::Third;
+                *variant = Some(person_variant(Person::Third));
+            }
+            if let Some((_, View::Unit { variant, .. })) =
+                slot.iter_mut().find(|(field, _)| *field == "number")
+                && let Some(current) = variant.and_then(number_from_variant)
+            {
+                was.1 = current;
+                changed |= current != Number::Singular;
+                *variant = Some(number_variant(Number::Singular));
             }
             if changed {
                 applied.push(Normalization::VerbAgreement {
@@ -993,14 +990,46 @@ fn normalize_citation(
                     variant: Some(variant),
                     ..
                 } = head
-                && *variant == "Plural"
+                && number_from_variant(variant) == Some(Number::Plural)
             {
-                *variant = "Singular";
-                applied.push(Normalization::NounNumber { from: "Plural" });
+                *variant = number_variant(Number::Singular);
+                applied.push(Normalization::NounNumber {
+                    from: Number::Plural,
+                });
             }
         }
     }
     (applied, removal)
+}
+
+fn person_from_variant(variant: &str) -> Option<Person> {
+    match variant {
+        "Second" => Some(Person::Second),
+        "Third" => Some(Person::Third),
+        _ => None,
+    }
+}
+
+const fn person_variant(person: Person) -> &'static str {
+    match person {
+        Person::Second => "Second",
+        Person::Third => "Third",
+    }
+}
+
+fn number_from_variant(variant: &str) -> Option<Number> {
+    match variant {
+        "Singular" => Some(Number::Singular),
+        "Plural" => Some(Number::Plural),
+        _ => None,
+    }
+}
+
+const fn number_variant(number: Number) -> &'static str {
+    match number {
+        Number::Singular => "Singular",
+        Number::Plural => "Plural",
+    }
 }
 
 /// Takes the sole hole-bearing `NominalModifier::Quantity` out of a nominal's
@@ -1672,7 +1701,9 @@ mod tests {
         assert!(
             agreement[1]
                 .normalized
-                .contains(&Normalization::NounNumber { from: "Plural" }),
+                .contains(&Normalization::NounNumber {
+                    from: Number::Plural,
+                }),
             "the later site was not normalized: {:?}",
             agreement[1]
         );

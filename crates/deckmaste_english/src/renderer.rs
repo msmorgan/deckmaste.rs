@@ -2,6 +2,10 @@ use std::cell::Cell;
 use std::fmt;
 
 use crate::catalog::CatalogKind;
+use crate::features::Conjunction;
+use crate::features::Number;
+use crate::features::Onset as InitialSound;
+use crate::features::Person;
 use crate::identity::short_name;
 use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
@@ -63,7 +67,6 @@ use crate::syntax::Possessor;
 use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
 use crate::syntax::PredicateComplement;
-use crate::syntax::PredicateConjunction;
 use crate::syntax::PredicateElement;
 use crate::syntax::PredicateExpression;
 use crate::syntax::PredicateHead;
@@ -101,11 +104,8 @@ use crate::word::Adjective;
 use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
-use crate::word::InitialSound;
 use crate::word::Noun;
 use crate::word::NounInstance;
-use crate::word::Number;
-use crate::word::Person;
 use crate::word::PronounInstance;
 use crate::word::Verb;
 use crate::word::Vocab;
@@ -556,7 +556,7 @@ impl<'identity> Renderer<'identity> {
         let mut rendered = self.trigger_frame(*introducer, event, None)?;
         for coordination in &conditions.rest {
             rendered.push(' ');
-            rendered.push_str(coordination.conjunction.spelling());
+            rendered.push_str(render_predicate_conjunction(coordination.conjunction));
             rendered.push(' ');
             let TriggerCondition { introducer, event } = &coordination.condition;
             rendered.push_str(&self.trigger_frame(*introducer, event, None)?);
@@ -1688,7 +1688,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(conjunction.spelling());
+                        rendered.push_str(render_nominal_conjunction(conjunction));
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.nominal_phrase(&coordination.phrase)?);
@@ -1707,7 +1707,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(conjunction.spelling());
+                        rendered.push_str(render_nominal_conjunction(conjunction));
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.noun_phrase(&coordination.phrase)?);
@@ -1863,7 +1863,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_predicate_conjunction(conjunction));
+                        rendered.push_str(render_nominal_conjunction(conjunction));
                         rendered.push(' ');
                     }
                     let (member, member_trailing) =
@@ -1995,7 +1995,7 @@ impl<'identity> Renderer<'identity> {
             }
             rendered.push(' ');
             if let Some(conjunction) = coordination.conjunction {
-                rendered.push_str(render_predicate_conjunction(conjunction));
+                rendered.push_str(render_nominal_conjunction(conjunction));
                 rendered.push(' ');
             }
             rendered.push_str(&self.adjective_phrase(&coordination.phrase)?);
@@ -2064,7 +2064,7 @@ impl<'identity> Renderer<'identity> {
                     }
                     rendered.push(' ');
                     if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(conjunction.spelling());
+                        rendered.push_str(render_nominal_conjunction(conjunction));
                         rendered.push(' ');
                     }
                     rendered.push_str(&self.simple_prepositional_phrase(&coordination.phrase)?);
@@ -2702,8 +2702,22 @@ fn render_subordinator(subordinator: Subordinator) -> &'static str {
     subordinator.spelling()
 }
 
-fn render_predicate_conjunction(conjunction: PredicateConjunction) -> &'static str {
-    conjunction.spelling()
+fn render_predicate_conjunction(conjunction: Conjunction) -> &'static str {
+    match conjunction {
+        Conjunction::And | Conjunction::Or | Conjunction::Then => conjunction.spelling(),
+        Conjunction::Plus | Conjunction::AndOr => {
+            panic!("invalid predicate conjunction: {conjunction:?}")
+        }
+    }
+}
+
+fn render_nominal_conjunction(conjunction: Conjunction) -> &'static str {
+    match conjunction {
+        Conjunction::And | Conjunction::Or | Conjunction::Plus | Conjunction::AndOr => {
+            conjunction.spelling()
+        }
+        Conjunction::Then => panic!("then is not a nominal conjunction"),
+    }
 }
 
 fn keyword_argument_separator(separator: KeywordArgumentSeparator) -> &'static str {
@@ -2840,6 +2854,7 @@ mod tests {
     use crate::catalog::CatalogSlot;
     use crate::catalog::CatalogValue;
     use crate::catalog::Catalogs;
+    use crate::features::Conjunction;
     use crate::syntax::*;
     use crate::word::Adjective;
     use crate::word::Auxiliary;
@@ -3475,7 +3490,7 @@ mod tests {
             PredicateExpression::Coordinated(crate::syntax::Coordination::new(
                 PredicateExpression::Simple(Predicate::Transitive(first)),
                 crate::syntax::CoordinationJunction {
-                    conjunction: Some(PredicateConjunction::And),
+                    conjunction: Some(Conjunction::And),
                     comma: false,
                 },
                 PredicateExpression::Simple(second),
@@ -4333,7 +4348,7 @@ mod tests {
                     object: oracle_symbol_object("{B}"),
                 },
                 PredicateObjectCoordination {
-                    conjunction: Some(PredicateConjunction::Or),
+                    conjunction: Some(Conjunction::Or),
                     object: oracle_symbol_object("{G}"),
                 },
             ],
@@ -4363,7 +4378,7 @@ mod tests {
                     object: oracle_symbol_object("{R}"),
                 },
                 PredicateObjectCoordination {
-                    conjunction: Some(PredicateConjunction::And),
+                    conjunction: Some(Conjunction::And),
                     object: oracle_symbol_object("{G}"),
                 },
             ],
@@ -4380,7 +4395,7 @@ mod tests {
         let object = PredicateObject::Coordinated(CoordinatedPredicateObject {
             first: Box::new(oracle_symbol_object("{R}")),
             rest: vec![PredicateObjectCoordination {
-                conjunction: Some(PredicateConjunction::Or),
+                conjunction: Some(Conjunction::Or),
                 object: oracle_symbol_object("{G}"),
             }],
         });
@@ -4393,7 +4408,7 @@ mod tests {
         let object = PredicateObject::Coordinated(CoordinatedPredicateObject {
             first: Box::new(oracle_symbol_object("{U}")),
             rest: vec![PredicateObjectCoordination {
-                conjunction: Some(PredicateConjunction::Or),
+                conjunction: Some(Conjunction::Or),
                 object: PredicateObject::SymbolSequence(vec![
                     OracleSymbol::new("{C}").unwrap(),
                     OracleSymbol::new("{U}").unwrap(),

@@ -64,6 +64,21 @@ use crate::chart::Reduction;
 use crate::chart::Rule;
 use crate::chart::RuleId;
 use crate::chart::parse_chart;
+use crate::features::ChartFeature;
+use crate::features::ChartFeatureBundle;
+use crate::features::Conjunction;
+use crate::features::FeatureKind;
+use crate::features::GapState;
+#[cfg(test)]
+use crate::features::GapState as RelativeGap;
+use crate::features::GrammaticalFeature;
+use crate::features::NounCardinality;
+use crate::features::Number;
+use crate::features::Onset as InitialSound;
+use crate::features::Person;
+use crate::features::PronounCase;
+use crate::features::PronounClass as Pronoun;
+use crate::features::VerbSlot;
 use crate::forest::BestParse;
 use crate::forest::ForestError;
 use crate::forest::ForestStats;
@@ -96,7 +111,6 @@ use crate::syntax::KeywordCost;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
-use crate::syntax::NounCardinality;
 use crate::syntax::NounPhrase;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OpaqueLexeme;
@@ -113,7 +127,6 @@ use crate::syntax::PreverbModifier;
 use crate::syntax::Quantity;
 use crate::syntax::QuantityValue;
 use crate::syntax::RelativeClause;
-use crate::syntax::RelativeGap;
 use crate::syntax::RelativeMarker;
 use crate::syntax::Sentence;
 use crate::syntax::SetExceptionMarker;
@@ -128,22 +141,15 @@ use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
 use crate::word::BareNominalAdjunct;
 use crate::word::CardOrientation;
-use crate::word::InitialSound;
 use crate::word::LexicalSlot;
 use crate::word::Noun;
 use crate::word::NounInstance;
 use crate::word::NounUsage;
-use crate::word::Number;
-use crate::word::Person;
 use crate::word::PredicateComplementKind;
 use crate::word::PredicateFrame;
-use crate::word::PrepositionalRole;
-use crate::word::Pronoun;
-use crate::word::PronounCase;
 use crate::word::PronounInstance;
 use crate::word::Verb;
 use crate::word::VerbInstance;
-use crate::word::VerbSlot;
 use crate::word::Vocab;
 use crate::word::Vocabulary;
 use crate::word::WordMatch;
@@ -883,6 +889,12 @@ pub(crate) enum PredicateAttachmentPhase {
     ExceptionTail,
 }
 
+impl GrammaticalFeature for PredicateAttachmentPhase {
+    const KIND: FeatureKind = FeatureKind::PredicateAttachmentPhase;
+}
+
+impl ChartFeature for PredicateAttachmentPhase {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum NominalAttachmentPhase {
     Open,
@@ -909,6 +921,12 @@ pub(crate) enum NominalAttachmentPhase {
     PostpositiveAdjective,
     Comparison,
 }
+
+impl GrammaticalFeature for NominalAttachmentPhase {
+    const KIND: FeatureKind = FeatureKind::NominalAttachmentPhase;
+}
+
+impl ChartFeature for NominalAttachmentPhase {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum AdjectiveComparisonState {
@@ -952,6 +970,8 @@ pub(crate) enum SetExceptionState {
     Closed,
 }
 
+/// Chart identity facts restricted to inherent realization and grammatical
+/// selection; exact surface witnesses live outside this bundle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
@@ -1100,7 +1120,7 @@ pub(crate) enum Features {
     VerbParticle(VerbParticle),
     CoinResult(crate::syntax::CoinSide),
     RelativeClause {
-        gap: RelativeGap,
+        gap: GapState,
         antecedent_agreement: Option<Agreement>,
         /// For an object gap, whether the matrix verb requires a rules object
         /// and thus refuses a mass-noun antecedent.
@@ -1111,7 +1131,7 @@ pub(crate) enum Features {
         bare_copular_tail: bool,
     },
     Auxiliary(AuxiliaryInstance),
-    Conjunction(crate::syntax::PredicateConjunction),
+    Conjunction(Conjunction),
     Existential {
         number: Number,
     },
@@ -1161,6 +1181,8 @@ pub(crate) enum Features {
         all_adjectives: bool,
     },
 }
+
+impl ChartFeatureBundle for Features {}
 
 /// Parses `surface` as `notation`, exactly as every closed-class lexeme
 /// matches through [`Parser::one_token_match`] with `eq_ignore_ascii_case`
@@ -1342,7 +1364,7 @@ pub(crate) enum MeaningKey {
     QuotedAbility(Span),
     PowerToughness(PowerToughness),
     Punctuation(Punctuation),
-    Conjunction(crate::syntax::PredicateConjunction),
+    Conjunction(Conjunction),
     Subordinator(crate::syntax::Subordinator),
     RelativeMarker(RelativeMarker),
     Existential(ExistentialForm),
@@ -2778,7 +2800,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     && matches!(
                         completed_children.get(1),
                         Some(Features::RelativeClause {
-                            gap: RelativeGap::Object,
+                            gap: GapState::Object,
                             object_gap_requires_rules_object: true,
                             ..
                         })

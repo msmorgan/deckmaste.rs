@@ -24,6 +24,7 @@ use super::DependentClause;
 use super::EllipticalClause;
 use super::ExceptionConjunct;
 use super::ExceptionRider;
+use super::GapState;
 use super::IndependentClause;
 use super::InfinitiveClause;
 use super::InfinitiveMarker;
@@ -42,13 +43,11 @@ use super::PredicateForm;
 use super::PredicateHead;
 use super::PredicateObject;
 use super::PredicateObjectCoordination;
-use super::PrepositionalRole;
 use super::PreverbModifier;
 use super::ProPredicate;
 use super::Quantity;
 use super::RelativeBody;
 use super::RelativeClause;
-use super::RelativeGap;
 use super::RelativeMarker;
 use super::RestrictionCoordination;
 use super::RestrictionRun;
@@ -67,8 +66,9 @@ use super::Vocab;
 use super::reduction::auxiliary_form;
 use super::reduction::predicate_form;
 use super::take;
+use crate::features::ComplementRole;
+use crate::features::Conjunction;
 use crate::syntax::ObjectGapPredicate;
-use crate::syntax::PredicateConjunction;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
@@ -384,10 +384,10 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
                 .frame
                 .prepositional_role(preposition.head().preposition)?
             {
-                PrepositionalRole::SelectedComplement => VerbDependent::PredicateComplement(
+                ComplementRole::SelectedComplement => VerbDependent::PredicateComplement(
                     Phrase::PrepositionalPhrase(Box::new(preposition)),
                 ),
-                PrepositionalRole::Adjunct => VerbDependent::Prepositional(preposition),
+                ComplementRole::Adjunct => VerbDependent::Prepositional(preposition),
             }
         }
         RuleTag::VerbPhraseInfinitive => {
@@ -524,17 +524,14 @@ pub(super) fn lower_mana_amount(tag: RuleTag, children: &mut [Lowered]) -> Optio
         clippy::needless_pass_by_value,
         reason = "mirrors the by-value take() idiom used throughout this module"
     )]
-    fn mana_conjunction(lowered: Lowered) -> Option<crate::syntax::PredicateConjunction> {
+    fn mana_conjunction(lowered: Lowered) -> Option<Conjunction> {
         let Lowered::Conjunction(conjunction) = lowered else {
             return None;
         };
         match conjunction {
-            crate::syntax::PredicateConjunction::And | crate::syntax::PredicateConjunction::Or => {
-                Some(conjunction)
-            }
+            Conjunction::And | Conjunction::Or => Some(conjunction),
             // `then`/`and-or` never join predicate objects.
-            crate::syntax::PredicateConjunction::Then
-            | crate::syntax::PredicateConjunction::AndOr => None,
+            Conjunction::Then | Conjunction::AndOr | Conjunction::Plus => None,
         }
     }
 
@@ -725,7 +722,7 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
             };
             Some(Lowered::RelativeClause(RelativeClause {
                 marker: RelativeMarker::Zero,
-                gap: RelativeGap::Object,
+                gap: GapState::Object,
                 body: RelativeBody::ObjectGap {
                     subject: Subject(subject),
                     predicate: ObjectGapPredicate {
@@ -756,7 +753,7 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
             };
             Some(Lowered::RelativeClause(RelativeClause {
                 marker: RelativeMarker::Zero,
-                gap: RelativeGap::Object,
+                gap: GapState::Object,
                 body: RelativeBody::ObjectGap {
                     subject: subject_auxiliary.subject,
                     predicate: ObjectGapPredicate {
@@ -784,7 +781,7 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
             }
             Some(Lowered::RelativeClause(RelativeClause {
                 marker: RelativeMarker::That,
-                gap: RelativeGap::Subject,
+                gap: GapState::Subject,
                 body: RelativeBody::SubjectGap(predicate),
             }))
         }
@@ -815,7 +812,7 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
             let body = RelativeBody::SubjectGap(predicate);
             Some(Lowered::RelativeClause(RelativeClause {
                 marker,
-                gap: RelativeGap::Subject,
+                gap: GapState::Subject,
                 body,
             }))
         }
@@ -842,7 +839,7 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
             }
             Some(Lowered::RelativeClause(RelativeClause {
                 marker,
-                gap: RelativeGap::Subject,
+                gap: GapState::Subject,
                 body: RelativeBody::SubjectGap(predicate),
             }))
         }
@@ -884,7 +881,7 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
             };
             Some(Lowered::RelativeClause(RelativeClause {
                 marker: RelativeMarker::That,
-                gap: RelativeGap::Subject,
+                gap: GapState::Subject,
                 body: RelativeBody::SubjectGap(Predicate::Copular(
                     crate::syntax::CopularPredicate {
                         negated: false,
@@ -1417,7 +1414,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                     // Restrictions are cumulative [CR#601.3,602.5]: only a
                     // bare `and` joins members. `or`/`then`/`and-or` must keep
                     // failing.
-                    if conjunction != crate::syntax::PredicateConjunction::And {
+                    if conjunction != Conjunction::And {
                         return None;
                     }
                     let Lowered::RestrictionMember(next) = take(children, 2)? else {
@@ -1463,7 +1460,7 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                 let Lowered::Conjunction(conjunction) = take(children, 2)? else {
                     return None;
                 };
-                if conjunction != crate::syntax::PredicateConjunction::And {
+                if conjunction != Conjunction::And {
                     return None;
                 }
                 let Lowered::RestrictionMember(next) = take(children, 3)? else {
@@ -1504,7 +1501,10 @@ pub(super) fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Opti
             let Lowered::Conjunction(conjunction) = take(children, index)? else {
                 return None;
             };
-            Some(conjunction)
+            match conjunction {
+                Conjunction::And | Conjunction::Or | Conjunction::Then => Some(conjunction),
+                Conjunction::Plus | Conjunction::AndOr => return None,
+            }
         }
         None => None,
     };
@@ -1550,10 +1550,10 @@ fn lower_shared_copular_coordination(tag: RuleTag, children: &mut [Lowered]) -> 
     };
     let conjunction = match conjunction_index {
         Some(index) => {
-            let Lowered::Conjunction(PredicateConjunction::And) = take(children, index)? else {
+            let Lowered::Conjunction(Conjunction::And) = take(children, index)? else {
                 return None;
             };
-            Some(PredicateConjunction::And)
+            Some(Conjunction::And)
         }
         None => None,
     };
@@ -2041,10 +2041,7 @@ fn append_complete_clause(
     }
 }
 
-fn connective_changes(
-    previous: Option<PredicateConjunction>,
-    next: Option<PredicateConjunction>,
-) -> bool {
+fn connective_changes(previous: Option<Conjunction>, next: Option<Conjunction>) -> bool {
     matches!((previous, next), (Some(previous), Some(next)) if previous != next)
 }
 

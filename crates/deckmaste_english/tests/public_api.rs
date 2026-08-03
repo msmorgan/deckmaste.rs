@@ -10,6 +10,41 @@ use deckmaste_english::syntax::*;
 use deckmaste_english::word::*;
 
 #[test]
+fn feature_vocabulary() {
+    let person: deckmaste_english::word::Person = deckmaste_english::features::Person::Second;
+    let _: deckmaste_english::features::Person = person;
+
+    let number: deckmaste_english::word::Number = deckmaste_english::features::Number::Plural;
+    let _: deckmaste_english::features::Number = number;
+
+    let verb_slot: deckmaste_english::word::VerbSlot =
+        deckmaste_english::features::VerbSlot::Present { person, number };
+    let _: deckmaste_english::features::VerbSlot = verb_slot;
+
+    let cardinality: deckmaste_english::syntax::NounCardinality =
+        deckmaste_english::features::NounCardinality::PluralCount;
+    let _: deckmaste_english::features::NounCardinality = cardinality;
+
+    let onset: deckmaste_english::word::InitialSound = deckmaste_english::features::Onset::Vowel;
+    let _: deckmaste_english::features::Onset = onset;
+
+    let pronoun: deckmaste_english::word::Pronoun = deckmaste_english::features::PronounClass::They;
+    let _: deckmaste_english::features::PronounClass = pronoun;
+
+    let pronoun_case: deckmaste_english::word::PronounCase =
+        deckmaste_english::features::PronounCase::Object;
+    let _: deckmaste_english::features::PronounCase = pronoun_case;
+
+    let gap: deckmaste_english::syntax::RelativeGap = deckmaste_english::features::GapState::Object;
+    let _: deckmaste_english::features::GapState = gap;
+
+    let canonical: deckmaste_english::features::Conjunction =
+        deckmaste_english::syntax::PredicateConjunction::And;
+    let nominal: deckmaste_english::syntax::NounPhraseConjunction = canonical;
+    assert_eq!(nominal, deckmaste_english::features::Conjunction::And);
+}
+
+#[test]
 fn public_parser_returns_a_source_independent_grammar_tree() {
     let source = String::from("Draw a card.");
     let report = parse_with_catalogs(&source, &Catalogs::default());

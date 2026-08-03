@@ -1,70 +1,12 @@
 use super::Number;
 use super::Person;
 use super::Vocabulary;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum Pronoun {
-    You,
-    It(Gender),
-    They,
-    EachOther,
-    /// Reflexive `itself`. Object case only, like [`Self::EachOther`].
-    Itself,
-    /// Reflexive `himself`. Object case only, like [`Self::EachOther`].
-    Himself,
-    /// Absolute possessive `yours` (`turns other than yours`). Object case
-    /// only, like [`Self::EachOther`].
-    YoursAbsolute,
-}
-
-impl Pronoun {
-    pub(crate) const ALL: [Self; 9] = [
-        Self::You,
-        Self::It(Gender::Neuter),
-        Self::They,
-        Self::It(Gender::Masculine),
-        Self::It(Gender::Feminine),
-        Self::EachOther,
-        Self::Itself,
-        Self::Himself,
-        Self::YoursAbsolute,
-    ];
-
-    const POSSESSIVE_FORMS: &'static [(Self, &'static str)] = &[
-        (Self::You, "your"),
-        (Self::It(Gender::Masculine), "his"),
-        (Self::It(Gender::Feminine), "her"),
-        (Self::It(Gender::Neuter), "its"),
-        (Self::They, "their"),
-    ];
-
-    pub(crate) fn from_possessive_spelling(surface: &str) -> Option<Self> {
-        Self::POSSESSIVE_FORMS
-            .iter()
-            .find_map(|(pronoun, spelling)| {
-                surface.eq_ignore_ascii_case(spelling).then_some(*pronoun)
-            })
-    }
-
-    pub(crate) fn possessive_spelling(self) -> Option<&'static str> {
-        Self::POSSESSIVE_FORMS
-            .iter()
-            .find_map(|(pronoun, spelling)| (*pronoun == self).then_some(*spelling))
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum Gender {
-    Masculine,
-    Feminine,
-    Neuter,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum PronounCase {
-    Subject,
-    Object,
-}
+/// Compatibility name for the inherent-realization gender feature.
+pub use crate::features::Gender;
+/// Compatibility name for the inherent-realization pronoun-case feature.
+pub use crate::features::PronounCase;
+/// Compatibility name for the inherent-realization pronoun-class feature.
+pub use crate::features::PronounClass as Pronoun;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct PronounInstance {

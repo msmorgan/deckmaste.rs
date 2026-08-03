@@ -2,8 +2,10 @@ use super::AdjectiveComparisonClass;
 use super::AdjectiveComparisonState;
 use super::Agreement;
 use super::Child;
+use super::Conjunction;
 use super::EnglishGrammar;
 use super::Features;
+use super::GapState;
 use super::IndefiniteArticle;
 use super::InitialSound;
 use super::NominalAttachmentPhase;
@@ -15,7 +17,6 @@ use super::PredicateForm;
 use super::Preposition;
 use super::QuantityFeatures;
 use super::Reduction;
-use super::RelativeGap;
 use super::RuleTag;
 use super::SetExceptionState;
 use super::VerbSlot;
@@ -833,7 +834,7 @@ pub(super) fn reduce_nominal(
             // away (the confirmed Stage B deferral).
             if !matches!(
                 children.get(1)?.features,
-                Features::Conjunction(crate::syntax::PredicateConjunction::And)
+                Features::Conjunction(Conjunction::And)
             ) {
                 return None;
             }
@@ -916,7 +917,7 @@ pub(super) fn reduce_nominal(
             let rules_object_relative = matches!(
                 children.get(1)?.features,
                 Features::RelativeClause {
-                    gap: RelativeGap::Object,
+                    gap: GapState::Object,
                     object_gap_requires_rules_object: true,
                     ..
                 }
@@ -926,7 +927,7 @@ pub(super) fn reduce_nominal(
             }
             if is_relative
                 && let Features::RelativeClause {
-                    gap: RelativeGap::Subject,
+                    gap: GapState::Subject,
                     antecedent_agreement: Some(agreement),
                     ..
                 } = children.get(1)?.features
@@ -1088,11 +1089,7 @@ pub(super) fn reduce_nominal(
             if let Some(index) = conjunction_index
                 && !matches!(
                     children.get(index)?.features,
-                    Features::Conjunction(
-                        crate::syntax::PredicateConjunction::And
-                            | crate::syntax::PredicateConjunction::Or
-                            | crate::syntax::PredicateConjunction::AndOr
-                    )
+                    Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::AndOr)
                 )
             {
                 return None;
@@ -1178,7 +1175,7 @@ pub(super) fn reduce_nominal(
             // The two-color argument is joined by `and`, never `or`.
             matches!(
                 children.get(1)?.features,
-                Features::Conjunction(crate::syntax::PredicateConjunction::And)
+                Features::Conjunction(Conjunction::And)
             )
             .then_some(Features::None)
         }
@@ -1299,13 +1296,15 @@ pub(super) fn reduce_nominal(
             };
             let conjunction_index =
                 if tag == RuleTag::CoordinatedModifierConjoined { 1 } else { 2 };
-            // `and`/`or`/`and/or` close a modifier list; `then` never does.
+            // `and`/`or`/`and/or` close a modifier list; sequencing and
+            // additive conjunctions never do.
             let Features::Conjunction(conjunction) = children.get(conjunction_index)?.features
             else {
                 return None;
             };
-            if matches!(conjunction, crate::syntax::PredicateConjunction::Then) {
-                return None;
+            match conjunction {
+                Conjunction::And | Conjunction::Or | Conjunction::AndOr => {}
+                Conjunction::Then | Conjunction::Plus => return None,
             }
             let Features::CoordinatedModifier {
                 all_adjectives: closing_adjectives,
@@ -1366,19 +1365,18 @@ pub(super) fn reduce_phrase(
                 return None;
             };
             let agreement = match conjunction {
-                crate::syntax::PredicateConjunction::And => Some(Agreement {
+                Conjunction::And => Some(Agreement {
                     person: Person::Third,
                     number: Number::Plural,
                 }),
-                crate::syntax::PredicateConjunction::Or
-                | crate::syntax::PredicateConjunction::AndOr => Some(Agreement {
+                Conjunction::Or | Conjunction::AndOr => Some(Agreement {
                     person: Person::Third,
                     number: match next_form {
                         NounForm::Plural => Number::Plural,
                         NounForm::Singular | NounForm::Mass => Number::Singular,
                     },
                 }),
-                crate::syntax::PredicateConjunction::Then => return None,
+                Conjunction::Then | Conjunction::Plus => return None,
             };
             Some(Features::NounPhrase {
                 agreement,
@@ -1448,19 +1446,18 @@ pub(super) fn reduce_phrase(
                 return None;
             }
             let agreement = match conjunction {
-                crate::syntax::PredicateConjunction::And => Some(Agreement {
+                Conjunction::And => Some(Agreement {
                     person: Person::Third,
                     number: Number::Plural,
                 }),
-                crate::syntax::PredicateConjunction::Or
-                | crate::syntax::PredicateConjunction::AndOr => Some(Agreement {
+                Conjunction::Or | Conjunction::AndOr => Some(Agreement {
                     person: Person::Third,
                     number: match next_form {
                         NounForm::Plural => Number::Plural,
                         NounForm::Singular | NounForm::Mass => Number::Singular,
                     },
                 }),
-                crate::syntax::PredicateConjunction::Then => return None,
+                Conjunction::Then | Conjunction::Plus => return None,
             };
             Some(Features::NounPhrase {
                 agreement,
@@ -1704,7 +1701,9 @@ pub(super) fn reduce_phrase(
                 return None;
             };
             let conjunction_index = if children.len() == 4 { 2 } else { 1 };
-            let Features::Conjunction(_) = children.get(conjunction_index)?.features else {
+            let Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::AndOr) =
+                children.get(conjunction_index)?.features
+            else {
                 return None;
             };
             // The right edge is the last member, so a following relative
@@ -1809,11 +1808,8 @@ fn reduce_coordinated_prepositional_phrase(
     let Features::NounPhrase { .. } = children.get(1)?.features else {
         return None;
     };
-    let Features::Conjunction(
-        crate::syntax::PredicateConjunction::And
-        | crate::syntax::PredicateConjunction::Or
-        | crate::syntax::PredicateConjunction::AndOr,
-    ) = children.get(conjunction_index)?.features
+    let Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::AndOr) =
+        children.get(conjunction_index)?.features
     else {
         return None;
     };
@@ -1855,19 +1851,16 @@ pub(super) fn reduce_noun_phrase_coordination(
     let (conjunction_index, next_index) =
         if tag == RuleTag::NounPhraseCoordinationOxford { (2, 3) } else { (1, 2) };
     let conjunction = if tag == RuleTag::NounPhraseAdditiveCoordination {
-        crate::syntax::NounPhraseConjunction::Plus
+        Conjunction::Plus
     } else {
         let Features::Conjunction(conjunction) = children.get(conjunction_index)?.features else {
             return None;
         };
         match conjunction {
-            crate::syntax::PredicateConjunction::And => crate::syntax::NounPhraseConjunction::And,
-            crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
-            crate::syntax::PredicateConjunction::AndOr => {
-                crate::syntax::NounPhraseConjunction::AndOr
-            }
-            // `then` never joins noun phrases.
-            crate::syntax::PredicateConjunction::Then => return None,
+            Conjunction::And | Conjunction::Or | Conjunction::AndOr => *conjunction,
+            // `then` and lexical `plus` never enter ordinary noun-phrase
+            // coordination; additive productions introduce `Plus` directly.
+            Conjunction::Then | Conjunction::Plus => return None,
         }
     };
     let Features::NounPhrase {
@@ -1879,14 +1872,13 @@ pub(super) fn reduce_noun_phrase_coordination(
         return None;
     };
     let agreement = match conjunction {
-        crate::syntax::NounPhraseConjunction::And => Some(Agreement {
+        Conjunction::And => Some(Agreement {
             person: Person::Third,
             number: Number::Plural,
         }),
-        crate::syntax::NounPhraseConjunction::Or | crate::syntax::NounPhraseConjunction::AndOr => {
-            *next_agreement
-        }
-        crate::syntax::NounPhraseConjunction::Plus => *first_agreement,
+        Conjunction::Or | Conjunction::AndOr => *next_agreement,
+        Conjunction::Plus => *first_agreement,
+        Conjunction::Then => return None,
     };
     Some(Features::NounPhrase {
         agreement,

@@ -7,6 +7,8 @@ use super::VerbSlot;
 use super::Vocab;
 use super::Vocabulary;
 use crate::catalog::CatalogAtom;
+/// Compatibility name for the inherent-realization onset feature.
+pub use crate::features::Onset as InitialSound;
 use crate::syntax::ComparativeWord;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
@@ -42,12 +44,6 @@ pub enum Adjective {
     Participle(Tense, Verb),
     Catalog(CatalogAtom),
     Ordinal(i32),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum InitialSound {
-    Consonant,
-    Vowel,
 }
 
 /// The initial sound of a surface string, read off its first character.

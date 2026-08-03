@@ -8,6 +8,7 @@ use super::CatalogKind;
 use super::Clause;
 use super::ComparisonComplement;
 use super::ComparisonMarker;
+use super::Conjunction;
 use super::ContractedSubjectAuxiliary;
 use super::ContractedSubjectKey;
 use super::CopularRemainder;
@@ -119,7 +120,7 @@ pub(super) enum Lowered {
     Clause(Clause),
     RelativeClause(RelativeClause),
     Sentence(Sentence),
-    Conjunction(crate::syntax::PredicateConjunction),
+    Conjunction(Conjunction),
     Subordinator(crate::syntax::Subordinator),
     RelativeMarker(RelativeMarker),
     Existential(ExistentialForm),
@@ -1002,6 +1003,7 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             let Lowered::Conjunction(conjunction) = take(children, 1)? else {
                 return None;
             };
+            let conjunction = noun_phrase_conjunction(conjunction)?;
             let Lowered::AdjectivePhrase(mut adjective) = take(children, 2)? else {
                 return None;
             };
@@ -1065,7 +1067,7 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                     let Lowered::Conjunction(conjunction) = take(children, index)? else {
                         return None;
                     };
-                    Some(conjunction)
+                    Some(noun_phrase_conjunction(conjunction)?)
                 }
                 None => None,
             };
@@ -1244,7 +1246,7 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                     let Lowered::Conjunction(conjunction) = take(children, index)? else {
                         return None;
                     };
-                    Some(conjunction)
+                    Some(noun_phrase_conjunction(conjunction)?)
                 }
                 None => None,
             };
@@ -1286,16 +1288,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::Conjunction(conjunction) = take(children, 1)? else {
                 return None;
             };
-            let conjunction = match conjunction {
-                crate::syntax::PredicateConjunction::And => {
-                    crate::syntax::NounPhraseConjunction::And
-                }
-                crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
-                crate::syntax::PredicateConjunction::AndOr => {
-                    crate::syntax::NounPhraseConjunction::AndOr
-                }
-                crate::syntax::PredicateConjunction::Then => return None,
-            };
+            let conjunction = noun_phrase_conjunction(conjunction)?;
             let Lowered::Nominal(next) = take(children, 2)? else {
                 return None;
             };
@@ -1325,16 +1318,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::Conjunction(conjunction) = take(children, 2)? else {
                 return None;
             };
-            let conjunction = match conjunction {
-                crate::syntax::PredicateConjunction::And => {
-                    crate::syntax::NounPhraseConjunction::And
-                }
-                crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
-                crate::syntax::PredicateConjunction::AndOr => {
-                    crate::syntax::NounPhraseConjunction::AndOr
-                }
-                crate::syntax::PredicateConjunction::Then => return None,
-            };
+            let conjunction = noun_phrase_conjunction(conjunction)?;
             let mut next = match take(children, 3)? {
                 Lowered::Noun(head) => NominalPhrase {
                     determiner: None,
@@ -1501,24 +1485,12 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 return None;
             };
             let conjunction = if tag == RuleTag::NounPhraseAdditiveCoordination {
-                crate::syntax::NounPhraseConjunction::Plus
+                Conjunction::Plus
             } else {
                 let Lowered::Conjunction(conjunction) = take(children, 1)? else {
                     return None;
                 };
-                match conjunction {
-                    crate::syntax::PredicateConjunction::And => {
-                        crate::syntax::NounPhraseConjunction::And
-                    }
-                    crate::syntax::PredicateConjunction::Or => {
-                        crate::syntax::NounPhraseConjunction::Or
-                    }
-                    crate::syntax::PredicateConjunction::AndOr => {
-                        crate::syntax::NounPhraseConjunction::AndOr
-                    }
-                    // `then` never joins noun phrases.
-                    crate::syntax::PredicateConjunction::Then => return None,
-                }
+                noun_phrase_conjunction(conjunction)?
             };
             let Lowered::NounPhrase(next) = take(children, 2)? else {
                 return None;
@@ -1542,19 +1514,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 let Lowered::Conjunction(conjunction) = take(children, 2)? else {
                     return None;
                 };
-                let conjunction = match conjunction {
-                    crate::syntax::PredicateConjunction::And => {
-                        crate::syntax::NounPhraseConjunction::And
-                    }
-                    crate::syntax::PredicateConjunction::Or => {
-                        crate::syntax::NounPhraseConjunction::Or
-                    }
-                    crate::syntax::PredicateConjunction::AndOr => {
-                        crate::syntax::NounPhraseConjunction::AndOr
-                    }
-                    // `then` never joins noun phrases.
-                    crate::syntax::PredicateConjunction::Then => return None,
-                };
+                let conjunction = noun_phrase_conjunction(conjunction)?;
                 (Some(conjunction), 3)
             } else {
                 (None, 2)
@@ -1603,16 +1563,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::Conjunction(conjunction) = take(children, conjunction_index)? else {
                 return None;
             };
-            let conjunction = match conjunction {
-                crate::syntax::PredicateConjunction::And => {
-                    crate::syntax::NounPhraseConjunction::And
-                }
-                crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
-                crate::syntax::PredicateConjunction::AndOr => {
-                    crate::syntax::NounPhraseConjunction::AndOr
-                }
-                crate::syntax::PredicateConjunction::Then => return None,
-            };
+            let conjunction = noun_phrase_conjunction(conjunction)?;
             let Lowered::NounPhrase(next) = take(children, next_index)? else {
                 return None;
             };
@@ -1713,15 +1664,13 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
 /// The noun-phrase connective a coordinating conjunction denotes, or `None`
 /// when it never joins phrases (`then` sequences clauses).
 fn noun_phrase_conjunction(
-    conjunction: crate::syntax::PredicateConjunction,
-) -> Option<crate::syntax::NounPhraseConjunction> {
+    conjunction: crate::features::Conjunction,
+) -> Option<crate::features::Conjunction> {
     match conjunction {
-        crate::syntax::PredicateConjunction::And => Some(crate::syntax::NounPhraseConjunction::And),
-        crate::syntax::PredicateConjunction::Or => Some(crate::syntax::NounPhraseConjunction::Or),
-        crate::syntax::PredicateConjunction::AndOr => {
-            Some(crate::syntax::NounPhraseConjunction::AndOr)
-        }
-        crate::syntax::PredicateConjunction::Then => None,
+        crate::features::Conjunction::And
+        | crate::features::Conjunction::Or
+        | crate::features::Conjunction::AndOr => Some(conjunction),
+        crate::features::Conjunction::Then | crate::features::Conjunction::Plus => None,
     }
 }
 
@@ -1892,7 +1841,7 @@ pub(super) fn push_noun_phrase_coordination(
 /// The same normalization repeats across an Oxford run.
 fn push_into_last_prepositional_object(
     host: &mut NominalPhrase,
-    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    conjunction: Option<Conjunction>,
     comma: bool,
     next: &NominalPhrase,
 ) -> bool {
@@ -1972,7 +1921,7 @@ fn push_into_last_prepositional_object(
 /// between the complete `this ...` selection and that shared group.
 fn push_into_last_shared_determiner(
     coordinated: &mut crate::syntax::CoordinatedNounPhrase,
-    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    conjunction: Option<Conjunction>,
     comma: bool,
     next: &mut Option<NominalPhrase>,
 ) -> bool {
@@ -2075,17 +2024,10 @@ fn take_trailing_group_complements(
 /// Whether one coordination edge belongs to nominal material rather than an
 /// arithmetic value. An asyndetic member is only licensed after a comma; the
 /// closing member must use a noun-phrase conjunction, never additive `plus`.
-fn shared_determiner_member(
-    conjunction: Option<crate::syntax::NounPhraseConjunction>,
-    comma: bool,
-) -> bool {
+fn shared_determiner_member(conjunction: Option<Conjunction>, comma: bool) -> bool {
     matches!(
         conjunction,
-        Some(
-            crate::syntax::NounPhraseConjunction::And
-                | crate::syntax::NounPhraseConjunction::Or
-                | crate::syntax::NounPhraseConjunction::AndOr
-        )
+        Some(Conjunction::And | Conjunction::Or | Conjunction::AndOr)
     ) || conjunction.is_none() && comma
 }
 
@@ -2106,7 +2048,7 @@ fn shared_determiner_accepts(determiner: &Determiner, nominal: &NominalPhrase) -
 /// PP-bearing member was not the end of the list.
 fn shared_determiner_group_can_extend(
     coordinated: &crate::syntax::CoordinatedNominalPhrase,
-    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    conjunction: Option<Conjunction>,
     comma: bool,
 ) -> bool {
     coordinated.rest.last().is_none_or(|last| {
@@ -2186,8 +2128,8 @@ fn singular_has_invariant_plural(head: &NounInstance) -> bool {
 }
 
 fn coordination_run_extends(
-    conjunctions: impl DoubleEndedIterator<Item = Option<crate::syntax::NounPhraseConjunction>>,
-    conjunction: Option<crate::syntax::NounPhraseConjunction>,
+    conjunctions: impl DoubleEndedIterator<Item = Option<Conjunction>>,
+    conjunction: Option<Conjunction>,
     comma: bool,
 ) -> bool {
     comma || conjunctions.rev().flatten().next() == conjunction

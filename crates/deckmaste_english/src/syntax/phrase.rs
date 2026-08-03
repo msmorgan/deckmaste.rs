@@ -8,11 +8,11 @@ use super::ability::QuotedAbility;
 use super::clause::Clause;
 use super::clause::IndependentClause;
 use super::clause::InfinitiveClause;
-use super::clause::PredicateConjunction;
 use super::clause::RelativeClause;
 use super::clause::TransitivePredicate;
 use crate::Numeral;
 use crate::catalog::CatalogAtom;
+use crate::features::Conjunction;
 use crate::word::Adjective;
 use crate::word::ColorWord;
 use crate::word::InitialSound;
@@ -542,15 +542,8 @@ pub enum Possessor {
     NounPhrase(Box<NounPhrase>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum NounCardinality {
-    SingularCount,
-    SingularOrMass,
-    PluralCount,
-    Mass,
-    PluralOrMass,
-    Unconstrained,
-}
+/// Compatibility name for the inherent-realization noun-cardinality feature.
+pub use crate::features::NounCardinality;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum NounPhrase {
@@ -668,7 +661,7 @@ pub struct CoordinatedNominalPhrase {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhraseCoordination {
-    pub conjunction: Option<NounPhraseConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub comma: bool,
     pub phrase: NominalPhrase,
 }
@@ -679,34 +672,13 @@ pub struct NounPhraseCoordination {
     /// comma-separated interior members of an Oxford head list (`enchantment,`
     /// in `artifact, enchantment, or land`); `Some` on a bare `and`/`or`/`plus`
     /// member and on the final Oxford member.
-    pub conjunction: Option<NounPhraseConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub comma: bool,
     pub phrase: NounPhrase,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-pub enum NounPhraseConjunction {
-    And,
-    Or,
-    Plus,
-    AndOr,
-}
-
-impl NounPhraseConjunction {
-    const FORMS: &'static [(Self, &'static str)] = &[
-        (Self::And, "and"),
-        (Self::Or, "or"),
-        (Self::Plus, "plus"),
-        (Self::AndOr, "and/or"),
-    ];
-
-    pub(crate) fn spelling(self) -> &'static str {
-        Self::FORMS
-            .iter()
-            .find_map(|(conjunction, spelling)| (*conjunction == self).then_some(*spelling))
-            .expect("every noun-phrase conjunction has one spelling")
-    }
-}
+/// Compatibility name for the selection-stratum conjunction feature.
+pub use crate::features::Conjunction as NounPhraseConjunction;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhrase {
@@ -804,7 +776,7 @@ pub struct ModifierCoordination {
     /// The connective introducing this member: `None` on the asyndetic
     /// comma-separated members of an Oxford list (`artifact,` in `artifact,
     /// creature, and land`); `Some` on the final `and`/`or`/`and/or` member.
-    pub conjunction: Option<PredicateConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub modifier: NominalModifier,
 }
 
@@ -855,7 +827,7 @@ pub struct AdjectivePhraseCoordination {
     /// `and`/`or`/`and/or` member and on the final Oxford member. The
     /// disjunctive-or-conjunctive `and/or` is admitted here because a supported
     /// copular witness (Glistening Deluge) attests it.
-    pub conjunction: Option<PredicateConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub phrase: AdjectivePhrase,
 }
 
@@ -1050,7 +1022,7 @@ pub struct CoordinatedPrepositionalPhrase {
 /// `non-` hyphen is derived rather than stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PrepositionalPhraseCoordination {
-    pub conjunction: Option<NounPhraseConjunction>,
+    pub conjunction: Option<Conjunction>,
     pub phrase: SimplePrepositionalPhrase,
 }
 

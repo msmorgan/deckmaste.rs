@@ -9,6 +9,7 @@ use super::CopulaAgreement;
 use super::Demonstrative;
 use super::EnglishGrammar;
 use super::Features;
+use super::GapState;
 use super::Number;
 use super::ParseCost;
 use super::Person;
@@ -18,15 +19,15 @@ use super::PredicateForm;
 use super::PredicateFrame;
 use super::PredicateObjectState;
 use super::Preposition;
-use super::PrepositionalRole;
 use super::PronounCase;
 use super::Reduced;
-use super::RelativeGap;
 use super::RuleTag;
 use super::VerbParticle;
 use super::VerbSlot;
 use super::lowering::is_modal;
 use super::propagate;
+use crate::features::ComplementRole;
+use crate::features::Conjunction;
 
 pub(in crate::grammar) fn reduce_clause(
     tag: RuleTag,
@@ -70,9 +71,8 @@ pub(in crate::grammar) fn reduce_clause(
         RuleTag::ManaAmountCoordination | RuleTag::ManaAmountCoordinationOxford => {
             let conjunction_index =
                 if tag == RuleTag::ManaAmountCoordinationOxford { 2 } else { 1 };
-            let Features::Conjunction(
-                crate::syntax::PredicateConjunction::And | crate::syntax::PredicateConjunction::Or,
-            ) = children.get(conjunction_index)?.features
+            let Features::Conjunction(Conjunction::And | Conjunction::Or) =
+                children.get(conjunction_index)?.features
             else {
                 return None;
             };
@@ -587,9 +587,8 @@ pub(super) fn reduce_predicate(
         }
         RuleTag::VerbPhraseQuotedAbilityCoordination
         | RuleTag::VerbPhraseAbilityQuotedCoordination => {
-            let Features::Conjunction(
-                crate::syntax::PredicateConjunction::And | crate::syntax::PredicateConjunction::Or,
-            ) = children.get(2)?.features
+            let Features::Conjunction(Conjunction::And | Conjunction::Or) =
+                children.get(2)?.features
             else {
                 return None;
             };
@@ -961,9 +960,9 @@ pub(super) fn extend_predicate(
         _ => *indirect_object,
     };
     let selected_preposition = match prepositional_role {
-        Some(PrepositionalRole::SelectedComplement) if *selected_preposition => return None,
-        Some(PrepositionalRole::SelectedComplement) => true,
-        Some(PrepositionalRole::Adjunct) | None => *selected_preposition,
+        Some(ComplementRole::SelectedComplement) if *selected_preposition => return None,
+        Some(ComplementRole::SelectedComplement) => true,
+        Some(ComplementRole::Adjunct) | None => *selected_preposition,
     };
     // A `CoinResult` attachment is what discharges the pending `Come` frame:
     // the completed predicate carries a frame that no longer rejects
@@ -1459,7 +1458,7 @@ pub(super) fn reduce_simple_clause(
                 return None;
             }
             Some(Features::RelativeClause {
-                gap: RelativeGap::Object,
+                gap: GapState::Object,
                 antecedent_agreement: None,
                 object_gap_requires_rules_object: *object_gap_requires_rules_object,
                 bare_copular_tail: false,
@@ -1499,7 +1498,7 @@ pub(super) fn reduce_simple_clause(
                 return None;
             }
             Some(Features::RelativeClause {
-                gap: RelativeGap::Object,
+                gap: GapState::Object,
                 antecedent_agreement: None,
                 object_gap_requires_rules_object: *object_gap_requires_rules_object,
                 bare_copular_tail: false,
@@ -1529,7 +1528,7 @@ pub(super) fn reduce_simple_clause(
                 return None;
             }
             Some(Features::RelativeClause {
-                gap: RelativeGap::Subject,
+                gap: GapState::Subject,
                 antecedent_agreement: Some(predicate_agreement),
                 object_gap_requires_rules_object: false,
                 bare_copular_tail: false,
@@ -1560,7 +1559,7 @@ pub(super) fn reduce_simple_clause(
                 return None;
             }
             Some(Features::RelativeClause {
-                gap: RelativeGap::Subject,
+                gap: GapState::Subject,
                 antecedent_agreement: *antecedent_agreement,
                 object_gap_requires_rules_object: false,
                 bare_copular_tail: *bare && *head_is_copular,
@@ -1598,7 +1597,7 @@ pub(super) fn reduce_simple_clause(
                 return None;
             }
             Some(Features::RelativeClause {
-                gap: RelativeGap::Subject,
+                gap: GapState::Subject,
                 antecedent_agreement: Some(*agreement),
                 object_gap_requires_rules_object: false,
                 bare_copular_tail: *bare && *head_is_copular,
@@ -1635,7 +1634,7 @@ pub(super) fn reduce_simple_clause(
                 return None;
             }
             Some(Features::RelativeClause {
-                gap: RelativeGap::Subject,
+                gap: GapState::Subject,
                 antecedent_agreement: Some(*agreement),
                 object_gap_requires_rules_object: false,
                 bare_copular_tail: false,
@@ -1774,6 +1773,14 @@ pub(super) fn reduce_composed_clause(
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic => {
+            if tag != RuleTag::ClauseCoordinationAsyndetic {
+                let conjunction_index = if tag == RuleTag::ClauseCoordinationComma { 2 } else { 1 };
+                let Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::Then) =
+                    children.get(conjunction_index)?.features
+                else {
+                    return None;
+                };
+            }
             let Features::Clause {
                 agreement: first_agreement,
                 standalone: true,
@@ -1958,6 +1965,14 @@ pub(super) fn reduce_composed_clause(
             else {
                 return None;
             };
+            if tag != RuleTag::ExceptionRiderComma {
+                let conjunction_index = if tag == RuleTag::ExceptionRiderOxford { 2 } else { 1 };
+                let Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::Then) =
+                    children.get(conjunction_index)?.features
+                else {
+                    return None;
+                };
+            }
             Some(Features::ExceptionRider {
                 oxford_pending: tag == RuleTag::ExceptionRiderComma,
             })
@@ -2037,12 +2052,29 @@ pub(super) fn reduce_composed_clause(
                 3 => {
                     // `[Member, Conjunction, Member]` (base pair) or
                     // `[Run, Comma, Member]` (asyndetic growth).
+                    let first = children.first()?.features;
                     let first_ok = matches!(
-                        children.first()?.features,
+                        first,
                         Features::RestrictionMember | Features::RestrictionRun
                     );
                     let last_ok = matches!(children.last()?.features, Features::RestrictionMember);
-                    if first_ok && last_ok { Some(Features::RestrictionRun) } else { None }
+                    let conjunction_ok = match children.get(1)?.features {
+                        Features::Conjunction(Conjunction::And) => true,
+                        Features::Conjunction(
+                            Conjunction::Or
+                            | Conjunction::Then
+                            | Conjunction::Plus
+                            | Conjunction::AndOr,
+                        ) => false,
+                        // The comma-joined base and asyndetic-growth forms
+                        // carry punctuation rather than a conjunction here.
+                        _ => true,
+                    };
+                    if first_ok && last_ok && conjunction_ok {
+                        Some(Features::RestrictionRun)
+                    } else {
+                        None
+                    }
                 }
                 4 => {
                     // `[Run, Comma, Conjunction, Member]` (Oxford growth).
@@ -2050,6 +2082,12 @@ pub(super) fn reduce_composed_clause(
                         return None;
                     }
                     if !matches!(children.last()?.features, Features::RestrictionMember) {
+                        return None;
+                    }
+                    if !matches!(
+                        children.get(2)?.features,
+                        Features::Conjunction(Conjunction::And)
+                    ) {
                         return None;
                     }
                     Some(Features::RestrictionRun)
@@ -2095,7 +2133,7 @@ fn reduce_shared_copular_coordination(
     if let Some(index) = conjunction_index
         && !matches!(
             children.get(index)?.features,
-            Features::Conjunction(crate::syntax::PredicateConjunction::And)
+            Features::Conjunction(Conjunction::And)
         )
     {
         return None;

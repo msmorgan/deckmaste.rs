@@ -1,10 +1,14 @@
-use super::Number;
-use super::Person;
 use super::Vocab;
 use super::Vocabulary;
 use super::noun::consonant_y_stem;
 use super::noun::has_sibilant_ending;
 use crate::catalog::KeywordAction;
+use crate::features::ChartFeature;
+use crate::features::ComplementRole;
+use crate::features::FeatureKind;
+use crate::features::GrammaticalFeature;
+use crate::features::Number;
+use crate::features::Person;
 use crate::syntax::Preposition;
 use crate::syntax::VerbParticle;
 
@@ -14,15 +18,8 @@ pub enum Verb {
     KeywordAction(KeywordAction),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum VerbSlot {
-    Infinitive,
-    Imperative,
-    Present { person: Person, number: Number },
-    Past { person: Person, number: Number },
-    PresentParticiple,
-    PastParticiple,
-}
+/// Compatibility name for the inherent-realization verb-slot feature.
+pub use crate::features::VerbSlot;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct VerbInstance {
@@ -67,12 +64,6 @@ pub(crate) enum BareNominalAdjunct {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub(crate) enum PrepositionalRole {
-    SelectedComplement,
-    Adjunct,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "frame model is stable and shared across many call sites"
@@ -113,6 +104,12 @@ pub(crate) struct PredicateFrame {
     /// radius.
     requires_coin_result: bool,
 }
+
+impl GrammaticalFeature for PredicateFrame {
+    const KIND: FeatureKind = FeatureKind::LexicalValency;
+}
+
+impl ChartFeature for PredicateFrame {}
 
 impl PredicateFrame {
     pub(crate) const OPEN: Self = Self {
@@ -237,11 +234,11 @@ impl PredicateFrame {
         }
     }
 
-    pub(crate) fn prepositional_role(self, preposition: Preposition) -> Option<PrepositionalRole> {
+    pub(crate) fn prepositional_role(self, preposition: Preposition) -> Option<ComplementRole> {
         if self.selected_prepositions.contains(&preposition) {
-            Some(PrepositionalRole::SelectedComplement)
+            Some(ComplementRole::SelectedComplement)
         } else if self.prepositional_adjuncts {
-            Some(PrepositionalRole::Adjunct)
+            Some(ComplementRole::Adjunct)
         } else {
             None
         }
