@@ -33,6 +33,7 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::Wrap;
 
 use crate::driver::Stop;
+use crate::game::ProvenanceRefs;
 use crate::shortcuts::PassMode;
 use crate::shortcuts::PassState;
 use crate::ui::board::Zone;
@@ -131,6 +132,7 @@ pub fn render(
     error: Option<&str>,
     pass: &PassState,
     help: bool,
+    provenance: ProvenanceRefs<'_>,
 ) {
     render_with_key(
         frame,
@@ -143,6 +145,7 @@ pub fn render(
         pass,
         help,
         None,
+        provenance,
     );
 }
 
@@ -164,6 +167,7 @@ pub fn render_with_key(
     pass: &PassState,
     help: bool,
     flashed_key: Option<KeyCode>,
+    provenance: ProvenanceRefs<'_>,
 ) {
     let [header, main, footer] = Layout::vertical([
         Constraint::Length(3),
@@ -253,7 +257,7 @@ pub fn render_with_key(
         Zone::Hand,
         &hand_title,
     );
-    render_detail(frame, detail_area, state, view, board);
+    render_detail(frame, detail_area, state, view, board, provenance);
     render_footer(frame, footer, stop, interaction, error, flashed_key);
     if let Some(crate::interact::Interaction::Priority { sub: Some(pick) }) = interaction {
         render_ability_popup(frame, frame.area(), state, pick);
@@ -447,8 +451,9 @@ fn render_detail(
     state: &GameState,
     view: &LayeredView,
     board: &BoardState,
+    provenance: ProvenanceRefs<'_>,
 ) {
-    let text = detail::render(state, view, board.selected(state, view));
+    let text = detail::render(state, view, board.selected(state, view), provenance);
     frame.render_widget(
         Paragraph::new(text)
             .block(Block::bordered().title("Detail"))
@@ -724,6 +729,7 @@ mod tests {
                     None,
                     &pass,
                     false,
+                    driver.provenance_refs(),
                 );
             })
             .expect("draw");
@@ -774,6 +780,7 @@ mod tests {
                     Some("nope"),
                     &pass,
                     false,
+                    driver.provenance_refs(),
                 );
             })
             .expect("draw");
@@ -820,6 +827,7 @@ mod tests {
                     None,
                     &pass,
                     false,
+                    driver.provenance_refs(),
                 );
             })
             .expect("draw");
@@ -859,6 +867,7 @@ mod tests {
                     None,
                     &pass,
                     false,
+                    driver.provenance_refs(),
                 );
             })
             .expect("draw");
@@ -901,6 +910,7 @@ mod tests {
                     None,
                     &pass,
                     false,
+                    driver.provenance_refs(),
                 );
             })
             .expect("draw");
@@ -941,6 +951,7 @@ mod tests {
                     None,
                     &pass,
                     false,
+                    driver.provenance_refs(),
                 );
             })
             .expect("draw");
@@ -987,6 +998,7 @@ mod tests {
                     None,
                     &pass,
                     true,
+                    driver.provenance_refs(),
                 );
             })
             .expect("draw");

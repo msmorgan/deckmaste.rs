@@ -96,10 +96,10 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
-use deckmaste_card::Card;
-use deckmaste_card::CardFace;
-use deckmaste_core::Ability;
-use deckmaste_core::Supertype;
+use deckmaste_authoring::Ability;
+use deckmaste_authoring::Card;
+use deckmaste_authoring::CardFace;
+use deckmaste_authoring::Supertype;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;
 use deckmaste_english::CatalogKind;
@@ -511,7 +511,7 @@ fn collect_lines(canon_dir: &Path, plugin: &Plugin) -> anyhow::Result<Swept> {
         let card = plugin
             .card_from_str(&source)
             .map_err(|error| anyhow::anyhow!("parsing {}: {error:#}", path.display()))?
-            .core;
+            .authored;
         for face in faces(&card) {
             let is_legendary = face.supertypes.contains(&Supertype::Legendary);
             for ability in &face.abilities {
@@ -595,7 +595,7 @@ fn testable_line(
                 "OneShotEffect",
                 guard::normalized(t.effect.clone()),
                 "Triggered-effect",
-                Ability::Spell(std::sync::Arc::new(deckmaste_core::SpellAbility {
+                Ability::Spell(std::sync::Arc::new(deckmaste_authoring::SpellAbility {
                     ability_word: None,
                     effect: t.effect.clone(),
                 })),

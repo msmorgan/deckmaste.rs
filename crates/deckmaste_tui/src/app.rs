@@ -136,6 +136,7 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 &pass,
                 help,
                 key_flash.as_ref().map(|(code, _)| *code),
+                driver.provenance_refs(),
             );
         })?;
 

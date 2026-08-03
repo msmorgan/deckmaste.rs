@@ -8,7 +8,10 @@ use deckmaste_engine::GameState;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::sim::Strategy;
+use deckmaste_plugin::provenance::ProvenanceIndex;
 
+use crate::game::BuiltGame;
+use crate::game::CardProvenance;
 use crate::shortcuts::PassState;
 
 /// Step budget for a full headless auto-play (and the smoke test): generous
@@ -30,13 +33,33 @@ pub enum Stop {
 /// Owns the game and the auto-decider used for non-interactive decisions.
 pub struct Driver {
     pub state: GameState,
+    /// The authored half of every deck card, by `CardId` — what the detail
+    /// pane renders through now that lowered core carries no provenance.
+    pub cards: CardProvenance,
+    /// Authored terms by lowered value, for derived state that never appeared
+    /// on a card as written (granted and conferred abilities).
+    pub provenance: ProvenanceIndex,
     strategy: Box<dyn Strategy>,
 }
 
 impl Driver {
     #[must_use]
-    pub fn new(state: GameState, strategy: Box<dyn Strategy>) -> Self {
-        Self { state, strategy }
+    pub fn new(game: BuiltGame, strategy: Box<dyn Strategy>) -> Self {
+        Self {
+            state: game.state,
+            cards: game.cards,
+            provenance: game.provenance,
+            strategy,
+        }
+    }
+
+    /// The provenance a render pass needs, as one borrow.
+    #[must_use]
+    pub fn provenance_refs(&self) -> crate::game::ProvenanceRefs<'_> {
+        crate::game::ProvenanceRefs {
+            cards: &self.cards,
+            index: &self.provenance,
+        }
     }
 
     /// Escape valve: if the engine ever fails to open a decision window, return
@@ -275,8 +298,8 @@ mod tests {
         ignore = "requires generated plugins/wizards corpus"
     )]
     fn advance_with_no_modes_surfaces_an_interactive_decision() {
-        let state = game::build_game().expect("build demo game");
-        let mut driver = Driver::new(state, Box::new(GreedyCreatures));
+        let game = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(game, Box::new(GreedyCreatures));
         let mut pass = PassState::new();
         match driver.advance(&mut pass).expect("no decision error") {
             Stop::Decision(p) => assert!(
@@ -298,8 +321,8 @@ mod tests {
         // Reaching a main phase surfaces priority with a legal land play but
         // does not take it automatically. The loop only passes priority, so
         // the battlefield must still contain no land at that window.
-        let state = game::build_game().expect("build demo game");
-        let mut driver = Driver::new(state, Box::new(GreedyCreatures));
+        let game = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(game, Box::new(GreedyCreatures));
         let mut pass = PassState::new();
         let mut stop = driver.advance(&mut pass).expect("advance");
         for _ in 0..100 {
@@ -350,8 +373,8 @@ mod tests {
         // own player's next precombat main — the mutual-pass guard — so turns
         // advance and the game ends, by decking if nothing else). No submission
         // may be rejected.
-        let state = game::build_game().expect("build demo game");
-        let mut driver = Driver::new(state, Box::new(GreedyCreatures));
+        let game = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(game, Box::new(GreedyCreatures));
         let mut pass = PassState::new();
         let mut stop = driver.advance(&mut pass).expect("no decision error");
         for _ in 0..10_000 {
@@ -385,8 +408,8 @@ mod tests {
     fn auto_play_produces_only_legal_decisions() {
         use deckmaste_engine::sim::GreedyDemo;
 
-        let state = game::build_game().expect("build demo game");
-        let mut driver = Driver::new(state, Box::new(GreedyDemo));
+        let game = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(game, Box::new(GreedyDemo));
         // Auto-play both seats. The point is the loop only ever submits legal
         // decisions (no DecisionError); reaching game over is a bonus, so a
         // step budget keeps the test bounded.
@@ -410,8 +433,8 @@ mod tests {
         // playing lands as those actions become legal. Then autotap-and-cast it
         // and confirm a land got tapped and the spell left the hand — the whole
         // point: casting without a manual tap first.
-        let state = game::build_game().expect("build demo game");
-        let mut driver = Driver::new(state, Box::new(GreedyDemo));
+        let game = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(game, Box::new(GreedyDemo));
         let mut pass = PassState::new();
         let me = PlayerId(0);
         let mut stop = driver.advance(&mut pass).expect("advance");
@@ -494,8 +517,8 @@ mod tests {
         ignore = "requires generated plugins/wizards corpus"
     )]
     fn run_to_decision_stops_on_an_interactive_kind() {
-        let state = game::build_game().expect("build demo game");
-        let mut driver = Driver::new(state, Box::new(GreedyCreatures));
+        let game = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(game, Box::new(GreedyCreatures));
         let stop = driver.run_to_decision().expect("no decision error");
         match stop {
             Stop::Decision(p) => assert!(

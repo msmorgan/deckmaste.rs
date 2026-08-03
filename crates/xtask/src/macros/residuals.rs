@@ -100,7 +100,7 @@
 //! `<Param(i)>` — but only once the covering entry's own name is mapped to a
 //! *legal* `params:` type (`This`/`You` are lexicon identities, not entries
 //! in `deckmaste_plugin::macros::param_types()`; both denote a
-//! `deckmaste_core::Reference`, which is): a hole whose entry has no known
+//! `deckmaste_authoring::Reference`, which is): a hole whose entry has no known
 //! legal type is left uncut for the same reason a filler that cannot be
 //! found is — an illegal `params:` entry would be a second field, beside
 //! `body:`, a human would have to fix by hand.
@@ -121,8 +121,8 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
-use deckmaste_core::Ability;
-use deckmaste_core::Supertype;
+use deckmaste_authoring::Ability;
+use deckmaste_authoring::Supertype;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;
 use deckmaste_english::Catalogs;
@@ -407,7 +407,7 @@ fn collect_lines(canon_dir: &Path, plugin: &Plugin) -> anyhow::Result<Swept> {
         let card = plugin
             .card_from_str(&source)
             .map_err(|error| anyhow::anyhow!("parsing {}: {error:#}", path.display()))?
-            .core;
+            .authored;
         for face in faces(&card) {
             let is_legendary = face.supertypes.contains(&Supertype::Legendary);
             for ability in &face.abilities {
@@ -1228,7 +1228,7 @@ fn filler_text(
 /// entry's own name, which is a lexicon identity (`This`, `You`) and not one
 /// of `deckmaste_plugin::macros::param_types()`'s legal names. Both of the
 /// pro-forms this census's top rows actually cover denote a
-/// `deckmaste_core::Reference`; anything not in this small, explicit table
+/// `deckmaste_authoring::Reference`; anything not in this small, explicit table
 /// returns `None`, and the caller leaves that hole uncut rather than emit a
 /// `params:` entry a human would have to correct by hand — the one field
 /// D11 promises stays untouched is `body:`, not this one too.

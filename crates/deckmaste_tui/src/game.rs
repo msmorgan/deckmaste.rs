@@ -11,6 +11,54 @@ use deckmaste_engine::PlayerId;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_plugin::Deck;
 use deckmaste_plugin::plugin::Plugin;
+use deckmaste_plugin::provenance::ProvenanceIndex;
+
+/// The authored half of every card in the game, indexed by the engine's
+/// `CardId`.
+///
+/// A `Vec`, not a map: `CardId` is a dense index into the game's card table,
+/// and the deck cards occupy the whole prefix of it. Tokens and emblems are
+/// minted later, past the end, and resolve `None` — their prose comes from the
+/// ability index, not from an authored card.
+pub struct CardProvenance {
+    by_card: Vec<Arc<deckmaste_authoring::Card>>,
+}
+
+impl CardProvenance {
+    /// The authored card behind a `CardId`, or `None` for a token or emblem.
+    #[must_use]
+    pub fn get(&self, id: deckmaste_engine::CardId) -> Option<&Arc<deckmaste_authoring::Card>> {
+        self.by_card.get(usize::try_from(id.0).ok()?)
+    }
+
+    /// How many cards the decks contributed.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.by_card.len()
+    }
+
+    /// Whether the decks contributed no cards at all.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.by_card.is_empty()
+    }
+}
+
+/// The provenance one render pass needs, bundled so it threads as a single
+/// parameter: the `CardId` companion table plus the value-keyed index.
+#[derive(Clone, Copy)]
+pub struct ProvenanceRefs<'a> {
+    pub cards: &'a CardProvenance,
+    pub index: &'a ProvenanceIndex,
+}
+
+/// A built demo game: the engine state, the `CardId` companion table, and the
+/// provenance index the detail pane renders through.
+pub struct BuiltGame {
+    pub state: GameState,
+    pub cards: CardProvenance,
+    pub provenance: ProvenanceIndex,
+}
 
 /// The fixed shuffle seed used by the test suite — chosen so the shuffle deals
 /// both decks a keepable opening hand (guarded by
@@ -31,7 +79,7 @@ fn data(rel: &str) -> PathBuf {
 /// # Errors
 /// If a plugin or decklist fails to load, or a listed card can't be resolved.
 #[cfg(test)]
-pub fn build_game() -> Result<GameState> {
+pub fn build_game() -> Result<BuiltGame> {
     build_game_with_seed(SEED)
 }
 
@@ -47,7 +95,7 @@ pub fn build_game() -> Result<GameState> {
 ///
 /// # Errors
 /// If a plugin or decklist fails to load, or a listed card can't be resolved.
-pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
+pub fn build_game_with_seed(seed: u64) -> Result<BuiltGame> {
     let canon = Plugin::load_with_sibling_prelude(data("../../plugins/canon"))?;
     let builtin = Plugin::load(data("../../plugins/builtin"))?;
     let wizards = Plugin::load_with_prelude(&builtin, data("../../plugins/wizards"))?;
@@ -55,10 +103,41 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
     let goblins = Deck::load(&data("../../plugins/demo/decks/goblins.txt"))?;
     let elves = Deck::load(&data("../../plugins/demo/decks/elves.txt"))?;
 
-    let p0 = goblins.resolve(&[&canon, &builtin, &wizards])?;
-    let p1 = elves.resolve(&[&canon, &builtin, &wizards])?;
-    let p0: Vec<Arc<deckmaste_card::Card>> = p0.iter().map(|l| Arc::new(l.core.clone())).collect();
-    let p1: Vec<Arc<deckmaste_card::Card>> = p1.iter().map(|l| Arc::new(l.core.clone())).collect();
+    let loaded0 = goblins.resolve(&[&canon, &builtin, &wizards])?;
+    let loaded1 = elves.resolve(&[&canon, &builtin, &wizards])?;
+
+    // Both halves of the pair survive here. The engine gets the core half; the
+    // authored half becomes the provenance the renderer needs, because lowering
+    // erases invocation provenance and a core value carries no template
+    // (docs/decisions/authoring-spelling-lowering.md §12).
+    let p0: Vec<Arc<deckmaste_card::Card>> =
+        loaded0.iter().map(|l| Arc::new(l.core.clone())).collect();
+    let p1: Vec<Arc<deckmaste_card::Card>> =
+        loaded1.iter().map(|l| Arc::new(l.core.clone())).collect();
+
+    // `CardId` is a dense index assigned at setup in deck order, pre-shuffle:
+    // each player's deck in player order, then the library is shuffled. So
+    // flattening the decks in that same order makes index == CardId. The
+    // engine cannot build this itself — it must not learn about
+    // `deckmaste_authoring` — which is why the zip lives here and why
+    // `pins_card_ids_to_deck_order` guards it.
+    let card_provenance = CardProvenance {
+        by_card: loaded0
+            .iter()
+            .chain(loaded1.iter())
+            .map(|l| Arc::new(l.authored.clone()))
+            .collect(),
+    };
+
+    // Registry conferral first (it is the same for every game), then each
+    // card's own abilities and everything nested inside them.
+    let mut provenance = ProvenanceIndex::default();
+    provenance.extend(&canon.provenance);
+    provenance.extend(&builtin.provenance);
+    provenance.extend(&wizards.provenance);
+    for loaded in loaded0.iter().chain(loaded1.iter()) {
+        provenance.insert_card(&loaded.authored);
+    }
 
     let sba_rules = canon
         .sba_rules
@@ -105,7 +184,7 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
     types.extend(builtin.types.clone());
     types.extend(wizards.types.clone());
 
-    Ok(GameState::new(GameConfig {
+    let state = GameState::new(GameConfig {
         players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
         seed,
         starting_life: 20,
@@ -116,7 +195,12 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
         counter_decls,
         subtypes,
         types,
-    }))
+    });
+    Ok(BuiltGame {
+        state,
+        cards: card_provenance,
+        provenance,
+    })
 }
 
 #[cfg(test)]
@@ -129,7 +213,7 @@ mod tests {
         ignore = "requires generated plugins/wizards corpus"
     )]
     fn builds_two_player_twenty_life_game() {
-        let state = build_game().expect("build demo game");
+        let state = build_game().expect("build demo game").state;
         assert_eq!(state.players.len(), 2);
         assert_eq!(state.players[0].life, 20);
         assert_eq!(state.players[1].life, 20);
@@ -147,7 +231,7 @@ mod tests {
     )]
     fn opening_hands_are_keepable() {
         use deckmaste_core::Type;
-        let state = build_game().expect("build demo game");
+        let state = build_game().expect("build demo game").state;
         let view = state.layers();
         for (i, label) in ["Goblins (red, P0)", "Elves (green, P1)"]
             .iter()
@@ -173,7 +257,7 @@ mod tests {
         ignore = "requires generated plugins/wizards corpus"
     )]
     fn game_state_carries_the_type_registry() {
-        let state = build_game().expect("build demo game");
+        let state = build_game().expect("build demo game").state;
         assert!(
             state.types.contains_key("Land"),
             "Land resolves in the runtime registry"
@@ -201,8 +285,8 @@ mod tests {
         use crate::driver::HEADLESS_BUDGET;
         use crate::driver::Stop;
 
-        let state = build_game().expect("build demo game");
-        let mut driver = Driver::new(state, Box::new(GreedyDemo));
+        let game = build_game().expect("build demo game");
+        let mut driver = Driver::new(game, Box::new(GreedyDemo));
         match driver
             .run_to_end(HEADLESS_BUDGET)
             .expect("no decision error")

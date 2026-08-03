@@ -219,7 +219,7 @@ mod tests {
 
     /// A few distinct real `ObjectId`s (no public constructor exists).
     fn ids() -> Vec<ObjectId> {
-        let state = game::build_game().expect("build");
+        let state = game::build_game().expect("build").state;
         state.zones.libraries[0].iter().copied().collect()
     }
 
@@ -384,7 +384,7 @@ mod tests {
         ignore = "requires generated plugins/wizards corpus"
     )]
     fn arm_records_mode_and_snapshot_then_clear_removes_it() {
-        let state = game::build_game().expect("build demo game");
+        let state = game::build_game().expect("build demo game").state;
         let mut pass = PassState::new();
         assert_eq!(pass.mode(PlayerId(0)), None);
 
@@ -407,7 +407,7 @@ mod tests {
         ignore = "requires generated plugins/wizards corpus"
     )]
     fn snapshot_of_reads_live_turn_coordinates() {
-        let state = game::build_game().expect("build demo game");
+        let state = game::build_game().expect("build demo game").state;
         let s = Snapshot::of(&state);
         assert_eq!(s.active, state.turn.active_player);
         assert_eq!(s.turn, state.turn.turn_number);

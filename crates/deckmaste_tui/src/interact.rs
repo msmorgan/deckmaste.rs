@@ -588,7 +588,7 @@ mod tests {
 
     /// A few distinct real `ObjectId`s (no public constructor exists).
     fn ids() -> Vec<ObjectId> {
-        let state = game::build_game().expect("build");
+        let state = game::build_game().expect("build").state;
         state.zones.libraries[0].iter().copied().collect()
     }
 
