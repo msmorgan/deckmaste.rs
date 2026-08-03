@@ -23,14 +23,26 @@ values.
   through the one restricted read API, with a grep gate forbidding
   remaining direct `read_str::<Card|Token>` calls. Engine strategy RON is
   explicitly OUTSIDE the program (plain core serde; spec §3/§4 table).
-- The `Expanded`/`remembers_expansion` invocation-provenance machinery
-  relocates from core values to authored values (a real sub-project — spec
-  §12 — not a rename; storage round-trips must keep preserving
-  invocations, and the ~97 production `Expanded(…)` match sites in
-  `deckmaste_engine` stop existing once core values carry no wrappers).
-- This relocation converts the lowering map's wrapper arms into erasure
-  arms — the first non-identity arms — so this ticket also SHRINKS the
-  raise-map round-trip property to the still-mirrored subset (spec §16.3).
+- Provenance stays put: the lowering map's `Expansion` arms remain
+  identities here, so the lowered core is byte-identical to today's and
+  every consumer of invocation provenance keeps working untouched. The
+  erasure arms, the per-variant mapping-test edits they force (spec §16.3),
+  and the ~97 dead `Expanded` match sites in `deckmaste_engine` land with
+  their compensation in `runtime-prose-link` (spec §12, sequenced
+  2026-08-02).
+- The dual result is a RETAINABLE pair: `Deck::resolve` stops collapsing to
+  bare `Arc<Card>` so the authored half survives to the game-composition
+  layer. Delimitation vs `runtime-prose-link`: the pair shaping and the
+  `Deck::resolve` non-collapse are THIS ticket's; the `CardId` companion
+  table, the ability provenance index, the erasure arms, and the
+  renderer/fidelity move-and-repoint are that ticket's.
+- `deckmaste_core::strategy` moves to `deckmaste_engine::strategy`
+  (owner-settled 2026-08-02): strategy RON is engine configuration read by
+  plain core serde (spec §3/§4) and `StrategyEvaluator::from_ron` already
+  reads it raw, so `Preference`'s macroable-kind registration
+  (`core::ron::kinds`, the plugin `param_types` row, the
+  `deckmaste_frames::guard` row) is vestigial and comes out with it —
+  nothing in `plugins/**` declares `kinds: [Preference]`.
 - Frames guard-constant reads retarget to authoring kinds. Delimitation vs
   `spelling-crate-rename`: THIS ticket retargets the loader-supplied
   MacroSet/guard-constant read path; the frames crate's own internal type
@@ -39,6 +51,8 @@ values.
 
 ## Gates
 
-Standard constraints apply. Full workspace suites, `cargo xtask
-idris-check plugins/canon` no regressions, fidelity PASS, canon/wizards
-save-load round-trips byte-identical.
+Standard constraints apply. `lower(authored_read(src)) == core_read(src)`
+byte-identical over canon, builtin, and wizards; full workspace suites;
+`cargo xtask idris-check plugins/canon` no regressions; fidelity PASS;
+canon/wizards save-load round-trips byte-identical; no direct
+`read_str::<Card|Token>` outside the one restricted read API.

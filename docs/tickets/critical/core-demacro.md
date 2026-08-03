@@ -8,10 +8,14 @@ serde, no author-surface knowledge.** Design:
 sweep.
 
 **Sequenced behind `runtime-prose-link` (2026-08-02):** deleting core's
-`Expanded` variants compile-breaks the legacy renderer + fidelity in
-`deckmaste_plugin` (~30+ match sites outside both this ticket's sweep
-and the repoint's ~97 `deckmaste_engine` sites); the input-type repoint
-to authored terms lands there first.
+`Expanded` variants would compile-break the legacy renderer + fidelity
+(~30+ match sites outside both this ticket's sweep and the ~97
+`deckmaste_engine` sites). `runtime-prose-link` lands first and moves that
+code to `deckmaste_legacy_render` matching on AUTHORED `Expanded`, which no
+ticket deletes — so by the time this ticket runs the renderer is off its
+path entirely, and the `deckmaste_engine` sites are already gone with the
+erasure that made them dead. What remains here is core's own machinery and
+the fixture sweep.
 
 ## Scope
 

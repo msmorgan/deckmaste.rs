@@ -69,8 +69,15 @@ deckmaste_english ◄════════════════► deckmas
 - **The card-loader crate is renamed to `deckmaste_plugin`** (Stage 0): it
   was always the loader plus riders. The rename landed alone; splitting the
   riders (the Idris emitter and validation) out is booked as
-  `plugin-rider-split`. The dying legacy renderer stays put to die in
-  place, and the fidelity harness rides it.
+  `plugin-rider-split`. The dying legacy renderer and the fidelity harness
+  that rides it move together into `deckmaste_legacy_render`, in
+  `runtime-prose-link` (owner-settled 2026-08-02, superseding "stays put to
+  die in place"): that ticket must retype every one of the renderer's
+  `Expanded` match sites onto authored terms regardless, so moving and
+  retyping in one traversal is cheaper than two. Once those sites match
+  authored `Expanded`, which no ticket deletes, the renderer stops blocking
+  `core-demacro`; `plugin-rider-split` is left splitting only the Idris
+  emitter and validation, as it says.
 
 Design principles that did the deciding, recorded because they generalize:
 
@@ -562,7 +569,7 @@ the visible policy).
   legacy renderer + regex migrations run as shadow oracles with ratcheted
   coverage until each feature family crosses its gates (ratchets and kill
   criteria are owned by each family's landing ticket; the comparison
-  harness rides fidelity in the plugin crate) — measurements, not
+  harness rides fidelity in `deckmaste_legacy_render`) — measurements, not
   authorities — then die.
 
 Parallelism contract (the ticket `needs:` graph encodes this):
@@ -599,12 +606,20 @@ cross-interference a build error.
   rename) — the loader grows a dual-result contract (authored term AND
   lowered core value; provenance erased exactly at `lower`), and the ~97
   production `Expanded(…)` match sites across ~14 `deckmaste_engine`
-  modules stop existing once core values carry no wrappers. The plugin
-  crate's legacy renderer and fidelity hold a further ~30+
-  `core::…::Expanded` match sites outside that count; their input types
-  repoint to authored terms (`runtime-prose-link`, 2026-08-02) before
-  `core-demacro` deletes the variants — prose degrades already at
-  repoint, compilation breaks at demacro.
+  modules stop existing once core values carry no wrappers. The relocation
+  is sequenced in two landings so that no landing degrades (owner-settled
+  2026-08-02). `plugin-repoint` builds the dual-result contract with the
+  `Expansion` arms still identities: its lowered core is byte-identical to
+  today's — gated by `lower(authored_read(src)) == core_read(src)` over the
+  corpus — and every consumer of invocation provenance keeps working
+  untouched. `runtime-prose-link` then erases the wrappers in the same
+  landing that moves the legacy renderer and fidelity into
+  `deckmaste_legacy_render` and repoints them onto authored terms (a further
+  ~30+ `Expanded` match sites, outside the ~97-site engine count) and builds
+  the provenance index — so prose that feeds on invocation templates never
+  loses them, and the ~97 engine arms are deleted alongside the erasure that
+  makes them dead. `core-demacro` deletes the variants those arms named,
+  last.
 - Blame/history lineage for the grammar types breaks at the fork; the fork
   commit message must state the provenance.
 - Existing `idris-*` and macro-machinery tickets re-aim at the authoring
