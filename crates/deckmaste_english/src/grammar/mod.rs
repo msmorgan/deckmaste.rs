@@ -7,6 +7,7 @@ mod opacity;
 #[path = "tests/nominal.rs"]
 mod nominal;
 
+mod generated;
 mod lowering;
 #[path = "parse_nonterminal.rs"]
 mod parse_support;
@@ -551,6 +552,10 @@ pub(crate) enum Nonterminal {
     ModalAbility,
     Ability,
     OracleText,
+    /// An internal helper category from a generated construction group. The
+    /// id is allocated deterministically from the sorted internal-category
+    /// names of the active groups — never from registration order.
+    Generated(u16),
 }
 
 #[allow(
@@ -1908,6 +1913,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             opacity_mode,
             self_reference,
             RegistrationOrder::Normal,
+            generated::GeneratedActivation::Inactive,
         )
     }
 
@@ -1918,6 +1924,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         opacity_mode: OpacityMode,
         self_reference: SelfReference,
         registration_order: RegistrationOrder,
+        activation: generated::GeneratedActivation,
     ) -> Self {
         let mut builder = RuleBuilder::default();
         builder.add_nominal_rules();
@@ -1949,6 +1956,11 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // These scoped categories retain the final member of coordinated PP
         // objects; family order does not decide their selection.
         builder.add_rules_object_attachment_rules();
+        if let Some(groups) = activation.groups() {
+            let cats = generated::internal_categories(groups);
+            generated::register_generated(&mut builder, groups, &cats)
+                .expect("active generated groups must assemble");
+        }
         let rule_book = builder.finish(registration_order);
         Self {
             source,

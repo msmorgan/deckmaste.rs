@@ -9,6 +9,7 @@ use crate::construction::ConstructionFamily;
 use crate::construction::ConstructionId;
 use crate::construction::ConstructionOwner;
 use crate::construction::ConstructionRegistry;
+use crate::construction::ConstructionRegistryError;
 use crate::construction::DominanceEdge;
 
 pub(super) fn construction_id(tag: RuleTag) -> ConstructionId {
@@ -101,6 +102,46 @@ pub(crate) fn families() -> &'static [ConstructionFamily] {
 
 pub(crate) fn family_by_id(id: ConstructionId) -> Option<ConstructionFamily> {
     registry().family(id)
+}
+
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "consumed by test-assembly activation; production parses keep the handwritten-only registry() static"
+    )
+)]
+pub(super) fn merged_registry(
+    groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
+) -> Result<ConstructionRegistry, ConstructionRegistryError> {
+    let generated_families = groups
+        .iter()
+        .flat_map(|group| group.constructions.iter().map(generated_family));
+    let generated_edges = groups.iter().flat_map(|group| {
+        group.constructions.iter().flat_map(|construction| {
+            construction.dominates.iter().map(|loser| {
+                DominanceEdge::new(
+                    ConstructionId::new(construction.id),
+                    ConstructionId::new(loser),
+                )
+            })
+        })
+    });
+    ConstructionRegistry::new(
+        RuleTag::iter().map(family).chain(generated_families),
+        dominance_edges().into_iter().chain(generated_edges),
+    )
+}
+
+fn generated_family(
+    construction: &deckmaste_construction_compiler::runtime::ConstructionData,
+) -> ConstructionFamily {
+    ConstructionFamily::new(
+        ConstructionId::new(construction.id),
+        ConstructionOwner::Generated,
+        ConstructionBackend::Chart,
+        ConstructionEvidence::structural("generated production"),
+    )
 }
 
 #[cfg(test)]

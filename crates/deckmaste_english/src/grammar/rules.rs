@@ -17,14 +17,16 @@ use super::construction::construction_id;
 use crate::construction::ConstructionId;
 use crate::construction::ProductionId;
 
-#[allow(
-    dead_code,
-    reason = "no assembly constructs a Generated rule yet; the variant lands live with the M4 pilot declarations"
-)]
 #[derive(Debug, Clone, Copy)]
 pub(super) enum RuleImpl {
     Handwritten(RuleTag),
-    Generated(GeneratedRuleRef),
+    Generated(
+        #[allow(
+            dead_code,
+            reason = "the payload feeds the M4/M5 hook implementations; Milestone-3 dispatch sites route on the Generated variant alone"
+        )]
+        GeneratedRuleRef,
+    ),
 }
 
 /// One generated production's home: the group's declaration data plus the
@@ -106,10 +108,6 @@ impl RuleBuilder {
     /// Generated productions carry EXPLICIT ordinals from their declaration
     /// (`form … @ N`); nothing here may consult `next_ordinals`, whose
     /// incremental numbering generated families must never depend on.
-    #[allow(
-        dead_code,
-        reason = "no assembly builder calls this yet; wired up by the M4 pilot declarations"
-    )]
     pub(super) fn add_generated(
         &mut self,
         rule_impl: RuleImpl,

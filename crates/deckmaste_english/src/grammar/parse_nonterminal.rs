@@ -226,9 +226,14 @@ pub(super) fn parse_nonterminal_with_mode(
         opacity_mode,
         self_reference,
         RegistrationOrder::Normal,
+        super::generated::GeneratedActivation::Inactive,
     )
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal assembly-mode plumbing; the M3 activation parameter is the last of a threaded diagnostic-mode set, not independent knobs"
+)]
 fn parse_nonterminal_with_mode_and_registration_order(
     source: &str,
     catalogs: &Catalogs,
@@ -237,6 +242,7 @@ fn parse_nonterminal_with_mode_and_registration_order(
     opacity_mode: OpacityMode,
     self_reference: &SelfReference,
     registration_order: RegistrationOrder,
+    activation: super::generated::GeneratedActivation,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
         source,
@@ -245,7 +251,25 @@ fn parse_nonterminal_with_mode_and_registration_order(
         opacity_mode,
         self_reference.clone(),
         registration_order,
+        activation,
     );
+    #[cfg(test)]
+    #[allow(
+        unused_assignments,
+        reason = "the None placeholder is read only on the Inactive path via drop; the Groups arm overwrites it before its own read"
+    )]
+    let mut owned_registry: Option<crate::construction::ConstructionRegistry> = None;
+    let registry: &crate::construction::ConstructionRegistry = match activation {
+        super::generated::GeneratedActivation::Inactive => super::construction::registry(),
+        #[cfg(test)]
+        super::generated::GeneratedActivation::Groups(groups) => {
+            owned_registry = Some(
+                super::construction::merged_registry(groups)
+                    .expect("active generated groups must merge"),
+            );
+            owned_registry.as_ref().expect("just assigned")
+        }
+    };
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
     if chart.roots.is_empty() {
         return Err(ParseNonterminalError::NoCompleteParse(nonterminal));
@@ -254,14 +278,10 @@ fn parse_nonterminal_with_mode_and_registration_order(
     let mut syntax = None;
     let (root, best) = chart
         .forest
-        .best_root_matching(
-            chart.roots.iter().copied(),
-            super::construction::registry(),
-            |root, best| {
-                syntax = lower(&grammar, forest, root, best);
-                syntax.is_some()
-            },
-        )
+        .best_root_matching(chart.roots.iter().copied(), registry, |root, best| {
+            syntax = lower(&grammar, forest, root, best);
+            syntax.is_some()
+        })
         .map_err(ParseNonterminalError::Forest)?
         .ok_or(ParseNonterminalError::Lowering)?;
     let syntax = syntax.ok_or(ParseNonterminalError::Lowering)?;
@@ -281,6 +301,7 @@ fn parse_nonterminal_with_mode_and_registration_order(
         root,
         &best,
         tokens,
+        registry,
         &mut construction_decisions,
     );
     construction_decisions.sort_by_key(|decision| {
@@ -335,6 +356,7 @@ fn parse_nonterminal_with_registration_order(
         OpacityMode::Exact,
         &self_reference,
         registration_order,
+        super::generated::GeneratedActivation::Inactive,
     )
 }
 
@@ -343,6 +365,7 @@ fn collect_construction_decisions(
     node: NodeId,
     best: &BestParse,
     tokens: &[Token],
+    registry: &crate::construction::ConstructionRegistry,
     decisions: &mut Vec<ConstructionDecision>,
 ) {
     let forest_node = forest.node(node);
@@ -351,7 +374,7 @@ fn collect_construction_decisions(
         && let Some(span) = token_range_span(tokens, forest_node.key.start, forest_node.key.end)
         && let Some(cost) = best.node_cost(node)
         && let Some(reason) = best.reason(node)
-        && let Some(family) = super::construction::registry().family(production.construction)
+        && let Some(family) = registry.family(production.construction)
     {
         let viable = best.tied_alternatives(node);
         let mut alternatives = best
@@ -390,7 +413,7 @@ fn collect_construction_decisions(
         return;
     };
     for &child in &alternative.children {
-        collect_construction_decisions(forest, child, best, tokens, decisions);
+        collect_construction_decisions(forest, child, best, tokens, registry, decisions);
     }
 }
 
