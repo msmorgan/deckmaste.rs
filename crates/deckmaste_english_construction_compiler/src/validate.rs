@@ -43,6 +43,7 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
     check_dominance_cycles(group, diags);
     check_paths(group, diags);
+    check_kinds(group, diags);
     check_forms(group, diags);
     check_surface_domain(group, diags);
     check_constraints(group, diags);
@@ -235,7 +236,7 @@ enum Resolved<'g> {
     /// `FieldKind` cannot name it (Milestone-1 gap 2).
     #[allow(
         dead_code,
-        reason = "field read only by #[cfg(test)] matches in this task; Task 5/8 add production readers"
+        reason = "field read only by #[cfg(test)] matches so far; Task 8's emitter adds the first production reader"
     )]
     Element(&'g ElementDeclaration),
 }
@@ -373,6 +374,196 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                         .with_span(segment.span),
                     );
                 }
+            }
+        }
+        // Require-clause and form-guard predicate paths are as unresolvable
+        // as any surface/witness path — `DeriveFeature`'s target/args and
+        // `WitnessClass::Derived`'s args are deliberately NOT walked here;
+        // both are recorded deferrals for a later milestone.
+        for constraint in &construction.constraints {
+            let Constraint::Require(predicate) = constraint else { continue };
+            let mut paths: Vec<&FieldPath> = Vec::new();
+            collect_all_paths(&predicate.value, &mut paths);
+            for path in paths {
+                if let Err(bad) = resolve_path(group, construction, path) {
+                    let segment = &path.segments[bad.index];
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnknownFieldPath,
+                            id,
+                            format!(
+                                "require clause references `{}`: `{}` does not resolve",
+                                path.dotted(),
+                                segment.value
+                            ),
+                        )
+                        .with_span(segment.span),
+                    );
+                }
+            }
+        }
+        for form in &construction.forms {
+            let Some(guard) = &form.guard else { continue };
+            let mut paths: Vec<&FieldPath> = Vec::new();
+            collect_all_paths(&guard.value, &mut paths);
+            for path in paths {
+                if let Err(bad) = resolve_path(group, construction, path) {
+                    let segment = &path.segments[bad.index];
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnknownFieldPath,
+                            id,
+                            format!(
+                                "form `{}` guard references `{}`: `{}` does not resolve",
+                                form.name.value,
+                                path.dotted(),
+                                segment.value
+                            ),
+                        )
+                        .with_span(segment.span),
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        // EC014 — surface atoms must agree with the kind they resolve to.
+        for form in &construction.forms {
+            for atom in &form.surface {
+                let (path, is_lexeme) = match atom {
+                    SurfaceAtom::Hole(path) => (path, false),
+                    SurfaceAtom::Lexeme(path) => (path, true),
+                    SurfaceAtom::Literal(_) => continue,
+                };
+                let Ok(resolved) = resolve_path(group, construction, path) else {
+                    continue; // EC010 already reported it
+                };
+                let is_scalar = resolved_is_scalar(&resolved);
+                if is_lexeme && !is_scalar {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::SurfaceKindMismatch,
+                            id,
+                            format!(
+                                "form `{}`: `{}` is not a scalar; only scalars render with lex(…)",
+                                form.name.value,
+                                path.dotted()
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
+                if !is_lexeme && is_scalar {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::SurfaceKindMismatch,
+                            id,
+                            format!(
+                                "form `{}`: `{}` is a scalar; write lex({}) to render it",
+                                form.name.value,
+                                path.dotted(),
+                                path.dotted()
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
+            }
+        }
+        // EC011 — presence predicates need an Optional target. Walk every
+        // predicate the construction holds: require clauses and form guards.
+        let mut presence_paths: Vec<&FieldPath> = Vec::new();
+        for constraint in &construction.constraints {
+            if let Constraint::Require(predicate) = constraint {
+                collect_presence_paths(&predicate.value, &mut presence_paths);
+            }
+        }
+        for form in &construction.forms {
+            if let Some(guard) = &form.guard {
+                collect_presence_paths(&guard.value, &mut presence_paths);
+            }
+        }
+        for path in presence_paths {
+            let Ok(resolved) = resolve_path(group, construction, path) else {
+                continue; // EC010 already reported it (check_paths runs first)
+            };
+            if !matches!(resolved, Resolved::Kind(FieldKind::Optional { .. })) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::PresenceOnNonOptional,
+                        id,
+                        format!(
+                            "`{}` is not optional, so is_some()/is_none() cannot constrain it",
+                            path.dotted()
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            }
+        }
+        // EC032 — require paths must be emitter-shallow.
+        for constraint in &construction.constraints {
+            let Constraint::Require(predicate) = constraint else { continue };
+            let mut deep: Vec<&FieldPath> = Vec::new();
+            collect_all_paths(&predicate.value, &mut deep);
+            for path in deep {
+                if path.segments.len() > 1 {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnsupportedConstraintPath,
+                            id,
+                            format!(
+                                "`{}`: generated try_new checks support single-field paths; deeper constraint paths land when a family needs them",
+                                path.dotted()
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Scalar for surface purposes: a codec field, optional or not — the thing
+/// `lex(…)` renders and a hole must not consume.
+fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
+    match resolved {
+        Resolved::Kind(FieldKind::Scalar { .. }) => true,
+        Resolved::Kind(FieldKind::Optional { inner }) => {
+            matches!(**inner, FieldKind::Scalar { .. })
+        }
+        Resolved::Kind(FieldKind::Subtree { .. } | FieldKind::Sequence { .. }) => false,
+        Resolved::Element(_) => false,
+    }
+}
+
+fn collect_presence_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p FieldPath>) {
+    match predicate {
+        Predicate::IsSome { path } | Predicate::IsNone { path } => into.push(path),
+        Predicate::All(children) | Predicate::Any(children) => {
+            for child in children {
+                collect_presence_paths(child, into);
+            }
+        }
+        Predicate::LenAtLeast { .. } | Predicate::LenIs { .. } | Predicate::In { .. } => {}
+    }
+}
+
+fn collect_all_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p FieldPath>) {
+    match predicate {
+        Predicate::IsSome { path }
+        | Predicate::IsNone { path }
+        | Predicate::LenAtLeast { path, .. }
+        | Predicate::LenIs { path, .. }
+        | Predicate::In { path, .. } => into.push(path),
+        Predicate::All(children) | Predicate::Any(children) => {
+            for child in children {
+                collect_all_paths(child, into);
             }
         }
     }
@@ -1416,6 +1607,130 @@ mod tests {
     }
 
     #[test]
+    fn bogus_require_path_is_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::IsSome {
+                    path: crate::model::FieldPath::call_site("nonexistent"),
+                }),
+            ));
+        let err = validate(&group).expect_err("bogus require path must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC010"]);
+    }
+
+    #[test]
+    fn bogus_form_guard_path_is_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].guard = Some(crate::model::Spanned::call_site(
+            crate::model::Predicate::IsSome {
+                path: crate::model::FieldPath::call_site("nonexistent"),
+            },
+        ));
+        let err = validate(&group).expect_err("bogus form guard path must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC010"]);
+    }
+
+    #[test]
+    fn is_some_on_a_scalar_is_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::IsSome {
+                    path: crate::model::FieldPath::call_site("conjunction"),
+                }),
+            ));
+        let err = validate(&group).expect_err("presence predicate on scalar must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC011"]);
+    }
+
+    #[test]
+    fn scalar_consumed_as_hole_is_rejected() {
+        let mut group = minimal_group();
+        // minimal_group's form renders `conjunction` via Lexeme; make it a Hole.
+        group.constructions[0].forms[0].surface = vec![crate::model::SurfaceAtom::Hole(
+            crate::model::FieldPath::call_site("conjunction"),
+        )];
+        let err = validate(&group).expect_err("scalar hole must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC014"]);
+    }
+
+    #[test]
+    fn deep_require_path_is_rejected() {
+        let mut group = minimal_group();
+        // Real deep path (members.last.comma shape needs a sequence; a two-seg
+        // unresolvable path would be EC010 noise) — reuse Task 3's seq setup.
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("comma".to_owned()),
+                kind: crate::model::FieldKind::Optional {
+                    inner: Box::new(crate::model::FieldKind::Scalar {
+                        codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                    }),
+                },
+            }],
+        });
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("members".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("m".to_owned()),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("members"),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::IsNone {
+                    path: crate::model::FieldPath::call_site("members.last.comma"),
+                }),
+            ));
+        let err = validate(&group).expect_err("deep require path must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC032"]);
+    }
+
+    #[test]
+    fn is_none_on_optional_field_validates_clean() {
+        let mut group = minimal_group();
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("opt".to_owned()),
+                kind: crate::model::FieldKind::Optional {
+                    inner: Box::new(crate::model::FieldKind::Scalar {
+                        codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                    }),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("opt"),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::IsNone {
+                    path: crate::model::FieldPath::call_site("opt"),
+                }),
+            ));
+        validate(&group).expect("`is_none` on a genuinely Optional single-segment field is clean");
+    }
+
+    #[test]
     fn empty_surface_is_rejected() {
         let mut group = minimal_group();
         group.constructions[0].forms[0].surface.clear();
@@ -1691,12 +2006,30 @@ mod tests {
 
     #[test]
     fn a_presence_requirement_on_its_own_is_satisfiable() {
+        // `conjunction` is a bare Scalar, so `is_some` on it would now trip
+        // EC011 (Task 5); this test's target is EC030 (contradiction
+        // detection), so it needs a genuinely Optional field to isolate that.
         let mut group = minimal_group();
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("opt".to_owned()),
+                kind: crate::model::FieldKind::Optional {
+                    inner: Box::new(crate::model::FieldKind::Scalar {
+                        codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                    }),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("opt"),
+            ));
         group.constructions[0]
             .constraints
             .push(crate::model::Constraint::Require(
                 crate::model::Spanned::call_site(crate::model::Predicate::IsSome {
-                    path: crate::model::FieldPath::call_site("conjunction"),
+                    path: crate::model::FieldPath::call_site("opt"),
                 }),
             ));
         validate(&group).expect("`is_some` alone constrains nothing to emptiness");
