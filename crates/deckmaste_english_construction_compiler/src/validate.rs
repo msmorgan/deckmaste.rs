@@ -355,47 +355,56 @@ struct Abstraction {
     allowed: std::collections::HashMap<String, Option<std::collections::BTreeSet<String>>>,
 }
 
-fn abstract_predicate(predicate: &Predicate) -> Abstraction {
-    let mut abstraction = Abstraction::default();
-    collect(predicate, &mut abstraction);
-    return abstraction;
-
-    // Constraining the same key twice intersects: that is what makes
-    // `All[In{And}, In{Or}]` provably empty and `IsSome ∧ IsNone` disjoint.
-    fn intersect(into: &mut Abstraction, key: String, values: std::collections::BTreeSet<String>) {
-        let entry = into.allowed.entry(key).or_insert(None);
+impl Abstraction {
+    /// Constraining the same key twice intersects: that is what makes
+    /// `All[In{And}, In{Or}]` provably empty and `IsSome ∧ IsNone` disjoint.
+    fn intersect(&mut self, key: String, values: std::collections::BTreeSet<String>) {
+        let entry = self.allowed.entry(key).or_insert(None);
         *entry = Some(match entry.take() {
             None => values,
             Some(existing) => existing.intersection(&values).cloned().collect(),
         });
     }
 
+    /// Conjoins another abstraction into this one, key by key. Order of
+    /// iteration is irrelevant: intersection is commutative and every key
+    /// is independent, so the result is a pure function of the operand set.
+    fn intersect_all(&mut self, other: &Self) {
+        for (key, values) in &other.allowed {
+            // `None` is "no finite constraint on this key", NOT the empty
+            // set — funnelling it through `intersect` would zero out a real
+            // constraint and fabricate a contradiction.
+            if let Some(values) = values {
+                self.intersect(key.clone(), values.clone());
+            }
+        }
+    }
+}
+
+fn abstract_predicate(predicate: &Predicate) -> Abstraction {
+    let mut abstraction = Abstraction::default();
+    collect(predicate, &mut abstraction);
+    return abstraction;
+
     fn collect(predicate: &Predicate, into: &mut Abstraction) {
         match predicate {
             Predicate::In { path, allowed } => {
-                intersect(
-                    into,
-                    path.segments.join("."),
-                    allowed.iter().cloned().collect(),
-                );
+                into.intersect(path.segments.join("."), allowed.iter().cloned().collect());
             }
             Predicate::IsSome { path } => {
-                intersect(
-                    into,
+                into.intersect(
                     format!("{}#some", path.segments.join(".")),
                     std::iter::once("some".to_owned()).collect(),
                 );
             }
             Predicate::IsNone { path } => {
-                intersect(
-                    into,
+                into.intersect(
                     format!("{}#some", path.segments.join(".")),
                     std::iter::once("none".to_owned()).collect(),
                 );
             }
             Predicate::LenIs { path, len } => {
-                intersect(
-                    into,
+                into.intersect(
                     format!("{}#len", path.segments.join(".")),
                     std::iter::once(len.to_string()).collect(),
                 );
@@ -440,7 +449,7 @@ fn abstract_predicate(predicate: &Predicate) -> Abstraction {
                         // treating it as an empty set.
                         if in_all {
                             if let Some(values) = union {
-                                intersect(into, path, values);
+                                into.intersect(path, values);
                             }
                         }
                     }
@@ -461,6 +470,34 @@ fn abstractions_overlap(a: &Abstraction, b: &Abstraction) -> bool {
     true // no path proves them apart — conservative overlap
 }
 
+/// The conjunction of every `require` clause on one construction.
+///
+/// Multiple clauses are conjunctive, so a key's admitted set is their
+/// INTERSECTION — folding clause abstractions in with `insert` would let
+/// whichever clause was written last decide the answer, making both EC023
+/// and EC030 depend on declaration order. `origin` records the span of the
+/// first clause that constrained each key, so a diagnostic derived from the
+/// conjunction can still point at source.
+struct RequiredFacts {
+    admitted: Abstraction,
+    origin: std::collections::HashMap<String, proc_macro2::Span>,
+}
+
+fn required_facts(construction: &ConstructionDeclaration) -> RequiredFacts {
+    let mut admitted = Abstraction::default();
+    let mut origin: std::collections::HashMap<String, proc_macro2::Span> =
+        std::collections::HashMap::new();
+    for constraint in &construction.constraints {
+        let Constraint::Require(predicate) = constraint else { continue };
+        let clause = abstract_predicate(&predicate.value);
+        for key in clause.allowed.keys() {
+            origin.entry(key.clone()).or_insert(predicate.span);
+        }
+        admitted.intersect_all(&clause);
+    }
+    RequiredFacts { admitted, origin }
+}
+
 fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     for construction in &group.constructions {
         let id = construction.id.value.as_str();
@@ -468,28 +505,25 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             .witnesses
             .iter()
             .any(|w| matches!(w.class, WitnessClass::Free { .. }));
-        let guards: Vec<(usize, Abstraction)> = construction
+        let guards: Vec<Abstraction> = construction
             .forms
             .iter()
-            .enumerate()
-            .map(|(index, form)| {
-                let abstraction = form
-                    .guard
+            .map(|form| {
+                form.guard
                     .as_ref()
-                    .map_or_else(Abstraction::default, |g| abstract_predicate(&g.value));
-                (index, abstraction)
+                    .map_or_else(Abstraction::default, |g| abstract_predicate(&g.value))
             })
             .collect();
         if construction.forms.len() > 1 && !has_free_witness {
-            for (left_position, (left, left_abs)) in guards.iter().enumerate() {
-                for (right, right_abs) in guards.iter().skip(left_position + 1) {
-                    if abstractions_overlap(left_abs, right_abs) {
+            for left in 0..guards.len() {
+                for right in (left + 1)..guards.len() {
+                    if abstractions_overlap(&guards[left], &guards[right]) {
                         diags.push(Diagnostic::new(
                             DiagCode::AmbiguousLinearization,
                             id,
                             format!(
                                 "forms `{}` and `{}` can both match the same value and no witness discriminates them",
-                                construction.forms[*left].name.value, construction.forms[*right].name.value
+                                construction.forms[left].name.value, construction.forms[right].name.value
                             ),
                         ));
                     }
@@ -498,19 +532,12 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         }
         // Coverage: for every path with a finite admitted set declared by
         // constraints, the union of form-guard sets must reach every value.
-        let mut admitted = Abstraction::default();
-        for constraint in &construction.constraints {
-            if let Constraint::Require(predicate) = constraint {
-                for (path, set) in abstract_predicate(&predicate.value).allowed {
-                    admitted.allowed.insert(path, set);
-                }
-            }
-        }
-        for (path, admitted_set) in &admitted.allowed {
+        let required = required_facts(construction);
+        for (path, admitted_set) in &required.admitted.allowed {
             let Some(admitted_values) = admitted_set else { continue };
             let mut covered: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
             let mut any_unguarded_form = false;
-            for (_, abstraction) in &guards {
+            for abstraction in &guards {
                 match abstraction.allowed.get(path) {
                     Some(Some(values)) => covered.extend(values.iter().cloned()),
                     _ => any_unguarded_form = true,
@@ -534,37 +561,40 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 fn check_constraints(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     for construction in &group.constructions {
         let id = construction.id.value.as_str();
+        // Contradictions are judged on the CONJUNCTION of every `require`
+        // clause, so `require in(x,{And})` alongside `require in(x,{Or})`
+        // is caught even though neither clause is empty on its own.
+        let required = required_facts(construction);
+        for (path, set) in &required.admitted.allowed {
+            if matches!(set, Some(values) if values.is_empty()) {
+                let span = *required
+                    .origin
+                    .get(path)
+                    .expect("every admitted key was recorded when its clause was folded in");
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::ContradictoryConstraints,
+                        id,
+                        format!("requirements on `{path}` admit no value at all"),
+                    )
+                    .with_span(span),
+                );
+            }
+        }
         for constraint in &construction.constraints {
-            match constraint {
-                Constraint::Require(predicate) => {
-                    let abstraction = abstract_predicate(&predicate.value);
-                    for (path, set) in &abstraction.allowed {
-                        if matches!(set, Some(values) if values.is_empty()) {
-                            diags.push(
-                                Diagnostic::new(
-                                    DiagCode::ContradictoryConstraints,
-                                    id,
-                                    format!("requirements on `{path}` admit no value at all"),
-                                )
-                                .with_span(predicate.span),
-                            );
-                        }
-                    }
-                }
-                Constraint::DeriveFeature { combinator, .. } => {
-                    if !KNOWN_COMBINATORS.contains(&combinator.value.as_str()) {
-                        diags.push(
-                            Diagnostic::new(
-                                DiagCode::UnknownCombinator,
-                                id,
-                                format!(
-                                    "unknown feature combinator `{}`; a missing combinator is a compiler addition, never a closure",
-                                    combinator.value
-                                ),
-                            )
-                            .with_span(combinator.span),
-                        );
-                    }
+            if let Constraint::DeriveFeature { combinator, .. } = constraint {
+                if !KNOWN_COMBINATORS.contains(&combinator.value.as_str()) {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnknownCombinator,
+                            id,
+                            format!(
+                                "unknown feature combinator `{}`; a missing combinator is a compiler addition, never a closure",
+                                combinator.value
+                            ),
+                        )
+                        .with_span(combinator.span),
+                    );
                 }
             }
         }
@@ -1022,6 +1052,67 @@ mod tests {
                 ])),
             ));
         validate(&group).expect("{And} ∩ {And, Or} = {And} is non-empty; EC030 must not fire");
+    }
+
+    #[test]
+    fn separate_require_clauses_are_conjunctive_for_contradictions() {
+        // `require in(conjunction, {And})` and `require in(conjunction, {Or})`
+        // are individually satisfiable but jointly unsatisfiable. Abstracting
+        // each clause on its own can never see this; only the conjunction can.
+        let mut group = minimal_group();
+        for allowed in [vec!["And".to_owned()], vec!["Or".to_owned()]] {
+            group.constructions[0]
+                .constraints
+                .push(crate::model::Constraint::Require(
+                    crate::model::Spanned::call_site(crate::model::Predicate::In {
+                        path: crate::model::FieldPath::call_site("conjunction"),
+                        allowed,
+                    }),
+                ));
+        }
+        let err = validate(&group).expect_err("{And} ∩ {Or} across two clauses is empty");
+        assert!(codes(err).contains(&"EC030"));
+    }
+
+    #[test]
+    fn admitted_set_is_the_intersection_of_require_clauses_in_either_order() {
+        // Forms cover exactly {And, Or}. The clauses admit {And,Or,Plus} and
+        // {And,Or}; their conjunction is {And,Or}, which IS covered, so no
+        // EC023 in either clause order. Folding the clauses with `insert`
+        // instead of intersecting makes the LAST clause win, so reversing
+        // them fabricates an EC023 naming `Plus`.
+        let admitting = |allowed: Vec<String>| {
+            crate::model::Constraint::Require(crate::model::Spanned::call_site(
+                crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("conjunction"),
+                    allowed,
+                },
+            ))
+        };
+        let mut group = guarded_two_form_group(
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["And".to_owned()],
+            },
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["Or".to_owned()],
+            },
+        );
+        group.constructions[0].constraints.push(admitting(vec![
+            "And".to_owned(),
+            "Or".to_owned(),
+            "Plus".to_owned(),
+        ]));
+        group.constructions[0]
+            .constraints
+            .push(admitting(vec!["And".to_owned(), "Or".to_owned()]));
+
+        let mut reversed = group.clone();
+        reversed.constructions[0].constraints.reverse();
+
+        validate(&group).expect("{And,Or,Plus} ∩ {And,Or} = {And,Or} is fully covered");
+        validate(&reversed).expect("the same conjunction, written in the other order");
     }
 
     #[test]
