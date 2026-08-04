@@ -35,6 +35,11 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .filter_map(|c| own_construction(group, c))
         .collect();
+    let bind_constructions: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .filter_map(bind_construction)
+        .collect();
     let deserialize_impls: Vec<TokenStream> = group
         .constructions
         .iter()
@@ -83,6 +88,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             use super::*;
             #(#elements)*
             #(#constructions)*
+            #(#bind_constructions)*
             #witness_assertions
             #(#deserialize_impls)*
             #declaration
@@ -162,7 +168,7 @@ fn own_construction(
     construction: &ConstructionDeclaration,
 ) -> Option<TokenStream> {
     let AstShape::Own { name, fields } = &construction.ast else {
-        return None; // bind mode: declaration-data row only until the chart adapter lands
+        return None; // bind mode: handled separately by `bind_construction`
     };
     let ty = quote::format_ident!("{}", name.value);
     let id = construction.id.value.as_str();
@@ -217,6 +223,56 @@ fn own_construction(
                 Ok(Self { #(#field_names),* })
             }
             #(#accessors)*
+        }
+    })
+}
+
+/// Bind mode's checked door onto an unmigrated target type (CF-7): a
+/// `require`-enforcing builder plus a full-pattern destructurer, both
+/// re-exported. No struct, no `try_new`, no serde — EC005 already bars
+/// bind+deserialize at validation time, so there is no door to route through
+/// a `Deserialize` impl here.
+fn bind_construction(construction: &ConstructionDeclaration) -> Option<TokenStream> {
+    let AstShape::Bind { path, fields } = &construction.ast else {
+        return None; // own mode: handled separately by `own_construction`
+    };
+    let target = parse_type(&path.value);
+    let id = construction.id.value.as_str();
+    let build_fn = quote::format_ident!("build_{}", construction.id.value);
+    let parts_fn = quote::format_ident!("parts_{}", construction.id.value);
+    let params: Vec<TokenStream> = fields
+        .iter()
+        .map(|binding| {
+            let field = quote::format_ident!("{}", binding.field.value);
+            let field_ty = field_type(&binding.kind);
+            quote! { #field: #field_ty }
+        })
+        .collect();
+    let checks: Vec<TokenStream> = construction
+        .constraints
+        .iter()
+        .filter_map(|constraint| match constraint {
+            Constraint::Require(predicate) => Some(require_check(id, fields, &predicate.value)),
+            Constraint::DeriveFeature { .. } => None, // feature derivation is chart/render-side
+        })
+        .collect();
+    let field_names: Vec<proc_macro2::Ident> = fields
+        .iter()
+        .map(|b| quote::format_ident!("{}", b.field.value))
+        .collect();
+    let field_types: Vec<TokenStream> = fields.iter().map(|b| field_type(&b.kind)).collect();
+    Some(quote! {
+        // Bind mode: the target type stays public and unmigrated; these are
+        // the checked door and the drift gate. The struct literal and the
+        // full (no `..`) pattern each name every declared field, so a
+        // declaration/type mismatch in either direction is a compile error.
+        pub fn #build_fn(#(#params),*) -> Result<#target, ::deckmaste_construction_compiler::runtime::DeclarationViolation> {
+            #(#checks)*
+            Ok(#target { #(#field_names),* })
+        }
+        pub fn #parts_fn(value: &#target) -> (#(&#field_types),*) {
+            let #target { #(#field_names),* } = value;
+            (#(#field_names),*)
         }
     })
 }
@@ -595,8 +651,12 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
         items.push(pascal_ident(&element.name.value));
     }
     for construction in &group.constructions {
-        if let AstShape::Own { name, .. } = &construction.ast {
-            items.push(quote::format_ident!("{}", name.value));
+        match &construction.ast {
+            AstShape::Own { name, .. } => items.push(quote::format_ident!("{}", name.value)),
+            AstShape::Bind { .. } => {
+                items.push(quote::format_ident!("build_{}", construction.id.value));
+                items.push(quote::format_ident!("parts_{}", construction.id.value));
+            }
         }
     }
     items.push(declaration_ident(group));
@@ -652,21 +712,25 @@ mod tests {
     }
 
     #[test]
-    fn bind_mode_emits_nothing() {
+    fn bind_mode_emits_builder_and_destructurer() {
         let group = crate::validate::fixtures::minimal_group();
         let validated = validate(&group).expect("fixture validates");
         let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
-        // minimal_group's sole construction is Bind-mode; the only emitted
-        // items should be the module scaffold and the declaration-data
-        // static — no construction-specific struct, try_new, or accessor.
         assert!(
-            !rendered.contains("fn try_new("),
-            "bind mode must not emit a constructor: {rendered}"
+            rendered.contains("pub fn build_"),
+            "bind mode emits a checked builder: {rendered}"
         );
         assert!(
-            !rendered.contains("struct NounPhraseCoordination")
-                && !rendered.contains("struct MinimalNode"),
-            "bind mode must not emit a construction struct: {rendered}"
+            rendered.contains("pub fn parts_"),
+            "bind mode emits a destructurer: {rendered}"
+        );
+        assert!(
+            !rendered.contains("fn try_new("),
+            "bind mode still emits no sealed constructor"
+        );
+        assert!(
+            !rendered.contains("impl<'de> serde::Deserialize"),
+            "bind mode still has no serde door"
         );
     }
 

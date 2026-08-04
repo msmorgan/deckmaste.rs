@@ -1,11 +1,14 @@
-//! The sealed own-mode fixture family, end to end through constructions!.
+//! The sealed fixture families, end to end through constructions!.
 //!
-//! This is the milestone's behavioral gate: the same declaration that
-//! produced the committed golden (`fixture_coordination_group()` in
-//! `deckmaste_construction_compiler`'s `tests/golden_real.rs`,
-//! parsed from byte-identical DSL text in `parse.rs`'s `fixture_dsl()`),
-//! compiled through the real `constructions!` proc macro and exercised at
-//! runtime — not just checked as emitted source text.
+//! `fixture_coordination` is the milestone's own-mode behavioral gate: the
+//! same declaration that produced the committed golden
+//! (`fixture_coordination_group()` in `deckmaste_construction_compiler`'s
+//! `tests/golden_real.rs`, parsed from byte-identical DSL text in
+//! `parse.rs`'s `fixture_dsl()`), compiled through the real `constructions!`
+//! proc macro and exercised at runtime — not just checked as emitted source
+//! text. `bind_probe` is the bind-mode sibling (CF-7): it exercises the
+//! generated `build_*`/`parts_*` doors and the shared `DeclarationViolation`
+//! type in the same way.
 //!
 //! This also closes the last open deletion-mapping row from Task 12: the
 //! Milestone-0 spike's `ron` deserialize round-trip
@@ -172,4 +175,37 @@ fn declaration_data_traces_to_the_one_declaration() {
             },
         }
     );
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct BoundPair {
+    pub left: FixturePhrase,
+    pub right: Option<FixturePhrase>,
+}
+
+deckmaste_constructions_macro::constructions! {
+    group bind_probe;
+
+    construction bind_pair: FixturePair {
+        bind BoundPair {
+            left: hole FixturePhrase,
+            right: opt hole FixturePhrase,
+        }
+        require right.is_some();
+        form both @ 0 = left right;
+    }
+}
+
+#[test]
+fn bind_builder_enforces_requires_and_destructures() {
+    let pair = build_bind_pair(FixturePhrase, Some(FixturePhrase))
+        .expect("present right side is admitted");
+    let (left, right) = parts_bind_pair(&pair);
+    assert_eq!(left, &FixturePhrase);
+    assert_eq!(right, &Some(FixturePhrase));
+
+    let violation =
+        build_bind_pair(FixturePhrase, None).expect_err("absent right side violates the require");
+    assert_eq!(violation.construction, "bind_pair");
+    assert_eq!(violation.requirement, "right.is_some()");
 }
