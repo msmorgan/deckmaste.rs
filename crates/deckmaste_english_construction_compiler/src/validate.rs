@@ -431,8 +431,17 @@ fn abstract_predicate(predicate: &Predicate) -> Abstraction {
                                 _ => in_all = false,
                             }
                         }
+                        // A sibling constraint on the same path (e.g. from
+                        // an enclosing All) must be intersected against
+                        // this union, not overwritten — route through
+                        // `intersect` like every other arm. `None` means
+                        // "no finite constraint from this Any", so leave
+                        // any existing entry untouched rather than
+                        // treating it as an empty set.
                         if in_all {
-                            into.allowed.insert(path, union);
+                            if let Some(values) = union {
+                                intersect(into, path, values);
+                            }
                         }
                     }
                 }
@@ -952,6 +961,70 @@ mod tests {
     }
 
     #[test]
+    fn any_arm_intersects_with_a_sibling_constraint_on_the_same_path() {
+        // All[ In{conjunction: {Plus}}, Any[ In{conjunction: {And}}, In{conjunction:
+        // {Or}} ] ] True set is {Plus} ∩ {And, Or} = empty: contradictory.
+        // Before the fix, the Any arm's `into.allowed.insert(path, union)`
+        // overwrote the sibling `In{Plus}` entry instead of intersecting with
+        // it, yielding the non-empty {And, Or} and silently missing EC030.
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::All(vec![
+                    crate::model::Predicate::In {
+                        path: crate::model::FieldPath::call_site("conjunction"),
+                        allowed: vec!["Plus".to_owned()],
+                    },
+                    crate::model::Predicate::Any(vec![
+                        crate::model::Predicate::In {
+                            path: crate::model::FieldPath::call_site("conjunction"),
+                            allowed: vec!["And".to_owned()],
+                        },
+                        crate::model::Predicate::In {
+                            path: crate::model::FieldPath::call_site("conjunction"),
+                            allowed: vec!["Or".to_owned()],
+                        },
+                    ]),
+                ])),
+            ));
+        let err = validate(&group).expect_err("{Plus} ∩ {And, Or} is empty");
+        assert!(codes(err).contains(&"EC030"));
+    }
+
+    #[test]
+    fn any_arm_does_not_fabricate_a_contradiction_when_the_true_set_is_nonempty() {
+        // All[ In{conjunction: {And}}, Any[ In{conjunction: {And}}, In{conjunction:
+        // {Or}} ] ] True set is {And} ∩ {And, Or} = {And}: non-empty, so EC030
+        // must not fire. This is the case a naive `union.unwrap_or_default()`
+        // fix would break: treating a `None` union (no finite constraint
+        // from that Any branch) as the empty set would intersect a real
+        // constraint down to nothing and fabricate EC030.
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::All(vec![
+                    crate::model::Predicate::In {
+                        path: crate::model::FieldPath::call_site("conjunction"),
+                        allowed: vec!["And".to_owned()],
+                    },
+                    crate::model::Predicate::Any(vec![
+                        crate::model::Predicate::In {
+                            path: crate::model::FieldPath::call_site("conjunction"),
+                            allowed: vec!["And".to_owned()],
+                        },
+                        crate::model::Predicate::In {
+                            path: crate::model::FieldPath::call_site("conjunction"),
+                            allowed: vec!["Or".to_owned()],
+                        },
+                    ]),
+                ])),
+            ));
+        validate(&group).expect("{And} ∩ {And, Or} = {And} is non-empty; EC030 must not fire");
+    }
+
+    #[test]
     fn unknown_combinators_are_rejected() {
         let mut group = minimal_group();
         group.constructions[0]
@@ -963,6 +1036,19 @@ mod tests {
             });
         let err = validate(&group).expect_err("unknown combinator");
         assert!(codes(err).contains(&"EC031"));
+    }
+
+    #[test]
+    fn known_combinators_pass_check_constraints_cleanly() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::DeriveFeature {
+                target: crate::model::FieldPath::call_site("conjunction"),
+                combinator: crate::model::Spanned::call_site("fixed".to_owned()),
+                args: vec![],
+            });
+        validate(&group).expect("`fixed` is in KNOWN_COMBINATORS");
     }
 
     #[test]
