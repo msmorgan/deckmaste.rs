@@ -1,0 +1,5 @@
+error: EC007: element field `container.payloads` references empty bound element `empty_payload`; element-nested sequences cannot carry a direct zero-length requirement
+  --> tests/compile_fail/ec_empty_bound_element_nested_sequence.rs:11:23
+   |
+11 |         payloads: seq empty_payload,
+   |                       ^^^^^^^^^^^^^

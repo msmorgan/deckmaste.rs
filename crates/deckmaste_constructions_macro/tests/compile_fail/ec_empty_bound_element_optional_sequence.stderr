@@ -1,0 +1,5 @@
+error: EC007: optional sequence field `payloads` references empty bound element `empty_payload`; only a direct sequence field with `require payloads.len() == 0` can prove it empty (construction `optional_bound_sequence`)
+  --> tests/compile_fail/ec_empty_bound_element_optional_sequence.rs:16:31
+   |
+16 |             payloads: opt seq empty_payload,
+   |                               ^^^^^^^^^^^^^

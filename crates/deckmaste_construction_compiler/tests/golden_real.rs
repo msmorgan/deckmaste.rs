@@ -21,38 +21,63 @@ use deckmaste_construction_compiler::model::WitnessClass;
 use deckmaste_construction_compiler::model::WitnessDeclaration;
 use deckmaste_construction_compiler::validate::validate;
 
+fn fixture_elements() -> Vec<ElementDeclaration> {
+    vec![
+        ElementDeclaration {
+            name: Spanned::call_site("fixture_member".to_owned()),
+            bind_path: None,
+            fields: vec![
+                FieldBinding {
+                    field: Spanned::call_site("comma".to_owned()),
+                    kind: FieldKind::Optional {
+                        inner: Box::new(FieldKind::Scalar {
+                            codec: Spanned::call_site("Comma".to_owned()),
+                        }),
+                    },
+                },
+                FieldBinding {
+                    field: Spanned::call_site("phrase".to_owned()),
+                    kind: FieldKind::Subtree {
+                        category: Spanned::call_site("FixturePhrase".to_owned()),
+                        boxed: false,
+                    },
+                },
+            ],
+        },
+        ElementDeclaration {
+            name: Spanned::call_site("bound_fixture_member".to_owned()),
+            bind_path: Some(Spanned::call_site("BoundMember".to_owned())),
+            fields: vec![
+                FieldBinding {
+                    field: Spanned::call_site("comma".to_owned()),
+                    kind: FieldKind::Scalar {
+                        codec: Spanned::call_site("Comma".to_owned()),
+                    },
+                },
+                FieldBinding {
+                    field: Spanned::call_site("phrase".to_owned()),
+                    kind: FieldKind::Subtree {
+                        category: Spanned::call_site("FixturePhrase".to_owned()),
+                        boxed: false,
+                    },
+                },
+            ],
+        },
+        ElementDeclaration {
+            name: Spanned::call_site("empty_payload".to_owned()),
+            bind_path: Some(Spanned::call_site("BoundPayload".to_owned())),
+            fields: vec![],
+        },
+    ]
+}
+
 /// The plan's fixture family, hand-built. Task 11 proves the DSL text
 /// parses to exactly this value (spans aside).
 #[must_use]
 pub fn fixture_coordination_group() -> GroupDeclaration {
     GroupDeclaration {
         name: Spanned::call_site("fixture_coordination".to_owned()),
-        elements: vec![
-            ElementDeclaration {
-                name: Spanned::call_site("fixture_member".to_owned()),
-                bind_path: Some(Spanned::call_site("BoundMember".to_owned())),
-                fields: vec![
-                    FieldBinding {
-                        field: Spanned::call_site("comma".to_owned()),
-                        kind: FieldKind::Scalar {
-                            codec: Spanned::call_site("Comma".to_owned()),
-                        },
-                    },
-                    FieldBinding {
-                        field: Spanned::call_site("phrase".to_owned()),
-                        kind: FieldKind::Subtree {
-                            category: Spanned::call_site("FixturePhrase".to_owned()),
-                            boxed: false,
-                        },
-                    },
-                ],
-            },
-            ElementDeclaration {
-                name: Spanned::call_site("empty_payload".to_owned()),
-                bind_path: Some(Spanned::call_site("BoundPayload".to_owned())),
-                fields: vec![],
-            },
-        ],
+        elements: fixture_elements(),
         constructions: vec![
             ConstructionDeclaration {
                 id: Spanned::call_site("fixture_pair".to_owned()),
@@ -189,7 +214,12 @@ fn fixture_dsl() -> proc_macro2::TokenStream {
     quote::quote! {
         group fixture_coordination;
 
-        element fixture_member bind BoundMember {
+        element fixture_member {
+            comma: opt lex Comma,
+            phrase: hole FixturePhrase,
+        }
+
+        element bound_fixture_member bind BoundMember {
             comma: lex Comma,
             phrase: hole FixturePhrase,
         }

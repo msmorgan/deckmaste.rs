@@ -38,7 +38,12 @@ use deckmaste_features::Conjunction;
 deckmaste_constructions_macro::constructions! {
     group fixture_coordination;
 
-    element fixture_member bind BoundMember {
+    element fixture_member {
+        comma: opt lex Comma,
+        phrase: hole FixturePhrase,
+    }
+
+    element bound_fixture_member bind BoundMember {
         comma: lex Comma,
         phrase: hole FixturePhrase,
     }
@@ -83,8 +88,8 @@ deckmaste_constructions_macro::constructions! {
 
 #[test]
 fn try_new_enforces_every_require() {
-    let member = || BoundMember {
-        comma: Comma::Present,
+    let member = || FixtureMember {
+        comma: None,
         phrase: FixturePhrase,
     };
     let pair = FixturePairNode::try_new(vec![member(), member()], Conjunction::And)
@@ -112,18 +117,22 @@ fn try_new_enforces_every_require() {
 fn last_path_requires_are_vacuous_on_empty_and_checked_on_the_last_member() {
     // fixture_pair also requires members.len() >= 2, so exercise the .last
     // check through values that pass the length gate.
-    let plain = |comma| BoundMember {
+    let plain = |comma| FixtureMember {
         comma,
         phrase: FixturePhrase,
     };
     let ok = FixturePairNode::try_new(
-        vec![plain(Comma::Absent), plain(Comma::Present)],
+        vec![plain(None), plain(Some(Comma::Present))],
         Conjunction::And,
     )
     .expect("a Present last comma satisfies the .last require");
     assert_eq!(ok.members().len(), 2);
+    // Reading-B nesting: an ABSENT optional on the last member is vacuously
+    // admitted by `in [Present]`.
+    FixturePairNode::try_new(vec![plain(None), plain(None)], Conjunction::And)
+        .expect("an absent last comma is vacuously admitted (optional reading B)");
     let rejected = FixturePairNode::try_new(
-        vec![plain(Comma::Present), plain(Comma::Absent)],
+        vec![plain(None), plain(Some(Comma::Absent))],
         Conjunction::And,
     )
     .expect_err("a present-but-Absent last comma violates the require");
@@ -175,10 +184,13 @@ fn declaration_data_traces_to_the_one_declaration() {
     use deckmaste_construction_compiler::runtime::WitnessClassData;
     let data = &FIXTURE_COORDINATION_DECLARATION;
     assert_eq!(data.name, "fixture_coordination");
-    assert_eq!(data.elements, &["fixture_member", "empty_payload"]);
-    assert_eq!(data.element_data.len(), 2);
+    assert_eq!(
+        data.elements,
+        &["fixture_member", "bound_fixture_member", "empty_payload"],
+    );
+    assert_eq!(data.element_data.len(), 3);
     assert_eq!(data.element_data[0].name, "fixture_member");
-    assert_eq!(data.element_data[0].bind_path, Some("BoundMember"));
+    assert_eq!(data.element_data[0].bind_path, None);
     assert_eq!(
         data.element_data[0]
             .fields
@@ -190,7 +202,9 @@ fn declaration_data_traces_to_the_one_declaration() {
     );
     assert_eq!(
         data.element_data[0].fields[0].kind,
-        FieldKindData::Scalar { codec: "Comma" }
+        FieldKindData::Optional {
+            inner: &FieldKindData::Scalar { codec: "Comma" },
+        }
     );
     assert_eq!(
         data.element_data[0].fields[1].kind,
@@ -199,9 +213,31 @@ fn declaration_data_traces_to_the_one_declaration() {
             boxed: false,
         }
     );
-    assert_eq!(data.element_data[1].name, "empty_payload");
-    assert_eq!(data.element_data[1].bind_path, Some("BoundPayload"));
-    assert!(data.element_data[1].fields.is_empty());
+    assert_eq!(data.element_data[1].name, "bound_fixture_member");
+    assert_eq!(data.element_data[1].bind_path, Some("BoundMember"));
+    assert_eq!(
+        data.element_data[1]
+            .fields
+            .iter()
+            .map(|field| field.name)
+            .collect::<Vec<_>>(),
+        vec!["comma", "phrase"],
+        "bound element fields preserve declaration order exactly",
+    );
+    assert_eq!(
+        data.element_data[1].fields[0].kind,
+        FieldKindData::Scalar { codec: "Comma" }
+    );
+    assert_eq!(
+        data.element_data[1].fields[1].kind,
+        FieldKindData::Subtree {
+            category: "FixturePhrase",
+            boxed: false,
+        }
+    );
+    assert_eq!(data.element_data[2].name, "empty_payload");
+    assert_eq!(data.element_data[2].bind_path, Some("BoundPayload"));
+    assert!(data.element_data[2].fields.is_empty());
     let ids: Vec<&str> = data.constructions.iter().map(|c| c.id).collect();
     assert_eq!(ids, vec!["fixture_pair", "fixture_solo", "fixture_tagged"]);
     let pair = &data.constructions[0];

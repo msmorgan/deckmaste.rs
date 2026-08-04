@@ -256,37 +256,59 @@ fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) 
 
 /// EC007 — an empty bound mapping is intentionally opaque: the compiler can
 /// prove that its target type exists, but cannot inspect or construct a value.
-/// Every sequence field naming one must therefore carry the direct invariant
-/// that it is always empty. This uses the existing `LenIs` predicate exactly;
-/// no new predicate abstraction or DSL form is involved.
+/// A direct construction sequence can carry the exact invariant that it is
+/// always empty. Optional sequences and sequences nested in element fields
+/// have no addressable predicate path in today's DSL, so they are rejected.
 fn check_empty_bound_elements(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     for construction in &group.constructions {
         for binding in construction.ast.fields() {
-            let FieldKind::Sequence { element } = &binding.kind else { continue };
-            let Some(declaration) = group.elements.iter().find(|candidate| {
-                candidate.name.value == element.value
-                    && candidate.bind_path.is_some()
-                    && candidate.fields.is_empty()
-            }) else {
-                continue;
-            };
-            let directly_empty = construction.constraints.iter().any(|constraint| {
-                let Constraint::Require(requirement) = constraint else { return false };
-                let Predicate::LenIs { path, len: 0 } = &requirement.value else {
-                    return false;
-                };
-                matches!(path.segments.as_slice(), [only] if only.value == binding.field.value)
-            });
-            if !directly_empty {
+            let mut references = Vec::new();
+            collect_sequence_references(&binding.kind, true, &mut references);
+            for (element, is_direct) in references {
+                if !is_empty_bound_element(group, &element.value) {
+                    continue;
+                }
+                let directly_empty = is_direct
+                    && has_direct_zero_length_requirement(construction, &binding.field.value);
+                if directly_empty {
+                    continue;
+                }
                 diags.push(
                     Diagnostic::new(
                         DiagCode::BoundElementMustBeEmpty,
                         &construction.id.value,
+                        if is_direct {
+                            format!(
+                                "sequence field `{}` references empty bound element `{}`; add `require {}.len() == 0`",
+                                binding.field.value, element.value, binding.field.value,
+                            )
+                        } else {
+                            format!(
+                                "optional sequence field `{}` references empty bound element `{}`; only a direct sequence field with `require {}.len() == 0` can prove it empty",
+                                binding.field.value, element.value, binding.field.value,
+                            )
+                        },
+                    )
+                    .with_span(element.span),
+                );
+            }
+        }
+    }
+
+    for declaration in &group.elements {
+        for binding in &declaration.fields {
+            let mut references = Vec::new();
+            collect_sequence_references(&binding.kind, false, &mut references);
+            for (element, _) in references {
+                if !is_empty_bound_element(group, &element.value) {
+                    continue;
+                }
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::BoundElementMustBeEmpty,
                         format!(
-                            "sequence field `{}` references empty bound element `{}`; add `require {}.len() == 0`",
-                            binding.field.value,
-                            declaration.name.value,
-                            binding.field.value,
+                            "element field `{}.{}` references empty bound element `{}`; element-nested sequences cannot carry a direct zero-length requirement",
+                            declaration.name.value, binding.field.value, element.value,
                         ),
                     )
                     .with_span(element.span),
@@ -294,6 +316,37 @@ fn check_empty_bound_elements(group: &GroupDeclaration, diags: &mut Vec<Diagnost
             }
         }
     }
+}
+
+fn collect_sequence_references<'a>(
+    kind: &'a FieldKind,
+    is_direct: bool,
+    into: &mut Vec<(&'a crate::model::Spanned<String>, bool)>,
+) {
+    match kind {
+        FieldKind::Sequence { element } => into.push((element, is_direct)),
+        FieldKind::Optional { inner } => collect_sequence_references(inner, false, into),
+        FieldKind::Subtree { .. } | FieldKind::Scalar { .. } => {}
+    }
+}
+
+fn is_empty_bound_element(group: &GroupDeclaration, name: &str) -> bool {
+    group.elements.iter().any(|candidate| {
+        candidate.name.value == name && candidate.bind_path.is_some() && candidate.fields.is_empty()
+    })
+}
+
+fn has_direct_zero_length_requirement(
+    construction: &ConstructionDeclaration,
+    field_name: &str,
+) -> bool {
+    construction.constraints.iter().any(|constraint| {
+        let Constraint::Require(requirement) = constraint else { return false };
+        let Predicate::LenIs { path, len: 0 } = &requirement.value else {
+            return false;
+        };
+        matches!(path.segments.as_slice(), [only] if only.value == field_name)
+    })
 }
 
 fn record_generated_name(
@@ -1688,6 +1741,56 @@ mod tests {
                 }),
             ));
         validate(&group).expect("the existing direct len-is-zero predicate proves emptiness");
+    }
+
+    #[test]
+    fn optional_sequence_cannot_bypass_empty_bound_element_rule() {
+        let mut group = group_with_empty_bound_element();
+        let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast else {
+            panic!("fixture binds");
+        };
+        let sequence = fields[1].kind.clone();
+        fields[1].kind = crate::model::FieldKind::Optional {
+            inner: Box::new(sequence),
+        };
+        let err =
+            validate(&group).expect_err("an optional opaque sequence has no provable length path");
+        assert_eq!(codes(&err), vec!["EC007"]);
+        assert_eq!(
+            message_for(&err, "EC007"),
+            "optional sequence field `payloads` references empty bound element `empty_payload`; only a direct sequence field with `require payloads.len() == 0` can prove it empty",
+        );
+    }
+
+    #[test]
+    fn element_nested_sequence_cannot_bypass_empty_bound_element_rule() {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("empty_payload".to_owned()),
+            bind_path: Some(crate::model::Spanned::call_site("BoundPayload".to_owned())),
+            fields: vec![],
+        });
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("container".to_owned()),
+            bind_path: None,
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("payloads".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("empty_payload".to_owned()),
+                },
+            }],
+        });
+        let err =
+            validate(&group).expect_err("an element-nested opaque sequence has no require path");
+        assert_eq!(codes(&err), vec!["EC007"]);
+        assert!(
+            err[0].construction.is_none(),
+            "element diagnostics are group-scoped"
+        );
+        assert_eq!(
+            message_for(&err, "EC007"),
+            "element field `container.payloads` references empty bound element `empty_payload`; element-nested sequences cannot carry a direct zero-length requirement",
+        );
     }
 
     #[test]

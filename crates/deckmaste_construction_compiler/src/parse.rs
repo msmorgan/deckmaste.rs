@@ -510,7 +510,12 @@ mod tests {
         quote::quote! {
             group fixture_coordination;
 
-            element fixture_member bind BoundMember {
+            element fixture_member {
+                comma: opt lex Comma,
+                phrase: hole FixturePhrase,
+            }
+
+            element bound_fixture_member bind BoundMember {
                 comma: lex Comma,
                 phrase: hole FixturePhrase,
             }
