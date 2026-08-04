@@ -1103,12 +1103,14 @@ fn check_strata(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 #[cfg(test)]
 pub(crate) mod fixtures {
     use crate::model::AstShape;
+    use crate::model::Constraint;
     use crate::model::ConstructionDeclaration;
     use crate::model::FieldBinding;
     use crate::model::FieldKind;
     use crate::model::FieldPath;
     use crate::model::FormDeclaration;
     use crate::model::GroupDeclaration;
+    use crate::model::Predicate;
     use crate::model::SelectionPromise;
     use crate::model::Spanned;
     use crate::model::SurfaceAtom;
@@ -1145,6 +1147,27 @@ pub(crate) mod fixtures {
                 deserialize: false,
             }],
         }
+    }
+
+    /// Own-mode sibling of minimal_group: one scalar field, one require.
+    pub(crate) fn minimal_own_group() -> GroupDeclaration {
+        let mut group = minimal_group();
+        group.constructions[0].ast = AstShape::Own {
+            name: Spanned::call_site("MinimalNode".to_owned()),
+            fields: vec![FieldBinding {
+                field: Spanned::call_site("conjunction".to_owned()),
+                kind: FieldKind::Scalar {
+                    codec: Spanned::call_site("Conjunction".to_owned()),
+                },
+            }],
+        };
+        group.constructions[0]
+            .constraints
+            .push(Constraint::Require(Spanned::call_site(Predicate::In {
+                path: FieldPath::call_site("conjunction"),
+                allowed: vec!["And".to_owned(), "Or".to_owned()],
+            })));
+        group
     }
 }
 
