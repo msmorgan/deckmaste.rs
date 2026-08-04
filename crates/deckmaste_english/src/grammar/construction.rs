@@ -417,10 +417,20 @@ mod tests {
                 .expect("tag missing from merged_registry(&[])");
             assert_eq!(production_family, merged_family);
         }
-        // `registry()` is the `OnceLock` production static: repeated calls
-        // return the identical allocation, which is what the `Inactive` parse
-        // path (`super::construction::registry()`, not `merged_registry`)
-        // actually threads through `best_root_matching`.
-        assert!(std::ptr::eq(registry(), registry()));
+        // The actual `Inactive` selection code (`parse_nonterminal::select_registry`,
+        // not a re-derivation of its logic) must pick the `registry()` static
+        // itself, not a freshly built `merged_registry`. This observes the
+        // real function's chosen variant, so it reddens if the `Inactive` arm
+        // is ever rewired to build its own registry.
+        match super::super::parse_support::select_registry(
+            super::super::generated::GeneratedActivation::Inactive,
+        ) {
+            super::super::parse_support::SelectedRegistry::Static(selected) => {
+                assert!(std::ptr::eq(selected, registry()));
+            }
+            super::super::parse_support::SelectedRegistry::Owned(_) => {
+                panic!("Inactive must select the registry() static, not a reconstruction");
+            }
+        }
     }
 }

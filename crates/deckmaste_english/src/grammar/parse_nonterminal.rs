@@ -253,23 +253,8 @@ fn parse_nonterminal_with_mode_and_registration_order(
         registration_order,
         activation,
     );
-    #[cfg(test)]
-    #[allow(
-        unused_assignments,
-        reason = "the None placeholder is read only on the Inactive path via drop; the Groups arm overwrites it before its own read"
-    )]
-    let mut owned_registry: Option<crate::construction::ConstructionRegistry> = None;
-    let registry: &crate::construction::ConstructionRegistry = match activation {
-        super::generated::GeneratedActivation::Inactive => super::construction::registry(),
-        #[cfg(test)]
-        super::generated::GeneratedActivation::Groups(groups) => {
-            owned_registry = Some(
-                super::construction::merged_registry(groups)
-                    .expect("active generated groups must merge"),
-            );
-            owned_registry.as_ref().expect("just assigned")
-        }
-    };
+    let selected_registry = select_registry(activation);
+    let registry = selected_registry.as_ref();
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
     if chart.roots.is_empty() {
         return Err(ParseNonterminalError::NoCompleteParse(nonterminal));
@@ -336,6 +321,39 @@ fn parse_nonterminal_with_mode_and_registration_order(
         syntax,
         opacity_mode,
     })
+}
+
+/// The registry a parse actually uses: the production `registry()` static
+/// when no generated group is active, or a freshly merged registry when a
+/// test activates one. A distinct type (rather than inlining the match at
+/// the call site) so the selection is a named, independently testable step —
+/// `#[cfg(test)]` code can call [`select_registry`] directly and observe
+/// which arm fired, rather than only being able to observe its downstream
+/// effect on a parse.
+pub(super) enum SelectedRegistry {
+    Static(&'static crate::construction::ConstructionRegistry),
+    Owned(crate::construction::ConstructionRegistry),
+}
+
+impl SelectedRegistry {
+    pub(super) fn as_ref(&self) -> &crate::construction::ConstructionRegistry {
+        match self {
+            Self::Static(registry) => registry,
+            Self::Owned(registry) => registry,
+        }
+    }
+}
+
+pub(super) fn select_registry(
+    activation: super::generated::GeneratedActivation,
+) -> SelectedRegistry {
+    match activation.groups() {
+        None => SelectedRegistry::Static(super::construction::registry()),
+        Some(groups) => SelectedRegistry::Owned(
+            super::construction::merged_registry(groups)
+                .expect("active generated groups must merge"),
+        ),
+    }
 }
 
 #[cfg(test)]
