@@ -1,6 +1,9 @@
 //! Milestone-0 golden-formatting spike. `format_emission` survives into the
-//! real emitter; `spike_sealed_tokens` is throwaway scaffolding mirroring
-//! the macros crate's spike expansion.
+//! real emitter; `spike_sealed_tokens` is throwaway scaffolding — a fixed
+//! token stream that exists to give the golden test something byte-stable to
+//! format. It is NOT a copy of the macros crate's `spike_sealed!` expansion,
+//! which has since grown derives, a hand-written `Deserialize`, and the
+//! serde opt-out twin `SpikeOpenRecord`.
 
 use proc_macro2::TokenStream;
 

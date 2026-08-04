@@ -38,7 +38,6 @@ pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diag
     }
 }
 
-// Each task in this plan appends one check family here.
 fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
     check_dominance_cycles(group, diags);
@@ -137,6 +136,8 @@ fn check_dominance_cycles(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>)
                         state.insert(successor, 1);
                         stack.push((successor, 0));
                     }
+                    // Call-site span: the edge map is keyed by id strings and
+                    // carries no spans, so there is nothing here to point at.
                     1 => diags.push(Diagnostic::new(
                         DiagCode::DominanceCycle,
                         successor,
@@ -586,14 +587,25 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             for left in 0..guards.len() {
                 for right in (left + 1)..guards.len() {
                     if abstractions_overlap(&guards[left], &guards[right]) {
-                        diags.push(Diagnostic::new(
-                            DiagCode::AmbiguousLinearization,
-                            id,
-                            format!(
-                                "forms `{}` and `{}` can both match the same value and no witness discriminates them",
-                                construction.forms[left].name.value, construction.forms[right].name.value
-                            ),
-                        ));
+                        // Sorted: explicit ordinals exist so that form order
+                        // is not semantic, so the message must not change
+                        // when the two declarations are swapped.
+                        let mut named = [
+                            construction.forms[left].name.value.as_str(),
+                            construction.forms[right].name.value.as_str(),
+                        ];
+                        named.sort_unstable();
+                        diags.push(
+                            Diagnostic::new(
+                                DiagCode::AmbiguousLinearization,
+                                id,
+                                format!(
+                                    "forms `{}` and `{}` can both match the same value and no witness discriminates them",
+                                    named[0], named[1]
+                                ),
+                            )
+                            .with_span(construction.forms[left].name.span),
+                        );
                     }
                 }
             }
@@ -612,11 +624,18 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             }
             if !any_unguarded_form && !admitted_values.is_subset(&covered) {
                 let missing: Vec<&String> = admitted_values.difference(&covered).collect();
-                diags.push(Diagnostic::new(
-                    DiagCode::UncoveredValueSpace,
-                    id,
-                    uncovered_message(key, &missing),
-                ));
+                let span = *required
+                    .origin
+                    .get(key)
+                    .expect("every admitted key was recorded when its clause was folded in");
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UncoveredValueSpace,
+                        id,
+                        uncovered_message(key, &missing),
+                    )
+                    .with_span(span),
+                );
             }
         }
     }
@@ -645,21 +664,39 @@ fn check_constraints(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 );
             }
         }
-        for constraint in &construction.constraints {
-            if let Constraint::DeriveFeature { combinator, .. } = constraint {
-                if !KNOWN_COMBINATORS.contains(&combinator.value.as_str()) {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::UnknownCombinator,
-                            id,
-                            format!(
-                                "unknown feature combinator `{}`; a missing combinator is a compiler addition, never a closure",
-                                combinator.value
-                            ),
-                        )
-                        .with_span(combinator.span),
-                    );
-                }
+        // Combinators are checked wherever one is named, not only on the
+        // `derive_feature` arm: a derived witness names the same concept in
+        // another syntactic position and the guarantee is about the concept.
+        // (Its `args` paths are deliberately a later milestone's business.)
+        let combinators = construction
+            .constraints
+            .iter()
+            .filter_map(|constraint| match constraint {
+                Constraint::DeriveFeature { combinator, .. } => Some(combinator),
+                Constraint::Require(_) => None,
+            })
+            .chain(
+                construction
+                    .witnesses
+                    .iter()
+                    .filter_map(|witness| match &witness.class {
+                        WitnessClass::Derived { combinator, .. } => Some(combinator),
+                        WitnessClass::Stored { .. } | WitnessClass::Free { .. } => None,
+                    }),
+            );
+        for combinator in combinators {
+            if !KNOWN_COMBINATORS.contains(&combinator.value.as_str()) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnknownCombinator,
+                        id,
+                        format!(
+                            "unknown feature combinator `{}`; a missing combinator is a compiler addition, never a closure",
+                            combinator.value
+                        ),
+                    )
+                    .with_span(combinator.span),
+                );
             }
         }
     }
@@ -1019,6 +1056,17 @@ mod tests {
         assert!(codes(err).contains(&"EC022"));
     }
 
+    fn conjunction_in(allowed: &[&str]) -> crate::model::Predicate {
+        crate::model::Predicate::In {
+            path: crate::model::FieldPath::call_site("conjunction"),
+            allowed: allowed.iter().map(|value| (*value).to_owned()).collect(),
+        }
+    }
+
+    fn requires_conjunction_in(allowed: &[&str]) -> crate::model::Constraint {
+        crate::model::Constraint::Require(crate::model::Spanned::call_site(conjunction_in(allowed)))
+    }
+
     fn guarded_two_form_group(
         first: crate::model::Predicate,
         second: crate::model::Predicate,
@@ -1204,32 +1252,13 @@ mod tests {
         // EC023 in either clause order. Folding the clauses with `insert`
         // instead of intersecting makes the LAST clause win, so reversing
         // them fabricates an EC023 naming `Plus`.
-        let admitting = |allowed: Vec<String>| {
-            crate::model::Constraint::Require(crate::model::Spanned::call_site(
-                crate::model::Predicate::In {
-                    path: crate::model::FieldPath::call_site("conjunction"),
-                    allowed,
-                },
-            ))
-        };
-        let mut group = guarded_two_form_group(
-            crate::model::Predicate::In {
-                path: crate::model::FieldPath::call_site("conjunction"),
-                allowed: vec!["And".to_owned()],
-            },
-            crate::model::Predicate::In {
-                path: crate::model::FieldPath::call_site("conjunction"),
-                allowed: vec!["Or".to_owned()],
-            },
-        );
-        group.constructions[0].constraints.push(admitting(vec![
-            "And".to_owned(),
-            "Or".to_owned(),
-            "Plus".to_owned(),
-        ]));
+        let mut group = guarded_two_form_group(conjunction_in(&["And"]), conjunction_in(&["Or"]));
         group.constructions[0]
             .constraints
-            .push(admitting(vec!["And".to_owned(), "Or".to_owned()]));
+            .push(requires_conjunction_in(&["And", "Or", "Plus"]));
+        group.constructions[0]
+            .constraints
+            .push(requires_conjunction_in(&["And", "Or"]));
 
         let mut reversed = group.clone();
         reversed.constructions[0].constraints.reverse();
@@ -1368,6 +1397,43 @@ mod tests {
     }
 
     #[test]
+    fn derived_witnesses_name_a_known_combinator() {
+        // Same concept as `derive_feature`, different syntactic position:
+        // the compiler-addition guarantee is about combinators, not about
+        // one arm of one enum.
+        let mut group = minimal_group();
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("oxford_comma".to_owned()),
+                class: crate::model::WitnessClass::Derived {
+                    combinator: crate::model::Spanned::call_site("summon_grammar_demon".to_owned()),
+                    args: vec![],
+                },
+            });
+        let err = validate(&group).expect_err("unknown combinator on a derived witness");
+        assert_eq!(
+            message_for(&err, "EC031"),
+            "unknown feature combinator `summon_grammar_demon`; a missing combinator is a compiler addition, never a closure"
+        );
+    }
+
+    #[test]
+    fn derived_witnesses_with_a_known_combinator_pass() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("oxford_comma".to_owned()),
+                class: crate::model::WitnessClass::Derived {
+                    combinator: crate::model::Spanned::call_site("from_first".to_owned()),
+                    args: vec![],
+                },
+            });
+        validate(&group).expect("`from_first` is in KNOWN_COMBINATORS");
+    }
+
+    #[test]
     fn known_combinators_pass_check_constraints_cleanly() {
         let mut group = minimal_group();
         group.constructions[0]
@@ -1412,6 +1478,64 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         assert_eq!(render(forward), render(backward));
+    }
+
+    #[test]
+    fn diagnostic_output_is_independent_of_form_and_constraint_order() {
+        // The existing order test reverses CONSTRUCTIONS — the one axis that
+        // already worked. Forms and require clauses are the axes that broke:
+        // guards {And,Or} and {Or} overlap on Or (EC024) and together cover
+        // exactly {And,Or}, while the clauses admit {And,Or,Plus} and
+        // {And,Or}, whose conjunction {And,Or} IS covered (no EC023).
+        // Reversing forms swaps EC024's two names unless they are sorted;
+        // reversing clauses fabricates an EC023 on Plus unless the clauses
+        // are intersected rather than overwritten.
+        let mut group =
+            guarded_two_form_group(conjunction_in(&["And", "Or"]), conjunction_in(&["Or"]));
+        group.constructions[0]
+            .constraints
+            .push(requires_conjunction_in(&["And", "Or", "Plus"]));
+        group.constructions[0]
+            .constraints
+            .push(requires_conjunction_in(&["And", "Or"]));
+
+        let mut reversed = group.clone();
+        reversed.constructions[0].forms.reverse();
+        reversed.constructions[0].constraints.reverse();
+
+        let render = |diags: Vec<crate::diag::Diagnostic>| {
+            diags
+                .iter()
+                .map(|d| format!("{}:{}:{}", d.construction, d.code.as_str(), d.message))
+                .collect::<Vec<_>>()
+        };
+        let forward = render(validate(&group).expect_err("the guards overlap on Or"));
+        let backward = render(validate(&reversed).expect_err("the guards overlap on Or"));
+        assert_eq!(forward, backward);
+        // Pinned exactly, so the two orders cannot agree on a wrong answer.
+        assert_eq!(
+            forward,
+            vec![
+                "noun_phrase_coordination:EC024:forms `binary` and `oxford` can both match the same value and no witness discriminates them"
+            ]
+        );
+    }
+
+    #[test]
+    fn an_owned_ast_shape_resolves_its_fields() {
+        // Every other fixture binds an existing type; this is the only
+        // exercise of the `Own` arm of `AstShape::fields()`. Were that arm to
+        // hand back no fields, the form's `conjunction` atom would resolve to
+        // nothing and EC010 would fire.
+        let mut group = minimal_group();
+        group.constructions[0].ast = match group.constructions[0].ast.clone() {
+            crate::model::AstShape::Bind { fields, .. } => crate::model::AstShape::Own {
+                name: crate::model::Spanned::call_site("CoordinatedNounPhrase".to_owned()),
+                fields,
+            },
+            own => own,
+        };
+        validate(&group).expect("an owned shape's fields resolve exactly like a bound shape's");
     }
 
     #[test]

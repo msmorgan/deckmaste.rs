@@ -1,6 +1,9 @@
-//! Thin proc-macro facade over `deckmaste_english_construction_compiler`.
-//! Milestone 0 ships only the hardcoded `spike_sealed!` feasibility macro;
-//! the real `constructicon!` entry point replaces it in a later milestone.
+//! Proc-macro entry points for the construction compiler. Milestone 0 ships
+//! only the hardcoded `spike_sealed!` feasibility macro, which expands on its
+//! own and takes no dependency on `deckmaste_english_construction_compiler`;
+//! the real `constructicon!` entry point, which will parse into that crate's
+//! declaration model and route through its validator, replaces it in a later
+//! milestone.
 
 use proc_macro::TokenStream;
 
