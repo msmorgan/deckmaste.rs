@@ -5,5 +5,6 @@
 
 pub mod diag;
 pub mod model;
+pub mod runtime;
 pub mod spike_emit;
 pub mod validate;
