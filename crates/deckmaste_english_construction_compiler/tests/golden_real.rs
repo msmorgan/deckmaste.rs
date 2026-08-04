@@ -169,6 +169,57 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
     }
 }
 
+/// The plan's fixture family, as `constructicon!` DSL text. Byte-identical
+/// to `parse.rs`'s `fixture_dsl()` and to Task 13's `constructicon!`
+/// invocation — kept as a separate copy of the DSL *text* by design (see
+/// Task 11's controller ruling); only the ~140-line hand-built IR literal
+/// above is not duplicated.
+fn fixture_dsl() -> proc_macro2::TokenStream {
+    quote::quote! {
+        group fixture_coordination;
+
+        element fixture_member {
+            comma: opt lex Comma,
+            phrase: hole FixturePhrase,
+        }
+
+        construction fixture_pair: FixturePair {
+            own FixturePairNode {
+                members: seq fixture_member,
+                conjunction: lex Conjunction,
+            }
+            require members.len() >= 2;
+            require conjunction in [And, Or];
+            witness oxford = stored members.last.comma;
+            form plain @ 0 when conjunction in [And] = members lex(conjunction);
+            form fancy @ 1 when conjunction in [Or] = members "," lex(conjunction);
+            dominates fixture_solo;
+        }
+
+        construction fixture_solo: FixturePair {
+            own FixtureSoloNode {
+                phrase: hole FixturePhrase,
+                alt: opt hole FixturePhrase,
+            }
+            require alt.is_none();
+            witness gap = free Comma;
+            form only @ 0 = phrase alt;
+            selection unique;
+            deserialize;
+        }
+    }
+}
+
+/// Pins the parser and the golden to ONE declaration rather than two copies
+/// that must be kept honest: the DSL text above parses to exactly the
+/// hand-built `fixture_coordination_group()` IR (span-insensitive equality).
+#[test]
+fn fixture_family_parses_to_the_handbuilt_ir() {
+    let parsed = deckmaste_english_construction_compiler::parse::parse_group(fixture_dsl())
+        .expect("fixture DSL parses");
+    assert_eq!(parsed, fixture_coordination_group());
+}
+
 fn formatted_emission() -> String {
     let group = fixture_coordination_group();
     let validated = validate(&group).expect("the fixture family validates clean");

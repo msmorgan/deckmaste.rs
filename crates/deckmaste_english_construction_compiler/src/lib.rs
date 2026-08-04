@@ -6,5 +6,6 @@
 pub mod diag;
 pub mod emit;
 pub mod model;
+pub mod parse;
 pub mod runtime;
 pub mod validate;
