@@ -512,6 +512,7 @@ mod tests {
                 }
                 require members.len() >= 2;
                 require conjunction in [And, Or];
+                require members.last.comma in [Present];
                 witness oxford = stored members.last.comma;
                 form plain @ 0 when conjunction in [And] = members lex(conjunction);
                 form fancy @ 1 when conjunction in [Or] = members "," lex(conjunction);

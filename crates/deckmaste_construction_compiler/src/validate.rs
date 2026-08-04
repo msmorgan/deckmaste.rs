@@ -674,34 +674,53 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 );
             }
         }
-        // EC032 — require paths must be emitter-shallow.
+        // EC032 — require paths must be emitter-shallow, with one staged
+        // widening: a path through a sequence's `last` to an element scalar
+        // (or optional-scalar) field, which the emitter compiles vacuously-
+        // true-when-empty. `resolve_path` only ever resolves a multi-segment
+        // path through that exact sequence->last->field shape (a subtree
+        // field, a doubled `last`, or a non-sequence head all fail to
+        // resolve at all), so admission here just narrows the resolved
+        // FINAL kind to scalar/optional-scalar; a resolved-but-wrong-kind
+        // path (e.g. `last` onto a Subtree field) still falls through to
+        // the staged message. A predicate/kind mismatch on an ADMITTED path
+        // (`len()` through `last` onto a scalar) is left to EC011/EC015,
+        // which already resolve deep paths via `resolve_path` themselves.
         for constraint in &construction.constraints {
             let Constraint::Require(predicate) = constraint else { continue };
             let mut deep: Vec<&FieldPath> = Vec::new();
             collect_all_paths(&predicate.value, &mut deep);
             for path in deep {
-                if path.segments.len() > 1 {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::UnsupportedConstraintPath,
-                            id,
-                            format!(
-                                "`{}`: generated try_new checks support single-field paths; deeper constraint paths land when a family needs them",
-                                path.dotted()
-                            ),
-                        )
-                        .with_span(path.span),
-                    );
+                if path.segments.len() <= 1 {
+                    continue;
                 }
+                if let Ok(resolved) = resolve_path(group, construction, path)
+                    && resolved_is_scalar(&resolved)
+                {
+                    continue;
+                }
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnsupportedConstraintPath,
+                        id,
+                        format!(
+                            "`{}`: generated try_new checks support single-field paths; deeper constraint paths land when a family needs them",
+                            path.dotted()
+                        ),
+                    )
+                    .with_span(path.span),
+                );
             }
         }
     }
 }
 
 /// Scalar for SURFACE purposes: a codec field, optional or not — the thing
-/// `lex(…)` renders and a hole must not consume. **EC014 only.** `lex(opt
-/// field)` is perfectly renderable, so an `Optional { Scalar }` counts as
-/// scalar here.
+/// `lex(…)` renders and a hole must not consume. **EC014, and also EC032's
+/// `.last` admission gate below** (the same "codec field, optional or not"
+/// question decides which element field a `.last` require path may target).
+/// `lex(opt field)` is perfectly renderable, so an `Optional { Scalar }`
+/// counts as scalar here.
 ///
 /// Do NOT reuse this for EC015. EC015's `In` predicate compiles to a
 /// `matches!` pattern that must match the FIELD'S ACTUAL RUST TYPE, and
@@ -2135,16 +2154,21 @@ mod tests {
 
     #[test]
     fn deep_require_path_is_rejected() {
+        // `members.last.sub` resolves (unlike a doubled `last` or a
+        // subtree-then-more path), and `sub` being Optional clears EC011 (it
+        // IS optional) — but its inner kind is Subtree, not Scalar, so
+        // EC032's `.last` admission gate is the only thing left to reject
+        // it. A still-deep, still-refused shape now that
+        // `members.last.comma` (Optional<Scalar>) is admitted.
         let mut group = minimal_group();
-        // Real deep path (members.last.comma shape needs a sequence; a two-seg
-        // unresolvable path would be EC010 noise) — reuse Task 3's seq setup.
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             fields: vec![crate::model::FieldBinding {
-                field: crate::model::Spanned::call_site("comma".to_owned()),
+                field: crate::model::Spanned::call_site("sub".to_owned()),
                 kind: crate::model::FieldKind::Optional {
-                    inner: Box::new(crate::model::FieldKind::Scalar {
-                        codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                    inner: Box::new(crate::model::FieldKind::Subtree {
+                        category: crate::model::Spanned::call_site("Whatever".to_owned()),
+                        boxed: false,
                     }),
                 },
             }],
@@ -2166,12 +2190,32 @@ mod tests {
             .constraints
             .push(crate::model::Constraint::Require(
                 crate::model::Spanned::call_site(crate::model::Predicate::IsNone {
-                    path: crate::model::FieldPath::call_site("members.last.comma"),
+                    path: crate::model::FieldPath::call_site("members.last.sub"),
                 }),
             ));
-        let err = validate(&group).expect_err("deep require path must be rejected");
+        let err = validate(&group).expect_err("a non-scalar `.last` target must still be rejected");
         let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
         assert_eq!(codes, vec!["EC032"]);
+    }
+
+    /// Positive control for the widening: `.last` onto a plain (non-
+    /// optional) element scalar admits cleanly, and the abstraction pass
+    /// (`path_is_optional_scalar`) correctly treats it as NOT optional —
+    /// `group_with_sequence_field`'s `comma` field is `Scalar`, not
+    /// `Optional<Scalar>`, unlike the `fixture_pair` case exercised
+    /// end-to-end in `fixture_family.rs`.
+    #[test]
+    fn last_path_onto_a_plain_scalar_element_field_validates_clean() {
+        let mut group = group_with_sequence_field();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("rest.last.comma"),
+                    allowed: vec!["Present".to_owned()],
+                }),
+            ));
+        validate(&group).expect("`.last` onto a plain scalar element field is admitted");
     }
 
     #[test]

@@ -78,6 +78,10 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                         path: FieldPath::call_site("conjunction"),
                         allowed: vec!["And".to_owned(), "Or".to_owned()],
                     })),
+                    Constraint::Require(Spanned::call_site(Predicate::In {
+                        path: FieldPath::call_site("members.last.comma"),
+                        allowed: vec!["Present".to_owned()],
+                    })),
                 ],
                 witnesses: vec![WitnessDeclaration {
                     name: Spanned::call_site("oxford".to_owned()),
@@ -191,6 +195,7 @@ fn fixture_dsl() -> proc_macro2::TokenStream {
             }
             require members.len() >= 2;
             require conjunction in [And, Or];
+            require members.last.comma in [Present];
             witness oxford = stored members.last.comma;
             form plain @ 0 when conjunction in [And] = members lex(conjunction);
             form fancy @ 1 when conjunction in [Or] = members "," lex(conjunction);

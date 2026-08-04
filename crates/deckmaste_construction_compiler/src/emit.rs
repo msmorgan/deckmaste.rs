@@ -36,7 +36,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
     let bind_constructions: Vec<TokenStream> = group
         .constructions
         .iter()
-        .filter_map(bind_construction)
+        .filter_map(|c| bind_construction(group, c))
         .collect();
     let deserialize_impls: Vec<TokenStream> = group
         .constructions
@@ -162,7 +162,7 @@ fn element_struct(element: &ElementDeclaration, serde: bool) -> TokenStream {
 }
 
 fn own_construction(
-    _group: &GroupDeclaration,
+    group: &GroupDeclaration,
     construction: &ConstructionDeclaration,
 ) -> Option<TokenStream> {
     let AstShape::Own { name, fields } = &construction.ast else {
@@ -190,7 +190,9 @@ fn own_construction(
         .constraints
         .iter()
         .filter_map(|constraint| match constraint {
-            Constraint::Require(predicate) => Some(require_check(id, fields, &predicate.value)),
+            Constraint::Require(predicate) => {
+                Some(require_check(id, group, fields, &predicate.value))
+            }
             Constraint::DeriveFeature { .. } => None, // feature derivation is chart/render-side
         })
         .collect();
@@ -230,7 +232,10 @@ fn own_construction(
 /// re-exported. No struct, no `try_new`, no serde — EC005 already bars
 /// bind+deserialize at validation time, so there is no door to route through
 /// a `Deserialize` impl here.
-fn bind_construction(construction: &ConstructionDeclaration) -> Option<TokenStream> {
+fn bind_construction(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+) -> Option<TokenStream> {
     let AstShape::Bind { path, fields } = &construction.ast else {
         return None; // own mode: handled separately by `own_construction`
     };
@@ -250,7 +255,9 @@ fn bind_construction(construction: &ConstructionDeclaration) -> Option<TokenStre
         .constraints
         .iter()
         .filter_map(|constraint| match constraint {
-            Constraint::Require(predicate) => Some(require_check(id, fields, &predicate.value)),
+            Constraint::Require(predicate) => {
+                Some(require_check(id, group, fields, &predicate.value))
+            }
             Constraint::DeriveFeature { .. } => None, // feature derivation is chart/render-side
         })
         .collect();
@@ -352,8 +359,13 @@ fn field_type(kind: &FieldKind) -> TokenStream {
     }
 }
 
-fn require_check(id: &str, fields: &[FieldBinding], predicate: &Predicate) -> TokenStream {
-    let condition = predicate_tokens(fields, predicate);
+fn require_check(
+    id: &str,
+    group: &GroupDeclaration,
+    fields: &[FieldBinding],
+    predicate: &Predicate,
+) -> TokenStream {
+    let condition = predicate_tokens(group, fields, predicate);
     let requirement = render_predicate(predicate);
     quote! {
         if !(#condition) {
@@ -365,13 +377,19 @@ fn require_check(id: &str, fields: &[FieldBinding], predicate: &Predicate) -> To
     }
 }
 
-/// EC032 guarantees every path here is a single segment naming a direct
-/// field, and EC015 guarantees kind agreement (`In` targets a scalar,
-/// `len()` targets a sequence) — so this mapping is total for validated
-/// input.
-fn predicate_tokens(fields: &[FieldBinding], predicate: &Predicate) -> TokenStream {
+/// EC032 guarantees every path here is either a single segment naming a
+/// direct field, or exactly `<sequence>.last.<element field>` (and only onto
+/// a scalar/optional-scalar element field), and EC015 guarantees kind
+/// agreement (`In` targets a scalar, `len()` targets a sequence) — so this
+/// mapping is total for validated input.
+fn predicate_tokens(
+    group: &GroupDeclaration,
+    fields: &[FieldBinding],
+    predicate: &Predicate,
+) -> TokenStream {
     match predicate {
         Predicate::LenAtLeast { path, min } => {
+            // EC032: `len()` paths stay single-segment.
             let field = path_ident(path);
             // Unsuffixed: the generated comparison is against usize (.len()),
             // and an unsuffixed literal adopts that type with no cast.
@@ -383,9 +401,67 @@ fn predicate_tokens(fields: &[FieldBinding], predicate: &Predicate) -> TokenStre
             let len = proc_macro2::Literal::u32_unsuffixed(*len);
             quote! { #field.len() == #len }
         }
-        Predicate::In { path, allowed } => {
-            let field = path_ident(path);
-            let codec = codec_of(fields, path);
+        Predicate::In { path, .. } | Predicate::IsSome { path } | Predicate::IsNone { path } => {
+            match path.segments.as_slice() {
+                [only] => {
+                    let accessor = quote::format_ident!("{}", only.value);
+                    single_field_check(&quote! { #accessor }, fields, &only.value, predicate)
+                }
+                [seq, _last, elem_field] => {
+                    let seq_field = quote::format_ident!("{}", seq.value);
+                    let element = element_of_sequence_field(group, fields, &seq.value);
+                    let field_ident = quote::format_ident!("{}", elem_field.value);
+                    let inner = single_field_check(
+                        &quote! { member.#field_ident },
+                        &element.fields,
+                        &elem_field.value,
+                        predicate,
+                    );
+                    // Vacuous on an empty sequence; when the element field
+                    // itself is optional-scalar, `single_field_check` nests
+                    // Task 1's `None | Some(...)` reading INSIDE this
+                    // closure, so the two vacuous layers compose correctly.
+                    quote! { #seq_field.last().is_none_or(|member| #inner) }
+                }
+                _ => unreachable!(
+                    "validated: EC032 admits only a single-field path or exactly seq.last.field"
+                ),
+            }
+        }
+        Predicate::All(children) => {
+            let parts: Vec<TokenStream> = children
+                .iter()
+                .map(|c| predicate_tokens(group, fields, c))
+                .collect();
+            quote! { (#(#parts)&&*) }
+        }
+        Predicate::Any(children) => {
+            let parts: Vec<TokenStream> = children
+                .iter()
+                .map(|c| predicate_tokens(group, fields, c))
+                .collect();
+            quote! { (#(#parts)||*) }
+        }
+    }
+}
+
+/// The single-field check body shared between a direct field access
+/// (`accessor` = the field itself) and the `.last()` closure's per-element
+/// access (`accessor` = `member.field`) — today's `In`/`IsSome`/`IsNone`
+/// emission, reused verbatim so the `.last()` closure's vacuous-on-empty
+/// layer and Task 1's vacuous-on-absent optional-`In` reading nest
+/// correctly by construction rather than by a second hand-written copy.
+/// `fields`/`field_name` locate the SAME field `accessor` reads: top-level
+/// ast fields for a direct path, an element's fields for the `.last` case.
+fn single_field_check(
+    accessor: &TokenStream,
+    fields: &[FieldBinding],
+    field_name: &str,
+    predicate: &Predicate,
+) -> TokenStream {
+    match predicate {
+        Predicate::In { allowed, .. } => {
+            let codec = codec_of(fields, field_name);
             let variants: Vec<TokenStream> = allowed
                 .iter()
                 .map(|variant| {
@@ -393,37 +469,45 @@ fn predicate_tokens(fields: &[FieldBinding], predicate: &Predicate) -> TokenStre
                     quote! { #codec::#v }
                 })
                 .collect();
-            if is_optional_scalar(fields, path) {
+            if is_optional_scalar(fields, field_name) {
                 // Reading B: absence is vacuously admitted — `f in [...]`
                 // on an optional field does not by itself demand presence.
-                quote! { matches!(#field, None | Some(#(#variants)|*)) }
+                quote! { matches!(#accessor, None | Some(#(#variants)|*)) }
             } else {
-                quote! { matches!(#field, #(#variants)|*) }
+                quote! { matches!(#accessor, #(#variants)|*) }
             }
         }
-        Predicate::IsSome { path } => {
-            let field = path_ident(path);
-            quote! { #field.is_some() }
-        }
-        Predicate::IsNone { path } => {
-            let field = path_ident(path);
-            quote! { #field.is_none() }
-        }
-        Predicate::All(children) => {
-            let parts: Vec<TokenStream> = children
-                .iter()
-                .map(|c| predicate_tokens(fields, c))
-                .collect();
-            quote! { (#(#parts)&&*) }
-        }
-        Predicate::Any(children) => {
-            let parts: Vec<TokenStream> = children
-                .iter()
-                .map(|c| predicate_tokens(fields, c))
-                .collect();
-            quote! { (#(#parts)||*) }
+        Predicate::IsSome { .. } => quote! { #accessor.is_some() },
+        Predicate::IsNone { .. } => quote! { #accessor.is_none() },
+        Predicate::LenAtLeast { .. }
+        | Predicate::LenIs { .. }
+        | Predicate::All(_)
+        | Predicate::Any(_) => {
+            unreachable!("single_field_check is only called for In/IsSome/IsNone predicates")
         }
     }
+}
+
+/// The element declaration a sequence field's `.last` addresses. `fields`
+/// is the field list `seq_field_name` is looked up in (the construction's
+/// own ast fields — `.last` paths only ever open off a top-level sequence).
+fn element_of_sequence_field<'g>(
+    group: &'g GroupDeclaration,
+    fields: &[FieldBinding],
+    seq_field_name: &str,
+) -> &'g ElementDeclaration {
+    let binding = fields
+        .iter()
+        .find(|b| b.field.value == seq_field_name)
+        .expect("validated: EC032 admits a `.last` path only when its sequence field resolves");
+    let FieldKind::Sequence { element } = &binding.kind else {
+        unreachable!("validated: resolve_path only opens `.last` on a Sequence-kind field")
+    };
+    group
+        .elements
+        .iter()
+        .find(|e| e.name.value == element.value)
+        .expect("validated: EC003 rejects a sequence naming an undeclared element")
 }
 
 fn render_predicate(predicate: &Predicate) -> String {
@@ -444,14 +528,17 @@ fn render_predicate(predicate: &Predicate) -> String {
     }
 }
 
+/// Only ever called on a path EC032 guarantees is a single segment
+/// (`LenAtLeast`/`LenIs` — `.last` deep paths are `In`/`IsSome`/`IsNone`
+/// only, handled separately in `predicate_tokens`).
 fn path_ident(path: &crate::model::FieldPath) -> proc_macro2::Ident {
     quote::format_ident!("{}", path.segments[0].value)
 }
 
-fn codec_of(fields: &[FieldBinding], path: &crate::model::FieldPath) -> TokenStream {
+fn codec_of(fields: &[FieldBinding], field_name: &str) -> TokenStream {
     let binding = fields
         .iter()
-        .find(|b| b.field.value == path.segments[0].value)
+        .find(|b| b.field.value == field_name)
         .expect("validated: EC010 rejects a require path naming a nonexistent field");
     let codec = match &binding.kind {
         FieldKind::Scalar { codec } => codec,
@@ -472,10 +559,10 @@ fn codec_of(fields: &[FieldBinding], path: &crate::model::FieldPath) -> TokenStr
 
 /// Whether an `In` predicate's target field (as `codec_of` locates it) is
 /// `Optional { Scalar }` — the case whose `matches!` gains a `None |` arm.
-fn is_optional_scalar(fields: &[FieldBinding], path: &crate::model::FieldPath) -> bool {
+fn is_optional_scalar(fields: &[FieldBinding], field_name: &str) -> bool {
     let binding = fields
         .iter()
-        .find(|b| b.field.value == path.segments[0].value)
+        .find(|b| b.field.value == field_name)
         .expect("validated: EC010 rejects a require path naming a nonexistent field");
     matches!(&binding.kind, FieldKind::Optional { inner } if matches!(**inner, FieldKind::Scalar { .. }))
 }
@@ -721,6 +808,68 @@ mod tests {
         );
         assert!(
             rendered.contains("conjunction in [And, Or]"),
+            "human-readable requirement string"
+        );
+    }
+
+    #[test]
+    fn last_path_in_emits_is_none_or_with_nested_optional_reading() {
+        // `.last()`'s vacuous-on-empty layer must nest OUTSIDE Task 1's
+        // vacuous-on-absent optional-`In` reading: `rest.last().is_none_or(
+        // |member| matches!(member.comma, None | Some(Comma::Present)))`.
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("comma".to_owned()),
+                kind: crate::model::FieldKind::Optional {
+                    inner: Box::new(crate::model::FieldKind::Scalar {
+                        codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                    }),
+                },
+            }],
+        });
+        if let crate::model::AstShape::Own { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("rest".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("m".to_owned()),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("rest"),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("rest.last.comma"),
+                    allowed: vec!["Present".to_owned()],
+                }),
+            ));
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        // prettyplease line-wraps the chained call, so match the pieces
+        // rather than one contiguous string: `.last()` (vacuous on empty)
+        // wrapping a closure whose body is Task 1's `None | Some(...)`
+        // optional-`In` reading — the two vacuous layers nesting correctly.
+        assert!(
+            rendered.contains(".last()"),
+            "`.last()` present: {rendered}"
+        );
+        assert!(
+            rendered.contains(".is_none_or(|member| {"),
+            "`.is_none_or` closure present: {rendered}"
+        );
+        assert!(
+            rendered.contains("matches!(member.comma, None | Some(Comma::Present))"),
+            "nested optional-In reading inside the closure: {rendered}"
+        );
+        assert!(
+            rendered.contains("rest.last.comma in [Present]"),
             "human-readable requirement string"
         );
     }

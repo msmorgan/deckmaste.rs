@@ -39,6 +39,7 @@ deckmaste_constructions_macro::constructions! {
         }
         require members.len() >= 2;
         require conjunction in [And, Or];
+        require members.last.comma in [Present];
         witness oxford = stored members.last.comma;
         form plain @ 0 when conjunction in [And] = members lex(conjunction);
         form fancy @ 1 when conjunction in [Or] = members "," lex(conjunction);
@@ -92,6 +93,32 @@ fn try_new_enforces_every_require() {
     let or_pair = FixturePairNode::try_new(vec![member(), member()], Conjunction::Or)
         .expect("Or is also admitted by `conjunction in [And, Or]`");
     assert_eq!(or_pair.conjunction(), &Conjunction::Or);
+}
+
+#[test]
+fn last_path_requires_are_vacuous_on_empty_and_checked_on_the_last_member() {
+    // fixture_pair also requires members.len() >= 2, so exercise the .last
+    // check through values that pass the length gate.
+    let plain = |comma| FixtureMember {
+        comma,
+        phrase: FixturePhrase,
+    };
+    let ok = FixturePairNode::try_new(
+        vec![plain(None), plain(Some(Comma::Present))],
+        Conjunction::And,
+    )
+    .expect("a Present last comma satisfies the .last require");
+    assert_eq!(ok.members().len(), 2);
+    // Reading-B nesting: an ABSENT optional on the last member is vacuously
+    // admitted by `in [Present]`.
+    FixturePairNode::try_new(vec![plain(None), plain(None)], Conjunction::And)
+        .expect("an absent last comma is vacuously admitted (optional reading B)");
+    let rejected = FixturePairNode::try_new(
+        vec![plain(None), plain(Some(Comma::Absent))],
+        Conjunction::And,
+    )
+    .expect_err("a present-but-Absent last comma violates the require");
+    assert_eq!(rejected.requirement, "members.last.comma in [Present]");
 }
 
 #[test]

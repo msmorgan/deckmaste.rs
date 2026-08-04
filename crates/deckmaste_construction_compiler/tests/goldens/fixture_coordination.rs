@@ -48,6 +48,17 @@ mod __constructions_fixture_coordination {
                     },
                 );
             }
+            if !(members
+                .last()
+                .is_none_or(|member| matches!(member.comma, None | Some(Comma::Present))))
+            {
+                return Err(
+                    ::deckmaste_construction_compiler::runtime::DeclarationViolation {
+                        construction: "fixture_pair",
+                        requirement: "members.last.comma in [Present]",
+                    },
+                );
+            }
             Ok(Self {
                 members,
                 conjunction,
