@@ -153,8 +153,8 @@ fn check_dominance_cycles(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>)
 }
 
 /// Resolves a path against a construction's ast fields and, through
-/// Sequence fields, the group's element declarations. `last`/an index
-/// segment addresses a sequence element. Returns the terminal FieldKind.
+/// Sequence fields, the group's element declarations. `last` addresses a
+/// sequence element. Returns the terminal FieldKind.
 fn resolve_path<'g>(
     group: &'g GroupDeclaration,
     construction: &'g ConstructionDeclaration,
@@ -162,21 +162,25 @@ fn resolve_path<'g>(
 ) -> Option<&'g FieldKind> {
     let mut fields: &'g [FieldBinding] = construction.ast.fields();
     let mut resolved: Option<&'g FieldKind> = None;
+    // Whether the IMMEDIATELY preceding step was a binding that resolved to
+    // a Sequence. Gating on `resolved` instead would only mean "after SOME
+    // earlier Sequence", since `last` leaves the resolved kind alone — and
+    // that admits `rest.last.last`, which addresses nothing.
+    let mut sequence_in_hand = false;
     let mut segments = path.segments.iter().peekable();
     while let Some(segment) = segments.next() {
         if segment == "last" {
-            // `last` re-addresses the current sequence element, so it is
-            // only legal right after a binding that resolved to a
-            // Sequence — otherwise there is no sequence context for it to
-            // re-address (e.g. a leading `last` with nothing before it).
-            // The kind under resolution is unchanged either way.
-            match resolved {
-                Some(FieldKind::Sequence { .. }) => continue,
-                _ => return None,
+            // `last` re-addresses the sequence element just entered, and
+            // consumes that context: there is no second element to take.
+            if !sequence_in_hand {
+                return None;
             }
+            sequence_in_hand = false;
+            continue;
         }
         let binding = fields.iter().find(|b| &b.field.value == segment)?;
         resolved = Some(&binding.kind);
+        sequence_in_hand = matches!(binding.kind, FieldKind::Sequence { .. });
         if segments.peek().is_some() {
             match &binding.kind {
                 FieldKind::Sequence { element } => {
@@ -912,6 +916,25 @@ mod tests {
                 crate::model::FieldPath::call_site("rest.last.comma"),
             ));
         validate(&group).expect("last after a resolved Sequence field still resolves");
+    }
+
+    #[test]
+    fn stacked_last_segments_are_rejected() {
+        // The first `last` consumes the sequence context `rest` opened; the
+        // second has none left to consume and addresses nothing. The sibling
+        // test `last_after_a_sequence_field_still_resolves` is the other
+        // half of this pair: it goes red if the gate rejects a lone `last`.
+        let mut group = group_with_sequence_field();
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("rest.last.last"),
+            ));
+        let err = validate(&group).expect_err("`rest.last.last` addresses nothing");
+        assert_eq!(
+            message_for(&err, "EC010"),
+            "form `binary` references unknown path `rest.last.last`"
+        );
     }
 
     #[test]
