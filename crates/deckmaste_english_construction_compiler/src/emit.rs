@@ -443,9 +443,14 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             (quote! { None }, quote! { Some(#p) })
         }
     };
+    // `dominance` holds every edge this construction is named in, winner or
+    // loser (see `edges_leaving_the_group_are_not_cycle_checked_here` in
+    // validate.rs, whose edge lists exactly that shape). `dominates` means
+    // "ids this construction beats" — only edges where it is the winner.
     let dominates: Vec<TokenStream> = construction
         .dominance
         .iter()
+        .filter(|edge| edge.winner.value == construction.id.value)
         .map(|edge| {
             let loser = edge.loser.value.as_str();
             quote! { #loser }
@@ -653,5 +658,27 @@ mod tests {
         let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
         assert!(rendered.contains("pub static NOUN_COORDINATION_DECLARATION"));
         assert!(rendered.contains("::deckmaste_english_construction_compiler::runtime::GroupData"));
+    }
+
+    #[test]
+    fn dominates_row_excludes_edges_where_this_construction_is_the_loser() {
+        // This construction (`noun_phrase_coordination`) is the *loser* of
+        // this edge, not the winner — an in-IR shape `validate()` permits
+        // for external dominance (see
+        // `edges_leaving_the_group_are_not_cycle_checked_here` in
+        // validate.rs). Its own `dominates` row must not claim its own id.
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.constructions[0]
+            .dominance
+            .push(crate::model::DominanceEdge {
+                winner: crate::model::Spanned::call_site("noun_phrase_nominal".to_owned()),
+                loser: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
+            });
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            !rendered.contains("dominates: &[\"noun_phrase_coordination\"]"),
+            "construction must not claim to dominate itself via an edge where it is the loser: {rendered}"
+        );
     }
 }

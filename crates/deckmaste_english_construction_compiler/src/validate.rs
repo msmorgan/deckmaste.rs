@@ -153,6 +153,18 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 }
             }
         }
+        if construction.deserialize {
+            if let crate::model::AstShape::Bind { .. } = &construction.ast {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::DeserializeRequiresOwn,
+                        id,
+                        "`deserialize` requires own mode; a bind construction has no generated type to deserialize into",
+                    )
+                    .with_span(construction.id.span),
+                );
+            }
+        }
         for edge in &construction.dominance {
             if edge.winner.value == edge.loser.value {
                 diags.push(
@@ -1427,6 +1439,17 @@ mod tests {
             });
         let err = validate(&group).expect_err("self dominance");
         assert!(codes(err).contains(&"EC040"));
+    }
+
+    #[test]
+    fn deserialize_on_bind_mode_is_rejected() {
+        // minimal_group's sole construction is Bind-mode; `deserialize` has
+        // no generated own-type to route through, so it is nonsensical
+        // there, not merely unimplemented.
+        let mut group = minimal_group();
+        group.constructions[0].deserialize = true;
+        let err = validate(&group).expect_err("bind mode has no type to deserialize into");
+        assert_eq!(codes(err), vec!["EC005"]);
     }
 
     #[test]

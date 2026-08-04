@@ -61,6 +61,7 @@ pub enum DiagCode {
     DuplicateOrdinal,
     UnknownElement,
     DuplicateName,
+    DeserializeRequiresOwn,
     UnknownFieldPath,
     PresenceOnNonOptional,
     WitnessFieldCollision,
@@ -88,6 +89,7 @@ impl DiagCode {
             Self::DuplicateOrdinal => "EC002",
             Self::UnknownElement => "EC003",
             Self::DuplicateName => "EC004",
+            Self::DeserializeRequiresOwn => "EC005",
             Self::UnknownFieldPath => "EC010",
             Self::PresenceOnNonOptional => "EC011",
             Self::WitnessFieldCollision => "EC012",
@@ -144,6 +146,7 @@ mod tests {
     #[test]
     fn new_codes_render_stable_strings() {
         assert_eq!(DiagCode::DuplicateName.as_str(), "EC004");
+        assert_eq!(DiagCode::DeserializeRequiresOwn.as_str(), "EC005");
         assert_eq!(DiagCode::PresenceOnNonOptional.as_str(), "EC011");
         assert_eq!(DiagCode::SurfaceKindMismatch.as_str(), "EC014");
         assert_eq!(DiagCode::PredicateKindMismatch.as_str(), "EC015");
