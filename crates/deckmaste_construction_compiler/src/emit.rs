@@ -16,6 +16,7 @@ use crate::model::GroupDeclaration;
 use crate::model::Predicate;
 use crate::validate::ValidatedGroup;
 
+#[must_use]
 pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
     let group = validated.group();
     let module = quote::format_ident!("__constructions_{}", group.name.value);
