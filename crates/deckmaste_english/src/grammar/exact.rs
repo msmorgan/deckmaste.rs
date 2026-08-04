@@ -624,4 +624,75 @@ mod tests {
             "law outputs changed under group-list reversal",
         );
     }
+
+    #[test]
+    fn handwritten_enumeration_drops_unlowerable_selections_and_keeps_the_best() {
+        let catalogs = Catalogs::default()
+            .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
+            .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"]);
+        let source = "copy that spell";
+        let self_reference = SelfReference::default();
+        let surface = lex(source);
+        let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+        let grammar = EnglishGrammar::with_opacity_mode(
+            source,
+            &catalogs,
+            Nonterminal::Clause,
+            OpacityMode::Exact,
+            self_reference,
+        );
+        let chart = parse_chart(&grammar, &tokens).expect("the chart parses");
+        assert!(!chart.roots.is_empty());
+
+        let mut best_syntax = None;
+        let (_, _) = chart
+            .forest
+            .best_root_matching(
+                chart.roots.iter().copied(),
+                super::super::construction::registry(),
+                |root, best| {
+                    best_syntax = lower(&grammar, &chart.forest, root, best);
+                    best_syntax.is_some()
+                },
+            )
+            .expect("acyclic forest")
+            .expect("a lowerable root exists");
+        let best_debug = format!("{:?}", best_syntax.expect("matching root lowered"));
+
+        let mut remaining = 10_000_usize;
+        let mut lowered = Vec::new();
+        let mut declined = 0_usize;
+        for &root in &chart.roots {
+            let selections = chart
+                .forest
+                .enumerate_selections(root, &mut remaining)
+                .expect("this small clause fits a 10k budget");
+            for selection in &selections {
+                match lower(&grammar, &chart.forest, root, selection) {
+                    Some(syntax) => {
+                        let rendered = format!("{syntax:?}");
+                        if !lowered.contains(&rendered) {
+                            lowered.push(rendered);
+                        }
+                    }
+                    None => declined += 1,
+                }
+            }
+        }
+        // Exactly one lowerable reading here: `contains` below is an
+        // identity check, not a selection among several candidates.
+        assert_eq!(
+            lowered.len(),
+            1,
+            "the handwritten grammar admits exactly one lowerable reading of this clause",
+        );
+        assert!(
+            lowered.contains(&best_debug),
+            "the production-selected reading is in the enumerated set",
+        );
+        assert!(
+            declined > 0,
+            "the unlowerable nominal reading appears among selections and is dropped",
+        );
+    }
 }
