@@ -41,6 +41,7 @@ pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diag
 
 fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
+    check_generated_names(group, diags);
     check_dominance_cycles(group, diags);
     check_paths(group, diags);
     check_kinds(group, diags);
@@ -174,6 +175,89 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                         format!("`{}` cannot dominate itself", edge.winner.value),
                     )
                     .with_span(edge.winner.span),
+                );
+            }
+        }
+    }
+}
+
+/// EC006 — every top-level identifier the emitter mints into the group's
+/// generated module must be unique: element structs (PascalCased via
+/// `crate::model::pascal_case`) and own-mode construction structs (the
+/// author's literal Rust identifier, used as-is — `emit.rs` never
+/// transforms it). This is a DIFFERENT namespace from EC004's checks above:
+/// EC004 catches two elements/forms/witnesses sharing a DECLARED name;
+/// EC006 catches two declared names that map to the same GENERATED
+/// identifier even though the declared names differ (e.g. two own-mode
+/// constructions both naming their type `SameNode`, or an element
+/// `foo_bar` colliding with `foo__bar` after PascalCasing) — collisions
+/// EC004 cannot see because it never looks at the generated identifier.
+///
+/// Processes elements before constructions, matching `emit_group`'s own
+/// emission order, so "first declared here" points at whichever one rustc
+/// would actually see first. `DeclarationViolation` is deliberately not a
+/// reserved name here: it now lives once in `runtime.rs`, not minted per
+/// group, so it is no longer part of this namespace.
+fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    let mut seen: std::collections::HashMap<String, (proc_macro2::Span, &'static str, String)> =
+        std::collections::HashMap::new();
+    for element in &group.elements {
+        let generated = crate::model::pascal_case(&element.name.value);
+        record_generated_name(
+            &mut seen,
+            diags,
+            generated,
+            element.name.span,
+            "element",
+            element.name.value.clone(),
+        );
+    }
+    for construction in &group.constructions {
+        if let crate::model::AstShape::Own { name, .. } = &construction.ast {
+            record_generated_name(
+                &mut seen,
+                diags,
+                name.value.clone(),
+                name.span,
+                "own-mode construction",
+                name.value.clone(),
+            );
+        }
+    }
+
+    fn record_generated_name(
+        seen: &mut std::collections::HashMap<String, (proc_macro2::Span, &'static str, String)>,
+        diags: &mut Vec<Diagnostic>,
+        generated: String,
+        span: proc_macro2::Span,
+        kind: &'static str,
+        declared: String,
+    ) {
+        match seen.entry(generated.clone()) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert((span, kind, declared));
+            }
+            std::collections::hash_map::Entry::Occupied(first) => {
+                let (first_span, first_kind, first_declared) = first.get().clone();
+                // Two elements sharing the exact same DECLARED name is
+                // already EC004 (duplicate element name) — EC006 exists for
+                // the collisions EC004 cannot see (different declared names
+                // mapping to the same generated identifier, or an own-mode
+                // construction's type name, which EC004 never inspects), so
+                // skip this one exact-overlap case to avoid reporting the
+                // same root cause twice.
+                if kind == "element" && first_kind == "element" && declared == first_declared {
+                    return;
+                }
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::GeneratedNameCollision,
+                        format!(
+                            "the generated identifier `{generated}` is used by both this {kind} and a previously declared {first_kind}"
+                        ),
+                    )
+                    .with_span(span)
+                    .with_note("first declared here", first_span),
                 );
             }
         }
@@ -1476,6 +1560,60 @@ mod tests {
             Some("noun_phrase_coordination")
         );
         assert_eq!(err[0].notes[0].message, "first declared here");
+    }
+
+    #[test]
+    fn two_own_mode_constructions_with_the_same_type_name_are_rejected() {
+        // Different construction ids (so EC001 doesn't also fire), same
+        // literal Rust type name — the emitter would produce two
+        // `pub struct MinimalNode` in one module (E0428).
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        let mut second = group.constructions[0].clone();
+        second.id = crate::model::Spanned::call_site("second_construction".to_owned());
+        group.constructions.push(second);
+        let err = validate(&group).expect_err("colliding own-mode type names must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC006"]);
+        assert!(
+            err[0].construction.is_none(),
+            "generated-name collisions are group-scoped"
+        );
+        assert_eq!(err[0].notes[0].message, "first declared here");
+    }
+
+    #[test]
+    fn element_pascal_case_collision_with_own_mode_type_is_rejected() {
+        // The element's PascalCased name equals another construction's
+        // literal Rust type name — the emitter would produce a struct and
+        // an unrelated element sharing one identifier.
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("minimal_node".to_owned()),
+            fields: vec![],
+        });
+        let err = validate(&group)
+            .expect_err("element/own-mode generated-name collision must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC006"]);
+    }
+
+    #[test]
+    fn two_elements_with_colliding_pascal_case_names_are_rejected() {
+        // `foo_bar` and `foo__bar` are different declared names but the
+        // same PascalCase transform (`pascal_case` skips empty split parts).
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("foo_bar".to_owned()),
+            fields: vec![],
+        });
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("foo__bar".to_owned()),
+            fields: vec![],
+        });
+        let err =
+            validate(&group).expect_err("colliding element PascalCase names must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC006"]);
     }
 
     #[test]

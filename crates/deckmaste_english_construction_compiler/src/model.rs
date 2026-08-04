@@ -220,6 +220,23 @@ pub enum SelectionPromise {
 
 pub const KNOWN_COMBINATORS: &[&str] = &["from_first", "fixed"];
 
+/// snake_case to PascalCase. Shared between `validate.rs`'s EC006
+/// generated-name collision check and `emit.rs`'s struct-name rendering —
+/// they must agree on exactly the same transform, or a collision the
+/// checker finds could differ from the one the emitter actually produces
+/// (or vice versa), so the algorithm lives once.
+pub fn pascal_case(snake: &str) -> String {
+    let mut out = String::new();
+    for part in snake.split('_') {
+        let mut chars = part.chars();
+        if let Some(first) = chars.next() {
+            out.extend(first.to_uppercase());
+            out.push_str(chars.as_str());
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -19,7 +19,6 @@ use crate::validate::ValidatedGroup;
 pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
     let group = validated.group();
     let module = quote::format_ident!("__constructicon_{}", group.name.value);
-    let violation = violation_struct();
     let serde_reached = serde_reached_elements(group);
     let elements: Vec<TokenStream> = group
         .elements
@@ -62,7 +61,6 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
                           clauses, which the author wrote and can read"
             )]
             use super::*;
-            #violation
             #(#elements)*
             #(#constructions)*
             #(#deserialize_impls)*
@@ -105,18 +103,6 @@ fn serde_reached_elements(group: &GroupDeclaration) -> Vec<String> {
             FieldKind::Sequence { element } => queue.push(element.value.as_str()),
             FieldKind::Optional { inner } => enqueue_sequences(inner, queue),
             FieldKind::Subtree { .. } | FieldKind::Scalar { .. } => {}
-        }
-    }
-}
-
-fn violation_struct() -> TokenStream {
-    quote! {
-        /// A `require` clause an ingress value failed. One error class for
-        /// every generated door: `try_new` and validating deserialization.
-        #[derive(Debug, PartialEq, Eq)]
-        pub struct DeclarationViolation {
-            pub construction: &'static str,
-            pub requirement: &'static str,
         }
     }
 }
@@ -205,7 +191,7 @@ fn own_construction(
             #(#field_decls)*
         }
         impl #ty {
-            pub fn try_new(#(#params),*) -> Result<Self, DeclarationViolation> {
+            pub fn try_new(#(#params),*) -> Result<Self, ::deckmaste_english_construction_compiler::runtime::DeclarationViolation> {
                 #(#checks)*
                 Ok(Self { #(#field_names),* })
             }
@@ -293,7 +279,10 @@ fn require_check(id: &str, fields: &[FieldBinding], predicate: &Predicate) -> To
     let requirement = render_predicate(predicate);
     quote! {
         if !(#condition) {
-            return Err(DeclarationViolation { construction: #id, requirement: #requirement });
+            return Err(::deckmaste_english_construction_compiler::runtime::DeclarationViolation {
+                construction: #id,
+                requirement: #requirement,
+            });
         }
     }
 }
@@ -404,15 +393,7 @@ fn parse_type(name: &str) -> TokenStream {
 }
 
 fn pascal_ident(snake: &str) -> proc_macro2::Ident {
-    let mut out = String::new();
-    for part in snake.split('_') {
-        let mut chars = part.chars();
-        if let Some(first) = chars.next() {
-            out.extend(first.to_uppercase());
-            out.push_str(chars.as_str());
-        }
-    }
-    quote::format_ident!("{}", out)
+    quote::format_ident!("{}", crate::model::pascal_case(snake))
 }
 
 fn declaration_ident(group: &GroupDeclaration) -> proc_macro2::Ident {
@@ -526,7 +507,10 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
 
 fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
     let module = quote::format_ident!("__constructicon_{}", group.name.value);
-    let mut items: Vec<proc_macro2::Ident> = vec![quote::format_ident!("DeclarationViolation")];
+    // `DeclarationViolation` is not re-exported: it lives once in
+    // `runtime.rs` (not minted per group), so there is no per-module item to
+    // export — every generated door already names it by absolute path.
+    let mut items: Vec<proc_macro2::Ident> = Vec::new();
     for element in &group.elements {
         items.push(pascal_ident(&element.name.value));
     }
@@ -593,8 +577,8 @@ mod tests {
         let validated = validate(&group).expect("fixture validates");
         let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
         // minimal_group's sole construction is Bind-mode; the only emitted
-        // items should be the module scaffold, DeclarationViolation, and its
-        // reexport — no construction-specific struct, try_new, or accessor.
+        // items should be the module scaffold and the declaration-data
+        // static — no construction-specific struct, try_new, or accessor.
         assert!(
             !rendered.contains("fn try_new("),
             "bind mode must not emit a constructor: {rendered}"

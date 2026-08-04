@@ -16,13 +16,6 @@ mod __constructicon_fixture_coordination {
                           clauses, which the author wrote and can read"
     )]
     use super::*;
-    /// A `require` clause an ingress value failed. One error class for
-    /// every generated door: `try_new` and validating deserialization.
-    #[derive(Debug, PartialEq, Eq)]
-    pub struct DeclarationViolation {
-        pub construction: &'static str,
-        pub requirement: &'static str,
-    }
     #[derive(Debug, PartialEq, Eq)]
     pub struct FixtureMember {
         pub comma: Option<Comma>,
@@ -37,18 +30,23 @@ mod __constructicon_fixture_coordination {
         pub fn try_new(
             members: Vec<FixtureMember>,
             conjunction: Conjunction,
-        ) -> Result<Self, DeclarationViolation> {
+        ) -> Result<Self, ::deckmaste_english_construction_compiler::runtime::DeclarationViolation>
+        {
             if !(members.len() >= 2) {
-                return Err(DeclarationViolation {
-                    construction: "fixture_pair",
-                    requirement: "members.len() >= 2",
-                });
+                return Err(
+                    ::deckmaste_english_construction_compiler::runtime::DeclarationViolation {
+                        construction: "fixture_pair",
+                        requirement: "members.len() >= 2",
+                    },
+                );
             }
             if !(matches!(conjunction, Conjunction::And | Conjunction::Or)) {
-                return Err(DeclarationViolation {
-                    construction: "fixture_pair",
-                    requirement: "conjunction in [And, Or]",
-                });
+                return Err(
+                    ::deckmaste_english_construction_compiler::runtime::DeclarationViolation {
+                        construction: "fixture_pair",
+                        requirement: "conjunction in [And, Or]",
+                    },
+                );
             }
             Ok(Self {
                 members,
@@ -71,12 +69,15 @@ mod __constructicon_fixture_coordination {
         pub fn try_new(
             phrase: FixturePhrase,
             alt: Option<FixturePhrase>,
-        ) -> Result<Self, DeclarationViolation> {
+        ) -> Result<Self, ::deckmaste_english_construction_compiler::runtime::DeclarationViolation>
+        {
             if !(alt.is_none()) {
-                return Err(DeclarationViolation {
-                    construction: "fixture_solo",
-                    requirement: "alt.is_none()",
-                });
+                return Err(
+                    ::deckmaste_english_construction_compiler::runtime::DeclarationViolation {
+                        construction: "fixture_solo",
+                        requirement: "alt.is_none()",
+                    },
+                );
             }
             Ok(Self { phrase, alt })
         }
@@ -179,7 +180,6 @@ mod __constructicon_fixture_coordination {
         ],
     };
 }
-pub use __constructicon_fixture_coordination::DeclarationViolation;
 pub use __constructicon_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;
 pub use __constructicon_fixture_coordination::FixtureMember;
 pub use __constructicon_fixture_coordination::FixturePairNode;
