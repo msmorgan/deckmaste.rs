@@ -48,6 +48,7 @@ use super::PronounInstance;
 use super::Quantity;
 use super::RelativeClause;
 use super::RelativeMarker;
+use super::RuleImpl;
 use super::RuleTag;
 use super::Sentence;
 use super::SetExceptionMarker;
@@ -153,7 +154,12 @@ pub(super) fn lower(
         ForestSymbol::Nonterminal(_) => {}
     }
     let rule = alternative.rule?;
-    let tag = *grammar.tags.get(rule.index())?;
+    let tag = match grammar.impls.get(rule.index())? {
+        RuleImpl::Handwritten(tag) => *tag,
+        // Milestone-3 stub: generated subtrees lower to Ignored; real AST
+        // building lands with the pilot declarations.
+        RuleImpl::Generated(_) => return Some(Lowered::Ignored),
+    };
     let [intermediate] = alternative.children.as_slice() else {
         return None;
     };

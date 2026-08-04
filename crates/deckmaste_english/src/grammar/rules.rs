@@ -17,6 +17,30 @@ use super::construction::construction_id;
 use crate::construction::ConstructionId;
 use crate::construction::ProductionId;
 
+#[allow(
+    dead_code,
+    reason = "no assembly constructs a Generated rule yet; the variant lands live with the M4 pilot declarations"
+)]
+#[derive(Debug, Clone, Copy)]
+pub(super) enum RuleImpl {
+    Handwritten(RuleTag),
+    Generated(GeneratedRuleRef),
+}
+
+/// One generated production's home: the group's declaration data plus the
+/// construction/form indices inside it. Indices, not references, so the type
+/// stays `Copy` without self-referential borrows.
+#[allow(
+    dead_code,
+    reason = "the fields feed the M4/M5 hook implementations; Milestone-3 stubs route on the Generated variant alone"
+)]
+#[derive(Debug, Clone, Copy)]
+pub(super) struct GeneratedRuleRef {
+    pub(super) group: &'static deckmaste_construction_compiler::runtime::GroupData,
+    pub(super) construction: usize,
+    pub(super) form: usize,
+}
+
 #[derive(Default)]
 pub(super) struct RuleBuilder {
     registrations: Vec<RuleRegistration>,
@@ -24,13 +48,13 @@ pub(super) struct RuleBuilder {
 }
 
 struct RuleRegistration {
-    tag: RuleTag,
+    rule_impl: RuleImpl,
     rule: Rule<Nonterminal, EnglishLexicalSlot>,
 }
 
 pub(super) struct RuleBook {
     pub(super) rules: Vec<Rule<Nonterminal, EnglishLexicalSlot>>,
-    pub(super) tags: Vec<RuleTag>,
+    pub(super) impls: Vec<RuleImpl>,
     pub(super) rules_by_lhs: HashMap<Nonterminal, Vec<RuleId>>,
 }
 
@@ -69,7 +93,7 @@ impl RuleBuilder {
             .checked_add(1)
             .expect("a construction family cannot exceed u16 productions");
         self.registrations.push(RuleRegistration {
-            tag,
+            rule_impl: RuleImpl::Handwritten(tag),
             rule: Rule {
                 production,
                 lhs,
@@ -79,10 +103,35 @@ impl RuleBuilder {
         });
     }
 
+    /// Generated productions carry EXPLICIT ordinals from their declaration
+    /// (`form … @ N`); nothing here may consult `next_ordinals`, whose
+    /// incremental numbering generated families must never depend on.
+    #[allow(
+        dead_code,
+        reason = "no assembly builder calls this yet; wired up by the M4 pilot declarations"
+    )]
+    pub(super) fn add_generated(
+        &mut self,
+        rule_impl: RuleImpl,
+        production: ProductionId,
+        lhs: Nonterminal,
+        rhs: impl IntoIterator<Item = Expected<Nonterminal, EnglishLexicalSlot>>,
+    ) {
+        self.registrations.push(RuleRegistration {
+            rule_impl,
+            rule: Rule {
+                production,
+                lhs,
+                rhs: rhs.into_iter().collect(),
+                local_cost: ParseCost::default(),
+            },
+        });
+    }
+
     pub(super) fn finish(mut self, order: RegistrationOrder) -> RuleBook {
         reorder_registrations(&mut self.registrations, order);
         let mut rules = Vec::with_capacity(self.registrations.len());
-        let mut tags = Vec::with_capacity(self.registrations.len());
+        let mut impls = Vec::with_capacity(self.registrations.len());
         let mut rules_by_lhs = HashMap::<Nonterminal, Vec<RuleId>>::new();
         for registration in self.registrations {
             let id = RuleId::new(rules.len());
@@ -91,11 +140,11 @@ impl RuleBuilder {
                 .or_default()
                 .push(id);
             rules.push(registration.rule);
-            tags.push(registration.tag);
+            impls.push(registration.rule_impl);
         }
         RuleBook {
             rules,
-            tags,
+            impls,
             rules_by_lhs,
         }
     }

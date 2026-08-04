@@ -571,7 +571,12 @@ fn selected_tag_and_children(
     let forest_node = forest.node(node);
     let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
     let rule = alternative.rule?;
-    let tag = *grammar.tags.get(rule.index())?;
+    let tag = match grammar.impls.get(rule.index())? {
+        super::rules::RuleImpl::Handwritten(tag) => *tag,
+        // Handwritten-only consumers (coordination-span collection); a
+        // generated node simply isn't one of theirs.
+        super::rules::RuleImpl::Generated(_) => return None,
+    };
     let [intermediate] = alternative.children.as_slice() else {
         return None;
     };

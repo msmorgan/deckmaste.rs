@@ -33,6 +33,7 @@ use reduction::propagate;
 use reduction::reduce;
 use rules::RegistrationOrder;
 use rules::RuleBuilder;
+use rules::RuleImpl;
 use scan::accepts_keyword_grant_prefix;
 use scan::accepts_possessive_modifier_prefix;
 use scan::accepts_set_exception_prefix;
@@ -1868,7 +1869,7 @@ pub(crate) struct EnglishGrammar<'source, 'catalogs> {
     catalogs: &'catalogs Catalogs,
     start: Nonterminal,
     rules: Vec<Rule<Nonterminal, EnglishLexicalSlot>>,
-    tags: Vec<RuleTag>,
+    impls: Vec<RuleImpl>,
     rules_by_lhs: HashMap<Nonterminal, Vec<RuleId>>,
     opacity_mode: OpacityMode,
     self_reference: SelfReference,
@@ -1954,7 +1955,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             catalogs,
             start,
             rules: rule_book.rules,
-            tags: rule_book.tags,
+            impls: rule_book.impls,
             rules_by_lhs: rule_book.rules_by_lhs,
             opacity_mode,
             self_reference,
@@ -2944,7 +2945,16 @@ impl Grammar for EnglishGrammar<'_, '_> {
         rule: RuleId,
         children: &[Child<'_, Self>],
     ) -> Option<Reduction<Self::Features>> {
-        reduce(self.tags.get(rule.index()).copied()?, children)
+        match self.impls.get(rule.index()).copied()? {
+            RuleImpl::Handwritten(tag) => reduce(tag, children),
+            // Milestone-3 stub: generated reductions carry no features yet.
+            // The chart packs generated alternatives on Features::None;
+            // real feature combinators land with the pilot declarations.
+            RuleImpl::Generated(_) => Some(Reduction {
+                features: Features::None,
+                local_cost: ParseCost::default(),
+            }),
+        }
     }
 
     fn intermediate_cost(
@@ -2955,7 +2965,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
         latest_child_start: usize,
         end: usize,
     ) -> ParseCost {
-        let Some(tag) = self.tags.get(rule.index()).copied() else {
+        let Some(RuleImpl::Handwritten(tag)) = self.impls.get(rule.index()).copied() else {
             return ParseCost::default();
         };
         let attachment_distance = u32::try_from(latest_child_start.saturating_sub(rule_start))
@@ -3006,12 +3016,16 @@ impl Grammar for EnglishGrammar<'_, '_> {
         completed_children: usize,
         latest_child: &Self::Features,
     ) -> bool {
-        self.tags.get(rule.index()).copied().is_some_and(|tag| {
-            accepts_possessive_modifier_prefix(tag, completed_children, latest_child)
-                && accepts_keyword_grant_prefix(tag, completed_children, latest_child)
-                && accepts_set_exception_prefix(tag, completed_children, latest_child)
-                && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
-        })
+        match self.impls.get(rule.index()).copied() {
+            Some(RuleImpl::Handwritten(tag)) => {
+                accepts_possessive_modifier_prefix(tag, completed_children, latest_child)
+                    && accepts_keyword_grant_prefix(tag, completed_children, latest_child)
+                    && accepts_set_exception_prefix(tag, completed_children, latest_child)
+                    && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
+            }
+            Some(RuleImpl::Generated(_)) => true,
+            None => false,
+        }
     }
 
     fn state_limit(&self) -> Option<usize> {

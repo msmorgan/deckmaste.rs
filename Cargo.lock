@@ -516,6 +516,8 @@ dependencies = [
 name = "deckmaste_english"
 version = "0.1.0"
 dependencies = [
+ "deckmaste_construction_compiler",
+ "deckmaste_constructions_macro",
  "deckmaste_features",
  "hashbrown 0.15.5",
  "proptest",
