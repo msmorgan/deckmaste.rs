@@ -1,6 +1,7 @@
-//! Construction-group declarations. Real families land here with the pilot;
-//! until then the only group is the test-assembly adapter probe.
+//! Construction-group declarations and test-only compiler scaffolding.
 
+#[cfg(test)]
+pub(crate) mod coordination;
 #[cfg(test)]
 pub(crate) mod law;
 #[cfg(test)]

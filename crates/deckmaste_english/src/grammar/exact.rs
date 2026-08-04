@@ -244,11 +244,27 @@ fn parse_as_with_registration_order(
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+    use deckmaste_construction_compiler::runtime::WitnessClassData;
+
     use super::super::generated::GeneratedActivation;
     use super::*;
     use crate::catalog::CatalogKind;
+    use crate::constructions::coordination;
     use crate::constructions::law;
     use crate::constructions::probe;
+    use crate::features::Comma;
+    use crate::features::Conjunction;
+    use crate::syntax::Determiner;
+    use crate::syntax::NominalComplement;
+    use crate::syntax::NominalPhrase;
+    use crate::syntax::NominalPhraseCoordination;
+    use crate::syntax::NounPhrase;
+    use crate::syntax::NounPhraseCoordination;
+    use crate::syntax::Quantity;
+    use crate::word::Noun;
+    use crate::word::NounInstance;
+    use crate::word::Vocab;
 
     fn probe_category(name: &str) -> Nonterminal {
         let cats = super::super::generated::internal_categories(probe::GROUPS);
@@ -282,6 +298,277 @@ mod tests {
                     "Sorcery",
                 ],
             )
+    }
+
+    fn nominal(head: Vocab) -> NominalPhrase {
+        NominalPhrase {
+            determiner: None,
+            modifiers: Vec::new(),
+            head: NounInstance::Singular(Noun::Word(head)),
+            complements: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn coordination_bind_corpus_provenance_is_complete() {
+        assert_eq!(coordination::GROUPS.len(), 1);
+        let group = coordination::GROUPS[0];
+        assert_eq!(group.name, "noun_coordination");
+        assert_eq!(
+            group.elements,
+            [
+                "noun_phrase_member",
+                "nominal_phrase_member",
+                "nominal_complement"
+            ],
+        );
+        assert_eq!(
+            group
+                .element_data
+                .iter()
+                .map(|element| element.name)
+                .collect::<Vec<_>>(),
+            [
+                "noun_phrase_member",
+                "nominal_phrase_member",
+                "nominal_complement"
+            ],
+        );
+        assert_eq!(
+            group
+                .constructions
+                .iter()
+                .map(|construction| (construction.id, construction.bind_path))
+                .collect::<Vec<_>>(),
+            [
+                ("noun_phrase_coordination", Some("CoordinatedNounPhrase")),
+                (
+                    "shared_determiner_nominal",
+                    Some("CoordinatedNominalPhrase")
+                ),
+            ],
+        );
+
+        let noun = group
+            .constructions
+            .iter()
+            .find(|construction| construction.id == "noun_phrase_coordination")
+            .expect("noun coordination declaration");
+        assert_eq!(
+            noun.fields
+                .iter()
+                .map(|field| field.name)
+                .collect::<Vec<_>>(),
+            ["first", "rest"],
+        );
+        assert_eq!(
+            noun.fields
+                .iter()
+                .find(|field| field.name == "rest")
+                .expect("noun rest sequence")
+                .kind,
+            FieldKindData::Sequence {
+                element: "noun_phrase_member"
+            },
+        );
+        assert_eq!(noun.witnesses.len(), 1);
+        assert_eq!(noun.witnesses[0].name, "oxford");
+        assert_eq!(
+            noun.witnesses[0].class,
+            WitnessClassData::Stored {
+                path: "rest.last.comma"
+            },
+        );
+        assert_eq!(noun.forms.len(), 1);
+        assert_eq!(noun.forms[0].name, "flat");
+        assert_eq!(noun.forms[0].ordinal, 0);
+        assert!(!noun.forms[0].guarded);
+        assert_eq!(
+            noun.forms[0].atoms,
+            [AtomData::Hole("first"), AtomData::Hole("rest")],
+        );
+
+        let shared = group
+            .constructions
+            .iter()
+            .find(|construction| construction.id == "shared_determiner_nominal")
+            .expect("shared-determiner declaration");
+        assert_eq!(
+            shared
+                .fields
+                .iter()
+                .map(|field| field.name)
+                .collect::<Vec<_>>(),
+            ["determiner", "first", "rest", "complements"],
+        );
+        assert_eq!(
+            shared
+                .fields
+                .iter()
+                .find(|field| field.name == "rest")
+                .expect("nominal rest sequence")
+                .kind,
+            FieldKindData::Sequence {
+                element: "nominal_phrase_member"
+            },
+        );
+        assert_eq!(
+            shared
+                .fields
+                .iter()
+                .find(|field| field.name == "complements")
+                .expect("nominal complement sequence")
+                .kind,
+            FieldKindData::Sequence {
+                element: "nominal_complement"
+            },
+        );
+        assert_eq!(shared.witnesses.len(), 1);
+        assert_eq!(shared.witnesses[0].name, "oxford");
+        assert_eq!(
+            shared.witnesses[0].class,
+            WitnessClassData::Stored {
+                path: "rest.last.comma"
+            },
+        );
+        assert_eq!(shared.forms.len(), 1);
+        assert_eq!(shared.forms[0].name, "shared");
+        assert_eq!(shared.forms[0].ordinal, 0);
+        assert!(!shared.forms[0].guarded);
+        assert_eq!(
+            shared.forms[0].atoms,
+            [
+                AtomData::Hole("determiner"),
+                AtomData::Hole("first"),
+                AtomData::Hole("rest"),
+                AtomData::Hole("complements"),
+            ],
+        );
+
+        let noun_member = group
+            .element_data
+            .iter()
+            .find(|element| element.name == "noun_phrase_member")
+            .expect("noun member mapping");
+        assert_eq!(noun_member.bind_path, Some("NounPhraseCoordination"));
+        assert_eq!(
+            noun_member
+                .fields
+                .iter()
+                .map(|field| field.name)
+                .collect::<Vec<_>>(),
+            ["comma", "conjunction", "phrase"],
+        );
+        let nominal_member = group
+            .element_data
+            .iter()
+            .find(|element| element.name == "nominal_phrase_member")
+            .expect("nominal member mapping");
+        assert_eq!(nominal_member.bind_path, Some("NominalPhraseCoordination"));
+        assert_eq!(
+            nominal_member
+                .fields
+                .iter()
+                .map(|field| field.name)
+                .collect::<Vec<_>>(),
+            ["comma", "conjunction", "phrase"],
+        );
+        let nominal_complement = group
+            .element_data
+            .iter()
+            .find(|element| element.name == "nominal_complement")
+            .expect("nominal complement mapping");
+        assert_eq!(nominal_complement.bind_path, Some("NominalComplement"));
+        assert!(nominal_complement.fields.is_empty());
+    }
+
+    #[test]
+    fn noun_coordination_builder_admits_binary_and_refuses_binary_oxford() {
+        let built = coordination::build_noun_phrase_coordination(
+            Box::new(NounPhrase::Quantity(Quantity::Both)),
+            vec![NounPhraseCoordination {
+                comma: Comma::Absent,
+                conjunction: Some(Conjunction::And),
+                phrase: NounPhrase::Quantity(Quantity::X),
+            }],
+        )
+        .expect("a binary noun coordination without an Oxford comma is admitted");
+        let (first, rest) = coordination::parts_noun_phrase_coordination(&built);
+        assert_eq!(first.as_ref(), &NounPhrase::Quantity(Quantity::Both));
+        assert_eq!(rest.len(), 1);
+        assert_eq!(rest[0].comma, Comma::Absent);
+        assert_eq!(rest[0].conjunction, Some(Conjunction::And));
+        assert_eq!(rest[0].phrase, NounPhrase::Quantity(Quantity::X));
+
+        let violation = coordination::build_noun_phrase_coordination(
+            Box::new(NounPhrase::Quantity(Quantity::Both)),
+            vec![NounPhraseCoordination {
+                comma: Comma::Present,
+                conjunction: Some(Conjunction::And),
+                phrase: NounPhrase::Quantity(Quantity::X),
+            }],
+        )
+        .expect_err("a binary noun coordination cannot carry an Oxford comma");
+        assert_eq!(violation.construction, "noun_phrase_coordination");
+        assert_eq!(
+            violation.requirement,
+            "any(rest.len() >= 2, rest.last.comma in [Absent])",
+        );
+    }
+
+    #[test]
+    fn shared_determiner_builder_enforces_oxford_and_empty_complements() {
+        let built = coordination::build_shared_determiner_nominal(
+            Determiner::Any,
+            Box::new(nominal(Vocab::Card)),
+            vec![NominalPhraseCoordination {
+                comma: Comma::Absent,
+                conjunction: Some(Conjunction::Or),
+                phrase: nominal(Vocab::Spell),
+            }],
+            Vec::new(),
+        )
+        .expect("a binary shared-determiner nominal with no complement is admitted");
+        let (determiner, first, rest, complements) =
+            coordination::parts_shared_determiner_nominal(&built);
+        assert_eq!(determiner, &Determiner::Any);
+        assert_eq!(first.as_ref(), &nominal(Vocab::Card));
+        assert_eq!(rest.len(), 1);
+        assert_eq!(rest[0].comma, Comma::Absent);
+        assert_eq!(rest[0].conjunction, Some(Conjunction::Or));
+        assert_eq!(rest[0].phrase, nominal(Vocab::Spell));
+        assert!(complements.is_empty());
+
+        let oxford = coordination::build_shared_determiner_nominal(
+            Determiner::Any,
+            Box::new(nominal(Vocab::Card)),
+            vec![NominalPhraseCoordination {
+                comma: Comma::Present,
+                conjunction: Some(Conjunction::Or),
+                phrase: nominal(Vocab::Spell),
+            }],
+            Vec::new(),
+        )
+        .expect_err("a binary shared-determiner nominal cannot carry an Oxford comma");
+        assert_eq!(oxford.construction, "shared_determiner_nominal");
+        assert_eq!(
+            oxford.requirement,
+            "any(rest.len() >= 2, rest.last.comma in [Absent])",
+        );
+
+        let complement = coordination::build_shared_determiner_nominal(
+            Determiner::Any,
+            Box::new(nominal(Vocab::Card)),
+            vec![NominalPhraseCoordination {
+                comma: Comma::Absent,
+                conjunction: Some(Conjunction::Or),
+                phrase: nominal(Vocab::Spell),
+            }],
+            vec![NominalComplement::Quantity(Quantity::Both)],
+        )
+        .expect_err("the opaque nominal-complement sequence is currently proved empty");
+        assert_eq!(complement.construction, "shared_determiner_nominal");
+        assert_eq!(complement.requirement, "complements.len() == 0");
     }
 
     #[test]
@@ -333,7 +620,6 @@ mod tests {
 
     #[test]
     fn linearize_joins_tokens_with_no_space_before_comma() {
-        use crate::features::Conjunction;
         let padded = GeneratedParse {
             construction: "probe_word",
             ordinal: 7,
