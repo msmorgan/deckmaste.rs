@@ -170,7 +170,7 @@ fn resolve_path<'g>(
     let mut sequence_in_hand = false;
     let mut segments = path.segments.iter().peekable();
     while let Some(segment) = segments.next() {
-        if segment == "last" {
+        if segment.value == "last" {
             // `last` re-addresses the sequence element just entered, and
             // consumes that context: there is no second element to take.
             if !sequence_in_hand {
@@ -179,7 +179,7 @@ fn resolve_path<'g>(
             sequence_in_hand = false;
             continue;
         }
-        let binding = fields.iter().find(|b| &b.field.value == segment)?;
+        let binding = fields.iter().find(|b| &b.field.value == &segment.value)?;
         resolved = Some(&binding.kind);
         sequence_in_hand = matches!(binding.kind, FieldKind::Sequence { .. });
         if segments.peek().is_some() {
@@ -239,7 +239,7 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                             format!(
                                 "form `{}` references unknown path `{}`",
                                 form.name.value,
-                                path.segments.join(".")
+                                path.dotted()
                             ),
                         )
                         .with_span(path.span),
@@ -270,7 +270,7 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                             format!(
                                 "stored witness `{}` names unknown path `{}`",
                                 witness.name.value,
-                                path.segments.join(".")
+                                path.dotted()
                             ),
                         )
                         .with_span(path.span),
@@ -305,7 +305,7 @@ fn check_forms(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
                     SurfaceAtom::Literal(_) => continue,
                 };
-                let dotted = path.segments.join(".");
+                let dotted = path.dotted();
                 if !consumed.insert(dotted.clone()) {
                     diags.push(
                         Diagnostic::new(
@@ -323,7 +323,7 @@ fn check_forms(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     .ast
                     .fields()
                     .iter()
-                    .find(|b| Some(&b.field.value) == path.segments.first())
+                    .find(|b| Some(&b.field.value) == path.segments.first().map(|s| &s.value))
                 {
                     // Unresolvable paths already got EC010; skip, no sentinel.
                     // Sound only because `checks()` always runs check_paths in
@@ -413,25 +413,25 @@ fn abstract_predicate(predicate: &Predicate) -> Abstraction {
         match predicate {
             Predicate::In { path, allowed } => {
                 into.intersect(
-                    (path.segments.join("."), Facet::Value),
+                    (path.dotted(), Facet::Value),
                     allowed.iter().cloned().collect(),
                 );
             }
             Predicate::IsSome { path } => {
                 into.intersect(
-                    (path.segments.join("."), Facet::Presence),
+                    (path.dotted(), Facet::Presence),
                     std::iter::once("some".to_owned()).collect(),
                 );
             }
             Predicate::IsNone { path } => {
                 into.intersect(
-                    (path.segments.join("."), Facet::Presence),
+                    (path.dotted(), Facet::Presence),
                     std::iter::once("none".to_owned()).collect(),
                 );
             }
             Predicate::LenIs { path, len } => {
                 into.intersect(
-                    (path.segments.join("."), Facet::Len),
+                    (path.dotted(), Facet::Len),
                     std::iter::once(len.to_string()).collect(),
                 );
             }
@@ -744,6 +744,7 @@ pub(crate) mod fixtures {
                 }],
                 dominance: vec![],
                 selection: SelectionPromise::Packed,
+                deserialize: false,
             }],
         }
     }

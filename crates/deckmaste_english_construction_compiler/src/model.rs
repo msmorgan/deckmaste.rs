@@ -30,14 +30,14 @@ impl<T: PartialEq> PartialEq for Spanned<T> {
 
 impl<T: Eq> Eq for Spanned<T> {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroupDeclaration {
     pub name: Spanned<String>,
     pub constructions: Vec<ConstructionDeclaration>,
     pub elements: Vec<ElementDeclaration>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstructionDeclaration {
     pub id: Spanned<String>,
     pub category: Spanned<String>,
@@ -48,9 +48,10 @@ pub struct ConstructionDeclaration {
     pub forms: Vec<FormDeclaration>,
     pub dominance: Vec<DominanceEdge>,
     pub selection: SelectionPromise,
+    pub deserialize: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AstShape {
     Bind {
         path: Spanned<String>,
@@ -70,7 +71,7 @@ impl AstShape {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldBinding {
     pub field: Spanned<String>,
     pub kind: FieldKind,
@@ -88,9 +89,14 @@ pub enum FieldKind {
     Sequence {
         element: Spanned<String>,
     },
+    /// `opt <kind>`. Wraps exactly one non-Optional kind — the parser
+    /// rejects `opt opt`, so nesting is unrepresentable in parsed input.
+    Optional {
+        inner: Box<FieldKind>,
+    },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementDeclaration {
     pub name: Spanned<String>,
     pub fields: Vec<FieldBinding>,
@@ -98,20 +104,40 @@ pub struct ElementDeclaration {
 
 #[derive(Debug, Clone)]
 pub struct FieldPath {
-    pub segments: Vec<String>,
+    pub segments: Vec<Spanned<String>>,
     pub span: proc_macro2::Span,
 }
 
 impl FieldPath {
     pub fn call_site(dotted: &str) -> Self {
         Self {
-            segments: dotted.split('.').map(str::to_owned).collect(),
+            segments: dotted
+                .split('.')
+                .map(|s| Spanned::call_site(s.to_owned()))
+                .collect(),
             span: proc_macro2::Span::call_site(),
         }
     }
+
+    /// The path as the author dotted it — the only rendering diagnostics
+    /// and abstraction keys may use.
+    pub fn dotted(&self) -> String {
+        let names: Vec<&str> = self.segments.iter().map(|s| s.value.as_str()).collect();
+        names.join(".")
+    }
 }
 
-#[derive(Debug, Clone)]
+// Span is provenance, not data (same contract as `Spanned<T>`), and
+// `proc_macro2::Span` has no `PartialEq` — so equality is segments-only.
+impl PartialEq for FieldPath {
+    fn eq(&self, other: &Self) -> bool {
+        self.segments == other.segments
+    }
+}
+
+impl Eq for FieldPath {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Constraint {
     Require(Spanned<Predicate>),
     DeriveFeature {
@@ -121,7 +147,7 @@ pub enum Constraint {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Predicate {
     LenAtLeast {
         path: FieldPath,
@@ -145,13 +171,13 @@ pub enum Predicate {
     Any(Vec<Predicate>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WitnessDeclaration {
     pub name: Spanned<String>,
     pub class: WitnessClass,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WitnessClass {
     Stored {
         path: FieldPath,
@@ -165,7 +191,7 @@ pub enum WitnessClass {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormDeclaration {
     pub name: Spanned<String>,
     pub ordinal: Spanned<u16>,
@@ -173,14 +199,14 @@ pub struct FormDeclaration {
     pub guard: Option<Spanned<Predicate>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SurfaceAtom {
     Literal(Spanned<String>),
     Hole(FieldPath),
     Lexeme(FieldPath),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DominanceEdge {
     pub winner: Spanned<String>,
     pub loser: Spanned<String>,
@@ -193,3 +219,19 @@ pub enum SelectionPromise {
 }
 
 pub const KNOWN_COMBINATORS: &[&str] = &["from_first", "fixed"];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn field_path_equality_ignores_spans() {
+        let a = FieldPath::call_site("members.last.comma");
+        let mut b = FieldPath::call_site("members.last.comma");
+        b.span = proc_macro2::Span::mixed_site();
+        b.segments[0].span = proc_macro2::Span::mixed_site();
+        assert_eq!(a, b);
+        assert_ne!(a, FieldPath::call_site("members.comma"));
+        assert_eq!(a.dotted(), "members.last.comma");
+    }
+}
