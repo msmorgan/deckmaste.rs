@@ -1,5 +1,0 @@
-error[E0616]: field `members` of struct `SpikeCoordination` is private
- --> tests/compile_fail/mutate_private_field.rs:7:12
-  |
-7 |     sealed.members = 0;
-  |            ^^^^^^^ private field

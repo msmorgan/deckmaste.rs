@@ -1,0 +1,5 @@
+error[E0616]: field `alt` of struct `FixtureSoloNode` is private
+  --> tests/compile_fail/mutate_sealed.rs:42:10
+   |
+42 |     node.alt = Some(FixturePhrase);
+   |          ^^^ private field

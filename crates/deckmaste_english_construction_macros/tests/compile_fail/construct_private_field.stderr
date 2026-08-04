@@ -1,5 +1,0 @@
-error[E0451]: field `members` of struct `SpikeCoordination` is private
- --> tests/compile_fail/construct_private_field.rs:6:33
-  |
-6 |     let _ = SpikeCoordination { members: 0 };
-  |                                 ^^^^^^^ private field

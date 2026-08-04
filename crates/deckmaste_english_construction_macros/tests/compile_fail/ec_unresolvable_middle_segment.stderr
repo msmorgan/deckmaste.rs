@@ -1,0 +1,19 @@
+error: EC013: stored witness `oxford` names `members.ghost.comma`: `ghost` does not resolve (construction `fixture_pair`)
+  --> tests/compile_fail/ec_unresolvable_middle_segment.rs:21:41
+   |
+21 |         witness oxford = stored members.ghost.comma;
+   |                                         ^^^^^
+
+warning: unused import: `deckmaste_english_features::Comma`
+ --> tests/compile_fail/ec_unresolvable_middle_segment.rs:3:5
+  |
+3 | use deckmaste_english_features::Comma;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `deckmaste_english_features::Conjunction`
+ --> tests/compile_fail/ec_unresolvable_middle_segment.rs:4:5
+  |
+4 | use deckmaste_english_features::Conjunction;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,5 +1,0 @@
-error: expected identifier
- --> tests/compile_fail/bad_macro_input.rs:3:15
-  |
-3 | spike_sealed!(123);
-  |               ^^^
