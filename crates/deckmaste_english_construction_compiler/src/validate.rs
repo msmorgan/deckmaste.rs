@@ -11,6 +11,7 @@ use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::FieldPath;
 use crate::model::GroupDeclaration;
+use crate::model::KNOWN_COMBINATORS;
 use crate::model::Predicate;
 use crate::model::SurfaceAtom;
 use crate::model::WitnessClass;
@@ -44,6 +45,7 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_paths(group, diags);
     check_forms(group, diags);
     check_surface_domain(group, diags);
+    check_constraints(group, diags);
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
@@ -520,6 +522,46 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     }
 }
 
+fn check_constraints(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        for constraint in &construction.constraints {
+            match constraint {
+                Constraint::Require(predicate) => {
+                    let abstraction = abstract_predicate(&predicate.value);
+                    for (path, set) in &abstraction.allowed {
+                        if matches!(set, Some(values) if values.is_empty()) {
+                            diags.push(
+                                Diagnostic::new(
+                                    DiagCode::ContradictoryConstraints,
+                                    id,
+                                    format!("requirements on `{path}` admit no value at all"),
+                                )
+                                .with_span(predicate.span),
+                            );
+                        }
+                    }
+                }
+                Constraint::DeriveFeature { combinator, .. } => {
+                    if !KNOWN_COMBINATORS.contains(&combinator.value.as_str()) {
+                        diags.push(
+                            Diagnostic::new(
+                                DiagCode::UnknownCombinator,
+                                id,
+                                format!(
+                                    "unknown feature combinator `{}`; a missing combinator is a compiler addition, never a closure",
+                                    combinator.value
+                                ),
+                            )
+                            .with_span(combinator.span),
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod fixtures {
     use crate::model::AstShape;
@@ -886,6 +928,75 @@ mod tests {
             ));
         let err = validate(&group).expect_err("Plus is admitted but no form accepts it");
         assert!(codes(err).contains(&"EC023"));
+    }
+
+    #[test]
+    fn contradictory_requirements_are_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::All(vec![
+                    crate::model::Predicate::In {
+                        path: crate::model::FieldPath::call_site("conjunction"),
+                        allowed: vec!["And".to_owned()],
+                    },
+                    crate::model::Predicate::In {
+                        path: crate::model::FieldPath::call_site("conjunction"),
+                        allowed: vec!["Or".to_owned()],
+                    },
+                ])),
+            ));
+        let err = validate(&group).expect_err("And ∩ Or is empty");
+        assert!(codes(err).contains(&"EC030"));
+    }
+
+    #[test]
+    fn unknown_combinators_are_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::DeriveFeature {
+                target: crate::model::FieldPath::call_site("conjunction"),
+                combinator: crate::model::Spanned::call_site("summon_grammar_demon".to_owned()),
+                args: vec![],
+            });
+        let err = validate(&group).expect_err("unknown combinator");
+        assert!(codes(err).contains(&"EC031"));
+    }
+
+    #[test]
+    fn all_errors_are_reported_together() {
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].surface.clear(); // EC020
+        let twin = group.constructions[0].clone();
+        group.constructions.push(twin); // EC001
+        let err = validate(&group).expect_err("two independent errors");
+        let reported = codes(err);
+        assert!(reported.contains(&"EC001"));
+        assert!(reported.contains(&"EC020"));
+    }
+
+    #[test]
+    fn diagnostic_order_is_independent_of_declaration_order() {
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].surface.clear();
+        let mut second = group.constructions[0].clone();
+        second.id = crate::model::Spanned::call_site("noun_phrase_list_comma".to_owned());
+        group.constructions.push(second);
+
+        let mut reversed = group.clone();
+        reversed.constructions.reverse();
+
+        let forward = validate(&group).expect_err("both invalid");
+        let backward = validate(&reversed).expect_err("both invalid");
+        let render = |diags: Vec<crate::diag::Diagnostic>| {
+            diags
+                .iter()
+                .map(|d| format!("{}:{}", d.construction, d.code.as_str()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(render(forward), render(backward));
     }
 
     #[test]
