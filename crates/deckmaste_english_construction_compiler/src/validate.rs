@@ -160,9 +160,15 @@ fn resolve_path<'g>(
     let mut segments = path.segments.iter().peekable();
     while let Some(segment) = segments.next() {
         if segment == "last" {
-            // `last` re-addresses the current sequence element; the kind
-            // under resolution is unchanged.
-            continue;
+            // `last` re-addresses the current sequence element, so it is
+            // only legal right after a binding that resolved to a
+            // Sequence — otherwise there is no sequence context for it to
+            // re-address (e.g. a leading `last` with nothing before it).
+            // The kind under resolution is unchanged either way.
+            match resolved {
+                Some(FieldKind::Sequence { .. }) => continue,
+                _ => return None,
+            }
         }
         let binding = fields.iter().find(|b| &b.field.value == segment)?;
         resolved = Some(&binding.kind);
@@ -310,6 +316,11 @@ fn check_forms(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     .find(|b| Some(&b.field.value) == path.segments.first())
                 {
                     // Unresolvable paths already got EC010; skip, no sentinel.
+                    // Sound only because `checks()` always runs check_paths in
+                    // the same pass — if that ever becomes conditional/short-
+                    // circuited, a bogus deeper segment would no longer be
+                    // caught and this first-segment match would wrongly mark
+                    // the field produced.
                     produced.insert(binding.field.value.as_str());
                 }
             }
@@ -492,6 +503,54 @@ mod tests {
                 crate::model::FieldPath::call_site("rest.comma"),
             ));
         validate(&group).expect("rest.comma resolves through the element");
+    }
+
+    #[test]
+    fn leading_last_with_no_sequence_context_is_rejected() {
+        let mut group = minimal_group();
+        // `last` re-addresses a sequence element; as the first segment there
+        // is no sequence in scope yet for it to re-address.
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("last.conjunction"),
+            ));
+        let err = validate(&group).expect_err("last with no preceding sequence");
+        assert!(codes(err).contains(&"EC010"));
+    }
+
+    #[test]
+    fn last_after_a_sequence_field_still_resolves() {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("comma".to_owned()),
+                kind: crate::model::FieldKind::Scalar {
+                    codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            }],
+        });
+        group.constructions[0].ast = match group.constructions[0].ast.clone() {
+            crate::model::AstShape::Bind { path, mut fields } => {
+                fields.push(crate::model::FieldBinding {
+                    field: crate::model::Spanned::call_site("rest".to_owned()),
+                    kind: crate::model::FieldKind::Sequence {
+                        element: crate::model::Spanned::call_site(
+                            "NounPhraseCoordination".to_owned(),
+                        ),
+                    },
+                });
+                crate::model::AstShape::Bind { path, fields }
+            }
+            own => own,
+        };
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("rest.last.comma"),
+            ));
+        validate(&group).expect("last after a resolved Sequence field still resolves");
     }
 
     #[test]
