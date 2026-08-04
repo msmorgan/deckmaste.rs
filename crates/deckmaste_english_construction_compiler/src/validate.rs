@@ -48,18 +48,25 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
-    let mut seen_ids: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut seen_ids: std::collections::HashMap<&str, proc_macro2::Span> =
+        std::collections::HashMap::new();
     for construction in &group.constructions {
         let id = construction.id.value.as_str();
-        if !seen_ids.insert(id) {
-            diags.push(
-                Diagnostic::new(
-                    DiagCode::DuplicateConstructionId,
-                    id,
-                    format!("construction id `{id}` is declared more than once in this group"),
-                )
-                .with_span(construction.id.span),
-            );
+        match seen_ids.entry(id) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(construction.id.span);
+            }
+            std::collections::hash_map::Entry::Occupied(slot) => {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::DuplicateConstructionId,
+                        id,
+                        format!("construction id `{id}` is declared more than once in this group"),
+                    )
+                    .with_span(construction.id.span)
+                    .with_note("first declared here", *slot.get()),
+                );
+            }
         }
         let mut seen_ordinals: std::collections::HashSet<u16> = std::collections::HashSet::new();
         for form in &construction.forms {
@@ -595,6 +602,18 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                             construction.forms[right].name.value.as_str(),
                         ];
                         named.sort_unstable();
+                        let (first_span, second_span) =
+                            if named[0] == construction.forms[left].name.value {
+                                (
+                                    construction.forms[left].name.span,
+                                    construction.forms[right].name.span,
+                                )
+                            } else {
+                                (
+                                    construction.forms[right].name.span,
+                                    construction.forms[left].name.span,
+                                )
+                            };
                         diags.push(
                             Diagnostic::new(
                                 DiagCode::AmbiguousLinearization,
@@ -604,7 +623,8 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                                     named[0], named[1]
                                 ),
                             )
-                            .with_span(construction.forms[left].name.span),
+                            .with_span(first_span)
+                            .with_note("the other form is here", second_span),
                         );
                     }
                 }
@@ -769,12 +789,16 @@ mod tests {
     /// The rendered text of the one diagnostic carrying `code`. Asserting on
     /// the exact text is what pins "the author's own path, never an internal
     /// abstraction key" — a code-only assertion cannot see message quality.
+    /// Collects every match rather than taking the first: a second
+    /// diagnostic under the same code would silently pin the wrong one.
     fn message_for(err: &[crate::diag::Diagnostic], code: &str) -> String {
-        err.iter()
-            .find(|d| d.code.as_str() == code)
-            .unwrap_or_else(|| panic!("expected a {code} diagnostic; got {err:?}"))
-            .message
-            .clone()
+        let matches: Vec<&crate::diag::Diagnostic> =
+            err.iter().filter(|d| d.code.as_str() == code).collect();
+        match matches.as_slice() {
+            [one] => one.message.clone(),
+            [] => panic!("expected a {code} diagnostic; got {err:?}"),
+            many => panic!("expected exactly one {code} diagnostic; got {many:?}"),
+        }
     }
 
     /// `minimal_group()` plus `rest: Sequence<NounPhraseCoordination>`, the
@@ -813,6 +837,21 @@ mod tests {
         group.constructions.push(twin);
         let err = validate(&group).expect_err("duplicate id");
         assert!(codes(err).contains(&"EC001"));
+    }
+
+    #[test]
+    fn duplicate_id_notes_the_first_declaration() {
+        let mut group = minimal_group();
+        let mut dup = group.constructions[0].clone();
+        dup.forms[0].ordinal = crate::model::Spanned::call_site(1);
+        group.constructions.push(dup);
+        let err = validate(&group).expect_err("duplicate id must be rejected");
+        let diag = err
+            .iter()
+            .find(|d| d.code == DiagCode::DuplicateConstructionId)
+            .expect("EC001");
+        assert_eq!(diag.notes.len(), 1);
+        assert_eq!(diag.notes[0].message, "first declared here");
     }
 
     #[test]
@@ -1095,7 +1134,12 @@ mod tests {
             },
         );
         let err = validate(&group).expect_err("Or satisfies both guards");
-        assert!(codes(err).contains(&"EC024"));
+        let diag = err
+            .iter()
+            .find(|d| d.code == DiagCode::AmbiguousLinearization)
+            .expect("EC024");
+        assert_eq!(diag.notes.len(), 1);
+        assert_eq!(diag.notes[0].message, "the other form is here");
     }
 
     #[test]
@@ -1475,7 +1519,13 @@ mod tests {
         let render = |diags: Vec<crate::diag::Diagnostic>| {
             diags
                 .iter()
-                .map(|d| format!("{}:{}", d.construction, d.code.as_str()))
+                .map(|d| {
+                    format!(
+                        "{}:{}",
+                        d.construction.as_deref().unwrap_or(""),
+                        d.code.as_str()
+                    )
+                })
                 .collect::<Vec<_>>()
         };
         assert_eq!(render(forward), render(backward));
@@ -1507,7 +1557,14 @@ mod tests {
         let render = |diags: Vec<crate::diag::Diagnostic>| {
             diags
                 .iter()
-                .map(|d| format!("{}:{}:{}", d.construction, d.code.as_str(), d.message))
+                .map(|d| {
+                    format!(
+                        "{}:{}:{}",
+                        d.construction.as_deref().unwrap_or(""),
+                        d.code.as_str(),
+                        d.message
+                    )
+                })
                 .collect::<Vec<_>>()
         };
         let forward = render(validate(&group).expect_err("the guards overlap on Or"));
