@@ -539,15 +539,12 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             let Ok(resolved) = resolve_path(group, construction, path) else {
                 continue; // EC010 already reported it (check_paths runs first)
             };
-            if !resolved_is_scalar(&resolved) {
+            if let Some(problem) = in_predicate_kind_problem(&resolved) {
                 diags.push(
                     Diagnostic::new(
                         DiagCode::PredicateKindMismatch,
                         id,
-                        format!(
-                            "`{}` is not a scalar; `in [...]` compares a scalar codec against its variants",
-                            path.dotted()
-                        ),
+                        format!("`{}` {problem}", path.dotted()),
                     )
                     .with_span(path.span),
                 );
@@ -595,8 +592,18 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     }
 }
 
-/// Scalar for surface purposes: a codec field, optional or not — the thing
-/// `lex(…)` renders and a hole must not consume.
+/// Scalar for SURFACE purposes: a codec field, optional or not — the thing
+/// `lex(…)` renders and a hole must not consume. **EC014 only.** `lex(opt
+/// field)` is perfectly renderable, so an `Optional { Scalar }` counts as
+/// scalar here.
+///
+/// Do NOT reuse this for EC015. EC015's `In` predicate compiles to a
+/// `matches!` pattern that must match the FIELD'S ACTUAL RUST TYPE, and
+/// `matches!(field, A | B)` against an `Option<Codec>`-typed field does not
+/// type-check — "scalar for surface purposes" and "scalar for pattern-match
+/// purposes" are different questions that happen to agree everywhere except
+/// `Optional`, which is exactly the case that mattered. See
+/// `in_predicate_kind_problem`, EC015's own predicate, below.
 fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
     match resolved {
         Resolved::Kind(FieldKind::Scalar { .. }) => true,
@@ -605,6 +612,49 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
         }
         Resolved::Kind(FieldKind::Subtree { .. } | FieldKind::Sequence { .. }) => false,
         Resolved::Element(_) => false,
+    }
+}
+
+/// Scalar for `In`-PATTERN purposes (EC015 only — do not reuse for EC014's
+/// `resolved_is_scalar` above, which answers a different question). `In`
+/// emits `matches!(field, Codec::A | Codec::B)`, so the target must be a
+/// **non-optional, non-generic** scalar codec:
+///
+/// - `Optional { Scalar }` is rejected, not translated to `Some(A | B)` or
+///   `None | Some(A | B)`. Both readings are defensible and neither is chosen
+///   here on purpose — see the M2 fix-wave report's open design question.
+///   Rejection is forward-compatible (a later milestone can add either reading
+///   without breaking any declaration written against this rejection); guessing
+///   one now and changing it later would break declarations silently.
+/// - A generic codec (`Wrapper<Inner>`) is rejected because `Wrapper<Inner>::A`
+///   is not legal Rust in pattern position — turbofish would work but a second
+///   special case buys nothing EC015's one rule ("`In` targets a plain,
+///   non-optional scalar codec") doesn't already give for free.
+///
+/// Returns the diagnostic text to render after the backtick-quoted path
+/// (`None` means "no problem").
+fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
+    match resolved {
+        Resolved::Kind(FieldKind::Scalar { codec }) => {
+            if codec.value.contains('<') {
+                Some(
+                    "has a generic codec; generic codecs are not supported in `in [...]` predicates",
+                )
+            } else {
+                None
+            }
+        }
+        Resolved::Kind(FieldKind::Optional { inner })
+            if matches!(**inner, FieldKind::Scalar { .. }) =>
+        {
+            Some("is optional; `in [...]` on an optional field is not yet supported")
+        }
+        Resolved::Kind(
+            FieldKind::Optional { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. },
+        )
+        | Resolved::Element(_) => {
+            Some("is not a scalar; `in [...]` compares a scalar codec against its variants")
+        }
     }
 }
 
@@ -1967,6 +2017,67 @@ mod tests {
         let err = validate(&group).expect_err("`in` on a Sequence field must be rejected");
         let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
         assert_eq!(codes, vec!["EC015"]);
+    }
+
+    #[test]
+    fn in_predicate_on_an_optional_scalar_is_rejected() {
+        // `own N { alt: opt lex Conjunction } require alt in [And, Or];` —
+        // EC015 must reject this rather than pick a semantics (Some(A|B) vs
+        // None|Some(A|B)); shipping a guess now and changing it later would
+        // break declarations silently.
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        if let crate::model::AstShape::Own { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("alt".to_owned()),
+                kind: crate::model::FieldKind::Optional {
+                    inner: Box::new(crate::model::FieldKind::Scalar {
+                        codec: crate::model::Spanned::call_site("Conjunction".to_owned()),
+                    }),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("alt"),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("alt"),
+                    allowed: vec!["And".to_owned(), "Or".to_owned()],
+                }),
+            ));
+        let err = validate(&group).expect_err("`in` on an Optional<Scalar> field must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC015"]);
+    }
+
+    #[test]
+    fn in_predicate_on_a_generic_codec_is_rejected() {
+        // A generic codec renders `Wrapper<Inner>::A` in pattern position,
+        // which is not legal Rust (needs turbofish). EC015 rejects rather
+        // than special-casing the render.
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        if let crate::model::AstShape::Own { fields, .. } = &mut group.constructions[0].ast {
+            fields[0].kind = crate::model::FieldKind::Scalar {
+                codec: crate::model::Spanned::call_site("Wrapper<Conjunction>".to_owned()),
+            };
+        }
+        let err = validate(&group).expect_err("`in` on a generic codec must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC015"]);
+    }
+
+    /// Positive control for EC015's `In` target rule: a plain, non-optional,
+    /// non-generic scalar codec still validates clean. `emit.rs`'s
+    /// `in_predicate_emits_a_closed_match` pins that this same shape still
+    /// emits the closed `matches!`.
+    #[test]
+    fn in_predicate_on_a_plain_scalar_validates_clean() {
+        let group = crate::validate::fixtures::minimal_own_group();
+        validate(&group).expect("`in` on a plain non-optional scalar codec is clean");
     }
 
     #[test]

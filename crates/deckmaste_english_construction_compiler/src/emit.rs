@@ -388,9 +388,11 @@ fn codec_of(fields: &[FieldBinding], path: &crate::model::FieldPath) -> TokenStr
                 "validated: EC015 guarantees an In-predicate path resolves to a scalar kind"
             ),
         },
-        _ => unreachable!(
-            "validated: EC011/EC014 guarantee an In-predicate path resolves to a scalar kind"
-        ),
+        FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
+            unreachable!(
+                "validated: EC015 guarantees an In-predicate path resolves to a scalar kind"
+            )
+        }
     };
     parse_type(&codec.value)
 }
