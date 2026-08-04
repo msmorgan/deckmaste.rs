@@ -56,6 +56,15 @@ deckmaste_constructions_macro::constructions! {
         selection unique;
         deserialize;
     }
+
+    construction fixture_tagged: FixturePair {
+        own FixtureTaggedNode {
+            phrase: hole FixturePhrase,
+            tag: opt lex Conjunction,
+        }
+        require tag in [And, Or];
+        form only @ 0 = phrase lex(tag);
+    }
 }
 
 #[test]
@@ -83,6 +92,19 @@ fn try_new_enforces_every_require() {
     let or_pair = FixturePairNode::try_new(vec![member(), member()], Conjunction::Or)
         .expect("Or is also admitted by `conjunction in [And, Or]`");
     assert_eq!(or_pair.conjunction(), &Conjunction::Or);
+}
+
+#[test]
+fn optional_in_is_vacuously_true_when_absent() {
+    let absent = FixtureTaggedNode::try_new(FixturePhrase, None)
+        .expect("reading B: an absent optional satisfies `in [...]` vacuously");
+    assert_eq!(absent.tag(), &None);
+    let admitted = FixtureTaggedNode::try_new(FixturePhrase, Some(Conjunction::Or))
+        .expect("Or is in the admitted set");
+    assert_eq!(admitted.tag(), &Some(Conjunction::Or));
+    let rejected = FixtureTaggedNode::try_new(FixturePhrase, Some(Conjunction::Then))
+        .expect_err("Then is present and outside the set");
+    assert_eq!(rejected.requirement, "tag in [And, Or]");
 }
 
 #[test]
@@ -119,7 +141,7 @@ fn declaration_data_traces_to_the_one_declaration() {
     assert_eq!(data.name, "fixture_coordination");
     assert_eq!(data.elements, &["fixture_member"]);
     let ids: Vec<&str> = data.constructions.iter().map(|c| c.id).collect();
-    assert_eq!(ids, vec!["fixture_pair", "fixture_solo"]);
+    assert_eq!(ids, vec!["fixture_pair", "fixture_solo", "fixture_tagged"]);
     let pair = &data.constructions[0];
     assert_eq!(pair.own_type, Some("FixturePairNode"));
     assert_eq!(pair.dominates, &["fixture_solo"]);

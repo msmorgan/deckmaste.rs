@@ -393,7 +393,13 @@ fn predicate_tokens(fields: &[FieldBinding], predicate: &Predicate) -> TokenStre
                     quote! { #codec::#v }
                 })
                 .collect();
-            quote! { matches!(#field, #(#variants)|*) }
+            if is_optional_scalar(fields, path) {
+                // Reading B: absence is vacuously admitted — `f in [...]`
+                // on an optional field does not by itself demand presence.
+                quote! { matches!(#field, None | Some(#(#variants)|*)) }
+            } else {
+                quote! { matches!(#field, #(#variants)|*) }
+            }
         }
         Predicate::IsSome { path } => {
             let field = path_ident(path);
@@ -462,6 +468,16 @@ fn codec_of(fields: &[FieldBinding], path: &crate::model::FieldPath) -> TokenStr
         }
     };
     parse_type(&codec.value)
+}
+
+/// Whether an `In` predicate's target field (as `codec_of` locates it) is
+/// `Optional { Scalar }` — the case whose `matches!` gains a `None |` arm.
+fn is_optional_scalar(fields: &[FieldBinding], path: &crate::model::FieldPath) -> bool {
+    let binding = fields
+        .iter()
+        .find(|b| b.field.value == path.segments[0].value)
+        .expect("validated: EC010 rejects a require path naming a nonexistent field");
+    matches!(&binding.kind, FieldKind::Optional { inner } if matches!(**inner, FieldKind::Scalar { .. }))
 }
 
 fn parse_type(name: &str) -> TokenStream {

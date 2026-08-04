@@ -724,43 +724,44 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
 /// Scalar for `In`-PATTERN purposes (EC015 only — do not reuse for EC014's
 /// `resolved_is_scalar` above, which answers a different question). `In`
 /// emits `matches!(field, Codec::A | Codec::B)`, so the target must be a
-/// **non-optional, non-generic** scalar codec:
+/// non-generic scalar codec, optional or not:
 ///
-/// - `Optional { Scalar }` is rejected, not translated to `Some(A | B)` or
-///   `None | Some(A | B)`. Both readings are defensible and neither is chosen
-///   here on purpose — see the M2 fix-wave report's open design question.
-///   Rejection is forward-compatible (a later milestone can add either reading
-///   without breaking any declaration written against this rejection); guessing
-///   one now and changing it later would break declarations silently.
+/// - `Optional { Scalar }` is admitted under the adopted ruling: `f in [A, B]`
+///   on an optional field reads as "absent, or present and in the set"
+///   (`matches!(f, None | Some(A | B))`) — vacuously true when absent. This is
+///   the reading that composes: an author who wants strictness writes
+///   `all(f.is_some(), f in [...])` to recover it. The opposite reading
+///   (absence fails) does not compose in the other direction, so it is not the
+///   one adopted.
 /// - A generic codec (`Wrapper<Inner>`) is rejected because `Wrapper<Inner>::A`
 ///   is not legal Rust in pattern position — turbofish would work but a second
-///   special case buys nothing EC015's one rule ("`In` targets a plain,
-///   non-optional scalar codec") doesn't already give for free.
+///   special case buys nothing EC015's one rule ("`In` targets a plain scalar
+///   codec") doesn't already give for free.
 ///
 /// Returns the diagnostic text to render after the backtick-quoted path
 /// (`None` means "no problem").
 fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
-    match resolved {
-        Resolved::Kind(FieldKind::Scalar { codec }) => {
-            if codec.value.contains('<') {
-                Some(
-                    "has a generic codec; generic codecs are not supported in `in [...]` predicates",
-                )
-            } else {
-                None
+    let codec = match resolved {
+        Resolved::Kind(FieldKind::Scalar { codec }) => codec,
+        Resolved::Kind(FieldKind::Optional { inner }) => match &**inner {
+            FieldKind::Scalar { codec } => codec,
+            FieldKind::Optional { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
+                return Some(
+                    "is not a scalar; `in [...]` compares a scalar codec against its variants",
+                );
             }
-        }
-        Resolved::Kind(FieldKind::Optional { inner })
-            if matches!(**inner, FieldKind::Scalar { .. }) =>
-        {
-            Some("is optional; `in [...]` on an optional field is not yet supported")
-        }
-        Resolved::Kind(
-            FieldKind::Optional { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. },
-        )
+        },
+        Resolved::Kind(FieldKind::Subtree { .. } | FieldKind::Sequence { .. })
         | Resolved::Element(_) => {
-            Some("is not a scalar; `in [...]` compares a scalar codec against its variants")
+            return Some(
+                "is not a scalar; `in [...]` compares a scalar codec against its variants",
+            );
         }
+    };
+    if codec.value.contains('<') {
+        Some("has a generic codec; generic codecs are not supported in `in [...]` predicates")
+    } else {
+        None
     }
 }
 
@@ -941,19 +942,54 @@ impl Abstraction {
     }
 }
 
-fn abstract_predicate(predicate: &Predicate) -> Abstraction {
+fn abstract_predicate(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    predicate: &Predicate,
+) -> Abstraction {
     let mut abstraction = Abstraction::default();
-    collect_abstraction(predicate, &mut abstraction);
+    collect_abstraction(group, construction, predicate, &mut abstraction);
     abstraction
 }
 
-fn collect_abstraction(predicate: &Predicate, into: &mut Abstraction) {
+/// Whether `path` resolves (against `group`/`construction`) to an optional
+/// scalar. Threaded down from `abstract_predicate` so `Predicate::In` can
+/// tell an optional target from a non-optional one — the abstraction
+/// builder otherwise has no field-kind knowledge of its own. An
+/// unresolvable path answers `false`; EC010 (`check_paths`) reports it
+/// separately and the abstraction pass just skips the finer question.
+fn path_is_optional_scalar(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    path: &FieldPath,
+) -> bool {
+    matches!(
+        resolve_path(group, construction, path),
+        Ok(Resolved::Kind(FieldKind::Optional { inner })) if matches!(**inner, FieldKind::Scalar { .. })
+    )
+}
+
+fn collect_abstraction(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    predicate: &Predicate,
+    into: &mut Abstraction,
+) {
     match predicate {
         Predicate::In { path, allowed } => {
-            into.intersect(
-                (path.dotted(), Facet::Value),
-                allowed.iter().cloned().collect(),
-            );
+            // Reading B: `f in [...]` on an optional scalar is satisfiable
+            // by absence, so it must NOT contribute a finite Value key here.
+            // If it did, EC030 could intersect two guards like
+            // `All[In{And}]` and `All[In{Or}]` down to the empty set and
+            // report "admits no value at all" — a conclusion absence
+            // falsifies (both are satisfied by the field being absent).
+            // Conservative, like `LenAtLeast`: no key beats a wrong key.
+            if !path_is_optional_scalar(group, construction, path) {
+                into.intersect(
+                    (path.dotted(), Facet::Value),
+                    allowed.iter().cloned().collect(),
+                );
+            }
         }
         Predicate::IsSome { path } => {
             into.intersect(
@@ -979,7 +1015,7 @@ fn collect_abstraction(predicate: &Predicate, into: &mut Abstraction) {
         }
         Predicate::All(children) => {
             for child in children {
-                collect_abstraction(child, into);
+                collect_abstraction(group, construction, child, into);
             }
         }
         Predicate::Any(children) => {
@@ -990,7 +1026,7 @@ fn collect_abstraction(predicate: &Predicate, into: &mut Abstraction) {
             // unconstrained in the union, hence contributes nothing.
             let mut branch_abstractions: Vec<Abstraction> = Vec::new();
             for child in children {
-                branch_abstractions.push(abstract_predicate(child));
+                branch_abstractions.push(abstract_predicate(group, construction, child));
             }
             if let Some(first) = branch_abstractions.first().cloned() {
                 for (key, set) in first.allowed {
@@ -1089,13 +1125,16 @@ struct RequiredFacts {
     origin: std::collections::HashMap<(String, Facet), proc_macro2::Span>,
 }
 
-fn required_facts(construction: &ConstructionDeclaration) -> RequiredFacts {
+fn required_facts(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+) -> RequiredFacts {
     let mut admitted = Abstraction::default();
     let mut origin: std::collections::HashMap<(String, Facet), proc_macro2::Span> =
         std::collections::HashMap::new();
     for constraint in &construction.constraints {
         let Constraint::Require(predicate) = constraint else { continue };
-        let clause = abstract_predicate(&predicate.value);
+        let clause = abstract_predicate(group, construction, &predicate.value);
         for key in clause.allowed.keys() {
             origin.entry(key.clone()).or_insert(predicate.span);
         }
@@ -1115,9 +1154,9 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             .forms
             .iter()
             .map(|form| {
-                form.guard
-                    .as_ref()
-                    .map_or_else(Abstraction::default, |g| abstract_predicate(&g.value))
+                form.guard.as_ref().map_or_else(Abstraction::default, |g| {
+                    abstract_predicate(group, construction, &g.value)
+                })
             })
             .collect();
         if construction.forms.len() > 1 && !has_free_witness {
@@ -1162,7 +1201,7 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         }
         // Coverage: for every path with a finite admitted set declared by
         // constraints, the union of form-guard sets must reach every value.
-        let required = required_facts(construction);
+        let required = required_facts(group, construction);
         for (key, admitted_values) in &required.admitted.allowed {
             let mut covered: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
             let mut any_unguarded_form = false;
@@ -1197,7 +1236,7 @@ fn check_constraints(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         // Contradictions are judged on the CONJUNCTION of every `require`
         // clause, so `require in(x,{And})` alongside `require in(x,{Or})`
         // is caught even though neither clause is empty on its own.
-        let required = required_facts(construction);
+        let required = required_facts(group, construction);
         for (key, values) in &required.admitted.allowed {
             if values.is_empty() {
                 let span = *required
@@ -2180,11 +2219,13 @@ mod tests {
     }
 
     #[test]
-    fn in_predicate_on_an_optional_scalar_is_rejected() {
+    fn in_predicate_on_an_optional_scalar_is_admitted() {
         // `own N { alt: opt lex Conjunction } require alt in [And, Or];` —
-        // EC015 must reject this rather than pick a semantics (Some(A|B) vs
-        // None|Some(A|B)); shipping a guess now and changing it later would
-        // break declarations silently.
+        // adopted ruling (reading B): admitted, compiling to
+        // `matches!(alt, None | Some(Conjunction::And | Conjunction::Or))`.
+        // Absence is vacuously true; an author wanting strictness composes
+        // `all(alt.is_some(), alt in [...])` instead. See
+        // `in_predicate_kind_problem` for the full rationale.
         let mut group = crate::validate::fixtures::minimal_own_group();
         if let crate::model::AstShape::Own { fields, .. } = &mut group.constructions[0].ast {
             fields.push(crate::model::FieldBinding {
@@ -2209,9 +2250,7 @@ mod tests {
                     allowed: vec!["And".to_owned(), "Or".to_owned()],
                 }),
             ));
-        let err = validate(&group).expect_err("`in` on an Optional<Scalar> field must be rejected");
-        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
-        assert_eq!(codes, vec!["EC015"]);
+        validate(&group).expect("`in` on an Optional<Scalar> field is admitted under reading B");
     }
 
     #[test]
@@ -2467,6 +2506,55 @@ mod tests {
             ));
         let err = validate(&group).expect_err("And ∩ Or is empty");
         assert!(codes(&err).contains(&"EC030"));
+    }
+
+    #[test]
+    fn optional_in_contributes_no_value_key_so_it_cannot_fabricate_ec030() {
+        // Mirror of `contradictory_requirements_are_rejected`, but the
+        // target is `Optional<Scalar>`. `alt in [And]` and `alt in [Or]`
+        // would intersect to the empty set — and wrongly report EC030 — if
+        // an optional `In` contributed a finite Value key the way a
+        // non-optional `In` does. It must not: under reading B each clause
+        // is independently satisfied by `alt` being absent, so the
+        // conjunction is not a contradiction. Positive control for the "no
+        // key" comment on `collect_abstraction`'s `In` arm, the same way
+        // `len_at_least_contributes_no_finite_length_set` is the positive
+        // control for `LenAtLeast`'s identical "no key" behavior.
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        if let crate::model::AstShape::Own { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("alt".to_owned()),
+                kind: crate::model::FieldKind::Optional {
+                    inner: Box::new(crate::model::FieldKind::Scalar {
+                        codec: crate::model::Spanned::call_site("Conjunction".to_owned()),
+                    }),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("alt"),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("alt"),
+                    allowed: vec!["And".to_owned()],
+                }),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("alt"),
+                    allowed: vec!["Or".to_owned()],
+                }),
+            ));
+        validate(&group).expect(
+            "optional `In` contributes no Value key, so `alt in [And]` and `alt in [Or]` do not intersect to empty",
+        );
     }
 
     #[test]
