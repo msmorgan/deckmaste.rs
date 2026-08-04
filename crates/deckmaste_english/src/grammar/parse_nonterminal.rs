@@ -362,6 +362,7 @@ fn parse_nonterminal_with_registration_order(
     catalogs: &Catalogs,
     nonterminal: Nonterminal,
     registration_order: RegistrationOrder,
+    activation: super::generated::GeneratedActivation,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let self_reference = SelfReference::default();
     let surface = lex(source);
@@ -374,7 +375,7 @@ fn parse_nonterminal_with_registration_order(
         OpacityMode::Exact,
         &self_reference,
         registration_order,
-        super::generated::GeneratedActivation::Inactive,
+        activation,
     )
 }
 
@@ -966,8 +967,10 @@ mod root_lowering_tests {
 
 #[cfg(test)]
 mod registration_order_tests {
+    use super::super::generated::GeneratedActivation;
     use super::*;
     use crate::construction::ConstructionId;
+    use crate::constructions::probe;
     use crate::forest::SelectionReason;
     use crate::grammar::rules::RegistrationOrder;
 
@@ -1031,12 +1034,14 @@ mod registration_order_tests {
         source: &str,
         nonterminal: Nonterminal,
         order: RegistrationOrder,
+        activation: GeneratedActivation,
     ) -> NormalizedParse {
         let parsed = parse_nonterminal_with_registration_order(
             source,
             &fixture_catalogs(),
             nonterminal,
             order,
+            activation,
         )
         .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
         NormalizedParse {
@@ -1068,18 +1073,75 @@ mod registration_order_tests {
     #[test]
     fn semantic_selections_survive_family_registration_permutations() {
         for &(nonterminal, source) in ORDER_INVARIANT_FIXTURES {
-            let normal = normalized_parse(source, nonterminal, RegistrationOrder::Normal);
+            let normal = normalized_parse(
+                source,
+                nonterminal,
+                RegistrationOrder::Normal,
+                GeneratedActivation::Inactive,
+            );
             assert_eq!(
-                normalized_parse(source, nonterminal, RegistrationOrder::Reversed),
+                normalized_parse(
+                    source,
+                    nonterminal,
+                    RegistrationOrder::Reversed,
+                    GeneratedActivation::Inactive,
+                ),
                 normal,
                 "reversed registration changed {source:?}",
             );
             assert_eq!(
-                normalized_parse(source, nonterminal, RegistrationOrder::FixedShuffle),
+                normalized_parse(
+                    source,
+                    nonterminal,
+                    RegistrationOrder::FixedShuffle,
+                    GeneratedActivation::Inactive,
+                ),
                 normal,
                 "shuffled registration changed {source:?}",
             );
         }
+    }
+
+    fn normalized_parse_probe(
+        order: RegistrationOrder,
+        groups: &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
+    ) -> NormalizedParse {
+        let cats = super::super::generated::internal_categories(groups);
+        normalized_parse(
+            "and, or",
+            Nonterminal::Generated(cats["ProbePairRoot"]),
+            order,
+            GeneratedActivation::Groups(groups),
+        )
+    }
+
+    #[test]
+    fn generated_selections_survive_family_registration_permutations() {
+        let normal = normalized_parse_probe(RegistrationOrder::Normal, probe::GROUPS);
+        assert_eq!(
+            normal,
+            normalized_parse_probe(RegistrationOrder::Reversed, probe::GROUPS)
+        );
+        assert_eq!(
+            normal,
+            normalized_parse_probe(RegistrationOrder::FixedShuffle, probe::GROUPS)
+        );
+    }
+
+    #[test]
+    fn generated_selections_survive_group_list_permutations() {
+        assert_eq!(
+            normalized_parse_probe(RegistrationOrder::Normal, probe::GROUPS),
+            normalized_parse_probe(RegistrationOrder::Normal, probe::GROUPS_REVERSED),
+        );
+    }
+
+    #[test]
+    fn internal_category_ids_ignore_group_order() {
+        assert_eq!(
+            super::super::generated::internal_categories(probe::GROUPS),
+            super::super::generated::internal_categories(probe::GROUPS_REVERSED),
+        );
     }
 }
 
