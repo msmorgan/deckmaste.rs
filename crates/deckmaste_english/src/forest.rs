@@ -384,6 +384,96 @@ where
         self.nodes.iter()
     }
 
+    /// Enumerates every per-node-consistent selection reachable from `root`,
+    /// decrementing `remaining` once per completed selection. Completing a
+    /// selection with `remaining` at 0 is
+    /// [`SelectionEnumerationError::BudgetExhausted`] — the caller's budget
+    /// is a hard ceiling, never a truncation point.
+    #[cfg(test)]
+    pub(crate) fn enumerate_selections(
+        &self,
+        root: NodeId,
+        remaining: &mut usize,
+    ) -> Result<Vec<ChoiceMap>, SelectionEnumerationError> {
+        if let Some(node) = self.reachable_cycle(root) {
+            return Err(SelectionEnumerationError::Cycle(node));
+        }
+        let mut choice = vec![None; self.nodes.len()];
+        let mut out = Vec::new();
+        self.expand_selections(vec![root], &mut choice, &mut out, remaining)?;
+        Ok(out)
+    }
+
+    #[cfg(test)]
+    fn expand_selections(
+        &self,
+        mut agenda: Vec<NodeId>,
+        choice: &mut Vec<Option<usize>>,
+        out: &mut Vec<ChoiceMap>,
+        remaining: &mut usize,
+    ) -> Result<(), SelectionEnumerationError> {
+        let node = loop {
+            match agenda.pop() {
+                None => {
+                    if *remaining == 0 {
+                        return Err(SelectionEnumerationError::BudgetExhausted);
+                    }
+                    *remaining -= 1;
+                    out.push(ChoiceMap {
+                        alternatives: choice.clone(),
+                    });
+                    return Ok(());
+                }
+                // A shared node reached again inside one derivation: its
+                // choice (and its children, already on an earlier agenda)
+                // are settled — the per-node map binds every occurrence.
+                Some(node) if choice[node.index()].is_some() => {}
+                Some(node) => break node,
+            }
+        };
+        for (index, alternative) in self.node(node).alternatives.iter().enumerate() {
+            choice[node.index()] = Some(index);
+            let mut next = agenda.clone();
+            next.extend(alternative.children.iter().copied());
+            self.expand_selections(next, choice, out, remaining)?;
+            choice[node.index()] = None;
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn reachable_cycle(&self, root: NodeId) -> Option<NodeId> {
+        let mut visiting = vec![false; self.nodes.len()];
+        let mut visited = vec![false; self.nodes.len()];
+        self.cycle_visit(root, &mut visiting, &mut visited)
+    }
+
+    #[cfg(test)]
+    fn cycle_visit(
+        &self,
+        node: NodeId,
+        visiting: &mut [bool],
+        visited: &mut [bool],
+    ) -> Option<NodeId> {
+        if visiting[node.index()] {
+            return Some(node);
+        }
+        if visited[node.index()] {
+            return None;
+        }
+        visiting[node.index()] = true;
+        for alternative in &self.node(node).alternatives {
+            for &child in &alternative.children {
+                if let Some(cycle) = self.cycle_visit(child, visiting, visited) {
+                    return Some(cycle);
+                }
+            }
+        }
+        visiting[node.index()] = false;
+        visited[node.index()] = true;
+        None
+    }
+
     #[allow(
         dead_code,
         reason = "the retained-alternative exact-result carrier is staged for its public consumer"
@@ -733,8 +823,8 @@ impl BestParse {
     }
 }
 
-/// A per-node alternative choice consulted by lowering. `BestParse` is the
-/// production selection; the law harness substitutes explicit `ChoiceMap`s
+/// A per-node alternative choice consulted by lowering. [`BestParse`] is the
+/// production selection; the law harness substitutes explicit [`ChoiceMap`]s
 /// so one lowering serves both.
 pub(crate) trait AlternativeSelection {
     fn alternative(&self, node: NodeId) -> Option<usize>;
@@ -744,6 +834,48 @@ impl AlternativeSelection for BestParse {
     fn alternative(&self, node: NodeId) -> Option<usize> {
         self.alternatives.get(node.index()).copied().flatten()
     }
+}
+
+/// An explicit per-node alternative assignment: one enumerated derivation.
+/// `None` marks nodes the derivation never reaches.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChoiceMap {
+    alternatives: Vec<Option<usize>>,
+}
+
+#[cfg(test)]
+impl ChoiceMap {
+    pub(crate) fn alternative(&self, node: NodeId) -> Option<usize> {
+        self.alternatives.get(node.index()).copied().flatten()
+    }
+
+    /// The production selection as an explicit map — the equivalence bridge
+    /// between best-parse lowering and harness lowering.
+    pub(crate) fn from_best(best: &BestParse) -> Self {
+        Self {
+            alternatives: best.alternatives.clone(),
+        }
+    }
+}
+
+#[cfg(test)]
+impl AlternativeSelection for ChoiceMap {
+    fn alternative(&self, node: NodeId) -> Option<usize> {
+        self.alternatives.get(node.index()).copied().flatten()
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SelectionEnumerationError {
+    /// The forest reaches a cycle from this root. Conservative: the check is
+    /// selection-independent (any reachable cycle refuses enumeration, even
+    /// one no complete selection would enter) — sufficient for law fixtures,
+    /// which are acyclic by construction, and it keeps recursive consumers
+    /// (`lower`) safe from unbounded derivations.
+    Cycle(NodeId),
+    BudgetExhausted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1080,5 +1212,191 @@ mod tests {
             .expect("there are roots");
 
         assert_eq!(selected, second_node);
+    }
+
+    fn leaf_alternative(rule: usize) -> PackedAlternative<()> {
+        PackedAlternative {
+            rule: Some(RuleId::new(rule)),
+            production: None,
+            children: Vec::new(),
+            local_cost: ParseCost::default(),
+            surface: (),
+        }
+    }
+
+    fn parent_alternative(rule: usize, children: Vec<super::NodeId>) -> PackedAlternative<()> {
+        PackedAlternative {
+            children,
+            ..leaf_alternative(rule)
+        }
+    }
+
+    #[test]
+    fn enumeration_multiplies_independent_choices() {
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
+        let x = forest
+            .intern_node(NodeKey::nonterminal("x", 0, 1, ()), leaf_alternative(1))
+            .node;
+        forest.intern_node(NodeKey::nonterminal("x", 0, 1, ()), leaf_alternative(2));
+        let y = forest
+            .intern_node(NodeKey::nonterminal("y", 1, 2, ()), leaf_alternative(3))
+            .node;
+        forest.intern_node(NodeKey::nonterminal("y", 1, 2, ()), leaf_alternative(4));
+        let root = forest
+            .intern_node(
+                NodeKey::nonterminal("root", 0, 2, ()),
+                parent_alternative(5, vec![x, y]),
+            )
+            .node;
+        let mut remaining = usize::MAX;
+        let selections = forest
+            .enumerate_selections(root, &mut remaining)
+            .expect("acyclic forest enumerates");
+        assert_eq!(selections.len(), 4, "2 x-choices times 2 y-choices");
+        for selection in &selections {
+            assert_eq!(selection.alternative(root), Some(0));
+            assert!(selection.alternative(x).is_some());
+            assert!(selection.alternative(y).is_some());
+        }
+    }
+
+    #[test]
+    fn shared_nodes_choose_once_per_selection() {
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
+        let x = forest
+            .intern_node(NodeKey::nonterminal("x", 0, 1, ()), leaf_alternative(1))
+            .node;
+        forest.intern_node(NodeKey::nonterminal("x", 0, 1, ()), leaf_alternative(2));
+        let root = forest
+            .intern_node(
+                NodeKey::nonterminal("root", 0, 2, ()),
+                parent_alternative(5, vec![x, x]),
+            )
+            .node;
+        let mut remaining = usize::MAX;
+        let selections = forest
+            .enumerate_selections(root, &mut remaining)
+            .expect("acyclic forest enumerates");
+        // A per-node map binds both occurrences to the same choice: 2, not 4.
+        assert_eq!(selections.len(), 2);
+    }
+
+    #[test]
+    fn unreached_nodes_stay_unchosen() {
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
+        let x = forest
+            .intern_node(NodeKey::nonterminal("x", 0, 1, ()), leaf_alternative(1))
+            .node;
+        let y = forest
+            .intern_node(NodeKey::nonterminal("y", 0, 1, ()), leaf_alternative(2))
+            .node;
+        let root = forest
+            .intern_node(
+                NodeKey::nonterminal("root", 0, 1, ()),
+                parent_alternative(3, vec![x]),
+            )
+            .node;
+        forest.intern_node(
+            NodeKey::nonterminal("root", 0, 1, ()),
+            parent_alternative(4, vec![y]),
+        );
+        let mut remaining = usize::MAX;
+        let selections = forest
+            .enumerate_selections(root, &mut remaining)
+            .expect("acyclic forest enumerates");
+        assert_eq!(selections.len(), 2);
+        let via_x = selections
+            .iter()
+            .find(|selection| selection.alternative(root) == Some(0))
+            .expect("the x-branch selection exists");
+        assert_eq!(via_x.alternative(x), Some(0));
+        assert_eq!(
+            via_x.alternative(y),
+            None,
+            "y is not part of the x-branch derivation"
+        );
+    }
+
+    #[test]
+    fn exhausting_the_budget_is_a_loud_error() {
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
+        let x = forest
+            .intern_node(NodeKey::nonterminal("x", 0, 1, ()), leaf_alternative(1))
+            .node;
+        forest.intern_node(NodeKey::nonterminal("x", 0, 1, ()), leaf_alternative(2));
+        let y = forest
+            .intern_node(NodeKey::nonterminal("y", 1, 2, ()), leaf_alternative(3))
+            .node;
+        forest.intern_node(NodeKey::nonterminal("y", 1, 2, ()), leaf_alternative(4));
+        let root = forest
+            .intern_node(
+                NodeKey::nonterminal("root", 0, 2, ()),
+                parent_alternative(5, vec![x, y]),
+            )
+            .node;
+        let mut remaining = 3;
+        assert_eq!(
+            forest.enumerate_selections(root, &mut remaining),
+            Err(super::SelectionEnumerationError::BudgetExhausted),
+            "4 selections cannot fit a budget of 3"
+        );
+    }
+
+    #[test]
+    fn a_reachable_cycle_is_refused() {
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
+        let node = forest
+            .intern_node(NodeKey::nonterminal("loop", 0, 1, ()), leaf_alternative(1))
+            .node;
+        forest.intern_node(
+            NodeKey::nonterminal("loop", 0, 1, ()),
+            parent_alternative(2, vec![node]),
+        );
+        let mut remaining = usize::MAX;
+        assert_eq!(
+            forest.enumerate_selections(node, &mut remaining),
+            Err(super::SelectionEnumerationError::Cycle(node)),
+        );
+    }
+
+    #[test]
+    fn choice_map_mirrors_best_parse_selections() {
+        let mut forest = ParseForest::<&str, (), (), &str, ()>::new();
+        let key = NodeKey::nonterminal("expression", 0, 1, ());
+        let root = forest
+            .intern_node(
+                key.clone(),
+                PackedAlternative {
+                    rule: Some(RuleId::new(4)),
+                    production: None,
+                    children: Vec::new(),
+                    local_cost: ParseCost {
+                        precedence: 2,
+                        ..ParseCost::default()
+                    },
+                    surface: (),
+                },
+            )
+            .node;
+        forest.intern_node(
+            key,
+            PackedAlternative {
+                rule: Some(RuleId::new(3)),
+                production: None,
+                children: Vec::new(),
+                local_cost: ParseCost {
+                    precedence: 1,
+                    ..ParseCost::default()
+                },
+                surface: (),
+            },
+        );
+        let (_, best) = forest
+            .best_root([root], &empty_registry())
+            .expect("the node is acyclic")
+            .expect("there is a root");
+        let map = super::ChoiceMap::from_best(&best);
+        assert_eq!(map.alternative(root), best.alternative(root));
+        assert_eq!(map.alternative(root), Some(1));
     }
 }
