@@ -259,12 +259,23 @@ mod tests {
     #[test]
     fn edges_leaving_the_group_are_not_cycle_checked_here() {
         let mut group = minimal_group();
+        // A reciprocal pair through the external id `noun_phrase_nominal`: if
+        // the in-group membership filter were silently dropped, this pair
+        // would itself form a two-node cycle and validate would report
+        // EC041. Passing here is discriminating proof the filter is applied,
+        // not just an unreachable external node that trivially can't cycle.
         group.constructions[0]
             .dominance
             .push(crate::model::DominanceEdge {
                 winner: crate::model::Spanned::call_site("noun_phrase_nominal".to_owned()),
                 loser: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
             });
-        validate(&group).expect("external edge is a registry-time concern");
+        group.constructions[0]
+            .dominance
+            .push(crate::model::DominanceEdge {
+                winner: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
+                loser: crate::model::Spanned::call_site("noun_phrase_nominal".to_owned()),
+            });
+        validate(&group).expect("external edges are a registry-time concern");
     }
 }
