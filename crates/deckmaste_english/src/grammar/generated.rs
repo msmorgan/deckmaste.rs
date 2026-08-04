@@ -67,14 +67,30 @@ pub(super) enum GeneratedAssemblyError {
         construction: &'static str,
         field: &'static str,
     },
-    /// Sequence holes are the pilot's seed/extend design work; optional and
-    /// scalar holes have no production meaning at all.
-    UnsupportedHoleKind {
+    /// A `Hole` atom on a field shape other than `Subtree` (sequence holes
+    /// are the pilot's seed/extend design work; optional and scalar holes
+    /// have no production meaning at all), OR a `Lexeme` atom on a field
+    /// shape other than `Scalar` — including `Optional { Scalar }`, e.g.
+    /// `lex(opt field)`, which `validate.rs`'s `resolved_is_scalar` admits
+    /// as a legal, renderable EC014 declaration but which has no production
+    /// meaning here. Fires for either atom kind, hence the name — the
+    /// field's SHAPE, not the atom's declared legality, is what's
+    /// unsupported.
+    UnsupportedAtomKind {
         construction: &'static str,
         field: &'static str,
     },
     /// `bind` is legal only while the family's owner row is Handwritten;
     /// activation as a generated group is the Generated owner state.
+    ///
+    /// Raised per-CONSTRUCTION, but `register_generated` returns on the
+    /// first one it finds — it does not keep scanning to register the
+    /// group's other constructions. Authoring consequence: a single `bind`
+    /// construction anywhere in an active group makes the WHOLE group
+    /// permanently unactivatable as generated, including that group's own
+    /// own-mode (non-`bind`) siblings. There is no partial activation; the
+    /// fix is to remove or relocate the `bind` construction, not to work
+    /// around it per-construction.
     BindWhileGenerated { construction: &'static str },
 }
 
@@ -190,7 +206,7 @@ fn atom_expected(
                         construction: construction.id,
                         codec,
                     }),
-                _ => Err(GeneratedAssemblyError::UnsupportedHoleKind {
+                _ => Err(GeneratedAssemblyError::UnsupportedAtomKind {
                     construction: construction.id,
                     field: path,
                 }),
@@ -463,7 +479,7 @@ mod tests {
         let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
         assert_eq!(
             error,
-            GeneratedAssemblyError::UnsupportedHoleKind {
+            GeneratedAssemblyError::UnsupportedAtomKind {
                 construction: "seq_test",
                 field: "items",
             }

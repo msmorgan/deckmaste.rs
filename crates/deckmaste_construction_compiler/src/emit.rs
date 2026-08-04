@@ -730,6 +730,11 @@ mod tests {
             !rendered.contains("impl<'de> serde::Deserialize"),
             "bind mode still has no serde door"
         );
+        assert!(
+            !rendered.contains("struct NounPhraseCoordination")
+                && !rendered.contains("struct MinimalNode"),
+            "bind mode emits no owned construction struct: {rendered}"
+        );
     }
 
     #[test]

@@ -379,6 +379,16 @@ fn parse_nonterminal_with_registration_order(
     )
 }
 
+// Lexes and collapses identically to `parse_nonterminal_with_self_reference`
+// above, and funnels into the same assembly function, but deliberately does
+// NOT reproduce that entry point's retry: on `NoCompleteParse` the
+// production path above retries once under `OpacityMode::OpaqueNouns`; this
+// harness entry point always uses `OpacityMode::Exact` and returns whatever
+// that single attempt produces. That is what makes
+// `generated_parse_fails_without_matching_input` an exact assertion (a
+// missing-comma input must fail, full stop) rather than an approximate one
+// that would also have to account for an opaque-noun retry masking the
+// failure. Do not "fix" this by adding the retry.
 #[cfg(test)]
 pub(crate) fn parse_nonterminal_with_activation(
     source: &str,
@@ -1194,6 +1204,39 @@ mod generated_adapter_tests {
             matches!(parsed.syntax, Lowered::Ignored),
             "probe lowering is Ignored: {:?}",
             parsed.syntax
+        );
+    }
+
+    #[test]
+    fn generated_form_ordinal_is_the_declared_ordinal_not_a_counter() {
+        // `probe_word`'s `padded` form declares ordinal 7 — non-zero and
+        // non-consecutive with `only`'s ordinal 0, a value no incremental
+        // per-construction counter could produce. This is the plan's
+        // ordinal-provenance invariant (`rules.rs`, `generated.rs`'s
+        // `register_generated`) made testable: replacing `ordinal:
+        // form.ordinal` in `generated.rs` with an incremental counter must
+        // make this assertion fail.
+        let parsed = parse_nonterminal_with_activation(
+            ", and",
+            &Catalogs::default(),
+            probe_category("ProbeItem"),
+            GeneratedActivation::Groups(probe::GROUPS),
+        )
+        .expect("the padded probe_word form parses");
+        let decisions = parsed.construction_decisions();
+        let word = decisions
+            .iter()
+            .find(|decision| decision.selected().as_str() == "probe_word")
+            .expect("probe_word decision recorded");
+        let ordinal = word
+            .alternatives()
+            .iter()
+            .find(|alternative| alternative.id().as_str() == "probe_word")
+            .expect("probe_word names its own alternative")
+            .production_ordinal();
+        assert_eq!(
+            ordinal, 7,
+            "the padded form's declared ordinal must reach the decision"
         );
     }
 

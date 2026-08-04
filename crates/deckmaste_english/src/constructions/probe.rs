@@ -31,7 +31,19 @@ deckmaste_constructions_macro::constructions! {
         own ProbeWordNode {
             word: lex Conjunction,
         }
-        form only @ 0 = lex(word);
+        // The `when` guards exist only to keep EC024 (ambiguous
+        // linearization) satisfied — the M3 chart adapter does not consult
+        // guards at all (see `generated.rs`'s `register_generated`), so
+        // which value each guard names has no bearing on chart matching.
+        form only @ 0 when word in [Or] = lex(word);
+        // Non-zero, non-consecutive ordinal on purpose: an incremental
+        // per-construction counter (0, 1, 2, ...) could never produce `7`,
+        // so a test pinning this value to the decision's production ordinal
+        // proves the chart carries the declared `form … @ N` ordinal rather
+        // than a renumbering. See
+        // `generated_form_ordinal_is_the_declared_ordinal_not_a_counter` in
+        // `grammar/parse_nonterminal.rs`.
+        form padded @ 7 when word in [And] = "," lex(word);
     }
 
     internal construction probe_pick: ProbeRoot {

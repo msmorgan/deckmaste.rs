@@ -191,8 +191,9 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     }
 }
 
-/// EC006 — every top-level identifier the emitter mints into the group's
-/// generated module must be unique: element structs (`PascalCased` via
+/// EC006 — covers exactly two kinds of top-level TYPE-namespace identifier
+/// the emitter mints into the group's generated module, and checks that
+/// each is unique: element structs (`PascalCased` via
 /// `crate::model::pascal_case`) and own-mode construction structs (the
 /// author's literal Rust identifier, used as-is — `emit.rs` never
 /// transforms it). This is a DIFFERENT namespace from EC004's checks above:
@@ -202,6 +203,17 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 /// constructions both naming their type `SameNode`, or an element
 /// `foo_bar` colliding with `foo__bar` after `PascalCasing`) — collisions
 /// EC004 cannot see because it never looks at the generated identifier.
+///
+/// Two other kinds of top-level identifier the emitter mints are NOT
+/// checked here, and do not need to be: bind mode's `build_<id>`/`parts_<id>`
+/// functions (added in Milestone 3's Task 2) live in the VALUE namespace,
+/// so they can never collide with an EC006-checked struct even when the
+/// literal identifier text matches; their own uniqueness is already forced
+/// by EC001 (`DuplicateConstructionId`), since `<id>` is the construction id.
+/// `__assert_free_witness_payloads` (Task 1) is a single fixed function
+/// name emitted at most once per group — never derived from a declared
+/// name — so the two-different-declared-names collision EC006 exists to
+/// catch cannot arise for it either.
 ///
 /// Processes elements before constructions, matching `emit_group`'s own
 /// emission order, so "first declared here" points at whichever one rustc

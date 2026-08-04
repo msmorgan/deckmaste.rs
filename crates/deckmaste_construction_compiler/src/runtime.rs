@@ -31,8 +31,10 @@ pub struct ConstructionData {
     pub id: &'static str,
     pub category: &'static str,
     pub internal: bool,
-    /// `Some(type name)` for own-mode constructions; `None` for bind mode
-    /// (whose emission lands with the chart adapter).
+    /// `Some(type name)` for own-mode constructions; `None` for bind mode,
+    /// which has no owned struct at all — the emitter instead produces a
+    /// checked `build_<id>` builder and a `parts_<id>` destructurer
+    /// (Milestone 3 Task 2).
     pub own_type: Option<&'static str>,
     pub bind_path: Option<&'static str>,
     pub fields: &'static [FieldData],
