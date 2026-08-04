@@ -319,6 +319,7 @@ mod tests {
         const GROUP: GroupData = GroupData {
             name: "g",
             elements: &[],
+            element_data: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -352,6 +353,7 @@ mod tests {
         const GROUP: GroupData = GroupData {
             name: "g",
             elements: &[],
+            element_data: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -383,6 +385,7 @@ mod tests {
         const GROUP: GroupData = GroupData {
             name: "g",
             elements: &[],
+            element_data: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -410,6 +413,7 @@ mod tests {
         const GROUP: GroupData = GroupData {
             name: "g",
             elements: &[],
+            element_data: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -441,6 +445,7 @@ mod tests {
         const GROUP: GroupData = GroupData {
             name: "g",
             elements: &[],
+            element_data: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -472,6 +477,7 @@ mod tests {
         const GROUP: GroupData = GroupData {
             name: "g",
             elements: &[],
+            element_data: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -499,6 +505,7 @@ mod tests {
         const GROUP: GroupData = GroupData {
             name: "g",
             elements: &[],
+            element_data: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -531,6 +538,7 @@ mod tests {
         const GROUP: GroupData = GroupData {
             name: "g",
             elements: &[],
+            element_data: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);

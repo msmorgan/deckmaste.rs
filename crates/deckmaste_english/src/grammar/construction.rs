@@ -255,6 +255,7 @@ mod tests {
         deckmaste_construction_compiler::runtime::GroupData {
             name,
             elements: &[],
+            element_data: &[],
             constructions,
         }
     }
