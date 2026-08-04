@@ -245,11 +245,25 @@ mod tests {
     use super::super::generated::GeneratedActivation;
     use super::*;
     use crate::catalog::CatalogKind;
+    use crate::constructions::law;
     use crate::constructions::probe;
 
     fn probe_category(name: &str) -> Nonterminal {
         let cats = super::super::generated::internal_categories(probe::GROUPS);
         Nonterminal::Generated(cats[name])
+    }
+
+    fn law_category(name: &str) -> Nonterminal {
+        let cats = super::super::generated::internal_categories(law::GROUPS);
+        Nonterminal::Generated(cats[name])
+    }
+
+    /// Order-insensitive set equality — permutations may reorder discovery.
+    fn same_exact_set(
+        left: &[ExactParse<GeneratedParse, EnglishSurfaceWitness>],
+        right: &[ExactParse<GeneratedParse, EnglishSurfaceWitness>],
+    ) -> bool {
+        left.len() == right.len() && left.iter().all(|member| right.contains(member))
     }
 
     fn fixture_catalogs() -> Catalogs {
@@ -438,6 +452,176 @@ mod tests {
         assert!(
             matches!(error, ExactParseError::TooManyAlternatives { budget: 1 }),
             "unexpected error: {error:?}",
+        );
+    }
+
+    #[test]
+    fn one_byte_string_two_asts() {
+        let set = parse_as(
+            "or",
+            &Catalogs::default(),
+            law_category("LawRoot"),
+            GeneratedActivation::Groups(law::GROUPS),
+            100,
+        )
+        .expect("the ambiguous root parses");
+        assert_eq!(set.len(), 2, "law_first and law_second both admit: {set:?}");
+        let mut ids = set
+            .iter()
+            .map(|member| member.ast().construction)
+            .collect::<Vec<_>>();
+        ids.sort_unstable();
+        assert_eq!(ids, ["law_first", "law_second"]);
+        for member in &set {
+            assert_eq!(linearize(member.ast()), "or");
+        }
+    }
+
+    #[test]
+    fn one_ast_two_surfaces_distinguished_by_form_witness() {
+        // probe_word admits the same scalar value through two forms: bare
+        // (`@ 0`) and comma-padded (`@ 7`). Same construction, same field
+        // values, different form witness, different bytes — and linearize
+        // maps each exact parse back to ITS OWN surface.
+        let activation = GeneratedActivation::Groups(probe::GROUPS);
+        let bare = parse_as(
+            "or",
+            &Catalogs::default(),
+            probe_category("ProbeItem"),
+            activation,
+            100,
+        )
+        .expect("bare parses");
+        let padded = parse_as(
+            ", or",
+            &Catalogs::default(),
+            probe_category("ProbeItem"),
+            activation,
+            100,
+        )
+        .expect("padded parses");
+        assert_eq!(bare.len(), 1, "one exact parse for the bare surface");
+        assert_eq!(padded.len(), 1, "one exact parse for the padded surface");
+        let (bare, padded) = (&bare[0], &padded[0]);
+        assert_eq!(bare.ast().construction, padded.ast().construction);
+        let scalar_fields = |parse: &GeneratedParse| {
+            parse
+                .parts
+                .iter()
+                .filter_map(|part| match part {
+                    GeneratedPart::Scalar { field, value } => Some((*field, *value)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            scalar_fields(bare.ast()),
+            scalar_fields(padded.ast()),
+            "the two surfaces carry the same field values",
+        );
+        assert_ne!(
+            bare.ast().ordinal,
+            padded.ast().ordinal,
+            "the witness differs"
+        );
+        assert_eq!(linearize(bare.ast()), "or");
+        assert_eq!(linearize(padded.ast()), ", or");
+    }
+
+    #[test]
+    fn dominance_losing_derivations_stay_in_the_set() {
+        // probe_pick dominates probe_pick_shadow; the SELECTED parse drops
+        // the shadow, but the exact-parse SET keeps it — dominance is
+        // selection preference, not admission.
+        let set = parse_as(
+            "and",
+            &Catalogs::default(),
+            probe_category("ProbeRoot"),
+            GeneratedActivation::Groups(probe::GROUPS),
+            100,
+        )
+        .expect("the probe root parses");
+        assert_eq!(set.len(), 2);
+        let mut ids = set
+            .iter()
+            .map(|member| member.ast().construction)
+            .collect::<Vec<_>>();
+        ids.sort_unstable();
+        assert_eq!(ids, ["probe_pick", "probe_pick_shadow"]);
+        for member in &set {
+            assert_eq!(linearize(member.ast()), "and");
+        }
+    }
+
+    #[test]
+    fn every_exact_parse_linearizes_to_its_source_and_reparses_to_itself() {
+        // The two round-trip laws over the nested pair: probe_pair's product
+        // space ("and, or" = pick/shadow choices in each hole = 4 exact
+        // parses). Law 1: linearize(ep) == source, for every member. Law 2:
+        // parse_as(linearize(ep)) contains ep.
+        let activation = GeneratedActivation::Groups(probe::GROUPS);
+        let source = "and, or";
+        let set = parse_as(
+            source,
+            &Catalogs::default(),
+            probe_category("ProbePairRoot"),
+            activation,
+            100,
+        )
+        .expect("the pair parses");
+        assert_eq!(set.len(), 4, "2 root choices x 2 per hole: {set:?}");
+        for member in &set {
+            assert_eq!(linearize(member.ast()), source, "law 1 for {member:?}");
+        }
+        for member in &set {
+            let reparsed = parse_as(
+                &linearize(member.ast()),
+                &Catalogs::default(),
+                probe_category("ProbePairRoot"),
+                activation,
+                100,
+            )
+            .expect("linearized bytes reparse");
+            assert!(reparsed.contains(member), "law 2 for {member:?}");
+        }
+    }
+
+    #[test]
+    fn law_outputs_survive_registration_and_group_permutations() {
+        let normal = parse_as(
+            "and, or",
+            &Catalogs::default(),
+            probe_category("ProbePairRoot"),
+            GeneratedActivation::Groups(probe::GROUPS),
+            100,
+        )
+        .expect("normal order parses");
+        for order in [RegistrationOrder::Reversed, RegistrationOrder::FixedShuffle] {
+            let permuted = parse_as_with_registration_order(
+                "and, or",
+                &Catalogs::default(),
+                probe_category("ProbePairRoot"),
+                GeneratedActivation::Groups(probe::GROUPS),
+                100,
+                order,
+            )
+            .expect("permuted order parses");
+            assert!(
+                same_exact_set(&normal, &permuted),
+                "law outputs changed under {order:?}: {normal:?} vs {permuted:?}",
+            );
+        }
+        let reversed_groups = parse_as(
+            "and, or",
+            &Catalogs::default(),
+            probe_category("ProbePairRoot"),
+            GeneratedActivation::Groups(probe::GROUPS_REVERSED),
+            100,
+        )
+        .expect("reversed group list parses");
+        assert!(
+            same_exact_set(&normal, &reversed_groups),
+            "law outputs changed under group-list reversal",
         );
     }
 }
