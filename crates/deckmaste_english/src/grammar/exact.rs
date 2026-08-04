@@ -1172,6 +1172,36 @@ mod tests {
     }
 
     #[test]
+    fn generated_builder_admits_a_chart_unshaped_interior_member() {
+        let built = coordination::build_noun_phrase_coordination(
+            Box::new(noun_phrase(Vocab::Card)),
+            vec![
+                NounPhraseCoordination {
+                    comma: Comma::Present,
+                    conjunction: None,
+                    phrase: noun_phrase(Vocab::Spell),
+                },
+                NounPhraseCoordination {
+                    comma: Comma::Present,
+                    conjunction: Some(Conjunction::And),
+                    phrase: noun_phrase(Vocab::Ability),
+                },
+                NounPhraseCoordination {
+                    comma: Comma::Present,
+                    conjunction: Some(Conjunction::Or),
+                    phrase: noun_phrase(Vocab::Card),
+                },
+            ],
+        )
+        .expect("the generated builder currently admits an interior conjunction with a comma");
+
+        let (_, rest) = coordination::parts_noun_phrase_coordination(&built);
+        assert_eq!(rest.len(), 3, "the documented member must remain interior");
+        assert_eq!(rest[1].comma, Comma::Present);
+        assert_eq!(rest[1].conjunction, Some(Conjunction::And));
+    }
+
+    #[test]
     fn shared_determiner_builder_enforces_oxford_and_empty_complements() {
         let built = coordination::build_shared_determiner_nominal(
             Determiner::Any,
