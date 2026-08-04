@@ -52,6 +52,7 @@ pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diag
 fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
     check_generated_names(group, diags);
+    check_empty_bound_elements(group, diags);
     check_dominance_cycles(group, diags);
     check_paths(group, diags);
     check_kinds(group, diags);
@@ -193,7 +194,7 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 
 /// EC006 — covers exactly two kinds of top-level TYPE-namespace identifier
 /// the emitter mints into the group's generated module, and checks that
-/// each is unique: element structs (`PascalCased` via
+/// each is unique: owned element structs (`PascalCased` via
 /// `crate::model::pascal_case`) and own-mode construction structs (the
 /// author's literal Rust identifier, used as-is — `emit.rs` never
 /// transforms it). This is a DIFFERENT namespace from EC004's checks above:
@@ -215,15 +216,20 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 /// name — so the two-different-declared-names collision EC006 exists to
 /// catch cannot arise for it either.
 ///
-/// Processes elements before constructions, matching `emit_group`'s own
-/// emission order, so "first declared here" points at whichever one rustc
-/// would actually see first. `DeclarationViolation` is deliberately not a
+/// Bound elements are absent because the emitter mints no type for them.
+/// Processes owned elements before constructions, matching `emit_group`'s
+/// own emission order, so "first declared here" points at whichever one
+/// rustc would actually see first. `DeclarationViolation` is deliberately not a
 /// reserved name here: it now lives once in `runtime.rs`, not minted per
 /// group, so it is no longer part of this namespace.
 fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     let mut seen: std::collections::HashMap<String, (proc_macro2::Span, &'static str, String)> =
         std::collections::HashMap::new();
-    for element in &group.elements {
+    for element in group
+        .elements
+        .iter()
+        .filter(|element| element.bind_path.is_none())
+    {
         let generated = crate::model::pascal_case(&element.name.value);
         record_generated_name(
             &mut seen,
@@ -244,6 +250,48 @@ fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) 
                 "own-mode construction",
                 name.value.clone(),
             );
+        }
+    }
+}
+
+/// EC007 — an empty bound mapping is intentionally opaque: the compiler can
+/// prove that its target type exists, but cannot inspect or construct a value.
+/// Every sequence field naming one must therefore carry the direct invariant
+/// that it is always empty. This uses the existing `LenIs` predicate exactly;
+/// no new predicate abstraction or DSL form is involved.
+fn check_empty_bound_elements(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for construction in &group.constructions {
+        for binding in construction.ast.fields() {
+            let FieldKind::Sequence { element } = &binding.kind else { continue };
+            let Some(declaration) = group.elements.iter().find(|candidate| {
+                candidate.name.value == element.value
+                    && candidate.bind_path.is_some()
+                    && candidate.fields.is_empty()
+            }) else {
+                continue;
+            };
+            let directly_empty = construction.constraints.iter().any(|constraint| {
+                let Constraint::Require(requirement) = constraint else { return false };
+                let Predicate::LenIs { path, len: 0 } = &requirement.value else {
+                    return false;
+                };
+                matches!(path.segments.as_slice(), [only] if only.value == binding.field.value)
+            });
+            if !directly_empty {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::BoundElementMustBeEmpty,
+                        &construction.id.value,
+                        format!(
+                            "sequence field `{}` references empty bound element `{}`; add `require {}.len() == 0`",
+                            binding.field.value,
+                            declaration.name.value,
+                            binding.field.value,
+                        ),
+                    )
+                    .with_span(element.span),
+                );
+            }
         }
     }
 }
@@ -1514,6 +1562,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -1578,6 +1627,7 @@ mod tests {
         let mut group = minimal_group();
         let element = crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![],
         };
         group.elements.push(element.clone());
@@ -1590,6 +1640,54 @@ mod tests {
             "element names belong to the group"
         );
         assert_eq!(err[0].notes[0].message, "first declared here");
+    }
+
+    fn group_with_empty_bound_element() -> crate::model::GroupDeclaration {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("empty_payload".to_owned()),
+            bind_path: Some(crate::model::Spanned::call_site("BoundPayload".to_owned())),
+            fields: vec![],
+        });
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("payloads".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("empty_payload".to_owned()),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("payloads"),
+            ));
+        group
+    }
+
+    #[test]
+    fn empty_bound_element_requires_direct_zero_length_in_every_reference() {
+        let group = group_with_empty_bound_element();
+        let err = validate(&group).expect_err("an opaque empty mapping must never consume a value");
+        assert_eq!(codes(&err), vec!["EC007"]);
+        assert_eq!(
+            message_for(&err, "EC007"),
+            "sequence field `payloads` references empty bound element `empty_payload`; add `require payloads.len() == 0`",
+        );
+    }
+
+    #[test]
+    fn direct_zero_length_requirement_proves_empty_bound_element_safe() {
+        let mut group = group_with_empty_bound_element();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::LenIs {
+                    path: crate::model::FieldPath::call_site("payloads"),
+                    len: 0,
+                }),
+            ));
+        validate(&group).expect("the existing direct len-is-zero predicate proves emptiness");
     }
 
     #[test]
@@ -1669,6 +1767,7 @@ mod tests {
         let mut group = crate::validate::fixtures::minimal_own_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("minimal_node".to_owned()),
+            bind_path: None,
             fields: vec![],
         });
         let err = validate(&group)
@@ -1684,10 +1783,12 @@ mod tests {
         let mut group = crate::validate::fixtures::minimal_own_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("foo_bar".to_owned()),
+            bind_path: None,
             fields: vec![],
         });
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("foo__bar".to_owned()),
+            bind_path: None,
             fields: vec![],
         });
         let err =
@@ -1777,6 +1878,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -1825,6 +1927,7 @@ mod tests {
         // the WHOLE path successfully, so only an intact guard rejects it.
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("conjunction".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -1855,6 +1958,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![],
         });
         group.constructions[0].forms[0]
@@ -1872,6 +1976,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -1929,6 +2034,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Optional {
@@ -1982,6 +2088,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -2025,6 +2132,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![],
         });
         if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
@@ -2163,6 +2271,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("sub".to_owned()),
                 kind: crate::model::FieldKind::Optional {
@@ -3092,6 +3201,7 @@ mod tests {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("Mention".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("role".to_owned()),
                 kind: crate::model::FieldKind::Scalar {

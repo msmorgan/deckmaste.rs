@@ -5,6 +5,16 @@
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FixturePhrase;
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct BoundMember {
+    pub comma: Comma,
+    pub phrase: FixturePhrase,
+}
+
+pub enum BoundPayload {
+    Present,
+}
+
 use deckmaste_features::Comma;
 use deckmaste_features::Conjunction;
 

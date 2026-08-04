@@ -1,0 +1,5 @@
+error: EC007: sequence field `payloads` references empty bound element `empty_payload`; add `require payloads.len() == 0` (construction `empty_bound_sequence`)
+  --> tests/compile_fail/ec_empty_bound_element_without_zero_length.rs:16:27
+   |
+16 |             payloads: seq empty_payload,
+   |                           ^^^^^^^^^^^^^

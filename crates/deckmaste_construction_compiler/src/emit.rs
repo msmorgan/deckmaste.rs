@@ -25,7 +25,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .map(|element| {
             let serde = serde_reached.contains(&element.name.value);
-            element_struct(element, serde)
+            element_item(group, element, serde)
         })
         .collect();
     let constructions: Vec<TokenStream> = group
@@ -41,7 +41,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
     let deserialize_impls: Vec<TokenStream> = group
         .constructions
         .iter()
-        .filter_map(deserialize_impl)
+        .filter_map(|construction| deserialize_impl(group, construction))
         .collect();
     let declaration = declaration_static(group);
     let reexports = reexports(group);
@@ -132,14 +132,52 @@ fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
     }
 }
 
-fn element_struct(element: &ElementDeclaration, serde: bool) -> TokenStream {
+fn element_item(
+    group: &GroupDeclaration,
+    element: &ElementDeclaration,
+    serde: bool,
+) -> TokenStream {
+    let Some(bind_path) = &element.bind_path else {
+        return owned_element_struct(group, element, serde);
+    };
+    let target = parse_type(&bind_path.value);
+    if element.fields.is_empty() {
+        return quote! {
+            const _: fn(&#target) = |_| {};
+        };
+    }
+    let parts = quote::format_ident!("__parts_{}", element.name.value);
+    let field_names: Vec<proc_macro2::Ident> = element
+        .fields
+        .iter()
+        .map(|binding| quote::format_ident!("{}", binding.field.value))
+        .collect();
+    let field_types: Vec<TokenStream> = element
+        .fields
+        .iter()
+        .map(|binding| field_type(group, &binding.kind))
+        .collect();
+    quote! {
+        fn #parts(value: &#target) -> (#(&#field_types),*) {
+            let #target { #(#field_names),* } = value;
+            (#(#field_names),*)
+        }
+        const _: fn(&#target) -> (#(&#field_types),*) = #parts;
+    }
+}
+
+fn owned_element_struct(
+    group: &GroupDeclaration,
+    element: &ElementDeclaration,
+    serde: bool,
+) -> TokenStream {
     let name = pascal_ident(&element.name.value);
     let fields: Vec<TokenStream> = element
         .fields
         .iter()
         .map(|binding| {
             let field = quote::format_ident!("{}", binding.field.value);
-            let ty = field_type(&binding.kind);
+            let ty = field_type(group, &binding.kind);
             quote! { pub #field: #ty, }
         })
         .collect();
@@ -174,7 +212,7 @@ fn own_construction(
         .iter()
         .map(|binding| {
             let field = quote::format_ident!("{}", binding.field.value);
-            let field_ty = field_type(&binding.kind);
+            let field_ty = field_type(group, &binding.kind);
             quote! { #field: #field_ty, }
         })
         .collect();
@@ -182,7 +220,7 @@ fn own_construction(
         .iter()
         .map(|binding| {
             let field = quote::format_ident!("{}", binding.field.value);
-            let field_ty = field_type(&binding.kind);
+            let field_ty = field_type(group, &binding.kind);
             quote! { #field: #field_ty }
         })
         .collect();
@@ -204,7 +242,7 @@ fn own_construction(
         .iter()
         .map(|binding| {
             let field = quote::format_ident!("{}", binding.field.value);
-            let field_ty = field_type(&binding.kind);
+            let field_ty = field_type(group, &binding.kind);
             quote! {
                 pub fn #field(&self) -> &#field_ty {
                     &self.#field
@@ -247,7 +285,7 @@ fn bind_construction(
         .iter()
         .map(|binding| {
             let field = quote::format_ident!("{}", binding.field.value);
-            let field_ty = field_type(&binding.kind);
+            let field_ty = field_type(group, &binding.kind);
             quote! { #field: #field_ty }
         })
         .collect();
@@ -265,7 +303,7 @@ fn bind_construction(
         .iter()
         .map(|b| quote::format_ident!("{}", b.field.value))
         .collect();
-    let field_types: Vec<TokenStream> = fields.iter().map(|b| field_type(&b.kind)).collect();
+    let field_types: Vec<TokenStream> = fields.iter().map(|b| field_type(group, &b.kind)).collect();
     Some(quote! {
         // Bind mode: the target type stays public and unmigrated; these are
         // the checked door and the drift gate. The struct literal and the
@@ -288,7 +326,10 @@ fn bind_construction(
 /// bind mode at validation time — for a `ValidatedGroup`, `construction.ast`
 /// is never `Bind` here once `construction.deserialize` is true. That arm is
 /// defensive dead code, not a live deferral to a later milestone.
-fn deserialize_impl(construction: &ConstructionDeclaration) -> Option<TokenStream> {
+fn deserialize_impl(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+) -> Option<TokenStream> {
     if !construction.deserialize {
         return None;
     }
@@ -298,7 +339,7 @@ fn deserialize_impl(construction: &ConstructionDeclaration) -> Option<TokenStrea
         .iter()
         .map(|binding| {
             let field = quote::format_ident!("{}", binding.field.value);
-            let field_ty = field_type(&binding.kind);
+            let field_ty = field_type(group, &binding.kind);
             quote! { #field: #field_ty, }
         })
         .collect();
@@ -334,7 +375,7 @@ fn deserialize_impl(construction: &ConstructionDeclaration) -> Option<TokenStrea
     })
 }
 
-fn field_type(kind: &FieldKind) -> TokenStream {
+fn field_type(group: &GroupDeclaration, kind: &FieldKind) -> TokenStream {
     match kind {
         FieldKind::Subtree { category, boxed } => {
             let ty = parse_type(&category.value);
@@ -349,11 +390,27 @@ fn field_type(kind: &FieldKind) -> TokenStream {
             quote! { #ty }
         }
         FieldKind::Sequence { element } => {
-            let ty = pascal_ident(&element.value);
+            let declaration = group
+                .elements
+                .iter()
+                .find(|declaration| declaration.name.value == element.value);
+            let ty = declaration
+                .and_then(|declaration| declaration.bind_path.as_ref())
+                .map_or_else(
+                    || {
+                        // EC003 covers top-level construction fields. Preserve
+                        // the prior PascalCase fallback for an undeclared nested
+                        // element sequence rather than changing that diagnostic
+                        // boundary as a side effect of bound-element resolution.
+                        let owned = pascal_ident(&element.value);
+                        quote! { #owned }
+                    },
+                    |path| parse_type(&path.value),
+                );
             quote! { Vec<#ty> }
         }
         FieldKind::Optional { inner } => {
-            let ty = field_type(inner);
+            let ty = field_type(group, inner);
             quote! { Option<#ty> }
         }
     }
@@ -592,6 +649,7 @@ fn declaration_static(group: &GroupDeclaration) -> TokenStream {
             quote! { #n }
         })
         .collect();
+    let element_data: Vec<TokenStream> = group.elements.iter().map(element_row).collect();
     let constructions: Vec<TokenStream> =
         group.constructions.iter().map(construction_row).collect();
     quote! {
@@ -599,8 +657,28 @@ fn declaration_static(group: &GroupDeclaration) -> TokenStream {
             ::deckmaste_construction_compiler::runtime::GroupData {
                 name: #name,
                 elements: &[#(#elements),*],
+                element_data: &[#(#element_data),*],
                 constructions: &[#(#constructions),*],
             };
+    }
+}
+
+fn element_row(element: &ElementDeclaration) -> TokenStream {
+    let name = element.name.value.as_str();
+    let bind_path = element.bind_path.as_ref().map_or_else(
+        || quote! { None },
+        |path| {
+            let path = path.value.as_str();
+            quote! { Some(#path) }
+        },
+    );
+    let fields: Vec<TokenStream> = element.fields.iter().map(field_row).collect();
+    quote! {
+        ::deckmaste_construction_compiler::runtime::ElementData {
+            name: #name,
+            bind_path: #bind_path,
+            fields: &[#(#fields),*],
+        }
     }
 }
 
@@ -749,7 +827,9 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
     // export — every generated door already names it by absolute path.
     let mut items: Vec<proc_macro2::Ident> = Vec::new();
     for element in &group.elements {
-        items.push(pascal_ident(&element.name.value));
+        if element.bind_path.is_none() {
+            items.push(pascal_ident(&element.name.value));
+        }
     }
     for construction in &group.constructions {
         match &construction.ast {
@@ -820,6 +900,7 @@ mod tests {
         let mut group = crate::validate::fixtures::minimal_own_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Optional {
@@ -933,6 +1014,7 @@ mod tests {
         let mut group = crate::validate::fixtures::minimal_own_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("tag".to_owned()),
                 kind: crate::model::FieldKind::Subtree {

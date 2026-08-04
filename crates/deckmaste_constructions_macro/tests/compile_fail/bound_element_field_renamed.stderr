@@ -1,0 +1,29 @@
+error[E0026]: struct `BoundMember` does not have a field named `comma`
+  --> tests/compile_fail/bound_element_field_renamed.rs:10:1
+   |
+10 | / deckmaste_constructions_macro::constructions! {
+11 | |     group renamed;
+12 | |     element fixture_member bind BoundMember {
+13 | |         comma: lex Comma,
+...  |
+16 | | }
+   | |_^ struct `BoundMember` does not have this field
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: pattern requires `..` due to inaccessible fields
+  --> tests/compile_fail/bound_element_field_renamed.rs:10:1
+   |
+10 | / deckmaste_constructions_macro::constructions! {
+11 | |     group renamed;
+12 | |     element fixture_member bind BoundMember {
+13 | |         comma: lex Comma,
+...  |
+16 | | }
+   | |_^
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: ignore the inaccessible and unused fields
+   |
+16 | }, ..
+   |  ++++

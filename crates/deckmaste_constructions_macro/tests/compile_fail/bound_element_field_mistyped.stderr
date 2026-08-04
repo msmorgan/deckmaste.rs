@@ -1,0 +1,14 @@
+error[E0308]: mismatched types
+  --> tests/compile_fail/bound_element_field_mistyped.rs:10:1
+   |
+10 | / deckmaste_constructions_macro::constructions! {
+11 | |     group mistyped;
+12 | |     element fixture_member bind BoundMember {
+13 | |         comma: lex Comma,
+...  |
+16 | | }
+   | |_^ expected `&Comma`, found `&FixturePhrase`
+   |
+   = note: expected reference `&deckmaste_features::Comma`
+              found reference `&FixturePhrase`
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)

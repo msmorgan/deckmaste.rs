@@ -23,7 +23,15 @@ pub struct DeclarationViolation {
 pub struct GroupData {
     pub name: &'static str,
     pub elements: &'static [&'static str],
+    pub element_data: &'static [ElementData],
     pub constructions: &'static [ConstructionData],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ElementData {
+    pub name: &'static str,
+    pub bind_path: Option<&'static str>,
+    pub fields: &'static [FieldData],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

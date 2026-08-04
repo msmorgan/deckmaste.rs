@@ -27,26 +27,32 @@ use deckmaste_construction_compiler::validate::validate;
 pub fn fixture_coordination_group() -> GroupDeclaration {
     GroupDeclaration {
         name: Spanned::call_site("fixture_coordination".to_owned()),
-        elements: vec![ElementDeclaration {
-            name: Spanned::call_site("fixture_member".to_owned()),
-            fields: vec![
-                FieldBinding {
-                    field: Spanned::call_site("comma".to_owned()),
-                    kind: FieldKind::Optional {
-                        inner: Box::new(FieldKind::Scalar {
+        elements: vec![
+            ElementDeclaration {
+                name: Spanned::call_site("fixture_member".to_owned()),
+                bind_path: Some(Spanned::call_site("BoundMember".to_owned())),
+                fields: vec![
+                    FieldBinding {
+                        field: Spanned::call_site("comma".to_owned()),
+                        kind: FieldKind::Scalar {
                             codec: Spanned::call_site("Comma".to_owned()),
-                        }),
+                        },
                     },
-                },
-                FieldBinding {
-                    field: Spanned::call_site("phrase".to_owned()),
-                    kind: FieldKind::Subtree {
-                        category: Spanned::call_site("FixturePhrase".to_owned()),
-                        boxed: false,
+                    FieldBinding {
+                        field: Spanned::call_site("phrase".to_owned()),
+                        kind: FieldKind::Subtree {
+                            category: Spanned::call_site("FixturePhrase".to_owned()),
+                            boxed: false,
+                        },
                     },
-                },
-            ],
-        }],
+                ],
+            },
+            ElementDeclaration {
+                name: Spanned::call_site("empty_payload".to_owned()),
+                bind_path: Some(Spanned::call_site("BoundPayload".to_owned())),
+                fields: vec![],
+            },
+        ],
         constructions: vec![
             ConstructionDeclaration {
                 id: Spanned::call_site("fixture_pair".to_owned()),
@@ -183,10 +189,12 @@ fn fixture_dsl() -> proc_macro2::TokenStream {
     quote::quote! {
         group fixture_coordination;
 
-        element fixture_member {
-            comma: opt lex Comma,
+        element fixture_member bind BoundMember {
+            comma: lex Comma,
             phrase: hole FixturePhrase,
         }
+
+        element empty_payload bind BoundPayload {}
 
         construction fixture_pair: FixturePair {
             own FixturePairNode {

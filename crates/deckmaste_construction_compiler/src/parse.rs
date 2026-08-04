@@ -97,10 +97,20 @@ fn spanned_ident(input: ParseStream<'_>) -> syn::Result<Spanned<String>> {
 fn parse_element(input: ParseStream<'_>) -> syn::Result<ElementDeclaration> {
     input.parse::<kw::element>()?;
     let name = spanned_ident(input)?;
+    let bind_path = if input.peek(kw::bind) {
+        input.parse::<kw::bind>()?;
+        Some(spanned_type_path(input)?)
+    } else {
+        None
+    };
     let content;
     syn::braced!(content in input);
     let fields = parse_fields(&content)?;
-    Ok(ElementDeclaration { name, fields })
+    Ok(ElementDeclaration {
+        name,
+        bind_path,
+        fields,
+    })
 }
 
 fn parse_fields(input: ParseStream<'_>) -> syn::Result<Vec<FieldBinding>> {
@@ -500,10 +510,12 @@ mod tests {
         quote::quote! {
             group fixture_coordination;
 
-            element fixture_member {
-                comma: opt lex Comma,
+            element fixture_member bind BoundMember {
+                comma: lex Comma,
                 phrase: hole FixturePhrase,
             }
+
+            element empty_payload bind BoundPayload {}
 
             construction fixture_pair: FixturePair {
                 own FixturePairNode {
@@ -626,6 +638,40 @@ mod tests {
             other => panic!("expected Scalar, got {other:?}"),
         };
         assert_eq!(codec.value, "::std::num::NonZeroU32");
+    }
+
+    #[test]
+    fn qualified_bound_element_path_parses_into_the_model_and_round_trips() {
+        let parsed = parse_group(quote::quote! {
+            group g;
+            element member bind crate::syntax::BoundMember {
+                phrase: hole FixturePhrase,
+            }
+        })
+        .expect("qualified bound element path parses");
+        assert_eq!(
+            parsed.elements,
+            vec![ElementDeclaration {
+                name: Spanned::call_site("member".to_owned()),
+                bind_path: Some(Spanned::call_site("crate::syntax::BoundMember".to_owned(),)),
+                fields: vec![FieldBinding {
+                    field: Spanned::call_site("phrase".to_owned()),
+                    kind: FieldKind::Subtree {
+                        category: Spanned::call_site("FixturePhrase".to_owned()),
+                        boxed: false,
+                    },
+                }],
+            }],
+        );
+        let stored = &parsed.elements[0].bind_path.as_ref().expect("bound").value;
+        let reparsed: syn::Type = syn::parse_str(stored).expect("stored path reparses");
+        let expected: syn::Type =
+            syn::parse_str("crate::syntax::BoundMember").expect("control parses");
+        assert_eq!(
+            quote::quote!(#reparsed).to_string(),
+            quote::quote!(#expected).to_string(),
+            "the stored qualified path must preserve every segment",
+        );
     }
 
     /// Coverage sweep, snippet 1: `hole box TYPEPATH` (nested inside `opt`),

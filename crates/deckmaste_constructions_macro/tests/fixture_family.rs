@@ -21,16 +21,29 @@
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FixturePhrase;
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct BoundMember {
+    pub comma: Comma,
+    pub phrase: FixturePhrase,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum BoundPayload {
+    Present,
+}
+
 use deckmaste_features::Comma;
 use deckmaste_features::Conjunction;
 
 deckmaste_constructions_macro::constructions! {
     group fixture_coordination;
 
-    element fixture_member {
-        comma: opt lex Comma,
+    element fixture_member bind BoundMember {
+        comma: lex Comma,
         phrase: hole FixturePhrase,
     }
+
+    element empty_payload bind BoundPayload {}
 
     construction fixture_pair: FixturePair {
         own FixturePairNode {
@@ -70,8 +83,8 @@ deckmaste_constructions_macro::constructions! {
 
 #[test]
 fn try_new_enforces_every_require() {
-    let member = || FixtureMember {
-        comma: None,
+    let member = || BoundMember {
+        comma: Comma::Present,
         phrase: FixturePhrase,
     };
     let pair = FixturePairNode::try_new(vec![member(), member()], Conjunction::And)
@@ -99,22 +112,18 @@ fn try_new_enforces_every_require() {
 fn last_path_requires_are_vacuous_on_empty_and_checked_on_the_last_member() {
     // fixture_pair also requires members.len() >= 2, so exercise the .last
     // check through values that pass the length gate.
-    let plain = |comma| FixtureMember {
+    let plain = |comma| BoundMember {
         comma,
         phrase: FixturePhrase,
     };
     let ok = FixturePairNode::try_new(
-        vec![plain(None), plain(Some(Comma::Present))],
+        vec![plain(Comma::Absent), plain(Comma::Present)],
         Conjunction::And,
     )
     .expect("a Present last comma satisfies the .last require");
     assert_eq!(ok.members().len(), 2);
-    // Reading-B nesting: an ABSENT optional on the last member is vacuously
-    // admitted by `in [Present]`.
-    FixturePairNode::try_new(vec![plain(None), plain(None)], Conjunction::And)
-        .expect("an absent last comma is vacuously admitted (optional reading B)");
     let rejected = FixturePairNode::try_new(
-        vec![plain(None), plain(Some(Comma::Absent))],
+        vec![plain(Comma::Present), plain(Comma::Absent)],
         Conjunction::And,
     )
     .expect_err("a present-but-Absent last comma violates the require");
@@ -166,7 +175,33 @@ fn declaration_data_traces_to_the_one_declaration() {
     use deckmaste_construction_compiler::runtime::WitnessClassData;
     let data = &FIXTURE_COORDINATION_DECLARATION;
     assert_eq!(data.name, "fixture_coordination");
-    assert_eq!(data.elements, &["fixture_member"]);
+    assert_eq!(data.elements, &["fixture_member", "empty_payload"]);
+    assert_eq!(data.element_data.len(), 2);
+    assert_eq!(data.element_data[0].name, "fixture_member");
+    assert_eq!(data.element_data[0].bind_path, Some("BoundMember"));
+    assert_eq!(
+        data.element_data[0]
+            .fields
+            .iter()
+            .map(|field| field.name)
+            .collect::<Vec<_>>(),
+        vec!["comma", "phrase"],
+        "element fields preserve declaration order exactly",
+    );
+    assert_eq!(
+        data.element_data[0].fields[0].kind,
+        FieldKindData::Scalar { codec: "Comma" }
+    );
+    assert_eq!(
+        data.element_data[0].fields[1].kind,
+        FieldKindData::Subtree {
+            category: "FixturePhrase",
+            boxed: false,
+        }
+    );
+    assert_eq!(data.element_data[1].name, "empty_payload");
+    assert_eq!(data.element_data[1].bind_path, Some("BoundPayload"));
+    assert!(data.element_data[1].fields.is_empty());
     let ids: Vec<&str> = data.constructions.iter().map(|c| c.id).collect();
     assert_eq!(ids, vec!["fixture_pair", "fixture_solo", "fixture_tagged"]);
     let pair = &data.constructions[0];
@@ -232,8 +267,25 @@ pub struct BoundPair {
     pub right: Option<FixturePhrase>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct BoundMembers {
+    pub members: Vec<BoundMember>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct EmptyBoundSequence {
+    pub payloads: Vec<BoundPayload>,
+}
+
 deckmaste_constructions_macro::constructions! {
     group bind_probe;
+
+    element fixture_member bind BoundMember {
+        comma: lex Comma,
+        phrase: hole FixturePhrase,
+    }
+
+    element empty_payload bind BoundPayload {}
 
     construction bind_pair: FixturePair {
         bind BoundPair {
@@ -242,6 +294,21 @@ deckmaste_constructions_macro::constructions! {
         }
         require right.is_some();
         form both @ 0 = left right;
+    }
+
+    construction bind_members: FixturePair {
+        bind BoundMembers {
+            members: seq fixture_member,
+        }
+        form only @ 0 = members;
+    }
+
+    construction empty_bound_sequence: FixturePair {
+        bind EmptyBoundSequence {
+            payloads: seq empty_payload,
+        }
+        require payloads.len() == 0;
+        form only @ 0 = payloads;
     }
 }
 
@@ -257,4 +324,26 @@ fn bind_builder_enforces_requires_and_destructures() {
         build_bind_pair(FixturePhrase, None).expect_err("absent right side violates the require");
     assert_eq!(violation.construction, "bind_pair");
     assert_eq!(violation.requirement, "right.is_some()");
+}
+
+#[test]
+fn bind_construction_uses_handwritten_bound_element_type() {
+    let members = vec![BoundMember {
+        comma: Comma::Present,
+        phrase: FixturePhrase,
+    }];
+    let value = build_bind_members(members).expect("bound member vector builds");
+    let projected = parts_bind_members(&value);
+    assert_eq!(projected.len(), 1);
+    assert_eq!(projected[0].comma, Comma::Present);
+}
+
+#[test]
+fn empty_bound_element_sequence_is_checked_at_runtime() {
+    let value = build_empty_bound_sequence(Vec::new()).expect("the proved-empty sequence builds");
+    let payloads = parts_empty_bound_sequence(&value);
+    assert!(payloads.is_empty());
+    let violation = build_empty_bound_sequence(vec![BoundPayload::Present])
+        .expect_err("a non-empty opaque sequence violates its direct requirement");
+    assert_eq!(violation.requirement, "payloads.len() == 0");
 }

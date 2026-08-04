@@ -100,6 +100,7 @@ pub enum FieldKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementDeclaration {
     pub name: Spanned<String>,
+    pub bind_path: Option<Spanned<String>>,
     pub fields: Vec<FieldBinding>,
 }
 

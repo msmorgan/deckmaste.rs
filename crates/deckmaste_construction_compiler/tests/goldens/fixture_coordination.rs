@@ -16,19 +16,20 @@ mod __constructions_fixture_coordination {
                           clauses, which the author wrote and can read"
     )]
     use super::*;
-    #[derive(Debug, PartialEq, Eq)]
-    pub struct FixtureMember {
-        pub comma: Option<Comma>,
-        pub phrase: FixturePhrase,
+    fn __parts_fixture_member(value: &BoundMember) -> (&Comma, &FixturePhrase) {
+        let BoundMember { comma, phrase } = value;
+        (comma, phrase)
     }
+    const _: fn(&BoundMember) -> (&Comma, &FixturePhrase) = __parts_fixture_member;
+    const _: fn(&BoundPayload) = |_| {};
     #[derive(Debug, PartialEq, Eq)]
     pub struct FixturePairNode {
-        members: Vec<FixtureMember>,
+        members: Vec<BoundMember>,
         conjunction: Conjunction,
     }
     impl FixturePairNode {
         pub fn try_new(
-            members: Vec<FixtureMember>,
+            members: Vec<BoundMember>,
             conjunction: Conjunction,
         ) -> Result<Self, ::deckmaste_construction_compiler::runtime::DeclarationViolation>
         {
@@ -50,7 +51,7 @@ mod __constructions_fixture_coordination {
             }
             if !(members
                 .last()
-                .is_none_or(|member| matches!(member.comma, None | Some(Comma::Present))))
+                .is_none_or(|member| matches!(member.comma, Comma::Present)))
             {
                 return Err(
                     ::deckmaste_construction_compiler::runtime::DeclarationViolation {
@@ -64,7 +65,7 @@ mod __constructions_fixture_coordination {
                 conjunction,
             })
         }
-        pub fn members(&self) -> &Vec<FixtureMember> {
+        pub fn members(&self) -> &Vec<BoundMember> {
             &self.members
         }
         pub fn conjunction(&self) -> &Conjunction {
@@ -128,7 +129,33 @@ mod __constructions_fixture_coordination {
     }
     pub static FIXTURE_COORDINATION_DECLARATION: ::deckmaste_construction_compiler::runtime::GroupData = ::deckmaste_construction_compiler::runtime::GroupData {
         name: "fixture_coordination",
-        elements: &["fixture_member"],
+        elements: &["fixture_member", "empty_payload"],
+        element_data: &[
+            ::deckmaste_construction_compiler::runtime::ElementData {
+                name: "fixture_member",
+                bind_path: Some("BoundMember"),
+                fields: &[
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "comma",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar {
+                            codec: "Comma",
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "phrase",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Subtree {
+                            category: "FixturePhrase",
+                            boxed: false,
+                        },
+                    },
+                ],
+            },
+            ::deckmaste_construction_compiler::runtime::ElementData {
+                name: "empty_payload",
+                bind_path: Some("BoundPayload"),
+                fields: &[],
+            },
+        ],
         constructions: &[
             ::deckmaste_construction_compiler::runtime::ConstructionData {
                 id: "fixture_pair",
@@ -248,6 +275,5 @@ mod __constructions_fixture_coordination {
     };
 }
 pub use __constructions_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;
-pub use __constructions_fixture_coordination::FixtureMember;
 pub use __constructions_fixture_coordination::FixturePairNode;
 pub use __constructions_fixture_coordination::FixtureSoloNode;

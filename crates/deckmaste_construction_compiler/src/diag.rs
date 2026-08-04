@@ -65,6 +65,7 @@ pub enum DiagCode {
     DuplicateName,
     DeserializeRequiresOwn,
     GeneratedNameCollision,
+    BoundElementMustBeEmpty,
     UnknownFieldPath,
     PresenceOnNonOptional,
     WitnessFieldCollision,
@@ -95,6 +96,7 @@ impl DiagCode {
             Self::DuplicateName => "EC004",
             Self::DeserializeRequiresOwn => "EC005",
             Self::GeneratedNameCollision => "EC006",
+            Self::BoundElementMustBeEmpty => "EC007",
             Self::UnknownFieldPath => "EC010",
             Self::PresenceOnNonOptional => "EC011",
             Self::WitnessFieldCollision => "EC012",
@@ -154,6 +156,7 @@ mod tests {
         assert_eq!(DiagCode::DuplicateName.as_str(), "EC004");
         assert_eq!(DiagCode::DeserializeRequiresOwn.as_str(), "EC005");
         assert_eq!(DiagCode::GeneratedNameCollision.as_str(), "EC006");
+        assert_eq!(DiagCode::BoundElementMustBeEmpty.as_str(), "EC007");
         assert_eq!(DiagCode::PresenceOnNonOptional.as_str(), "EC011");
         assert_eq!(DiagCode::SurfaceKindMismatch.as_str(), "EC014");
         assert_eq!(DiagCode::PredicateKindMismatch.as_str(), "EC015");
