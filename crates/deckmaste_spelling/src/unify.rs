@@ -52,6 +52,10 @@
 use std::cmp::Reverse;
 use std::collections::HashMap;
 
+use deckmaste_english::word::Pronoun;
+use deckmaste_english::word::PronounCase;
+use deckmaste_english::word::PronounInstance;
+use deckmaste_english::word::Vocabulary;
 use macro_ron::Expand;
 use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
@@ -871,8 +875,13 @@ fn neutralize_agreement(target: &mut View, agreement: &[AgreementDep], depth: us
 /// spelling is the renderer's choice on the way out (which is exactly why
 /// [`HoleClass::Numeral`] deliberately leaves it outside the hole) and
 /// therefore carries no information on the way in.
-fn surface_only_fields(name: &str, fields: &[(&'static str, View)]) -> &'static [&'static str] {
-    let numeric_hole = fields.iter().any(|(field, value)| {
+fn surface_only_fields(
+    name: &str,
+    variant: Option<&str>,
+    pattern: &[(&'static str, View)],
+    target: &[(&'static str, View)],
+) -> &'static [&'static str] {
+    let numeric_hole = pattern.iter().any(|(field, value)| {
         *field == "value"
             && matches!(
                 value,
@@ -902,7 +911,44 @@ fn surface_only_fields(name: &str, fields: &[(&'static str, View)]) -> &'static 
     if name == "CatalogAtom" {
         return &["spelling"];
     }
+    // Case belongs to the syntactic host, not the referent. A standalone
+    // nullary frame for an invariant pronoun such as `you` selects one case
+    // when parsed without a host, but must match that same spelling in either
+    // a subject or object position. Keep case load-bearing for identities
+    // whose forms differ (`he`/`him`, `they`/`them`).
+    if name == "NounPhrase"
+        && variant == Some("Pronoun")
+        && case_invariant_pronouns_match(pattern, target)
+    {
+        return &["case"];
+    }
     &[]
+}
+
+/// Whether both nodes carry the same pronoun identity and that identity has
+/// one surface for both grammatical cases.
+fn case_invariant_pronouns_match(
+    pattern: &[(&'static str, View)],
+    target: &[(&'static str, View)],
+) -> bool {
+    let (Some(pattern), Some(target)) = (find(pattern, "pronoun"), find(target, "pronoun")) else {
+        return false;
+    };
+    if pattern != target {
+        return false;
+    }
+    let Some(pronoun) = Pronoun::ALL
+        .into_iter()
+        .find(|pronoun| crate::view::of(pronoun) == *pattern)
+    else {
+        return false;
+    };
+    let vocabulary = Vocabulary::new();
+    let surface = |case| vocabulary.render_pronoun(PronounInstance { pronoun, case });
+    matches!(
+        (surface(PronounCase::Subject), surface(PronounCase::Object)),
+        (Some(subject), Some(object)) if subject == object
+    )
 }
 
 /// The serde scalar kinds a numeric hole may have captured.
@@ -1003,7 +1049,7 @@ fn match_fields(
     target: &[(&'static str, View)],
     attempt: &mut Attempt,
 ) -> bool {
-    let skipped = surface_only_fields(name, pattern);
+    let skipped = surface_only_fields(name, variant, pattern, target);
 
     // A field-slice hole is spelled once per claimed field, all with the same
     // index; `claimed` — never a fixed three-field guess — is the authority
@@ -1915,6 +1961,27 @@ mod tests {
     }
 
     // -- entry bodies -------------------------------------------------------
+
+    /// A pronoun whose subject and object forms differ keeps that distinction
+    /// when a nullary nominal frame is matched recursively. This is the
+    /// control against treating every `NounPhrase.case` field as surface-only:
+    /// masculine `he` and `him` share one pronoun identity, but not one frame.
+    #[test]
+    #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
+    fn case_distinguishing_pronouns_do_not_share_a_nullary_frame() {
+        let lexicon = sole("He", compiled("he", FragmentKind::Nominal, &[]), &[]);
+
+        let recovered = unify(
+            &parse("him", FragmentKind::Nominal, ""),
+            &lexicon,
+            FramePosition::Main,
+        );
+
+        assert!(
+            matches!(recovered, Recovered::Residual(_)),
+            "the subject-only `he` frame must not claim object `him`: {recovered:#?}"
+        );
+    }
 
     /// A multi-param entry whose `body:` says how its constituents ASSEMBLE
     /// into a verb whose slot order differs from the English's.
