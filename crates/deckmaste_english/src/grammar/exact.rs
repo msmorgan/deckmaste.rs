@@ -154,6 +154,116 @@ fn collect_tokens(parse: &GeneratedParse, tokens: &mut Vec<&'static str>) {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CoordinationVerdict {
+    Admitted,
+    Refused { requirement: &'static str },
+}
+
+pub(crate) fn linearize_coordinated_noun_phrase(
+    value: &crate::syntax::CoordinatedNounPhrase,
+) -> Result<String, crate::renderer::RenderError> {
+    assert_eq!(
+        coordination_verdict(value),
+        CoordinationVerdict::Admitted,
+        "only declaration-admitted noun-phrase coordinations can be linearized",
+    );
+
+    let (first, rest) = crate::constructions::coordination::parts_noun_phrase_coordination(value);
+    let mut rendered = crate::render_fragment(
+        &crate::fragment::Fragment::Nominal(first.as_ref().clone()),
+        "",
+        false,
+    )?;
+    for member in rest {
+        if member.comma.is_present() {
+            rendered.push(',');
+        }
+        if let Some(conjunction) = member.conjunction {
+            rendered.push(' ');
+            rendered.push_str(conjunction.spelling());
+        }
+        rendered.push(' ');
+        rendered.push_str(&crate::render_fragment(
+            &crate::fragment::Fragment::Nominal(member.phrase.clone()),
+            "",
+            false,
+        )?);
+    }
+    Ok(rendered)
+}
+
+pub(crate) fn linearize_coordinated_nominal_phrase(
+    value: &crate::syntax::CoordinatedNominalPhrase,
+) -> Result<String, crate::renderer::RenderError> {
+    assert_eq!(
+        nominal_coordination_verdict(value),
+        CoordinationVerdict::Admitted,
+        "only declaration-admitted shared-determiner coordinations can be linearized",
+    );
+
+    let (determiner, first, rest, _complements) =
+        crate::constructions::coordination::parts_shared_determiner_nominal(value);
+    let mut first = first.as_ref().clone();
+    first.determiner = Some(determiner.clone());
+    let mut rendered = crate::render_fragment(
+        &crate::fragment::Fragment::Nominal(crate::syntax::NounPhrase::Nominal(first)),
+        "",
+        false,
+    )?;
+    for member in rest {
+        if member.comma.is_present() {
+            rendered.push(',');
+        }
+        if let Some(conjunction) = member.conjunction {
+            rendered.push(' ');
+            rendered.push_str(conjunction.spelling());
+        }
+        rendered.push(' ');
+        rendered.push_str(&crate::render_fragment(
+            &crate::fragment::Fragment::Nominal(crate::syntax::NounPhrase::Nominal(
+                member.phrase.clone(),
+            )),
+            "",
+            false,
+        )?);
+    }
+    Ok(rendered)
+}
+
+pub(crate) fn coordination_verdict(
+    value: &crate::syntax::CoordinatedNounPhrase,
+) -> CoordinationVerdict {
+    let (first, rest) = crate::constructions::coordination::parts_noun_phrase_coordination(value);
+    match crate::constructions::coordination::build_noun_phrase_coordination(
+        first.clone(),
+        rest.clone(),
+    ) {
+        Ok(_) => CoordinationVerdict::Admitted,
+        Err(violation) => CoordinationVerdict::Refused {
+            requirement: violation.requirement,
+        },
+    }
+}
+
+pub(crate) fn nominal_coordination_verdict(
+    value: &crate::syntax::CoordinatedNominalPhrase,
+) -> CoordinationVerdict {
+    let (determiner, first, rest, complements) =
+        crate::constructions::coordination::parts_shared_determiner_nominal(value);
+    match crate::constructions::coordination::build_shared_determiner_nominal(
+        determiner.clone(),
+        first.clone(),
+        rest.clone(),
+        complements.clone(),
+    ) {
+        Ok(_) => CoordinationVerdict::Admitted,
+        Err(violation) => CoordinationVerdict::Refused {
+            requirement: violation.requirement,
+        },
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ExactParseError {
     Grammar(GrammarError),
     /// The forest reaches a cycle; enumeration refuses rather than risking
@@ -307,6 +417,10 @@ mod tests {
             head: NounInstance::Singular(Noun::Word(head)),
             complements: Vec::new(),
         }
+    }
+
+    fn noun_phrase(head: Vocab) -> NounPhrase {
+        NounPhrase::Nominal(nominal(head))
     }
 
     #[test]
@@ -569,6 +683,131 @@ mod tests {
         .expect_err("the opaque nominal-complement sequence is currently proved empty");
         assert_eq!(complement.construction, "shared_determiner_nominal");
         assert_eq!(complement.requirement, "complements.len() == 0");
+    }
+
+    #[test]
+    fn noun_coordination_linearizes_binary_and_oxford_members_in_declared_order() {
+        let binary = coordination::build_noun_phrase_coordination(
+            Box::new(noun_phrase(Vocab::Card)),
+            vec![NounPhraseCoordination {
+                comma: Comma::Absent,
+                conjunction: Some(Conjunction::And),
+                phrase: noun_phrase(Vocab::Spell),
+            }],
+        )
+        .expect("binary noun coordination is declared");
+        assert_eq!(coordination_verdict(&binary), CoordinationVerdict::Admitted);
+        assert_eq!(
+            linearize_coordinated_noun_phrase(&binary).expect("binary members render"),
+            "card and spell",
+        );
+
+        let oxford = coordination::build_noun_phrase_coordination(
+            Box::new(noun_phrase(Vocab::Card)),
+            vec![
+                NounPhraseCoordination {
+                    comma: Comma::Present,
+                    conjunction: None,
+                    phrase: noun_phrase(Vocab::Spell),
+                },
+                NounPhraseCoordination {
+                    comma: Comma::Present,
+                    conjunction: Some(Conjunction::Or),
+                    phrase: noun_phrase(Vocab::Ability),
+                },
+            ],
+        )
+        .expect("Oxford noun coordination is declared");
+        let rendered = linearize_coordinated_noun_phrase(&oxford).expect("Oxford members render");
+        assert_eq!(rendered, "card, spell, or ability");
+        assert!(rendered.starts_with("card,"));
+        assert!(!rendered.contains("card ,"));
+    }
+
+    #[test]
+    fn nominal_coordination_linearizes_binary_and_oxford_with_one_shared_determiner() {
+        let binary = coordination::build_shared_determiner_nominal(
+            Determiner::Any,
+            Box::new(nominal(Vocab::Card)),
+            vec![NominalPhraseCoordination {
+                comma: Comma::Absent,
+                conjunction: Some(Conjunction::Or),
+                phrase: nominal(Vocab::Spell),
+            }],
+            Vec::new(),
+        )
+        .expect("binary shared-determiner coordination is declared");
+        assert_eq!(
+            nominal_coordination_verdict(&binary),
+            CoordinationVerdict::Admitted,
+        );
+        assert_eq!(
+            linearize_coordinated_nominal_phrase(&binary).expect("binary nominals render"),
+            "any card or spell",
+        );
+        let (_, first, rest, complements) = coordination::parts_shared_determiner_nominal(&binary);
+        assert_eq!(first.determiner, None);
+        assert_eq!(rest[0].phrase.determiner, None);
+        assert!(complements.is_empty());
+
+        let oxford = coordination::build_shared_determiner_nominal(
+            Determiner::Any,
+            Box::new(nominal(Vocab::Card)),
+            vec![
+                NominalPhraseCoordination {
+                    comma: Comma::Present,
+                    conjunction: None,
+                    phrase: nominal(Vocab::Spell),
+                },
+                NominalPhraseCoordination {
+                    comma: Comma::Present,
+                    conjunction: Some(Conjunction::Or),
+                    phrase: nominal(Vocab::Ability),
+                },
+            ],
+            Vec::new(),
+        )
+        .expect("Oxford shared-determiner coordination is declared");
+        let rendered =
+            linearize_coordinated_nominal_phrase(&oxford).expect("Oxford nominals render");
+        assert_eq!(rendered, "any card, spell, or ability");
+        assert_eq!(rendered.matches("any").count(), 1);
+        assert!(rendered.starts_with("any card,"));
+    }
+
+    #[test]
+    fn coordination_verdicts_report_the_generated_requirement_that_refused_the_value() {
+        let noun = crate::syntax::CoordinatedNounPhrase {
+            first: Box::new(noun_phrase(Vocab::Card)),
+            rest: vec![NounPhraseCoordination {
+                comma: Comma::Present,
+                conjunction: Some(Conjunction::And),
+                phrase: noun_phrase(Vocab::Spell),
+            }],
+        };
+        assert_eq!(
+            coordination_verdict(&noun),
+            CoordinationVerdict::Refused {
+                requirement: "any(rest.len() >= 2, rest.last.comma in [Absent])",
+            },
+        );
+
+        let nominal = crate::syntax::CoordinatedNominalPhrase {
+            determiner: Determiner::Any,
+            first: Box::new(nominal(Vocab::Card)),
+            rest: vec![NominalPhraseCoordination {
+                comma: Comma::Absent,
+                conjunction: Some(Conjunction::Or),
+                phrase: nominal(Vocab::Spell),
+            }],
+            complements: vec![NominalComplement::Quantity(Quantity::Both)],
+        };
+        assert_eq!(
+            nominal_coordination_verdict(&nominal),
+            CoordinationVerdict::Refused {
+                requirement: "complements.len() == 0",
+            },
+        );
     }
 
     #[test]
