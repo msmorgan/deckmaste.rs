@@ -1,7 +1,23 @@
 mod __constructicon_fixture_coordination {
+    #![allow(
+        clippy::nonminimal_bool,
+        reason = "the `if !(…)` wrapper negates arbitrary author predicates \
+                          uniformly, including `matches!` and nested `&&`/`||` trees; \
+                          a De Morgan pass would add a whole rewriting layer for zero \
+                          semantic gain"
+    )]
+    #![allow(
+        clippy::must_use_candidate,
+        reason = "accessors are generated per declared field, not chosen"
+    )]
+    #![allow(
+        clippy::missing_errors_doc,
+        reason = "try_new's error conditions are the declaration's `require` \
+                          clauses, which the author wrote and can read"
+    )]
     use super::*;
     /// A `require` clause an ingress value failed. One error class for
-    /// every generated door: try_new and validating deserialization.
+    /// every generated door: `try_new` and validating deserialization.
     #[derive(Debug, PartialEq, Eq)]
     pub struct DeclarationViolation {
         pub construction: &'static str,
