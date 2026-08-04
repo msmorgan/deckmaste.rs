@@ -5,7 +5,13 @@
 use crate::diag::DiagCode;
 use crate::diag::Diagnostic;
 use crate::diag::sort_key;
+use crate::model::ConstructionDeclaration;
+use crate::model::FieldBinding;
+use crate::model::FieldKind;
+use crate::model::FieldPath;
 use crate::model::GroupDeclaration;
+use crate::model::SurfaceAtom;
+use crate::model::WitnessClass;
 
 #[derive(Debug)]
 pub struct ValidatedGroup<'a> {
@@ -33,6 +39,7 @@ pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diag
 fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
     check_dominance_cycles(group, diags);
+    check_paths(group, diags);
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
@@ -134,6 +141,124 @@ fn check_dominance_cycles(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>)
             } else {
                 state.insert(node, 2);
                 stack.pop();
+            }
+        }
+    }
+}
+
+/// Resolves a path against a construction's ast fields and, through
+/// Sequence fields, the group's element declarations. `last`/an index
+/// segment addresses a sequence element. Returns the terminal FieldKind.
+fn resolve_path<'g>(
+    group: &'g GroupDeclaration,
+    construction: &'g ConstructionDeclaration,
+    path: &FieldPath,
+) -> Option<&'g FieldKind> {
+    let mut fields: &'g [FieldBinding] = construction.ast.fields();
+    let mut resolved: Option<&'g FieldKind> = None;
+    let mut segments = path.segments.iter().peekable();
+    while let Some(segment) = segments.next() {
+        if segment == "last" {
+            // `last` re-addresses the current sequence element; the kind
+            // under resolution is unchanged.
+            continue;
+        }
+        let binding = fields.iter().find(|b| &b.field.value == segment)?;
+        resolved = Some(&binding.kind);
+        if segments.peek().is_some() {
+            match &binding.kind {
+                FieldKind::Sequence { element } => {
+                    let declared = group
+                        .elements
+                        .iter()
+                        .find(|e| e.name.value == element.value)?;
+                    fields = &declared.fields;
+                }
+                _ => return None,
+            }
+        }
+    }
+    resolved
+}
+
+fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        let field_names: std::collections::HashSet<&str> = construction
+            .ast
+            .fields()
+            .iter()
+            .map(|b| b.field.value.as_str())
+            .collect();
+
+        for binding in construction.ast.fields() {
+            if let FieldKind::Sequence { element } = &binding.kind {
+                if !group.elements.iter().any(|e| e.name.value == element.value) {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnknownElement,
+                            id,
+                            format!(
+                                "sequence field `{}` names undeclared element `{}`",
+                                binding.field.value, element.value
+                            ),
+                        )
+                        .with_span(element.span),
+                    );
+                }
+            }
+        }
+        for form in &construction.forms {
+            for atom in &form.surface {
+                let path = match atom {
+                    SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
+                    SurfaceAtom::Literal(_) => continue,
+                };
+                if resolve_path(group, construction, path).is_none() {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnknownFieldPath,
+                            id,
+                            format!(
+                                "form `{}` references unknown path `{}`",
+                                form.name.value,
+                                path.segments.join(".")
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
+            }
+        }
+        for witness in &construction.witnesses {
+            if field_names.contains(witness.name.value.as_str()) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::WitnessFieldCollision,
+                        id,
+                        format!(
+                            "witness `{}` collides with an ast field of the same name",
+                            witness.name.value
+                        ),
+                    )
+                    .with_span(witness.name.span),
+                );
+            }
+            if let WitnessClass::Stored { path } = &witness.class {
+                if resolve_path(group, construction, path).is_none() {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::StoredWitnessPathUnknown,
+                            id,
+                            format!(
+                                "stored witness `{}` names unknown path `{}`",
+                                witness.name.value,
+                                path.segments.join(".")
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
             }
         }
     }
@@ -254,6 +379,103 @@ mod tests {
         group.constructions.push(second);
         let err = validate(&group).expect_err("two-node cycle");
         assert!(codes(err).contains(&"EC041"));
+    }
+
+    #[test]
+    fn unknown_field_paths_in_forms_are_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("ghost"),
+            ));
+        let err = validate(&group).expect_err("ghost path");
+        assert!(codes(err).contains(&"EC010"));
+    }
+
+    #[test]
+    fn sequence_fields_resolve_through_declared_elements() {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("comma".to_owned()),
+                kind: crate::model::FieldKind::Scalar {
+                    codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            }],
+        });
+        group.constructions[0].ast = match group.constructions[0].ast.clone() {
+            crate::model::AstShape::Bind { path, mut fields } => {
+                fields.push(crate::model::FieldBinding {
+                    field: crate::model::Spanned::call_site("rest".to_owned()),
+                    kind: crate::model::FieldKind::Sequence {
+                        element: crate::model::Spanned::call_site(
+                            "NounPhraseCoordination".to_owned(),
+                        ),
+                    },
+                });
+                crate::model::AstShape::Bind { path, fields }
+            }
+            own => own,
+        };
+        // `rest` must be produced by some form (EC021 arrives in Task 11);
+        // reference it so this test isolates path resolution.
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("rest.comma"),
+            ));
+        validate(&group).expect("rest.comma resolves through the element");
+    }
+
+    #[test]
+    fn sequence_naming_an_undeclared_element_is_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0].ast = match group.constructions[0].ast.clone() {
+            crate::model::AstShape::Bind { path, mut fields } => {
+                fields.push(crate::model::FieldBinding {
+                    field: crate::model::Spanned::call_site("rest".to_owned()),
+                    kind: crate::model::FieldKind::Sequence {
+                        element: crate::model::Spanned::call_site("Phantom".to_owned()),
+                    },
+                });
+                crate::model::AstShape::Bind { path, fields }
+            }
+            own => own,
+        };
+        let err = validate(&group).expect_err("phantom element");
+        assert!(codes(err).contains(&"EC003"));
+    }
+
+    #[test]
+    fn witness_names_may_not_collide_with_ast_fields() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("conjunction".to_owned()),
+                class: crate::model::WitnessClass::Free {
+                    ty: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            });
+        let err = validate(&group).expect_err("collision");
+        assert!(codes(err).contains(&"EC012"));
+    }
+
+    #[test]
+    fn stored_witness_paths_must_resolve() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("shadow_comma".to_owned()),
+                class: crate::model::WitnessClass::Stored {
+                    path: crate::model::FieldPath::call_site("ghost.comma"),
+                },
+            });
+        let err = validate(&group).expect_err("stored path unknown");
+        assert!(codes(err).contains(&"EC013"));
     }
 
     #[test]
