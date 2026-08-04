@@ -8,6 +8,10 @@ mod opacity;
 mod nominal;
 
 mod generated;
+
+#[cfg(test)]
+mod exact;
+
 mod lowering;
 #[path = "parse_nonterminal.rs"]
 mod parse_support;
