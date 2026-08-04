@@ -149,19 +149,36 @@ fn parse_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
 
 fn spanned_type_path(input: ParseStream<'_>) -> syn::Result<Spanned<String>> {
     let path: syn::Path = input.parse()?;
-    let rendered = path
+    let span = path
         .segments
-        .iter()
-        .map(|s| s.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::");
-    let prefixed = if path.leading_colon.is_some() { format!("::{rendered}") } else { rendered };
+        .last()
+        .map_or_else(proc_macro2::Span::call_site, |s| s.ident.span());
+    // Render through `ToTokens` rather than hand-joining segment idents: a
+    // manual `s.ident.to_string()` join silently drops any angle-bracketed
+    // generic arguments a segment carries (`syn::Path` parses `Wrapper<Inner>`
+    // just fine, but only the bare idents would survive the join), and the
+    // dropped-generics failure is silent downstream too: `emit.rs`'s
+    // `parse_type` reparses this string as a `syn::Type` via `syn::parse_str`,
+    // and a bare path like `Wrapper` is itself a valid (wrong) type, so no
+    // parse error ever fires.
+    //
+    // `quote!` inserts a space around every rendered token, so the raw
+    // `to_string()` would turn `crate::Foo` into `"crate :: Foo"`. Stripping
+    // whitespace afterward recovers the exact compact source spelling: a
+    // `syn::Path` grammar (segments, `::`, angle-bracketed generic args) never
+    // places two bare identifiers or keywords adjacent with nothing between
+    // them, so removing whitespace can never fuse two tokens into one. That
+    // keeps diagnostics that quote a qualified codec/category path readable,
+    // and keeps `stratum_of`'s terminal-ident `rsplit("::")` working exactly
+    // as it did before this path could carry generics at all.
+    let rendered: String = quote::quote!(#path)
+        .to_string()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
     Ok(Spanned {
-        value: prefixed,
-        span: path
-            .segments
-            .last()
-            .map_or_else(proc_macro2::Span::call_site, |s| s.ident.span()),
+        value: rendered,
+        span,
     })
 }
 
@@ -553,5 +570,186 @@ mod tests {
         let err = crate::validate::validate(&parsed).expect_err("EC002");
         let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
         assert_eq!(codes, vec!["EC002"]);
+    }
+
+    #[test]
+    fn generic_typepath_preserves_generic_arguments() {
+        // Before the fix, `spanned_type_path` hand-joined `syn::Path`
+        // segment idents, silently dropping `<Inner>`. The failure mode was
+        // worse than a parse error: `emit.rs`'s `parse_type` reparses the
+        // stored string as a `syn::Type`, and a bare path like `Wrapper` is
+        // itself a valid (wrong) type, so nothing downstream ever noticed.
+        let g = parse_group(quote::quote! {
+            group g;
+            construction c: Cat {
+                own N { f: lex Wrapper<Inner>, }
+                form only @ 0 = lex(f);
+            }
+        })
+        .expect("generic TYPEPATH parses");
+        let codec = match &g.constructions[0].ast.fields()[0].kind {
+            FieldKind::Scalar { codec } => codec,
+            other => panic!("expected Scalar, got {other:?}"),
+        };
+        assert_eq!(codec.value, "Wrapper<Inner>");
+        // Round-trip through the exact reparse `parse_type` performs, token
+        // stream to token stream so the check is whitespace-insensitive.
+        let reparsed: syn::Type = syn::parse_str(&codec.value).expect("reparses as a Rust type");
+        let expected: syn::Type = syn::parse_str("Wrapper<Inner>").expect("control parses");
+        assert_eq!(
+            quote::quote!(#reparsed).to_string(),
+            quote::quote!(#expected).to_string(),
+            "the reparsed type must still be Wrapper<Inner>, generics included"
+        );
+    }
+
+    #[test]
+    fn leading_colon_typepath_round_trips() {
+        let g = parse_group(quote::quote! {
+            group g;
+            construction c: Cat {
+                own N { f: lex ::std::num::NonZeroU32, }
+                form only @ 0 = lex(f);
+            }
+        })
+        .expect("leading-colon TYPEPATH parses");
+        let codec = match &g.constructions[0].ast.fields()[0].kind {
+            FieldKind::Scalar { codec } => codec,
+            other => panic!("expected Scalar, got {other:?}"),
+        };
+        assert_eq!(codec.value, "::std::num::NonZeroU32");
+    }
+
+    /// Coverage sweep, snippet 1: `hole box TYPEPATH` (nested inside `opt`),
+    /// `all(...)`/`any(...)` (recursive predicates), `path.len() == INT`,
+    /// `path.is_some()`, a `derived` witness, and an explicit
+    /// `selection packed;` — none of these had ever been exercised through
+    /// `parse_group` before (only the implicit `Packed` default was).
+    #[test]
+    fn coverage_sweep_predicates_boxed_hole_derived_witness_explicit_selection() {
+        let g = parse_group(quote::quote! {
+            group cov1;
+
+            element member {
+                tag: lex Tag,
+            }
+
+            construction pack: Pack {
+                own PackNode {
+                    members: seq member,
+                    alt: opt hole box BoxedPhrase,
+                }
+                require all(members.len() == 3, alt.is_some());
+                require any(alt.is_some(), members.len() == 3);
+                witness picked = derived from_first(members, alt);
+                form only @ 0 = members alt;
+                selection packed;
+            }
+        })
+        .expect("coverage-sweep snippet 1 parses");
+        let construction = &g.constructions[0];
+
+        // `opt hole box TYPEPATH`.
+        match &construction.ast.fields()[1].kind {
+            FieldKind::Optional { inner } => match inner.as_ref() {
+                FieldKind::Subtree { category, boxed } => {
+                    assert_eq!(category.value, "BoxedPhrase");
+                    assert!(*boxed, "`hole box` must set boxed = true");
+                }
+                other => panic!("expected boxed Subtree, got {other:?}"),
+            },
+            other => panic!("expected Optional, got {other:?}"),
+        }
+
+        // `all(...)` / `any(...)`, each holding a `len() == INT` and an
+        // `is_some()` child — the highest-risk (recursive) production.
+        assert_eq!(construction.constraints.len(), 2);
+        let all_children = match &construction.constraints[0] {
+            Constraint::Require(pred) => match &pred.value {
+                Predicate::All(children) => children,
+                other => panic!("expected All(...), got {other:?}"),
+            },
+            other => panic!("expected Require, got {other:?}"),
+        };
+        let any_children = match &construction.constraints[1] {
+            Constraint::Require(pred) => match &pred.value {
+                Predicate::Any(children) => children,
+                other => panic!("expected Any(...), got {other:?}"),
+            },
+            other => panic!("expected Require, got {other:?}"),
+        };
+        for children in [all_children, any_children] {
+            assert_eq!(children.len(), 2);
+            let has_len_3 = children.iter().any(|p| {
+                matches!(p, Predicate::LenIs { path, len: 3 } if path.segments[0].value == "members")
+            });
+            let has_is_some = children.iter().any(
+                |p| matches!(p, Predicate::IsSome { path } if path.segments[0].value == "alt"),
+            );
+            assert!(has_len_3, "missing members.len() == 3 in {children:?}");
+            assert!(has_is_some, "missing alt.is_some() in {children:?}");
+        }
+
+        // `witness ... = derived IDENT(path, ...);`.
+        match &construction.witnesses[0].class {
+            WitnessClass::Derived { combinator, args } => {
+                assert_eq!(combinator.value, "from_first");
+                let names: Vec<&str> = args.iter().map(|p| p.segments[0].value.as_str()).collect();
+                assert_eq!(names, vec!["members", "alt"]);
+            }
+            other => panic!("expected Derived witness, got {other:?}"),
+        }
+
+        // Explicit `selection packed;` exercises the `packed` arm of the
+        // selection statement — same resulting value as the implicit
+        // default, but a different parse path was never run before.
+        assert_eq!(construction.selection, SelectionPromise::Packed);
+    }
+
+    /// Coverage sweep, snippet 2: `internal construction`, the `bind
+    /// TYPEPATH { ... }` shape (never produced by the parser in any prior
+    /// test — only `own` was), and `derive path = IDENT(path, ...);`.
+    #[test]
+    fn coverage_sweep_internal_bind_shape_and_derive_feature() {
+        let g = parse_group(quote::quote! {
+            group cov2;
+
+            internal construction hidden: Cat {
+                bind covered::path::Target {
+                    f: lex Tag,
+                }
+                derive f = combine(f);
+                form only @ 0 = lex(f);
+            }
+        })
+        .expect("coverage-sweep snippet 2 parses");
+        let construction = &g.constructions[0];
+        assert!(
+            construction.internal,
+            "`internal construction` must set internal = true"
+        );
+
+        match &construction.ast {
+            AstShape::Bind { path, fields } => {
+                assert_eq!(path.value, "covered::path::Target");
+                assert_eq!(fields.len(), 1);
+                assert_eq!(fields[0].field.value, "f");
+            }
+            other => panic!("expected Bind shape, got {other:?}"),
+        }
+
+        match &construction.constraints[0] {
+            Constraint::DeriveFeature {
+                target,
+                combinator,
+                args,
+            } => {
+                assert_eq!(target.segments[0].value, "f");
+                assert_eq!(combinator.value, "combine");
+                assert_eq!(args.len(), 1);
+                assert_eq!(args[0].segments[0].value, "f");
+            }
+            other => panic!("expected DeriveFeature, got {other:?}"),
+        }
     }
 }

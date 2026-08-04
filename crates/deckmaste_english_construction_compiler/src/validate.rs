@@ -2723,4 +2723,23 @@ mod tests {
         let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
         assert_eq!(codes, vec!["EC051"]);
     }
+
+    #[test]
+    fn generic_wrapped_discourse_type_is_not_caught_by_the_stratum_check() {
+        // Companion to the previous test, at the opposite pole: a generic
+        // path like `Wrapper<OccurrenceRole>` (the shape the parser now
+        // renders faithfully instead of dropping the generic argument) has
+        // no terminal ident that equals a bare `TYPE_STRATA` name — `stratum_of`
+        // finds nothing and treats it as an unlisted custom payload. That is
+        // the correct call: a generic wrapper is not itself the
+        // discourse-occurrence type, so this must validate clean, not EC051.
+        let mut group = minimal_group();
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields[0].kind = crate::model::FieldKind::Scalar {
+                codec: crate::model::Spanned::call_site("Wrapper<OccurrenceRole>".to_owned()),
+            };
+        }
+        validate(&group)
+            .expect("a generic-wrapped payload is absent from TYPE_STRATA, hence permitted");
+    }
 }
