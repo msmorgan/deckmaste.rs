@@ -7,6 +7,7 @@ use crate::diag::Diagnostic;
 use crate::diag::sort_key;
 use crate::model::Constraint;
 use crate::model::ConstructionDeclaration;
+use crate::model::ElementDeclaration;
 use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::FieldPath;
@@ -160,49 +161,68 @@ fn check_dominance_cycles(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>)
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum Resolved<'g> {
+    Kind(&'g FieldKind),
+    /// The path ends on `last`: the sequence's element, as a whole. The
+    /// emitter needs the element's identity to type a hole; a bare
+    /// `FieldKind` cannot name it (Milestone-1 gap 2).
+    #[allow(
+        dead_code,
+        reason = "field read only by #[cfg(test)] matches in this task; Task 5/8 add production readers"
+    )]
+    Element(&'g ElementDeclaration),
+}
+
+#[derive(Debug, Clone, Copy)]
+struct BadSegment {
+    /// Index into `path.segments` of the first segment that failed to
+    /// resolve. `last` with no sequence in hand blames the `last` segment.
+    index: usize,
+}
+
 /// Resolves a path against a construction's ast fields and, through
-/// Sequence fields, the group's element declarations. `last` addresses a
-/// sequence element. Returns the terminal FieldKind.
+/// Sequence fields, the group's element declarations. `last` addresses the
+/// sequence element just entered and consumes that context. `Optional` is
+/// terminal: no segment may follow it.
 fn resolve_path<'g>(
     group: &'g GroupDeclaration,
     construction: &'g ConstructionDeclaration,
     path: &FieldPath,
-) -> Option<&'g FieldKind> {
+) -> Result<Resolved<'g>, BadSegment> {
     let mut fields: &'g [FieldBinding] = construction.ast.fields();
-    let mut resolved: Option<&'g FieldKind> = None;
-    // Whether the IMMEDIATELY preceding step was a binding that resolved to
-    // a Sequence. Gating on `resolved` instead would only mean "after SOME
-    // earlier Sequence", since `last` leaves the resolved kind alone — and
-    // that admits `rest.last.last`, which addresses nothing.
-    let mut sequence_in_hand = false;
-    let mut segments = path.segments.iter().peekable();
-    while let Some(segment) = segments.next() {
+    let mut resolved: Option<Resolved<'g>> = None;
+    let mut element_in_hand: Option<&'g ElementDeclaration> = None;
+    for (index, segment) in path.segments.iter().enumerate() {
+        let bad = BadSegment { index };
         if segment.value == "last" {
-            // `last` re-addresses the sequence element just entered, and
-            // consumes that context: there is no second element to take.
-            if !sequence_in_hand {
-                return None;
-            }
-            sequence_in_hand = false;
+            let Some(Resolved::Kind(FieldKind::Sequence { element })) = resolved else {
+                return Err(bad);
+            };
+            let declared = group
+                .elements
+                .iter()
+                .find(|e| e.name.value == element.value)
+                .ok_or(bad)?;
+            resolved = Some(Resolved::Element(declared));
+            element_in_hand = Some(declared);
             continue;
         }
-        let binding = fields.iter().find(|b| &b.field.value == &segment.value)?;
-        resolved = Some(&binding.kind);
-        sequence_in_hand = matches!(binding.kind, FieldKind::Sequence { .. });
-        if segments.peek().is_some() {
-            match &binding.kind {
-                FieldKind::Sequence { element } => {
-                    let declared = group
-                        .elements
-                        .iter()
-                        .find(|e| e.name.value == element.value)?;
-                    fields = &declared.fields;
-                }
-                _ => return None,
-            }
+        if let Some(element) = element_in_hand.take() {
+            fields = &element.fields;
+        } else if resolved.is_some() {
+            // A named segment can only follow the construction root or an
+            // element entered via `last`; scalars, subtrees, optionals and
+            // un-`last`ed sequences have no addressable children here.
+            return Err(bad);
         }
+        let binding = fields
+            .iter()
+            .find(|b| b.field.value == segment.value)
+            .ok_or(bad)?;
+        resolved = Some(Resolved::Kind(&binding.kind));
     }
-    resolved
+    resolved.ok_or(BadSegment { index: 0 })
 }
 
 fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
@@ -238,18 +258,20 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
                     SurfaceAtom::Literal(_) => continue,
                 };
-                if resolve_path(group, construction, path).is_none() {
+                if let Err(bad) = resolve_path(group, construction, path) {
+                    let segment = &path.segments[bad.index];
                     diags.push(
                         Diagnostic::new(
                             DiagCode::UnknownFieldPath,
                             id,
                             format!(
-                                "form `{}` references unknown path `{}`",
+                                "form `{}` references `{}`: `{}` does not resolve",
                                 form.name.value,
-                                path.dotted()
+                                path.dotted(),
+                                segment.value
                             ),
                         )
-                        .with_span(path.span),
+                        .with_span(segment.span),
                     );
                 }
             }
@@ -269,18 +291,20 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 );
             }
             if let WitnessClass::Stored { path } = &witness.class {
-                if resolve_path(group, construction, path).is_none() {
+                if let Err(bad) = resolve_path(group, construction, path) {
+                    let segment = &path.segments[bad.index];
                     diags.push(
                         Diagnostic::new(
                             DiagCode::StoredWitnessPathUnknown,
                             id,
                             format!(
-                                "stored witness `{}` names unknown path `{}`",
+                                "stored witness `{}` names `{}`: `{}` does not resolve",
                                 witness.name.value,
-                                path.dotted()
+                                path.dotted(),
+                                segment.value
                             ),
                         )
-                        .with_span(path.span),
+                        .with_span(segment.span),
                     );
                 }
             }
@@ -825,7 +849,7 @@ mod tests {
         group.constructions[0].forms[0]
             .surface
             .push(crate::model::SurfaceAtom::Lexeme(
-                crate::model::FieldPath::call_site("rest.comma"),
+                crate::model::FieldPath::call_site("rest.last.comma"),
             ));
         group
     }
@@ -912,6 +936,26 @@ mod tests {
     }
 
     #[test]
+    fn unknown_middle_segment_is_named_and_spanned() {
+        let mut group = minimal_group();
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("conjunction.ghost.tail"),
+            ));
+        let err = validate(&group).expect_err("bad path must be rejected");
+        let message = message_for(&err, "EC010");
+        assert!(
+            message.contains("`ghost`"),
+            "message names the failing segment: {message}"
+        );
+        assert!(
+            message.contains("conjunction.ghost.tail"),
+            "and the whole path: {message}"
+        );
+    }
+
+    #[test]
     fn sequence_fields_resolve_through_declared_elements() {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
@@ -938,18 +982,39 @@ mod tests {
             own => own,
         };
         // `rest` must be produced by some form (EC021 arrives in Task 11);
-        // reference it so this test isolates path resolution.
+        // reference it so this test isolates path resolution. Entry into the
+        // element is explicit via `last` — implicit mid-path entry is gone.
         group.constructions[0].forms[0]
             .surface
             .push(crate::model::SurfaceAtom::Lexeme(
-                crate::model::FieldPath::call_site("rest.comma"),
+                crate::model::FieldPath::call_site("rest.last.comma"),
             ));
-        validate(&group).expect("rest.comma resolves through the element");
+        validate(&group).expect("rest.last.comma resolves through the element");
     }
 
     #[test]
     fn leading_last_with_no_sequence_context_is_rejected() {
         let mut group = minimal_group();
+        // The group DOES declare an element, and — critically — that element
+        // has a `conjunction` field, matching the path's second segment.
+        // Review round 1 found this test passed for the wrong reason against
+        // a broken sequence-in-hand guard that fell back to
+        // `group.elements.first()`: with `minimal_group()`'s empty
+        // `elements`, that broken fallback had nothing to fall back to and
+        // failed anyway, by accident rather than because the guard works. An
+        // element with no matching field would only weaken the accident (it
+        // would still fail, just one segment deeper) — giving it the exact
+        // field the path asks for next means the broken fallback resolves
+        // the WHOLE path successfully, so only an intact guard rejects it.
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("conjunction".to_owned()),
+                kind: crate::model::FieldKind::Scalar {
+                    codec: crate::model::Spanned::call_site("Conjunction".to_owned()),
+                },
+            }],
+        });
         // `last` re-addresses a sequence element; as the first segment there
         // is no sequence in scope yet for it to re-address.
         group.constructions[0].forms[0]
@@ -958,6 +1023,30 @@ mod tests {
                 crate::model::FieldPath::call_site("last.conjunction"),
             ));
         let err = validate(&group).expect_err("last with no preceding sequence");
+        assert!(codes(err).contains(&"EC010"));
+    }
+
+    #[test]
+    fn last_after_a_non_sequence_field_is_rejected() {
+        // The case `leading_last_with_no_sequence_context_is_rejected` can't
+        // reach: `last` here does NOT come first — it follows `conjunction`,
+        // which resolves to a Scalar, not a Sequence. Under the broken guard
+        // review round 1 described, this wrongly resolved to
+        // `Ok(Resolved::Element(..))` via `group.elements.first()`, because
+        // `resolved` being `Some(Kind(Scalar))` (not `None`) doesn't stop a
+        // fallback keyed only on "isn't a Sequence".
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![],
+        });
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("conjunction.last"),
+            ));
+        let err =
+            validate(&group).expect_err("`last` after a non-sequence field addresses nothing");
         assert!(codes(err).contains(&"EC010"));
     }
 
@@ -1010,7 +1099,135 @@ mod tests {
         let err = validate(&group).expect_err("`rest.last.last` addresses nothing");
         assert_eq!(
             message_for(&err, "EC010"),
-            "form `binary` references unknown path `rest.last.last`"
+            "form `binary` references `rest.last.last`: `last` does not resolve"
+        );
+    }
+
+    /// `resolve_path` unit-level, exercising `Resolved` directly (private
+    /// access from this module, same as every other `resolve_path` test):
+    /// `last` yields the element itself, and a segment after it re-enters
+    /// the element's own fields.
+    #[test]
+    fn last_resolves_to_the_element_declaration() {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("comma".to_owned()),
+                kind: crate::model::FieldKind::Optional {
+                    inner: Box::new(crate::model::FieldKind::Scalar {
+                        codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                    }),
+                },
+            }],
+        });
+        group.constructions[0].ast = crate::model::AstShape::Own {
+            name: crate::model::Spanned::call_site("Node".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("members".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("m".to_owned()),
+                },
+            }],
+        };
+        let c = &group.constructions[0];
+        match resolve_path(
+            &group,
+            c,
+            &crate::model::FieldPath::call_site("members.last"),
+        ) {
+            Ok(Resolved::Element(e)) => assert_eq!(e.name.value, "m"),
+            other => panic!("expected Element, got {other:?}"),
+        }
+        match resolve_path(
+            &group,
+            c,
+            &crate::model::FieldPath::call_site("members.last.comma"),
+        ) {
+            Ok(Resolved::Kind(crate::model::FieldKind::Optional { .. })) => {}
+            other => panic!("expected Optional kind, got {other:?}"),
+        }
+        let err = resolve_path(
+            &group,
+            c,
+            &crate::model::FieldPath::call_site("members.last.ghost"),
+        )
+        .unwrap_err();
+        assert_eq!(err.index, 2);
+    }
+
+    /// The regression this function actually suffered twice: Milestone 1
+    /// let a named segment walk into a sequence's element implicitly. The
+    /// new contract requires an explicit `last` — `members.comma` must fail
+    /// on `comma` (index 1), not resolve through `members` implicitly.
+    #[test]
+    fn members_field_without_last_is_rejected() {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("comma".to_owned()),
+                kind: crate::model::FieldKind::Scalar {
+                    codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            }],
+        });
+        group.constructions[0].ast = crate::model::AstShape::Own {
+            name: crate::model::Spanned::call_site("Node".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("members".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("m".to_owned()),
+                },
+            }],
+        };
+        let c = &group.constructions[0];
+        let err = resolve_path(
+            &group,
+            c,
+            &crate::model::FieldPath::call_site("members.comma"),
+        )
+        .unwrap_err();
+        assert_eq!(
+            err.index, 1,
+            "`comma` (not `members`) is the segment that fails to resolve"
+        );
+    }
+
+    /// `members_field_without_last_is_rejected` above never exercises the
+    /// "named segment must follow root or a `last`-entered element" guard:
+    /// `comma` isn't findable in the unadvanced top-level `fields` pointer
+    /// whether or not the guard exists, so that test passes even with the
+    /// guard deleted. This test puts a name at the top level that IS
+    /// findable there — `conjunction`, from `minimal_group` — alongside the
+    /// sequence field, so the guard's presence is the only thing standing
+    /// between the correct `Err` and a wrongly-successful
+    /// `Ok(Resolved::Kind(Scalar))`.
+    #[test]
+    fn named_segment_after_unlasted_sequence_is_rejected_even_when_the_name_collides() {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![],
+        });
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("members".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("m".to_owned()),
+                },
+            });
+        }
+        let c = &group.constructions[0];
+        let err = resolve_path(
+            &group,
+            c,
+            &crate::model::FieldPath::call_site("members.conjunction"),
+        )
+        .unwrap_err();
+        assert_eq!(
+            err.index, 1,
+            "the guard, not an unresolved name, must be what rejects this"
         );
     }
 
