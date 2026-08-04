@@ -1,0 +1,21 @@
+[package]
+publish = false
+name = "deckmaste_english_construction_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[lints]
+workspace = true
+
+[dependencies]
+proc-macro2 = "1.0.106"
+quote = "1.0.45"
+syn = "2.0.117"
+
+[dev-dependencies]
+ron = "0.12.1"
+serde = { version = "1.0.228", features = ["derive"] }
+trybuild = "1.0"
