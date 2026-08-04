@@ -57,7 +57,6 @@ use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 use serde::Serialize;
 
-use crate::CompiledFrame;
 use crate::CompiledGuard;
 use crate::HoleClass;
 use crate::View;
@@ -300,6 +299,20 @@ pub fn guard_holds<T: Expand + Serialize>(guard: &CompiledGuard, argument: T) ->
     guard::ensure_ground(&canonical).is_ok() && canonical == guard.value
 }
 
+/// Whether a recovered argument satisfies a frame guard in expanded canonical
+/// form. Frame selection and render reassembly share this path so a value's
+/// alternative ground spellings retain identical guard semantics.
+pub(crate) fn recovered_guard_holds(
+    guard: &CompiledGuard,
+    argument: Option<&Recovered>,
+    macros: &MacroSet,
+) -> bool {
+    let Some(Recovered::Literal(text)) = argument else {
+        return false;
+    };
+    guard::normalize_source(macros, &guard.param_type, text).is_ok_and(|view| view == guard.value)
+}
+
 /// Whether this subtree is a self-reference to the invoking card.
 ///
 /// Two surface forms count, and they are genuinely different trees rather
@@ -500,7 +513,7 @@ fn unify_at(target: &View, lexicon: &Lexicon, position: FramePosition, depth: us
     let winner = &matches[best];
     let entry = &lexicon.entries()[winner.entry];
     let args = (0..entry.arity())
-        .map(|param| recover_argument(entry, winner, param, lexicon, position, depth))
+        .map(|param| recover_argument(entry, &winner.bindings, param, lexicon, position, depth))
         .collect();
     Recovered::Invocation {
         entry: entry.name.clone(),
@@ -514,14 +527,14 @@ fn unify_at(target: &View, lexicon: &Lexicon, position: FramePosition, depth: us
 /// guard if it does not.
 fn recover_argument(
     entry: &Entry,
-    matched: &Matched,
+    bindings: &HashMap<usize, Binding>,
     param: usize,
     lexicon: &Lexicon,
     position: FramePosition,
     depth: usize,
 ) -> Recovered {
     if let Some(hole) = entry.frame.hole_for_param(param) {
-        return match matched.bindings.get(&hole.index) {
+        return match bindings.get(&hole.index) {
             Some(Binding::Scalar(repr)) => Recovered::Literal(repr.clone()),
             Some(Binding::Node(node)) => unify_at(node, lexicon, position, depth + 1),
             // Unreachable through a successful match — every hole in the
@@ -668,9 +681,9 @@ fn try_entry(
     best.map(|(_, matched)| matched)
 }
 
-/// Whether `target` **is** `frame`'s own tree with its holes filled: every
-/// node outside a hole identical, and each hole standing over exactly one
-/// subtree at exactly the position the frame puts it.
+/// Whether `target` **is** `entry`'s own tree with its original arguments
+/// filling its holes: every node outside a hole identical, and every captured
+/// parameter recovering to the corresponding value in `args`.
 ///
 /// This is the render direction's cross-check, and it is deliberately this
 /// module's function rather than a comparison written over there. Rendering
@@ -689,14 +702,35 @@ fn try_entry(
 /// parsed at its own category and the substituted text is parsed back at that
 /// same category, so the two roots are the same node kind by construction and
 /// a difference there is a real one.
-pub(crate) fn frame_reassembles(frame: &CompiledFrame, target: &View) -> bool {
+pub(crate) fn frame_reassembles(
+    entry: &Entry,
+    args: &[Recovered],
+    lexicon: &Lexicon,
+    position: FramePosition,
+    target: &View,
+) -> bool {
     let mut normalized = target.clone();
-    neutralize_agreement(&mut normalized, &frame.agreement, 0);
+    neutralize_agreement(&mut normalized, &entry.frame.agreement, 0);
     let mut attempt = Attempt {
         bindings: HashMap::new(),
         claimed: 0,
     };
-    match_node(&frame.tree, &normalized, &mut attempt)
+    match_node(&entry.frame.tree, &normalized, &mut attempt)
+        && args.len() == entry.arity()
+        && args.iter().enumerate().all(|(param, expected)| {
+            if entry.frame.hole_for_param(param).is_some() {
+                recover_argument(entry, &attempt.bindings, param, lexicon, position, 0) == *expected
+            } else {
+                entry
+                    .frame
+                    .guards
+                    .iter()
+                    .find(|guard| guard.param == param)
+                    .is_some_and(|guard| {
+                        recovered_guard_holds(guard, Some(expected), lexicon.macros())
+                    })
+            }
+        })
 }
 
 /// Whether every hole in `entry`'s frame caught a filler of the class it

@@ -78,15 +78,12 @@ use deckmaste_english::FragmentKind;
 use deckmaste_english::Numeral;
 use deckmaste_english::parse_fragment;
 use deckmaste_english::render_fragment;
-use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 
 use crate::AgreeKind;
 use crate::Hole;
 use crate::HoleClass;
 use crate::View;
-use crate::compile::CompiledGuard;
-use crate::guard;
 use crate::lexicon::Entry;
 use crate::lexicon::Lexicon;
 use crate::unify::Recovered;
@@ -240,7 +237,13 @@ pub fn render_invocation_with(
         .expect("a clean fragment report has a fragment");
     // The frame's own constituency, re-checked. Parsing cleanly is not the
     // same as parsing *back*: see `ReassembledDifferently`.
-    if !crate::unify::frame_reassembles(&chosen.frame, &crate::view::of(&fragment)) {
+    if !crate::unify::frame_reassembles(
+        chosen,
+        args,
+        lexicon,
+        position,
+        &crate::view::of(&fragment),
+    ) {
         return Err(ReassembledDifferently {
             entry: entry.clone(),
             frame_index: chosen.frame_index,
@@ -257,7 +260,8 @@ pub fn render_invocation_with(
 /// substitutes into: every lexicon entry named `entry_name`, filtered to
 /// those registered at `kind` (when the caller has one — see below) and
 /// those whose `position` key (if any) matches, then to those whose every
-/// guard `args` satisfies — through [`guard_satisfied`], the single
+/// guard `args` satisfies — through [`crate::unify::recovered_guard_holds`],
+/// the single
 /// authority ([`crate::guard::normalize_source`]/`normalized`), exactly the
 /// comparison [`crate::guard_holds`] makes one level up. A non-`Literal`
 /// argument, or a `Literal` that fails to parse or expand at the guard's own
@@ -339,7 +343,8 @@ fn select_frame<'lexicon>(
                 .guards
                 .iter()
                 .map(|guard| {
-                    guard_satisfied(guard, args.get(guard.param), macros).then_some(guard.param)
+                    crate::unify::recovered_guard_holds(guard, args.get(guard.param), macros)
+                        .then_some(guard.param)
                 })
                 .collect::<Option<BTreeSet<usize>>>()
                 .map(|satisfied| (candidate, satisfied))
@@ -424,23 +429,6 @@ fn select_frame<'lexicon>(
 /// assembly's uniqueness.
 fn same_authored_frame(a: &Entry, b: &Entry) -> bool {
     a.name == b.name && a.frame_index == b.frame_index && a.origin == b.origin
-}
-
-/// Whether `argument` (the recovered value at the guard's own param index)
-/// satisfies `guard` — the single authority
-/// ([`guard::normalize_source`]/[`guard::normalized`]'s expanded canonical
-/// form), never a textual comparison against `guard.source`: two spellings
-/// of the same constant (`"Literal(1)"` and `"1"`, `"Exactly(1)"` and
-/// `"Range(Some(1), Some(1))"`) must both satisfy the same guard, exactly as
-/// [`crate::guard_holds`] promises one level up. Only a [`Recovered::Literal`]
-/// can ever satisfy a guard (an invocation or residual has no RON spelling
-/// to read at the guard's declared type); a `Literal` that fails to parse or
-/// expand at that type simply does not satisfy it, never an error.
-fn guard_satisfied(guard: &CompiledGuard, argument: Option<&Recovered>, macros: &MacroSet) -> bool {
-    let Some(Recovered::Literal(text)) = argument else {
-        return false;
-    };
-    guard::normalize_source(macros, &guard.param_type, text).is_ok_and(|view| view == guard.value)
 }
 
 /// Substitutes `chosen`'s own frame text for the arguments filling its
@@ -1196,12 +1184,14 @@ mod tests {
     }
 
     /// Substitution is textual and the substituted string is re-parsed whole,
-    /// so a filler can silently re-bracket the frame around it: coordination
-    /// is a flat list, and a coordinated filler dropped into a coordination
-    /// slot comes back as one longer list rather than as a member holding its
-    /// own. Nothing about the resulting text is ill-formed — it parses
-    /// cleanly and renders — it simply is not the frame that was selected,
-    /// which is the whole failure mode of rendering through text.
+    /// so a filler can silently re-bracket the frame around it: a coordinated
+    /// filler dropped into a coordination slot can move the constituent
+    /// boundary. The current parser right-nests
+    /// `card and player and card` as `card and (player and card)`, moving
+    /// `player` from the first hole's filler into the second. Nothing about the
+    /// resulting text is ill-formed — it parses cleanly and renders — it simply
+    /// does not preserve the selected frame's original hole bindings, which is
+    /// the whole failure mode of rendering through text.
     ///
     /// Both directions are asserted: the single-member filler reassembles
     /// exactly and must still render, so the check cannot be passing by
