@@ -12,7 +12,7 @@
 //! in diagnostics and optional parse provenance.
 
 pub mod catalog;
-pub use deckmaste_english_features as features;
+pub use deckmaste_features as features;
 mod chart;
 mod construction;
 mod forest;

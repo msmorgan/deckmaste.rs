@@ -1,0 +1,11 @@
+error: EC002: production ordinal 0 is used by more than one form (construction `fixture_pair`)
+  --> tests/compile_fail/ec_multi_error.rs:28:22
+   |
+28 |         form fancy @ 0 when conjunction in [Or] = members "," lex(conjunction);
+   |                      ^
+
+error: EC050: free witness `gap` carries `Conjunction`, which is not surface-witness stratum; chart-relevant facts belong in the AST, not the trace-only channel (construction `fixture_solo`)
+  --> tests/compile_fail/ec_multi_error.rs:38:28
+   |
+38 |         witness gap = free Conjunction;
+   |                            ^^^^^^^^^^^

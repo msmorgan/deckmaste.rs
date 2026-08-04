@@ -1,0 +1,5 @@
+error: EC013: stored witness `oxford` names `members.ghost.comma`: `ghost` does not resolve (construction `fixture_pair`)
+  --> tests/compile_fail/ec_unresolvable_middle_segment.rs:26:41
+   |
+26 |         witness oxford = stored members.ghost.comma;
+   |                                         ^^^^^

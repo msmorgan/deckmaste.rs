@@ -1,0 +1,5 @@
+error: EC002: production ordinal 0 is used by more than one form (construction `fixture_pair`)
+  --> tests/compile_fail/ec_duplicate_ordinal.rs:28:22
+   |
+28 |         form fancy @ 0 when conjunction in [Or] = members "," lex(conjunction);
+   |                      ^

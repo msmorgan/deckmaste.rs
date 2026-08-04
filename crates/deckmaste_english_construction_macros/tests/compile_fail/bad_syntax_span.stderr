@@ -1,5 +1,0 @@
-error: expected identifier
- --> tests/compile_fail/bad_syntax_span.rs:3:24
-  |
-3 | constructicon! { group 123; }
-  |                        ^^^

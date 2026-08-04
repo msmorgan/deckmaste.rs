@@ -1,0 +1,11 @@
+error: EC001: construction id `fixture_pair` is declared more than once in this group (construction `fixture_pair`)
+  --> tests/compile_fail/ec_duplicate_id.rs:32:18
+   |
+32 |     construction fixture_pair: FixturePair {
+   |                  ^^^^^^^^^^^^
+
+error: note (EC001): first declared here
+  --> tests/compile_fail/ec_duplicate_id.rs:19:18
+   |
+19 |     construction fixture_pair: FixturePair {
+   |                  ^^^^^^^^^^^^

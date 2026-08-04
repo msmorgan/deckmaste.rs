@@ -460,6 +460,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_construction_compiler"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_features",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn",
+ "trybuild",
+]
+
+[[package]]
+name = "deckmaste_constructions_macro"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_construction_compiler",
+ "deckmaste_features",
+ "proc-macro2",
+ "ron",
+ "serde",
+ "trybuild",
+]
+
+[[package]]
 name = "deckmaste_core"
 version = "0.1.0"
 dependencies = [
@@ -491,7 +516,7 @@ dependencies = [
 name = "deckmaste_english"
 version = "0.1.0"
 dependencies = [
- "deckmaste_english_features",
+ "deckmaste_features",
  "hashbrown 0.15.5",
  "proptest",
  "serde",
@@ -499,32 +524,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_english_construction_compiler"
-version = "0.1.0"
-dependencies = [
- "deckmaste_english_features",
- "prettyplease",
- "proc-macro2",
- "quote",
- "serde",
- "syn",
- "trybuild",
-]
-
-[[package]]
-name = "deckmaste_english_construction_macros"
-version = "0.1.0"
-dependencies = [
- "deckmaste_english_construction_compiler",
- "deckmaste_english_features",
- "proc-macro2",
- "ron",
- "serde",
- "trybuild",
-]
-
-[[package]]
-name = "deckmaste_english_features"
+name = "deckmaste_features"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -960,7 +960,7 @@ dependencies = [
 name = "macro_ron"
 version = "0.1.0"
 dependencies = [
- "deckmaste_english_features",
+ "deckmaste_features",
  "elsa",
  "macro_ron_derive",
  "ron",
