@@ -5,11 +5,13 @@
 use crate::diag::DiagCode;
 use crate::diag::Diagnostic;
 use crate::diag::sort_key;
+use crate::model::Constraint;
 use crate::model::ConstructionDeclaration;
 use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::FieldPath;
 use crate::model::GroupDeclaration;
+use crate::model::Predicate;
 use crate::model::SurfaceAtom;
 use crate::model::WitnessClass;
 
@@ -41,6 +43,7 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_dominance_cycles(group, diags);
     check_paths(group, diags);
     check_forms(group, diags);
+    check_surface_domain(group, diags);
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
@@ -340,6 +343,183 @@ fn check_forms(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     }
 }
 
+/// A conservative finite abstraction of one predicate: per-path allowed
+/// value sets plus a length stratum per sequence path. Two forms overlap if
+/// every commonly-constrained path has a non-empty intersection; a
+/// predicate is contradictory if any of its own sets is empty.
+#[derive(Debug, Clone, Default)]
+struct Abstraction {
+    // path (dotted) → allowed variant names; None entry means "any value".
+    allowed: std::collections::HashMap<String, Option<std::collections::BTreeSet<String>>>,
+}
+
+fn abstract_predicate(predicate: &Predicate) -> Abstraction {
+    let mut abstraction = Abstraction::default();
+    collect(predicate, &mut abstraction);
+    return abstraction;
+
+    // Constraining the same key twice intersects: that is what makes
+    // `All[In{And}, In{Or}]` provably empty and `IsSome ∧ IsNone` disjoint.
+    fn intersect(into: &mut Abstraction, key: String, values: std::collections::BTreeSet<String>) {
+        let entry = into.allowed.entry(key).or_insert(None);
+        *entry = Some(match entry.take() {
+            None => values,
+            Some(existing) => existing.intersection(&values).cloned().collect(),
+        });
+    }
+
+    fn collect(predicate: &Predicate, into: &mut Abstraction) {
+        match predicate {
+            Predicate::In { path, allowed } => {
+                intersect(
+                    into,
+                    path.segments.join("."),
+                    allowed.iter().cloned().collect(),
+                );
+            }
+            Predicate::IsSome { path } => {
+                intersect(
+                    into,
+                    format!("{}#some", path.segments.join(".")),
+                    std::iter::once("some".to_owned()).collect(),
+                );
+            }
+            Predicate::IsNone { path } => {
+                intersect(
+                    into,
+                    format!("{}#some", path.segments.join(".")),
+                    std::iter::once("none".to_owned()).collect(),
+                );
+            }
+            Predicate::LenIs { path, len } => {
+                intersect(
+                    into,
+                    format!("{}#len", path.segments.join(".")),
+                    std::iter::once(len.to_string()).collect(),
+                );
+            }
+            Predicate::LenAtLeast { .. } => {
+                // Open-ended stratum: contributes no finite set, so it can
+                // neither prove disjointness nor emptiness. Conservative.
+            }
+            Predicate::All(children) => {
+                for child in children {
+                    collect(child, into);
+                }
+            }
+            Predicate::Any(children) => {
+                // Union: conservative — drop constraints that differ across
+                // branches by keeping only paths constrained in EVERY branch
+                // with the union of their sets.
+                let mut branch_abstractions: Vec<Abstraction> = Vec::new();
+                for child in children {
+                    branch_abstractions.push(abstract_predicate(child));
+                }
+                if let Some(first) = branch_abstractions.first().cloned() {
+                    for (path, set) in first.allowed {
+                        let mut union = set;
+                        let mut in_all = true;
+                        for other in &branch_abstractions[1..] {
+                            match other.allowed.get(&path) {
+                                Some(Some(other_set)) => {
+                                    if let Some(u) = &mut union {
+                                        u.extend(other_set.iter().cloned());
+                                    }
+                                }
+                                _ => in_all = false,
+                            }
+                        }
+                        if in_all {
+                            into.allowed.insert(path, union);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn abstractions_overlap(a: &Abstraction, b: &Abstraction) -> bool {
+    for (path, a_set) in &a.allowed {
+        if let (Some(a_values), Some(Some(b_values))) = (a_set, b.allowed.get(path)) {
+            if a_values.intersection(b_values).next().is_none() {
+                return false; // provably disjoint on this path
+            }
+        }
+    }
+    true // no path proves them apart — conservative overlap
+}
+
+fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        let has_free_witness = construction
+            .witnesses
+            .iter()
+            .any(|w| matches!(w.class, WitnessClass::Free { .. }));
+        let guards: Vec<(usize, Abstraction)> = construction
+            .forms
+            .iter()
+            .enumerate()
+            .map(|(index, form)| {
+                let abstraction = form
+                    .guard
+                    .as_ref()
+                    .map_or_else(Abstraction::default, |g| abstract_predicate(&g.value));
+                (index, abstraction)
+            })
+            .collect();
+        if construction.forms.len() > 1 && !has_free_witness {
+            for (left_position, (left, left_abs)) in guards.iter().enumerate() {
+                for (right, right_abs) in guards.iter().skip(left_position + 1) {
+                    if abstractions_overlap(left_abs, right_abs) {
+                        diags.push(Diagnostic::new(
+                            DiagCode::AmbiguousLinearization,
+                            id,
+                            format!(
+                                "forms `{}` and `{}` can both match the same value and no witness discriminates them",
+                                construction.forms[*left].name.value, construction.forms[*right].name.value
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+        // Coverage: for every path with a finite admitted set declared by
+        // constraints, the union of form-guard sets must reach every value.
+        let mut admitted = Abstraction::default();
+        for constraint in &construction.constraints {
+            if let Constraint::Require(predicate) = constraint {
+                for (path, set) in abstract_predicate(&predicate.value).allowed {
+                    admitted.allowed.insert(path, set);
+                }
+            }
+        }
+        for (path, admitted_set) in &admitted.allowed {
+            let Some(admitted_values) = admitted_set else { continue };
+            let mut covered: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+            let mut any_unguarded_form = false;
+            for (_, abstraction) in &guards {
+                match abstraction.allowed.get(path) {
+                    Some(Some(values)) => covered.extend(values.iter().cloned()),
+                    _ => any_unguarded_form = true,
+                }
+            }
+            if !any_unguarded_form && !admitted_values.is_subset(&covered) {
+                let missing: Vec<String> = admitted_values.difference(&covered).cloned().collect();
+                diags.push(Diagnostic::new(
+                    DiagCode::UncoveredValueSpace,
+                    id,
+                    format!(
+                        "admitted values for `{path}` have no accepting form: {}",
+                        missing.join(", ")
+                    ),
+                ));
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod fixtures {
     use crate::model::AstShape;
@@ -633,6 +813,79 @@ mod tests {
         group.constructions[0].forms[0].surface.push(duplicate);
         let err = validate(&group).expect_err("double consumption");
         assert!(codes(err).contains(&"EC022"));
+    }
+
+    fn guarded_two_form_group(
+        first: crate::model::Predicate,
+        second: crate::model::Predicate,
+    ) -> crate::model::GroupDeclaration {
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].guard = Some(crate::model::Spanned::call_site(first));
+        let mut oxford = group.constructions[0].forms[0].clone();
+        oxford.name = crate::model::Spanned::call_site("oxford".to_owned());
+        oxford.ordinal = crate::model::Spanned::call_site(1);
+        oxford.guard = Some(crate::model::Spanned::call_site(second));
+        group.constructions[0].forms.push(oxford);
+        group
+    }
+
+    #[test]
+    fn overlapping_guards_without_witness_are_rejected() {
+        let group = guarded_two_form_group(
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["And".to_owned(), "Or".to_owned()],
+            },
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["Or".to_owned(), "Plus".to_owned()],
+            },
+        );
+        let err = validate(&group).expect_err("Or satisfies both guards");
+        assert!(codes(err).contains(&"EC024"));
+    }
+
+    #[test]
+    fn disjoint_guards_pass() {
+        let group = guarded_two_form_group(
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["And".to_owned()],
+            },
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["Or".to_owned()],
+            },
+        );
+        validate(&group).expect("disjoint guards are exactly the promise");
+    }
+
+    #[test]
+    fn a_form_set_that_cannot_cover_its_guarded_paths_is_rejected() {
+        // Two forms both guarded to strict subsets of nothing shared and no
+        // unguarded fallback: values outside both sets have no form.
+        let mut group = guarded_two_form_group(
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["And".to_owned()],
+            },
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["Or".to_owned()],
+            },
+        );
+        // Mark the domain as larger than the union by adding a third
+        // constrained value via a constraint mentioning Plus.
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("conjunction"),
+                    allowed: vec!["And".to_owned(), "Or".to_owned(), "Plus".to_owned()],
+                }),
+            ));
+        let err = validate(&group).expect_err("Plus is admitted but no form accepts it");
+        assert!(codes(err).contains(&"EC023"));
     }
 
     #[test]
