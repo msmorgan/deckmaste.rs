@@ -26,10 +26,6 @@ pub(super) enum GeneratedActivation {
     Inactive,
     /// Test assemblies only: register exactly these groups, in slice order.
     #[cfg(test)]
-    #[allow(
-        dead_code,
-        reason = "constructed by full-parse generated-activation tests once a pilot group lands; Tasks 4-5 pin assembly directly via internal_categories/register_generated/merged_registry"
-    )]
     Groups(&'static [&'static GroupData]),
 }
 

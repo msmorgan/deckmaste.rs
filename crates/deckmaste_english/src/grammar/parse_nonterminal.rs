@@ -378,6 +378,28 @@ fn parse_nonterminal_with_registration_order(
     )
 }
 
+#[cfg(test)]
+pub(crate) fn parse_nonterminal_with_activation(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    activation: super::generated::GeneratedActivation,
+) -> Result<ParsedNonterminal, ParseNonterminalError> {
+    let self_reference = SelfReference::default();
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    parse_nonterminal_with_mode_and_registration_order(
+        source,
+        catalogs,
+        nonterminal,
+        &tokens,
+        OpacityMode::Exact,
+        &self_reference,
+        RegistrationOrder::Normal,
+        activation,
+    )
+}
+
 fn collect_construction_decisions(
     forest: &EnglishForest,
     node: NodeId,
@@ -1058,5 +1080,71 @@ mod registration_order_tests {
                 "shuffled registration changed {source:?}",
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod generated_adapter_tests {
+    use super::super::generated::GeneratedActivation;
+    use super::*;
+    use crate::catalog::Catalogs;
+    use crate::construction::ConstructionOwner;
+    use crate::constructions::probe;
+
+    fn probe_category(name: &str) -> Nonterminal {
+        let cats = super::super::generated::internal_categories(probe::GROUPS);
+        Nonterminal::Generated(cats[name])
+    }
+
+    #[test]
+    fn generated_group_parses_and_records_generated_decisions() {
+        let parsed = parse_nonterminal_with_activation(
+            "and, or",
+            &Catalogs::default(),
+            probe_category("ProbePairRoot"),
+            GeneratedActivation::Groups(probe::GROUPS),
+        )
+        .expect("the probe pair parses");
+        let decisions = parsed.construction_decisions();
+        let pair = decisions
+            .iter()
+            .find(|decision| decision.selected().as_str() == "probe_pair")
+            .expect("probe_pair decision recorded");
+        assert_eq!(pair.owner(), ConstructionOwner::Generated);
+        let pick = decisions
+            .iter()
+            .find(|decision| decision.selected().as_str() == "probe_pick")
+            .expect("dominance selects probe_pick");
+        assert!(
+            pick.alternatives().iter().any(|alternative| {
+                alternative.id().as_str() == "probe_pick_shadow" && alternative.is_dominated()
+            }),
+            "the shadow alternative is recorded and dominated: {decisions:?}"
+        );
+        assert_eq!(
+            pick.alternatives()
+                .iter()
+                .map(ConstructionAlternative::production_ordinal)
+                .max(),
+            Some(0)
+        );
+        assert!(
+            parsed.noun_phrase().is_none(),
+            "probe lowering is Ignored, not a real category"
+        );
+    }
+
+    #[test]
+    fn generated_parse_fails_without_matching_input() {
+        let error = parse_nonterminal_with_activation(
+            "and or",
+            &Catalogs::default(),
+            probe_category("ProbePairRoot"),
+            GeneratedActivation::Groups(probe::GROUPS),
+        );
+        assert!(
+            matches!(error, Err(ParseNonterminalError::NoCompleteParse(_))),
+            "the pair form requires its comma: {error:?}"
+        );
     }
 }

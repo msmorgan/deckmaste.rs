@@ -104,13 +104,6 @@ pub(crate) fn family_by_id(id: ConstructionId) -> Option<ConstructionFamily> {
     registry().family(id)
 }
 
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "consumed by test-assembly activation; production parses keep the handwritten-only registry() static"
-    )
-)]
 pub(super) fn merged_registry(
     groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
 ) -> Result<ConstructionRegistry, ConstructionRegistryError> {
