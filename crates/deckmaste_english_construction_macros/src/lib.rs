@@ -40,8 +40,43 @@ fn expand_spike(name: &syn::Ident) -> Result<proc_macro2::TokenStream, syn::Erro
                     self.members
                 }
             }
+
+            // Opt-in validating deserialization: a private raw mirror is
+            // deserialized structurally, then handed to the same validator
+            // as public construction. There is no other deserialize path.
+            impl<'de> serde::Deserialize<'de> for SpikeCoordination {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    #[derive(serde::Deserialize)]
+                    struct Raw {
+                        members: u16,
+                    }
+                    let raw = Raw::deserialize(deserializer)?;
+                    SpikeCoordination::try_new(raw.members)
+                        .map_err(|SpikeError| serde::de::Error::custom("members must be at least 1"))
+                }
+            }
+
+            // Serde OPT-OUT twin: sealed the same way, deliberately no
+            // Deserialize impl — absence is the guarantee.
+            pub struct SpikeOpenRecord {
+                label: u16,
+            }
+
+            impl SpikeOpenRecord {
+                pub fn try_new(label: u16) -> Result<Self, SpikeError> {
+                    Ok(Self { label })
+                }
+
+                pub fn label(&self) -> u16 {
+                    self.label
+                }
+            }
         }
         pub use #module::SpikeCoordination;
         pub use #module::SpikeError;
+        pub use #module::SpikeOpenRecord;
     })
 }

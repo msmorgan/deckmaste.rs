@@ -8,4 +8,5 @@ fn compile_fail_fixtures() {
     cases.compile_fail("tests/compile_fail/construct_private_field.rs");
     cases.compile_fail("tests/compile_fail/mutate_private_field.rs");
     cases.compile_fail("tests/compile_fail/bad_macro_input.rs");
+    cases.compile_fail("tests/compile_fail/no_deserialize_optout.rs");
 }

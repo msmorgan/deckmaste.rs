@@ -16,3 +16,16 @@ fn try_new_accepts_valid_members() {
 fn try_new_rejects_zero_members() {
     assert_eq!(SpikeCoordination::try_new(0), Err(SpikeError));
 }
+
+#[test]
+fn deserialize_routes_through_the_validator() {
+    let ok: SpikeCoordination = ron::from_str("(members: 3)").expect("valid payload");
+    assert_eq!(ok.members(), 3);
+
+    let err = ron::from_str::<SpikeCoordination>("(members: 0)")
+        .expect_err("zero members must be rejected by the same validator as try_new");
+    assert!(
+        err.to_string().contains("members must be at least 1"),
+        "error should carry the validator's message, got: {err}"
+    );
+}
