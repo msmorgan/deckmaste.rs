@@ -9,6 +9,7 @@ use quote::quote;
 use crate::model::AstShape;
 use crate::model::Constraint;
 use crate::model::ConstructionDeclaration;
+use crate::model::ElementDeclaration;
 use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::GroupDeclaration;
@@ -19,12 +20,28 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
     let group = validated.group();
     let module = quote::format_ident!("__constructicon_{}", group.name.value);
     let violation = violation_struct();
-    let elements: Vec<TokenStream> = group.elements.iter().map(element_struct).collect();
+    let serde_reached = serde_reached_elements(group);
+    let elements: Vec<TokenStream> = group
+        .elements
+        .iter()
+        .map(|element| {
+            let serde = serde_reached
+                .iter()
+                .any(|reached| *reached == element.name.value);
+            element_struct(element, serde)
+        })
+        .collect();
     let constructions: Vec<TokenStream> = group
         .constructions
         .iter()
         .filter_map(|c| own_construction(group, c))
         .collect();
+    let deserialize_impls: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .filter_map(deserialize_impl)
+        .collect();
+    let declaration = declaration_static(group);
     let reexports = reexports(group);
     quote! {
         mod #module {
@@ -32,8 +49,47 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #violation
             #(#elements)*
             #(#constructions)*
+            #(#deserialize_impls)*
+            #declaration
         }
         #(#reexports)*
+    }
+}
+
+/// BFS over `seq` fields reached from at least one serde-opt-in own
+/// construction. Membership-only: element **emission** order stays
+/// declaration order in `emit_group`, unaffected by `sort_unstable()` below.
+fn serde_reached_elements(group: &GroupDeclaration) -> Vec<String> {
+    let mut reached: Vec<String> = Vec::new();
+    let mut queue: Vec<&str> = Vec::new();
+    for construction in &group.constructions {
+        if !construction.deserialize {
+            continue;
+        }
+        for binding in construction.ast.fields() {
+            enqueue_sequences(&binding.kind, &mut queue);
+        }
+    }
+    while let Some(name) = queue.pop() {
+        if reached.iter().any(|r| r == name) {
+            continue;
+        }
+        reached.push(name.to_owned());
+        if let Some(element) = group.elements.iter().find(|e| e.name.value == name) {
+            for binding in &element.fields {
+                enqueue_sequences(&binding.kind, &mut queue);
+            }
+        }
+    }
+    reached.sort_unstable(); // deterministic regardless of discovery order
+    return reached;
+
+    fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
+        match kind {
+            FieldKind::Sequence { element } => queue.push(element.value.as_str()),
+            FieldKind::Optional { inner } => enqueue_sequences(inner, queue),
+            FieldKind::Subtree { .. } | FieldKind::Scalar { .. } => {}
+        }
     }
 }
 
@@ -49,7 +105,7 @@ fn violation_struct() -> TokenStream {
     }
 }
 
-fn element_struct(element: &crate::model::ElementDeclaration) -> TokenStream {
+fn element_struct(element: &ElementDeclaration, serde: bool) -> TokenStream {
     let name = pascal_ident(&element.name.value);
     let fields: Vec<TokenStream> = element
         .fields
@@ -60,10 +116,18 @@ fn element_struct(element: &crate::model::ElementDeclaration) -> TokenStream {
             quote! { pub #field: #ty, }
         })
         .collect();
+    // Reached (transitively, via `seq`) by at least one serde-opt-in own
+    // construction: the element also needs a structural `Deserialize`.
+    let serde_derive = if serde {
+        quote! { #[derive(serde::Deserialize)] }
+    } else {
+        quote! {}
+    };
     quote! {
         // Elements carry no declaration invariants, so their fields stay
         // public; the owning construction validates the sequence whole.
         #[derive(Debug, PartialEq, Eq)]
+        #serde_derive
         pub struct #name {
             #(#fields)*
         }
@@ -130,6 +194,55 @@ fn own_construction(
                 Ok(Self { #(#field_names),* })
             }
             #(#accessors)*
+        }
+    })
+}
+
+/// Serde-opt-in own constructions only; `None` for opt-out and for bind
+/// mode (whose own-struct emission, and so its deserialize impl, land with
+/// the chart adapter).
+fn deserialize_impl(construction: &ConstructionDeclaration) -> Option<TokenStream> {
+    if !construction.deserialize {
+        return None;
+    }
+    let AstShape::Own { name, fields } = &construction.ast else { return None };
+    let ty = quote::format_ident!("{}", name.value);
+    let raw_fields: Vec<TokenStream> = fields
+        .iter()
+        .map(|binding| {
+            let field = quote::format_ident!("{}", binding.field.value);
+            let field_ty = field_type(&binding.kind);
+            quote! { #field: #field_ty, }
+        })
+        .collect();
+    let args: Vec<TokenStream> = fields
+        .iter()
+        .map(|binding| {
+            let field = quote::format_ident!("{}", binding.field.value);
+            quote! { raw.#field }
+        })
+        .collect();
+    Some(quote! {
+        // Opt-in validating deserialization: a private raw mirror is
+        // deserialized structurally, then handed to the same validator as
+        // public construction. There is no other deserialize path.
+        impl<'de> serde::Deserialize<'de> for #ty {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                #[derive(serde::Deserialize)]
+                struct Raw {
+                    #(#raw_fields)*
+                }
+                let raw = Raw::deserialize(deserializer)?;
+                #ty::try_new(#(#args),*).map_err(|violation| {
+                    serde::de::Error::custom(format!(
+                        "{}: {}",
+                        violation.construction, violation.requirement
+                    ))
+                })
+            }
         }
     })
 }
@@ -284,6 +397,110 @@ fn pascal_ident(snake: &str) -> proc_macro2::Ident {
     quote::format_ident!("{}", out)
 }
 
+fn declaration_ident(group: &GroupDeclaration) -> proc_macro2::Ident {
+    quote::format_ident!("{}_DECLARATION", group.name.value.to_uppercase())
+}
+
+fn declaration_static(group: &GroupDeclaration) -> TokenStream {
+    let upper = declaration_ident(group);
+    let name = group.name.value.as_str();
+    let elements: Vec<TokenStream> = group
+        .elements
+        .iter()
+        .map(|e| {
+            let n = e.name.value.as_str();
+            quote! { #n }
+        })
+        .collect();
+    let constructions: Vec<TokenStream> =
+        group.constructions.iter().map(construction_row).collect();
+    quote! {
+        pub static #upper: ::deckmaste_english_construction_compiler::runtime::GroupData =
+            ::deckmaste_english_construction_compiler::runtime::GroupData {
+                name: #name,
+                elements: &[#(#elements),*],
+                constructions: &[#(#constructions),*],
+            };
+    }
+}
+
+fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
+    let id = construction.id.value.as_str();
+    let category = construction.category.value.as_str();
+    let internal = construction.internal;
+    let deserialize = construction.deserialize;
+    let selection_unique = matches!(
+        construction.selection,
+        crate::model::SelectionPromise::Unique
+    );
+    let (own_type, bind_path) = match &construction.ast {
+        AstShape::Own { name, .. } => {
+            let n = name.value.as_str();
+            (quote! { Some(#n) }, quote! { None })
+        }
+        AstShape::Bind { path, .. } => {
+            let p = path.value.as_str();
+            (quote! { None }, quote! { Some(#p) })
+        }
+    };
+    let dominates: Vec<TokenStream> = construction
+        .dominance
+        .iter()
+        .map(|edge| {
+            let loser = edge.loser.value.as_str();
+            quote! { #loser }
+        })
+        .collect();
+    let forms: Vec<TokenStream> = construction
+        .forms
+        .iter()
+        .map(|form| {
+            let name = form.name.value.as_str();
+            let ordinal = form.ordinal.value;
+            let guarded = form.guard.is_some();
+            let atoms: Vec<TokenStream> = form
+                .surface
+                .iter()
+                .map(|atom| match atom {
+                    crate::model::SurfaceAtom::Literal(s) => {
+                        let s = s.value.as_str();
+                        quote! { ::deckmaste_english_construction_compiler::runtime::AtomData::Literal(#s) }
+                    }
+                    crate::model::SurfaceAtom::Hole(path) => {
+                        let dotted = path.dotted();
+                        quote! { ::deckmaste_english_construction_compiler::runtime::AtomData::Hole(#dotted) }
+                    }
+                    crate::model::SurfaceAtom::Lexeme(path) => {
+                        let dotted = path.dotted();
+                        quote! { ::deckmaste_english_construction_compiler::runtime::AtomData::Lexeme(#dotted) }
+                    }
+                })
+                .collect();
+            quote! {
+                ::deckmaste_english_construction_compiler::runtime::FormData {
+                    name: #name,
+                    ordinal: #ordinal,
+                    guarded: #guarded,
+                    atoms: &[#(#atoms),*],
+                }
+            }
+        })
+        .collect();
+    quote! {
+        ::deckmaste_english_construction_compiler::runtime::ConstructionData {
+            id: #id,
+            category: #category,
+            internal: #internal,
+            own_type: #own_type,
+            bind_path: #bind_path,
+            deserialize: #deserialize,
+            selection_unique: #selection_unique,
+            dominates: &[#(#dominates),*],
+            forms: &[#(#forms),*],
+        }
+    }
+}
+
 fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
     let module = quote::format_ident!("__constructicon_{}", group.name.value);
     let mut items: Vec<proc_macro2::Ident> = vec![quote::format_ident!("DeclarationViolation")];
@@ -295,6 +512,7 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
             items.push(quote::format_ident!("{}", name.value));
         }
     }
+    items.push(declaration_ident(group));
     items
         .iter()
         .map(|item| quote! { pub use #module::#item; })
@@ -363,5 +581,77 @@ mod tests {
                 && !rendered.contains("struct MinimalNode"),
             "bind mode must not emit a construction struct: {rendered}"
         );
+    }
+
+    #[test]
+    fn opt_in_construction_gains_validating_deserialize() {
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.constructions[0].deserialize = true;
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(rendered.contains("impl<'de> serde::Deserialize<'de> for MinimalNode"));
+        assert!(rendered.contains("struct Raw"), "private mirror present");
+        assert!(
+            rendered.contains("MinimalNode::try_new(raw.conjunction)"),
+            "routes through the validator"
+        );
+        // The opt-out sibling property: absence.
+        let plain = crate::validate::fixtures::minimal_own_group();
+        let validated = validate(&plain).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            !rendered.contains("Deserialize"),
+            "opt-out means no impl at all"
+        );
+    }
+
+    #[test]
+    fn elements_reached_by_an_opt_in_construction_derive_deserialize() {
+        // Synthetic: opt-in construction with a seq field. Not compiled
+        // against serde here (no vocabulary codec is Deserialize); the
+        // derive's presence is the structural pin until a real family
+        // exercises the combination (Coverage item 9).
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("tag".to_owned()),
+                kind: crate::model::FieldKind::Subtree {
+                    category: crate::model::Spanned::call_site("FixturePhrase".to_owned()),
+                    boxed: false,
+                },
+            }],
+        });
+        if let crate::model::AstShape::Own { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("members".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("m".to_owned()),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("members"),
+            ));
+        group.constructions[0].deserialize = true;
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains(
+                "    #[derive(Debug, PartialEq, Eq)]\n    #[derive(serde::Deserialize)]\n    pub struct M"
+            ),
+            "reached element derives: {rendered}"
+        );
+    }
+
+    #[test]
+    fn declaration_data_table_is_emitted() {
+        let group = crate::validate::fixtures::minimal_own_group();
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(rendered.contains("pub static NOUN_COORDINATION_DECLARATION"));
+        assert!(rendered.contains("::deckmaste_english_construction_compiler::runtime::GroupData"));
     }
 }
