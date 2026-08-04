@@ -51,6 +51,13 @@ mod kw {
     syn::custom_keyword!(any);
 }
 
+/// # Errors
+///
+/// Returns a [`syn::Error`] when `input` does not parse as the
+/// `constructions!` DSL syntax (unexpected tokens, missing punctuation, an
+/// unrecognized keyword, and so on). Semantic problems — duplicate
+/// ordinals, bad paths, stratum misuse — are not caught here; see
+/// [`crate::validate::validate`].
 pub fn parse_group(input: proc_macro2::TokenStream) -> syn::Result<GroupDeclaration> {
     syn::parse2::<GroupSyntax>(input).map(|g| g.0)
 }
@@ -669,14 +676,14 @@ mod tests {
                 Predicate::All(children) => children,
                 other => panic!("expected All(...), got {other:?}"),
             },
-            other => panic!("expected Require, got {other:?}"),
+            other @ Constraint::DeriveFeature { .. } => panic!("expected Require, got {other:?}"),
         };
         let any_children = match &construction.constraints[1] {
             Constraint::Require(pred) => match &pred.value {
                 Predicate::Any(children) => children,
                 other => panic!("expected Any(...), got {other:?}"),
             },
-            other => panic!("expected Require, got {other:?}"),
+            other @ Constraint::DeriveFeature { .. } => panic!("expected Require, got {other:?}"),
         };
         for children in [all_children, any_children] {
             assert_eq!(children.len(), 2);
@@ -735,7 +742,7 @@ mod tests {
                 assert_eq!(fields.len(), 1);
                 assert_eq!(fields[0].field.value, "f");
             }
-            other => panic!("expected Bind shape, got {other:?}"),
+            other @ AstShape::Own { .. } => panic!("expected Bind shape, got {other:?}"),
         }
 
         match &construction.constraints[0] {
@@ -749,7 +756,7 @@ mod tests {
                 assert_eq!(args.len(), 1);
                 assert_eq!(args[0].segments[0].value, "f");
             }
-            other => panic!("expected DeriveFeature, got {other:?}"),
+            other @ Constraint::Require(_) => panic!("expected DeriveFeature, got {other:?}"),
         }
     }
 }

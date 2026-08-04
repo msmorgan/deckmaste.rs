@@ -64,6 +64,7 @@ pub enum AstShape {
 }
 
 impl AstShape {
+    #[must_use]
     pub fn fields(&self) -> &[FieldBinding] {
         match self {
             Self::Bind { fields, .. } | Self::Own { fields, .. } => fields,
@@ -109,6 +110,7 @@ pub struct FieldPath {
 }
 
 impl FieldPath {
+    #[must_use]
     pub fn call_site(dotted: &str) -> Self {
         Self {
             segments: dotted
@@ -121,6 +123,7 @@ impl FieldPath {
 
     /// The path as the author dotted it — the only rendering diagnostics
     /// and abstraction keys may use.
+    #[must_use]
     pub fn dotted(&self) -> String {
         let names: Vec<&str> = self.segments.iter().map(|s| s.value.as_str()).collect();
         names.join(".")
@@ -220,11 +223,12 @@ pub enum SelectionPromise {
 
 pub const KNOWN_COMBINATORS: &[&str] = &["from_first", "fixed"];
 
-/// snake_case to PascalCase. Shared between `validate.rs`'s EC006
+/// `snake_case` to `PascalCase`. Shared between `validate.rs`'s EC006
 /// generated-name collision check and `emit.rs`'s struct-name rendering —
 /// they must agree on exactly the same transform, or a collision the
 /// checker finds could differ from the one the emitter actually produces
 /// (or vice versa), so the algorithm lives once.
+#[must_use]
 pub fn pascal_case(snake: &str) -> String {
     let mut out = String::new();
     for part in snake.split('_') {

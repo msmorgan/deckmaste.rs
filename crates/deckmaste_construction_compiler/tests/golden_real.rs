@@ -1,6 +1,6 @@
 //! The committed golden is the review surface for generated code: any
 //! change to emission is a visible diff here, never a silent behavior
-//! change. Regenerate with UPDATE_GOLDENS=1 and read the diff by eye.
+//! change. Regenerate with `UPDATE_GOLDENS=1` and read the diff by eye.
 
 use deckmaste_construction_compiler::emit::emit_group;
 use deckmaste_construction_compiler::model::AstShape;
@@ -23,6 +23,7 @@ use deckmaste_construction_compiler::validate::validate;
 
 /// The plan's fixture family, hand-built. Task 11 proves the DSL text
 /// parses to exactly this value (spans aside).
+#[must_use]
 pub fn fixture_coordination_group() -> GroupDeclaration {
     GroupDeclaration {
         name: Spanned::call_site("fixture_coordination".to_owned()),

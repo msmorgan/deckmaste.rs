@@ -7,6 +7,7 @@ use quote::quote_spanned;
 
 use crate::diag::Diagnostic;
 
+#[must_use]
 pub fn to_compile_errors(diags: &[Diagnostic]) -> TokenStream {
     let mut out = TokenStream::new();
     for diag in diags {

@@ -23,11 +23,18 @@ pub struct ValidatedGroup<'a> {
 }
 
 impl<'a> ValidatedGroup<'a> {
+    #[must_use]
     pub fn group(&self) -> &'a GroupDeclaration {
         self.group
     }
 }
 
+/// # Errors
+///
+/// Returns every accumulated [`Diagnostic`] (sorted by [`sort_key`]) when
+/// `group` fails any layer-2 check — duplicate identities, dominance
+/// cycles, bad paths, kind mismatches, malformed forms, an uncovered
+/// surface domain, or contradictory constraints.
 pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diagnostic>> {
     let mut diags: Vec<Diagnostic> = Vec::new();
     checks(group, &mut diags);
@@ -154,17 +161,17 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 }
             }
         }
-        if construction.deserialize {
-            if let crate::model::AstShape::Bind { .. } = &construction.ast {
-                diags.push(
-                    Diagnostic::new(
-                        DiagCode::DeserializeRequiresOwn,
-                        id,
-                        "`deserialize` requires own mode; a bind construction has no generated type to deserialize into",
-                    )
-                    .with_span(construction.id.span),
-                );
-            }
+        if construction.deserialize
+            && let crate::model::AstShape::Bind { .. } = &construction.ast
+        {
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::DeserializeRequiresOwn,
+                    id,
+                    "`deserialize` requires own mode; a bind construction has no generated type to deserialize into",
+                )
+                .with_span(construction.id.span),
+            );
         }
         for edge in &construction.dominance {
             if edge.winner.value == edge.loser.value {
@@ -182,7 +189,7 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 }
 
 /// EC006 — every top-level identifier the emitter mints into the group's
-/// generated module must be unique: element structs (PascalCased via
+/// generated module must be unique: element structs (`PascalCased` via
 /// `crate::model::pascal_case`) and own-mode construction structs (the
 /// author's literal Rust identifier, used as-is — `emit.rs` never
 /// transforms it). This is a DIFFERENT namespace from EC004's checks above:
@@ -190,7 +197,7 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 /// EC006 catches two declared names that map to the same GENERATED
 /// identifier even though the declared names differ (e.g. two own-mode
 /// constructions both naming their type `SameNode`, or an element
-/// `foo_bar` colliding with `foo__bar` after PascalCasing) — collisions
+/// `foo_bar` colliding with `foo__bar` after `PascalCasing`) — collisions
 /// EC004 cannot see because it never looks at the generated identifier.
 ///
 /// Processes elements before constructions, matching `emit_group`'s own
@@ -206,7 +213,7 @@ fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) 
         record_generated_name(
             &mut seen,
             diags,
-            generated,
+            &generated,
             element.name.span,
             "element",
             element.name.value.clone(),
@@ -217,49 +224,49 @@ fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) 
             record_generated_name(
                 &mut seen,
                 diags,
-                name.value.clone(),
+                &name.value,
                 name.span,
                 "own-mode construction",
                 name.value.clone(),
             );
         }
     }
+}
 
-    fn record_generated_name(
-        seen: &mut std::collections::HashMap<String, (proc_macro2::Span, &'static str, String)>,
-        diags: &mut Vec<Diagnostic>,
-        generated: String,
-        span: proc_macro2::Span,
-        kind: &'static str,
-        declared: String,
-    ) {
-        match seen.entry(generated.clone()) {
-            std::collections::hash_map::Entry::Vacant(slot) => {
-                slot.insert((span, kind, declared));
+fn record_generated_name(
+    seen: &mut std::collections::HashMap<String, (proc_macro2::Span, &'static str, String)>,
+    diags: &mut Vec<Diagnostic>,
+    generated: &str,
+    span: proc_macro2::Span,
+    kind: &'static str,
+    declared: String,
+) {
+    match seen.entry(generated.to_string()) {
+        std::collections::hash_map::Entry::Vacant(slot) => {
+            slot.insert((span, kind, declared));
+        }
+        std::collections::hash_map::Entry::Occupied(first) => {
+            let (first_span, first_kind, first_declared) = first.get().clone();
+            // Two elements sharing the exact same DECLARED name is
+            // already EC004 (duplicate element name) — EC006 exists for
+            // the collisions EC004 cannot see (different declared names
+            // mapping to the same generated identifier, or an own-mode
+            // construction's type name, which EC004 never inspects), so
+            // skip this one exact-overlap case to avoid reporting the
+            // same root cause twice.
+            if kind == "element" && first_kind == "element" && declared == first_declared {
+                return;
             }
-            std::collections::hash_map::Entry::Occupied(first) => {
-                let (first_span, first_kind, first_declared) = first.get().clone();
-                // Two elements sharing the exact same DECLARED name is
-                // already EC004 (duplicate element name) — EC006 exists for
-                // the collisions EC004 cannot see (different declared names
-                // mapping to the same generated identifier, or an own-mode
-                // construction's type name, which EC004 never inspects), so
-                // skip this one exact-overlap case to avoid reporting the
-                // same root cause twice.
-                if kind == "element" && first_kind == "element" && declared == first_declared {
-                    return;
-                }
-                diags.push(
-                    Diagnostic::group(
-                        DiagCode::GeneratedNameCollision,
-                        format!(
-                            "the generated identifier `{generated}` is used by both this {kind} and a previously declared {first_kind}"
-                        ),
-                    )
-                    .with_span(span)
-                    .with_note("first declared here", first_span),
-                );
-            }
+            diags.push(
+                Diagnostic::group(
+                    DiagCode::GeneratedNameCollision,
+                    format!(
+                        "the generated identifier `{generated}` is used by both this {kind} and a previously declared {first_kind}"
+                    ),
+                )
+                .with_span(span)
+                .with_note("first declared here", first_span),
+            );
         }
     }
 }
@@ -400,20 +407,20 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             .collect();
 
         for binding in construction.ast.fields() {
-            if let FieldKind::Sequence { element } = &binding.kind {
-                if !group.elements.iter().any(|e| e.name.value == element.value) {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::UnknownElement,
-                            id,
-                            format!(
-                                "sequence field `{}` names undeclared element `{}`",
-                                binding.field.value, element.value
-                            ),
-                        )
-                        .with_span(element.span),
-                    );
-                }
+            if let FieldKind::Sequence { element } = &binding.kind
+                && !group.elements.iter().any(|e| e.name.value == element.value)
+            {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnknownElement,
+                        id,
+                        format!(
+                            "sequence field `{}` names undeclared element `{}`",
+                            binding.field.value, element.value
+                        ),
+                    )
+                    .with_span(element.span),
+                );
             }
         }
         for form in &construction.forms {
@@ -454,23 +461,23 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     .with_span(witness.name.span),
                 );
             }
-            if let WitnessClass::Stored { path } = &witness.class {
-                if let Err(bad) = resolve_path(group, construction, path) {
-                    let segment = &path.segments[bad.index];
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::StoredWitnessPathUnknown,
-                            id,
-                            format!(
-                                "stored witness `{}` names `{}`: `{}` does not resolve",
-                                witness.name.value,
-                                path.dotted(),
-                                segment.value
-                            ),
-                        )
-                        .with_span(segment.span),
-                    );
-                }
+            if let WitnessClass::Stored { path } = &witness.class
+                && let Err(bad) = resolve_path(group, construction, path)
+            {
+                let segment = &path.segments[bad.index];
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::StoredWitnessPathUnknown,
+                        id,
+                        format!(
+                            "stored witness `{}` names `{}`: `{}` does not resolve",
+                            witness.name.value,
+                            path.dotted(),
+                            segment.value
+                        ),
+                    )
+                    .with_span(segment.span),
+                );
             }
         }
         // Require-clause and form-guard predicate paths are as unresolvable
@@ -694,8 +701,8 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
         Resolved::Kind(FieldKind::Optional { inner }) => {
             matches!(**inner, FieldKind::Scalar { .. })
         }
-        Resolved::Kind(FieldKind::Subtree { .. } | FieldKind::Sequence { .. }) => false,
-        Resolved::Element(_) => false,
+        Resolved::Kind(FieldKind::Subtree { .. } | FieldKind::Sequence { .. })
+        | Resolved::Element(_) => false,
     }
 }
 
@@ -921,71 +928,71 @@ impl Abstraction {
 
 fn abstract_predicate(predicate: &Predicate) -> Abstraction {
     let mut abstraction = Abstraction::default();
-    collect(predicate, &mut abstraction);
-    return abstraction;
+    collect_abstraction(predicate, &mut abstraction);
+    abstraction
+}
 
-    fn collect(predicate: &Predicate, into: &mut Abstraction) {
-        match predicate {
-            Predicate::In { path, allowed } => {
-                into.intersect(
-                    (path.dotted(), Facet::Value),
-                    allowed.iter().cloned().collect(),
-                );
+fn collect_abstraction(predicate: &Predicate, into: &mut Abstraction) {
+    match predicate {
+        Predicate::In { path, allowed } => {
+            into.intersect(
+                (path.dotted(), Facet::Value),
+                allowed.iter().cloned().collect(),
+            );
+        }
+        Predicate::IsSome { path } => {
+            into.intersect(
+                (path.dotted(), Facet::Presence),
+                std::iter::once("some".to_owned()).collect(),
+            );
+        }
+        Predicate::IsNone { path } => {
+            into.intersect(
+                (path.dotted(), Facet::Presence),
+                std::iter::once("none".to_owned()).collect(),
+            );
+        }
+        Predicate::LenIs { path, len } => {
+            into.intersect(
+                (path.dotted(), Facet::Len),
+                std::iter::once(len.to_string()).collect(),
+            );
+        }
+        Predicate::LenAtLeast { .. } => {
+            // Open-ended stratum: contributes no finite set, so it can
+            // neither prove disjointness nor emptiness. Conservative.
+        }
+        Predicate::All(children) => {
+            for child in children {
+                collect_abstraction(child, into);
             }
-            Predicate::IsSome { path } => {
-                into.intersect(
-                    (path.dotted(), Facet::Presence),
-                    std::iter::once("some".to_owned()).collect(),
-                );
+        }
+        Predicate::Any(children) => {
+            // Union: conservative — drop constraints that differ across
+            // branches by keeping only keys constrained in EVERY branch
+            // with the union of their sets. A key missing from any
+            // branch is unconstrained in that branch, hence
+            // unconstrained in the union, hence contributes nothing.
+            let mut branch_abstractions: Vec<Abstraction> = Vec::new();
+            for child in children {
+                branch_abstractions.push(abstract_predicate(child));
             }
-            Predicate::IsNone { path } => {
-                into.intersect(
-                    (path.dotted(), Facet::Presence),
-                    std::iter::once("none".to_owned()).collect(),
-                );
-            }
-            Predicate::LenIs { path, len } => {
-                into.intersect(
-                    (path.dotted(), Facet::Len),
-                    std::iter::once(len.to_string()).collect(),
-                );
-            }
-            Predicate::LenAtLeast { .. } => {
-                // Open-ended stratum: contributes no finite set, so it can
-                // neither prove disjointness nor emptiness. Conservative.
-            }
-            Predicate::All(children) => {
-                for child in children {
-                    collect(child, into);
-                }
-            }
-            Predicate::Any(children) => {
-                // Union: conservative — drop constraints that differ across
-                // branches by keeping only keys constrained in EVERY branch
-                // with the union of their sets. A key missing from any
-                // branch is unconstrained in that branch, hence
-                // unconstrained in the union, hence contributes nothing.
-                let mut branch_abstractions: Vec<Abstraction> = Vec::new();
-                for child in children {
-                    branch_abstractions.push(abstract_predicate(child));
-                }
-                if let Some(first) = branch_abstractions.first().cloned() {
-                    for (key, set) in first.allowed {
-                        let mut union = set;
-                        let mut in_all = true;
-                        for other in &branch_abstractions[1..] {
-                            match other.allowed.get(&key) {
-                                Some(other_set) => union.extend(other_set.iter().cloned()),
-                                None => in_all = false,
-                            }
+            if let Some(first) = branch_abstractions.first().cloned() {
+                for (key, set) in first.allowed {
+                    let mut union = set;
+                    let mut in_all = true;
+                    for other in &branch_abstractions[1..] {
+                        match other.allowed.get(&key) {
+                            Some(other_set) => union.extend(other_set.iter().cloned()),
+                            None => in_all = false,
                         }
-                        // A sibling constraint on the same key (e.g. from an
-                        // enclosing All) must be intersected against this
-                        // union, not overwritten — route through `intersect`
-                        // like every other arm.
-                        if in_all {
-                            into.intersect(key, union);
-                        }
+                    }
+                    // A sibling constraint on the same key (e.g. from an
+                    // enclosing All) must be intersected against this
+                    // union, not overwritten — route through `intersect`
+                    // like every other arm.
+                    if in_all {
+                        into.intersect(key, union);
                     }
                 }
             }
@@ -995,10 +1002,10 @@ fn abstract_predicate(predicate: &Predicate) -> Abstraction {
 
 fn abstractions_overlap(a: &Abstraction, b: &Abstraction) -> bool {
     for (key, a_values) in &a.allowed {
-        if let Some(b_values) = b.allowed.get(key) {
-            if a_values.intersection(b_values).next().is_none() {
-                return false; // provably disjoint on this key
-            }
+        if let Some(b_values) = b.allowed.get(key)
+            && a_values.intersection(b_values).next().is_none()
+        {
+            return false; // provably disjoint on this key
         }
     }
     true // no key proves them apart — conservative overlap
@@ -1283,46 +1290,46 @@ fn check_strata(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             element_codec_site(&binding.kind, diags);
         }
     }
+}
 
-    fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
-        let codec = match kind {
-            FieldKind::Scalar { codec } => codec,
-            FieldKind::Optional { inner } => return codec_site(id, inner, diags),
-            FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
-        };
-        if stratum_of(&codec.value) == Some(FeatureStratum::DiscourseOccurrence) {
-            diags.push(
-                Diagnostic::new(
-                    DiagCode::DiscourseFeatureExcluded,
-                    id,
-                    format!(
-                        "`{}` is a discourse-occurrence feature; discourse features are excluded from construction declarations",
-                        codec.value
-                    ),
-                )
-                .with_span(codec.span),
-            );
-        }
+fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
+    let codec = match kind {
+        FieldKind::Scalar { codec } => codec,
+        FieldKind::Optional { inner } => return codec_site(id, inner, diags),
+        FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
+    };
+    if stratum_of(&codec.value) == Some(deckmaste_features::FeatureStratum::DiscourseOccurrence) {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::DiscourseFeatureExcluded,
+                id,
+                format!(
+                    "`{}` is a discourse-occurrence feature; discourse features are excluded from construction declarations",
+                    codec.value
+                ),
+            )
+            .with_span(codec.span),
+        );
     }
+}
 
-    fn element_codec_site(kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
-        let codec = match kind {
-            FieldKind::Scalar { codec } => codec,
-            FieldKind::Optional { inner } => return element_codec_site(inner, diags),
-            FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
-        };
-        if stratum_of(&codec.value) == Some(FeatureStratum::DiscourseOccurrence) {
-            diags.push(
-                Diagnostic::group(
-                    DiagCode::DiscourseFeatureExcluded,
-                    format!(
-                        "`{}` is a discourse-occurrence feature; discourse features are excluded from construction declarations",
-                        codec.value
-                    ),
-                )
-                .with_span(codec.span),
-            );
-        }
+fn element_codec_site(kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
+    let codec = match kind {
+        FieldKind::Scalar { codec } => codec,
+        FieldKind::Optional { inner } => return element_codec_site(inner, diags),
+        FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
+    };
+    if stratum_of(&codec.value) == Some(deckmaste_features::FeatureStratum::DiscourseOccurrence) {
+        diags.push(
+            Diagnostic::group(
+                DiagCode::DiscourseFeatureExcluded,
+                format!(
+                    "`{}` is a discourse-occurrence feature; discourse features are excluded from construction declarations",
+                    codec.value
+                ),
+            )
+            .with_span(codec.span),
+        );
     }
 }
 
@@ -1375,7 +1382,7 @@ pub(crate) mod fixtures {
         }
     }
 
-    /// Own-mode sibling of minimal_group: one scalar field, one require.
+    /// Own-mode sibling of `minimal_group`: one scalar field, one require.
     pub(crate) fn minimal_own_group() -> GroupDeclaration {
         let mut group = minimal_group();
         group.constructions[0].ast = AstShape::Own {
@@ -1409,7 +1416,7 @@ mod tests {
         assert_eq!(validated.group().constructions.len(), 1);
     }
 
-    fn codes(err: Vec<crate::diag::Diagnostic>) -> Vec<&'static str> {
+    fn codes(err: &[crate::diag::Diagnostic]) -> Vec<&'static str> {
         err.iter().map(|d| d.code.as_str()).collect()
     }
 
@@ -1463,7 +1470,7 @@ mod tests {
         let twin = group.constructions[0].clone();
         group.constructions.push(twin);
         let err = validate(&group).expect_err("duplicate id");
-        assert!(codes(err).contains(&"EC001"));
+        assert!(codes(&err).contains(&"EC001"));
     }
 
     #[test]
@@ -1490,7 +1497,7 @@ mod tests {
         // so reordering can never silently renumber — reuse is an error.
         group.constructions[0].forms.push(second);
         let err = validate(&group).expect_err("duplicate ordinal");
-        assert!(codes(err).contains(&"EC002"));
+        assert!(codes(&err).contains(&"EC002"));
     }
 
     #[test]
@@ -1626,7 +1633,7 @@ mod tests {
                 loser: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
             });
         let err = validate(&group).expect_err("self dominance");
-        assert!(codes(err).contains(&"EC040"));
+        assert!(codes(&err).contains(&"EC040"));
     }
 
     #[test]
@@ -1637,7 +1644,7 @@ mod tests {
         let mut group = minimal_group();
         group.constructions[0].deserialize = true;
         let err = validate(&group).expect_err("bind mode has no type to deserialize into");
-        assert_eq!(codes(err), vec!["EC005"]);
+        assert_eq!(codes(&err), vec!["EC005"]);
     }
 
     #[test]
@@ -1657,7 +1664,7 @@ mod tests {
         });
         group.constructions.push(second);
         let err = validate(&group).expect_err("two-node cycle");
-        assert!(codes(err).contains(&"EC041"));
+        assert!(codes(&err).contains(&"EC041"));
     }
 
     #[test]
@@ -1669,7 +1676,7 @@ mod tests {
                 crate::model::FieldPath::call_site("ghost"),
             ));
         let err = validate(&group).expect_err("ghost path");
-        assert!(codes(err).contains(&"EC010"));
+        assert!(codes(&err).contains(&"EC010"));
     }
 
     #[test]
@@ -1716,7 +1723,7 @@ mod tests {
                 });
                 crate::model::AstShape::Bind { path, fields }
             }
-            own => own,
+            own @ crate::model::AstShape::Own { .. } => own,
         };
         // `rest` must be produced by some form (EC021 arrives in Task 11);
         // reference it so this test isolates path resolution. Entry into the
@@ -1760,7 +1767,7 @@ mod tests {
                 crate::model::FieldPath::call_site("last.conjunction"),
             ));
         let err = validate(&group).expect_err("last with no preceding sequence");
-        assert!(codes(err).contains(&"EC010"));
+        assert!(codes(&err).contains(&"EC010"));
     }
 
     #[test]
@@ -1784,7 +1791,7 @@ mod tests {
             ));
         let err =
             validate(&group).expect_err("`last` after a non-sequence field addresses nothing");
-        assert!(codes(err).contains(&"EC010"));
+        assert!(codes(&err).contains(&"EC010"));
     }
 
     #[test]
@@ -1811,7 +1818,7 @@ mod tests {
                 });
                 crate::model::AstShape::Bind { path, fields }
             }
-            own => own,
+            own @ crate::model::AstShape::Own { .. } => own,
         };
         group.constructions[0].forms[0]
             .surface
@@ -1981,10 +1988,10 @@ mod tests {
                 });
                 crate::model::AstShape::Bind { path, fields }
             }
-            own => own,
+            own @ crate::model::AstShape::Own { .. } => own,
         };
         let err = validate(&group).expect_err("phantom element");
-        assert!(codes(err).contains(&"EC003"));
+        assert!(codes(&err).contains(&"EC003"));
     }
 
     #[test]
@@ -1999,7 +2006,7 @@ mod tests {
                 },
             });
         let err = validate(&group).expect_err("collision");
-        assert!(codes(err).contains(&"EC012"));
+        assert!(codes(&err).contains(&"EC012"));
     }
 
     #[test]
@@ -2014,7 +2021,7 @@ mod tests {
                 },
             });
         let err = validate(&group).expect_err("stored path unknown");
-        assert!(codes(err).contains(&"EC013"));
+        assert!(codes(&err).contains(&"EC013"));
     }
 
     #[test]
@@ -2309,7 +2316,7 @@ mod tests {
         let mut group = minimal_group();
         group.constructions[0].forms[0].surface.clear();
         let err = validate(&group).expect_err("empty production");
-        assert!(codes(err).contains(&"EC020"));
+        assert!(codes(&err).contains(&"EC020"));
     }
 
     #[test]
@@ -2324,7 +2331,7 @@ mod tests {
             });
         }
         let err = validate(&group).expect_err("orphan field");
-        assert!(codes(err).contains(&"EC021"));
+        assert!(codes(&err).contains(&"EC021"));
     }
 
     #[test]
@@ -2334,7 +2341,7 @@ mod tests {
             crate::model::SurfaceAtom::Lexeme(crate::model::FieldPath::call_site("conjunction"));
         group.constructions[0].forms[0].surface.push(duplicate);
         let err = validate(&group).expect_err("double consumption");
-        assert!(codes(err).contains(&"EC022"));
+        assert!(codes(&err).contains(&"EC022"));
     }
 
     fn conjunction_in(allowed: &[&str]) -> crate::model::Predicate {
@@ -2423,7 +2430,7 @@ mod tests {
                 }),
             ));
         let err = validate(&group).expect_err("Plus is admitted but no form accepts it");
-        assert!(codes(err).contains(&"EC023"));
+        assert!(codes(&err).contains(&"EC023"));
     }
 
     #[test]
@@ -2444,7 +2451,7 @@ mod tests {
                 ])),
             ));
         let err = validate(&group).expect_err("And ∩ Or is empty");
-        assert!(codes(err).contains(&"EC030"));
+        assert!(codes(&err).contains(&"EC030"));
     }
 
     #[test]
@@ -2476,7 +2483,7 @@ mod tests {
                 ])),
             ));
         let err = validate(&group).expect_err("{Plus} ∩ {And, Or} is empty");
-        assert!(codes(err).contains(&"EC030"));
+        assert!(codes(&err).contains(&"EC030"));
     }
 
     #[test]
@@ -2528,7 +2535,7 @@ mod tests {
                 ));
         }
         let err = validate(&group).expect_err("{And} ∩ {Or} across two clauses is empty");
-        assert!(codes(err).contains(&"EC030"));
+        assert!(codes(&err).contains(&"EC030"));
     }
 
     #[test]
@@ -2697,7 +2704,7 @@ mod tests {
                 args: vec![],
             });
         let err = validate(&group).expect_err("unknown combinator");
-        assert!(codes(err).contains(&"EC031"));
+        assert!(codes(&err).contains(&"EC031"));
     }
 
     #[test]
@@ -2757,7 +2764,7 @@ mod tests {
         let twin = group.constructions[0].clone();
         group.constructions.push(twin); // EC001
         let err = validate(&group).expect_err("two independent errors");
-        let reported = codes(err);
+        let reported = codes(&err);
         assert!(reported.contains(&"EC001"));
         assert!(reported.contains(&"EC020"));
     }
@@ -2850,7 +2857,7 @@ mod tests {
                 name: crate::model::Spanned::call_site("CoordinatedNounPhrase".to_owned()),
                 fields,
             },
-            own => own,
+            own @ crate::model::AstShape::Own { .. } => own,
         };
         validate(&group).expect("an owned shape's fields resolve exactly like a bound shape's");
     }

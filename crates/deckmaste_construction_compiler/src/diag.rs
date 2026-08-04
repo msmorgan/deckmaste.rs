@@ -41,11 +41,13 @@ impl Diagnostic {
         }
     }
 
+    #[must_use]
     pub fn with_span(mut self, span: Span) -> Self {
         self.span = span;
         self
     }
 
+    #[must_use]
     pub fn with_note(mut self, message: impl Into<String>, span: Span) -> Self {
         self.notes.push(Note {
             message: message.into(),
@@ -84,6 +86,7 @@ pub enum DiagCode {
 }
 
 impl DiagCode {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::DuplicateConstructionId => "EC001",
@@ -114,6 +117,7 @@ impl DiagCode {
     }
 }
 
+#[must_use]
 pub fn sort_key(diag: &Diagnostic) -> (String, &'static str, String) {
     (
         diag.construction.clone().unwrap_or_default(),
@@ -162,7 +166,7 @@ mod tests {
     fn group_diagnostics_sort_before_construction_diagnostics() {
         let g = Diagnostic::group(DiagCode::DuplicateName, "element `m` declared twice");
         let c = Diagnostic::new(DiagCode::DuplicateConstructionId, "alpha", "dup");
-        let mut v = vec![c, g];
+        let mut v = [c, g];
         v.sort_by_key(sort_key);
         assert!(v[0].construction.is_none());
     }

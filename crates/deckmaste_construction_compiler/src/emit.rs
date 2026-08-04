@@ -24,9 +24,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .elements
         .iter()
         .map(|element| {
-            let serde = serde_reached
-                .iter()
-                .any(|reached| *reached == element.name.value);
+            let serde = serde_reached.contains(&element.name.value);
             element_struct(element, serde)
         })
         .collect();
@@ -123,14 +121,14 @@ fn serde_reached_elements(group: &GroupDeclaration) -> Vec<String> {
         }
     }
     reached.sort_unstable(); // deterministic regardless of discovery order
-    return reached;
+    reached
+}
 
-    fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
-        match kind {
-            FieldKind::Sequence { element } => queue.push(element.value.as_str()),
-            FieldKind::Optional { inner } => enqueue_sequences(inner, queue),
-            FieldKind::Subtree { .. } | FieldKind::Scalar { .. } => {}
-        }
+fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
+    match kind {
+        FieldKind::Sequence { element } => queue.push(element.value.as_str()),
+        FieldKind::Optional { inner } => enqueue_sequences(inner, queue),
+        FieldKind::Subtree { .. } | FieldKind::Scalar { .. } => {}
     }
 }
 
