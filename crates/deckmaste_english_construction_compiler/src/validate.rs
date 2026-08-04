@@ -345,38 +345,56 @@ fn check_forms(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     }
 }
 
-/// A conservative finite abstraction of one predicate: per-path allowed
-/// value sets plus a length stratum per sequence path. Two forms overlap if
-/// every commonly-constrained path has a non-empty intersection; a
-/// predicate is contradictory if any of its own sets is empty.
+/// Which aspect of a path a constraint speaks about. Keying on this rather
+/// than on a decorated path string (`"rest#len"`) is what lets a diagnostic
+/// print the path the author actually wrote: a synthetic key has no author.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Facet {
+    /// The value itself: the set holds variant names.
+    Value,
+    /// Optionality: the set is a subset of `{"some", "none"}`.
+    Presence,
+    /// Sequence length: the set holds decimal lengths.
+    Len,
+}
+
+/// A conservative finite abstraction of one predicate. Two forms overlap if
+/// every commonly-constrained key has a non-empty intersection; a predicate
+/// is contradictory if any of its own sets is empty.
 #[derive(Debug, Clone, Default)]
 struct Abstraction {
-    // path (dotted) → allowed variant names; None entry means "any value".
-    allowed: std::collections::HashMap<String, Option<std::collections::BTreeSet<String>>>,
+    /// (path as the author dotted it, facet) → the finite set that facet is
+    /// restricted to. A key is present only when some predicate imposed a
+    /// finite restriction on it; an absent key means "unconstrained", which
+    /// is emphatically NOT the same as an empty set (that means "provably
+    /// unsatisfiable"). `LenAtLeast` is open-ended and so adds no key.
+    allowed: std::collections::HashMap<(String, Facet), std::collections::BTreeSet<String>>,
 }
 
 impl Abstraction {
     /// Constraining the same key twice intersects: that is what makes
     /// `All[In{And}, In{Or}]` provably empty and `IsSome ∧ IsNone` disjoint.
-    fn intersect(&mut self, key: String, values: std::collections::BTreeSet<String>) {
-        let entry = self.allowed.entry(key).or_insert(None);
-        *entry = Some(match entry.take() {
-            None => values,
-            Some(existing) => existing.intersection(&values).cloned().collect(),
-        });
+    fn intersect(&mut self, key: (String, Facet), values: std::collections::BTreeSet<String>) {
+        match self.allowed.entry(key) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(values);
+            }
+            std::collections::hash_map::Entry::Occupied(mut slot) => {
+                let narrowed = slot.get().intersection(&values).cloned().collect();
+                slot.insert(narrowed);
+            }
+        }
     }
 
     /// Conjoins another abstraction into this one, key by key. Order of
     /// iteration is irrelevant: intersection is commutative and every key
     /// is independent, so the result is a pure function of the operand set.
+    /// Keys absent from `other` carry no constraint and so are left alone —
+    /// treating absence as the empty set would zero out a real constraint
+    /// and fabricate a contradiction.
     fn intersect_all(&mut self, other: &Self) {
         for (key, values) in &other.allowed {
-            // `None` is "no finite constraint on this key", NOT the empty
-            // set — funnelling it through `intersect` would zero out a real
-            // constraint and fabricate a contradiction.
-            if let Some(values) = values {
-                self.intersect(key.clone(), values.clone());
-            }
+            self.intersect(key.clone(), values.clone());
         }
     }
 }
@@ -389,23 +407,26 @@ fn abstract_predicate(predicate: &Predicate) -> Abstraction {
     fn collect(predicate: &Predicate, into: &mut Abstraction) {
         match predicate {
             Predicate::In { path, allowed } => {
-                into.intersect(path.segments.join("."), allowed.iter().cloned().collect());
+                into.intersect(
+                    (path.segments.join("."), Facet::Value),
+                    allowed.iter().cloned().collect(),
+                );
             }
             Predicate::IsSome { path } => {
                 into.intersect(
-                    format!("{}#some", path.segments.join(".")),
+                    (path.segments.join("."), Facet::Presence),
                     std::iter::once("some".to_owned()).collect(),
                 );
             }
             Predicate::IsNone { path } => {
                 into.intersect(
-                    format!("{}#some", path.segments.join(".")),
+                    (path.segments.join("."), Facet::Presence),
                     std::iter::once("none".to_owned()).collect(),
                 );
             }
             Predicate::LenIs { path, len } => {
                 into.intersect(
-                    format!("{}#len", path.segments.join(".")),
+                    (path.segments.join("."), Facet::Len),
                     std::iter::once(len.to_string()).collect(),
                 );
             }
@@ -420,37 +441,30 @@ fn abstract_predicate(predicate: &Predicate) -> Abstraction {
             }
             Predicate::Any(children) => {
                 // Union: conservative — drop constraints that differ across
-                // branches by keeping only paths constrained in EVERY branch
-                // with the union of their sets.
+                // branches by keeping only keys constrained in EVERY branch
+                // with the union of their sets. A key missing from any
+                // branch is unconstrained in that branch, hence
+                // unconstrained in the union, hence contributes nothing.
                 let mut branch_abstractions: Vec<Abstraction> = Vec::new();
                 for child in children {
                     branch_abstractions.push(abstract_predicate(child));
                 }
                 if let Some(first) = branch_abstractions.first().cloned() {
-                    for (path, set) in first.allowed {
+                    for (key, set) in first.allowed {
                         let mut union = set;
                         let mut in_all = true;
                         for other in &branch_abstractions[1..] {
-                            match other.allowed.get(&path) {
-                                Some(Some(other_set)) => {
-                                    if let Some(u) = &mut union {
-                                        u.extend(other_set.iter().cloned());
-                                    }
-                                }
-                                _ => in_all = false,
+                            match other.allowed.get(&key) {
+                                Some(other_set) => union.extend(other_set.iter().cloned()),
+                                None => in_all = false,
                             }
                         }
-                        // A sibling constraint on the same path (e.g. from
-                        // an enclosing All) must be intersected against
-                        // this union, not overwritten — route through
-                        // `intersect` like every other arm. `None` means
-                        // "no finite constraint from this Any", so leave
-                        // any existing entry untouched rather than
-                        // treating it as an empty set.
+                        // A sibling constraint on the same key (e.g. from an
+                        // enclosing All) must be intersected against this
+                        // union, not overwritten — route through `intersect`
+                        // like every other arm.
                         if in_all {
-                            if let Some(values) = union {
-                                into.intersect(path, values);
-                            }
+                            into.intersect(key, union);
                         }
                     }
                 }
@@ -460,14 +474,64 @@ fn abstract_predicate(predicate: &Predicate) -> Abstraction {
 }
 
 fn abstractions_overlap(a: &Abstraction, b: &Abstraction) -> bool {
-    for (path, a_set) in &a.allowed {
-        if let (Some(a_values), Some(Some(b_values))) = (a_set, b.allowed.get(path)) {
+    for (key, a_values) in &a.allowed {
+        if let Some(b_values) = b.allowed.get(key) {
             if a_values.intersection(b_values).next().is_none() {
-                return false; // provably disjoint on this path
+                return false; // provably disjoint on this key
             }
         }
     }
-    true // no path proves them apart — conservative overlap
+    true // no key proves them apart — conservative overlap
+}
+
+/// Renders EC023 for one facet. The author's own path is printed verbatim
+/// and the facet is spelled out in words: an abstraction key is an internal
+/// index, and no author ever wrote one.
+fn uncovered_message(key: &(String, Facet), missing: &[&String]) -> String {
+    let (path, facet) = key;
+    match facet {
+        Facet::Value => {
+            let values: Vec<&str> = missing.iter().map(|value| value.as_str()).collect();
+            format!(
+                "admitted values for `{path}` have no accepting form: {}",
+                values.join(", ")
+            )
+        }
+        Facet::Presence => {
+            let states: Vec<&str> = missing.iter().map(|value| presence_word(value)).collect();
+            format!(
+                "`{path}` has no accepting form when it is {}",
+                states.join(" or ")
+            )
+        }
+        Facet::Len => {
+            let lengths: Vec<&str> = missing.iter().map(|value| value.as_str()).collect();
+            let noun = if lengths.len() == 1 { "length" } else { "lengths" };
+            format!(
+                "`{path}` has no accepting form at {noun} {}",
+                lengths.join(", ")
+            )
+        }
+    }
+}
+
+/// Renders EC030 for one facet, under the same rule as [`uncovered_message`].
+fn contradiction_message(key: &(String, Facet)) -> String {
+    let (path, facet) = key;
+    match facet {
+        Facet::Value => format!("requirements on `{path}` admit no value at all"),
+        Facet::Presence => format!("requirements on `{path}` demand it be both present and absent"),
+        Facet::Len => format!("requirements on `{path}` admit no length at all"),
+    }
+}
+
+fn presence_word(value: &str) -> &'static str {
+    match value {
+        "none" => "absent",
+        // The Presence facet's set is populated only by the `IsSome`/
+        // `IsNone` arms, so "some" is its only other inhabitant.
+        _ => "present",
+    }
 }
 
 /// The conjunction of every `require` clause on one construction.
@@ -480,12 +544,12 @@ fn abstractions_overlap(a: &Abstraction, b: &Abstraction) -> bool {
 /// conjunction can still point at source.
 struct RequiredFacts {
     admitted: Abstraction,
-    origin: std::collections::HashMap<String, proc_macro2::Span>,
+    origin: std::collections::HashMap<(String, Facet), proc_macro2::Span>,
 }
 
 fn required_facts(construction: &ConstructionDeclaration) -> RequiredFacts {
     let mut admitted = Abstraction::default();
-    let mut origin: std::collections::HashMap<String, proc_macro2::Span> =
+    let mut origin: std::collections::HashMap<(String, Facet), proc_macro2::Span> =
         std::collections::HashMap::new();
     for constraint in &construction.constraints {
         let Constraint::Require(predicate) = constraint else { continue };
@@ -533,25 +597,21 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         // Coverage: for every path with a finite admitted set declared by
         // constraints, the union of form-guard sets must reach every value.
         let required = required_facts(construction);
-        for (path, admitted_set) in &required.admitted.allowed {
-            let Some(admitted_values) = admitted_set else { continue };
+        for (key, admitted_values) in &required.admitted.allowed {
             let mut covered: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
             let mut any_unguarded_form = false;
             for abstraction in &guards {
-                match abstraction.allowed.get(path) {
-                    Some(Some(values)) => covered.extend(values.iter().cloned()),
-                    _ => any_unguarded_form = true,
+                match abstraction.allowed.get(key) {
+                    Some(values) => covered.extend(values.iter().cloned()),
+                    None => any_unguarded_form = true,
                 }
             }
             if !any_unguarded_form && !admitted_values.is_subset(&covered) {
-                let missing: Vec<String> = admitted_values.difference(&covered).cloned().collect();
+                let missing: Vec<&String> = admitted_values.difference(&covered).collect();
                 diags.push(Diagnostic::new(
                     DiagCode::UncoveredValueSpace,
                     id,
-                    format!(
-                        "admitted values for `{path}` have no accepting form: {}",
-                        missing.join(", ")
-                    ),
+                    uncovered_message(key, &missing),
                 ));
             }
         }
@@ -565,17 +625,17 @@ fn check_constraints(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         // clause, so `require in(x,{And})` alongside `require in(x,{Or})`
         // is caught even though neither clause is empty on its own.
         let required = required_facts(construction);
-        for (path, set) in &required.admitted.allowed {
-            if matches!(set, Some(values) if values.is_empty()) {
+        for (key, values) in &required.admitted.allowed {
+            if values.is_empty() {
                 let span = *required
                     .origin
-                    .get(path)
+                    .get(key)
                     .expect("every admitted key was recorded when its clause was folded in");
                 diags.push(
                     Diagnostic::new(
                         DiagCode::ContradictoryConstraints,
                         id,
-                        format!("requirements on `{path}` admit no value at all"),
+                        contradiction_message(key),
                     )
                     .with_span(span),
                 );
@@ -662,6 +722,46 @@ mod tests {
 
     fn codes(err: Vec<crate::diag::Diagnostic>) -> Vec<&'static str> {
         err.iter().map(|d| d.code.as_str()).collect()
+    }
+
+    /// The rendered text of the one diagnostic carrying `code`. Asserting on
+    /// the exact text is what pins "the author's own path, never an internal
+    /// abstraction key" — a code-only assertion cannot see message quality.
+    fn message_for(err: &[crate::diag::Diagnostic], code: &str) -> String {
+        err.iter()
+            .find(|d| d.code.as_str() == code)
+            .unwrap_or_else(|| panic!("expected a {code} diagnostic; got {err:?}"))
+            .message
+            .clone()
+    }
+
+    /// `minimal_group()` plus `rest: Sequence<NounPhraseCoordination>`, the
+    /// element it names, and a form atom producing it.
+    fn group_with_sequence_field() -> crate::model::GroupDeclaration {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("comma".to_owned()),
+                kind: crate::model::FieldKind::Scalar {
+                    codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            }],
+        });
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("rest".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("rest.comma"),
+            ));
+        group
     }
 
     #[test]
@@ -1113,6 +1213,121 @@ mod tests {
 
         validate(&group).expect("{And,Or,Plus} ∩ {And,Or} = {And,Or} is fully covered");
         validate(&reversed).expect("the same conjunction, written in the other order");
+    }
+
+    #[test]
+    fn a_presence_contradiction_reports_the_authors_path() {
+        // `IsSome ∧ IsNone` on one path is unsatisfiable. The path in the
+        // message must be the one the author wrote — the presence facet is
+        // an internal index, and no author ever wrote `conjunction#some`.
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::All(vec![
+                    crate::model::Predicate::IsSome {
+                        path: crate::model::FieldPath::call_site("conjunction"),
+                    },
+                    crate::model::Predicate::IsNone {
+                        path: crate::model::FieldPath::call_site("conjunction"),
+                    },
+                ])),
+            ));
+        let err = validate(&group).expect_err("present ∧ absent is unsatisfiable");
+        assert_eq!(
+            message_for(&err, "EC030"),
+            "requirements on `conjunction` demand it be both present and absent"
+        );
+    }
+
+    #[test]
+    fn a_presence_requirement_on_its_own_is_satisfiable() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::IsSome {
+                    path: crate::model::FieldPath::call_site("conjunction"),
+                }),
+            ));
+        validate(&group).expect("`is_some` alone constrains nothing to emptiness");
+    }
+
+    #[test]
+    fn a_presence_coverage_gap_words_the_missing_state() {
+        // Required present, but the only form is guarded to absent.
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].guard = Some(crate::model::Spanned::call_site(
+            crate::model::Predicate::IsNone {
+                path: crate::model::FieldPath::call_site("conjunction"),
+            },
+        ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::IsSome {
+                    path: crate::model::FieldPath::call_site("conjunction"),
+                }),
+            ));
+        let err = validate(&group).expect_err("no form accepts a present `conjunction`");
+        assert_eq!(
+            message_for(&err, "EC023"),
+            "`conjunction` has no accepting form when it is present"
+        );
+    }
+
+    #[test]
+    fn a_length_coverage_gap_reports_the_authors_path() {
+        // Required length 2, but the only form is guarded to length 3.
+        let mut group = group_with_sequence_field();
+        group.constructions[0].forms[0].guard = Some(crate::model::Spanned::call_site(
+            crate::model::Predicate::LenIs {
+                path: crate::model::FieldPath::call_site("rest"),
+                len: 3,
+            },
+        ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::LenIs {
+                    path: crate::model::FieldPath::call_site("rest"),
+                    len: 2,
+                }),
+            ));
+        let err = validate(&group).expect_err("length 2 is admitted but only length 3 has a form");
+        assert_eq!(
+            message_for(&err, "EC023"),
+            "`rest` has no accepting form at length 2"
+        );
+    }
+
+    #[test]
+    fn len_at_least_contributes_no_finite_length_set() {
+        // `len >= 2 ∧ len == 3` is satisfiable. Were the open-ended stratum
+        // to contribute the finite {2}, intersecting it with {3} would empty
+        // the set and fabricate EC030.
+        let mut group = group_with_sequence_field();
+        group.constructions[0].forms[0].guard = Some(crate::model::Spanned::call_site(
+            crate::model::Predicate::LenIs {
+                path: crate::model::FieldPath::call_site("rest"),
+                len: 3,
+            },
+        ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::All(vec![
+                    crate::model::Predicate::LenAtLeast {
+                        path: crate::model::FieldPath::call_site("rest"),
+                        min: 2,
+                    },
+                    crate::model::Predicate::LenIs {
+                        path: crate::model::FieldPath::call_site("rest"),
+                        len: 3,
+                    },
+                ])),
+            ));
+        validate(&group).expect("`len >= 2` and `len == 3` are jointly satisfiable at 3");
     }
 
     #[test]
