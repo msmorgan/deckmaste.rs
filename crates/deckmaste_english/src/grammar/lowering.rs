@@ -2,7 +2,6 @@ use super::Adjective;
 use super::AdjectiveComparisonState;
 use super::AdjectivePhrase;
 use super::AuxiliaryInstance;
-use super::BestParse;
 use super::CardOrientation;
 use super::CatalogKind;
 use super::Clause;
@@ -68,6 +67,7 @@ use super::clause;
 use super::opacity;
 use super::parse_support::EnglishForest;
 use super::quantity_value;
+use crate::forest::AlternativeSelection;
 use crate::word::NounDeclension;
 use crate::word::Tense;
 
@@ -134,14 +134,14 @@ pub(super) enum Lowered {
     Ignored,
 }
 
-pub(super) fn lower(
+pub(super) fn lower<S: AlternativeSelection>(
     grammar: &EnglishGrammar<'_, '_>,
     forest: &EnglishForest,
     node: NodeId,
-    best: &BestParse,
+    selection: &S,
 ) -> Option<Lowered> {
     let forest_node = forest.node(node);
-    let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
+    let alternative = forest_node.alternatives.get(selection.alternative(node)?)?;
     match forest_node.key.symbol {
         ForestSymbol::Lexical(_) => {
             return lower_lexical(
@@ -164,29 +164,31 @@ pub(super) fn lower(
         return None;
     };
     let mut child_nodes = Vec::new();
-    selected_rule_children(forest, *intermediate, best, &mut child_nodes)?;
+    selected_rule_children(forest, *intermediate, selection, &mut child_nodes)?;
     let mut children = child_nodes
         .iter()
-        .map(|&child| lower(grammar, forest, child, best))
+        .map(|&child| lower(grammar, forest, child, selection))
         .collect::<Option<Vec<_>>>()?;
     lower_rule(tag, &mut children)
 }
 
-pub(super) fn selected_rule_children(
+pub(super) fn selected_rule_children<S: AlternativeSelection>(
     forest: &EnglishForest,
     intermediate: NodeId,
-    best: &BestParse,
+    selection: &S,
     children: &mut Vec<NodeId>,
 ) -> Option<()> {
     let node = forest.node(intermediate);
     if !matches!(node.key.symbol, ForestSymbol::Intermediate { .. }) {
         return None;
     }
-    let alternative = node.alternatives.get(best.alternative(intermediate)?)?;
+    let alternative = node
+        .alternatives
+        .get(selection.alternative(intermediate)?)?;
     match alternative.children.as_slice() {
         [child] => children.push(*child),
         [previous, child] => {
-            selected_rule_children(forest, *previous, best, children)?;
+            selected_rule_children(forest, *previous, selection, children)?;
             children.push(*child);
         }
         _ => return None,

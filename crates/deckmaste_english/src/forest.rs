@@ -733,6 +733,19 @@ impl BestParse {
     }
 }
 
+/// A per-node alternative choice consulted by lowering. `BestParse` is the
+/// production selection; the law harness substitutes explicit `ChoiceMap`s
+/// so one lowering serves both.
+pub(crate) trait AlternativeSelection {
+    fn alternative(&self, node: NodeId) -> Option<usize>;
+}
+
+impl AlternativeSelection for BestParse {
+    fn alternative(&self, node: NodeId) -> Option<usize> {
+        self.alternatives.get(node.index()).copied().flatten()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ForestError {
     Cycle(NodeId),
