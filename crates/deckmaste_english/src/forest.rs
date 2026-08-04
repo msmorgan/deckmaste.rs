@@ -824,7 +824,7 @@ impl BestParse {
 }
 
 /// A per-node alternative choice consulted by lowering. [`BestParse`] is the
-/// production selection; the law harness substitutes explicit [`ChoiceMap`]s
+/// production selection; the law harness substitutes explicit `ChoiceMap`s
 /// so one lowering serves both.
 pub(crate) trait AlternativeSelection {
     fn alternative(&self, node: NodeId) -> Option<usize>;
@@ -846,10 +846,6 @@ pub(crate) struct ChoiceMap {
 
 #[cfg(test)]
 impl ChoiceMap {
-    pub(crate) fn alternative(&self, node: NodeId) -> Option<usize> {
-        self.alternatives.get(node.index()).copied().flatten()
-    }
-
     /// The production selection as an explicit map — the equivalence bridge
     /// between best-parse lowering and harness lowering.
     pub(crate) fn from_best(best: &BestParse) -> Self {
@@ -886,6 +882,7 @@ pub(crate) enum ForestError {
 
 #[cfg(test)]
 mod tests {
+    use super::AlternativeSelection;
     use super::NodeKey;
     use super::PackedAlternative;
     use super::ParseCost;

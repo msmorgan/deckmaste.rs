@@ -168,10 +168,12 @@ pub(crate) enum ExactParseError {
 
 /// Strict-exact, set-valued parse: every per-node-consistent derivation of
 /// `source` as `nonterminal`, extracted as [`GeneratedParse`] and paired
-/// with the root alternative's surface payload, deduplicated. Empty set =
-/// nothing admitted. Dominance-losing derivations are included (dominance
-/// is selection preference, not admission), and no opaque-noun retry ever
-/// runs.
+/// with the root alternative's surface payload, deduplicated. An empty set
+/// means no admitted root yielded an extractable generated derivation; with
+/// this milestone's generated-categories-only usage that coincides with
+/// nothing being admitted. Dominance-losing derivations are included
+/// (dominance is selection preference, not admission), and no opaque-noun
+/// retry ever runs.
 pub(crate) fn parse_as(
     source: &str,
     catalogs: &Catalogs,
@@ -483,6 +485,12 @@ mod tests {
         // (`@ 0`) and comma-padded (`@ 7`). Same construction, same field
         // values, different form witness, different bytes — and linearize
         // maps each exact parse back to ITS OWN surface.
+        //
+        // The two `GeneratedParse` values below are NOT equal as wholes —
+        // only `construction` and the scalar field values are asserted equal.
+        // The padded form's `parts` carries an extra `Literal(",")` and a
+        // different `ordinal`; this test checks exactly the fields named,
+        // not full-value equality.
         let activation = GeneratedActivation::Groups(probe::GROUPS);
         let bare = parse_as(
             "or",
@@ -558,7 +566,10 @@ mod tests {
         // The two round-trip laws over the nested pair: probe_pair's product
         // space ("and, or" = pick/shadow choices in each hole = 4 exact
         // parses). Law 1: linearize(ep) == source, for every member. Law 2:
-        // parse_as(linearize(ep)) contains ep.
+        // reparsing linearize(ep) under a REVERSED registration order still
+        // contains ep — the exact parse recovered from its own linearization
+        // survives a re-derivation that took a different path to get there,
+        // not just a repeat of the same deterministic call.
         let activation = GeneratedActivation::Groups(probe::GROUPS);
         let source = "and, or";
         let set = parse_as(
@@ -574,14 +585,15 @@ mod tests {
             assert_eq!(linearize(member.ast()), source, "law 1 for {member:?}");
         }
         for member in &set {
-            let reparsed = parse_as(
+            let reparsed = parse_as_with_registration_order(
                 &linearize(member.ast()),
                 &Catalogs::default(),
                 probe_category("ProbePairRoot"),
                 activation,
                 100,
+                RegistrationOrder::Reversed,
             )
-            .expect("linearized bytes reparse");
+            .expect("linearized bytes reparse under a reversed registration order");
             assert!(reparsed.contains(member), "law 2 for {member:?}");
         }
     }
@@ -666,7 +678,13 @@ mod tests {
             let selections = chart
                 .forest
                 .enumerate_selections(root, &mut remaining)
-                .expect("this small clause fits a 10k budget");
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "enumeration over the handwritten grammar failed: {error:?} \
+                         (acyclic-by-construction is not a given here, unlike the \
+                         generated fixtures)"
+                    )
+                });
             for selection in &selections {
                 match lower(&grammar, &chart.forest, root, selection) {
                     Some(syntax) => {
