@@ -40,6 +40,7 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
     check_dominance_cycles(group, diags);
     check_paths(group, diags);
+    check_forms(group, diags);
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
@@ -264,6 +265,70 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     }
 }
 
+fn check_forms(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        let mut produced: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for form in &construction.forms {
+            if form.surface.is_empty() {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::EmptyProduction,
+                        id,
+                        format!(
+                            "form `{}` has an empty surface; the chart forbids empty productions",
+                            form.name.value
+                        ),
+                    )
+                    .with_span(form.name.span),
+                );
+            }
+            let mut consumed: std::collections::HashSet<String> = std::collections::HashSet::new();
+            for atom in &form.surface {
+                let path = match atom {
+                    SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
+                    SurfaceAtom::Literal(_) => continue,
+                };
+                let dotted = path.segments.join(".");
+                if !consumed.insert(dotted.clone()) {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::HoleConsumedTwice,
+                            id,
+                            format!(
+                                "form `{}` consumes `{dotted}` more than once",
+                                form.name.value
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
+                if let Some(binding) = construction
+                    .ast
+                    .fields()
+                    .iter()
+                    .find(|b| Some(&b.field.value) == path.segments.first())
+                {
+                    // Unresolvable paths already got EC010; skip, no sentinel.
+                    produced.insert(binding.field.value.as_str());
+                }
+            }
+        }
+        for binding in construction.ast.fields() {
+            if !produced.contains(binding.field.value.as_str()) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::FieldNeverProduced,
+                        id,
+                        format!("ast field `{}` is produced by no form", binding.field.value),
+                    )
+                    .with_span(binding.field.span),
+                );
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod fixtures {
     use crate::model::AstShape;
@@ -476,6 +541,39 @@ mod tests {
             });
         let err = validate(&group).expect_err("stored path unknown");
         assert!(codes(err).contains(&"EC013"));
+    }
+
+    #[test]
+    fn empty_surface_is_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].surface.clear();
+        let err = validate(&group).expect_err("empty production");
+        assert!(codes(err).contains(&"EC020"));
+    }
+
+    #[test]
+    fn fields_no_form_produces_are_rejected() {
+        let mut group = minimal_group();
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("orphan".to_owned()),
+                kind: crate::model::FieldKind::Scalar {
+                    codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            });
+        }
+        let err = validate(&group).expect_err("orphan field");
+        assert!(codes(err).contains(&"EC021"));
+    }
+
+    #[test]
+    fn double_consumption_within_one_form_is_rejected() {
+        let mut group = minimal_group();
+        let duplicate =
+            crate::model::SurfaceAtom::Lexeme(crate::model::FieldPath::call_site("conjunction"));
+        group.constructions[0].forms[0].surface.push(duplicate);
+        let err = validate(&group).expect_err("double consumption");
+        assert!(codes(err).contains(&"EC022"));
     }
 
     #[test]
