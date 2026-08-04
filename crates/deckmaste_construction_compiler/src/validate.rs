@@ -32,9 +32,12 @@ impl<'a> ValidatedGroup<'a> {
 /// # Errors
 ///
 /// Returns every accumulated [`Diagnostic`] (sorted by [`sort_key`]) when
-/// `group` fails any layer-2 check — duplicate identities, dominance
-/// cycles, bad paths, kind mismatches, malformed forms, an uncovered
-/// surface domain, or contradictory constraints.
+/// `group` fails any layer-2 check. The families, in the order [`checks`]
+/// runs them: duplicate identities, distinct declared names colliding on
+/// one generated identifier, dominance cycles, bad paths, kind mismatches,
+/// malformed forms, an uncovered surface domain, contradictory constraints,
+/// and stratum violations (a discourse-occurrence feature in a declaration,
+/// or a free witness carrying a type outside the surface-witness stratum).
 pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diagnostic>> {
     let mut diags: Vec<Diagnostic> = Vec::new();
     checks(group, &mut diags);
