@@ -3,11 +3,6 @@
 //! selection, decisions, and `Ignored` lowering. Semantics are Milestone-3
 //! stubs by design; nothing here models English.
 
-#![allow(
-    dead_code,
-    reason = "probe types are compiled-not-constructed: the chart exercises their productions and declaration data, never their builders or accessors"
-)]
-
 use deckmaste_construction_compiler::runtime::GroupData;
 
 use crate::features::Comma;
@@ -16,8 +11,16 @@ use crate::features::Conjunction;
 /// Internal chart categories double as the own-mode hole types (never
 /// constructed at runtime in this milestone — generated reductions are
 /// feature stubs; the structs exist so the sealed types compile).
+#[expect(
+    dead_code,
+    reason = "exists only so the emitted sealed hole type compiles; Milestone-3 generated reductions are Features::None stubs that never construct ProbeItem"
+)]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ProbeItem;
+#[expect(
+    dead_code,
+    reason = "exists only so the emitted sealed hole type compiles; Milestone-3 generated reductions are Features::None stubs that never construct ProbeRoot"
+)]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ProbeRoot;
 

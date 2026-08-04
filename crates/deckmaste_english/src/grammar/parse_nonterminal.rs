@@ -1191,13 +1191,25 @@ mod generated_adapter_tests {
             Some(0)
         );
         assert!(
-            parsed.noun_phrase().is_none(),
-            "probe lowering is Ignored, not a real category"
+            matches!(parsed.syntax, Lowered::Ignored),
+            "probe lowering is Ignored: {:?}",
+            parsed.syntax
         );
     }
 
     #[test]
     fn generated_parse_fails_without_matching_input() {
+        // Contrast case: the comma-bearing input parses under these same
+        // active groups, so a failure below cannot be attributed to no
+        // generated rules having been registered at all — only to the
+        // missing comma.
+        parse_nonterminal_with_activation(
+            "and, or",
+            &Catalogs::default(),
+            probe_category("ProbePairRoot"),
+            GeneratedActivation::Groups(probe::GROUPS),
+        )
+        .expect("the comma-bearing pair parses under the same active groups");
         let error = parse_nonterminal_with_activation(
             "and or",
             &Catalogs::default(),
