@@ -2,10 +2,12 @@
 //! the emitter: its constructor is private to this module, so unvalidated
 //! emission is unrepresentable.
 
+use crate::diag::DiagCode;
 use crate::diag::Diagnostic;
 use crate::diag::sort_key;
 use crate::model::GroupDeclaration;
 
+#[derive(Debug)]
 pub struct ValidatedGroup<'a> {
     group: &'a GroupDeclaration,
 }
@@ -28,7 +30,54 @@ pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diag
 }
 
 // Each task in this plan appends one check family here.
-fn checks(_group: &GroupDeclaration, _diags: &mut Vec<Diagnostic>) {}
+fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    check_identity(group, diags);
+}
+
+fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    let mut seen_ids: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        if !seen_ids.insert(id) {
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::DuplicateConstructionId,
+                    id,
+                    format!("construction id `{id}` is declared more than once in this group"),
+                )
+                .with_span(construction.id.span),
+            );
+        }
+        let mut seen_ordinals: std::collections::HashSet<u16> = std::collections::HashSet::new();
+        for form in &construction.forms {
+            if !seen_ordinals.insert(form.ordinal.value) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::DuplicateOrdinal,
+                        id,
+                        format!(
+                            "production ordinal {} is used by more than one form",
+                            form.ordinal.value
+                        ),
+                    )
+                    .with_span(form.ordinal.span),
+                );
+            }
+        }
+        for edge in &construction.dominance {
+            if edge.winner.value == edge.loser.value {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::SelfDominance,
+                        id,
+                        format!("`{}` cannot dominate itself", edge.winner.value),
+                    )
+                    .with_span(edge.winner.span),
+                );
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 pub(crate) mod fixtures {
@@ -87,5 +136,43 @@ mod tests {
         let group = minimal_group();
         let validated = validate(&group).expect("minimal group is valid");
         assert_eq!(validated.group().constructions.len(), 1);
+    }
+
+    fn codes(err: Vec<crate::diag::Diagnostic>) -> Vec<&'static str> {
+        err.iter().map(|d| d.code.as_str()).collect()
+    }
+
+    #[test]
+    fn duplicate_construction_ids_are_rejected() {
+        let mut group = minimal_group();
+        let twin = group.constructions[0].clone();
+        group.constructions.push(twin);
+        let err = validate(&group).expect_err("duplicate id");
+        assert!(codes(err).contains(&"EC001"));
+    }
+
+    #[test]
+    fn duplicate_ordinals_within_a_construction_are_rejected() {
+        let mut group = minimal_group();
+        let mut second = group.constructions[0].forms[0].clone();
+        second.name = crate::model::Spanned::call_site("oxford".to_owned());
+        // Same ordinal 0 on a second form: explicit ordinals exist precisely
+        // so reordering can never silently renumber — reuse is an error.
+        group.constructions[0].forms.push(second);
+        let err = validate(&group).expect_err("duplicate ordinal");
+        assert!(codes(err).contains(&"EC002"));
+    }
+
+    #[test]
+    fn self_dominance_is_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .dominance
+            .push(crate::model::DominanceEdge {
+                winner: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
+                loser: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
+            });
+        let err = validate(&group).expect_err("self dominance");
+        assert!(codes(err).contains(&"EC040"));
     }
 }
