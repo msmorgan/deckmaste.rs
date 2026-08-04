@@ -1,5 +1,5 @@
 //! The construction declaration IR: plain data types describing a group of
-//! constructions, produced upstream (spike/macro layer) and consumed by
+//! constructions, produced by [`crate::parse::parse_group`] and consumed by
 //! [`crate::validate`]. All fields are `pub`; this module has no invariants
 //! of its own — validation lives in `validate.rs`.
 

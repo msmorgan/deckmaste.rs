@@ -17,4 +17,3 @@ deckmaste_english_features = { path = "../deckmaste_english_features" }
 trybuild = "1.0"
 prettyplease = "0.2"
 serde = { version = "1.0.228", features = ["derive"] }
-ron = "0.12.1"

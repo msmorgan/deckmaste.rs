@@ -200,9 +200,12 @@ fn own_construction(
     })
 }
 
-/// Serde-opt-in own constructions only; `None` for opt-out and for bind
-/// mode (whose own-struct emission, and so its deserialize impl, land with
-/// the chart adapter).
+/// Serde-opt-in own constructions only; `None` for opt-out. The `AstShape::Own`
+/// match below also returns `None` for a `Bind`-mode construction, but
+/// EC005 (`DeserializeRequiresOwn`) already rejects `deserialize: true` on
+/// bind mode at validation time — for a `ValidatedGroup`, `construction.ast`
+/// is never `Bind` here once `construction.deserialize` is true. That arm is
+/// defensive dead code, not a live deferral to a later milestone.
 fn deserialize_impl(construction: &ConstructionDeclaration) -> Option<TokenStream> {
     if !construction.deserialize {
         return None;

@@ -506,7 +506,6 @@ dependencies = [
  "prettyplease",
  "proc-macro2",
  "quote",
- "ron",
  "serde",
  "syn",
  "trybuild",
@@ -519,10 +518,8 @@ dependencies = [
  "deckmaste_english_construction_compiler",
  "deckmaste_english_features",
  "proc-macro2",
- "quote",
  "ron",
  "serde",
- "syn",
  "trybuild",
 ]
 

@@ -12,13 +12,10 @@ workspace = true
 
 [dependencies]
 proc-macro2 = "1.0.106"
-quote = "1.0.45"
-syn = "2.0.117"
 deckmaste_english_construction_compiler = { path = "../deckmaste_english_construction_compiler" }
 
 [dev-dependencies]
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 trybuild = "1.0"
-deckmaste_english_construction_compiler = { path = "../deckmaste_english_construction_compiler" }
 deckmaste_english_features = { path = "../deckmaste_english_features" }
