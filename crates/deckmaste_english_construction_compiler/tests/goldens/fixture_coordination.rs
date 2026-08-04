@@ -1,0 +1,170 @@
+mod __constructicon_fixture_coordination {
+    use super::*;
+    /// A `require` clause an ingress value failed. One error class for
+    /// every generated door: try_new and validating deserialization.
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct DeclarationViolation {
+        pub construction: &'static str,
+        pub requirement: &'static str,
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct FixtureMember {
+        pub comma: Option<Comma>,
+        pub phrase: FixturePhrase,
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct FixturePairNode {
+        members: Vec<FixtureMember>,
+        conjunction: Conjunction,
+    }
+    impl FixturePairNode {
+        pub fn try_new(
+            members: Vec<FixtureMember>,
+            conjunction: Conjunction,
+        ) -> Result<Self, DeclarationViolation> {
+            if !(members.len() >= 2) {
+                return Err(DeclarationViolation {
+                    construction: "fixture_pair",
+                    requirement: "members.len() >= 2",
+                });
+            }
+            if !(matches!(conjunction, Conjunction::And | Conjunction::Or)) {
+                return Err(DeclarationViolation {
+                    construction: "fixture_pair",
+                    requirement: "conjunction in [And, Or]",
+                });
+            }
+            Ok(Self {
+                members,
+                conjunction,
+            })
+        }
+        pub fn members(&self) -> &Vec<FixtureMember> {
+            &self.members
+        }
+        pub fn conjunction(&self) -> &Conjunction {
+            &self.conjunction
+        }
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct FixtureSoloNode {
+        phrase: FixturePhrase,
+        alt: Option<FixturePhrase>,
+    }
+    impl FixtureSoloNode {
+        pub fn try_new(
+            phrase: FixturePhrase,
+            alt: Option<FixturePhrase>,
+        ) -> Result<Self, DeclarationViolation> {
+            if !(alt.is_none()) {
+                return Err(DeclarationViolation {
+                    construction: "fixture_solo",
+                    requirement: "alt.is_none()",
+                });
+            }
+            Ok(Self { phrase, alt })
+        }
+        pub fn phrase(&self) -> &FixturePhrase {
+            &self.phrase
+        }
+        pub fn alt(&self) -> &Option<FixturePhrase> {
+            &self.alt
+        }
+    }
+    impl<'de> serde::Deserialize<'de> for FixtureSoloNode {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            #[derive(serde::Deserialize)]
+            struct Raw {
+                phrase: FixturePhrase,
+                alt: Option<FixturePhrase>,
+            }
+            let raw = Raw::deserialize(deserializer)?;
+            FixtureSoloNode::try_new(raw.phrase, raw.alt).map_err(|violation| {
+                serde::de::Error::custom(format!(
+                    "{}: {}",
+                    violation.construction, violation.requirement
+                ))
+            })
+        }
+    }
+    pub static FIXTURE_COORDINATION_DECLARATION: ::deckmaste_english_construction_compiler::runtime::GroupData = ::deckmaste_english_construction_compiler::runtime::GroupData {
+        name: "fixture_coordination",
+        elements: &["fixture_member"],
+        constructions: &[
+            ::deckmaste_english_construction_compiler::runtime::ConstructionData {
+                id: "fixture_pair",
+                category: "FixturePair",
+                internal: false,
+                own_type: Some("FixturePairNode"),
+                bind_path: None,
+                deserialize: false,
+                selection_unique: false,
+                dominates: &["fixture_solo"],
+                forms: &[
+                    ::deckmaste_english_construction_compiler::runtime::FormData {
+                        name: "plain",
+                        ordinal: 0u16,
+                        guarded: true,
+                        atoms: &[
+                            ::deckmaste_english_construction_compiler::runtime::AtomData::Hole(
+                                "members",
+                            ),
+                            ::deckmaste_english_construction_compiler::runtime::AtomData::Lexeme(
+                                "conjunction",
+                            ),
+                        ],
+                    },
+                    ::deckmaste_english_construction_compiler::runtime::FormData {
+                        name: "fancy",
+                        ordinal: 1u16,
+                        guarded: true,
+                        atoms: &[
+                            ::deckmaste_english_construction_compiler::runtime::AtomData::Hole(
+                                "members",
+                            ),
+                            ::deckmaste_english_construction_compiler::runtime::AtomData::Literal(
+                                ",",
+                            ),
+                            ::deckmaste_english_construction_compiler::runtime::AtomData::Lexeme(
+                                "conjunction",
+                            ),
+                        ],
+                    },
+                ],
+            },
+            ::deckmaste_english_construction_compiler::runtime::ConstructionData {
+                id: "fixture_solo",
+                category: "FixturePair",
+                internal: false,
+                own_type: Some("FixtureSoloNode"),
+                bind_path: None,
+                deserialize: true,
+                selection_unique: true,
+                dominates: &[],
+                forms: &[
+                    ::deckmaste_english_construction_compiler::runtime::FormData {
+                        name: "only",
+                        ordinal: 0u16,
+                        guarded: false,
+                        atoms: &[
+                            ::deckmaste_english_construction_compiler::runtime::AtomData::Hole(
+                                "phrase",
+                            ),
+                            ::deckmaste_english_construction_compiler::runtime::AtomData::Hole(
+                                "alt",
+                            ),
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+}
+pub use __constructicon_fixture_coordination::DeclarationViolation;
+pub use __constructicon_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;
+pub use __constructicon_fixture_coordination::FixtureMember;
+pub use __constructicon_fixture_coordination::FixturePairNode;
+pub use __constructicon_fixture_coordination::FixtureSoloNode;
