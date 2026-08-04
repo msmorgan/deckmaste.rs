@@ -354,8 +354,10 @@ fn parse_as_with_registration_order(
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_construction_compiler::runtime::DeclarationViolation;
     use deckmaste_construction_compiler::runtime::FieldKindData;
     use deckmaste_construction_compiler::runtime::WitnessClassData;
+    use proptest::prelude::*;
 
     use super::super::generated::GeneratedActivation;
     use super::*;
@@ -365,6 +367,9 @@ mod tests {
     use crate::constructions::probe;
     use crate::features::Comma;
     use crate::features::Conjunction;
+    use crate::grammar::lowering::Lowered;
+    use crate::syntax::CoordinatedNominalPhrase;
+    use crate::syntax::CoordinatedNounPhrase;
     use crate::syntax::Determiner;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalPhrase;
@@ -421,6 +426,104 @@ mod tests {
 
     fn noun_phrase(head: Vocab) -> NounPhrase {
         NounPhrase::Nominal(nominal(head))
+    }
+
+    const NOUN_PHRASE_READING_BUDGET: usize = 50_000;
+
+    struct NounPhraseEnumeration {
+        readings: Vec<NounPhrase>,
+        selections: usize,
+        noun_phrase_lowerings: usize,
+    }
+
+    fn noun_phrase_enumeration(source: &str) -> NounPhraseEnumeration {
+        let catalogs = fixture_catalogs();
+        let self_reference = SelfReference::default();
+        let surface = lex(source);
+        let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+        let grammar = EnglishGrammar::with_opacity_mode(
+            source,
+            &catalogs,
+            Nonterminal::NounPhrase,
+            OpacityMode::Exact,
+            self_reference,
+        );
+        let chart = parse_chart(&grammar, &tokens)
+            .unwrap_or_else(|error| panic!("chart failed for {source:?}: {error:?}"));
+        let mut remaining = NOUN_PHRASE_READING_BUDGET;
+        let mut readings = Vec::new();
+        let mut debug_keys = Vec::new();
+        let mut selections = 0;
+        let mut noun_phrase_lowerings = 0;
+        for &root in &chart.roots {
+            let root_selections = chart
+                .forest
+                .enumerate_selections(root, &mut remaining)
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "noun-phrase enumeration failed for {source:?} with budget \
+                         {NOUN_PHRASE_READING_BUDGET}: {error:?}",
+                    )
+                });
+            selections += root_selections.len();
+            for selection in root_selections {
+                let Some(Lowered::NounPhrase(reading)) =
+                    lower(&grammar, &chart.forest, root, &selection)
+                else {
+                    continue;
+                };
+                noun_phrase_lowerings += 1;
+                let key = format!("{reading:?}");
+                if !debug_keys.contains(&key) {
+                    debug_keys.push(key);
+                    readings.push(reading);
+                }
+            }
+        }
+        NounPhraseEnumeration {
+            readings,
+            selections,
+            noun_phrase_lowerings,
+        }
+    }
+
+    fn parse_fixture_noun_phrase(source: &str) -> NounPhrase {
+        let catalogs = fixture_catalogs();
+        let self_reference = SelfReference::default();
+        let surface = lex(source);
+        let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+        let grammar = EnglishGrammar::with_opacity_mode(
+            source,
+            &catalogs,
+            Nonterminal::NounPhrase,
+            OpacityMode::Exact,
+            self_reference,
+        );
+        let chart = parse_chart(&grammar, &tokens)
+            .unwrap_or_else(|error| panic!("chart failed for {source:?}: {error:?}"));
+        let mut parsed = None;
+        chart
+            .forest
+            .best_root_matching(
+                chart.roots.iter().copied(),
+                super::super::construction::registry(),
+                |root, best| {
+                    let Some(Lowered::NounPhrase(noun_phrase)) =
+                        lower(&grammar, &chart.forest, root, best)
+                    else {
+                        return false;
+                    };
+                    parsed = Some(noun_phrase);
+                    true
+                },
+            )
+            .unwrap_or_else(|error| panic!("best-root search failed for {source:?}: {error:?}"))
+            .unwrap_or_else(|| panic!("no exact noun-phrase root for {source:?}"));
+        parsed.unwrap_or_else(|| panic!("best exact root did not lower for {source:?}"))
+    }
+
+    fn noun_phrase_readings(source: &str) -> Vec<NounPhrase> {
+        noun_phrase_enumeration(source).readings
     }
 
     #[test]
@@ -808,6 +911,374 @@ mod tests {
                 requirement: "complements.len() == 0",
             },
         );
+    }
+
+    #[test]
+    fn parsed_coordination_ground_obeys_linearization_law() {
+        const NOUN_COORDINATION_GROUND: &[&str] = &[
+            "target creature and target land",
+            "target artifact or target creature",
+            "target artifact, target creature, or target land",
+            "target artifact, target creature, target land, and target planeswalker",
+        ];
+        const NOMINAL_COORDINATION_GROUND: &[&str] = &[
+            "target artifact or creature",
+            "target artifact, creature, or land",
+        ];
+
+        for &source in NOUN_COORDINATION_GROUND {
+            let readings = noun_phrase_readings(source);
+            let expected = readings
+                .iter()
+                .filter_map(|reading| match reading {
+                    NounPhrase::Coordinated(coordination) => Some(coordination),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            let admitted = expected
+                .iter()
+                .copied()
+                .filter(|coordination| {
+                    coordination_verdict(coordination) == CoordinationVerdict::Admitted
+                })
+                .collect::<Vec<_>>();
+            eprintln!(
+                "noun ground {source:?}: readings={}, expected={}, admitted={}",
+                readings.len(),
+                expected.len(),
+                admitted.len(),
+            );
+            assert!(
+                !admitted.is_empty(),
+                "no admitted CoordinatedNounPhrase reading for {source:?}: {readings:#?}",
+            );
+            for coordination in admitted {
+                assert_eq!(
+                    linearize_coordinated_noun_phrase(coordination).unwrap_or_else(|error| panic!(
+                        "linearization failed for {source:?}: {error}"
+                    )),
+                    source,
+                    "parsed-ground law 1 failed for {coordination:#?}",
+                );
+            }
+        }
+
+        for &source in NOMINAL_COORDINATION_GROUND {
+            let readings = noun_phrase_readings(source);
+            let expected = readings
+                .iter()
+                .filter_map(|reading| match reading {
+                    NounPhrase::CoordinatedNominal(coordination) => Some(coordination),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            let admitted = expected
+                .iter()
+                .copied()
+                .filter(|coordination| {
+                    nominal_coordination_verdict(coordination) == CoordinationVerdict::Admitted
+                })
+                .collect::<Vec<_>>();
+            eprintln!(
+                "nominal ground {source:?}: readings={}, expected={}, admitted={}",
+                readings.len(),
+                expected.len(),
+                admitted.len(),
+            );
+            assert!(
+                !admitted.is_empty(),
+                "no admitted CoordinatedNominalPhrase reading for {source:?}: {readings:#?}",
+            );
+            for coordination in admitted {
+                assert_eq!(
+                    linearize_coordinated_nominal_phrase(coordination).unwrap_or_else(
+                        |error| panic!("linearization failed for {source:?}: {error}")
+                    ),
+                    source,
+                    "parsed-ground law 1 failed for {coordination:#?}",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn handwritten_binary_oxford_surfaces_are_refused_by_the_declaration() {
+        const REQUIREMENT: &str = "any(rest.len() >= 2, rest.last.comma in [Absent])";
+
+        let noun_source = "target creature, and target land";
+        let noun_readings = noun_phrase_readings(noun_source);
+        let noun_coordinations = noun_readings
+            .iter()
+            .filter_map(|reading| match reading {
+                NounPhrase::Coordinated(coordination) => Some(coordination),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !noun_coordinations.is_empty(),
+            "the handwritten grammar produced no complete coordinated reading",
+        );
+        for coordination in noun_coordinations {
+            assert_eq!(
+                coordination_verdict(coordination),
+                CoordinationVerdict::Refused {
+                    requirement: REQUIREMENT,
+                },
+                "binary Oxford noun reading was not refused: {coordination:#?}",
+            );
+        }
+
+        let nominal_source = "target artifact, or creature";
+        let nominal_readings = noun_phrase_readings(nominal_source);
+        let nominal_coordinations = nominal_readings
+            .iter()
+            .filter_map(|reading| match reading {
+                NounPhrase::CoordinatedNominal(coordination) => Some(coordination),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !nominal_coordinations.is_empty(),
+            "the handwritten grammar produced no shared-determiner coordinated reading",
+        );
+        for coordination in nominal_coordinations {
+            assert_eq!(
+                nominal_coordination_verdict(coordination),
+                CoordinationVerdict::Refused {
+                    requirement: REQUIREMENT,
+                },
+                "binary Oxford nominal reading was not refused: {coordination:#?}",
+            );
+        }
+        eprintln!(
+            "illegal binary Oxford surfaces: noun coordinated readings={}, nominal coordinated readings={}",
+            noun_readings
+                .iter()
+                .filter(|reading| matches!(reading, NounPhrase::Coordinated(_)))
+                .count(),
+            nominal_readings
+                .iter()
+                .filter(|reading| matches!(reading, NounPhrase::CoordinatedNominal(_)))
+                .count(),
+        );
+    }
+
+    fn noun_coordination_depth(noun_phrase: &NounPhrase) -> usize {
+        match noun_phrase {
+            NounPhrase::Coordinated(coordination) => {
+                let child_depth = std::iter::once(coordination.first.as_ref())
+                    .chain(coordination.rest.iter().map(|member| &member.phrase))
+                    .map(noun_coordination_depth)
+                    .max()
+                    .unwrap_or(0);
+                child_depth + 1
+            }
+            _ => 0,
+        }
+    }
+
+    #[test]
+    fn chain_associativity_keeps_two_asts_for_the_same_bytes() {
+        let source = "target creature and target land or target artifact";
+        let enumeration = noun_phrase_enumeration(source);
+        let coordinated = enumeration
+            .readings
+            .iter()
+            .filter_map(|reading| match reading {
+                NounPhrase::Coordinated(coordination) => Some((reading, coordination)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            coordinated
+                .iter()
+                .any(|(reading, _)| noun_coordination_depth(reading) == 1),
+            "no flat coordination reading: {:#?}",
+            enumeration.readings,
+        );
+        assert!(
+            coordinated
+                .iter()
+                .any(|(reading, _)| noun_coordination_depth(reading) >= 2),
+            "no nested coordination reading: {:#?}",
+            enumeration.readings,
+        );
+        let admitted = coordinated
+            .iter()
+            .filter(|(_, coordination)| {
+                coordination_verdict(coordination) == CoordinationVerdict::Admitted
+            })
+            .collect::<Vec<_>>();
+        assert!(!admitted.is_empty(), "no admitted coordination reading");
+        for (_, coordination) in &admitted {
+            assert_eq!(
+                linearize_coordinated_noun_phrase(coordination)
+                    .expect("admitted chain reading linearizes"),
+                source,
+            );
+        }
+        eprintln!(
+            "chain associativity: selections={}, noun-phrase lowerings={}, unique readings={}, coordinated={}, admitted={}, debug-key dedup fired={}",
+            enumeration.selections,
+            enumeration.noun_phrase_lowerings,
+            enumeration.readings.len(),
+            coordinated.len(),
+            admitted.len(),
+            enumeration.noun_phrase_lowerings > enumeration.readings.len(),
+        );
+    }
+
+    type NounCoordinationBuilder = fn(
+        Box<NounPhrase>,
+        Vec<NounPhraseCoordination>,
+    ) -> Result<CoordinatedNounPhrase, DeclarationViolation>;
+
+    type NominalCoordinationBuilder = fn(
+        Determiner,
+        Box<NominalPhrase>,
+        Vec<NominalPhraseCoordination>,
+        Vec<NominalComplement>,
+    )
+        -> Result<CoordinatedNominalPhrase, DeclarationViolation>;
+
+    fn chart_shaped_noun_rest(
+        members: impl IntoIterator<Item = NounPhrase>,
+        conjunction: Conjunction,
+        member_count: usize,
+    ) -> Vec<NounPhraseCoordination> {
+        members
+            .into_iter()
+            .enumerate()
+            .map(|(index, phrase)| NounPhraseCoordination {
+                comma: Comma::from(member_count >= 3),
+                conjunction: (index + 2 == member_count).then_some(conjunction),
+                phrase,
+            })
+            .collect()
+    }
+
+    fn chart_shaped_nominal_rest(
+        members: impl IntoIterator<Item = NominalPhrase>,
+        conjunction: Conjunction,
+        member_count: usize,
+    ) -> Vec<NominalPhraseCoordination> {
+        members
+            .into_iter()
+            .enumerate()
+            .map(|(index, phrase)| NominalPhraseCoordination {
+                comma: Comma::from(member_count >= 3),
+                conjunction: (index + 2 == member_count).then_some(conjunction),
+                phrase,
+            })
+            .collect()
+    }
+
+    fn parsed_noun_member(index: usize) -> NounPhrase {
+        const SOURCES: &[&str] = &[
+            "target artifact",
+            "target creature",
+            "target land",
+            "target planeswalker",
+        ];
+        parse_fixture_noun_phrase(SOURCES[index])
+    }
+
+    fn parsed_nominal_member(index: usize) -> NominalPhrase {
+        const SOURCES: &[&str] = &["artifact", "creature", "land", "planeswalker"];
+        let source = SOURCES[index];
+        match parse_fixture_noun_phrase(source) {
+            NounPhrase::Nominal(nominal) if nominal.determiner.is_none() => nominal,
+            reading => panic!(
+                "strict nominal member ground was not a bare nominal for {source:?}: {reading:#?}"
+            ),
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn built_noun_coordination_round_trips_through_enumerated_parses(
+            member_indices in prop::collection::vec(0_usize..4, 2..=4),
+            conjunction in prop::sample::select(vec![Conjunction::And, Conjunction::Or]),
+        ) {
+            let members = member_indices
+                .iter()
+                .copied()
+                .map(parsed_noun_member)
+                .collect::<Vec<_>>();
+            let member_count = members.len();
+            let first = Box::new(members[0].clone());
+            let rest = chart_shaped_noun_rest(
+                members.into_iter().skip(1),
+                conjunction,
+                member_count,
+            );
+            let builder: NounCoordinationBuilder =
+                coordination::build_noun_phrase_coordination;
+            prop_assert!(
+                std::ptr::fn_addr_eq(
+                    builder,
+                    coordination::build_noun_phrase_coordination as NounCoordinationBuilder,
+                ),
+                "the law value did not enter through the generated noun builder",
+            );
+            let built = builder(first, rest)
+                .expect("chart-shaped noun coordination satisfies the declaration");
+            let bytes = linearize_coordinated_noun_phrase(&built)
+                .expect("a built noun coordination linearizes");
+            let reparsed = noun_phrase_readings(&bytes);
+            prop_assert!(
+                reparsed.contains(&NounPhrase::Coordinated(built.clone())),
+                "generated bytes did not recover the built noun value: bytes={bytes:?}, built={built:#?}, reparsed={reparsed:#?}",
+            );
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn built_shared_determiner_nominal_round_trips_through_enumerated_parses(
+            member_indices in prop::collection::vec(0_usize..4, 2..=4),
+            conjunction in prop::sample::select(vec![Conjunction::And, Conjunction::Or]),
+        ) {
+            let members = member_indices
+                .iter()
+                .copied()
+                .map(parsed_nominal_member)
+                .collect::<Vec<_>>();
+            let member_count = members.len();
+            let first = Box::new(members[0].clone());
+            let rest = chart_shaped_nominal_rest(
+                members.into_iter().skip(1),
+                conjunction,
+                member_count,
+            );
+            let builder: NominalCoordinationBuilder =
+                coordination::build_shared_determiner_nominal;
+            prop_assert!(
+                std::ptr::fn_addr_eq(
+                    builder,
+                    coordination::build_shared_determiner_nominal as NominalCoordinationBuilder,
+                ),
+                "the law value did not enter through the generated shared-determiner builder",
+            );
+            let built = builder(
+                Determiner::Target(None),
+                first,
+                rest,
+                Vec::new(),
+            )
+            .expect("chart-shaped nominal coordination satisfies the declaration");
+            let bytes = linearize_coordinated_nominal_phrase(&built)
+                .expect("a built shared-determiner coordination linearizes");
+            let reparsed = noun_phrase_readings(&bytes);
+            prop_assert!(
+                reparsed.contains(&NounPhrase::CoordinatedNominal(built.clone())),
+                "generated bytes did not recover the built nominal value: bytes={bytes:?}, built={built:#?}, reparsed={reparsed:#?}",
+            );
+        }
     }
 
     #[test]
