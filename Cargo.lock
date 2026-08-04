@@ -502,6 +502,7 @@ dependencies = [
 name = "deckmaste_english_construction_compiler"
 version = "0.1.0"
 dependencies = [
+ "deckmaste_english_features",
  "prettyplease",
  "proc-macro2",
  "quote",

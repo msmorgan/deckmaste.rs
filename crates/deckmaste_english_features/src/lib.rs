@@ -388,6 +388,30 @@ impl SurfaceWitnessPayload for () {}
 grammatical_feature!(OccurrenceRole => OccurrenceRole);
 impl DiscourseFeature for OccurrenceRole {}
 
+/// Stratum of every public vocabulary type, keyed by type ident. This is
+/// the string-keyed face of the trait stratification above, for consumers
+/// (the construction declaration compiler) that meet these types as
+/// identifiers before any Rust type exists. Kept beside the types so a new
+/// vocabulary entry and its row land in one review.
+pub const TYPE_STRATA: &[(&str, FeatureStratum)] = &[
+    ("Person", FeatureStratum::InherentRealization),
+    ("Number", FeatureStratum::InherentRealization),
+    ("VerbSlot", FeatureStratum::InherentRealization),
+    ("NounCardinality", FeatureStratum::InherentRealization),
+    ("Onset", FeatureStratum::InherentRealization),
+    ("Gender", FeatureStratum::InherentRealization),
+    ("PronounClass", FeatureStratum::InherentRealization),
+    ("PronounCase", FeatureStratum::InherentRealization),
+    ("GapState", FeatureStratum::Selection),
+    ("ComplementRole", FeatureStratum::Selection),
+    ("Conjunction", FeatureStratum::Selection),
+    ("Contraction", FeatureStratum::SurfaceWitness),
+    ("Comma", FeatureStratum::SurfaceWitness),
+    ("OptionalMaterial", FeatureStratum::SurfaceWitness),
+    ("OccurrenceRole", FeatureStratum::DiscourseOccurrence),
+    ("MentionKind", FeatureStratum::DiscourseOccurrence),
+];
+
 #[cfg(test)]
 mod tests {
     use std::fmt;
@@ -414,6 +438,33 @@ mod tests {
                 "{stratum:?} has no declared feature",
             );
         }
+    }
+
+    #[test]
+    fn type_strata_names_the_vocabulary() {
+        let get = |ident: &str| {
+            TYPE_STRATA
+                .iter()
+                .find(|(name, _)| *name == ident)
+                .map(|(_, stratum)| *stratum)
+        };
+        assert_eq!(get("Comma"), Some(FeatureStratum::SurfaceWitness));
+        assert_eq!(get("Contraction"), Some(FeatureStratum::SurfaceWitness));
+        assert_eq!(
+            get("OptionalMaterial"),
+            Some(FeatureStratum::SurfaceWitness)
+        );
+        assert_eq!(get("Conjunction"), Some(FeatureStratum::Selection));
+        assert_eq!(
+            get("OccurrenceRole"),
+            Some(FeatureStratum::DiscourseOccurrence)
+        );
+        assert_eq!(
+            get("MentionKind"),
+            Some(FeatureStratum::DiscourseOccurrence)
+        );
+        assert_eq!(get("Person"), Some(FeatureStratum::InherentRealization));
+        assert_eq!(TYPE_STRATA.len(), 16);
     }
 
     #[test]

@@ -12,6 +12,7 @@ proc-macro2 = "1.0.106"
 quote = "1.0.45"
 syn = { version = "2.0.117", features = ["full"] }
 prettyplease = "0.2"
+deckmaste_english_features = { path = "../deckmaste_english_features" }
 
 [dev-dependencies]
 trybuild = "1.0"

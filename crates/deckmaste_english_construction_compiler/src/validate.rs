@@ -47,6 +47,7 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_forms(group, diags);
     check_surface_domain(group, diags);
     check_constraints(group, diags);
+    check_strata(group, diags);
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
@@ -999,6 +1000,102 @@ fn check_constraints(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     .with_span(combinator.span),
                 );
             }
+        }
+    }
+}
+
+fn stratum_of(type_ident: &str) -> Option<deckmaste_english_features::FeatureStratum> {
+    // The DSL may write a qualified path; classification is by terminal ident.
+    let terminal = type_ident.rsplit("::").next().unwrap_or(type_ident);
+    deckmaste_english_features::TYPE_STRATA
+        .iter()
+        .find(|(name, _)| *name == terminal)
+        .map(|(_, stratum)| *stratum)
+}
+
+fn check_strata(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    use deckmaste_english_features::FeatureStratum;
+    // Every site where a declaration names a vocabulary type: scalar codecs
+    // (construction fields and element fields) and free-witness payloads.
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        for binding in construction.ast.fields() {
+            codec_site(id, &binding.kind, diags);
+        }
+        for witness in &construction.witnesses {
+            let WitnessClass::Free { ty } = &witness.class else { continue };
+            match stratum_of(&ty.value) {
+                Some(FeatureStratum::SurfaceWitness) | None => {}
+                Some(FeatureStratum::DiscourseOccurrence) => diags.push(
+                    Diagnostic::new(
+                        DiagCode::DiscourseFeatureExcluded,
+                        id,
+                        format!(
+                            "`{}` is a discourse-occurrence feature; discourse features are excluded from construction declarations",
+                            ty.value
+                        ),
+                    )
+                    .with_span(ty.span),
+                ),
+                Some(_) => diags.push(
+                    Diagnostic::new(
+                        DiagCode::FreeWitnessStratum,
+                        id,
+                        format!(
+                            "free witness `{}` carries `{}`, which is not surface-witness stratum; chart-relevant facts belong in the AST, not the trace-only channel",
+                            witness.name.value, ty.value
+                        ),
+                    )
+                    .with_span(ty.span),
+                ),
+            }
+        }
+    }
+    for element in &group.elements {
+        for binding in &element.fields {
+            // Element fields have no construction; the group owns them.
+            element_codec_site(&binding.kind, diags);
+        }
+    }
+
+    fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
+        let codec = match kind {
+            FieldKind::Scalar { codec } => codec,
+            FieldKind::Optional { inner } => return codec_site(id, inner, diags),
+            FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
+        };
+        if stratum_of(&codec.value) == Some(FeatureStratum::DiscourseOccurrence) {
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::DiscourseFeatureExcluded,
+                    id,
+                    format!(
+                        "`{}` is a discourse-occurrence feature; discourse features are excluded from construction declarations",
+                        codec.value
+                    ),
+                )
+                .with_span(codec.span),
+            );
+        }
+    }
+
+    fn element_codec_site(kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
+        let codec = match kind {
+            FieldKind::Scalar { codec } => codec,
+            FieldKind::Optional { inner } => return element_codec_site(inner, diags),
+            FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
+        };
+        if stratum_of(&codec.value) == Some(FeatureStratum::DiscourseOccurrence) {
+            diags.push(
+                Diagnostic::group(
+                    DiagCode::DiscourseFeatureExcluded,
+                    format!(
+                        "`{}` is a discourse-occurrence feature; discourse features are excluded from construction declarations",
+                        codec.value
+                    ),
+                )
+                .with_span(codec.span),
+            );
         }
     }
 }
@@ -2302,5 +2399,100 @@ mod tests {
                 loser: crate::model::Spanned::call_site("noun_phrase_nominal".to_owned()),
             });
         validate(&group).expect("external edges are a registry-time concern");
+    }
+
+    #[test]
+    fn free_witness_must_be_surface_witness_stratum() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("pick".to_owned()),
+                class: crate::model::WitnessClass::Free {
+                    ty: crate::model::Spanned::call_site("Conjunction".to_owned()),
+                },
+            });
+        let err = validate(&group).expect_err("selection-stratum free witness must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC050"]);
+    }
+
+    #[test]
+    fn discourse_types_are_excluded_from_declarations() {
+        let mut group = minimal_group();
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields[0].kind = crate::model::FieldKind::Scalar {
+                codec: crate::model::Spanned::call_site("OccurrenceRole".to_owned()),
+            };
+        }
+        let err = validate(&group).expect_err("discourse codec must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC051"]);
+    }
+
+    #[test]
+    fn stored_surface_witness_codecs_and_free_surface_types_pass() {
+        // The decision's positive space, pinned: stored commas are legal AST
+        // fields, and a SurfaceWitness-stratum free witness is the sanctioned
+        // shape. expect() is equality-strength (no diagnostics at all).
+        let mut group = minimal_group();
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields[0].kind = crate::model::FieldKind::Scalar {
+                codec: crate::model::Spanned::call_site("Comma".to_owned()),
+            };
+        }
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("style".to_owned()),
+                class: crate::model::WitnessClass::Free {
+                    ty: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            });
+        validate(&group).expect("stored comma + free Comma witness is the sanctioned shape");
+    }
+
+    #[test]
+    fn discourse_types_are_excluded_from_element_fields_group_scoped() {
+        // The element-field EC051 site is group-scoped: elements belong to
+        // the group, not a construction, so its diagnostic must carry
+        // `construction: None` rather than being attributed to whichever
+        // construction happens to reference the element.
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("Mention".to_owned()),
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("role".to_owned()),
+                kind: crate::model::FieldKind::Scalar {
+                    codec: crate::model::Spanned::call_site("OccurrenceRole".to_owned()),
+                },
+            }],
+        });
+        let err =
+            validate(&group).expect_err("discourse codec on an element field must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC051"]);
+        assert!(
+            err[0].construction.is_none(),
+            "element-field diagnostics are group-scoped, not construction-scoped: {:?}",
+            err[0].construction
+        );
+    }
+
+    #[test]
+    fn qualified_type_paths_classify_by_terminal_ident() {
+        // `stratum_of` splits on `::` and classifies by the terminal ident —
+        // exactly how the DSL would write a qualified path. A whole-string
+        // match would find nothing in `TYPE_STRATA`, treat the type as an
+        // absent (permitted) custom payload, and this would wrongly pass.
+        let mut group = minimal_group();
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields[0].kind = crate::model::FieldKind::Scalar {
+                codec: crate::model::Spanned::call_site("some::path::OccurrenceRole".to_owned()),
+            };
+        }
+        let err = validate(&group).expect_err("qualified discourse codec must still be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC051"]);
     }
 }
