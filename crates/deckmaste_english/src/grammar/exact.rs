@@ -398,16 +398,26 @@ mod tests {
 
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
-            .with_catalog(CatalogKind::KeywordAbility, ["Protection"])
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                ["Flying", "Lifelink", "Protection"],
+            )
             .with_catalog(
                 CatalogKind::CardType,
                 [
                     "Artifact",
                     "Battle",
                     "Creature",
+                    "Instant",
                     "Land",
                     "Planeswalker",
                     "Sorcery",
+                ],
+            )
+            .with_catalog(
+                CatalogKind::CreatureType,
+                [
+                    "Avatar", "Citizen", "Halfling", "Kithkin", "Scout", "Soldier",
                 ],
             )
     }
@@ -425,7 +435,7 @@ mod tests {
         NounPhrase::Nominal(nominal(head))
     }
 
-    const NOUN_PHRASE_READING_BUDGET: usize = 50_000;
+    const FIXTURE_READING_BUDGET: usize = 50_000;
 
     struct NounPhraseEnumeration {
         readings: Vec<NounPhrase>,
@@ -433,43 +443,47 @@ mod tests {
         noun_phrase_lowerings: usize,
     }
 
-    fn noun_phrase_enumeration(source: &str) -> NounPhraseEnumeration {
-        let catalogs = fixture_catalogs();
-        let self_reference = SelfReference::default();
+    fn fixture_enumeration<T: std::fmt::Debug>(
+        source: &str,
+        catalogs: &Catalogs,
+        nonterminal: Nonterminal,
+        self_reference: SelfReference,
+        mut extract: impl FnMut(Lowered) -> Option<T>,
+    ) -> (Vec<T>, usize, usize) {
         let surface = lex(source);
         let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
         let grammar = EnglishGrammar::with_opacity_mode(
             source,
-            &catalogs,
-            Nonterminal::NounPhrase,
+            catalogs,
+            nonterminal,
             OpacityMode::Exact,
             self_reference,
         );
         let chart = parse_chart(&grammar, &tokens)
             .unwrap_or_else(|error| panic!("chart failed for {source:?}: {error:?}"));
-        let mut remaining = NOUN_PHRASE_READING_BUDGET;
+        let mut remaining = FIXTURE_READING_BUDGET;
         let mut readings = Vec::new();
         let mut debug_keys = Vec::new();
         let mut selections = 0;
-        let mut noun_phrase_lowerings = 0;
+        let mut lowerings = 0;
         for &root in &chart.roots {
             let root_selections = chart
                 .forest
                 .enumerate_selections(root, &mut remaining)
                 .unwrap_or_else(|error| {
                     panic!(
-                        "noun-phrase enumeration failed for {source:?} with budget \
-                         {NOUN_PHRASE_READING_BUDGET}: {error:?}",
+                        "fixture enumeration failed for {source:?} with budget \
+                         {FIXTURE_READING_BUDGET}: {error:?}",
                     )
                 });
             selections += root_selections.len();
             for selection in root_selections {
-                let Some(Lowered::NounPhrase(reading)) =
-                    lower(&grammar, &chart.forest, root, &selection)
+                let Some(reading) =
+                    lower(&grammar, &chart.forest, root, &selection).and_then(&mut extract)
                 else {
                     continue;
                 };
-                noun_phrase_lowerings += 1;
+                lowerings += 1;
                 let key = format!("{reading:?}");
                 if !debug_keys.contains(&key) {
                     debug_keys.push(key);
@@ -477,11 +491,43 @@ mod tests {
                 }
             }
         }
+        (readings, selections, lowerings)
+    }
+
+    fn noun_phrase_enumeration(source: &str) -> NounPhraseEnumeration {
+        let (readings, selections, noun_phrase_lowerings) = fixture_enumeration(
+            source,
+            &fixture_catalogs(),
+            Nonterminal::NounPhrase,
+            SelfReference::default(),
+            |lowered| match lowered {
+                Lowered::NounPhrase(reading) => Some(reading),
+                _ => None,
+            },
+        );
         NounPhraseEnumeration {
             readings,
             selections,
             noun_phrase_lowerings,
         }
+    }
+
+    fn sentence_readings(
+        source: &str,
+        catalogs: &Catalogs,
+        self_reference: SelfReference,
+    ) -> Vec<crate::syntax::Sentence> {
+        fixture_enumeration(
+            source,
+            catalogs,
+            Nonterminal::Sentence,
+            self_reference,
+            |lowered| match lowered {
+                Lowered::Sentence(reading) => Some(reading),
+                _ => None,
+            },
+        )
+        .0
     }
 
     fn parse_fixture_noun_phrase(source: &str) -> NounPhrase {
@@ -521,6 +567,401 @@ mod tests {
 
     fn noun_phrase_readings(source: &str) -> Vec<NounPhrase> {
         noun_phrase_enumeration(source).readings
+    }
+
+    fn nominal_head_spelling(nominal: &NominalPhrase) -> &str {
+        let noun = match &nominal.head {
+            NounInstance::Singular(noun)
+            | NounInstance::Plural(noun)
+            | NounInstance::Mass(noun) => noun,
+        };
+        match noun {
+            Noun::Word(vocab) => vocab.spelling(),
+            Noun::Catalog(atom) => atom.canonical(),
+            other => panic!("fixture nominal has a non-lexical head: {other:#?}"),
+        }
+    }
+
+    fn collect_noun_coordinations<'syntax>(
+        noun_phrase: &'syntax NounPhrase,
+        found: &mut Vec<&'syntax crate::syntax::CoordinatedNounPhrase>,
+    ) {
+        match noun_phrase {
+            NounPhrase::Nominal(nominal) => collect_nominal_coordinations(nominal, found),
+            NounPhrase::CoordinatedNominal(coordination) => {
+                collect_nominal_coordinations(&coordination.first, found);
+                for member in &coordination.rest {
+                    collect_nominal_coordinations(&member.phrase, found);
+                }
+                for complement in &coordination.complements {
+                    collect_complement_coordinations(complement, found);
+                }
+            }
+            NounPhrase::Coordinated(coordination) => {
+                found.push(coordination);
+                collect_noun_coordinations(&coordination.first, found);
+                for member in &coordination.rest {
+                    collect_noun_coordinations(&member.phrase, found);
+                }
+            }
+            NounPhrase::Partitive(partitive) => {
+                collect_noun_coordinations(&partitive.whole, found);
+            }
+            NounPhrase::SetException(exception) => {
+                collect_noun_coordinations(&exception.included, found);
+                collect_noun_coordinations(&exception.excluded, found);
+            }
+            NounPhrase::Arithmetic(crate::syntax::ArithmeticValue::Minus { left, right }) => {
+                collect_noun_coordinations(left, found);
+                collect_noun_coordinations(right, found);
+            }
+            NounPhrase::Arithmetic(crate::syntax::ArithmeticValue::Half { value, .. }) => {
+                collect_noun_coordinations(value, found);
+            }
+            NounPhrase::Pronoun { .. }
+            | NounPhrase::Possessive(_)
+            | NounPhrase::Demonstrative(_)
+            | NounPhrase::Quantity(_)
+            | NounPhrase::ThisCard(_) => {}
+        }
+    }
+
+    fn collect_nominal_coordinations<'syntax>(
+        nominal: &'syntax NominalPhrase,
+        found: &mut Vec<&'syntax crate::syntax::CoordinatedNounPhrase>,
+    ) {
+        for complement in &nominal.complements {
+            collect_complement_coordinations(complement, found);
+        }
+    }
+
+    fn collect_complement_coordinations<'syntax>(
+        complement: &'syntax NominalComplement,
+        found: &mut Vec<&'syntax crate::syntax::CoordinatedNounPhrase>,
+    ) {
+        let NominalComplement::Prepositional(preposition) = complement else {
+            return;
+        };
+        for member in preposition.members() {
+            if let crate::syntax::Phrase::NounPhrase(noun_phrase) = member.object.as_ref() {
+                collect_noun_coordinations(noun_phrase, found);
+            }
+        }
+    }
+
+    fn main_transitive_object(sentence: &crate::syntax::Sentence) -> Option<&NounPhrase> {
+        let crate::syntax::SentenceBody::Independent(clause) = &sentence.body else {
+            return None;
+        };
+        main_clause_transitive_object(clause)
+    }
+
+    fn main_clause_transitive_object(
+        clause: &crate::syntax::IndependentClause,
+    ) -> Option<&NounPhrase> {
+        let predicate = match clause {
+            crate::syntax::IndependentClause::Transitive(_, predicate)
+            | crate::syntax::IndependentClause::Imperative(crate::syntax::Predicate::Transitive(
+                predicate,
+            )) => predicate,
+            crate::syntax::IndependentClause::Complex(complex) => {
+                return main_clause_transitive_object(&complex.matrix);
+            }
+            _ => return None,
+        };
+        let crate::syntax::PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+            return None;
+        };
+        Some(noun_phrase)
+    }
+
+    fn has_base_modifier(nominal: &NominalPhrase) -> bool {
+        nominal.modifiers.iter().any(|modifier| {
+            matches!(
+                modifier,
+                crate::syntax::NominalModifier::Noun {
+                    noun: NounInstance::Singular(Noun::Word(vocab)),
+                    ..
+                } if vocab.spelling() == "base"
+            )
+        })
+    }
+
+    fn is_local_power_toughness_group(
+        coordination: &crate::syntax::CoordinatedNounPhrase,
+        requires_base: bool,
+        requires_value: bool,
+    ) -> bool {
+        let NounPhrase::Nominal(power) = coordination.first.as_ref() else {
+            return false;
+        };
+        let [member] = coordination.rest.as_slice() else {
+            return false;
+        };
+        let NounPhrase::Nominal(toughness) = &member.phrase else {
+            return false;
+        };
+        nominal_head_spelling(power) == "power"
+            && nominal_head_spelling(toughness) == "toughness"
+            && member.conjunction == Some(Conjunction::And)
+            && member.comma == Comma::Absent
+            && (!requires_base || has_base_modifier(power))
+            && (!requires_value
+                || matches!(
+                    toughness.complements.as_slice(),
+                    [NominalComplement::PowerToughness(_)]
+                ))
+    }
+
+    fn is_keyword_noun_phrase(noun_phrase: &NounPhrase, keyword: &str) -> bool {
+        matches!(
+            noun_phrase,
+            NounPhrase::Nominal(nominal)
+                if nominal_head_spelling(nominal).eq_ignore_ascii_case(keyword)
+        )
+    }
+
+    fn local_power_toughness_precedes_keyword(
+        coordination: &crate::syntax::CoordinatedNounPhrase,
+        keyword: &str,
+    ) -> bool {
+        if let (NounPhrase::Coordinated(local), [following]) =
+            (coordination.first.as_ref(), coordination.rest.as_slice())
+        {
+            return is_local_power_toughness_group(local, true, true)
+                && following.conjunction == Some(Conjunction::And)
+                && following.comma == Comma::Absent
+                && is_keyword_noun_phrase(&following.phrase, keyword);
+        }
+
+        let (NounPhrase::Nominal(power), [toughness_member, following]) =
+            (coordination.first.as_ref(), coordination.rest.as_slice())
+        else {
+            return false;
+        };
+        let NounPhrase::Nominal(toughness) = &toughness_member.phrase else {
+            return false;
+        };
+        nominal_head_spelling(power) == "power"
+            && has_base_modifier(power)
+            && nominal_head_spelling(toughness) == "toughness"
+            && matches!(
+                toughness.complements.as_slice(),
+                [NominalComplement::PowerToughness(_)]
+            )
+            && toughness_member.conjunction == Some(Conjunction::And)
+            && toughness_member.comma == Comma::Absent
+            && following.conjunction == Some(Conjunction::And)
+            && following.comma == Comma::Absent
+            && is_keyword_noun_phrase(&following.phrase, keyword)
+    }
+
+    #[test]
+    fn per_conjunct_postmodifier_stays_on_the_first_member() {
+        let source = "each creature with flying and each player";
+        let NounPhrase::Coordinated(coordination) = parse_fixture_noun_phrase(source) else {
+            panic!("expected a complete noun-phrase coordination for {source:?}");
+        };
+        let NounPhrase::Nominal(first) = coordination.first.as_ref() else {
+            panic!("expected a nominal first member: {coordination:#?}");
+        };
+        let [second] = coordination.rest.as_slice() else {
+            panic!("expected exactly two members: {coordination:#?}");
+        };
+        let NounPhrase::Nominal(second) = &second.phrase else {
+            panic!("expected a nominal second member: {coordination:#?}");
+        };
+        assert_eq!(nominal_head_spelling(first), "Creature");
+        assert!(matches!(
+            first.complements.as_slice(),
+            [NominalComplement::Prepositional(preposition)]
+                if preposition.head().preposition == crate::syntax::Preposition::With
+        ));
+        assert_eq!(nominal_head_spelling(second), "player");
+        assert!(second.complements.is_empty());
+        assert_eq!(
+            coordination_verdict(&coordination),
+            CoordinationVerdict::Admitted
+        );
+        assert_eq!(
+            linearize_coordinated_noun_phrase(&coordination)
+                .expect("the declaration-admitted ownership fixture linearizes"),
+            source,
+        );
+    }
+
+    #[test]
+    fn target_artifact_or_creature_is_one_shared_determiner_group() {
+        let source = "target artifact or creature";
+        let NounPhrase::CoordinatedNominal(coordination) = parse_fixture_noun_phrase(source) else {
+            panic!("expected CoordinatedNominal for {source:?}");
+        };
+        let (determiner, first, rest, complements) =
+            coordination::parts_shared_determiner_nominal(&coordination);
+        assert_eq!(determiner, &Determiner::Target(None));
+        assert_eq!(nominal_head_spelling(first.as_ref()), "Artifact");
+        let [second] = rest.as_slice() else {
+            panic!("expected exactly two nominal members: {coordination:#?}");
+        };
+        assert_eq!(second.conjunction, Some(Conjunction::Or));
+        assert_eq!(second.comma, Comma::Absent);
+        assert_eq!(nominal_head_spelling(&second.phrase), "Creature");
+        assert!(complements.is_empty());
+        assert_eq!(
+            nominal_coordination_verdict(&coordination),
+            CoordinationVerdict::Admitted,
+        );
+        assert_eq!(
+            linearize_coordinated_nominal_phrase(&coordination)
+                .expect("the declaration-admitted shared-determiner fixture linearizes"),
+            source,
+        );
+    }
+
+    #[test]
+    fn base_power_change_keeps_both_local_power_toughness_groups() {
+        let source = concat!(
+            "At the beginning of your upkeep, change Halfdane's base power and toughness ",
+            "to the power and toughness of target creature other than Halfdane until the ",
+            "end of your next upkeep."
+        );
+        let readings = sentence_readings(
+            source,
+            &fixture_catalogs(),
+            SelfReference::new("Halfdane", true),
+        );
+        let matching = readings.iter().find(|sentence| {
+            let Some(object) = main_transitive_object(sentence) else {
+                return false;
+            };
+            let mut groups = Vec::new();
+            collect_noun_coordinations(object, &mut groups);
+            groups.len() == 2
+                && groups
+                    .iter()
+                    .any(|group| is_local_power_toughness_group(group, true, false))
+                && groups.iter().any(|group| {
+                    is_local_power_toughness_group(group, false, false)
+                        && !matches!(
+                            group.first.as_ref(),
+                            NounPhrase::Nominal(power) if has_base_modifier(power)
+                        )
+                })
+        });
+        assert!(
+            matching.is_some(),
+            "no strict full-sentence reading kept both local groups: {readings:#?}",
+        );
+    }
+
+    #[test]
+    fn base_power_group_closes_before_lifelink() {
+        let source = concat!(
+            "If Frodo is a Citizen, it becomes a Halfling Scout with base power and ",
+            "toughness 2/3 and lifelink."
+        );
+        let readings = sentence_readings(
+            source,
+            &fixture_catalogs(),
+            SelfReference::new("Frodo, Sauron's Bane", true),
+        );
+        let matching = readings.iter().find(|sentence| {
+            let Some(object) = main_transitive_object(sentence) else {
+                return false;
+            };
+            let mut groups = Vec::new();
+            collect_noun_coordinations(object, &mut groups);
+            groups
+                .iter()
+                .any(|group| local_power_toughness_precedes_keyword(group, "Lifelink"))
+        });
+        assert!(
+            matching.is_some(),
+            "no strict full-sentence reading closes the P/T group before lifelink: {readings:#?}",
+        );
+    }
+
+    #[test]
+    fn base_power_group_closes_before_protection() {
+        let source = concat!(
+            "If this creature is a Soldier, it becomes a Kithkin Avatar with base power ",
+            "and toughness 7/8 and protection from each of your opponents."
+        );
+        let readings = sentence_readings(source, &fixture_catalogs(), SelfReference::default());
+        let matching = readings.iter().find(|sentence| {
+            let Some(object) = main_transitive_object(sentence) else {
+                return false;
+            };
+            let mut groups = Vec::new();
+            collect_noun_coordinations(object, &mut groups);
+            groups
+                .iter()
+                .any(|group| local_power_toughness_precedes_keyword(group, "Protection"))
+        });
+        assert!(
+            matching.is_some(),
+            "no strict full-sentence reading closes the P/T group before protection: {readings:#?}",
+        );
+    }
+
+    #[test]
+    fn finite_clause_comma_is_not_consumed_by_noun_coordination() {
+        let source = concat!(
+            "you may cast target instant or sorcery card from a graveyard, and ",
+            "mana of any type can be spent to cast that spell"
+        );
+        let readings = fixture_enumeration(
+            source,
+            &fixture_catalogs(),
+            Nonterminal::Clause,
+            SelfReference::default(),
+            |lowered| match lowered {
+                Lowered::Clause(reading) => Some(reading),
+                _ => None,
+            },
+        )
+        .0;
+        let matching = readings.iter().find(|reading| {
+            let crate::syntax::Clause::Independent(crate::syntax::IndependentClause::Coordinated(
+                coordination,
+            )) = reading
+            else {
+                return false;
+            };
+            let [continuation] = coordination.rest.as_slice() else {
+                return false;
+            };
+            if continuation.comma != Comma::Present
+                || continuation.conjunction != Some(Conjunction::And)
+            {
+                return false;
+            }
+            let crate::syntax::IndependentClause::Deontic(
+                _,
+                _,
+                Some(crate::syntax::Predicate::Transitive(first_predicate)),
+            ) = coordination.first.as_ref()
+            else {
+                return false;
+            };
+            let crate::syntax::PredicateObject::NounPhrase(object) = &first_predicate.object else {
+                return false;
+            };
+            let mut noun_coordinations = Vec::new();
+            collect_noun_coordinations(object, &mut noun_coordinations);
+            noun_coordinations.len() == 1
+                && noun_coordinations.iter().all(|noun_coordination| {
+                    noun_coordination
+                        .rest
+                        .iter()
+                        .all(|member| member.comma == Comma::Absent)
+                        && coordination_verdict(noun_coordination) == CoordinationVerdict::Admitted
+                })
+        });
+        assert!(
+            matching.is_some(),
+            "no strict reading preserved the outer clause comma: {readings:#?}",
+        );
     }
 
     #[test]
