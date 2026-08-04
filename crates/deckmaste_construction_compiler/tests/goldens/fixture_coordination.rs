@@ -88,6 +88,14 @@ mod __constructions_fixture_coordination {
             &self.alt
         }
     }
+    #[allow(
+        dead_code,
+        reason = "the trait bound on assert_payload is the check; nothing calls this"
+    )]
+    fn __assert_free_witness_payloads() {
+        fn assert_payload<T: ::deckmaste_features::SurfaceWitnessPayload>() {}
+        assert_payload::<Comma>();
+    }
     impl<'de> serde::Deserialize<'de> for FixtureSoloNode {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
@@ -107,72 +115,126 @@ mod __constructions_fixture_coordination {
             })
         }
     }
-    pub static FIXTURE_COORDINATION_DECLARATION:
-        ::deckmaste_construction_compiler::runtime::GroupData =
-        ::deckmaste_construction_compiler::runtime::GroupData {
-            name: "fixture_coordination",
-            elements: &["fixture_member"],
-            constructions: &[
-                ::deckmaste_construction_compiler::runtime::ConstructionData {
-                    id: "fixture_pair",
-                    category: "FixturePair",
-                    internal: false,
-                    own_type: Some("FixturePairNode"),
-                    bind_path: None,
-                    deserialize: false,
-                    selection_unique: false,
-                    dominates: &["fixture_solo"],
-                    forms: &[
-                        ::deckmaste_construction_compiler::runtime::FormData {
-                            name: "plain",
-                            ordinal: 0u16,
-                            guarded: true,
-                            atoms: &[
-                                ::deckmaste_construction_compiler::runtime::AtomData::Hole(
-                                    "members",
-                                ),
-                                ::deckmaste_construction_compiler::runtime::AtomData::Lexeme(
-                                    "conjunction",
-                                ),
-                            ],
+    pub static FIXTURE_COORDINATION_DECLARATION: ::deckmaste_construction_compiler::runtime::GroupData = ::deckmaste_construction_compiler::runtime::GroupData {
+        name: "fixture_coordination",
+        elements: &["fixture_member"],
+        constructions: &[
+            ::deckmaste_construction_compiler::runtime::ConstructionData {
+                id: "fixture_pair",
+                category: "FixturePair",
+                internal: false,
+                own_type: Some("FixturePairNode"),
+                bind_path: None,
+                fields: &[
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "members",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Sequence {
+                            element: "fixture_member",
                         },
-                        ::deckmaste_construction_compiler::runtime::FormData {
-                            name: "fancy",
-                            ordinal: 1u16,
-                            guarded: true,
-                            atoms: &[
-                                ::deckmaste_construction_compiler::runtime::AtomData::Hole(
-                                    "members",
-                                ),
-                                ::deckmaste_construction_compiler::runtime::AtomData::Literal(","),
-                                ::deckmaste_construction_compiler::runtime::AtomData::Lexeme(
-                                    "conjunction",
-                                ),
-                            ],
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "conjunction",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar {
+                            codec: "Conjunction",
                         },
-                    ],
-                },
-                ::deckmaste_construction_compiler::runtime::ConstructionData {
-                    id: "fixture_solo",
-                    category: "FixturePair",
-                    internal: false,
-                    own_type: Some("FixtureSoloNode"),
-                    bind_path: None,
-                    deserialize: true,
-                    selection_unique: true,
-                    dominates: &[],
-                    forms: &[::deckmaste_construction_compiler::runtime::FormData {
+                    },
+                ],
+                witnesses: &[
+                    ::deckmaste_construction_compiler::runtime::WitnessData {
+                        name: "oxford",
+                        class: ::deckmaste_construction_compiler::runtime::WitnessClassData::Stored {
+                            path: "members.last.comma",
+                        },
+                    },
+                ],
+                deserialize: false,
+                selection_unique: false,
+                dominates: &["fixture_solo"],
+                forms: &[
+                    ::deckmaste_construction_compiler::runtime::FormData {
+                        name: "plain",
+                        ordinal: 0u16,
+                        guarded: true,
+                        atoms: &[
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "members",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Lexeme(
+                                "conjunction",
+                            ),
+                        ],
+                    },
+                    ::deckmaste_construction_compiler::runtime::FormData {
+                        name: "fancy",
+                        ordinal: 1u16,
+                        guarded: true,
+                        atoms: &[
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "members",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Literal(
+                                ",",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Lexeme(
+                                "conjunction",
+                            ),
+                        ],
+                    },
+                ],
+            },
+            ::deckmaste_construction_compiler::runtime::ConstructionData {
+                id: "fixture_solo",
+                category: "FixturePair",
+                internal: false,
+                own_type: Some("FixtureSoloNode"),
+                bind_path: None,
+                fields: &[
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "phrase",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Subtree {
+                            category: "FixturePhrase",
+                            boxed: false,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "alt",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Optional {
+                            inner: &::deckmaste_construction_compiler::runtime::FieldKindData::Subtree {
+                                category: "FixturePhrase",
+                                boxed: false,
+                            },
+                        },
+                    },
+                ],
+                witnesses: &[
+                    ::deckmaste_construction_compiler::runtime::WitnessData {
+                        name: "gap",
+                        class: ::deckmaste_construction_compiler::runtime::WitnessClassData::Free {
+                            ty: "Comma",
+                        },
+                    },
+                ],
+                deserialize: true,
+                selection_unique: true,
+                dominates: &[],
+                forms: &[
+                    ::deckmaste_construction_compiler::runtime::FormData {
                         name: "only",
                         ordinal: 0u16,
                         guarded: false,
                         atoms: &[
-                            ::deckmaste_construction_compiler::runtime::AtomData::Hole("phrase"),
-                            ::deckmaste_construction_compiler::runtime::AtomData::Hole("alt"),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "phrase",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "alt",
+                            ),
                         ],
-                    }],
-                },
-            ],
-        };
+                    },
+                ],
+            },
+        ],
+    };
 }
 pub use __constructions_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;
 pub use __constructions_fixture_coordination::FixtureMember;

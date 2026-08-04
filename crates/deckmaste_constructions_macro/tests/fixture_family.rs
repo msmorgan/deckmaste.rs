@@ -110,6 +110,8 @@ fn deserialize_routes_through_the_validator() {
 #[test]
 fn declaration_data_traces_to_the_one_declaration() {
     use deckmaste_construction_compiler::runtime::AtomData;
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+    use deckmaste_construction_compiler::runtime::WitnessClassData;
     let data = &FIXTURE_COORDINATION_DECLARATION;
     assert_eq!(data.name, "fixture_coordination");
     assert_eq!(data.elements, &["fixture_member"]);
@@ -129,7 +131,45 @@ fn declaration_data_traces_to_the_one_declaration() {
             AtomData::Lexeme("conjunction"),
         ]
     );
+    assert_eq!(pair.fields.len(), 2);
+    assert_eq!(pair.fields[0].name, "members");
+    assert_eq!(
+        pair.fields[0].kind,
+        FieldKindData::Sequence {
+            element: "fixture_member"
+        }
+    );
+    assert_eq!(
+        pair.fields[1].kind,
+        FieldKindData::Scalar {
+            codec: "Conjunction"
+        }
+    );
+    assert_eq!(pair.witnesses.len(), 1);
+    assert_eq!(pair.witnesses[0].name, "oxford");
+    assert_eq!(
+        pair.witnesses[0].class,
+        WitnessClassData::Stored {
+            path: "members.last.comma"
+        }
+    );
     let solo = &data.constructions[1];
     assert!(solo.deserialize);
     assert!(solo.selection_unique);
+    assert_eq!(
+        solo.witnesses,
+        &[deckmaste_construction_compiler::runtime::WitnessData {
+            name: "gap",
+            class: WitnessClassData::Free { ty: "Comma" },
+        }]
+    );
+    assert_eq!(
+        solo.fields[1].kind,
+        FieldKindData::Optional {
+            inner: &FieldKindData::Subtree {
+                category: "FixturePhrase",
+                boxed: false
+            },
+        }
+    );
 }

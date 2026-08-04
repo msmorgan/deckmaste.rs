@@ -42,6 +42,26 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .collect();
     let declaration = declaration_static(group);
     let reexports = reexports(group);
+    let free_witness_types: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .flat_map(|c| c.witnesses.iter())
+        .filter_map(|w| match &w.class {
+            crate::model::WitnessClass::Free { ty } => Some(parse_type(&ty.value)),
+            _ => None,
+        })
+        .collect();
+    let witness_assertions = if free_witness_types.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            #[allow(dead_code, reason = "the trait bound on assert_payload is the check; nothing calls this")]
+            fn __assert_free_witness_payloads() {
+                fn assert_payload<T: ::deckmaste_features::SurfaceWitnessPayload>() {}
+                #(assert_payload::<#free_witness_types>();)*
+            }
+        }
+    };
     quote! {
         mod #module {
             #![allow(
@@ -63,6 +83,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             use super::*;
             #(#elements)*
             #(#constructions)*
+            #witness_assertions
             #(#deserialize_impls)*
             #declaration
         }
@@ -458,6 +479,31 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             quote! { #loser }
         })
         .collect();
+    let fields: Vec<TokenStream> = construction.ast.fields().iter().map(field_row).collect();
+    let witnesses: Vec<TokenStream> = construction
+        .witnesses
+        .iter()
+        .map(|witness| {
+            let name = witness.name.value.as_str();
+            let class = match &witness.class {
+                crate::model::WitnessClass::Stored { path } => {
+                    let dotted = path.dotted();
+                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Stored { path: #dotted } }
+                }
+                crate::model::WitnessClass::Derived { combinator, .. } => {
+                    let combinator = combinator.value.as_str();
+                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Derived { combinator: #combinator } }
+                }
+                crate::model::WitnessClass::Free { ty } => {
+                    let ty = ty.value.as_str();
+                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Free { ty: #ty } }
+                }
+            };
+            quote! {
+                ::deckmaste_construction_compiler::runtime::WitnessData { name: #name, class: #class }
+            }
+        })
+        .collect();
     let forms: Vec<TokenStream> = construction
         .forms
         .iter()
@@ -500,10 +546,41 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             internal: #internal,
             own_type: #own_type,
             bind_path: #bind_path,
+            fields: &[#(#fields),*],
+            witnesses: &[#(#witnesses),*],
             deserialize: #deserialize,
             selection_unique: #selection_unique,
             dominates: &[#(#dominates),*],
             forms: &[#(#forms),*],
+        }
+    }
+}
+
+fn field_row(binding: &FieldBinding) -> TokenStream {
+    let name = binding.field.value.as_str();
+    let kind = field_kind_row(&binding.kind);
+    quote! {
+        ::deckmaste_construction_compiler::runtime::FieldData { name: #name, kind: #kind }
+    }
+}
+
+fn field_kind_row(kind: &FieldKind) -> TokenStream {
+    match kind {
+        FieldKind::Subtree { category, boxed } => {
+            let category = category.value.as_str();
+            quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Subtree { category: #category, boxed: #boxed } }
+        }
+        FieldKind::Scalar { codec } => {
+            let codec = codec.value.as_str();
+            quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar { codec: #codec } }
+        }
+        FieldKind::Sequence { element } => {
+            let element = element.value.as_str();
+            quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Sequence { element: #element } }
+        }
+        FieldKind::Optional { inner } => {
+            let inner = field_kind_row(inner);
+            quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Optional { inner: &#inner } }
         }
     }
 }
@@ -663,6 +740,61 @@ mod tests {
         let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
         assert!(rendered.contains("pub static NOUN_COORDINATION_DECLARATION"));
         assert!(rendered.contains("::deckmaste_construction_compiler::runtime::GroupData"));
+    }
+
+    #[test]
+    fn field_and_witness_rows_are_emitted() {
+        let group = crate::validate::fixtures::minimal_own_group();
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("fields: &["),
+            "declaration data carries field rows: {rendered}"
+        );
+        assert!(
+            rendered.contains("name: \"conjunction\""),
+            "conjunction field row present: {rendered}"
+        );
+        assert!(
+            rendered.contains("FieldKindData::Scalar { codec : \"Conjunction\" }")
+                || rendered.contains("codec: \"Conjunction\""),
+            "conjunction's kind is a Conjunction-codec scalar row: {rendered}"
+        );
+    }
+
+    #[test]
+    fn free_witness_group_emits_payload_assertion() {
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("gap".to_owned()),
+                class: crate::model::WitnessClass::Free {
+                    ty: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            });
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("fn __assert_free_witness_payloads"),
+            "a free witness renders the payload assertion fn: {rendered}"
+        );
+        assert!(
+            rendered.contains("assert_payload :: < Comma > ()")
+                || rendered.contains("assert_payload::<Comma>()"),
+            "the assertion instantiates for the free witness's type: {rendered}"
+        );
+    }
+
+    #[test]
+    fn no_free_witness_means_no_payload_assertion() {
+        let group = crate::validate::fixtures::minimal_own_group();
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            !rendered.contains("__assert_free_witness_payloads"),
+            "no free witness means no payload assertion fn: {rendered}"
+        );
     }
 
     #[test]

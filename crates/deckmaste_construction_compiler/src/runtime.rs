@@ -35,10 +35,57 @@ pub struct ConstructionData {
     /// (whose emission lands with the chart adapter).
     pub own_type: Option<&'static str>,
     pub bind_path: Option<&'static str>,
+    pub fields: &'static [FieldData],
+    pub witnesses: &'static [WitnessData],
     pub deserialize: bool,
     pub selection_unique: bool,
     pub dominates: &'static [&'static str],
     pub forms: &'static [FormData],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FieldData {
+    pub name: &'static str,
+    pub kind: FieldKindData,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldKindData {
+    Subtree {
+        category: &'static str,
+        boxed: bool,
+    },
+    Scalar {
+        codec: &'static str,
+    },
+    Sequence {
+        element: &'static str,
+    },
+    /// `opt <kind>`; the inner reference is const-promoted in the emitted
+    /// static. Non-nesting is a parser guarantee, mirrored here by data.
+    Optional {
+        inner: &'static FieldKindData,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WitnessData {
+    pub name: &'static str,
+    pub class: WitnessClassData,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WitnessClassData {
+    /// Dotted path, exactly as the author wrote it.
+    Stored {
+        path: &'static str,
+    },
+    Derived {
+        combinator: &'static str,
+    },
+    Free {
+        ty: &'static str,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
