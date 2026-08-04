@@ -170,8 +170,9 @@ fn require_check(id: &str, fields: &[FieldBinding], predicate: &Predicate) -> To
 }
 
 /// EC032 guarantees every path here is a single segment naming a direct
-/// field, and EC011/EC014 guarantee kind agreement — so this mapping is
-/// total for validated input.
+/// field, and EC015 guarantees kind agreement (`In` targets a scalar,
+/// `len()` targets a sequence) — so this mapping is total for validated
+/// input.
 fn predicate_tokens(fields: &[FieldBinding], predicate: &Predicate) -> TokenStream {
     match predicate {
         Predicate::LenAtLeast { path, min } => {
@@ -255,7 +256,7 @@ fn codec_of(fields: &[FieldBinding], path: &crate::model::FieldPath) -> TokenStr
         FieldKind::Optional { inner } => match &**inner {
             FieldKind::Scalar { codec } => codec,
             _ => unreachable!(
-                "validated: EC011/EC014 guarantee an In-predicate path resolves to a scalar kind"
+                "validated: EC015 guarantees an In-predicate path resolves to a scalar kind"
             ),
         },
         _ => unreachable!(

@@ -66,6 +66,7 @@ pub enum DiagCode {
     WitnessFieldCollision,
     StoredWitnessPathUnknown,
     SurfaceKindMismatch,
+    PredicateKindMismatch,
     EmptyProduction,
     FieldNeverProduced,
     HoleConsumedTwice,
@@ -92,6 +93,7 @@ impl DiagCode {
             Self::WitnessFieldCollision => "EC012",
             Self::StoredWitnessPathUnknown => "EC013",
             Self::SurfaceKindMismatch => "EC014",
+            Self::PredicateKindMismatch => "EC015",
             Self::EmptyProduction => "EC020",
             Self::FieldNeverProduced => "EC021",
             Self::HoleConsumedTwice => "EC022",
@@ -144,6 +146,7 @@ mod tests {
         assert_eq!(DiagCode::DuplicateName.as_str(), "EC004");
         assert_eq!(DiagCode::PresenceOnNonOptional.as_str(), "EC011");
         assert_eq!(DiagCode::SurfaceKindMismatch.as_str(), "EC014");
+        assert_eq!(DiagCode::PredicateKindMismatch.as_str(), "EC015");
         assert_eq!(DiagCode::UnsupportedConstraintPath.as_str(), "EC032");
         assert_eq!(DiagCode::FreeWitnessStratum.as_str(), "EC050");
         assert_eq!(DiagCode::DiscourseFeatureExcluded.as_str(), "EC051");

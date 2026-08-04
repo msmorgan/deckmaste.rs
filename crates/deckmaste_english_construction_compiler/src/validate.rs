@@ -506,6 +506,59 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 );
             }
         }
+        // EC015 — In predicates need a scalar target and len() predicates
+        // need a sequence target. Same two sources as EC011: require clauses
+        // and form guards.
+        let mut in_paths: Vec<&FieldPath> = Vec::new();
+        let mut len_paths: Vec<&FieldPath> = Vec::new();
+        for constraint in &construction.constraints {
+            if let Constraint::Require(predicate) = constraint {
+                collect_in_paths(&predicate.value, &mut in_paths);
+                collect_len_paths(&predicate.value, &mut len_paths);
+            }
+        }
+        for form in &construction.forms {
+            if let Some(guard) = &form.guard {
+                collect_in_paths(&guard.value, &mut in_paths);
+                collect_len_paths(&guard.value, &mut len_paths);
+            }
+        }
+        for path in in_paths {
+            let Ok(resolved) = resolve_path(group, construction, path) else {
+                continue; // EC010 already reported it (check_paths runs first)
+            };
+            if !resolved_is_scalar(&resolved) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::PredicateKindMismatch,
+                        id,
+                        format!(
+                            "`{}` is not a scalar; `in [...]` compares a scalar codec against its variants",
+                            path.dotted()
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            }
+        }
+        for path in len_paths {
+            let Ok(resolved) = resolve_path(group, construction, path) else {
+                continue; // EC010 already reported it (check_paths runs first)
+            };
+            if !matches!(resolved, Resolved::Kind(FieldKind::Sequence { .. })) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::PredicateKindMismatch,
+                        id,
+                        format!(
+                            "`{}` is not a sequence; len() constrains sequence fields",
+                            path.dotted()
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            }
+        }
         // EC032 — require paths must be emitter-shallow.
         for constraint in &construction.constraints {
             let Constraint::Require(predicate) = constraint else { continue };
@@ -552,6 +605,33 @@ fn collect_presence_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p Field
             }
         }
         Predicate::LenAtLeast { .. } | Predicate::LenIs { .. } | Predicate::In { .. } => {}
+    }
+}
+
+fn collect_in_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p FieldPath>) {
+    match predicate {
+        Predicate::In { path, .. } => into.push(path),
+        Predicate::All(children) | Predicate::Any(children) => {
+            for child in children {
+                collect_in_paths(child, into);
+            }
+        }
+        Predicate::IsSome { .. }
+        | Predicate::IsNone { .. }
+        | Predicate::LenAtLeast { .. }
+        | Predicate::LenIs { .. } => {}
+    }
+}
+
+fn collect_len_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p FieldPath>) {
+    match predicate {
+        Predicate::LenAtLeast { path, .. } | Predicate::LenIs { path, .. } => into.push(path),
+        Predicate::All(children) | Predicate::Any(children) => {
+            for child in children {
+                collect_len_paths(child, into);
+            }
+        }
+        Predicate::IsSome { .. } | Predicate::IsNone { .. } | Predicate::In { .. } => {}
     }
 }
 
@@ -1848,6 +1928,108 @@ mod tests {
                 }),
             ));
         validate(&group).expect("`is_none` on a genuinely Optional single-segment field is clean");
+    }
+
+    #[test]
+    fn in_predicate_on_a_sequence_is_rejected() {
+        let mut group = group_with_sequence_field();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("rest"),
+                    allowed: vec!["x".to_owned()],
+                }),
+            ));
+        let err = validate(&group).expect_err("`in` on a Sequence field must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC015"]);
+    }
+
+    #[test]
+    fn len_predicate_on_a_scalar_is_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::LenAtLeast {
+                    path: crate::model::FieldPath::call_site("conjunction"),
+                    min: 2,
+                }),
+            ));
+        let err = validate(&group).expect_err("`len()` on a Scalar field must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC015"]);
+    }
+
+    /// Positive control: the sanctioned predicate/kind pairings — `in` on a
+    /// `Scalar` (as a require clause and as a form guard), `len()` on a
+    /// `Sequence`, and presence on an `Optional` — all validate clean. Two
+    /// forms partition `conjunction`'s admitted `{And, Or}` so EC023
+    /// coverage doesn't fire alongside the shapes under test.
+    #[test]
+    fn sanctioned_predicate_kind_pairings_validate_clean() {
+        let mut group = group_with_sequence_field();
+        if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("alt".to_owned()),
+                kind: crate::model::FieldKind::Optional {
+                    inner: Box::new(crate::model::FieldKind::Scalar {
+                        codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                    }),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("alt"),
+            ));
+        group.constructions[0].forms[0].guard = Some(crate::model::Spanned::call_site(
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["And".to_owned()],
+            },
+        ));
+        let mut or_form = group.constructions[0].forms[0].clone();
+        or_form.name = crate::model::Spanned::call_site("or_form".to_owned());
+        or_form.ordinal = crate::model::Spanned::call_site(1);
+        or_form.surface = vec![crate::model::SurfaceAtom::Lexeme(
+            crate::model::FieldPath::call_site("conjunction"),
+        )];
+        or_form.guard = Some(crate::model::Spanned::call_site(
+            crate::model::Predicate::In {
+                path: crate::model::FieldPath::call_site("conjunction"),
+                allowed: vec!["Or".to_owned()],
+            },
+        ));
+        group.constructions[0].forms.push(or_form);
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("conjunction"),
+                    allowed: vec!["And".to_owned(), "Or".to_owned()],
+                }),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::LenAtLeast {
+                    path: crate::model::FieldPath::call_site("rest"),
+                    min: 2,
+                }),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::IsNone {
+                    path: crate::model::FieldPath::call_site("alt"),
+                }),
+            ));
+        validate(&group).expect(
+            "in-on-scalar (require and guard), len()-on-sequence, and presence-on-optional are all sanctioned",
+        );
     }
 
     #[test]
