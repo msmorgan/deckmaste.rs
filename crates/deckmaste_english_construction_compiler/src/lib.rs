@@ -4,4 +4,6 @@
 //! this crate is a plain library so every stage is directly testable.
 
 pub mod diag;
+pub mod model;
 pub mod spike_emit;
+pub mod validate;

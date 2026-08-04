@@ -1,0 +1,5 @@
+error[E0277]: the trait bound `ValidatedGroup<'_>: Default` is not satisfied
+ --> tests/compile_fail/forge_validated_group.rs:6:35
+  |
+6 |     let _forged: ValidatedGroup = Default::default();
+  |                                   ^^^^^^^^^^^^^^^^^^ the trait `Default` is not implemented for `ValidatedGroup<'_>`
