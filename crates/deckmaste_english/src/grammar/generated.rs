@@ -108,6 +108,10 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
     None
 }
 
+/// Resolves a category referenced from a `Hole` atom's `Subtree` field. Such
+/// a reference names a category, not a specific construction, so it may
+/// legitimately land on any active group's internal category or (once the
+/// table grows) an engine nonterminal.
 fn category_nonterminal(
     cats: &BTreeMap<&'static str, u16>,
     construction: &'static ConstructionData,
@@ -119,6 +123,28 @@ fn category_nonterminal(
     engine_category(category).ok_or(GeneratedAssemblyError::UnknownCategory {
         construction: construction.id,
         category,
+    })
+}
+
+/// Resolves a construction's own left-hand-side category. Membership is
+/// decided by the construction's OWN `internal` flag, never by whether some
+/// other construction happens to declare the same category name as internal
+/// — otherwise a non-internal construction sharing a category name with an
+/// internal sibling would be silently admitted as `Nonterminal::Generated`
+/// instead of surfacing `UnknownCategory`.
+fn lhs_category_nonterminal(
+    cats: &BTreeMap<&'static str, u16>,
+    construction: &'static ConstructionData,
+) -> Result<Nonterminal, GeneratedAssemblyError> {
+    if construction.internal {
+        let id = *cats.get(construction.category).expect(
+            "internal_categories collected this construction's category from the same group set",
+        );
+        return Ok(Nonterminal::Generated(id));
+    }
+    engine_category(construction.category).ok_or(GeneratedAssemblyError::UnknownCategory {
+        construction: construction.id,
+        category: construction.category,
     })
 }
 
@@ -191,7 +217,7 @@ pub(super) fn register_generated(
                     construction: construction.id,
                 });
             }
-            let lhs = category_nonterminal(cats, construction, construction.category)?;
+            let lhs = lhs_category_nonterminal(cats, construction)?;
             for (form_index, form) in construction.forms.iter().enumerate() {
                 let mut rhs = Vec::with_capacity(form.atoms.len());
                 for atom in form.atoms {
@@ -214,4 +240,295 @@ pub(super) fn register_generated(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_construction_compiler::runtime::AtomData;
+    use deckmaste_construction_compiler::runtime::ConstructionData;
+    use deckmaste_construction_compiler::runtime::FieldData;
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+    use deckmaste_construction_compiler::runtime::FormData;
+    use deckmaste_construction_compiler::runtime::GroupData;
+
+    use super::super::EnglishLexicalSlot;
+    use super::super::Expected;
+    use super::super::rules::RegistrationOrder;
+    use super::super::rules::RuleBuilder;
+    use super::GeneratedAssemblyError;
+    use super::internal_categories;
+    use super::register_generated;
+    use crate::surface::Punctuation;
+
+    const fn construction(
+        id: &'static str,
+        category: &'static str,
+        internal: bool,
+        fields: &'static [FieldData],
+        forms: &'static [FormData],
+    ) -> ConstructionData {
+        ConstructionData {
+            id,
+            category,
+            internal,
+            own_type: Some("Synthetic"),
+            bind_path: None,
+            deserialize: false,
+            selection_unique: false,
+            dominates: &[],
+            fields,
+            witnesses: &[],
+            forms,
+        }
+    }
+
+    const WORD_FIELDS: &[FieldData] = &[FieldData {
+        name: "word",
+        kind: FieldKindData::Scalar {
+            codec: "Conjunction",
+        },
+    }];
+    const WORD_FORM: &[FormData] = &[FormData {
+        name: "only",
+        ordinal: 0,
+        guarded: false,
+        atoms: &[AtomData::Lexeme("word")],
+    }];
+
+    #[test]
+    fn unknown_category_is_refused() {
+        const CONSTRUCTIONS: &[ConstructionData] = &[construction(
+            "np_only",
+            "NounPhrase",
+            false,
+            WORD_FIELDS,
+            WORD_FORM,
+        )];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnknownCategory {
+                construction: "np_only",
+                category: "NounPhrase",
+            }
+        );
+    }
+
+    /// Controller finding: a non-internal construction sharing a category
+    /// name with an internal sibling in the same group must still surface
+    /// `UnknownCategory` — membership is decided by the construction's own
+    /// `internal` flag, never by name presence in the internal-category map.
+    #[test]
+    fn non_internal_construction_sharing_an_internal_category_name_is_refused() {
+        const CONSTRUCTIONS: &[ConstructionData] = &[
+            construction("internal_member", "Shared", true, WORD_FIELDS, WORD_FORM),
+            construction(
+                "non_internal_member",
+                "Shared",
+                false,
+                WORD_FIELDS,
+                WORD_FORM,
+            ),
+        ];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        assert!(
+            cats.contains_key("Shared"),
+            "the internal member must seed the category map"
+        );
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnknownCategory {
+                construction: "non_internal_member",
+                category: "Shared",
+            }
+        );
+    }
+
+    #[test]
+    fn unsupported_literal_is_refused() {
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            atoms: &[AtomData::Literal("and")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] =
+            &[construction("lit_and", "Internal", true, &[], FORM)];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedLiteral {
+                construction: "lit_and",
+                literal: "and"
+            }
+        );
+    }
+
+    #[test]
+    fn comma_literal_is_admitted() {
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            atoms: &[AtomData::Literal(",")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] =
+            &[construction("lit_comma", "Internal", true, &[], FORM)];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        register_generated(&mut builder, &[&GROUP], &cats).expect("comma literal must assemble");
+        let rule_book = builder.finish(RegistrationOrder::Normal);
+        assert_eq!(
+            rule_book.rules[0].rhs,
+            vec![Expected::Lexical(EnglishLexicalSlot::Punctuation(
+                Punctuation::Comma
+            ))]
+        );
+    }
+
+    #[test]
+    fn unknown_lexeme_codec_is_refused() {
+        const FIELDS: &[FieldData] = &[FieldData {
+            name: "who",
+            kind: FieldKindData::Scalar { codec: "Person" },
+        }];
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            atoms: &[AtomData::Lexeme("who")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] =
+            &[construction("codec_test", "Internal", true, FIELDS, FORM)];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnknownLexemeCodec {
+                construction: "codec_test",
+                codec: "Person",
+            }
+        );
+    }
+
+    #[test]
+    fn sequence_hole_is_a_deferred_error() {
+        const FIELDS: &[FieldData] = &[FieldData {
+            name: "items",
+            kind: FieldKindData::Sequence { element: "Foo" },
+        }];
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            atoms: &[AtomData::Hole("items")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] =
+            &[construction("seq_test", "Internal", true, FIELDS, FORM)];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedHoleKind {
+                construction: "seq_test",
+                field: "items",
+            }
+        );
+    }
+
+    #[test]
+    fn dotted_atom_path_is_refused() {
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            atoms: &[AtomData::Hole("members.last")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] =
+            &[construction("dotted", "Internal", true, &[], FORM)];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedAtomPath {
+                construction: "dotted",
+                path: "members.last",
+            }
+        );
+    }
+
+    #[test]
+    fn bind_while_generated_is_refused() {
+        const CONSTRUCTIONS: &[ConstructionData] = &[ConstructionData {
+            id: "bound",
+            category: "Internal",
+            internal: true,
+            own_type: None,
+            bind_path: Some("x::Y"),
+            deserialize: false,
+            selection_unique: false,
+            dominates: &[],
+            fields: &[],
+            witnesses: &[],
+            forms: &[],
+        }];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::BindWhileGenerated {
+                construction: "bound"
+            }
+        );
+    }
 }

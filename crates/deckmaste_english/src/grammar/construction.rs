@@ -254,4 +254,173 @@ mod tests {
         .unwrap_err();
         assert_eq!(error, ConstructionRegistryError::DominanceCycle);
     }
+
+    const fn synthetic_group(
+        name: &'static str,
+        constructions: &'static [deckmaste_construction_compiler::runtime::ConstructionData],
+    ) -> deckmaste_construction_compiler::runtime::GroupData {
+        deckmaste_construction_compiler::runtime::GroupData {
+            name,
+            elements: &[],
+            constructions,
+        }
+    }
+
+    #[test]
+    fn generated_id_colliding_with_a_handwritten_family_is_refused() {
+        const CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
+            &[deckmaste_construction_compiler::runtime::ConstructionData {
+                id: "noun_phrase_coordination",
+                category: "Internal",
+                internal: true,
+                own_type: Some("Synthetic"),
+                bind_path: None,
+                deserialize: false,
+                selection_unique: false,
+                dominates: &[],
+                fields: &[],
+                witnesses: &[],
+                forms: &[],
+            }];
+        const GROUP: deckmaste_construction_compiler::runtime::GroupData =
+            synthetic_group("g", CONSTRUCTIONS);
+        let error = super::merged_registry(&[&GROUP]).unwrap_err();
+        assert_eq!(
+            error,
+            ConstructionRegistryError::DuplicateId(construction_id(
+                RuleTag::NounPhraseCoordination
+            ))
+        );
+    }
+
+    #[test]
+    fn cross_group_dominance_target_must_exist() {
+        const CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
+            &[deckmaste_construction_compiler::runtime::ConstructionData {
+                id: "gen_a",
+                category: "Internal",
+                internal: true,
+                own_type: Some("Synthetic"),
+                bind_path: None,
+                deserialize: false,
+                selection_unique: false,
+                dominates: &["missing"],
+                fields: &[],
+                witnesses: &[],
+                forms: &[],
+            }];
+        const GROUP: deckmaste_construction_compiler::runtime::GroupData =
+            synthetic_group("g", CONSTRUCTIONS);
+        let error = super::merged_registry(&[&GROUP]).unwrap_err();
+        assert_eq!(
+            error,
+            ConstructionRegistryError::UnknownDominanceTarget(ConstructionId::new("missing"))
+        );
+    }
+
+    #[test]
+    fn cross_group_cycles_are_refused() {
+        const A_CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
+            &[deckmaste_construction_compiler::runtime::ConstructionData {
+                id: "gen_a",
+                category: "Internal",
+                internal: true,
+                own_type: Some("Synthetic"),
+                bind_path: None,
+                deserialize: false,
+                selection_unique: false,
+                dominates: &["gen_b"],
+                fields: &[],
+                witnesses: &[],
+                forms: &[],
+            }];
+        const B_CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
+            &[deckmaste_construction_compiler::runtime::ConstructionData {
+                id: "gen_b",
+                category: "Internal",
+                internal: true,
+                own_type: Some("Synthetic"),
+                bind_path: None,
+                deserialize: false,
+                selection_unique: false,
+                dominates: &["gen_a"],
+                fields: &[],
+                witnesses: &[],
+                forms: &[],
+            }];
+        const GROUP_A: deckmaste_construction_compiler::runtime::GroupData =
+            synthetic_group("a", A_CONSTRUCTIONS);
+        const GROUP_B: deckmaste_construction_compiler::runtime::GroupData =
+            synthetic_group("b", B_CONSTRUCTIONS);
+        // Each group alone dangles a dominance target the compiler's own
+        // in-group validation never sees (it only checks targets declared in
+        // the same `constructions!` invocation) — `merged_registry` catches
+        // it as an `UnknownDominanceTarget` until the other half is present.
+        assert_eq!(
+            super::merged_registry(&[&GROUP_A]).unwrap_err(),
+            ConstructionRegistryError::UnknownDominanceTarget(ConstructionId::new("gen_b"))
+        );
+        assert_eq!(
+            super::merged_registry(&[&GROUP_B]).unwrap_err(),
+            ConstructionRegistryError::UnknownDominanceTarget(ConstructionId::new("gen_a"))
+        );
+        let error = super::merged_registry(&[&GROUP_A, &GROUP_B]).unwrap_err();
+        assert_eq!(error, ConstructionRegistryError::DominanceCycle);
+    }
+
+    #[test]
+    fn generated_rows_carry_generated_owner() {
+        const CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
+            &[deckmaste_construction_compiler::runtime::ConstructionData {
+                id: "gen_c",
+                category: "Internal",
+                internal: true,
+                own_type: Some("Synthetic"),
+                bind_path: None,
+                deserialize: false,
+                selection_unique: false,
+                dominates: &[],
+                fields: &[],
+                witnesses: &[],
+                forms: &[],
+            }];
+        const GROUP: deckmaste_construction_compiler::runtime::GroupData =
+            synthetic_group("g", CONSTRUCTIONS);
+        let merged = super::merged_registry(&[&GROUP]).expect("clean synthetic group must merge");
+        let generated_family = merged
+            .family(ConstructionId::new("gen_c"))
+            .expect("generated row must be present");
+        assert_eq!(generated_family.owner(), ConstructionOwner::Generated);
+        assert_eq!(generated_family.backend(), ConstructionBackend::Chart);
+        for tag in RuleTag::iter() {
+            let family = merged
+                .family(construction_id(tag))
+                .expect("handwritten row must survive the merge");
+            assert_eq!(family.owner(), ConstructionOwner::Handwritten);
+        }
+    }
+
+    #[test]
+    fn production_registry_is_untouched() {
+        // `merged_registry(&[])` (no active generated groups) must carry
+        // exactly the same rows as the real `registry()` static — the
+        // guarantee that activation changes nothing for production parses.
+        let merged = super::merged_registry(&[]).expect("no groups must merge cleanly");
+        let tags = RuleTag::iter().collect::<Vec<_>>();
+        assert_eq!(merged.families().len(), tags.len());
+        assert_eq!(merged.families().len(), registry().families().len());
+        for tag in tags {
+            let id = construction_id(tag);
+            let production_family = registry().family(id).expect("tag missing from registry()");
+            let merged_family = merged
+                .family(id)
+                .expect("tag missing from merged_registry(&[])");
+            assert_eq!(production_family, merged_family);
+        }
+        // `registry()` is the `OnceLock` production static: repeated calls
+        // return the identical allocation, which is what the `Inactive` parse
+        // path (`super::construction::registry()`, not `merged_registry`)
+        // actually threads through `best_root_matching`.
+        assert!(std::ptr::eq(registry(), registry()));
+    }
 }
