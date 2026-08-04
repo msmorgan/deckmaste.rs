@@ -101,4 +101,34 @@ the heterogeneous and member-scoped coordination forms remain designed by
 `english-coordination-structural-design` but must be assigned to a derived
 family migration there.
 
+## Compiler and backend prerequisites
+
+The `english-construction-compiler` pilot classified its residue as four named
+requirements, all of them prerequisite work of this migration rather than
+optional polish:
+
+1. **Sequence-member quantification.** A quantifier or path facility that can
+   constrain every non-final member of a sequence — conjunction placement in
+   particular — not only the last one the existing `rest.last.*` require paths
+   reach. Today a generated builder accepts an interior member carrying both a
+   comma and a conjunction, and no declaration can refuse it.
+2. **Typed bound sum/variant element mapping for `NominalComplement`.** The
+   current mapping is opaque and admits the empty case only, guarded by a
+   declaration requiring `complements.len() == 0`. Non-empty group complements
+   need a real typed element mapping before that requirement can come off.
+3. **Presence-valued `Comma` end to end.** The present/absent value must be
+   carried through chart admission and exact linearization. Generated chart
+   code can only emit a unit comma token today, so the two states are
+   indistinguishable on that path even though bound-value linearizers can
+   branch on them.
+4. **Emitted total own-mode linearizer.** Linearization must be emitted from
+   the declaration forms themselves, covering bound values, sequences,
+   optionals, and stored form witnesses. The coordination value linearizers
+   that exist are handwritten test scaffolding: they prove the target
+   behavior, they are not the compiler's product.
+
+Dropping any of these without implementing it is a law or backend change, not a
+scope trim, and requires re-review of
+`docs/decisions/english-grammar-is-derived.md`.
+
 Standard constraints apply.
