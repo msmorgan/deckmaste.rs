@@ -49,6 +49,29 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    let mut seen_elements: std::collections::HashMap<&str, proc_macro2::Span> =
+        std::collections::HashMap::new();
+    for element in &group.elements {
+        match seen_elements.entry(element.name.value.as_str()) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(element.name.span);
+            }
+            std::collections::hash_map::Entry::Occupied(first) => {
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::DuplicateName,
+                        format!(
+                            "element `{}` is declared more than once in this group",
+                            element.name.value
+                        ),
+                    )
+                    .with_span(element.name.span)
+                    .with_note("first declared here", *first.get()),
+                );
+            }
+        }
+    }
+
     let mut seen_ids: std::collections::HashMap<&str, proc_macro2::Span> =
         std::collections::HashMap::new();
     for construction in &group.constructions {
@@ -83,6 +106,49 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     )
                     .with_span(form.ordinal.span),
                 );
+            }
+        }
+        let mut seen_form_names: std::collections::HashMap<&str, proc_macro2::Span> =
+            std::collections::HashMap::new();
+        for form in &construction.forms {
+            match seen_form_names.entry(form.name.value.as_str()) {
+                std::collections::hash_map::Entry::Vacant(slot) => {
+                    slot.insert(form.name.span);
+                }
+                std::collections::hash_map::Entry::Occupied(first) => {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::DuplicateName,
+                            id,
+                            format!("form name `{}` is declared more than once", form.name.value),
+                        )
+                        .with_span(form.name.span)
+                        .with_note("first declared here", *first.get()),
+                    );
+                }
+            }
+        }
+        let mut seen_witness_names: std::collections::HashMap<&str, proc_macro2::Span> =
+            std::collections::HashMap::new();
+        for witness in &construction.witnesses {
+            match seen_witness_names.entry(witness.name.value.as_str()) {
+                std::collections::hash_map::Entry::Vacant(slot) => {
+                    slot.insert(witness.name.span);
+                }
+                std::collections::hash_map::Entry::Occupied(first) => {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::DuplicateName,
+                            id,
+                            format!(
+                                "witness name `{}` is declared more than once",
+                                witness.name.value
+                            ),
+                        )
+                        .with_span(witness.name.span)
+                        .with_note("first declared here", *first.get()),
+                    );
+                }
             }
         }
         for edge in &construction.dominance {
@@ -888,6 +954,75 @@ mod tests {
         group.constructions[0].forms.push(second);
         let err = validate(&group).expect_err("duplicate ordinal");
         assert!(codes(err).contains(&"EC002"));
+    }
+
+    #[test]
+    fn duplicate_element_name_is_group_scoped() {
+        let mut group = minimal_group();
+        let element = crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            fields: vec![],
+        };
+        group.elements.push(element.clone());
+        group.elements.push(element);
+        let err = validate(&group).expect_err("duplicate element name must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC004"]);
+        assert!(
+            err[0].construction.is_none(),
+            "element names belong to the group"
+        );
+        assert_eq!(err[0].notes[0].message, "first declared here");
+    }
+
+    #[test]
+    fn duplicate_form_name_is_construction_scoped() {
+        let mut group = minimal_group();
+        let mut twin = group.constructions[0].forms[0].clone();
+        // Different ordinal so EC002 doesn't also fire and pollute the
+        // full-equality assertion below.
+        twin.ordinal = crate::model::Spanned::call_site(1);
+        group.constructions[0].forms.push(twin);
+        // Two identical (unguarded) forms would also trip EC024 (ambiguous
+        // linearization). A free witness makes `check_surface_domain` skip
+        // that overlap check entirely, isolating EC004.
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("disambiguator".to_owned()),
+                class: crate::model::WitnessClass::Free {
+                    ty: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            });
+        let err = validate(&group).expect_err("duplicate form name must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC004"]);
+        assert_eq!(
+            err[0].construction.as_deref(),
+            Some("noun_phrase_coordination")
+        );
+        assert_eq!(err[0].notes[0].message, "first declared here");
+    }
+
+    #[test]
+    fn duplicate_witness_name_is_construction_scoped() {
+        let mut group = minimal_group();
+        let witness = crate::model::WitnessDeclaration {
+            name: crate::model::Spanned::call_site("oxford_comma".to_owned()),
+            class: crate::model::WitnessClass::Free {
+                ty: crate::model::Spanned::call_site("Comma".to_owned()),
+            },
+        };
+        group.constructions[0].witnesses.push(witness.clone());
+        group.constructions[0].witnesses.push(witness);
+        let err = validate(&group).expect_err("duplicate witness name must be rejected");
+        let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
+        assert_eq!(codes, vec!["EC004"]);
+        assert_eq!(
+            err[0].construction.as_deref(),
+            Some("noun_phrase_coordination")
+        );
+        assert_eq!(err[0].notes[0].message, "first declared here");
     }
 
     #[test]
