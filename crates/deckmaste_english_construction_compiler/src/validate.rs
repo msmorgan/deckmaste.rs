@@ -32,6 +32,7 @@ pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diag
 // Each task in this plan appends one check family here.
 fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
+    check_dominance_cycles(group, diags);
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
@@ -74,6 +75,65 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     )
                     .with_span(edge.winner.span),
                 );
+            }
+        }
+    }
+}
+
+fn check_dominance_cycles(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    let ids: std::collections::HashSet<&str> = group
+        .constructions
+        .iter()
+        .map(|c| c.id.value.as_str())
+        .collect();
+    let mut edges: std::collections::HashMap<&str, Vec<&str>> = std::collections::HashMap::new();
+    for construction in &group.constructions {
+        for edge in &construction.dominance {
+            let winner = edge.winner.value.as_str();
+            let loser = edge.loser.value.as_str();
+            if ids.contains(winner) && ids.contains(loser) && winner != loser {
+                edges.entry(winner).or_default().push(loser);
+            }
+        }
+    }
+    // Deterministic traversal: sorted starts and sorted successor lists make
+    // the emitted diagnostic a pure function of the edge SET — never of
+    // HashSet iteration (per-process random seed) or edge declaration order.
+    for successors in edges.values_mut() {
+        successors.sort_unstable();
+    }
+    let mut starts: Vec<&str> = ids.iter().copied().collect();
+    starts.sort_unstable();
+    // Iterative DFS with three-color marking; a back edge is a cycle. The
+    // cursor into each node's successor list lives in the stack entry, and
+    // we re-borrow the stack per step so no long-lived &mut fights the push.
+    let mut state: std::collections::HashMap<&str, u8> = std::collections::HashMap::new();
+    for start in starts {
+        if state.get(start).copied().unwrap_or(0) != 0 {
+            continue;
+        }
+        let mut stack: Vec<(&str, usize)> = vec![(start, 0)];
+        state.insert(start, 1);
+        while let Some((node, next)) = stack.last().copied() {
+            let successors = edges.get(node).map_or(&[][..], Vec::as_slice);
+            if next < successors.len() {
+                stack.last_mut().expect("stack is nonempty here").1 += 1;
+                let successor = successors[next];
+                match state.get(successor).copied().unwrap_or(0) {
+                    0 => {
+                        state.insert(successor, 1);
+                        stack.push((successor, 0));
+                    }
+                    1 => diags.push(Diagnostic::new(
+                        DiagCode::DominanceCycle,
+                        successor,
+                        format!("declared dominance cycles through `{successor}`"),
+                    )),
+                    _ => {}
+                }
+            } else {
+                state.insert(node, 2);
+                stack.pop();
             }
         }
     }
@@ -174,5 +234,37 @@ mod tests {
             });
         let err = validate(&group).expect_err("self dominance");
         assert!(codes(err).contains(&"EC040"));
+    }
+
+    #[test]
+    fn in_group_dominance_cycles_are_rejected() {
+        let mut group = minimal_group();
+        let mut second = group.constructions[0].clone();
+        second.id = crate::model::Spanned::call_site("noun_phrase_list_comma".to_owned());
+        group.constructions[0]
+            .dominance
+            .push(crate::model::DominanceEdge {
+                winner: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
+                loser: crate::model::Spanned::call_site("noun_phrase_list_comma".to_owned()),
+            });
+        second.dominance.push(crate::model::DominanceEdge {
+            winner: crate::model::Spanned::call_site("noun_phrase_list_comma".to_owned()),
+            loser: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
+        });
+        group.constructions.push(second);
+        let err = validate(&group).expect_err("two-node cycle");
+        assert!(codes(err).contains(&"EC041"));
+    }
+
+    #[test]
+    fn edges_leaving_the_group_are_not_cycle_checked_here() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .dominance
+            .push(crate::model::DominanceEdge {
+                winner: crate::model::Spanned::call_site("noun_phrase_nominal".to_owned()),
+                loser: crate::model::Spanned::call_site("noun_phrase_coordination".to_owned()),
+            });
+        validate(&group).expect("external edge is a registry-time concern");
     }
 }
