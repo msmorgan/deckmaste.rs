@@ -354,7 +354,6 @@ fn parse_as_with_registration_order(
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_construction_compiler::runtime::DeclarationViolation;
     use deckmaste_construction_compiler::runtime::FieldKindData;
     use deckmaste_construction_compiler::runtime::WitnessClassData;
     use proptest::prelude::*;
@@ -368,8 +367,6 @@ mod tests {
     use crate::features::Comma;
     use crate::features::Conjunction;
     use crate::grammar::lowering::Lowered;
-    use crate::syntax::CoordinatedNominalPhrase;
-    use crate::syntax::CoordinatedNounPhrase;
     use crate::syntax::Determiner;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalPhrase;
@@ -1081,6 +1078,14 @@ mod tests {
     fn chain_associativity_keeps_two_asts_for_the_same_bytes() {
         let source = "target creature and target land or target artifact";
         let enumeration = noun_phrase_enumeration(source);
+        assert!(
+            enumeration.selections >= enumeration.noun_phrase_lowerings,
+            "lowerings cannot outnumber completed ChoiceMap selections",
+        );
+        assert!(
+            enumeration.noun_phrase_lowerings > enumeration.readings.len(),
+            "the M4 Debug-key dedup guard did not eliminate any duplicate lowerings",
+        );
         let coordinated = enumeration
             .readings
             .iter()
@@ -1127,19 +1132,6 @@ mod tests {
             enumeration.noun_phrase_lowerings > enumeration.readings.len(),
         );
     }
-
-    type NounCoordinationBuilder = fn(
-        Box<NounPhrase>,
-        Vec<NounPhraseCoordination>,
-    ) -> Result<CoordinatedNounPhrase, DeclarationViolation>;
-
-    type NominalCoordinationBuilder = fn(
-        Determiner,
-        Box<NominalPhrase>,
-        Vec<NominalPhraseCoordination>,
-        Vec<NominalComplement>,
-    )
-        -> Result<CoordinatedNominalPhrase, DeclarationViolation>;
 
     fn chart_shaped_noun_rest(
         members: impl IntoIterator<Item = NounPhrase>,
@@ -1214,17 +1206,17 @@ mod tests {
                 conjunction,
                 member_count,
             );
-            let builder: NounCoordinationBuilder =
-                coordination::build_noun_phrase_coordination;
+            let mut generated_builder_called = false;
+            let mut build = |first, rest| {
+                generated_builder_called = true;
+                coordination::build_noun_phrase_coordination(first, rest)
+            };
+            let built = build(first, rest)
+                .expect("chart-shaped noun coordination satisfies the declaration");
             prop_assert!(
-                std::ptr::fn_addr_eq(
-                    builder,
-                    coordination::build_noun_phrase_coordination as NounCoordinationBuilder,
-                ),
+                generated_builder_called,
                 "the law value did not enter through the generated noun builder",
             );
-            let built = builder(first, rest)
-                .expect("chart-shaped noun coordination satisfies the declaration");
             let bytes = linearize_coordinated_noun_phrase(&built)
                 .expect("a built noun coordination linearizes");
             let reparsed = noun_phrase_readings(&bytes);
@@ -1255,22 +1247,27 @@ mod tests {
                 conjunction,
                 member_count,
             );
-            let builder: NominalCoordinationBuilder =
-                coordination::build_shared_determiner_nominal;
-            prop_assert!(
-                std::ptr::fn_addr_eq(
-                    builder,
-                    coordination::build_shared_determiner_nominal as NominalCoordinationBuilder,
-                ),
-                "the law value did not enter through the generated shared-determiner builder",
-            );
-            let built = builder(
+            let mut generated_builder_called = false;
+            let mut build = |determiner, first, rest, complements| {
+                generated_builder_called = true;
+                coordination::build_shared_determiner_nominal(
+                    determiner,
+                    first,
+                    rest,
+                    complements,
+                )
+            };
+            let built = build(
                 Determiner::Target(None),
                 first,
                 rest,
                 Vec::new(),
             )
             .expect("chart-shaped nominal coordination satisfies the declaration");
+            prop_assert!(
+                generated_builder_called,
+                "the law value did not enter through the generated shared-determiner builder",
+            );
             let bytes = linearize_coordinated_nominal_phrase(&built)
                 .expect("a built shared-determiner coordination linearizes");
             let reparsed = noun_phrase_readings(&bytes);
