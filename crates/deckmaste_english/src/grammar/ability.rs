@@ -1270,7 +1270,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let (flavor_header, body) = self.peel_flavor_header(tokens);
         Paragraph {
             flavor_header,
-            sentences: split_sentences(self.source, body)
+            sentences: split_sentences(self.source, body, self.self_reference.nickname())
                 .into_iter()
                 .filter(|sentence| !sentence.is_empty())
                 .map(|sentence| self.parse_sentence(sentence))
@@ -1514,7 +1514,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let (flavor_header, body) = self.peel_flavor_header(tokens);
         Paragraph {
             flavor_header,
-            sentences: split_sentences(self.source, body)
+            sentences: split_sentences(self.source, body, self.self_reference.nickname())
                 .into_iter()
                 .filter(|sentence| !sentence.is_empty())
                 .map(|sentence| self.parse_choice_sentence(sentence))
@@ -2647,14 +2647,21 @@ fn lines_span(lines: &[&[Token]]) -> Span {
     }
 }
 
-fn split_sentences<'tokens>(source: &str, tokens: &'tokens [Token]) -> Vec<&'tokens [Token]> {
+fn split_sentences<'tokens>(
+    source: &str,
+    tokens: &'tokens [Token],
+    nickname: Option<&[String]>,
+) -> Vec<&'tokens [Token]> {
     let mut sentences = Vec::new();
     let mut start = 0;
     let mut depth = Nesting::default();
     for (index, token) in tokens.iter().enumerate() {
         let was_quoted = depth.double_quote;
         depth.observe(token.kind);
-        if is_sentence_terminal(token.kind) && depth.is_top_level() {
+        if is_sentence_terminal(token.kind)
+            && depth.is_top_level()
+            && !is_interior_nickname_period(source, tokens, index, nickname)
+        {
             sentences.push(&tokens[start..=index]);
             start = index + 1;
             continue;
@@ -2681,6 +2688,46 @@ fn split_sentences<'tokens>(source: &str, tokens: &'tokens [Token]) -> Vec<&'tok
         sentences.push(&tokens[start..]);
     }
     sentences
+}
+
+/// Whether `index` is a period strictly inside an exact token-run spelling of
+/// the face's shortened name. The run remains ordinary surface tokens so the
+/// chart can still choose between a self-reference and a colliding lexical
+/// reading; this guard only keeps sentence segmentation from destroying that
+/// choice before the chart sees it.
+fn is_interior_nickname_period(
+    source: &str,
+    tokens: &[Token],
+    index: usize,
+    nickname: Option<&[String]>,
+) -> bool {
+    if tokens.get(index).map(|token| token.kind)
+        != Some(TokenKind::Punctuation(Punctuation::Period))
+    {
+        return false;
+    }
+    let Some(nickname) = nickname.filter(|nickname| nickname.len() >= 3) else {
+        return false;
+    };
+    tokens
+        .windows(nickname.len())
+        .enumerate()
+        .any(|(start, run)| {
+            start < index
+                && index < start + nickname.len() - 1
+                && run
+                    .iter()
+                    .zip(nickname)
+                    .enumerate()
+                    .all(|(offset, (token, spelling))| {
+                        let Some(actual) = token.span.text(source) else {
+                            return false;
+                        };
+                        actual == spelling
+                            || (offset == nickname.len() - 1
+                                && actual.strip_suffix("'s") == Some(spelling))
+                    })
+        })
 }
 
 fn split_top_level<'tokens>(
@@ -3021,10 +3068,12 @@ mod tests {
     use crate::catalog::CatalogKind;
     use crate::catalog::Catalogs;
     use crate::features::Conjunction;
+    use crate::identity::SelfReference;
     use crate::parse::DiagnosticKind;
     use crate::parse::ParseReport;
     use crate::parse::parse_with_catalogs;
     use crate::parse::parse_with_identity;
+    use crate::surface::lex;
     use crate::syntax::*;
     use crate::word::ColorWord;
     use crate::word::Noun;
@@ -5794,6 +5843,91 @@ mod tests {
                 .render("Ashcoat of the Shadow Swarm", true)
                 .unwrap(),
             source
+        );
+    }
+
+    #[test]
+    fn interior_nickname_periods_reach_the_chart_as_one_sentence() {
+        let source = "Attach it to U.S.Agent.";
+        let report =
+            parse_with_identity(source, &fixture_catalogs(), "U.S.Agent, John Walker", true);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected a paragraph: {:#?}", report.ast.abilities[0]);
+        };
+        let [sentence] = paragraph.sentences.as_slice() else {
+            panic!(
+                "period-bearing nickname was split: {:#?}",
+                paragraph.sentences
+            );
+        };
+        assert!(
+            matches!(
+                &sentence.body,
+                SentenceBody::Independent(IndependentClause::Imperative(
+                    Predicate::Transitive(predicate)
+                )) if matches!(
+                    predicate.elements.as_slice(),
+                    [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                        PrepositionalPhrase::Simple(SimplePrepositionalPhrase { object, .. })
+                    ))] if matches!(
+                        object.as_ref(),
+                        Phrase::NounPhrase(noun_phrase) if matches!(
+                            noun_phrase.as_ref(),
+                            NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)
+                        )
+                    )
+                )
+            ),
+            "nickname did not reach self-reference disambiguation: {:#?}",
+            sentence.body
+        );
+    }
+
+    #[test]
+    fn possessive_period_bearing_nickname_reaches_the_chart_intact() {
+        let source = "Ms. Marvel's base power is equal to the number of cards in your hand.";
+        let report =
+            parse_with_identity(source, &fixture_catalogs(), "Ms. Marvel, Kamala Khan", true);
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            panic!("expected a paragraph: {:#?}", report.ast.abilities[0]);
+        };
+        let [sentence] = paragraph.sentences.as_slice() else {
+            panic!(
+                "possessive period-bearing nickname was split: {:#?}",
+                paragraph.sentences
+            );
+        };
+        assert!(
+            matches!(
+                &sentence.body,
+                SentenceBody::Independent(IndependentClause::Intransitive(
+                    Subject(NounPhrase::Nominal(NominalPhrase {
+                        determiner: Some(Determiner::Possessive(Possessor::NounPhrase(possessor))),
+                        ..
+                    })),
+                    _
+                )) if matches!(
+                    possessor.as_ref(),
+                    NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)
+                )
+            ),
+            "possessive nickname did not reach self-reference disambiguation: {:#?}",
+            sentence.body
+        );
+    }
+
+    #[test]
+    fn nickname_final_period_remains_a_sentence_terminal() {
+        let source = "Destroy Agent X. Draw a card.";
+        let surface = lex(source);
+        let self_reference = SelfReference::new("Agent X., Hero", true);
+        let sentences = super::split_sentences(source, &surface.tokens, self_reference.nickname());
+        assert_eq!(
+            sentences
+                .iter()
+                .map(|sentence| super::tokens_span(sentence).text(source).unwrap())
+                .collect::<Vec<_>>(),
+            ["Destroy Agent X.", "Draw a card."]
         );
     }
 
