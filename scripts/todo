@@ -36,7 +36,7 @@ set -l perl_out (TODO_ROOT=$TODO_ROOT TODO_CENSUS=$TODO_CENSUS \
     perl (status dirname)/lib/todo_graph.pl "$cmd" "$slug")
 or return 1
 
-if test -q _flag_slugs_only
+if set -q _flag_slugs_only
     # Keep only the bare slug column (first whitespace token) of each line.
     printf '%s\n' $perl_out | string replace -r '\s.*$' ''
 else

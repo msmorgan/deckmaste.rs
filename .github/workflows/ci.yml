@@ -55,11 +55,13 @@ jobs:
           ref: c27aa236aa00186b0eca70c7114cc940efc8ec9f
       - name: stage data (+ decompress mtgjson)
         run: |
-          sudo apt-get update && sudo apt-get install -y xz-utils
+          sudo apt-get update && sudo apt-get install -y fish xz-utils
           mkdir -p data/mtgjson
           cp -r _data/data/catalogs data/
           cp -r _data/data/rules data/
           xz -dkc _data/data/mtgjson/cache/AtomicCards.json.xz > data/mtgjson/AtomicCards.json
+      - name: ticket graph harness
+        run: fish tests/todo_test.fish
 
       # The mirror intentionally carries no raw CR text. Cache one immutable
       # historical snapshot; on a cache miss Academy Ruins sees one request,

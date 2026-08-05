@@ -26,6 +26,15 @@ set -l checkout (env TODO_ROOT=$root TODO_CENSUS=$root/census.md scripts/todo ch
 check "check finds cycle" 0 (string match -q '*cycle*' -- "$checkout"; echo $status)
 check "check finds dangling" 0 (string match -q '*engine-attach*' -- "$checkout"; echo $status)
 
+# A focused invalid graph pins check's failure status. If the checker regresses
+# to accepting a dangling dependency, this assertion makes the harness fail.
+set -l invalid_root "$root/invalid"
+set -l invalid_out (env TODO_ROOT=$invalid_root TODO_CENSUS=$invalid_root/census.md scripts/todo check)
+set -l invalid_status $status
+check "check rejects focused dangling fixture" 1 "$invalid_status"
+check "check identifies focused dangling fixture" 0 \
+    (string match -q '*engine-dependent needs unknown engine-missing*' -- "$invalid_out"; echo $status)
+
 # graph: alpha's upstream is base
 set -l g (env TODO_ROOT=$root TODO_CENSUS=$root/census.md scripts/todo graph alpha)
 check "graph upstream" 0 (string match -q '*base*' -- "$g"; echo $status)

@@ -69,6 +69,13 @@ and *shape*.)
 Append `--slugs-only` to reduce any line-oriented command to just the bare slug
 column — handy for piping, e.g. `scripts/todo ready --slugs-only`.
 
+Run the ticket graph's hermetic fixture harness locally from the repository
+root:
+
+```sh
+fish tests/todo_test.fish
+```
+
 ## Priorities
 
 When picking "the next" item, run `scripts/todo ready` to list claimable
