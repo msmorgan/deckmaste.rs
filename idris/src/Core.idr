@@ -381,7 +381,8 @@ namespace Role
 -- goaded, renowned, suspected, saddled, solved…) are now an OPEN name-carrying value
 -- (`MkDesignation Scope String (List (Ability Base))`), defined inside the mutual block alongside
 -- `Subtype`/`CounterKind`. Its scope projection `designationKindScope` (replacing the old closed
--- `designationScope`) indexes the `HasDesignation`/`GrantDesignation` pair — carrier enforced dependently.
+-- `designationScope`) indexes `HasDesignation` — carrier enforced dependently. Mutation remains an
+-- explicit Rust↔Idris grammar gap while Rust's `GetDesignation` supports only player-scope flags.
 
 namespace BeginningStep
   public export
@@ -443,7 +444,8 @@ namespace PlanarFace
 
 -- What KIND of event an `EventQuery` matches. `ZoneChanged`/`BeginStep` carry data; "dies" =
 -- ZoneChanged (Just Battlefield) (Just Graveyard). The verb-named events live in `namespace
--- EventKind` so they REUSE the `Action` verb names — a `kinds` slot `[Draw]` pins `EventKind`, `Act (Draw …)`
+-- EventKind` so they REUSE the action vocabulary where possible — a `kinds` slot `[Draw]` pins
+-- `EventKind`, while an effect uses `Act (DrawCard …)`
 -- pins `Action` (type-directed disambiguation; no more past-tense `Drew`/`DealtDamage`).
 namespace EventKind
   public export
@@ -2356,7 +2358,10 @@ mutual
       -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
       Tap : Reference b AnObject -> Action b
       Untap : Reference b AnObject -> Action b
-      RemoveDamage : Reference b AnObject -> Action b    -- remove all damage marked on r (regeneration's heal, [CR#701.19])
+      -- Remove all damage marked on r and remove it from combat (regeneration's heal/remove step,
+      -- [CR#701.19,614.8]). The engine realizes both consequences from the same Rust
+      -- `Action::RemoveDamage`; combat removal is not a second authored verb.
+      RemoveDamage : Reference b AnObject -> Action b
       Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#701.27])
       Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
       Unattach : Reference b AnObject -> Action b

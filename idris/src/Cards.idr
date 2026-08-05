@@ -23,7 +23,7 @@ card_LightningBolt = Normal $ ^:
   , abilities :=
       [ Spell $
           Targeted [anyTarget] $
-          (Act (DealDamage (^3) (Target 0)))       -- the one announced slot, read as "it" (canon: DealDamage(This, 3, It))
+          (Act (DealDamage This (^3) (Target 0)))  -- the one announced slot, read as "it" (canon: DealDamage(This, 3, It))
       ]
   }
 
@@ -35,7 +35,7 @@ card_Pyroclasm = Normal $ ^:
   , manaCost := [^1, ^Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Each (Existing (SelectAll creature)) (Act (DealDamage (^2) It)))
+      [ Spell (Each (Existing (SelectAll creature)) (Act (DealDamage This (^2) It)))
       ]
   }
 
@@ -115,7 +115,7 @@ card_Brainstorm = Normal $ ^:
   , abilities :=
       [ Spell $
           Sequentially
-          [ Act (Draw (^3))
+          [ Act (DrawCard You (^3))
           , Each (Choose (^2) inHand) (Act (Move It (ToLibrary (FromTop (^0)))))   -- canon: Move(It, Library(FromTop(0))) — an ordered zone needs a position; a bare `Library` destination is unrepresentable
           ]
       ]
@@ -198,7 +198,7 @@ card_ThroughTheBreach = Normal $ ^:
 -- history. `EventCount` (log-derived) counts this game's prior casts of this same
 -- spell; ≥2 (the current cast is itself logged) ⇒ you win. Otherwise burrow it 7th
 -- from the top and gain 7. Exercises Outcome / EventQuery / SameName / WasCastFrom /
--- positional library / GainLife.
+-- positional library / `ChangeLife`.
 export
 card_ApproachOfTheSecondSun : Card
 card_ApproachOfTheSecondSun = Normal $ ^:
@@ -216,7 +216,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
              (Conclude (WinGame You))
              { otherwise = Just (Sequentially
                  [ Act (Move (This) (ToLibrary (FromTop (^6))))
-                 , Act (GainLife (^7)) ]) }
+                 , Act (ChangeLife You (LifeOp.Up (^7))) ]) }
       ]
   }
 
@@ -234,7 +234,7 @@ card_OblivionStone = Normal $ ^:
       [ Activated (Costs [Mana [^4], Do (Tap This)])
           (Targeted [Target (^1) permanent]
             (Act (PutCounters fateCounter (Literal 1) (Target 0))))
-      , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice (SameAs This))])
+      , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice You (SameAs This))])
           (Sequentially
             [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter fateCounter)]))) (Act (destroy It))
             , Each (Existing (SelectAll permanent)) (Act (RemoveCounters fateCounter (CountersOn fateCounter It) It)) ])
@@ -273,7 +273,7 @@ card_LilianaOfTheVeil = Normal $ ^:
           (Each (Existing eachPlayer) (discards It (^1))) {window = AsSorcery, limits = [OncePerTurn]}
       , Activated (Do (RemoveCounters loyaltyCounter (Literal 2) This))
           (Targeted [Target (^1) Anyone]
-            (Act (Sacrifice creature {actor = Target 0}))) {window = AsSorcery, limits = [OncePerTurn]}
+            (Act (Sacrifice (Target 0) creature))) {window = AsSorcery, limits = [OncePerTurn]}
       ]
   }
 
@@ -316,7 +316,7 @@ card_Necropotence = Normal $ ^:
       [ Static (Replaces (MkEventQuery [BeginStep (BeginningPhase DrawStep)] [Whenever (TurnOf you)]) (Sequentially []))
       , Triggered (MkEventQuery [Discard] [Actor you])
           (Act (Move EventObject (ToZone Exile)))
-      , Activated (Do (LoseLife (Literal 1)))
+      , Activated (Do (ChangeLife You (LifeOp.Down (Literal 1))))
           (Sequentially
             [ Act (Move (Single (TopOfLibrary (Literal 1))) (ToZone Exile))
             , Delayed nextEndStep (Act (Move (That Card) (ToZone Hand))) ])  -- "put THAT CARD into your hand": the exiled product, through the delayed drop
@@ -339,7 +339,7 @@ card_NotionThief = Normal $ ^:
       , Static (Replaces (MkEventQuery [Draw]
                                 [ Actor opponent
                                 , Not (And [Whenever (During (BeginningPhase DrawStep)), IsFirst ThisStep]) ])
-          (Act (Draw {actor = You} (^1))))
+          (Act (DrawCard You (^1))))
       ]
   , power := Just 3
   , toughness := Just 1
@@ -468,7 +468,7 @@ card_WallOfOmens = Normal $ ^:
   , abilities :=
       [ keyword Defender
       , Triggered (thisEnters)
-          (Act (Draw (^1)))
+          (Act (DrawCard You (^1)))
       ]
   }
 
@@ -520,7 +520,7 @@ card_CrypticCommand = Normal $ ^:
           [ MkMode (Targeted [Target (^1) (IsKind Spell)] (Act (Counter (Target 0))))
           , MkMode (Targeted [Target (^1) permanent] (Act (Move (Target 0) (ToZone Hand))))
           , MkMode (Each (Existing (SelectAll (And [creature, ControlledBy opponent]))) (Act (Tap It)))
-          , MkMode (Act (Draw (^1)))
+          , MkMode (Act (DrawCard You (^1)))
           ]) ]
   }
 
@@ -537,8 +537,8 @@ card_Electrolyze = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
           (Sequentially
-            [ Distribute (^2) (Existing (Targets 0)) (Act (DealDamage Allotment It))   -- the announced group is the plural anaphor (Arc Lightning canon shape)
-            , Act (Draw (^1)) ]))
+            [ Distribute (^2) (Existing (Targets 0)) (Act (DealDamage This Allotment It))   -- the announced group is the plural anaphor (Arc Lightning canon shape)
+            , Act (DrawCard You (^1)) ]))
       ]
   }
 
@@ -579,7 +579,7 @@ card_MidnightHaunting = Normal $ ^:
   , manaCost := [^2, ^White]
   , types := [Instant]
   , abilities :=
-      [ Spell (Act (CreateToken (^2)
+      [ Spell (Act (Create You (^2)
           (^: { name := Just "Spirit", types := [Creature], subtypes := [creatureType "Spirit"]
               , colors := [White], power := Just 1, toughness := Just 1
               , abilities := [keyword Flying] })))
@@ -693,7 +693,7 @@ card_OutpostSiege = Normal $ ^:
             Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                            [Agent (And [creature, ControlledBy you])])
               (If (ChosenIs 1)
-                  (Targeted [anyTarget] (Act (DealDamage (^1) (Target {k = Anything} 0)))))
+                  (Targeted [anyTarget] (Act (DealDamage This (^1) (Target {k = Anything} 0)))))
           ]
       ]
   }
@@ -709,9 +709,9 @@ card_CavernOfSouls = Normal $ ^:
   { name := Just "Cavern of Souls"
   , types := [Land]
   , abilities :=
-      [ Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))                          -- {T}: Add {C}
+      [ Activated (Do (Tap This)) (Act (AddMana You (^1) (^Colorless)))                      -- {T}: Add {C}
       , AsEnters ACreatureType
-          [ Activated (Do (Tap This)) (Act (AddMana (^1) AnyColor
+          [ Activated (Do (Tap This)) (Act (AddMana You (^1) AnyColor
               { riders = [ SpendOnly (And [IsKind Spell, creature, OfChosen])
                          , GrantOnSpend (cant (Enact Counter spellOrAbility (SameAs It))) ] }))  -- {T}: any color — creature spell of the chosen type, uncounterable
           ]
@@ -810,7 +810,7 @@ card_DoublingSeason = Normal $ ^:
       ]
   }
 
--- Time Walk — "target player takes an extra turn after this one." `ExtraTurn {actor = …}` on the
+-- Time Walk — "target player takes an extra turn after this one." `ExtraTurn` names the
 -- targeted player ([CR#505]).
 export
 card_TimeWalk : Card
@@ -818,7 +818,7 @@ card_TimeWalk = Normal $ ^:
   { name := Just "Time Walk"
   , manaCost := [^1, ^Blue]
   , types := [Sorcery]
-  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn {actor = Target 0}))) ]
+  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn (Target 0)))) ]
   }
 
 -- Mindslaver — "{T}, Sacrifice Mindslaver: You control target player during that player's next turn."
@@ -830,7 +830,7 @@ card_Mindslaver = Normal $ ^:
   , manaCost := [^6]
   , types := [Artifact]
   , abilities :=
-      [ Activated (Costs [Do (Tap This), Do (Sacrifice (SameAs This))])
+      [ Activated (Costs [Do (Tap This), Do (Sacrifice You (SameAs This))])
           (Targeted [Target (^1) Anyone] (Act (ControlPlayer (Target 0)))) ]
   }
 
@@ -857,10 +857,10 @@ card_FloodedStrand = Normal $ ^:
   { name := Just "Flooded Strand"
   , types := [Land]
   , abilities :=
-      [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice (SameAs This))])
+      [ Activated (Costs [Do (Tap This), Do (ChangeLife You (LifeOp.Down (^1))), Do (Sacrifice You (SameAs This))])
           (With (SearchOne {from = [Library]} (Or [hasSubtype (landType "Plains"), hasSubtype (landType "Island")]))
             (Sequentially [ Act (Move (That Card) (ToZone Battlefield))     -- the found card: a whiffable Product, noun `Card`
-                      , Act Shuffle ])) ]
+                      , Act (Shuffle (LibraryOf You)) ])) ]
   }
 
 -- Aether Hub — a PLAYER-COUNTER (energy) demo. "You get {E}{E}" is `PutCounters energy (^2) You`, which
@@ -875,48 +875,9 @@ card_AetherHub = Normal $ ^:
   , abilities :=
       [ Triggered (thisEnters)
           (Act (PutCounters energy (^2) You))                                  -- "you get {E}{E}"
-      , Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))                         -- {T}: Add {C}
-      , Activated (Costs [Do (Tap This), Do (RemoveCounters energy (^1) You)]) (Act (AddMana (^1) AnyColor))  -- {T}, Pay {E}: add one mana of any color
+      , Activated (Do (Tap This)) (Act (AddMana You (^1) (^Colorless)))                     -- {T}: Add {C}
+      , Activated (Costs [Do (Tap This), Do (RemoveCounters energy (^1) You)]) (Act (AddMana You (^1) AnyColor))  -- {T}, Pay {E}: add one mana of any color
       ]
-  }
-
--- Thorn of the Black Rose — a PLAYER designation (monarch): ETB → "you become the monarch" =
--- `GrantDesignation monarch You`, which typechecks because `designationKindScope monarch = APlayer`.
-export
-card_ThornOfTheBlackRose : Card
-card_ThornOfTheBlackRose = Normal $ ^:
-  { name := Just "Thorn of the Black Rose"
-  , manaCost := [^2, ^Black]
-  , types := [Creature]
-  , subtypes := [creatureType "Human"]
-  , abilities :=
-      [ keyword Deathtouch
-      , Triggered (thisEnters)
-          (Act (GrantDesignation monarch You))   -- "you become the monarch"
-      ]
-  , power := Just 1
-  , toughness := Just 4
-  }
-
--- Fleecemane Lion — an OBJECT designation (monstrous): Monstrosity grants it (`GrantDesignation
--- monstrous This`), and the statics read it (`HasDesignation monstrous`, an object test) to confer
--- hexproof AND indestructible while monstrous. Indestructible needs no new construct — it's `Replaces`
--- (the destroy of This) with `Sequentially []` (a pure skip).
-export
-card_FleecemaneLion : Card
-card_FleecemaneLion = Normal $ ^:
-  { name := Just "Fleecemane Lion"
-  , manaCost := [^Green, ^White]
-  , types := [Creature]
-  , subtypes := [creatureType "Cat"]
-  , abilities :=
-      [ monstrosity (Mana [^3, ^Green, ^White]) (^1)                       -- Monstrosity 1
-      , Static (While (Matches This (HasDesignation monstrous))
-          (Modify This (ApplyAll [ GrantAbility (keyword (Hexproof Nothing))
-                       , GrantAbility (keyword Indestructible) ])))          -- while monstrous: hexproof + indestructible
-      ]
-  , power := Just 3
-  , toughness := Just 3
   }
 
 -- Goblin Electromancer — continuous COST reduction: "instant and sorcery spells you cast cost {1}
@@ -966,7 +927,7 @@ card_Frogmite = Normal $ ^:
   , toughness := Just 2
   }
 
--- Gaea's Cradle — VARIABLE mana: "{T}: Add {G} for each creature you control" = `AddMana (CountMatching …) (^Green)`.
+-- Gaea's Cradle — VARIABLE mana: "{T}: Add {G} for each creature you control" = `AddMana You (CountMatching …) (^Green)`.
 export
 card_GaeasCradle : Card
 card_GaeasCradle = Normal $ ^:
@@ -974,7 +935,7 @@ card_GaeasCradle = Normal $ ^:
   , types := [Land]
   , supertypes := [Legendary]
   , abilities :=
-      [ Activated (Do (Tap This)) (Act (AddMana (CountMatching (And [permanent, creature, ControlledBy you])) (^Green))) ]
+      [ Activated (Do (Tap This)) (Act (AddMana You (CountMatching (And [permanent, creature, ControlledBy you])) (^Green))) ]
   }
 
 -- Karametra's Acolyte — DEVOTION: "{T}: Add {G} equal to your devotion to green" ([CR#700.5]). Devotion
@@ -989,7 +950,7 @@ card_KarametrasAcolyte = Normal $ ^:
   , subtypes := [creatureType "Human"]
   , abilities :=
       [ Activated (Do (Tap This))
-          (Act (AddMana (Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
+          (Act (AddMana You (Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
                                                  (CountOf (ManaSymbols It (CountsAs Green)))))
                         (^Green))) ]
   , power := Just 1
@@ -1040,7 +1001,7 @@ card_DarksteelCitadel = Normal $ ^:
   , types := [Artifact, Land]
   , abilities :=
       [ keyword Indestructible                              -- Indestructible
-      , Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))      -- {T}: Add {C}
+      , Activated (Do (Tap This)) (Act (AddMana You (^1) (^Colorless)))  -- {T}: Add {C}
       ]
   }
 
@@ -1065,7 +1026,7 @@ card_Skred = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Act (DealDamage (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you])) (Target 0)))) ]
+          (Act (DealDamage This (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you])) (Target 0)))) ]
   }
 
 -- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (saga)`
@@ -1083,7 +1044,7 @@ card_HistoryOfBenalia = Normal $ ^:
         Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
           (If (Or [ Compare (CountersOn loreCounter This) Eq (^1)
                   , Compare (CountersOn loreCounter This) Eq (^2) ])
-              (Act (CreateToken (^1)
+              (Act (Create You (^1)
                 (^: { name := Just "Knight", types := [Creature], subtypes := [creatureType "Knight"]
                     , colors := [White], power := Just 2, toughness := Just 2 }))))
       , -- III — Knights you control get +2/+1 until end of turn
@@ -1112,22 +1073,6 @@ card_MeddlingMage = Normal $ ^:
   , toughness := Just 2
   }
 
--- Vodalian Illusionist — PHASING: "{2}, {T}: Target creature phases out." `PhaseOut` verb +
--- `PhasedOut` state; phasing back in is the engine's turn-based action.
-export
-card_VodalianIllusionist : Card
-card_VodalianIllusionist = Normal $ ^:
-  { name := Just "Vodalian Illusionist"
-  , manaCost := [^1, ^Blue]
-  , types := [Creature]
-  , subtypes := [creatureType "Merfolk", creatureType "Wizard"]
-  , abilities :=
-      [ Activated (Costs [Mana [^2], Do (Tap This)])
-          (Targeted [Target (^1) creature] (Act (PhaseOut (Target 0)))) ]
-  , power := Just 1
-  , toughness := Just 1
-  }
-
 -- Smuggler's Copter — a VEHICLE with CREW (the aggregate-stat cost): "Crew 1" = tap creatures with
 -- total power ≥ 1 to make this Vehicle an artifact creature until end of turn. + loot on attack/block
 -- (the `Begins Attack`/`Begins Block` onset event).
@@ -1141,7 +1086,7 @@ card_SmugglersCopter = Normal $ ^:
   , abilities :=
       [ keyword Flying
       , Triggered (MkEventQuery [Begins Attack, Begins Block] [Agent (SameAs This)])
-          (May (Sequentially [Act (Draw (^1)), discard (^1)]))   -- loot on attack or block
+          (May (Sequentially [Act (DrawCard You (^1)), discard (^1)]))   -- loot on attack or block
       , crew (^1)                                                  -- Crew 1
       ]
   , power := Just 3
@@ -1205,7 +1150,7 @@ card_Tarmogoyf = Normal $ ^:
 
 -- Drudge Skeletons — REGENERATION: "{B}: Regenerate this." The `regenerate` macro sets up the one-shot
 -- this-turn shield (a `Replaces` of the next destroy with heal-tap-remove, `{limit = UpTo 1}`); the
--- heal-tap-remove is spelled from primitives (RemoveAllDamage / Tap / RemoveFromCombat).
+-- heal/remove-combat plus tap is spelled with the current `RemoveDamage` / `Tap` pair.
 export
 card_DrudgeSkeletons : Card
 card_DrudgeSkeletons = Normal $ ^:
@@ -1254,7 +1199,7 @@ card_GarzaZol = Normal $ ^:
       , -- "Whenever ~ deals combat damage to a player, you may draw a card."
         Triggered
           (MkEventQuery [DealDamage (Just True)] [Agent (SameAs This), Patient Anyone])
-          (May (Act (Draw (^1))))
+          (May (Act (DrawCard You (^1))))
       ]
   , power := Just 5
   , toughness := Just 5
@@ -1298,7 +1243,7 @@ vlxMilled = And [IsKind Card, InZone Graveyard, WasPutFrom Library]
 
 -- value-language-extensions Task 5 probe
 vlxRepeat : OneShotEffect b
-vlxRepeat = Repeat (^2) (Act (Draw (^1)))
+vlxRepeat = Repeat (^2) (Act (DrawCard You (^1)))
 
 -- value-language-extensions Task 7 probe (cross-player Aggregate via Players)
 vlxBalance : Count b         -- fewest lands any player controls
@@ -1307,7 +1252,7 @@ vlxBalance = Aggregate MinOf
 
 -- value-language-extensions Task 9 probe (TapForMana event + ProducedMana Ctx-index/variants)
 vlxChromeMox : Action b      -- add one mana of any of the imprinted card's colors
-vlxChromeMox = AddMana (^1) (AmongColorsOf (Only (ExiledBy This)))
+vlxChromeMox = AddMana You (^1) (AmongColorsOf (Only (ExiledBy This)))
 
 -- value-language-extensions Task 10 probe (randomness event kinds RollDice/FlipCoin/RollPlanarDie)
 vlxRollUnion : EventQuery b  -- "roll one or more dice" incl. planar [CR#706.7]
@@ -1317,10 +1262,10 @@ vlxRollUnion = MkEventQuery [RollDice, RollPlanarDie Nothing] [Actor you]
 -- (`ThatMany`'s auto-proof needs a CONCRETE stack to resolve, so `Base` here
 -- rather than a generic `b` -- same as `tThatMany` in Spec.idr.)
 vlxD20 : OneShotEffect Base  -- roll a d20; 15+ -> draw
-vlxD20 = Sequentially [ Act (RollDice (^1) 20)
-                      , If (Compare ThatMany AtLeast (^15)) (Act (Draw (^1))) ]
+vlxD20 = Sequentially [ Act (RollDice You (^1) 20)
+                      , If (Compare ThatMany AtLeast (^15)) (Act (DrawCard You (^1))) ]
 vlxFlip : OneShotEffect Base
-vlxFlip = Sequentially [ Act (FlipCoins (^1) True)
-                       , If (Compare ThatMany AtLeast (^1)) (Act (Draw (^1))) ]
+vlxFlip = Sequentially [ Act (FlipCoins You (^1) True)
+                       , If (Compare ThatMany AtLeast (^1)) (Act (DrawCard You (^1))) ]
 
 --:vim:sts=2 sw=2:

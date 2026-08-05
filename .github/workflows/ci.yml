@@ -128,12 +128,64 @@ jobs:
           cargo xtask cite check
           cargo xtask cite check --list-noncompliant
 
-      # The Idris↔Rust lockstep gate does NOT run here. The committed-
-      # artifact gates this comment once described (elaborator twin-gate,
-      # per-card resolution fixtures) were deleted; their replacement is
-      # `cargo xtask idris-check`, which re-emits each Rust card as a raw
-      # Core.idr term and typechecks it — and that shells out to a live
-      # `idris2`, absent on this runner. So `cargo test` carries no Idris
-      # coverage; idris-check stays a local gate. Wiring it
-      # (or an entailments.ron regen-diff) into CI is a follow-up:
-      # docs/tickets/planned/ci-idris-gate.md.
+  idris:
+    name: Idris mirror
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # Idris2's official source bootstrap uses Chez Scheme. The exact-key
+      # cache is acceleration only: after eviction, the pinned release commit
+      # reconstructs the compiler without relying on a third-party binary.
+      # Chez stays installed on cache hits because emitted executables invoke
+      # it at runtime.
+      - name: install Idris2 prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential chezscheme libgmp-dev
+      - name: restore pinned Idris2
+        id: idris-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.idris2
+          key: idris2-v1-ubuntu-24.04-${{ runner.arch }}-15a3e4e70843f7a34100f6470c04b791330788df
+      - name: fetch pinned Idris2 source
+        if: steps.idris-cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: idris-lang/Idris2
+          ref: 15a3e4e70843f7a34100f6470c04b791330788df
+          path: _idris2
+      - name: bootstrap pinned Idris2
+        if: steps.idris-cache.outputs.cache-hit != 'true'
+        working-directory: _idris2
+        run: |
+          make bootstrap SCHEME=chezscheme VERSION_TAG=15a3e4e70
+          make install PREFIX="$HOME/.idris2" VERSION_TAG=15a3e4e70
+      - name: expose and verify pinned Idris2
+        run: |
+          echo "$HOME/.idris2/bin" >> "$GITHUB_PATH"
+          test "$("$HOME/.idris2/bin/idris2" --version)" = \
+            "Idris 2, version 0.8.0-15a3e4e70"
+      # Save immediately after verification. A later project-model failure is
+      # useful signal and should not force the next run to rebuild the compiler.
+      - name: save pinned Idris2
+        if: steps.idris-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.idris2
+          key: idris2-v1-ubuntu-24.04-${{ runner.arch }}-15a3e4e70843f7a34100f6470c04b791330788df
+
+      - name: build Idris model and proof suite
+        working-directory: idris
+        run: ./scripts/build
+      - name: check canon Idris baseline
+        run: cargo xtask idris-check plugins/canon
+      - name: regenerate entailments and reject drift
+        run: |
+          cp crates/deckmaste_plugin/tables/entailments.ron "$RUNNER_TEMP/entailments.ron"
+          idris/scripts/emit-tables
+          diff -u "$RUNNER_TEMP/entailments.ron" crates/deckmaste_plugin/tables/entailments.ron

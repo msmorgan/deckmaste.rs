@@ -38,11 +38,28 @@ fixtures, were deleted with it.)
 `cargo xtask idris-check <plugin>` (e.g. `plugins/canon`) re-emits every
 finished card as an equivalent raw `Core.idr` term (via
 `deckmaste_plugin::idris_emit`) and typechecks the batch with
-`idris2 --find-ipkg --check`. It reports how many cards typecheck and, for the
-rest, whether it's an emitter gap (no Idris text produced) or an Idris proof
-failure (emitted but rejected — a genuinely unsound card, or an over-strict
-Idris proof). `cargo xtask idris-check <plugin> <card>` checks one card and
-prints the `idris2` output on failure.
+`idris2 --find-ipkg --check`. Batch mode reads the checked-in
+`<plugin>/idris-check-baseline.ron` ratchet and exits nonzero when a required
+pass disappears, an emitter gap is not the exact recorded `(card, reason)`
+pair, or any emitted card fails its Idris proof. Known emitter gaps stay
+visible in both the command output and baseline. New passes and resolved gaps
+also stop the gate until the reviewed improvement is recorded, so a card cannot
+silently relapse behind a stale gap entry.
+
+After reviewing a deliberate coverage change, regenerate the deterministic
+classification with:
+
+    cargo xtask idris-check <plugin> --bless
+
+Blessing refuses to record proof failures. Commit the baseline change with the
+emitter/card change that justified it. `cargo xtask idris-check <plugin>
+<card>` remains the baseline-free single-card probe and prints the `idris2`
+output on failure.
+
+CI's separate **Idris mirror** job bootstraps the pinned Idris2 0.8.0 release,
+checks its exact compiler revision, builds the complete `mtg.ipkg` model, runs
+the canon baseline gate, and regenerates `entailments.ron`; a byte diff against
+the committed table fails the job on model/table drift.
 
 ## Check one transcribed card by hand (the oracle loop)
 
@@ -52,7 +69,7 @@ prints the `idris2` output on failure.
 
    | Rust (RON) | Idris |
    | --- | --- |
-   | `Sequence([...])` | `Sequence [ ... ]` (the telescope — clause i+1 sees clause i's introductions) |
+   | `Sequentially([...])` | `Sequentially [ ... ]` (the telescope — clause i+1 sees clause i's introductions) |
    | `Targeted(targets: [...], effect: e)` | `Targeted [ ... ] e` |
    | `TargetOne(f)` / `Target(Between(1,3), f)` | `Target (^1) f` / `Target (between (^1) (^3)) f` |
    | `Target(n)` (the nth announced target) | `Target n` (a `Reference` reading the nth target slot) |
@@ -62,7 +79,7 @@ prints the `idris2` output on failure.
    | `Distribute { amount, binder, body }` | `Distribute <amount> <binder> (Act <body>)` |
    | `Choose(Exactly(n), filter)` | `Choose (^n) <filter>` (a Many-binder) |
    | `With(ChooseOne(filter), …It…)` | `With (ChooseOne <filter>) (Act …It…)` (the indefinite; the choice binds a frame read by `It`) |
-   | `DealDamage(It, Allotment)` | `DealDamage It Allotment` |
+   | `DealDamage(This, Allotment, It)` | `DealDamage This Allotment It` |
    | `Move(It, Library(FromTop(0)))` | `Move It (ToLibrary (FromTop (^0)))` |
 
 3. Put the term in a scratch module at frame `Base`, then check it:

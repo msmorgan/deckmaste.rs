@@ -192,7 +192,7 @@ public export
 regenerate : OneShotEffect b
 regenerate = Continuously UntilEndOfTurn
   (Replaces (MkEventQuery [Destroy] [Patient (SameAs This)])
-            (Sequentially [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
+            (Sequentially [Act (RemoveDamage This), Act (Tap This)])
             {limit = UpTo (^1)})
 
 -- transport a P-op to toughness: power and toughness share a value class (`CharValue _ Power = Count =
@@ -218,12 +218,12 @@ modifyPT op = [Alter Power op, Alter Toughness (ptTwin op)]
 -- mill n ([CR#701.17a]): put the top n of your library into your graveyard as ONE
 -- simultaneous batch — the [CR#701.17a] "mills as one group" distinction from draw's
 -- per-card [CR#121.2]. Rides `Batch n` over the per-unit slice-family `Composite (Mill
--- You)` whose body is a single top-slot `MoveArranged` to the graveyard (matching the
+-- You)` whose body is a single top-slot `MoveGroup` to the graveyard (matching the
 -- Rust `Mill.ron`/`mill_one`): the count lives on the `Batch`, and the entity-keyed atom
 -- carries only the performer — no count, no per-card `Each`.
 public export
 mill : Count b -> OneShotEffect b
-mill n = Batch n (Act (Composite (Mill You) (Act (MoveArranged (TopOfLibrary (^1)) ChosenOrder (ToZone Graveyard)))))
+mill n = Batch n (Act (Composite (Mill You) (Act (MoveGroup (TopOfLibrary (^1)) ChosenOrder (ToZone Graveyard)))))
 
 -- discard n ([CR#701.9a]): choose n cards from your hand and put them into your graveyard. The choice
 -- is the affected player's, an ordinary `Choose` binder over `inHand` ([CR#701.9b]); the engine realizes
@@ -367,14 +367,6 @@ keyword Mutate              = Keyword (Bare Mutate)        -- DEGENERATE (alt co
 -- KEYWORD ACTIONS (composite verbs over the primitives — the Idris analogue of the engine's
 -- keyword-action macros; named here rather than inlined per card).
 
--- "Monstrosity N" ([CR#701.37]): if THIS isn't monstrous, put N +1/+1 counters on it and it becomes
--- monstrous. An activated ability whose cost varies per card.
-public export
-monstrosity : Cost b -> Count b -> Ability b
-monstrosity cost n = Activated cost
-  (If (Matches This (Not (HasDesignation monstrous)))
-      (Sequentially [ Act (PutCounters p1p1 n This), Act (GrantDesignation monstrous This) ]))
-
 -- "Level up [cost]" ([CR#702.87]): put a level counter on THIS; sorcery-speed only.
 public export
 levelUp : Cost b -> Ability b
@@ -410,9 +402,9 @@ typesInGraveyards = CountDistinct Types (Objects (InZone Graveyard))
 
 -- "exchange life totals" (Axis of Mortality): two ANNOUNCED targets (`Target 0`/`Target 1`) each set to
 -- the OTHER's current life ([CR#701.12a,701.12c] "Exchange" — the general exchange-keyword-action rule
--- covers both life totals and control, [CR#701.12b] below). `SetLifeTo` reads a snapshot via
+-- covers both life totals and control, [CR#701.12b] below). `ChangeLife _ (LifeOp.Set _)` reads a snapshot via
 -- `PlayerStatOf _ Life` BEFORE either write, so the pair is wrapped `Simultaneously` rather than
--- `Sequentially` — writing them in sequence would have the second `SetLifeTo` read the first's
+-- `Sequentially` — writing them in sequence would have the second `ChangeLife` read the first's
 -- already-updated total.
 -- The two slots are the macro's CONTRACT, stated in its type: a positional read
 -- carries its slot's obligation ([CR#115.3,601.2c]), so a fragment written over
@@ -425,8 +417,8 @@ exchangeLife :
   {auto 0 p1 : resolveTarget One 1 (targets b) = Bound APlayer} ->
   OneShotEffect b
 exchangeLife = Simultaneously
-  [ Act (SetLifeTo {actor = Target 0} (PlayerStatOf (Target 1) Life))
-  , Act (SetLifeTo {actor = Target 1} (PlayerStatOf (Target 0) Life)) ]
+  [ Act (ChangeLife (Target 0) (LifeOp.Set (PlayerStatOf (Target 1) Life)))
+  , Act (ChangeLife (Target 1) (LifeOp.Set (PlayerStatOf (Target 0) Life))) ]
 
 -- "exchange control of [This] and target [permanent]" (Avarice Totem): a permanent CONTROL-SWAP, built
 -- from two `Forever` continuous effects rather than one atomic action — each side independently GAINS

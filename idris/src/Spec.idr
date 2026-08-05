@@ -170,14 +170,14 @@ tTelescopeCloudshift =
 -- in v1 where `Produce` was One-only).
 tTelescopeTokens : OneShotEffect Base
 tTelescopeTokens =
-  Sequentially [ Act (CreateToken (^2) (^: { types := [Creature], subtypes := [creatureType "Elemental"], colors := [Red], power := Just 1, toughness := Just 1 }))
+  Sequentially [ Act (Create You (^2) (^: { types := [Creature], subtypes := [creatureType "Elemental"], colors := [Red], power := Just 1, toughness := Just 1 }))
            , Continuously UntilEndOfTurn (Each (Existing (Them Token)) (Modify It (GrantAbility (keyword Haste))))
            , Delayed nextEndStep (Each (Existing They) (Act (Move It (ToZone Graveyard)))) ]
 
 -- "Draw three cards … gain THAT MUCH life" — the value anaphor over the
 -- amount antecedent a card-flow verb pushes ([CR#608.2i]).
 tThatMany : OneShotEffect Base
-tThatMany = Sequentially [ Act (Draw (^3)), Act (GainLife ThatMany) ]
+tThatMany = Sequentially [ Act (DrawCard You (^3)), Act (ChangeLife You (LifeOp.Up ThatMany)) ]
 
 -- the INDEFINITE choice + the May-intro flow (Through the Breach): "You
 -- may put a creature card from your hand onto the battlefield. That
@@ -198,8 +198,8 @@ tIndefiniteMay =
 tLabeledSlots : OneShotEffect Base
 tLabeledSlots =
   Targeted [ anyTarget, Distinct [0] anyTarget ]
-    (Sequentially [ Act (DealDamage (^2) (Target {k = Anything} 0))
-              , Act (DealDamage (^1) (Target {k = Anything} 1)) ])
+    (Sequentially [ Act (DealDamage This (^2) (Target {k = Anything} 0))
+              , Act (DealDamage This (^1) (Target {k = Anything} 1)) ])
 
 -- an event-role antecedent serves the SORTED anaphor (the stack side of the
 -- caps machinery): a discard trigger's object went to a graveyard, so its
@@ -213,14 +213,14 @@ tEventRoleThat = Triggered (MkEventQuery [Discard] [Actor opponent])
 -- canon shape — mirror of `plugins/canon/cards/Goblin Medics.ron`).
 tTriggerTargetLabel : Ability Base
 tTriggerTargetLabel = Triggered (MkEventQuery [Becomes Tapped] [Agent (SameAs This)])
-  (Targeted [anyTarget] (Act (DealDamage (^1) (Target {k = Anything} 0))))
+  (Targeted [anyTarget] (Act (DealDamage This (^1) (Target {k = Anything} 0))))
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
-tMay = May (Act (Draw (^1)))
+tMay = May (Act (DrawCard You (^1)))
 
 tIf : OneShotEffect Base
-tIf = If yourTurn (Act (Draw (^1)))
+tIf = If yourTurn (Act (DrawCard You (^1)))
 
 -- a one-shot creating a continuous effect for a duration
 tContinuously : OneShotEffect Base
@@ -230,16 +230,16 @@ tContinuously = Continuously UntilEndOfTurn (Modify This (ApplyAll (modifyPT (Up
 -- non-empty BY CONSTRUCTION — `Vect (S n)`)
 tModal : OneShotEffect Base
 tModal = Modal (MkChooseSpec (^1))
-  [ MkMode (Act (Draw (^1)))
-  , MkMode (Each (Existing (SelectAll creature)) (Act (DealDamage (^2) It))) {cost = Just (Do (LoseLife (Literal 2)))}  -- mode cost is now a full Cost
+  [ MkMode (Act (DrawCard You (^1)))
+  , MkMode (Each (Existing (SelectAll creature)) (Act (DealDamage This (^2) It))) {cost = Just (Do (ChangeLife You (LifeOp.Down (Literal 2))))}  -- mode cost is now a full Cost
   ]
 
 -- VARIABLE-count modals: the choose-count is a `Quantity`. "Choose one or both" = `between (^1) (^2)`;
 -- "choose one or more" (escalate-style) = `atLeast (^1)` (unbounded upper = implicitly the mode count).
 tModalVariable : List (OneShotEffect Base)
 tModalVariable =
-  [ Modal (MkChooseSpec (between (^1) (^2))) [ MkMode (Act (Draw (^1))), MkMode (Act (GainLife (^2))) ]
-  , Modal (MkChooseSpec (atLeast (^1)))      [ MkMode (Act (Draw (^1))), MkMode (Act (GainLife (^2))) ] ]
+  [ Modal (MkChooseSpec (between (^1) (^2))) [ MkMode (Act (DrawCard You (^1))), MkMode (Act (ChangeLife You (LifeOp.Up (^2)))) ]
+  , Modal (MkChooseSpec (atLeast (^1)))      [ MkMode (Act (DrawCard You (^1))), MkMode (Act (ChangeLife You (LifeOp.Up (^2)))) ] ]
 
 -- `Reflexive` NESTS: inside a `With`, its body still sees the bound product
 -- (no sibling scan; the full outer context, [CR#603.12a])
@@ -251,7 +251,7 @@ tReflexiveSeesThat =
 -- `Each` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
 tForEach = Each (Existing (SelectAll (creature)))
-  (Act (DealDamage (^1) It))
+  (Act (DealDamage This (^1) It))
 
 -- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
 -- reference) — "if ~ is a creature".
@@ -333,7 +333,7 @@ tChosenMode = ChosenIs 1
 -- restricted mana ([CR#106.6]): per-mana `riders` — `SpendOnly` constrains the spend; `GrantOnSpend`
 -- rides the paid-for spell, bound as `It` — Cavern's "creature spell of the chosen type, uncounterable".
 tRestrictedMana : Action (bindChosen ACreatureType Base)
-tRestrictedMana = AddMana (^1) AnyColor
+tRestrictedMana = AddMana You (^1) AnyColor
   { riders = [ SpendOnly (And [IsKind Spell, creature, OfChosen])
              , GrantOnSpend (cant (Enact Counter spellOrAbility (SameAs It))) ] }
 
@@ -460,9 +460,10 @@ tClone = AsEntersChoosing AnObject creature [ Static (Modify This (BecomeCopyOf 
 
 -- "sacrifice a [pred]" as a COST — the payer chooses which (not a specific `Sacrifice This`).
 tSacrificeCost : Cost Base
-tSacrificeCost = Do (Sacrifice creature)
+tSacrificeCost = Do (Sacrifice You creature)
 
--- phasing: the `PhasedOut` state filters a phased permanent; `PhaseOut` is the verb.
+-- The `PhasedOut` state remains queryable even though the current authored
+-- action vocabulary has no phase-out verb.
 tPhasedFilter : Predicate Base AnObject
 tPhasedFilter = And [creature, HasState PhasedOut]
 
@@ -503,10 +504,11 @@ tBecomesCopy44 : StaticEffect CtxCreatureTarget
 tBecomesCopy44 = Modify This
   (ApplyAll [BecomeCopyOf (Target 0), Alter Power (Set (Literal 4)), Alter Toughness (Set (Literal 4))])
 
--- stack-object redirection. `ChangeTarget … This` is Spellskite (named new target);
--- `ChooseNewTargets` is Bolt Bend / Redirect (a player picks). Both ride the original targetspec.
-tChangeTarget : OneShotEffect Base
-tChangeTarget = Targeted [Target (^1) spellOrAbility] (Act (ChangeTarget (Target 0) This))
+-- stack-object redirection carries the retargeting mode, the stack object, and the player
+-- making the choice. This is the general "choose new targets" shape.
+tChooseNewTargets : OneShotEffect Base
+tChooseNewTargets = Targeted [Target (^1) spellOrAbility]
+  (Act (Retarget ChooseNew (Target 0) You))
 
 -- Bolt Bend ([CR#115.7d]) end-to-end: TARGET a "spell or ability with a SINGLE target" — the single-target
 -- restriction is just `TargetCount Eq (^1)` (an existing predicate, no new machinery) conjoined with
@@ -514,7 +516,7 @@ tChangeTarget = Targeted [Target (^1) spellOrAbility] (Act (ChangeTarget (Target
 tBoltBend : OneShotEffect Base
 tBoltBend =
   Targeted [Target (^1) (And [spellOrAbility, TargetCount Eq (^1)])]
-    (Act (ChooseNewTargets (Target 0)))
+    (Act (Retarget ChangeOne (Target 0) You))
 
 -- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
 -- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
@@ -530,7 +532,7 @@ tMoveSomeCounters : OneShotEffect Base
 tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some p1p1 (^1)) This (Target 0)))
 
 tMayCastFor : StaticEffect Base
-tMayCastFor = MayCastFor [Do (LoseLife (^1))]
+tMayCastFor = MayCastFor [Do (ChangeLife You (LifeOp.Down (^1)))]
 
 -- cast-from-zone: the alt-cost's `from` defaults to Hand; a non-default zone is the flashback family
 -- ("cast this from your graveyard for {3}{U}"). The exile-after / exile-N riders compose on separately.
@@ -545,8 +547,8 @@ tHistoryThenWin =
 
 -- an activated ability: a multi-component cost algebra + an effect
 tActivated : Ability Base
-tActivated = Activated (Costs [Mana [^2], Do (Tap This), Do (LoseLife (Literal 1))])
-                       (Act (Draw (^1)))
+tActivated = Activated (Costs [Mana [^2], Do (Tap This), Do (ChangeLife You (LifeOp.Down (Literal 1)))])
+                       (Act (DrawCard You (^1)))
 
 -- a root/printed activation cost stays UNBOUND by type ([CR#608.2k]) — unlike
 -- `AdditionalCost`/`mayPayCostBy`, which deliberately `bindEvent` their
@@ -568,7 +570,9 @@ tActivatedRootCostUnbound = activatedFull
 -- present vs absent. The full `Cost` algebra rides both (here life / mana); the MayPay "if
 -- they do" branch runs in the PAYMENT's caps ([CR#601.2f], `intro`'s `Pay` arm).
 tMayPay : OneShotEffect Base
-tMayPay = mayPayCostBy You (Do (LoseLife (Literal 2))) (Just (Act (Draw (^1)))) (Just (Act (LoseLife (^1))))
+tMayPay = mayPayCostBy You (Do (ChangeLife You (LifeOp.Down (Literal 2))))
+  (Just (Act (DrawCard You (^1))))
+  (Just (Act (ChangeLife You (LifeOp.Down (^1)))))
 
 tMustPay : OneShotEffect Base
 tMustPay = mayPayCostBy You (Mana [^2]) Nothing (Just (Act (Counter (Only (IsKind Spell)))))
@@ -600,7 +604,7 @@ tAnthem = Static (Each (Existing (SelectAll (And [hasType Creature, ControlledBy
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
-tLoyalty = Activated (Do (RemoveCounters loyaltyCounter (Literal 2) This)) (Act (Draw (^1)))
+tLoyalty = Activated (Do (RemoveCounters loyaltyCounter (Literal 2) This)) (Act (DrawCard You (^1)))
 
 -- the value language: arithmetic, player attributes, counters-on, new stats, that-much
 tValues : List (Count Base)
@@ -661,7 +665,7 @@ tGlobalSbas =
 tVerbs : List (OneShotEffect Base)
 tVerbs =
   [ scry (Literal 2)
-  , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
+  , Act (Create You (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
   , With (SearchOne {from = [Library, Graveyard]} (HasName "Forest")) (Act (Move (That Card) (ToZone Hand)))  -- tutor across two zones; the found card is a whiffable Product, noun `Card`
   , Act (Copy (Only (IsKind Spell)) []) ]
 
@@ -669,14 +673,14 @@ tVerbs =
 -- This is the payoff of parameterizing `Characteristics` by `b`: a card `Face` is `Characteristics
 -- Base`, but a token's stats can read the live context, and both share the `^: { … }` builder.
 tDynamicToken : OneShotEffect Base
-tDynamicToken = Act (CreateToken (^1)
+tDynamicToken = Act (Create You (^1)
   (^: { name := Just "Ooze", types := [Creature], colors := [Green]
       , power := Just (CountMatching creature), toughness := Just (CountMatching creature) }))
 
 -- a NAMELESS token (name defaults to Nothing): most tokens have no name. Only the lenient floor
 -- (CharacteristicsOk: ≥1 type) is required — no name, no P/T-vs-type coupling (Vehicle/Tarmogoyf).
 tNamelessToken : OneShotEffect Base
-tNamelessToken = Act (CreateToken (^2)
+tNamelessToken = Act (Create You (^2)
   (^: { types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
 
 -- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
@@ -691,7 +695,7 @@ tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
-  Activated (Do (RemoveCounters loyaltyCounter (Literal 1) This)) (Act (Draw (^1))) {window = AsSorcery, limits = [OncePerTurn]}
+  Activated (Do (RemoveCounters loyaltyCounter (Literal 1) This)) (Act (DrawCard You (^1))) {window = AsSorcery, limits = [OncePerTurn]}
 
 -- P/T in the value language: SIGNED deltas (Alter Power/Toughness Up/Down) and a dynamic base via `Set`.
 tPTMods : List (Modification Base)
@@ -729,7 +733,7 @@ tPlayerTarget = lifeTotal (Target 0)
 
 -- "each player" is a player-`Selection`; `Each` binds a player `It` (EachPlayer dissolved)
 tEachPlayerForEach : OneShotEffect Base
-tEachPlayerForEach = Each (Existing eachPlayer) (Act (Draw {actor = It} (^1)))
+tEachPlayerForEach = Each (Existing eachPlayer) (Act (DrawCard It (^1)))
 
 -- MIXED-kind multi-target (Donate: "target player gains control of target
 -- permanent"): each slot is named by its INDEX, and each read takes its kind
@@ -805,12 +809,12 @@ tHaste : Ability Base
 tHaste = keyword Haste
 
 -- the `^` prefix alias = `promote`: terse in lists / delimited position (`[^Red, ^1]`). In a
--- juxtaposed ARGUMENT it needs parens — `Draw (^1)` — since bare `Draw ^1` reads `^` as infix.
+-- juxtaposed ARGUMENT it needs parens — `DrawCard You (^1)` — since bare `DrawCard You ^1` reads `^` as infix.
 tPromoteOp : ManaCost
 tPromoteOp = [^Red, ^1, ^Blue]
 
 tPromoteOpArg : OneShotEffect Base
-tPromoteOpArg = Act (Draw (^1))
+tPromoteOpArg = Act (DrawCard You (^1))
 
 -- `Single` demotes a selection to its sole element (the dual of `Only`).
 tSingle : Reference Base AnObject
@@ -821,7 +825,7 @@ tSingle = Single (SelectAll creature)
 -- the group, each element dealt its `Allotment` (the Arc Lightning canon shape).
 tPluralTarget : OneShotEffect Base
 tPluralTarget = Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
-  (Distribute (^2) (Existing (Targets 0)) (Act (DealDamage Allotment It)))
+  (Distribute (^2) (Existing (Targets 0)) (Act (DealDamage This Allotment It)))
 
 -- the SAME `Distribute` over a different body: "distribute three +1/+1 counters among any number of target
 -- creatures" (Hunting Triad) — `PutCounters` per element, each getting its `Allotment`. Carrier-typed.
@@ -864,7 +868,7 @@ failing "unbindTargets"
 -- ([CR#115.7e,601.2c]).
 failing "distinctOk"
   tBadDistinctSibling : OneShotEffect Base
-  tBadDistinctSibling = Targeted [Distinct [1] anyTarget] (Act (DealDamage (^1) (Target 0)))
+  tBadDistinctSibling = Targeted [Distinct [1] anyTarget] (Act (DealDamage This (^1) (Target 0)))
 
 -- AN ANAPHOR NEVER READS A TARGET. A slot pushes no antecedent, so in a body
 -- whose only "candidate" is an announced target the sorted anaphor has nothing
@@ -913,7 +917,7 @@ failing "resolveTarget Many 0"
 -- read the group as `They`/`Them`).
 failing "resolveStack (Just Token) One"
   tBadOneFromMany : OneShotEffect Base
-  tBadOneFromMany = Sequentially [ Act (CreateToken (^2) (^: { types := [Creature] }))
+  tBadOneFromMany = Sequentially [ Act (Create You (^2) (^: { types := [Creature] }))
                              , Act (destroy (That Token)) ]
 
 -- ...nor a plural anaphor a ONE antecedent (read it as `It`/`That w`) — over a
@@ -926,7 +930,7 @@ failing "innermostFrame ((bindThat (binderAnte (ChooseOne creature)) Base) .stac
 -- antecedent — the compat table's most load-bearing closed pair.
 failing "resolveStack (Just Card) One ((intro"
   tBadTokenIsNotCard : OneShotEffect Base
-  tBadTokenIsNotCard = Sequentially [ Act (CreateToken (^1) (^: { types := [Creature] }))
+  tBadTokenIsNotCard = Sequentially [ Act (Create You (^1) (^: { types := [Creature] }))
                                 , Act (Move (That Card) (ToZone Exile)) ]
 
 -- `Allotment` outside any `Distribute` body.
@@ -943,7 +947,9 @@ failing "candidates (Just Amount) One (Base .stack)"
 -- value anaphora too ([CR#608.2i]).
 failing "candidates (Just Amount) One ((intro"
   tBadAmbiguousAmount : OneShotEffect Base
-  tBadAmbiguousAmount = Sequentially [ Act (Draw (^2)), Act (GainLife (^3)), Act (LoseLife ThatMany) ]
+  tBadAmbiguousAmount = Sequentially [ Act (DrawCard You (^2))
+                                 , Act (ChangeLife You (LifeOp.Up (^3)))
+                                 , Act (ChangeLife You (LifeOp.Down ThatMany)) ]
 
 -- an ORDERED zone is no bare destination ([CR#401.4]) — position it with
 -- `ToLibrary (FromTop …)`.
@@ -982,11 +988,6 @@ tMonarchPredicate = HasDesignation monarch
 failing "APlayer"
   tBadPoisonOnObject : Action Base
   tBadPoisonOnObject = PutCounters poison (^1) This
-
--- granting a PLAYER designation to an object is a type error — `designationKindScope monarch` reduces to `APlayer`
-failing "APlayer"
-  tBadDesignationScope : Action Base
-  tBadDesignationScope = GrantDesignation monarch This
 
 -- the `Predicate`-indexed constructors discriminate too: `HasCounter poison` is a PLAYER predicate
 -- (`counterKindScope poison` reduces to `APlayer`), so forcing it at an object index is a type error.
@@ -1058,7 +1059,7 @@ failing ".hasObject = True"
 -- `EventAmount` (the amount) in a `Begins Cast` body — a cast carries no amount.
 failing ".hasAmount = True"
   tBadThatMuchNoAmount : StaticEffect Base
-  tBadThatMuchNoAmount = Replaces (MkEventQuery [Begins Cast] []) (Act (DealDamage EventAmount This))
+  tBadThatMuchNoAmount = Replaces (MkEventQuery [Begins Cast] []) (Act (DealDamage This EventAmount This))
 
 -- `EventActor` ("that player") in a Destroy body — a destruction has no actor.
 failing ".hasActor = True"
@@ -1075,7 +1076,8 @@ failing ".patientKind = Just"
 -- no defender ([CR#506.2,508.5]).
 failing ".hasDefender = True"
   tBadDefenderNoCombat : Ability Base
-  tBadDefenderNoCombat = Triggered thisEnters (Act (LoseLife {actor = DefendingPlayer} (^1)))
+  tBadDefenderNoCombat = Triggered thisEnters
+    (Act (ChangeLife DefendingPlayer (LifeOp.Down (^1))))
 
 -- ...and the anaphora DO work where the event supplies them: `EventActor` in a `Begins Cast` body (the caster).
 tEventActorValid : Ability Base
@@ -1100,7 +1102,7 @@ failing ".hasAmount = True"
   tBadDrawThatManyOnEnter : Ability Base
   tBadDrawThatManyOnEnter =
     Triggered (MkEventQuery [ZoneChanged Nothing (Just Battlefield)] [Agent creature])
-      (Act (Draw EventAmount))
+      (Act (DrawCard You EventAmount))
 
 -- BOUNDED-NUMERIC gates. An inverted range ("between 5 and 2") — `OrderedRange` rejects `lo > hi`.
 failing "OrderedRange"
@@ -1115,7 +1117,7 @@ failing "Num MainPhaseKind"
 -- a modal "choose 5" of a single mode — `modalCountOk` bounds the literal count by the mode count.
 failing "modalCountOk"
   tBadModalOverCount : OneShotEffect Base
-  tBadModalOverCount = Modal (MkChooseSpec (^5)) [ MkMode (Act (Draw (^1))) ]
+  tBadModalOverCount = Modal (MkChooseSpec (^5)) [ MkMode (Act (DrawCard You (^1))) ]
 
 -- a modal with NO modes — the `Vect (S n)` mode vector has no empty form.
 failing "Mismatch between: 0 and S"
