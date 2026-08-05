@@ -1,15 +1,12 @@
 # deckmaste.rs
 
-deckmaste.rs is a Magic: The Gathering rules engine written in Rust. Its central
-design decision is to represent cards as declarative data interpreted by a shared
-rules engine, rather than as per-card scripts. A small typed language describes
-what each card does, and the engine implements the rules themselves — the stack,
-triggered abilities, continuous effects, combat, and so on — applying them to
-that description.
+> **Reading the card explains the card.**
 
-> I'm fond of language — natural and programming alike — and I'm fond of Magic:
-> The Gathering. I've long wondered if the rules text of Magic cards was a
-> structured data language in disguise. This is that project.
+deckmaste.rs takes that familiar Magic maxim as an engineering constraint. A
+card describes what it does as declarative data; one shared Rust engine supplies
+the rules that make those words mean something. The stack, triggered abilities,
+continuous effects, combat, and the rest are rules systems, not code attached to
+individual cards.
 
 ![The interactive terminal client mid-game: the hotseat demo's board across
 every zone, priority and blocker prompts, and card detail text rendered from
@@ -17,6 +14,15 @@ the cards' authored definitions.](docs/assets/tui-demo.webp)
 
 *`cargo run` — the interactive client playing the hotseat demo, Goblins vs.
 Elves.*
+
+---
+
+## Start here
+
+The [guided tour](docs/guided_tour.md) follows one card from authored data into
+the shared rules engine and the Idris proof boundary. It is the shortest path
+through the repository; `cargo run` takes the same path into the client shown
+above.
 
 ---
 
