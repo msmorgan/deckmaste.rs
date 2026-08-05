@@ -4,6 +4,8 @@ Settled 2026-08-02, after the action-role-reshape landed. This decision is
 the design contract for the authored-grammar program; the ticket map in §15
 implements it. Like every decision doc: it records intended design, current
 code wins on incidental drift, and changing it requires explicit review.
+Clarified 2026-08-04 to distinguish Oracle text's upstream authority from the
+authored form's downstream canonicality; no type boundary changed.
 
 ## 1. Summary
 
@@ -21,13 +23,15 @@ deckmaste_english ◄════════════════► deckmas
                     defs)
 ```
 
-- **`deckmaste_authoring`** is the single source of truth: the authored
-  rules grammar every card-content container is written in — card files,
-  token files, and the `rules/` engine tables. It owns the types, the kind
-  registry and `SupportsMacros` machinery, identity-macro registration,
-  the collision diagnostic, the scope-calculus and sugar forms, and
-  normalization (desugar + scope elaboration, authored → authored normal
-  form).
+- **`deckmaste_authoring`** is the canonical semantic form: the normalized,
+  information-complete rules grammar persisted in every card-content container
+  — card files, token files, and the `rules/` engine tables. For existing Magic
+  cards, Oracle text is the authoritative source input and recovery compiles it
+  into this form; downstream rendering and lowering then treat the authored term
+  as their single source of truth. The crate owns the types, the kind registry
+  and `SupportsMacros` machinery, identity-macro registration, the collision
+  diagnostic, the scope-calculus and sugar forms, and normalization (desugar +
+  scope elaboration, authored → authored normal form).
 - **`deckmaste_spelling`** is the authored ⇄ English relation:
   `deckmaste_frames` renamed and absorbed — the ENGINE (compile/unify/
   render). "Frames" survives as the name of the lexicon's entries, and the
@@ -131,21 +135,46 @@ re-derivable the same way):
   Strength, Arc Trail, Arc Lightning, Pyrotechnics, Fling, Do or Die,
   Otherworldly Journey, Ephemerate, Cloudshift.
 
-## 3. Architecture: one authority, two projections
+## 3. Architecture: one canonical form, two projections
 
-**Authored form is the source; everything else is derived.** English text
-is an input to recovery and an output of rendering, never stored truth.
-Core is a compiled artifact — cached at most, keyed by content digest,
-never treated as source. One narrow, declared exception: engine STRATEGY
-configuration is authored directly in core terms via plain serde — it is
-engine configuration, not card content, and sits outside the authoring
-program (see the §4 container table). The spelling relation is **ranked,
-not bijective**: several authored spellings may word identically and one
-sentence may recover to several candidates; ambiguity surfaces as
-candidates, never resolved by assembly order. "Faithful" means semantic
-round-trip plus canonical wording; byte-exact replay is out of scope (an
-optional non-semantic surface witness can be added later if it is ever
-genuinely needed).
+**Oracle text is authoritative input; authored form is canonical semantics.**
+For the existing Magic corpus, recovery compiles Oracle text into one normalized,
+information-complete form. Persisting that form as RON caches a compilation worth
+performing once across roughly thirty thousand cards; it does not make RON a
+competing upstream authority. Once compiled, the authored term is the only input
+to the two downstream projections: English rendering and core lowering. Core is
+a compiled artifact — cached at most, keyed by content digest, never treated as
+source.
+
+**Information-complete does not mean exhaustive.** The canonical form is
+deliberately minimal and human-legible: it preserves every distinction required
+to render or lower the card, but no parser trace, redundant machine expansion,
+or non-semantic authoring choice. A reader familiar with the card should be able
+to diagnose a mistranslation from its compact RON without understanding the
+compiler's internals. This debuggability is part of the representation contract,
+not incidental prettiness.
+
+The mechanism is the built-in macro library together with its construction
+frames. Macros give recurring semantic constructions compact, rules-shaped
+names; frames define how those names recover from and spell as English. Compiled
+together as a lexicon, those frames are also the ingestion program: unification
+against the parsed English tree chooses a macro, recovers its typed arguments,
+and recursively assembles the canonical RON term. Frame coverage is therefore
+card-ingestion coverage. The explicit expansion remains the meaning, so this
+compression loses no structure and can always be reduced before lowering or
+proof.
+
+The authoring interface for future custom-content plugins remains open: prose,
+direct RON, or both can be accepted, provided every path produces this same
+normalized form before rendering or lowering. One narrow, declared exception:
+engine STRATEGY configuration is authored directly in core terms via plain serde
+— it is engine configuration, not card content, and sits outside the authoring
+program (see the §4 container table). The spelling relation is **ranked, not
+bijective**: several authored spellings may word identically and one sentence may
+recover to several candidates; ambiguity surfaces as candidates, never resolved
+by assembly order. "Faithful" means semantic round-trip plus canonical wording;
+byte-exact replay is out of scope (an optional non-semantic surface witness can
+be added later if it is ever genuinely needed).
 
 Recovery (English → authored) uses transient, in-memory handles for
 binder/discourse linking inside its derivation; the derivation is erased to

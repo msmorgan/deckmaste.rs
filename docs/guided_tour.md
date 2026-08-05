@@ -1,26 +1,37 @@
 # Guided tour
 
 deckmaste.rs is easiest to read along the same path a card takes: Oracle text is
-parsed into a typed intermediate form, while the card's printed characteristics
-arrive as structured metadata. The intermediate form can then be rendered back
-to English or lowered into a shared rules engine. This tour follows one example
-through that path.
+compiled into a typed intermediate form, while the card's printed
+characteristics arrive as structured metadata. That information-complete form
+can then be rendered back to English or lowered into a shared rules engine. This
+tour follows one example through that path.
 
 ## Oracle text becomes typed data
 
 [Elesh Norn, Grand
 Cenobite](../plugins/canon/cards/Elesh%20Norn,%20Grand%20Cenobite.ron) is the
-current cached intermediate form of the card: its characteristics and three
+current persisted intermediate form of the card: its characteristics and three
 composed abilities — vigilance, a static boost for other creatures you control,
 and a static penalty for creatures your opponents control. There is no Elesh
 Norn class or resolution script. The two statics use the same predicates and
 modifications available to every other card.
 
-Oracle text is the source for rules semantics; the structured characteristics
-join it in this RON cache. The curated cache is still written and verified by
-hand while structural recovery grows, but its intended producer is the English
-parser and spelling relation. From here the term macro-expands and lowers into
-the smaller core vocabulary the engine executes. The crate map in
+The canonical form is deliberately minimal as well as complete. It preserves
+everything rendering and execution need without retaining a parser trace or an
+expanded machine dump, so a mistranslation can be investigated by comparing
+this short RON term with the card itself. The built-in macro library provides
+the compact, rules-shaped names; its construction frames connect those names to
+the Oracle phrases they recover and spell. Those same frames drive ingestion:
+the compiled frame lexicon matches the parsed Oracle tree, each match identifies
+a macro and fills its typed arguments, and nested matches assemble the persisted
+RON card.
+
+Oracle text is the authoritative input for existing cards; after compilation,
+the RON term is their canonical semantic representation, joined by the
+structured characteristics. The curated corpus is still written and verified
+by hand while structural recovery grows, but its intended producer is the
+English parser and spelling relation. From here the term macro-expands and
+lowers into the smaller core vocabulary the engine executes. The crate map in
 [Architecture](../README.md#architecture) shows those projections.
 
 The English-side projection checks losslessness: `cargo xtask english roundtrip`

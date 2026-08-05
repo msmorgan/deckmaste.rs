@@ -4,10 +4,12 @@
 
 deckmaste.rs takes that familiar Magic maxim literally: its goal is to generate
 playable cards directly from Oracle text. The bet is that Oracle text is a
-structured data language in disguise: parsing exposes a typed intermediate form
-that can be cached, rendered back to English, or lowered into the core primitives
-one shared Rust engine executes. The stack, continuous effects, combat, and the
-rest are rules systems, not code attached to individual cards.
+structured data language in disguise: parsing compiles it into a compact typed
+intermediate form that contains the card's complete recovered meaning. That
+canonical semantic form is retained as RON, rendered back to English, or lowered
+into the core primitives one shared Rust engine executes. The stack, continuous
+effects, combat, and the rest are rules systems, not code attached to individual
+cards.
 
 ![The interactive terminal client mid-game: the hotseat demo's board across
 every zone, priority and blocker prompts, and card detail text rendered from
@@ -104,12 +106,14 @@ thousand complete games.
 
 ## Architecture
 
-For a card's rules semantics, **Oracle text is the source language**. Its other
-printed characteristics — name, mana cost, type line, power and toughness —
-arrive alongside it as structured metadata. Parsing the rules text produces an
-English syntax tree; recovery produces a normalized typed intermediate form
-that can be cached. From that hub, spelling renders English and lowering
-compiles the core AST the engine executes:
+For an existing Magic card's rules semantics, **Oracle text is the authoritative
+source input**. Its other printed characteristics — name, mana cost, type line,
+power and toughness — arrive alongside it as structured metadata. Parsing the
+rules text produces an English syntax tree; recovery compiles that tree into the
+canonical normalized intermediate form: the single information-complete
+representation from which spelling renders English and lowering compiles the
+core AST the engine executes. Persisting that form as RON caches the compilation;
+it does not create a competing authority.
 
 ```
 Oracle text
@@ -117,7 +121,8 @@ Oracle text
 deckmaste_english
     ⇅ deckmaste_spelling: recover / spell
 deckmaste_authoring ── deckmaste_lowering: lower ──► deckmaste_core
-  typed IR cache                                           engine AST
+  canonical typed IR                                      engine AST
+  persisted as RON
 ```
 
 This split is recent (settled August 2026, and still completing — see the
@@ -133,13 +138,13 @@ launches the client:
 **The card grammar and its projections**
 
 - **`deckmaste_authoring`** — the typed intermediate rules grammar: the
-  normalized hub recovered from Oracle text and cached in today's card, token,
-  and rules-table containers, plus its macro layer (sugar desugars at load; the
-  explicit form is always the meaning).
+  canonical normalized hub recovered from Oracle text and persisted as RON in
+  today's card, token, and rules-table containers, plus its macro layer (sugar
+  desugars at load; the explicit form is always the meaning).
 - **`deckmaste_spelling`** — the intermediate ⇄ English relation, built on
   *frames*: English templates with
-  typed holes, compiled from a macro definition and unified back against real
-  card text.
+  typed holes. The frames compile into the lexicon that matches real card text
+  and reconstructs the corresponding macro invocations and arguments.
 - **`deckmaste_lowering`** — the one-way compile from intermediate form to the
   engine's types. Generated as an exact mirror at the fork, it doubles as the
   divergence ledger: every arm that stops being an identity carries its
@@ -183,11 +188,21 @@ launches the client:
 
 The load-bearing rules for the split are:
 
-- **Oracle text is the source for rules semantics; the intermediate form is a
-  cache.** Printed characteristics travel alongside it as typed metadata. The
-  cache may contain only recoverable meaning: anything parsing would have to
-  invent or rendering would discard — implementation-only binder names,
-  layout labels, or sugar choices — is decoration and cannot be canonical.
+- **Oracle text is the authoritative input; the intermediate form is the
+  canonical semantics.** Printed characteristics travel alongside it as typed
+  metadata. Once compiled, the normalized IR is the minimal,
+  information-complete source for both downstream projections. Persisting it as
+  RON avoids reparsing the card pool, but it may contain only recoverable meaning:
+  anything parsing would have to invent or rendering would discard —
+  implementation-only binder names, layout labels, or sugar choices — is
+  decoration, not semantics. The result stays small and game-shaped enough that
+  a reader who knows the card, rather than the compiler, can inspect a bad
+  translation directly. The built-in macro library supplies that compression:
+  macros name recurring rules constructions, while their construction frames
+  specify how those names recover from and spell as Oracle text. During
+  ingestion, matching those frames against the parsed sentence assembles the
+  macro terms that become the persisted card. Expanding the macros still yields
+  the full explicit structure whenever it is needed.
 - **Spelling is ranked, not bijective.** Several intermediate terms may word
   identically, and one sentence may recover to several candidate terms;
   ambiguity surfaces as candidates rather than being resolved by accident of
@@ -253,10 +268,12 @@ each deleting its handwritten paths in the change that derives it.
 
 Together with the spelling layer, this grammar is the successor to the regex
 migration pipeline: parse Oracle text into English syntax, then recover
-intermediate terms by unifying against frames. Frame coverage grows in ongoing
-rounds that attach `frames:` to macro definitions; the regex pipeline and the
-legacy renderer remain as shadow oracles — measurements, not authorities —
-until each feature family crosses its gates.
+intermediate terms by unifying against frames. A successful match identifies the
+macro and fills its typed arguments; nested matches assemble the RON card. Frame
+coverage therefore directly drives next-generation ingestion. It grows in
+ongoing rounds that attach `frames:` to macro definitions; the regex pipeline
+and the legacy renderer remain as shadow oracles — measurements, not authorities
+— until each feature family crosses its gates.
 
 ---
 
@@ -340,6 +357,11 @@ longer-term aim. The hub is checked in both directions: rendering back to the
 Oracle sentence measures language fidelity, while lowering into core produces
 playable behavior. The client still uses the partial legacy renderer today;
 grammar-backed rendering replaces it as construction coverage grows.
+
+The same boundary leaves the future custom-set authoring interface open. A
+plugin can accept prose, check it, and compile it into the same RON form; whether
+plugins expose prose, direct RON, or both is an authoring-interface decision, not
+an engine architecture change.
 
 ---
 
