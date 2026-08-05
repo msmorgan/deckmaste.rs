@@ -9,7 +9,10 @@ preexisting CR/corpus-derived grammar reference. It is independent of this
 repository's implementation and project documentation (transcript-audited: no
 code, design docs, or tickets were read; project instructions contributed the
 citation format). The card corpus is authoritative on conflict: amend this
-guide only with corpus evidence, such as a round-trip failure.
+guide only with corpus evidence, such as a round-trip failure. Corpus evidence
+is read through the project's input normalization (canonical quotes and range
+dashes): a glyph the data channels transcode differently is judged by its
+canonical, print-verified form, not by any one export's bytes.
 
 ## Scope and authority
 
@@ -376,13 +379,14 @@ modal bullet begins with a capital and ends with a period.
 Use ` | `, one space on each side of the vertical bar, after a d20 result or a
 Station threshold:
 
-> 1—9 | Draw a card.  
-> 10—20 | Draw two cards.  
+> 1–9 | Draw a card.  
+> 10–20 | Draw two cards.  
 > 8+ | Flying, trample
 
-Use an unspaced em dash for a closed numeric result range: `1—9`. Use `N+` for
-an open upper range and `N or less` when the lower end is open in ordinary
-English.
+Use an unspaced U+2013 EN DASH for a closed numeric result range: `1–9`.
+Database exports commonly transcode this character as an em dash or an ASCII
+hyphen; the character on the printed card is the en dash. Use `N+` for an open
+upper range and `N or less` when the lower end is open in ordinary English.
 
 Use literal square brackets only when an approved keyword template marks text
 that can be removed. They are not generic optional-text notation:
@@ -2367,11 +2371,11 @@ Put the roll instruction in an ordinary sentence, then one result line per
 outcome range:
 
 > Roll a d20.  
-> 1—9 | [Effect.]  
-> 10—19 | [Effect.]  
+> 1–9 | [Effect.]  
+> 10–19 | [Effect.]  
 > 20 | [Effect.]
 
-In a d20 table, use an unspaced em dash for a closed range and spaces around
+In a d20 table, use an unspaced en dash for a closed range and spaces around
 `|`. A result line is subordinate to the roll instruction; do not make each
 result an ability. Use `N+` or `N or less` when a modified roll can leave one
 side unbounded.
