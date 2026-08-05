@@ -117,22 +117,23 @@ jobs:
       # 50-game matchup in the same test target is ignored and stays opt-in.
       - name: noncanon WC99 fixed-seed gate
         run: cargo test -p deckmaste_noncanon --features noncanon_tests --test wc99
-      # CR coverage ratchet. Unlike `cite check`, this needs no skill and no
-      # cr.json — it self-scans committed sources and compares to the committed
-      # cr-coverage.lock, so it is green on a clean runner.
+      # The coverage ratchet self-scans committed sources and compares them to
+      # the committed cr-coverage.lock.
       - name: cr coverage ratchet
         run: cargo xtask cite coverage --check
-      # NOTE: `cargo xtask cite check` is intentionally not run yet — although
-      # the CR snapshot is now staged, the command shells out to the mtg-rules
-      # skill, which a clean runner does not have. Installing that skill remains
-      # a follow-up.
-      #
+      # Both checks use the digest-verified cr.txt staged above: the first pins
+      # cited rule text, while the second rejects loose citation spellings.
+      - name: cr citation check
+        run: |
+          cargo xtask cite check
+          cargo xtask cite check --list-noncompliant
+
       # The Idris↔Rust lockstep gate does NOT run here. The committed-
       # artifact gates this comment once described (elaborator twin-gate,
       # per-card resolution fixtures) were deleted; their replacement is
       # `cargo xtask idris-check`, which re-emits each Rust card as a raw
       # Core.idr term and typechecks it — and that shells out to a live
       # `idris2`, absent on this runner. So `cargo test` carries no Idris
-      # coverage; like cite check, idris-check stays a local gate. Wiring it
+      # coverage; idris-check stays a local gate. Wiring it
       # (or an entailments.ron regen-diff) into CI is a follow-up:
       # docs/tickets/planned/ci-idris-gate.md.

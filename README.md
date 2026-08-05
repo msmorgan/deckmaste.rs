@@ -61,10 +61,9 @@ the card often reduce to the same underlying construct:
   snapshot carried by the event, not from stale references.
 
 Rules-bearing code cites the Comprehensive Rules by number (for example,
-`[CR#603.4]`), and a companion skill,
-[mtg-rules](https://github.com/msmorgan/mtg-rules), checks those citations
-against a fixed snapshot of the rules text, flagging any that are stale or
-unregistered. Card descriptions are statically typed, so
+`[CR#603.4]`), and the repository's `cargo xtask cite check` validates those
+citations against a fixed snapshot of the rules text, flagging any that are
+stale or unregistered. Card descriptions are statically typed, so
 an ill-formed description fails to parse or validate rather than misbehaving at
 runtime.
 

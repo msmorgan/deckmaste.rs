@@ -16,8 +16,8 @@ pub fn extract_bracket_rules(text: &str) -> Vec<String> {
         let body = &rest[..end];
         rest = &rest[end + 1..];
         // An ellipsis-only body is prose *about* the citation format (a doc
-        // writing `[CR#…]`), not a citation — the shared fish checker resolves
-        // it as "placeholder" and ignores it; match that. Deliberately narrow:
+        // writing `[CR#…]`), not a citation — the citation checker resolves it
+        // as "placeholder" and ignores it; match that. Deliberately narrow:
         // `[CR#]` and `[CR#rule]` still fall through, as those are typos.
         if matches!(body.trim(), "..." | "…") {
             continue;

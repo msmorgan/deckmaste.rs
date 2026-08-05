@@ -2125,9 +2125,11 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rayon",
+ "regex",
  "ron",
  "serde",
  "serde_json",
+ "sha2",
  "syn",
 ]
 
