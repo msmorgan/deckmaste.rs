@@ -113,6 +113,10 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
         run: cargo test --workspace
+      # Exercise the data-driven WC99 strategy gate with its fixed seed. The
+      # 50-game matchup in the same test target is ignored and stays opt-in.
+      - name: noncanon WC99 fixed-seed gate
+        run: cargo test -p deckmaste_noncanon --features noncanon_tests --test wc99
       # CR coverage ratchet. Unlike `cite check`, this needs no skill and no
       # cr.json — it self-scans committed sources and compares to the committed
       # cr-coverage.lock, so it is green on a clean runner.

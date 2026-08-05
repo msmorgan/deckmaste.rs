@@ -1,6 +1,7 @@
-//! The Sped-Red-vs-Stompy Worlds 1999 matchup suite. Gated: run with
-//! `cargo test -p deckmaste_noncanon --features noncanon_tests`.
-//! `GAMES=n` overrides the batch size.
+//! The Sped-Red-vs-Stompy Worlds 1999 matchup suite. The fixed-seed gate runs
+//! with `cargo test -p deckmaste_noncanon --features noncanon_tests --test
+//! wc99`. The ignored 50-game matchup is opt-in; `GAMES=n` overrides its batch
+//! size.
 #![cfg(feature = "noncanon_tests")]
 
 use std::sync::Arc;
@@ -26,10 +27,15 @@ fn batch_size() -> u64 {
         .unwrap_or(50)
 }
 
-fn run_batch(decks: &[Vec<Arc<Card>>; 2], rules: &EngineRules) -> Vec<GameRecord> {
+fn run_batch(
+    decks: &[Vec<Arc<Card>>; 2],
+    rules: &EngineRules,
+    seeds: impl IntoIterator<Item = u64>,
+) -> Vec<GameRecord> {
     let p0 = MatchupStrategy::sped_red(PlayerId(0));
     let p1 = MatchupStrategy::stompy(PlayerId(1));
-    (0..batch_size())
+    seeds
+        .into_iter()
         .map(|seed| {
             let rec = play_game(
                 Setup {
@@ -79,19 +85,16 @@ fn report(label: &str, records: &[GameRecord]) -> (u64, u64, Probes) {
     (wins[0], wins[1], probes)
 }
 
-/// Exact 60-card Worlds 1999 deck shapes.
-#[test]
-#[cfg_attr(not(wizards_corpus), ignore = "needs generated plugins/wizards corpus")]
-fn historical_full_gate() {
+fn load_matchup() -> (CardSource, [Vec<Arc<Card>>; 2]) {
     let src = CardSource::load();
     let decks = [
         deck::build_full(&wc99::SPED_RED, &src),
         deck::build_full(&wc99::STOMPY, &src),
     ];
-    let records = run_batch(&decks, &src.engine_rules());
-    let (red, green, probes) = report("sped red vs stompy, Worlds 1999", &records);
+    (src, decks)
+}
 
-    // The full shapes bring combat both ways: red has bodies now.
+fn assert_matchup_activity(records: &[GameRecord], red: u64, green: u64, probes: &Probes) {
     assert!(probes.spells_cast > 0);
     assert!(probes.attacks_declared > 0);
     assert!(probes.creature_damage_to_players > 0);
@@ -100,7 +103,33 @@ fn historical_full_gate() {
         "burn never went to the face"
     );
     assert_eq!(red + green, records.len() as u64, "every game has a winner");
-    // A batch, unlike a one-seed smoke run, should exercise wins on both sides.
+}
+
+/// A deterministic, bounded slice of the exact 60-card Worlds 1999 matchup.
+/// Seed 0 exercises both combat and RON-driven burn targeting.
+#[test]
+#[cfg_attr(not(wizards_corpus), ignore = "needs generated plugins/wizards corpus")]
+fn fixed_seed_gate() {
+    let (src, decks) = load_matchup();
+    let records = run_batch(&decks, &src.engine_rules(), [0]);
+    let (red, green, probes) = report("sped red vs stompy, Worlds 1999", &records);
+    assert_matchup_activity(&records, red, green, &probes);
+}
+
+/// The intentionally expensive matchup batch. Run explicitly with
+///
+/// ```sh
+/// cargo test -p deckmaste_noncanon --features noncanon_tests --test wc99 \
+///   historical_full_matchup -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "slow 50-game matchup; run explicitly with --ignored"]
+fn historical_full_matchup() {
+    let (src, decks) = load_matchup();
+    let records = run_batch(&decks, &src.engine_rules(), 0..batch_size());
+    let (red, green, probes) = report("sped red vs stompy, Worlds 1999", &records);
+    assert_matchup_activity(&records, red, green, &probes);
+
     if records.len() > 1 {
         assert!(red > 0, "Sped Red never won");
         assert!(green > 0, "Stompy never won");

@@ -737,6 +737,28 @@ mod tests {
         );
     }
 
+    /// An `among` predicate reads `This` from the acting seat's frame, not
+    /// from each candidate being tested. With the opponent listed first,
+    /// `Ref(This)` must still select the seat's own player proxy.
+    #[test]
+    fn selector_among_ref_this_is_anchored_to_the_seat_proxy() {
+        let state = empty_two_player();
+        let seat = PlayerId(1);
+        let opponent_proxy = state.player(PlayerId(0)).object;
+        let seat_proxy = state.player(seat).object;
+        let selector = Selector {
+            pick: Extremum::First,
+            by: Count::Literal(1),
+            among: Some(Predicate::Ref(Reference::This)),
+        };
+        let eval = StrategyEvaluator::new(always_prefer(Preference::Pass), seat);
+
+        assert_eq!(
+            eval.select(&state, &selector, &[opponent_proxy, seat_proxy]),
+            Some(seat_proxy),
+        );
+    }
+
     /// `Count::ManaAvailable(You)` reads the seat's floated pool total off a
     /// strategy sensing frame — the ramp-gate reader. Empty pool → 0; after
     /// floating three mana → 3; a non-player reference fizzles to 0.
