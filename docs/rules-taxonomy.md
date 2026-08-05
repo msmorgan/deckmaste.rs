@@ -447,7 +447,7 @@ The Ends column lists only expirations *earlier* than object identity.
 | saddled | [CR#702.171b] | marker only | flag | saddle N | **end of turn** or leaves (unique: self-expires) |
 | prepared | [CR#722.3a..722.3c] | copy-in-exile becomes castable | flag | "becomes prepared" / enters prepared | "unprepared" effects; lost when the copy is cast |
 | paired | [CR#702.95b] | soulbond pairing | **relation** to another creature | soulbond | either leaves / stops being eligible |
-| battle's protector | [CR#310.8] | attack/block legality; "defending player" redirection ([CR#310.8b..310.8d]) | **relation to a player** | chosen as it enters ([CR#310.8a]); SBA re-choice ([CR#310.10,704.5w..704.5x]) | reassigned by SBA when illegal or absent |
+| battle's protector | [CR#310.9] | attack/block legality; "defending player" redirection ([CR#310.9b..310.9d]) | **relation to a player** | chosen as it enters ([CR#310.9a]); SBA re-choice ([CR#704.5x..704.5y]) | reassigned by SBA when illegal or absent |
 | Ring-bearer | [CR#701.54b] | tested by "is your Ring-bearer" ([CR#701.54e]) | flag, **unique per player** | the Ring tempts you (chooses/moves it; first temptation also creates The Ring emblem, [CR#701.54c]) | replaced by next temptation choice; lost if another player gains control ([CR#701.54a]) |
 | level N | [CR#716.2b] | gates Class abilities | **number** | "becomes level N" (Class) | persists even if it stops being a Class |
 | sector (alpha/beta/gamma) | [CR#702.158b] | grouping ("in the same sector" [CR#702.158e]) | **enum(3)** | space sculptor SBA choice ([CR#704.5u]) | while any space-sculptor source exists |
@@ -662,7 +662,7 @@ What the current `Ability` enum grows into, slot-wise ([CR#113.3]):
 | Variant | Slots |
 |---|---|
 | Spell | effect: Effect (+ targets declared by the Effect's binders) |
-| Activated | cost: Cost, effect: Effect, restrictions: [ActivationRestriction], flags: mana-ability ([CR#605.1a]), loyalty ([CR#606]) |
+| Activated | cost: Cost, effect: Effect, restrictions: [ActivationRestriction], flags: mana-ability (library-moving costs/effects disqualify it and non-self replacements are ignored during classification, [CR#605.1a]), loyalty ([CR#606]) |
 | Triggered | event: Event, condition: Option<Condition> (intervening if), effect: Effect, limits (once-each-turn), flags: mana-ability ([CR#605.1b]), delayed?, reflexive? |
 | Static | continuous: [ContinuousEffect] \| Replacement \| Prevention \| CastModifier \| Deontic, condition: Option<Condition>, flags: CDA ([CR#604.3]), functions-in-zones ([CR#113.6] exceptions) |
 | Keyword | already modeled: name + expansion (`Expanded<Ability>`) — the macro layer (keyword abilities are shorthand, [CR#702.1], not a fifth [CR#113.3] category) |

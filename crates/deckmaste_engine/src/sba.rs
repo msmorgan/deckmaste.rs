@@ -1686,14 +1686,17 @@ mod tests {
         );
     }
 
-    /// [CR#704.5v]: a battle with defense 0 is put into its owner's graveyard by
-    /// the rules-SBA pass. With `DefenseCounter` present the battle survives.
+    /// [CR#704.5w]: a non-Siege battle with defense 0 is put into its owner's
+    /// graveyard by the rules-SBA pass. This subtype-less fixture exercises
+    /// that branch of the shared generic rule; the Siege exception is
+    /// documented at the rule declaration. With `DefenseCounter` present
+    /// the battle survives.
     #[test]
     fn defense_zero_battle_is_put_into_graveyard() {
         let (mut state, _bear) = bear_on_field();
         state.sba_rules = builtin().sba_rules;
         state.counter_decls = builtin().counters;
-        let battle = on_field(&mut state, "Test Siege", vec![Type::Battle], vec![]);
+        let battle = on_field(&mut state, "Test Battle", vec![Type::Battle], vec![]);
         // 0 DefenseCounters ⇒ defense 0 ⇒ SBA fires.
         let actions = sba::sweep(&state);
         assert!(

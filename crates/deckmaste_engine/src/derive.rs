@@ -353,9 +353,11 @@ fn composite_members(keyword: &deckmaste_core::KeywordAbility) -> Option<&Vec<Ab
 
 /// Skeleton-subset mana-ability check (a subset of [CR#605.1a]): an activated
 /// ability with no targets, cost exactly `[Tap]`, producing a fixed amount
-/// of specific mana. Full [CR#605.1a] admits more (other costs, `AnyColor`,
-/// loyalty exclusion) — not yet needed here. Returns what it produces.
-/// Keyword wrappers are looked through.
+/// of specific mana. The full rule admits more costs and production shapes,
+/// but excludes loyalty abilities and any ability whose cost or effect moves a
+/// card to or from a library; only self-replacement effects are considered
+/// while classifying it. None of those wider shapes are needed here. Returns
+/// what it produces. Keyword wrappers are looked through.
 #[must_use]
 pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
     match ability {

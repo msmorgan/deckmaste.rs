@@ -1,6 +1,8 @@
-// [CR#704.5v]: a battle with defense 0 is put into its owner's graveyard. SEAM:
-// the "isn't the source of a triggered ability that hasn't left the stack"
-// clause of [CR#704.5v,310.7] is deferred to engine-battles.
+// [CR#704.5v..704.5w,310.7..310.8] split defense-zero battles by subtype:
+// Sieges wait while their triggered ability is pending; non-Sieges do not.
+// This generic rule implements the shared move and is exact for non-Sieges.
+// SEAM: subtype-aware suppression of the move for a pending Siege trigger is
+// deferred to engine-battles.
 [
     SbaRule(
         scope: Type(Battle),

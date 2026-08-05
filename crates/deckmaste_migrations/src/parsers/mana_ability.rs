@@ -52,7 +52,7 @@ pub(super) enum TapAbility {
     },
 }
 
-/// An extra clause a mana ability resolves alongside its `Add` ([CR#605.1a]).
+/// An extra clause a mana ability resolves after its `Add` ([CR#608.2c]).
 /// Painlands tax the controller a fixed amount of damage.
 pub(super) enum Rider {
     /// "~ deals N damage to you." — the source deals damage to its controller
@@ -256,7 +256,8 @@ fn render_production(production: &Production) -> anyhow::Result<String> {
 }
 
 /// The resolution effect: the production, plus any rider folded into a
-/// `Sequentially` after it (the `Add` happens first, [CR#605.1a]).
+/// `Sequentially` after it (the written `Add` instruction happens first,
+/// [CR#608.2c]).
 fn render_effect(production: &Production, rider: Option<&Rider>) -> anyhow::Result<String> {
     let add = render_production(production)?;
     Ok(match rider {
@@ -451,7 +452,7 @@ mod tests {
     }
 
     /// A painland rider taxes the controller damage; the `Add` runs first,
-    /// then the damage, in one resolution ([CR#605.1a]).
+    /// then the damage, in written order during one resolution ([CR#608.2c]).
     #[test]
     fn painland_damage_rider() {
         assert_eq!(

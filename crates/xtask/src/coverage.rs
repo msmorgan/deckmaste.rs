@@ -84,15 +84,14 @@ pub enum Tier {
     Tested,
 }
 
-/// Dirs never walked: VCS/build/generated/fixture trees, plus the CI data
-/// mirror checkout (`_data`). Repo-specific source excludes come from
-/// `cite-config.json` and are passed in separately.
+/// Dirs never walked: VCS/build/generated/fixture trees. Repo-specific source
+/// excludes come from `cite-config.json` and are passed in separately.
 const SKIP_DIRS: &[&str] = &[
     ".git",
     ".jj",
+    ".workspaces",
     "target",
     "data",
-    "_data",
     ".claude",
     "plugins/wizards",
     "docs/superpowers",
@@ -561,6 +560,20 @@ mod tests {
         assert_eq!(scan.get("100.1"), Some(&Tier::Tested)); // test beats src
         assert_eq!(scan.get("200.2"), Some(&Tier::Mentioned));
         assert_eq!(scan.get("300.3"), Some(&Tier::Tested)); // attribute counts
+    }
+
+    #[test]
+    fn scan_tree_skips_local_workspaces() {
+        let dir = tempdir_with(&[
+            ("crates/e/src/a.rs", "// [CR#100.1] tracked source"),
+            (
+                ".workspaces/fake-test-audit/crates/e/src/lib.rs",
+                "// [CR#701.37] ignored workspace source",
+            ),
+        ]);
+        let scan = scan_tree(dir.path(), &[]);
+        assert_eq!(scan.get("100.1"), Some(&Tier::Bound));
+        assert!(!scan.contains_key("701.37"));
     }
 
     #[test]
