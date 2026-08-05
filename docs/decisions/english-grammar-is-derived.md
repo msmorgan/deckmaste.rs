@@ -170,6 +170,13 @@ annotate omissions by null-instantiation class; the corpus is evidence for a
 declared rule, never a probabilistic authority. Direct AST assertions and
 `inspect` are the semantic authorities; bracket output is diagnostic.
 
+The [Oracle text style guide](../oracle-style-guide.md) is the CR- and
+corpus-derived catalog of Oracle's surface conventions; consult it when
+deciding whether a surface distinction is semantics-bearing or house style.
+Like the corpus it is evidence, never an authority over a declared rule; it
+cites no implementation and is amended only with corpus evidence, never to
+match this grammar.
+
 ## Non-goals
 
 - A GF toolchain or runtime dependency — a second defining authority whose
@@ -223,3 +230,4 @@ declared rule, never a probabilistic authority. Direct AST assertions and
 - [English productions ship their inverse](english-productions-ship-their-inverse.md)
 - [Macro templates are bidirectional](macro-templates-are-bidirectional.md)
 - [Authoring, spelling, lowering](authoring-spelling-lowering.md)
+- [Oracle text style guide](../oracle-style-guide.md)
