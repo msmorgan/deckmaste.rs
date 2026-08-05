@@ -965,6 +965,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one exhaustive provenance check keeps the generated declaration's metadata together"
+    )]
     fn coordination_bind_corpus_provenance_is_complete() {
         assert_eq!(coordination::GROUPS.len(), 1);
         let group = coordination::GROUPS[0];

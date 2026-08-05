@@ -1,5 +1,9 @@
 error[E0451]: fields `phrase` and `alt` of struct `FixtureSoloNode` are private
-  --> tests/compile_fail/construct_sealed.rs:41:31
+  --> tests/compile_fail/construct_sealed.rs:42:9
    |
-41 |     let _ = FixtureSoloNode { phrase: FixturePhrase, alt: None };
-   |                               ^^^^^^ private field   ^^^ private field
+41 |     let _ = FixtureSoloNode {
+   |             --------------- in this type
+42 |         phrase: FixturePhrase,
+   |         ^^^^^^ private field
+43 |         alt: None,
+   |         ^^^ private field
