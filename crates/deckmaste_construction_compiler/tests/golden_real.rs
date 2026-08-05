@@ -281,7 +281,7 @@ fn emission_matches_committed_golden() {
     let formatted = formatted_emission();
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/tests/goldens/fixture_coordination.rs"
+        "/tests/goldens/fixture_coordination.golden"
     );
     if std::env::var_os("UPDATE_GOLDENS").is_some() {
         std::fs::write(path, &formatted).expect("write golden");

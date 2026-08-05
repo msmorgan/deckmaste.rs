@@ -18,7 +18,7 @@ pub enum BoundPayload {
 use deckmaste_features::Comma;
 use deckmaste_features::Conjunction;
 
-include!("goldens/fixture_coordination.rs");
+include!("goldens/fixture_coordination.golden");
 
 #[test]
 fn golden_compiles_and_seals() {

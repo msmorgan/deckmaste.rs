@@ -139,7 +139,7 @@ set -l fetch_plan (fish -C '\
 ' scripts/fetch_data --minimal --cr)
 check 'minimal plus CR plan succeeds' 0 $status
 check 'minimal plus CR includes cr.txt' 0 \
-    (string match -q '*academyruins:link/cr:cr.txt*' -- $fetch_plan; echo $status)
+    (string match -q '*academyruins:file/cr:cr.txt*' -- $fetch_plan; echo $status)
 # Flavor words are the one catalog the English loader reads from the Scryfall
 # dump rather than a generated CR-derived file, so a minimal fetch that omits
 # them leaves a clean checkout unable to run the suite.

@@ -36,39 +36,34 @@ mod __constructions_fixture_coordination {
         pub fn try_new(
             members: Vec<FixtureMember>,
             conjunction: Conjunction,
-        ) -> Result<Self, ::deckmaste_construction_compiler::runtime::DeclarationViolation>
-        {
+        ) -> Result<
+            Self,
+            ::deckmaste_construction_compiler::runtime::DeclarationViolation,
+        > {
             if !(members.len() >= 2) {
-                return Err(
-                    ::deckmaste_construction_compiler::runtime::DeclarationViolation {
-                        construction: "fixture_pair",
-                        requirement: "members.len() >= 2",
-                    },
-                );
+                return Err(::deckmaste_construction_compiler::runtime::DeclarationViolation {
+                    construction: "fixture_pair",
+                    requirement: "members.len() >= 2",
+                });
             }
             if !(matches!(conjunction, Conjunction::And | Conjunction::Or)) {
-                return Err(
-                    ::deckmaste_construction_compiler::runtime::DeclarationViolation {
-                        construction: "fixture_pair",
-                        requirement: "conjunction in [And, Or]",
-                    },
-                );
+                return Err(::deckmaste_construction_compiler::runtime::DeclarationViolation {
+                    construction: "fixture_pair",
+                    requirement: "conjunction in [And, Or]",
+                });
             }
             if !(members
                 .last()
-                .is_none_or(|member| matches!(member.comma, None | Some(Comma::Present))))
+                .is_none_or(|member| {
+                    matches!(member.comma, None | Some(Comma::Present))
+                }))
             {
-                return Err(
-                    ::deckmaste_construction_compiler::runtime::DeclarationViolation {
-                        construction: "fixture_pair",
-                        requirement: "members.last.comma in [Present]",
-                    },
-                );
+                return Err(::deckmaste_construction_compiler::runtime::DeclarationViolation {
+                    construction: "fixture_pair",
+                    requirement: "members.last.comma in [Present]",
+                });
             }
-            Ok(Self {
-                members,
-                conjunction,
-            })
+            Ok(Self { members, conjunction })
         }
         pub fn members(&self) -> &Vec<FixtureMember> {
             &self.members
@@ -86,15 +81,15 @@ mod __constructions_fixture_coordination {
         pub fn try_new(
             phrase: FixturePhrase,
             alt: Option<FixturePhrase>,
-        ) -> Result<Self, ::deckmaste_construction_compiler::runtime::DeclarationViolation>
-        {
+        ) -> Result<
+            Self,
+            ::deckmaste_construction_compiler::runtime::DeclarationViolation,
+        > {
             if !(alt.is_none()) {
-                return Err(
-                    ::deckmaste_construction_compiler::runtime::DeclarationViolation {
-                        construction: "fixture_solo",
-                        requirement: "alt.is_none()",
-                    },
-                );
+                return Err(::deckmaste_construction_compiler::runtime::DeclarationViolation {
+                    construction: "fixture_solo",
+                    requirement: "alt.is_none()",
+                });
             }
             Ok(Self { phrase, alt })
         }
@@ -124,12 +119,12 @@ mod __constructions_fixture_coordination {
                 alt: Option<FixturePhrase>,
             }
             let raw = Raw::deserialize(deserializer)?;
-            FixtureSoloNode::try_new(raw.phrase, raw.alt).map_err(|violation| {
-                serde::de::Error::custom(format!(
-                    "{}: {}",
-                    violation.construction, violation.requirement
-                ))
-            })
+            FixtureSoloNode::try_new(raw.phrase, raw.alt)
+                .map_err(|violation| {
+                    serde::de::Error::custom(
+                        format!("{}: {}", violation.construction, violation.requirement),
+                    )
+                })
         }
     }
     pub static FIXTURE_COORDINATION_DECLARATION: ::deckmaste_construction_compiler::runtime::GroupData = ::deckmaste_construction_compiler::runtime::GroupData {
@@ -300,7 +295,7 @@ mod __constructions_fixture_coordination {
         ],
     };
 }
-pub use __constructions_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;
 pub use __constructions_fixture_coordination::FixtureMember;
 pub use __constructions_fixture_coordination::FixturePairNode;
 pub use __constructions_fixture_coordination::FixtureSoloNode;
+pub use __constructions_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;

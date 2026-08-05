@@ -35,10 +35,10 @@ function fetch_rules
     set wanted cr/keywords:keywords.json
     if not set -q _minimal
         set -a wanted \
-            link/cr:cr.txt \
+            file/cr:cr.txt \
             cr:cr.json
     else if set -q _include_cr
-        set -a wanted link/cr:cr.txt
+        set -a wanted file/cr:cr.txt
     end
     academyruins download $wanted
 end
