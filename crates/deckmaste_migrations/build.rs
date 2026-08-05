@@ -8,8 +8,8 @@
 // (a catalogs-only checkout used to compile the cfg on and fail the gated
 // tests). Those tests carry `#[cfg_attr(not(scryfall_catalogs), ignore =
 // "…")]`, so they run locally (where `data/` is populated) and on CI (which
-// stages the data mirror before building) and report as `ignored` on a bare
-// checkout.
+// fetches and caches the upstream inputs before building) and report as
+// `ignored` on a bare checkout.
 //
 // Detection is by directory presence. With no `rerun-if-changed` emitted, cargo
 // re-runs this script whenever a package file changes, so ordinary edits pick

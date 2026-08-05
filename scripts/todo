@@ -19,7 +19,7 @@ Usage: scripts/todo <command> [<slug>] [--slugs-only]
     exit 2
 end
 
-argparse -S s/slugs-only h/help -- $argv
+argparse s/slugs-only h/help -- $argv
 or return
 
 if set -q _flag_help

@@ -1,7 +1,7 @@
 set -g __mtgjson_base_url 'https://mtgjson.com/api/v5'
 
 function __mtgjson_download
-    argparse -S c/compression= q/quiet -- $argv
+    argparse c/compression= q/quiet -- $argv
     or return
 
     set -l ext ''
@@ -17,17 +17,36 @@ function __mtgjson_download
         set url $__mtgjson_base_url/$wanted$ext
         set cached $cache_dir/$wanted$ext
 
-        download_file --tag 'mtgjson' $url $cached
-        or continue
+        download_file \
+            --tag 'mtgjson' \
+            --accept 'application/x-xz' \
+            --user-agent 'deckmaste.rs/0.1 (+https://github.com/msmorgan/deckmaste.rs)' \
+            $url $cached
+        or return
 
         set -q _flag_compression
         and switch $cached
             case "*.tar$ext"
                 tar >&2 -C $mtgjson_dir -xJf $cached
+                or return
                 echo >&2 "mtgjson: Extracted to $(path change-extension '' $mtgjson_dir/$wanted)"
             case "*$ext"
                 set -l extracted $mtgjson_dir/$wanted
-                xzcat $cached >$extracted
+                set -l temporary (mktemp "$extracted.XXXXXX")
+                or return
+
+                xzcat $cached >$temporary
+                set -l extract_status $status
+                if test $extract_status -ne 0
+                    command rm -f -- $temporary
+                    return $extract_status
+                end
+
+                command mv -- $temporary $extracted
+                or begin
+                    command rm -f -- $temporary
+                    return 1
+                end
                 echo >&2 "mtgjson: Extracted to $extracted"
         end
     end

@@ -31,63 +31,71 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
 
-      # The gitignored reference data (Scryfall catalogs, CR keywords, mtgjson
-      # AtomicCards) is too bulky to commit to this repo, so it lives in the
-      # `deckmaste.rs_data` mirror (public, self-refreshed weekly). Pull the
-      # reviewed revision below and stage it so each crate's build.rs detects
-      # the fixtures and flips its cfg on — otherwise the catalog/corpus tests
-      # below report as `ignored` (they carry
-      # `#[cfg_attr(not(<cfg>), ignore)]`). Bump `ref` explicitly after a mirror
-      # refresh passes this workflow; never follow the mirror's moving branch.
-      #
-      # `data/catalogs` + `data/rules` -> `scryfall_catalogs` cfg (the gated
-      # keyword-parser tests read `data/rules/keywords.json`, so the cfg
-      # requires BOTH dirs) -> the deckmaste_migrations `Subtype`/keyword
-      # parser tests run for real. The generate step below also needs
-      # `data/rules/keywords.json` at resolve time regardless of that cfg. The
-      # mirror is public, so no token/secret — the checkout is tokenless and the
-      # steps run for every push and PR (forks included).
-      - name: fetch CI data mirror
-        uses: actions/checkout@v4
-        with:
-          repository: msmorgan/deckmaste.rs_data
-          path: _data
-          ref: c27aa236aa00186b0eca70c7114cc940efc8ec9f
-      - name: stage data (+ decompress mtgjson)
+      - name: install data tooling
         run: |
           sudo apt-get update && sudo apt-get install -y fish xz-utils
-          mkdir -p data/mtgjson
-          cp -r _data/data/catalogs data/
-          cp -r _data/data/rules data/
-          xz -dkc _data/data/mtgjson/cache/AtomicCards.json.xz > data/mtgjson/AtomicCards.json
       - name: ticket graph harness
         run: fish tests/todo_test.fish
+      - name: fetch helper harness
+        run: fish tests/fetch_data_test.fish
 
-      # The mirror intentionally carries no raw CR text. Cache one immutable
-      # historical snapshot; on a cache miss Academy Ruins sees one request,
-      # and the digest turns an upstream replacement into an explicit pin-bump
-      # failure rather than silently changing CI's inputs.
-      - name: restore pinned Comprehensive Rules
-        id: cr-cache
-        uses: actions/cache@v4
+      # The cache accelerates the ordinary local fetch path; it is not a data
+      # mirror or pin. Restore the newest content-addressed snapshot, then
+      # conditionally revalidate every upstream input. A changed Oracle or CR
+      # snapshot reaches the real gates below as a canary.
+      - name: restore cached upstream inputs
+        id: data_cache
+        uses: actions/cache/restore@v4
         with:
-          path: data/rules/cr.txt
-          key: cr-msh-e366ffd5bee87d6f
-      - name: fetch pinned Comprehensive Rules
-        if: steps.cr-cache.outputs.cache-hit != 'true'
+          path: |
+            data/mtgjson/cache/AtomicCards.json.xz
+            data/catalogs
+            data/rules/keywords.json
+            data/rules/cr.txt
+          key: ci-inputs-v1-${{ runner.os }}-lookup-${{ github.run_id }}
+          restore-keys: |
+            ci-inputs-v1-${{ runner.os }}-sha256-
+      - name: refresh upstream inputs
+        run: scripts/fetch_data --minimal --cr
+      - name: fingerprint refreshed upstream inputs
+        id: data_digest
+        env:
+          CACHE_PREFIX: ci-inputs-v1-${{ runner.os }}-sha256-
         run: |
-          curl --fail --silent --show-error --location --retry 3 \
-            --header 'Accept: text/plain' \
-            --header 'User-Agent: deckmaste.rs CI (+https://github.com/msmorgan/deckmaste.rs)' \
-            https://api.academyruins.com/file/cr/MSH \
-            --output data/rules/cr.txt
-      - name: verify pinned Comprehensive Rules
-        run: echo 'e366ffd5bee87d6f676b939524b61a18dfe7822a15cbb22c5dbe565a58e07975  data/rules/cr.txt' | sha256sum --check
+          set -euo pipefail
+          manifest="$RUNNER_TEMP/ci-inputs.sha256"
+          {
+            sha256sum \
+              data/mtgjson/cache/AtomicCards.json.xz \
+              data/rules/keywords.json \
+              data/rules/cr.txt \
+              data/catalogs/artifact-types.json \
+              data/catalogs/battle-types.json \
+              data/catalogs/creature-types.json \
+              data/catalogs/enchantment-types.json \
+              data/catalogs/land-types.json \
+              data/catalogs/planeswalker-types.json \
+              data/catalogs/spell-types.json
+          } > "$manifest"
+          digest="$(sha256sum "$manifest" | cut -d ' ' -f 1)"
+          echo "key=${CACHE_PREFIX}${digest}" >> "$GITHUB_OUTPUT"
+      # Save immediately: a later data-driven test failure is useful canary
+      # signal and should not make the next run download the same bytes again.
+      - name: save refreshed upstream inputs
+        if: steps.data_cache.outputs.cache-matched-key != steps.data_digest.outputs.key
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/mtgjson/cache/AtomicCards.json.xz
+            data/catalogs
+            data/rules/keywords.json
+            data/rules/cr.txt
+          key: ${{ steps.data_digest.outputs.key }}
 
       # Reproduce the two gitignored fixtures that used to be present only in
-      # a developer checkout. Both derive from pinned inputs: the flat Oracle
+      # a developer checkout. Both derive from refreshed inputs: the flat Oracle
       # snapshot from AtomicCards, and the English catalogs from AtomicCards +
-      # the versioned CR above.
+      # the current CR above.
       - name: derive corpus fixtures
         run: |
           cargo xtask derive-cards
@@ -96,7 +104,7 @@ jobs:
       # Generate the gitignored `plugins/wizards` corpus from the staged mtgjson
       # AtomicCards, so each crate's build.rs sets `wizards_corpus` and the
       # otherwise-`ignored` corpus tests run. `generate` runs subtype stubs +
-      # extract/resolve/graduate, all satisfiable from the mirror — the
+      # extract/resolve/graduate, all satisfiable from the fetched inputs — the
       # keyword/action/ability-word stub generators that once needed
       # `data/rules/cr.json` (and required the old `--minimal` flag to skip) were
       # removed, so plain `generate` no longer touches cr.json. Verified: this
@@ -121,8 +129,9 @@ jobs:
       # the committed cr-coverage.lock.
       - name: cr coverage ratchet
         run: cargo xtask cite coverage --check
-      # Both checks use the digest-verified cr.txt staged above: the first pins
-      # cited rule text, while the second rejects loose citation spellings.
+      # Both checks use the freshly revalidated cr.txt above: the first pins
+      # cited rule text at rule granularity, while the second rejects loose
+      # citation spellings.
       - name: cr citation check
         run: |
           cargo xtask cite check

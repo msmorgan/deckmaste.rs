@@ -7,8 +7,14 @@ function __academyruins_download
         set url $__academyruins_base_url/$src
         set out $rules_dir/$dest
 
-        download_file --tag 'academyruins' $url $out
-        or continue
+        set -l accept 'application/json'
+        string match -q '*.txt' -- $dest; and set accept 'text/plain'
+        download_file \
+            --tag 'academyruins' \
+            --accept $accept \
+            --user-agent 'deckmaste.rs/0.1 (+https://github.com/msmorgan/deckmaste.rs)' \
+            $url $out
+        or return
     end
 end
 

@@ -7,8 +7,8 @@
 // `#[cfg_attr(not(gen_catalogs), ignore = "…")]`, so they run wherever
 // `cargo xtask catalogs` has been run (locally, from the `data/rules/cr.txt`
 // + `data/mtgjson/AtomicCards.json` snapshots) and report as `ignored` on a
-// checkout without them — the whole `data/` tree is gitignored, and the CI
-// data mirror carries no CR text snapshot to regenerate from.
+// checkout without them — the whole `data/` tree is gitignored. CI fetches and
+// caches the CR snapshot, derives these catalogs, then re-runs build scripts.
 //
 // Detection is by directory presence. With no `rerun-if-changed` emitted, cargo
 // re-runs this script whenever a package file changes, so ordinary edits pick

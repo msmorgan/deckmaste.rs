@@ -3,11 +3,13 @@
 source (status dirname)/lib/setup.fish
 or return
 
-argparse -S m/minimal -- $argv; or return
+argparse m/minimal c/cr -- $argv; or return
 
 # --minimal: download only what `cargo xtask generate plugins/wizards` needs.
 # Without the flag: also download the reference files used by local audits.
+# --cr: include the plain-text Comprehensive Rules with a minimal download.
 set -q _flag_minimal; and set -g _minimal
+set -q _flag_cr; and set -g _include_cr
 
 function fetch_mtgjson
     set wanted AtomicCards.json
@@ -34,6 +36,8 @@ function fetch_rules
         set -a wanted \
             link/cr:cr.txt \
             cr:cr.json
+    else if set -q _include_cr
+        set -a wanted link/cr:cr.txt
     end
     academyruins download $wanted
 end
@@ -57,5 +61,7 @@ function fetch_scryfall_catalogs
 end
 
 fetch_mtgjson
+or return
 fetch_rules
+or return
 fetch_scryfall_catalogs

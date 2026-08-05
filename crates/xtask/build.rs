@@ -6,13 +6,13 @@
 // - `derived_cards` — `data/derived/cards.jsonl`, the mtgjson-derived oracle
 //   snapshot (`deckmaste_plugin::fidelity::ORACLE_SNAPSHOT`).
 //
-// Neither can exist on a bare runner: the whole `data/` tree is gitignored,
-// and the CI data mirror carries neither a CR text snapshot to regenerate the
-// catalogs from nor the 17 MB oracle corpus (both are barred by the
-// no-committed-corpus policy, not merely absent). So the tests that need them
-// carry `#[cfg_attr(not(<cfg>), ignore = "…")]` and report as `ignored` there
-// while running for real locally. `OracleDataArgs::load` reads cards.jsonl AND
-// the catalogs, so its callers carry BOTH attributes.
+// Neither exists in a bare checkout: the whole `data/` tree is gitignored by
+// the no-committed-corpus policy. CI fetches and caches the upstream inputs,
+// derives both fixtures, then re-runs build scripts before the test gate. In an
+// unstaged checkout, tests that need them carry
+// `#[cfg_attr(not(<cfg>), ignore = "…")]` and report as `ignored`.
+// `OracleDataArgs::load` reads cards.jsonl AND the catalogs, so its callers
+// carry BOTH attributes.
 //
 // Detection is by path presence. With no `rerun-if-changed` emitted, cargo
 // re-runs this script whenever a package file changes, so ordinary edits pick

@@ -7,14 +7,24 @@ function __scryfall_download
         set url $__scryfall_base_url/$src
         set out $catalogs_dir/$dest
 
-        download_file --tag 'scryfall' $url $out
-        or continue
+        download_file \
+            --tag 'scryfall' \
+            --accept 'application/json' \
+            --user-agent 'deckmaste.rs/0.1 (+https://github.com/msmorgan/deckmaste.rs)' \
+            $url $out
+        set -l download_status $status
 
+        set -l delay 0.1
         if string match -rq '^cards' -- $src
-            sleep 0.5
-        else
-            sleep 0.1
+            set delay 0.5
         end
+        sleep $delay
+        set -l sleep_status $status
+
+        # Scryfall asks clients to leave at least 100 ms between requests.
+        # Pace every attempt, including 304 responses and failed requests.
+        test $download_status -eq 0; or return $download_status
+        test $sleep_status -eq 0; or return $sleep_status
     end
 end
 

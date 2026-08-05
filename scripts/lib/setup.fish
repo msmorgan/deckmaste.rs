@@ -2,7 +2,7 @@ set -q __setup_done; and return
 set -g __setup_done
 
 set -l deps_ok
-for program in curl $argv
+for program in curl mktemp $argv
     if not command -q $program
         echo >&2 "setup.fish: missing needed program $program"
         set -e deps_ok
