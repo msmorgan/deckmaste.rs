@@ -73,6 +73,7 @@ jobs:
               data/catalogs/battle-types.json \
               data/catalogs/creature-types.json \
               data/catalogs/enchantment-types.json \
+              data/catalogs/flavor-words.json \
               data/catalogs/land-types.json \
               data/catalogs/planeswalker-types.json \
               data/catalogs/spell-types.json

@@ -5,7 +5,8 @@ or return
 
 argparse m/minimal c/cr -- $argv; or return
 
-# --minimal: download only what `cargo xtask generate plugins/wizards` needs.
+# --minimal: download only what `cargo xtask generate plugins/wizards` and the
+# English catalog loader need.
 # Without the flag: also download the reference files used by local audits.
 # --cr: include the plain-text Comprehensive Rules with a minimal download.
 set -q _flag_minimal; and set -g _minimal
@@ -43,14 +44,18 @@ function fetch_rules
 end
 
 function fetch_scryfall_catalogs
+    # flavor-words is the one catalog the English loader reads straight from the
+    # Scryfall dump rather than from a generated CR-derived file, so it belongs
+    # to the minimal set even though the rest of the Scryfall-only catalogs do
+    # not.
     set wanted_catalogs \
         artifact-types battle-types creature-types enchantment-types \
-        land-types planeswalker-types spell-types
+        land-types planeswalker-types spell-types flavor-words
     if not set -q _minimal
         set -a wanted_catalogs \
             card-names artist-names word-bank supertypes card-types \
             powers toughnesses loyalties keyword-abilities keyword-actions \
-            ability-words flavor-words watermarks
+            ability-words watermarks
     end
 
     set wanted_files_map
