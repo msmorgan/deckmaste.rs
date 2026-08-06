@@ -570,6 +570,37 @@ mod tests {
     }
 
     #[test]
+    fn nonfinal_quantifier_is_preserved_as_its_own_path_segment() {
+        let parsed = parse_group(quote::quote! {
+            group quantified;
+            element member { comma: lex Comma, }
+            construction list: List {
+                own ListNode { members: seq member, }
+                require members.nonfinal.comma in [Present];
+                form only @ 0 = members;
+            }
+        })
+        .expect("nonfinal uses ordinary dotted-path syntax");
+        let Constraint::Require(requirement) = &parsed.constructions[0].constraints[0] else {
+            panic!("expected require constraint");
+        };
+        let Predicate::In { path, allowed } = &requirement.value else {
+            panic!("expected In predicate");
+        };
+        assert_eq!(
+            path.segments
+                .iter()
+                .map(|segment| segment.value.as_str())
+                .collect::<Vec<_>>(),
+            ["members", "nonfinal", "comma"],
+        );
+        assert_eq!(
+            allowed.iter().map(String::as_str).collect::<Vec<_>>(),
+            ["Present"],
+        );
+    }
+
+    #[test]
     fn opt_opt_is_a_parse_error() {
         let err = parse_group(quote::quote! {
             group g;

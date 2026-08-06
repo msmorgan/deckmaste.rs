@@ -464,13 +464,15 @@ enum Resolved<'g> {
 #[derive(Debug, Clone, Copy)]
 struct BadSegment {
     /// Index into `path.segments` of the first segment that failed to
-    /// resolve. `last` with no sequence in hand blames the `last` segment.
+    /// resolve. A sequence selector with no sequence in hand blames that
+    /// selector segment.
     index: usize,
 }
 
 /// Resolves a path against a construction's ast fields and, through
-/// Sequence fields, the group's element declarations. `last` addresses the
-/// sequence element just entered and consumes that context. `Optional` is
+/// Sequence fields, the group's element declarations. `last` addresses one
+/// final element and `nonfinal` quantifies the all-but-last prefix; both enter
+/// the sequence element declaration and consume that context. `Optional` is
 /// terminal: no segment may follow it.
 fn resolve_path<'g>(
     group: &'g GroupDeclaration,
@@ -482,7 +484,7 @@ fn resolve_path<'g>(
     let mut element_in_hand: Option<&'g ElementDeclaration> = None;
     for (index, segment) in path.segments.iter().enumerate() {
         let bad = BadSegment { index };
-        if segment.value == "last" {
+        if matches!(segment.value.as_str(), "last" | "nonfinal") {
             let Some(Resolved::Kind(FieldKind::Sequence { element })) = resolved else {
                 return Err(bad);
             };
@@ -499,8 +501,8 @@ fn resolve_path<'g>(
             fields = &element.fields;
         } else if resolved.is_some() {
             // A named segment can only follow the construction root or an
-            // element entered via `last`; scalars, subtrees, optionals and
-            // un-`last`ed sequences have no addressable children here.
+            // element entered via `last`/`nonfinal`; scalars, subtrees,
+            // optionals and unselected sequences have no addressable children.
             return Err(bad);
         }
         let binding = fields
@@ -545,6 +547,25 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
                     SurfaceAtom::Literal(_) => continue,
                 };
+                if let Some(segment) = path
+                    .segments
+                    .iter()
+                    .find(|segment| segment.value == "nonfinal")
+                {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnknownFieldPath,
+                            id,
+                            format!(
+                                "form `{}` references `{}`: `nonfinal` is predicate-only",
+                                form.name.value,
+                                path.dotted(),
+                            ),
+                        )
+                        .with_span(segment.span),
+                    );
+                    continue;
+                }
                 if let Err(bad) = resolve_path(group, construction, path) {
                     let segment = &path.segments[bad.index];
                     diags.push(
@@ -577,23 +598,40 @@ fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     .with_span(witness.name.span),
                 );
             }
-            if let WitnessClass::Stored { path } = &witness.class
-                && let Err(bad) = resolve_path(group, construction, path)
-            {
-                let segment = &path.segments[bad.index];
-                diags.push(
-                    Diagnostic::new(
-                        DiagCode::StoredWitnessPathUnknown,
-                        id,
-                        format!(
-                            "stored witness `{}` names `{}`: `{}` does not resolve",
-                            witness.name.value,
-                            path.dotted(),
-                            segment.value
-                        ),
-                    )
-                    .with_span(segment.span),
-                );
+            if let WitnessClass::Stored { path } = &witness.class {
+                if let Some(segment) = path
+                    .segments
+                    .iter()
+                    .find(|segment| segment.value == "nonfinal")
+                {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnknownFieldPath,
+                            id,
+                            format!(
+                                "stored witness `{}` names `{}`: `nonfinal` is predicate-only",
+                                witness.name.value,
+                                path.dotted(),
+                            ),
+                        )
+                        .with_span(segment.span),
+                    );
+                } else if let Err(bad) = resolve_path(group, construction, path) {
+                    let segment = &path.segments[bad.index];
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::StoredWitnessPathUnknown,
+                            id,
+                            format!(
+                                "stored witness `{}` names `{}`: `{}` does not resolve",
+                                witness.name.value,
+                                path.dotted(),
+                                segment.value
+                            ),
+                        )
+                        .with_span(segment.span),
+                    );
+                }
             }
         }
         // Require-clause and form-guard predicate paths are as unresolvable
@@ -776,12 +814,12 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             }
         }
         // EC032 — require paths must be emitter-shallow, with one staged
-        // widening: a path through a sequence's `last` to an element scalar
-        // (or optional-scalar) field, which the emitter compiles vacuously-
-        // true-when-empty. `resolve_path` only ever resolves a multi-segment
-        // path through that exact sequence->last->field shape (a subtree
-        // field, a doubled `last`, or a non-sequence head all fail to
-        // resolve at all), so admission here just narrows the resolved
+        // widening: a path through a sequence's `last` or `nonfinal` segment
+        // to an element scalar (or optional-scalar) field. The emitter
+        // compiles `last` vacuously true when empty and `nonfinal` as `all`
+        // over the all-but-last prefix. `resolve_path` only ever resolves a
+        // multi-segment path through one of those explicit sequence-element
+        // selectors, so admission here just narrows the resolved
         // FINAL kind to scalar/optional-scalar; a resolved-but-wrong-kind
         // path (e.g. `last` onto a Subtree field) still falls through to
         // the staged message. A predicate/kind mismatch on an ADMITTED path
@@ -818,8 +856,9 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 
 /// Scalar for SURFACE purposes: a codec field, optional or not — the thing
 /// `lex(…)` renders and a hole must not consume. **EC014, and also EC032's
-/// `.last` admission gate below** (the same "codec field, optional or not"
-/// question decides which element field a `.last` require path may target).
+/// sequence-selector admission gate below** (the same "codec field, optional
+/// or not" question decides which element field a `.last` or `.nonfinal`
+/// require path may target).
 /// `lex(opt field)` is perfectly renderable, so an `Optional { Scalar }`
 /// counts as scalar here.
 ///
@@ -2182,6 +2221,74 @@ mod tests {
         assert_eq!(err.index, 2);
     }
 
+    #[test]
+    fn nonfinal_resolves_to_an_element_field_for_require_predicates() {
+        let mut group = group_with_sequence_field();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("rest.nonfinal.comma"),
+                    allowed: vec!["Present".to_owned()],
+                }),
+            ));
+        validate(&group).expect("a nonfinal quantified element field is valid in require");
+    }
+
+    #[test]
+    fn nonfinal_is_rejected_outside_require_predicates() {
+        let mut group = group_with_sequence_field();
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Lexeme(
+                crate::model::FieldPath::call_site("rest.nonfinal.comma"),
+            ));
+        group.constructions[0]
+            .witnesses
+            .push(crate::model::WitnessDeclaration {
+                name: crate::model::Spanned::call_site("interior".to_owned()),
+                class: crate::model::WitnessClass::Stored {
+                    path: crate::model::FieldPath::call_site("rest.nonfinal.comma"),
+                },
+            });
+        let err = validate(&group).expect_err("a quantified path is not one renderable value");
+        let messages = err
+            .iter()
+            .filter(|diagnostic| diagnostic.code.as_str() == "EC010")
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect::<Vec<_>>();
+        assert!(
+            messages.iter().any(|message| message.contains(
+                "form `binary` references `rest.nonfinal.comma`: `nonfinal` is predicate-only"
+            )),
+            "form diagnostic names the predicate-only segment: {messages:?}",
+        );
+        assert!(
+            messages.iter().any(|message| message.contains(
+                "stored witness `interior` names `rest.nonfinal.comma`: `nonfinal` is predicate-only"
+            )),
+            "witness diagnostic names the predicate-only segment: {messages:?}",
+        );
+    }
+
+    #[test]
+    fn nonfinal_without_a_sequence_context_is_rejected() {
+        let mut group = minimal_group();
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("conjunction.nonfinal.comma"),
+                    allowed: vec!["Present".to_owned()],
+                }),
+            ));
+        let err = validate(&group).expect_err("nonfinal must follow a sequence");
+        assert_eq!(
+            message_for(&err, "EC010"),
+            "require clause references `conjunction.nonfinal.comma`: `nonfinal` does not resolve"
+        );
+    }
+
     /// The regression this function actually suffered twice: Milestone 1
     /// let a named segment walk into a sequence's element implicitly. The
     /// new contract requires an explicit `last` — `members.comma` must fail
@@ -2368,7 +2475,7 @@ mod tests {
         // `members.last.sub` resolves (unlike a doubled `last` or a
         // subtree-then-more path), and `sub` being Optional clears EC011 (it
         // IS optional) — but its inner kind is Subtree, not Scalar, so
-        // EC032's `.last` admission gate is the only thing left to reject
+        // EC032's sequence-selector admission gate is the only thing left to reject
         // it. A still-deep, still-refused shape now that
         // `members.last.comma` (Optional<Scalar>) is admitted.
         let mut group = minimal_group();

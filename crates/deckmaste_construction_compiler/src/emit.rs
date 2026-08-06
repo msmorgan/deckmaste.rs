@@ -436,8 +436,8 @@ fn require_check(
 }
 
 /// EC032 guarantees every path here is either a single segment naming a
-/// direct field, or exactly `<sequence>.last.<element field>` (and only onto
-/// a scalar/optional-scalar element field), and EC015 guarantees kind
+/// direct field, or exactly `<sequence>.(last|nonfinal).<element field>` (and
+/// only onto a scalar/optional-scalar element field), and EC015 guarantees kind
 /// agreement (`In` targets a scalar, `len()` targets a sequence) — so this
 /// mapping is total for validated input.
 fn predicate_tokens(
@@ -465,7 +465,7 @@ fn predicate_tokens(
                     let accessor = quote::format_ident!("{}", only.value);
                     single_field_check(&quote! { #accessor }, fields, &only.value, predicate)
                 }
-                [seq, _last, elem_field] => {
+                [seq, selector, elem_field] => {
                     let seq_field = quote::format_ident!("{}", seq.value);
                     let element = element_of_sequence_field(group, fields, &seq.value);
                     let field_ident = quote::format_ident!("{}", elem_field.value);
@@ -475,14 +475,28 @@ fn predicate_tokens(
                         &elem_field.value,
                         predicate,
                     );
-                    // Vacuous on an empty sequence; when the element field
-                    // itself is optional-scalar, `single_field_check` nests
-                    // Task 1's `None | Some(...)` reading INSIDE this
-                    // closure, so the two vacuous layers compose correctly.
-                    quote! { #seq_field.last().is_none_or(|member| #inner) }
+                    match selector.value.as_str() {
+                        // Vacuous on an empty sequence; when the element field
+                        // itself is optional-scalar, `single_field_check` nests
+                        // Task 1's `None | Some(...)` reading INSIDE this
+                        // closure, so the two vacuous layers compose correctly.
+                        "last" => quote! { #seq_field.last().is_none_or(|member| #inner) },
+                        // `take(len - 1)` means empty and singleton sequences
+                        // both have an empty quantified prefix, exactly the
+                        // declarative all-nonfinal reading.
+                        "nonfinal" => quote! {
+                            #seq_field
+                                .iter()
+                                .take(#seq_field.len().saturating_sub(1))
+                                .all(|member| #inner)
+                        },
+                        _ => unreachable!(
+                            "validated: EC032 admits only last/nonfinal sequence selectors"
+                        ),
+                    }
                 }
                 _ => unreachable!(
-                    "validated: EC032 admits only a single-field path or exactly seq.last.field"
+                    "validated: EC032 admits only a single-field path or exactly seq.(last|nonfinal).field"
                 ),
             }
         }
@@ -546,9 +560,9 @@ fn single_field_check(
     }
 }
 
-/// The element declaration a sequence field's `.last` addresses. `fields`
+/// The element declaration a sequence field selector addresses. `fields`
 /// is the field list `seq_field_name` is looked up in (the construction's
-/// own ast fields — `.last` paths only ever open off a top-level sequence).
+/// own ast fields — selectors only ever open off a top-level sequence).
 fn element_of_sequence_field<'g>(
     group: &'g GroupDeclaration,
     fields: &[FieldBinding],
@@ -557,9 +571,9 @@ fn element_of_sequence_field<'g>(
     let binding = fields
         .iter()
         .find(|b| b.field.value == seq_field_name)
-        .expect("validated: EC032 admits a `.last` path only when its sequence field resolves");
+        .expect("validated: EC032 admits a sequence selector only when its field resolves");
     let FieldKind::Sequence { element } = &binding.kind else {
-        unreachable!("validated: resolve_path only opens `.last` on a Sequence-kind field")
+        unreachable!("validated: resolve_path only opens sequence selectors on Sequence fields")
     };
     group
         .elements
@@ -587,7 +601,7 @@ fn render_predicate(predicate: &Predicate) -> String {
 }
 
 /// Only ever called on a path EC032 guarantees is a single segment
-/// (`LenAtLeast`/`LenIs` — `.last` deep paths are `In`/`IsSome`/`IsNone`
+/// (`LenAtLeast`/`LenIs` — selector-deep paths are `In`/`IsSome`/`IsNone`
 /// only, handled separately in `predicate_tokens`).
 fn path_ident(path: &crate::model::FieldPath) -> proc_macro2::Ident {
     quote::format_ident!("{}", path.segments[0].value)
@@ -953,6 +967,60 @@ mod tests {
         assert!(
             rendered.contains("rest.last.comma in [Present]"),
             "human-readable requirement string"
+        );
+    }
+
+    #[test]
+    fn nonfinal_path_emits_all_but_the_last_member() {
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("m".to_owned()),
+            bind_path: None,
+            fields: vec![crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("comma".to_owned()),
+                kind: crate::model::FieldKind::Scalar {
+                    codec: crate::model::Spanned::call_site("Comma".to_owned()),
+                },
+            }],
+        });
+        if let crate::model::AstShape::Own { fields, .. } = &mut group.constructions[0].ast {
+            fields.push(crate::model::FieldBinding {
+                field: crate::model::Spanned::call_site("rest".to_owned()),
+                kind: crate::model::FieldKind::Sequence {
+                    element: crate::model::Spanned::call_site("m".to_owned()),
+                },
+            });
+        }
+        group.constructions[0].forms[0]
+            .surface
+            .push(crate::model::SurfaceAtom::Hole(
+                crate::model::FieldPath::call_site("rest"),
+            ));
+        group.constructions[0]
+            .constraints
+            .push(crate::model::Constraint::Require(
+                crate::model::Spanned::call_site(crate::model::Predicate::In {
+                    path: crate::model::FieldPath::call_site("rest.nonfinal.comma"),
+                    allowed: vec!["Present".to_owned()],
+                }),
+            ));
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains(".take(rest.len().saturating_sub(1))"),
+            "nonfinal quantifier excludes exactly the final member: {rendered}",
+        );
+        assert!(
+            rendered.contains(".all(|member| matches!(member.comma, Comma::Present))"),
+            "nonfinal quantifier requires every member in the prefix: {rendered}",
+        );
+        assert!(
+            rendered.contains("matches!(member.comma, Comma::Present)"),
+            "element predicate is emitted inside the quantifier: {rendered}",
+        );
+        assert!(
+            rendered.contains("rest.nonfinal.comma in [Present]"),
+            "human-readable requirement preserves the authored path: {rendered}",
         );
     }
 
