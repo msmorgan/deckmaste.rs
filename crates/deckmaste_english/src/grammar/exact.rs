@@ -430,16 +430,19 @@ mod tests {
                     "Artifact",
                     "Battle",
                     "Creature",
+                    "Enchantment",
                     "Instant",
                     "Land",
                     "Planeswalker",
                     "Sorcery",
                 ],
             )
+            .with_catalog(CatalogKind::ArtifactType, ["Vehicle"])
+            .with_catalog(CatalogKind::PlaneswalkerType, ["Tamiyo"])
             .with_catalog(
                 CatalogKind::CreatureType,
                 [
-                    "Avatar", "Citizen", "Halfling", "Kithkin", "Scout", "Soldier",
+                    "Avatar", "Citizen", "Halfling", "Human", "Kithkin", "Scout", "Soldier",
                 ],
             )
     }
@@ -702,6 +705,11 @@ mod tests {
     ) -> Option<&NounPhrase> {
         let predicate = match clause {
             crate::syntax::IndependentClause::Transitive(_, predicate)
+            | crate::syntax::IndependentClause::Deontic(
+                _,
+                _,
+                Some(crate::syntax::Predicate::Transitive(predicate)),
+            )
             | crate::syntax::IndependentClause::Imperative(crate::syntax::Predicate::Transitive(
                 predicate,
             )) => predicate,
@@ -714,6 +722,27 @@ mod tests {
             return None;
         };
         Some(noun_phrase)
+    }
+
+    fn matrix_clause_coordination(
+        clause: &crate::syntax::IndependentClause,
+    ) -> Option<&crate::syntax::CoordinatedIndependentClause> {
+        match clause {
+            crate::syntax::IndependentClause::Coordinated(coordination) => Some(coordination),
+            crate::syntax::IndependentClause::Complex(complex) => {
+                matrix_clause_coordination(&complex.matrix)
+            }
+            _ => None,
+        }
+    }
+
+    fn sentence_matrix_coordination(
+        sentence: &crate::syntax::Sentence,
+    ) -> Option<&crate::syntax::CoordinatedIndependentClause> {
+        let crate::syntax::SentenceBody::Independent(clause) = &sentence.body else {
+            return None;
+        };
+        matrix_clause_coordination(clause)
     }
 
     fn has_base_modifier(nominal: &NominalPhrase) -> bool {
@@ -849,6 +878,146 @@ mod tests {
     }
 
     #[test]
+    fn transferred_outer_commas_close_clauses() {
+        for (face, source) in [
+            (
+                "Bound in Gold",
+                concat!(
+                    "Enchanted permanent can't attack, block, or crew Vehicles, and its ",
+                    "activated abilities can't be activated unless they're mana abilities."
+                ),
+            ),
+            (
+                "Alpine Moon",
+                concat!(
+                    "Lands your opponents control with the chosen name lose all land types and ",
+                    "abilities, and they gain \"{T}: Add one mana of any color.\""
+                ),
+            ),
+            (
+                "Shiko and Narset, Unified",
+                concat!(
+                    "copy that spell if it targets a permanent or player, and you may choose ",
+                    "new targets for the copy."
+                ),
+            ),
+        ] {
+            let sentence =
+                parse_fixture_sentence(source, &fixture_catalogs(), SelfReference::default());
+            let Some(coordination) = sentence_matrix_coordination(&sentence) else {
+                panic!("{face} did not select a matrix clause coordination: {sentence:#?}");
+            };
+            let [continuation] = coordination.rest.as_slice() else {
+                panic!("{face} did not select exactly two matrix clauses: {sentence:#?}");
+            };
+            assert_eq!(continuation.comma, Comma::Present, "{face}");
+            assert_eq!(continuation.conjunction, Some(Conjunction::And), "{face}");
+        }
+    }
+
+    #[test]
+    fn sway_of_the_stars_keeps_one_flat_object_list() {
+        let source = "their hand, graveyard, and all permanents they own";
+        let parsed = parse_fixture_noun_phrase(source);
+        let NounPhrase::Coordinated(coordination) = parsed else {
+            panic!("expected Sway of the Stars' complete noun-phrase list: {parsed:#?}");
+        };
+        let NounPhrase::Nominal(first) = coordination.first().as_ref() else {
+            panic!("expected Sway of the Stars' first nominal: {coordination:#?}");
+        };
+        let [graveyard, permanents] = coordination.rest().as_slice() else {
+            panic!("expected Sway of the Stars' flat three-member list: {coordination:#?}");
+        };
+        let (NounPhrase::Nominal(graveyard_phrase), NounPhrase::Nominal(permanents_phrase)) =
+            (&graveyard.phrase, &permanents.phrase)
+        else {
+            panic!("expected Sway of the Stars' remaining nominals: {coordination:#?}");
+        };
+        assert!(matches!(
+            first.determiner,
+            Some(Determiner::Possessive(crate::syntax::Possessor::Pronoun(
+                crate::word::Pronoun::They,
+            )))
+        ));
+        assert_eq!(nominal_head_spelling(first), "hand");
+        assert_eq!(graveyard.conjunction, None);
+        assert_eq!(graveyard_phrase.determiner, None);
+        assert_eq!(nominal_head_spelling(graveyard_phrase), "graveyard");
+        assert_eq!(permanents.conjunction, Some(Conjunction::And));
+        assert_eq!(permanents_phrase.determiner, Some(Determiner::All));
+        assert_eq!(nominal_head_spelling(permanents_phrase), "permanent");
+    }
+
+    #[test]
+    fn transferred_target_determiners_scope_over_the_full_nominal_list() {
+        for (face, source) in [
+            (
+                "All Will Be One",
+                "target opponent, creature an opponent controls, or planeswalker an opponent controls",
+            ),
+            (
+                "Nicol Bolas, God-Pharaoh",
+                "target opponent, creature an opponent controls, or planeswalker an opponent controls",
+            ),
+        ] {
+            let parsed = parse_fixture_noun_phrase(source);
+            let NounPhrase::CoordinatedNominal(coordination) = parsed else {
+                panic!("{face} did not select one shared target determiner: {parsed:#?}");
+            };
+            let (determiner, first, rest, _) =
+                coordination::parts_shared_determiner_nominal(&coordination);
+            assert_eq!(determiner, &Determiner::Target(None), "{face}");
+            let [middle, final_member] = rest.as_slice() else {
+                panic!("{face} did not select a flat three-member nominal list: {coordination:#?}");
+            };
+            assert_eq!(middle.conjunction, None, "{face}");
+            assert_eq!(final_member.conjunction, Some(Conjunction::Or), "{face}");
+            assert_eq!(
+                [
+                    nominal_head_spelling(first),
+                    nominal_head_spelling(&middle.phrase),
+                    nominal_head_spelling(&final_member.phrase),
+                ],
+                ["opponent", "Creature", "Planeswalker"],
+                "{face}",
+            );
+        }
+    }
+
+    #[test]
+    fn tale_of_tamiyo_keeps_the_target_scope_flat_through_the_final_member() {
+        let source = "target instant, sorcery, and/or Tamiyo planeswalker cards";
+        let parsed = parse_fixture_noun_phrase(source);
+        let NounPhrase::Coordinated(coordination) = parsed else {
+            panic!("The Tale of Tamiyo did not select one flat target list: {parsed:#?}");
+        };
+        let NounPhrase::Nominal(first) = coordination.first().as_ref() else {
+            panic!("The Tale of Tamiyo did not select a nominal first member: {coordination:#?}");
+        };
+        let [middle, final_member] = coordination.rest().as_slice() else {
+            panic!("The Tale of Tamiyo did not select three flat members: {coordination:#?}");
+        };
+        let (NounPhrase::Nominal(middle_phrase), NounPhrase::Nominal(final_member_phrase)) =
+            (&middle.phrase, &final_member.phrase)
+        else {
+            panic!("The Tale of Tamiyo did not select nominal members: {coordination:#?}");
+        };
+        assert_eq!(first.determiner, Some(Determiner::Target(None)));
+        assert_eq!(middle_phrase.determiner, None);
+        assert_eq!(final_member_phrase.determiner, None);
+        assert_eq!(middle.conjunction, None);
+        assert_eq!(final_member.conjunction, Some(Conjunction::AndOr));
+        assert_eq!(
+            [
+                nominal_head_spelling(first),
+                nominal_head_spelling(middle_phrase),
+                nominal_head_spelling(final_member_phrase),
+            ],
+            ["Instant", "Sorcery", "card"],
+        );
+    }
+
+    #[test]
     fn per_conjunct_postmodifier_stays_on_the_first_member() {
         let source = "each creature with flying and each player";
         let NounPhrase::Coordinated(coordination) = parse_fixture_noun_phrase(source) else {
@@ -959,37 +1128,64 @@ mod tests {
     }
 
     #[test]
-    fn base_power_change_keeps_both_local_power_toughness_groups() {
-        let source = concat!(
-            "At the beginning of your upkeep, change Halfdane's base power and toughness ",
-            "to the power and toughness of target creature other than Halfdane until the ",
-            "end of your next upkeep."
-        );
-        let sentence = parse_fixture_sentence(
-            source,
-            &fixture_catalogs(),
-            SelfReference::new("Halfdane", true),
-        );
-        let Some(object) = main_transitive_object(&sentence) else {
-            panic!("selected strict reading has no transitive object: {sentence:#?}");
-        };
-        let mut groups = Vec::new();
-        collect_noun_coordinations(object, &mut groups);
-        let selected_matches = groups.len() == 2
-            && groups
-                .iter()
-                .any(|group| is_local_power_toughness_group(group, true, false))
-            && groups.iter().any(|group| {
-                is_local_power_toughness_group(group, false, false)
-                    && !matches!(
-                        group.first().as_ref(),
-                        NounPhrase::Nominal(power) if has_base_modifier(power)
-                    )
-            });
-        assert!(
-            selected_matches,
-            "selected strict reading did not keep both local groups: {sentence:#?}",
-        );
+    fn transferred_power_toughness_phrases_stay_binary_and_local() {
+        for (face, source, self_reference) in [
+            (
+                "Eldrazi Mimic",
+                concat!(
+                    "you may change this creature's base power and toughness to that creature's ",
+                    "power and toughness until end of turn."
+                ),
+                SelfReference::default(),
+            ),
+            (
+                "Shape Stealer",
+                concat!(
+                    "change this creature's base power and toughness to that creature's power ",
+                    "and toughness until end of turn."
+                ),
+                SelfReference::default(),
+            ),
+            (
+                "Halfdane",
+                concat!(
+                    "At the beginning of your upkeep, change Halfdane's base power and toughness ",
+                    "to the power and toughness of target creature other than Halfdane until the ",
+                    "end of your next upkeep."
+                ),
+                SelfReference::new("Halfdane", true),
+            ),
+            (
+                "Exuberant Wolfbear",
+                concat!(
+                    "you may change the base power and toughness of target Human you control to ",
+                    "this creature's power and toughness until end of turn."
+                ),
+                SelfReference::default(),
+            ),
+        ] {
+            let sentence = parse_fixture_sentence(source, &fixture_catalogs(), self_reference);
+            let Some(object) = main_transitive_object(&sentence) else {
+                panic!("{face} selected no transitive object: {sentence:#?}");
+            };
+            let mut groups = Vec::new();
+            collect_noun_coordinations(object, &mut groups);
+            let selected_matches = groups.len() == 2
+                && groups
+                    .iter()
+                    .any(|group| is_local_power_toughness_group(group, true, false))
+                && groups.iter().any(|group| {
+                    is_local_power_toughness_group(group, false, false)
+                        && !matches!(
+                            group.first().as_ref(),
+                            NounPhrase::Nominal(power) if has_base_modifier(power)
+                        )
+                });
+            assert!(
+                selected_matches,
+                "{face} did not keep both power/toughness groups local: {sentence:#?}",
+            );
+        }
     }
 
     #[test]
