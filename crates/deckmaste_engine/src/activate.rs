@@ -485,6 +485,11 @@ impl GameState {
     /// resolved binder (`TheRef`/`Existing`) names its object(s) and is always
     /// feasible. `with` is a `CostComponent::With` (the only shape
     /// [`cost_summary`] collects into `withs`).
+    ///
+    /// The candidate filter is watched by `source` ([CR#113.7] the ability's
+    /// own source): "sacrifice ANOTHER creature" is `And([Creature,
+    /// Not(Ref(This))])`, which needs a carrier to exclude `source` itself —
+    /// engine-frameless-carrier-threading.
     fn with_cost_feasible(
         &self,
         with: &CostComponent,
@@ -495,16 +500,19 @@ impl GameState {
         let CostComponent::With { binder, .. } = with else {
             unreachable!("cost_summary collects only With components into `withs`");
         };
+        let watcher = Some(self.objects.obj(source).source);
         match &**binder {
             // A captured reference / existing selection resolves directly.
             Binder::TheRef(_) | Binder::Existing(_) => true,
             // ≥ 1 candidate to choose ([CR#601.2b]).
-            Binder::ChooseOne { filter, .. } => !crate::target::candidates(self, filter).is_empty(),
+            Binder::ChooseOne { filter, .. } => {
+                !crate::target::candidates_with(self, filter, watcher).is_empty()
+            }
             // ≥ the quantity's lower bound of candidates (no partial payment).
             Binder::Choose {
                 quantity, filter, ..
             } => {
-                let candidates = crate::target::candidates(self, filter);
+                let candidates = crate::target::candidates_with(self, filter, watcher);
                 let frame = Frame::bare(source, controller);
                 let (lo, _hi) = quantity.bounds();
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
@@ -1571,6 +1579,60 @@ mod tests {
         assert!(
             state.can_pay_verbs(player, &verbs, obj),
             "Discard(1) is payable with a card in hand"
+        );
+    }
+
+    /// [CR#601.2h]: a `ChooseOne` cost filter carrying `Not(Ref(This))`
+    /// ("sacrifice another creature") must exclude the ability's own source
+    /// from its candidates — an unpayable cost can't be paid, and without the
+    /// exclusion the source would wrongly count as its own "another" —
+    /// engine-frameless-carrier-threading. Without a threaded carrier,
+    /// `Ref(This)` panics in the frameless matcher; `with_cost_feasible` must
+    /// supply the source as watcher.
+    #[test]
+    fn choose_one_cost_filter_excludes_source_via_not_ref_this() {
+        use deckmaste_core::Binder;
+        use deckmaste_core::Cost;
+
+        let mut state = game();
+        let player = PlayerId(0);
+        let card_id = state.cards.push(creature_card(2, 2), player);
+        let source =
+            state
+                .objects
+                .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
+        state.zones.battlefield.push(source);
+
+        let filter = Predicate::And(Arc::from(vec![
+            Predicate::creature(),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+        ]));
+        let with = CostComponent::With {
+            binder: Arc::new(Binder::ChooseOne {
+                filter,
+                by: Reference::You,
+            }),
+            body: Cost(Arc::from(vec![])),
+        };
+
+        // Only the source itself is a creature: "sacrifice another creature"
+        // has no legal candidate — unpayable.
+        assert!(
+            !state.with_cost_feasible(&with, source, player),
+            "Not(Ref(This)) excludes the source; no OTHER creature exists to sacrifice"
+        );
+
+        // A second creature makes "another creature" payable.
+        let other_id = state.cards.push(creature_card(1, 1), player);
+        let other = state.objects.mint(
+            ObjectSource::Card(other_id),
+            player,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(other);
+        assert!(
+            state.with_cost_feasible(&with, source, player),
+            "a second creature satisfies 'sacrifice another creature'"
         );
     }
 

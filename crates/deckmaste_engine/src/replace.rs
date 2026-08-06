@@ -180,12 +180,18 @@ impl GameState {
     /// attaches to the resolving spell's chosen target, entering otherwise
     /// surfaces a controller choice — is the Stage-4 cast-path wiring; Stage 1
     /// resolves the candidate set so the mechanism is exercised end-to-end.
+    ///
+    /// `entering` is also the watcher for `filter`: a reanimation aura's
+    /// "attached to target creature you control" is `ControlledBy(Ref(You))`
+    /// ([CR#303.4f]), which needs a carrier to resolve `You` as the entering
+    /// object's controller — engine-frameless-carrier-threading.
     fn enters_attached_host(
         &self,
         entering: crate::object::ObjectId,
         filter: &Predicate,
     ) -> Option<crate::object::ObjectId> {
-        crate::target::candidates(self, filter)
+        let watcher = Some(self.objects.obj(entering).source);
+        crate::target::candidates_with(self, filter, watcher)
             .into_iter()
             .find(|&id| {
                 self.objects.obj(id).zone == Some(Zone::Battlefield)
@@ -433,6 +439,128 @@ mod tests {
                 .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
                 .any(|e| matches!(e, GameEvent::Attached(Attached { .. }))),
             "no Attached fact when there was no legal host"
+        );
+    }
+
+    /// A synthetic Aura like [`enchant_aura_card`], but the enters-attached
+    /// host quality is `ControlledBy(Ref(You))` (plus the battlefield/creature
+    /// guards) — the reanimation-aura shape "return ~ to the battlefield
+    /// attached to target creature you control" ([CR#303.4f]).
+    fn you_controlled_aura_card() -> Card {
+        use deckmaste_core::RelationPredicate;
+
+        Card::Normal(CardFace {
+            name: "Test You-Controlled Aura".into(),
+            types: vec![Type::Enchantment.def()],
+            abilities: vec![
+                Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+                    what: Predicate::Ref(Reference::This),
+                    to: Predicate::creature(),
+                }))),
+                Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Also {
+                    would: EventFilter::ZoneChange {
+                        what: Predicate::Ref(Reference::This),
+                        from: None,
+                        to: Some(Zone::Battlefield),
+                        cause: None,
+                    },
+                    also: OneShotEffect::With(deckmaste_core::With {
+                        binder: deckmaste_core::Binder::ChooseOne {
+                            filter: Predicate::And(
+                                vec![
+                                    Predicate::State(deckmaste_core::StatePredicate::InZone(
+                                        Zone::Battlefield,
+                                    )),
+                                    Predicate::creature(),
+                                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                        Predicate::Ref(Reference::You),
+                                    ))),
+                                ]
+                                .into(),
+                            ),
+                            by: Reference::You,
+                        },
+                        body: Arc::new(OneShotEffect::Act(Action::Attach {
+                            what: Reference::This,
+                            to: Reference::It,
+                        })),
+                    }),
+                }))),
+            ],
+            ..CardFace::default()
+        })
+    }
+
+    /// Mint the you-controlled-host Aura in P0's hand and run its entry to
+    /// completion, mirroring [`enter_aura`].
+    fn enter_you_controlled_aura(state: &mut GameState) -> ObjectId {
+        let card = state
+            .cards
+            .push(Arc::new(you_controlled_aura_card()), PlayerId(0));
+        let hand_id = state
+            .objects
+            .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Hand));
+        state.zones.hands[PlayerId(0).index()].push(hand_id);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneChange(ZoneChange {
+                snapshot: None,
+                object: hand_id,
+                from: Some(Zone::Hand),
+                to: Zone::Battlefield,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            }),
+        ))]);
+        for _ in 0..30 {
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+        *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| state.objects.obj(o).card_id() == Some(card))
+            .expect("the Aura entered the battlefield")
+    }
+
+    /// Put a Grizzly Bears on the battlefield under `controller`. Returns its
+    /// id.
+    fn creature_controlled_by(state: &mut GameState, controller: PlayerId) -> ObjectId {
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let card = state.cards.push(bears, controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// [CR#303.4f]: `enters_attached_host`'s `to` filter may carry
+    /// `ControlledBy(Ref(You))` — "return ~ to the battlefield attached to
+    /// target creature you control" — resolving against the entering
+    /// object's controller. engine-frameless-carrier-threading: with an
+    /// opponent-controlled creature ALSO on the battlefield, the frameless
+    /// matcher must still exclude it and pick the YOU-controlled one.
+    #[test]
+    fn enters_attached_host_resolves_controlled_by_you() {
+        let mut state = game();
+        let opponents_creature = creature_controlled_by(&mut state, PlayerId(1));
+        let hosts_creature = creature_controlled_by(&mut state, PlayerId(0));
+        let aura = enter_you_controlled_aura(&mut state);
+        assert_eq!(
+            state.objects.obj(aura).attached_to,
+            Some(hosts_creature),
+            "ControlledBy(Ref(You)) picks the YOU-controlled creature, never the opponent's"
+        );
+        assert_ne!(
+            state.objects.obj(aura).attached_to,
+            Some(opponents_creature),
+            "the opponent-controlled creature is never a legal ControlledBy(You) host"
         );
     }
 
