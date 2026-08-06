@@ -62,6 +62,29 @@ by the derive from `SupportsMacros::ALL_VARIANTS`, and a body ident naming a
 native variant at one of the def's kinds is no longer an edge. §6's collision
 diagnostic wants that same data.
 
+## Second prerequisite: variant signatures are not exposed
+
+The reachability inventory is computed from `Kind::variants()`
+(`SupportsMacros::ALL_VARIANTS`), which yields 446 rows — 19 synthesized
+`Expanded` provenance and 4 structural-calculus rows come off, leaving **423
+identity macros to scaffold**.
+
+Scaffolding them needs each variant's arity and shape, and §5 keys coverage per
+`(defining type, variant, dispatch kind, SIGNATURE)`. Nothing exposes
+signatures today. The derive has the data (`Shape::{Unit, Newtype, Tuple,
+Struct}` over `Field { ident, ty, default }` in `macro_ron_derive/src/input.rs`)
+but emits none of it.
+
+The complication is that a dispatch set is TRANSITIVE: many of the 423 rows are
+names inherited from a flattened or embedded type, whose signature lives on that
+type rather than the host. So signature emission needs the same compile-time
+concatenation `ALL_VARIANTS` gets through `concat_variants` — which today is a
+`const fn` over `&'static [&'static str]` and would need a const-constructible
+`VariantSignature` to generalize.
+
+Ordering consequence: signature emission is prerequisite to BOTH the scaffold
+generator and the compiled registry, so it lands before either.
+
 ## Open, to settle before restriction is switched on
 
 - **Argument validation bypasses restriction.** `validate_arg` reads captured
