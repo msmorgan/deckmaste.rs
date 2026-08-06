@@ -283,6 +283,13 @@ pub(super) enum GeneratedAssemblyError {
     TooManyOptionalAtoms {
         owner: &'static str,
     },
+    /// Registering a sequence over an element with an empty surface would
+    /// create a nullable left-recursive extension whose feature length grows
+    /// without consuming input.
+    NullableElement {
+        group: &'static str,
+        element: &'static str,
+    },
 }
 
 /// Deterministic internal-category ids: the sorted set of `internal`
@@ -502,6 +509,25 @@ pub(super) fn register_generated(
         return Err(GeneratedAssemblyError::BindWhileGenerated {
             construction: construction.id,
         });
+    }
+    for group in groups {
+        if let Some(element) = group.element_data.iter().find(|element| {
+            !element.fields.is_empty()
+                && element.variants.is_empty()
+                && element.fields.iter().all(|field| {
+                    matches!(field.kind, FieldKindData::Optional { .. })
+                        || matches!(
+                            field.kind,
+                            FieldKindData::Scalar { codec: "Comma" }
+                                | FieldKindData::SurfaceScalar { codec: "Comma" }
+                        )
+                })
+        }) {
+            return Err(GeneratedAssemblyError::NullableElement {
+                group: group.name,
+                element: element.name,
+            });
+        }
     }
     let aux = auxiliary_categories(groups, cats.len());
     if groups.iter().any(|group| {
@@ -955,6 +981,53 @@ mod tests {
                 construction: "np_only",
                 category: "DefinitelyUnknown",
             }
+        );
+    }
+
+    #[test]
+    fn nullable_element_is_refused_before_rules_are_registered() {
+        const NULLABLE_FIELDS: &[FieldData] = &[FieldData {
+            name: "maybe_word",
+            kind: FieldKindData::Optional {
+                inner: &FieldKindData::Scalar {
+                    codec: "Conjunction",
+                },
+            },
+        }];
+        const ELEMENT_DATA: &[ElementData] = &[ElementData {
+            name: "nullable_member",
+            bind_path: None,
+            fields: NULLABLE_FIELDS,
+            variants: &[],
+            erased_builders: &[],
+            erased_sequence_builder: None,
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[construction(
+            "np_only",
+            "NounPhrase",
+            false,
+            WORD_FIELDS,
+            WORD_FORM,
+        )];
+        const GROUP: GroupData = GroupData {
+            name: "nullable",
+            elements: &["nullable_member"],
+            element_data: ELEMENT_DATA,
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::NullableElement {
+                group: "nullable",
+                element: "nullable_member",
+            },
+        );
+        assert!(
+            builder.finish(RegistrationOrder::Normal).rules.is_empty(),
+            "nullable-element rejection must happen before the builder is mutated",
         );
     }
 
