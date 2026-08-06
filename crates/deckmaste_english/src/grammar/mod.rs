@@ -1082,6 +1082,51 @@ pub(crate) enum NounPhraseCoordinationState {
 /// Chart identity facts restricted to inherent realization and grammatical
 /// selection; exact surface witnesses live outside this bundle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct GeneratedElementFeatures {
+    fields: std::sync::Arc<[Features]>,
+    present_fields: u64,
+    variant: Option<usize>,
+}
+
+/// A persistent generated sequence. Every extension shares its complete
+/// prefix instead of copying an ever-growing vector into another chart key.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct GeneratedSequenceFeatures {
+    previous: Option<std::sync::Arc<Self>>,
+    element: GeneratedElementFeatures,
+    len: usize,
+}
+
+impl GeneratedSequenceFeatures {
+    fn seed(element: GeneratedElementFeatures) -> Self {
+        Self {
+            previous: None,
+            element,
+            len: 1,
+        }
+    }
+
+    fn extend(previous: &std::sync::Arc<Self>, element: GeneratedElementFeatures) -> Self {
+        Self {
+            previous: Some(std::sync::Arc::clone(previous)),
+            element,
+            len: previous.len + 1,
+        }
+    }
+
+    fn elements(&self) -> Vec<&GeneratedElementFeatures> {
+        let mut elements = Vec::with_capacity(self.len);
+        let mut next = Some(self);
+        while let Some(sequence) = next {
+            elements.push(&sequence.element);
+            next = sequence.previous.as_deref();
+        }
+        elements.reverse();
+        elements
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
     Number {
@@ -1320,12 +1365,13 @@ pub(crate) enum Features {
         variant: Option<usize>,
     },
     GeneratedSequence {
-        /// Share immutable element features across every sequence prefix.
-        /// Deep-cloning payload trees here makes each prefix retain another
-        /// copy, while dropping them from the key incorrectly packs distinct
-        /// lowered syntax. `Arc` preserves exact chart identity at constant
-        /// payload storage per element parse.
-        elements: Vec<(std::sync::Arc<[Features]>, u64, Option<usize>)>,
+        /// Share immutable element fields and complete sequence prefixes.
+        /// Struct fields retain the grammatical features consumed by the
+        /// outer construction. A variant's identity plus its checked payload
+        /// category is already its complete outer feature; retaining the
+        /// payload's recursive feature tree would only duplicate an inner
+        /// constituent that the construction never inspects.
+        tail: std::sync::Arc<GeneratedSequenceFeatures>,
     },
 }
 

@@ -421,7 +421,7 @@ mod tests {
         Catalogs::default()
             .with_catalog(
                 CatalogKind::KeywordAbility,
-                ["Flying", "Lifelink", "Protection"],
+                ["Flash", "Flying", "Haste", "Lifelink", "Protection"],
             )
             .with_catalog(
                 CatalogKind::CardType,
@@ -919,6 +919,159 @@ mod tests {
         assert!(
             matching.is_some(),
             "no strict full-sentence reading closes the P/T group before protection: {readings:#?}",
+        );
+    }
+
+    fn counter_pair_has_destination(
+        noun_phrase: &NounPhrase,
+        destination_matches: impl Fn(&NounPhrase) -> bool,
+    ) -> bool {
+        let NounPhrase::Coordinated(coordination) = noun_phrase else {
+            return false;
+        };
+        let (NounPhrase::Nominal(first), [second]) = (
+            coordination.first().as_ref(),
+            coordination.rest().as_slice(),
+        ) else {
+            return false;
+        };
+        let NounPhrase::Nominal(second_phrase) = &second.phrase else {
+            return false;
+        };
+        nominal_is_counter(first)
+            && nominal_is_counter(second_phrase)
+            && second.conjunction == Some(Conjunction::And)
+            && second_phrase.complements.iter().any(|complement| {
+                matches!(
+                    complement,
+                    NominalComplement::Prepositional(preposition)
+                        if preposition.head().preposition == crate::syntax::Preposition::On
+                            && matches!(
+                                preposition.head().object.as_ref(),
+                                crate::syntax::Phrase::NounPhrase(destination)
+                                    if destination_matches(destination)
+                            )
+                )
+            })
+    }
+
+    fn nominal_is_counter(nominal: &NominalPhrase) -> bool {
+        let noun = match &nominal.head {
+            NounInstance::Singular(noun)
+            | NounInstance::Plural(noun)
+            | NounInstance::Mass(noun) => noun,
+        };
+        matches!(
+            noun,
+            Noun::Word(vocab) if vocab.spelling() == "counter"
+        ) || matches!(noun, Noun::Agentive(crate::word::Verb::Word(Vocab::Count)))
+    }
+
+    #[test]
+    fn arwen_counter_pairs_close_before_their_destinations() {
+        let source = concat!(
+            "Put a +1/+1 counter and a lifelink counter on that creature and a +1/+1 ",
+            "counter and a lifelink counter on Arwen."
+        );
+        let readings = sentence_readings(
+            source,
+            &fixture_catalogs(),
+            SelfReference::new("Arwen, Mortal Queen", true),
+        );
+        let matching = readings.iter().find(|sentence| {
+            let Some(NounPhrase::Coordinated(outer)) = main_transitive_object(sentence) else {
+                return false;
+            };
+            let (NounPhrase::Coordinated(first), [second]) =
+                (outer.first().as_ref(), outer.rest().as_slice())
+            else {
+                return false;
+            };
+            second.conjunction == Some(Conjunction::And)
+                && counter_pair_has_destination(
+                    &NounPhrase::Coordinated(first.clone()),
+                    |destination| {
+                        matches!(
+                            destination,
+                            NounPhrase::Nominal(nominal)
+                                if nominal.determiner == Some(Determiner::Demonstrative(
+                                    crate::syntax::Demonstrative::That
+                                )) && nominal_head_spelling(nominal) == "Creature"
+                        )
+                    },
+                )
+                && counter_pair_has_destination(&second.phrase, |destination| {
+                    matches!(destination, NounPhrase::ThisCard(_))
+                })
+        });
+        assert!(
+            matching.is_some(),
+            "no strict reading closes both counter pairs locally: {readings:#?}",
+        );
+    }
+
+    #[test]
+    fn shadow_flash_or_haste_stays_inside_the_with_phrase() {
+        let source = concat!(
+            "Shadow the Hedgehog or another creature you control with flash or haste ",
+            "dies."
+        );
+        let readings = sentence_readings(
+            source,
+            &fixture_catalogs(),
+            SelfReference::new("Shadow the Hedgehog", true),
+        );
+        let matching = readings.iter().find(|sentence| {
+            let crate::syntax::SentenceBody::Independent(
+                crate::syntax::IndependentClause::Intransitive(
+                    crate::syntax::Subject(NounPhrase::Coordinated(subject)),
+                    _,
+                ),
+            ) = &sentence.body
+            else {
+                return false;
+            };
+            let (NounPhrase::ThisCard(_), [other]) =
+                (subject.first().as_ref(), subject.rest().as_slice())
+            else {
+                return false;
+            };
+            if other.conjunction != Some(Conjunction::Or) {
+                return false;
+            }
+            let NounPhrase::Nominal(other_nominal) = &other.phrase else {
+                return false;
+            };
+            other_nominal.complements.iter().any(|complement| {
+                let NominalComplement::Prepositional(preposition) = complement else {
+                    return false;
+                };
+                let crate::syntax::Phrase::NounPhrase(noun_phrase) =
+                    preposition.head().object.as_ref()
+                else {
+                    return false;
+                };
+                let NounPhrase::Coordinated(keywords) = noun_phrase.as_ref() else {
+                    return false;
+                };
+                let (NounPhrase::Nominal(flash), [haste]) =
+                    (keywords.first().as_ref(), keywords.rest().as_slice())
+                else {
+                    return false;
+                };
+                preposition.head().preposition == crate::syntax::Preposition::With
+                    && nominal_head_spelling(flash) == "Flash"
+                    && haste.conjunction == Some(Conjunction::Or)
+                    && matches!(
+                        &haste.phrase,
+                        NounPhrase::Nominal(haste)
+                            if nominal_head_spelling(haste) == "Haste"
+                    )
+            })
+        });
+        assert!(
+            matching.is_some(),
+            "no strict reading keeps flash or haste inside with: {readings:#?}",
         );
     }
 

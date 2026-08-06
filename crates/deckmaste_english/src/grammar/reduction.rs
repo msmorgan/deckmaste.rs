@@ -6,6 +6,8 @@ use super::Conjunction;
 use super::EnglishGrammar;
 use super::Features;
 use super::GapState;
+use super::GeneratedElementFeatures;
+use super::GeneratedSequenceFeatures;
 use super::IndefiniteArticle;
 use super::InitialSound;
 use super::NominalAttachmentPhase;
@@ -1896,7 +1898,7 @@ pub(super) fn reduce_generated_aux(
                 return None;
             }
             Features::GeneratedElement {
-                fields: std::sync::Arc::from([payload.clone()]),
+                fields: std::sync::Arc::default(),
                 present_fields: 1,
                 variant: Some(variant),
             }
@@ -1911,18 +1913,23 @@ pub(super) fn reduce_generated_aux(
                 return None;
             };
             Features::GeneratedSequence {
-                elements: vec![(fields.clone(), *present_fields, *variant)],
+                tail: std::sync::Arc::new(GeneratedSequenceFeatures::seed(
+                    GeneratedElementFeatures {
+                        fields: fields.clone(),
+                        present_fields: *present_fields,
+                        variant: *variant,
+                    },
+                )),
             }
         }
         R::SequenceExtend { group, element } => {
-            let Features::GeneratedSequence { elements } = children.first()?.features else {
+            let Features::GeneratedSequence { tail } = children.first()?.features else {
                 return None;
             };
             let element = group.element_data.get(element)?;
             if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
-                && !elements
-                    .last()
-                    .is_some_and(|(_, present, _)| present & 0b01 != 0 && present & 0b10 == 0)
+                && !(tail.element.present_fields & 0b01 != 0
+                    && tail.element.present_fields & 0b10 == 0)
             {
                 // Once another member follows, the previous one is known
                 // to be nonfinal: it must carry a comma and must not
@@ -1937,9 +1944,16 @@ pub(super) fn reduce_generated_aux(
             else {
                 return None;
             };
-            let mut elements = elements.clone();
-            elements.push((fields.clone(), *present_fields, *variant));
-            Features::GeneratedSequence { elements }
+            Features::GeneratedSequence {
+                tail: std::sync::Arc::new(GeneratedSequenceFeatures::extend(
+                    tail,
+                    GeneratedElementFeatures {
+                        fields: fields.clone(),
+                        present_fields: *present_fields,
+                        variant: *variant,
+                    },
+                )),
+            }
         }
     };
     Some(Reduction {
@@ -2093,10 +2107,10 @@ fn generated_relative_complement_count(
         // completed group in that shape.
         return 0;
     }
-    let Some(Features::GeneratedSequence { elements }) = fields.get(3).copied().flatten() else {
+    let Some(Features::GeneratedSequence { tail }) = fields.get(3).copied().flatten() else {
         return 0;
     };
-    let Some(element) = rule
+    let Some(element_declaration) = rule
         .group
         .element_data
         .iter()
@@ -2105,13 +2119,13 @@ fn generated_relative_complement_count(
         return 0;
     };
     u32::try_from(
-        elements
-            .iter()
-            .filter(|(features, _, variant)| {
-                variant
-                    .and_then(|variant| element.variants.get(variant))
+        tail.elements()
+            .into_iter()
+            .filter(|sequence_element| {
+                sequence_element
+                    .variant
+                    .and_then(|variant| element_declaration.variants.get(variant))
                     .is_some_and(|variant| variant.name == "Relative")
-                    && matches!(features.first(), Some(Features::RelativeClause { .. }))
             })
             .count(),
     )
@@ -2125,22 +2139,22 @@ fn generated_prepositional_coordination_features(
 ) -> Option<Features> {
     match construction {
         "noun_phrase_coordination" => {
-            let Features::GeneratedSequence { elements } = fields.get(1)?.as_ref()? else {
+            let Features::GeneratedSequence { tail } = fields.get(1)?.as_ref()? else {
                 return None;
             };
-            let (last, _) = elements.split_last()?;
+            let last = &tail.element;
             let Features::NounPhrase {
                 set_exception,
                 rules_object_followup,
                 ..
-            } = last.0.get(2)?
+            } = last.fields.get(2)?
             else {
                 return None;
             };
-            let licensed_set_object = elements.len() == 1
+            let licensed_set_object = tail.len == 1
                 && matches!(preposition, Preposition::To | Preposition::From)
                 && *set_exception == SetExceptionState::Host;
-            let licensed_among_list = elements.len() >= 2 && preposition == Preposition::Among;
+            let licensed_among_list = tail.len >= 2 && preposition == Preposition::Among;
             if !*rules_object_followup && !licensed_set_object && !licensed_among_list {
                 return None;
             }
@@ -2193,15 +2207,15 @@ fn generated_surface_sequence_scalars_match(
                 })
         })
         .all(|(field_index, comma_index)| {
-            let Some(Features::GeneratedSequence { elements }) =
+            let Some(Features::GeneratedSequence { tail }) =
                 fields.get(field_index).copied().flatten()
             else {
                 return false;
             };
-            let expected = elements.len() >= 2;
-            elements
-                .iter()
-                .all(|(_, present, _)| (*present & (1_u64 << comma_index) != 0) == expected)
+            let expected = tail.len >= 2;
+            tail.elements()
+                .into_iter()
+                .all(|element| (element.present_fields & (1_u64 << comma_index) != 0) == expected)
         })
 }
 
@@ -2209,7 +2223,7 @@ fn generated_complements_include_keyword_argument(
     rule: super::rules::GeneratedRuleRef,
     fields: &[Option<&Features>],
 ) -> bool {
-    let Some(Features::GeneratedSequence { elements }) = fields.get(3).copied().flatten() else {
+    let Some(Features::GeneratedSequence { tail }) = fields.get(3).copied().flatten() else {
         return false;
     };
     let Some(element) = rule
@@ -2220,8 +2234,9 @@ fn generated_complements_include_keyword_argument(
     else {
         return false;
     };
-    elements.iter().any(|(_, _, variant)| {
-        variant
+    tail.elements().into_iter().any(|sequence_element| {
+        sequence_element
+            .variant
             .and_then(|variant| element.variants.get(variant))
             .is_some_and(|variant| variant.name == "KeywordArgument")
     })
@@ -2244,10 +2259,11 @@ fn noun_phrase_coordination_features(
             else {
                 return None;
             };
-            let Features::GeneratedSequence { elements } = fields.get(1)?.as_ref()? else {
+            let Features::GeneratedSequence { tail } = fields.get(1)?.as_ref()? else {
                 return None;
             };
-            generated_coordination_sequence_is_valid(elements)?;
+            generated_coordination_sequence_is_valid(tail)?;
+            let elements = tail.elements();
             if *set_exception == SetExceptionState::Closed
                 || elements.len() >= 2 && *first_coordination != NounPhraseCoordinationState::None
             {
@@ -2257,13 +2273,13 @@ fn noun_phrase_coordination_features(
             let mut last_agreement = *first_agreement;
             let mut all_themes = *first_theme;
             let mut any_theme = *first_theme;
-            for (element, _, _) in elements {
+            for element in &elements {
                 let Features::NounPhrase {
                     agreement,
                     adjunct,
                     recipient_passive_theme,
                     ..
-                } = element.get(2)?
+                } = element.fields.get(2)?
                 else {
                     return None;
                 };
@@ -2277,7 +2293,7 @@ fn noun_phrase_coordination_features(
             if any_theme && !all_themes {
                 return None;
             }
-            let conjunction = final_generated_conjunction(elements)?;
+            let conjunction = final_generated_conjunction(tail)?;
             Some(Features::NounPhrase {
                 agreement: coordination_agreement(conjunction, *first_agreement, last_agreement),
                 pronoun_case: None,
@@ -2303,18 +2319,19 @@ fn noun_phrase_coordination_features(
                 return None;
             };
             let first = nominal_coordination_member(fields.get(1)?.as_ref()?)?;
-            let Features::GeneratedSequence { elements } = fields.get(2)?.as_ref()? else {
+            let Features::GeneratedSequence { tail } = fields.get(2)?.as_ref()? else {
                 return None;
             };
-            generated_coordination_sequence_is_valid(elements)?;
+            generated_coordination_sequence_is_valid(tail)?;
+            let elements = tail.elements();
             if !first.shared_determiner_open {
                 return None;
             }
             let mut common_adjunct = first.adjunct;
             let mut last_form = first.form;
             let mut members = Vec::with_capacity(elements.len());
-            for (element, _, _) in elements {
-                let member = nominal_coordination_member(element.get(2)?)?;
+            for element in &elements {
+                let member = nominal_coordination_member(element.fields.get(2)?)?;
                 if !generated_determiner_accepts(
                     *cardinality,
                     *article,
@@ -2343,7 +2360,7 @@ fn noun_phrase_coordination_features(
             {
                 return None;
             }
-            let conjunction = final_generated_conjunction(elements)?;
+            let conjunction = final_generated_conjunction(tail)?;
             Some(Features::NounPhrase {
                 agreement: coordination_agreement(
                     conjunction,
@@ -2378,32 +2395,29 @@ fn noun_phrase_coordination_features(
     }
 }
 
-fn generated_coordination_sequence_is_valid(
-    elements: &[(std::sync::Arc<[Features]>, u64, Option<usize>)],
-) -> Option<()> {
-    let (last, nonfinal) = elements.split_last()?;
-    for (_, present, _) in nonfinal {
-        if present & 1 == 0 || present & (1 << 1) != 0 {
+fn generated_coordination_sequence_is_valid(sequence: &GeneratedSequenceFeatures) -> Option<()> {
+    let mut previous = sequence.previous.as_deref();
+    while let Some(element) = previous {
+        if element.element.present_fields & 1 == 0 || element.element.present_fields & (1 << 1) != 0
+        {
             return None;
         }
+        previous = element.previous.as_deref();
     }
-    if last.1 & (1 << 1) == 0 {
+    if sequence.element.present_fields & (1 << 1) == 0 {
         return None;
     }
-    if elements.len() == 1 && last.1 & 1 != 0 {
+    if sequence.len == 1 && sequence.element.present_fields & 1 != 0 {
         return None;
     }
     Some(())
 }
 
-fn final_generated_conjunction(
-    elements: &[(std::sync::Arc<[Features]>, u64, Option<usize>)],
-) -> Option<Conjunction> {
-    let (fields, present, _) = elements.last()?;
-    if present & (1 << 1) == 0 {
+fn final_generated_conjunction(sequence: &GeneratedSequenceFeatures) -> Option<Conjunction> {
+    if sequence.element.present_fields & (1 << 1) == 0 {
         return None;
     }
-    let Features::Conjunction(conjunction) = fields.get(1)? else {
+    let Features::Conjunction(conjunction) = sequence.element.fields.get(1)? else {
         return None;
     };
     matches!(
@@ -2627,15 +2641,15 @@ mod generated_tests {
 
     fn sequence(conjunction: Conjunction, number: Number) -> Features {
         Features::GeneratedSequence {
-            elements: vec![(
-                std::sync::Arc::from([
+            tail: std::sync::Arc::new(GeneratedSequenceFeatures::seed(GeneratedElementFeatures {
+                fields: std::sync::Arc::from([
                     Features::None,
                     Features::Conjunction(conjunction),
                     noun_phrase(number),
                 ]),
-                1 << 1 | 1 << 2,
-                None,
-            )],
+                present_fields: 1 << 1 | 1 << 2,
+                variant: None,
+            })),
         }
     }
 
