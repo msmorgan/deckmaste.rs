@@ -980,79 +980,7 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     for construction in &group.constructions {
         let id = construction.id.value.as_str();
         // EC014 — surface atoms must agree with the kind they resolve to.
-        for form in &construction.forms {
-            for atom in &form.surface {
-                let (path, atom_kind) = match atom {
-                    SurfaceAtom::Hole(path) => (path, "hole"),
-                    SurfaceAtom::Lexeme(path) => (path, "lexeme"),
-                    SurfaceAtom::Identity(path) => (path, "identity"),
-                    SurfaceAtom::Literal(_) => continue,
-                };
-                let Ok(resolved) = resolve_path(group, construction, path) else {
-                    continue; // EC010 already reported it
-                };
-                let is_scalar = resolved_is_scalar(&resolved);
-                let is_identity = matches!(resolved, Resolved::Kind(FieldKind::Identity { .. }));
-                if atom_kind == "identity" && !is_identity {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::SurfaceKindMismatch,
-                            id,
-                            format!(
-                                "form `{}`: `{}` is not an identity; only identity fields render with identity(…)",
-                                form.name.value,
-                                path.dotted()
-                            ),
-                        )
-                        .with_span(path.span),
-                    );
-                }
-                if atom_kind == "lexeme" && !is_scalar {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::SurfaceKindMismatch,
-                            id,
-                            format!(
-                                "form `{}`: `{}` is not a scalar; only scalars render with lex(…)",
-                                form.name.value,
-                                path.dotted()
-                            ),
-                        )
-                        .with_span(path.span),
-                    );
-                }
-                if atom_kind == "hole" && is_scalar {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::SurfaceKindMismatch,
-                            id,
-                            format!(
-                                "form `{}`: `{}` is a scalar; write lex({}) to render it",
-                                form.name.value,
-                                path.dotted(),
-                                path.dotted()
-                            ),
-                        )
-                        .with_span(path.span),
-                    );
-                }
-                if atom_kind == "hole" && is_identity {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::SurfaceKindMismatch,
-                            id,
-                            format!(
-                                "form `{}`: `{}` is an identity; write identity({}) to render it",
-                                form.name.value,
-                                path.dotted(),
-                                path.dotted()
-                            ),
-                        )
-                        .with_span(path.span),
-                    );
-                }
-            }
-        }
+        check_surface_kinds(group, construction, diags);
         // EC011 — presence predicates need an Optional target. Walk every
         // predicate the construction holds: require clauses and form guards.
         let mut presence_paths: Vec<&FieldPath> = Vec::new();
@@ -1167,6 +1095,87 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                         id,
                         format!(
                             "`{}`: generated try_new checks support single-field paths; deeper constraint paths land when a family needs them",
+                            path.dotted()
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            }
+        }
+    }
+}
+
+fn check_surface_kinds(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let id = construction.id.value.as_str();
+    for form in &construction.forms {
+        for atom in &form.surface {
+            let (path, atom_kind) = match atom {
+                SurfaceAtom::Hole(path) => (path, "hole"),
+                SurfaceAtom::Lexeme(path) => (path, "lexeme"),
+                SurfaceAtom::Identity(path) => (path, "identity"),
+                SurfaceAtom::Literal(_) => continue,
+            };
+            let Ok(resolved) = resolve_path(group, construction, path) else {
+                continue; // EC010 already reported it
+            };
+            let is_scalar = resolved_is_scalar(&resolved);
+            let is_identity = matches!(resolved, Resolved::Kind(FieldKind::Identity { .. }));
+            if atom_kind == "identity" && !is_identity {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::SurfaceKindMismatch,
+                        id,
+                        format!(
+                            "form `{}`: `{}` is not an identity; only identity fields render with identity(…)",
+                            form.name.value,
+                            path.dotted()
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            }
+            if atom_kind == "lexeme" && !is_scalar {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::SurfaceKindMismatch,
+                        id,
+                        format!(
+                            "form `{}`: `{}` is not a scalar; only scalars render with lex(…)",
+                            form.name.value,
+                            path.dotted()
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            }
+            if atom_kind == "hole" && is_scalar {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::SurfaceKindMismatch,
+                        id,
+                        format!(
+                            "form `{}`: `{}` is a scalar; write lex({}) to render it",
+                            form.name.value,
+                            path.dotted(),
+                            path.dotted()
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            }
+            if atom_kind == "hole" && is_identity {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::SurfaceKindMismatch,
+                        id,
+                        format!(
+                            "form `{}`: `{}` is an identity; write identity({}) to render it",
+                            form.name.value,
+                            path.dotted(),
                             path.dotted()
                         ),
                     )
