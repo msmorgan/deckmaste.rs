@@ -39,7 +39,25 @@ pub const NATIVE_CALCULUS: &[(&str, &str)] = &[
 /// kind outside the registry needs no entry, because suppression never reaches
 /// it — `Cmp`, the phase/step enums and `FaceLayout` are unregistered by
 /// design and are not listed here.
-pub const NATIVE_ATOMS: &[(&str, &str)] = &[];
+///
+/// The five `KeywordAbility::ALL` intrinsics (`FirstStrike`, `DoubleStrike`,
+/// `Deathtouch`, `Trample`, `Vigilance`, [CR#702]): `deckmaste_plugin`'s
+/// `classification` test suite asserts every `KeywordAbility`-kind macro
+/// classifies non-intrinsic — "intrinsics belong in the enum" is the
+/// suite's own comment — so a macro literally named after one of these
+/// would be flagged drift, not author vocabulary. Canon spells them bare
+/// (`Deathtouch`, `Trample`, …) at the `KeywordAbility` position and no
+/// macro exists for them anywhere; classifying them `NativeAtom` here is
+/// what keeps the identity-macro scaffold generator (macro-author-surface
+/// spec §5) from either forcing a scaffold the classification suite
+/// rejects or leaving a real gap unclassified.
+pub const NATIVE_ATOMS: &[(&str, &str)] = &[
+    ("KeywordAbility", "FirstStrike"),
+    ("KeywordAbility", "DoubleStrike"),
+    ("KeywordAbility", "Deathtouch"),
+    ("KeywordAbility", "Trample"),
+    ("KeywordAbility", "Vigilance"),
+];
 
 /// Every `(kind, variant)` row the registry dispatches, sorted and deduped.
 ///
