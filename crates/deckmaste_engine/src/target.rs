@@ -13,6 +13,7 @@ use deckmaste_core::Zone;
 
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
+use crate::stack::Frame;
 use crate::stack::StackObject;
 use crate::state::GameState;
 
@@ -338,13 +339,19 @@ pub fn matches_with(
             state.objects.obj(id).card_id().is_some()
                 && state.layers().get(id).supertypes.contains(s)
         }
-        // [CR#208,202.3]: a derived stat compares against a bound. The bound is
-        // a `Count`; only a literal evaluates here (a dynamic bound needs a
-        // carrier frame the matcher does not carry — see `const_count`). A
-        // missing stat (a land has no power) never satisfies the predicate.
+        // [CR#208,202.3]: a derived stat compares against a bound. A literal
+        // bound evaluates directly; a dynamic bound (`CountOf`, `StatOf`, `X`)
+        // resolves through `resolve_count`'s watcher-anchored `eval_count` —
+        // reachable: Skulk's blocker filter is `Stat(Power, Greater,
+        // StatOf(This, Power))` ([CR#702.118b]). A missing stat (a land has no
+        // power) never satisfies the predicate.
         Predicate::Characteristic(CharacteristicPredicate::Stat(stat, cmp, count)) => {
             state.objects.obj(id).card_id().is_some()
-                && stat_satisfies(derived_stat(state, id, *stat), *cmp, count)
+                && stat_satisfies_bound(
+                    derived_stat(state, id, *stat),
+                    *cmp,
+                    resolve_count(state, count, watcher),
+                )
         }
 
         // The object's controller, as a player proxy ([CR#109.5]). Recurses
@@ -451,14 +458,15 @@ pub fn matches_with(
             })
         }
         // [CR#115.9a]: "with [N] target(s)" — the count of target instances
-        // chosen at stack-put, FLATTENED across slots. Bound is a literal
-        // (frameless). Non-stack → none.
+        // chosen at stack-put, FLATTENED across slots. The bound resolves
+        // through `resolve_count` (literal directly, dynamic via the
+        // watcher-anchored evaluator). Non-stack → none.
         Predicate::State(StatePredicate::TargetCount(bound)) => {
             state.stack.iter().find(|e| e.id == id).is_some_and(|e| {
                 bound.satisfied_by(
                     Uint::try_from(e.targets.iter().map(Vec::len).sum::<usize>())
                         .expect("target count fits Uint"),
-                    const_count,
+                    |count| resolve_count(state, count, watcher),
                 )
             })
         }
@@ -544,10 +552,30 @@ pub fn matches_with(
         // `Frame` with announced targets / trigger bindings. `This`/`You` are
         // handled above; the rest resolve only where a Frame exists
         // (`resolve::eval_reference`).
-        Predicate::Ref(r) => todo!(
-            "engine seam: Ref({r:?}) needs a carrier Frame — the matcher holds only a \
-             watcher; owner: engine-candidate-frame-context"
-        ),
+        //
+        // AUDITED invariant (engine-candidate-frame-context), not a guess: no
+        // live call path reaches this arm with a non-This/You/AttachHostOf(This)
+        // `Reference` today. The two corpus shapes that look like they would —
+        // `Do or Die`'s `SelectAll(ControlledBy(Ref(Target(0))))` group filter,
+        // and the whole "target creature can't be blocked" `Continuously(Cant(
+        // Block(on/by: Ref(Target(0)))))` family — both dead-end elsewhere
+        // first: `SeparatePiles` has no resolution yet (`engine-piles`), and a
+        // resolved one-shot's granted `Deontic` row (`ContinuousEffect.rows`)
+        // is never read back by `legal.rs` (a separate, already-unbuilt gap).
+        // A future card/wiring that reaches here with a live Frame available
+        // should thread it instead of leaning on this fallback — see
+        // `resolve_count` just below for the pattern. `debug_assert!` (not
+        // `todo!`) so a corpus regression trips loudly in tests while a
+        // release build degrades to "no match" instead of crashing a game.
+        Predicate::Ref(r) => {
+            debug_assert!(
+                false,
+                "engine invariant violated: Ref({r:?}) reached the frameless matcher — no \
+                 corpus filter does this today; the matcher holds only a watcher, not a \
+                 resolving Frame"
+            );
+            false
+        }
     }
 }
 
@@ -680,10 +708,13 @@ pub(crate) fn stat_satisfies(
     }
 }
 
-/// A `Count` bound the frameless matcher can evaluate: only a literal (a
-/// dynamic bound — `CountOf`, `StatOf`, `X`, … — needs a carrier `Frame` the
-/// matcher does not hold). `Stat`/`TargetCount` predicates over dynamic bounds
-/// are vanishingly rare; a loud seam beats a silently-wrong default.
+/// A `Count` bound with NO watcher available at all: only a literal
+/// evaluates (a dynamic bound — `CountOf`, `StatOf`, `X`, … — needs a
+/// carrier). [`resolve_count`] tries the watcher-anchored path first and
+/// falls back to this for the true-frameless case, which stays a loud seam:
+/// audited (engine-candidate-frame-context) as unreached — every corpus
+/// `Stat`/`TargetCount` predicate that carries a dynamic bound (Skulk) is
+/// always evaluated WITH a watcher.
 fn const_count(count: &deckmaste_core::Count) -> Uint {
     match count {
         deckmaste_core::Count::Literal(n) => *n,
@@ -693,6 +724,51 @@ fn const_count(count: &deckmaste_core::Count) -> Uint {
              owner: engine-candidate-frame-context"
         ),
     }
+}
+
+/// A `Count` bound for the live matcher, general enough to cover a dynamic
+/// bound: a literal evaluates directly; anything else resolves through the
+/// full evaluator ([`GameState::eval_count`]) via a bare [`Frame`] anchored on
+/// the watcher's live carrier — `This`/`You` inside the bound read that
+/// carrier, mirroring the `Ref(This)`/`Ref(You)` arms above. Reachable: Skulk
+/// ([CR#702.118b]) is `Stat(Power, Greater, StatOf(This, Power))`, evaluated
+/// live via `filter_matches_live` with the ability's source as watcher. No
+/// watcher, or a watcher whose carrier has already left, falls back to
+/// [`const_count`]'s frameless seam.
+fn resolve_count(
+    state: &GameState,
+    count: &deckmaste_core::Count,
+    watcher: Option<ObjectSource>,
+) -> Uint {
+    if let deckmaste_core::Count::Literal(n) = count {
+        return *n;
+    }
+    if let Some(w) = watcher
+        && let Some(carrier) = state.objects.iter().find(|o| o.source == w)
+    {
+        return state.eval_count(count, &Frame::bare(carrier.id, carrier.controller));
+    }
+    const_count(count)
+}
+
+/// Compare a stat `value` (possibly missing, possibly negative) against an
+/// ALREADY-RESOLVED `Uint` bound — the [`resolve_count`] twin of
+/// [`stat_satisfies`] for the live matcher's `Stat` arm, which resolves a
+/// dynamic bound before comparing. A negative value clamps to 0
+/// ([CR#107.1b]); a missing stat (a land has no power) never satisfies the
+/// predicate.
+#[must_use]
+fn stat_satisfies_bound(
+    value: Option<deckmaste_core::Int>,
+    cmp: deckmaste_core::Cmp,
+    bound: Uint,
+) -> bool {
+    value.is_some_and(|v| {
+        cmp.apply(
+            Uint::try_from(v.max(0)).expect("clamped stat fits Uint"),
+            bound,
+        )
+    })
 }
 
 /// Every object (card objects in their zones + player proxies) matching
@@ -1104,6 +1180,63 @@ mod tests {
             land,
             &cf(CF::Stat(Stat::Power, Cmp::AtLeast, Count::Literal(0))),
         ));
+    }
+
+    /// `Stat` over a DYNAMIC bound (`StatOf`, not a literal) resolves through
+    /// the watcher-anchored `resolve_count`, rather than the frameless
+    /// `const_count` seam — Skulk's actual blocker filter ([CR#702.118b],
+    /// Furtive Homunculus): `Stat(Power, Greater, StatOf(This, Power))`.
+    /// Regression for engine-candidate-frame-context's reachability finding.
+    #[test]
+    fn stat_predicate_resolves_a_dynamic_statof_bound_via_watcher() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Stat;
+
+        use crate::layer::ContinuousEffect;
+        use crate::layer::ScopeResolved;
+        use crate::object::Timestamp;
+
+        let (mut state, bear) = game_with_a_bear_on_the_field(); // 2/2, the watcher
+        let watcher = Some(state.objects.obj(bear).source);
+        let skulk_filter = cf(CF::Stat(
+            Stat::Power,
+            Cmp::Greater,
+            Count::StatOf(Reference::This, Stat::Power),
+        ));
+
+        // A second 2/2 candidate does not exceed the watcher's power (2 is
+        // not greater than 2) — the dynamic bound resolves to 2, not a panic.
+        let candidate = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+            let cid = state.cards.push(bears, PlayerId(1));
+            let bid = state.objects.mint(
+                ObjectSource::Card(cid),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(bid);
+            bid
+        };
+        assert!(!matches_with(&state, candidate, &skulk_filter, watcher));
+
+        // Boost the candidate to 3 power — now it exceeds the watcher's 2,
+        // matching Skulk's "greater power" blocker filter.
+        state.continuous.push(ContinuousEffect {
+            timestamp: Timestamp(1_000),
+            controller: PlayerId(1),
+            scope: ScopeResolved::Locked(vec![candidate]),
+            changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
+            duration: Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
+            is_cda: false,
+        });
+        assert!(matches_with(&state, candidate, &skulk_filter, watcher));
     }
 
     // -------------------------------------------------------------------------

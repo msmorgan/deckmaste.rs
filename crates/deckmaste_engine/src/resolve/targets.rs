@@ -142,17 +142,27 @@ pub(crate) fn distinct_siblings(spec: &TargetSpec) -> &[usize] {
 
 /// A LITERAL target-count bound the count check can evaluate frameless — the
 /// count twin of the frameless `target::const_count`. A dynamic bound (`X`,
-/// `CountOf`, …) needs a carrier `Frame` the set-level sites don't hold; it is
-/// unbuilt machinery, a LOUD seam, never a silently-wrong default. No canon
-/// target quantity is dynamic (they are literal `Exactly`/`Between` counts).
+/// `CountOf`, …) would need a carrier `Frame` the set-level sites don't hold.
+///
+/// AUDITED invariant (engine-candidate-frame-context), not a guess: every
+/// `TargetSpec` `Quantity` bound across the corpus (canon, builtin, demo,
+/// testing, and the generated wizards set) is a literal `Exactly`/`AtLeast`/
+/// `AtMost`/`Between` count — no card spells "target X creatures" or a
+/// `CountOf`/`StatOf`-bounded target quantity. `debug_assert!` (not `todo!`)
+/// so a corpus regression trips loudly in tests while a release build
+/// degrades to a `0` bound (an empty/immediately-satisfied range) instead of
+/// crashing a game.
 fn const_target_count(count: &Count) -> Uint {
     match count {
         Count::Literal(n) => *n,
-        other => todo!(
-            "engine seam: a dynamic target-count bound {other:?} needs a carrier frame — only \
-             literal target quantities are wired (mirrors const_count); \
-             owner: engine-candidate-frame-context"
-        ),
+        other => {
+            debug_assert!(
+                false,
+                "engine invariant violated: dynamic target-count bound {other:?} — no corpus \
+                 TargetSpec uses one; a carrier Frame would be needed to evaluate it"
+            );
+            0
+        }
     }
 }
 

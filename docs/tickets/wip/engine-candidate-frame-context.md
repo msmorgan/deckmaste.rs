@@ -36,3 +36,27 @@ in the current corpus, downgrade these to a documented invariant — a
 panic. Either outcome is a valid close; guessing is not.
 
 Effort: **M**.
+
+## Done
+
+Mixed outcome — the audit split the three seams rather than settling one
+verdict.
+
+**Reachable, so threaded:** the `Stat` predicate's dynamic bound. Skulk
+([CR#702.118b]) is `Stat(Power, Greater, StatOf(This, Power))`, evaluated live
+with the ability's source as watcher. New `resolve_count` in `target.rs`
+evaluates a non-literal bound through `eval_count` against a bare `Frame`
+anchored on the watcher's carrier; `TargetCount` bounds route through it too.
+Pinned by a regression test.
+
+**Unreachable, so downgraded to a documented invariant** (`debug_assert` plus
+the evidence, per the ticket's second branch): `matches_with`'s catch-all
+`Predicate::Ref(r)` and `resolve/targets.rs`'s `const_target_count`. The two
+corpus shapes that look like they would reach the `Ref` arm —
+`Do or Die`'s `SelectAll(ControlledBy(Ref(Target(0))))` and the
+"target creature can't be blocked" `Continuously(Cant(Block(…)))` family —
+dead-end earlier: `SeparatePiles` has no resolution (`engine-piles`), and a
+resolved one-shot's granted `Deontic` row is never read back by `legal.rs`.
+Every corpus `TargetSpec` quantity is a literal count. Release builds now
+degrade to "no match" / a `0` bound instead of crashing a game, while a corpus
+regression trips loudly in tests.
