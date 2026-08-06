@@ -45,3 +45,32 @@ same-controller no-op that [CR#701.12b] requires, and any remaining non-`Act`
 shape is still loud.
 
 Effort: **M**. Design input needed on the read-only-then-commit split.
+
+## Done
+
+`OneShotEffect::Simultaneously` now splits into a read-only phase A
+(classify + evaluate every member against the pre-state) and a mutating
+phase B (timestamp allocation, `self.continuous.push`, event commit), gated
+by a per-kind void test: an `Act` member is empty when it yields no events;
+a `Continuously(Modify(r, _))` member is empty when `r`'s resolved `Locked`
+scope is empty. Only `Act` and `Continuously(Modify(_, _))` members are
+admitted; `Sequentially`/`If`/`May`/nested `Simultaneously`, and any other
+`Continuously` body (`Floating` scope included), stay loud `todo!` seams —
+reassigned to `engine-simultaneous-member-breadth`, minted here as their
+scoping owner, since this ticket closes without covering them.
+
+Beyond the ticket's stated scope: `layer.rs`'s `resolve_new_controller` only
+resolves `SetController(You)` at apply time (no `Frame` there to chase a
+live `Target`/`ControllerOf` read), so Avarice Totem's
+`SetController(ControllerOf(Target(0)))` would have silently no-op'd even
+once the panic was gone. Fixed by resolving the `SetController` value at mint time instead — the
+game read it needs happens once, when the effect applies ([CR#608.2h]) —
+via `eval_player_ref`, rewriting the stored change to the `You` shape
+`resolve_new_controller` already handles, with the resolved player captured
+as the minted `ContinuousEffect`'s `controller`.
+
+Tests (`crates/deckmaste_engine/src/resolve/effect.rs`):
+`avarice_totem_swaps_control_through_two_continuously_members` (cross-seat
+swap, both halves reading the pre-exchange controllers) and
+`avarice_totem_same_controller_exchange_is_a_no_op` ([CR#701.12b] — two
+inert same-value rows, control observably unchanged).

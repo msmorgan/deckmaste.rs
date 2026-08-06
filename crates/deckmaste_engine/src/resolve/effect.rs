@@ -17,6 +17,7 @@ use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use slotmap::Key;
 
 use super::action::composite_body_group;
 use super::action::composite_body_whose;
@@ -462,48 +463,177 @@ impl GameState {
             // pure-verb bodies — a choice-bearing member is unrepresentable
             // in sound data and trips loudly.
             OneShotEffect::Simultaneously(children) => {
-                let mut member_events: Vec<Vec<GameEvent>> = Vec::new();
-                for child in children.iter() {
-                    let OneShotEffect::Act(action) = child else {
-                        todo!(
-                            "engine seam: non-verb Simultaneously member {child:?} \
-                     ([CR#701.12a,608.2f]) — a Continuously member mints a static row instead of \
-                     events, so it has nothing to contribute to the all-or-nothing batch \
-                     (Avarice Totem needs this); owner: engine-simultaneous-non-verb-members"
-                        )
-                    };
-                    let mut events = Vec::new();
-                    for item in self.action_items(action, frame) {
-                        match item {
-                            WorkItem::Emit(crate::event::Occurrence::Single(e)) => events.push(e),
-                            WorkItem::Emit(crate::event::Occurrence::Batch(es)) => {
-                                events.extend(es);
-                            }
-                            other => todo!(
-                                "engine seam: choice-bearing Simultaneously member, scheduled \
-                                 {other:?} ([CR#701.12a]) — the verb lowers to a decision rather \
-                                 than events, which the one-snapshot batch has no way to await; \
-                                 owner: engine-simultaneous-choice-members"
-                            ),
-                        }
-                    }
-                    member_events.push(events);
+                // Phase A (read-only): classify and evaluate every member
+                // against the pre-state snapshot ([CR#611.2c]). An `Act` verb
+                // lowers to events via `action_items`, unchanged. A
+                // `Continuously(Modify(r, change))` member — the only
+                // non-verb shape wired here (Avarice Totem's exchange) — has
+                // no event to ride the batch, so it resolves its `Locked`
+                // scope (and, for a `SetController` naming another object's
+                // controller, that controller too) as a pure read instead;
+                // row minting mutates (`self.objects.next_timestamp()`), so
+                // it waits for phase B, once every member is known-nonempty.
+                struct PendingStatic {
+                    controller: crate::player::PlayerId,
+                    ids: Vec<ObjectId>,
+                    changes: Vec<Modification>,
+                    duration: deckmaste_core::Duration,
+                    origin: Option<Box<Frame>>,
                 }
-                if member_events.iter().any(Vec::is_empty) {
+                enum Member {
+                    Events(Vec<GameEvent>),
+                    Static(Box<PendingStatic>),
+                }
+
+                let mut members: Vec<Member> = Vec::new();
+                let mut void = false;
+                for child in children.iter() {
+                    match child {
+                        OneShotEffect::Act(action) => {
+                            let mut events = Vec::new();
+                            for item in self.action_items(action, frame) {
+                                match item {
+                                    WorkItem::Emit(crate::event::Occurrence::Single(e)) => {
+                                        events.push(e);
+                                    }
+                                    WorkItem::Emit(crate::event::Occurrence::Batch(es)) => {
+                                        events.extend(es);
+                                    }
+                                    other => todo!(
+                                        "engine seam: choice-bearing Simultaneously member, \
+                                         scheduled {other:?} ([CR#701.12a]) — the verb lowers to \
+                                         a decision rather than events, which the one-snapshot \
+                                         batch has no way to await; owner: \
+                                         engine-simultaneous-choice-members"
+                                    ),
+                                }
+                            }
+                            if events.is_empty() {
+                                void = true;
+                            }
+                            members.push(Member::Events(events));
+                        }
+                        OneShotEffect::Continuously(e) => {
+                            let StaticEffect::Modify(r, change) = &*e.effect else {
+                                todo!(
+                                    "engine seam: Simultaneously(Continuously({e:?})) \
+                                     ([CR#701.12a,611.2c]) — only a bare Modify(_, _) inner is \
+                                     wired (its Locked scope is emptiness-testable at mint); \
+                                     other Continuously bodies stay unbuilt inside \
+                                     Simultaneously; owner: engine-simultaneous-member-breadth"
+                                )
+                            };
+                            let subject = self.eval_reference(r, frame);
+                            let ids = if subject.is_null() { Vec::new() } else { vec![subject] };
+                            if ids.is_empty() {
+                                void = true;
+                            }
+                            // The affected object is fixed at mint ([CR#611.2c]).
+                            // A `SetController` naming another object's
+                            // controller must be resolved here too: the game
+                            // read it needs happens once, when the effect
+                            // applies ([CR#608.2h]), and `resolve_new_controller`'s
+                            // apply-time pass only understands `You` anyway (it
+                            // has no Frame to chase a live `Target`/
+                            // `ControllerOf` read) — so Avarice Totem's
+                            // exchange resolves and freezes the new controller
+                            // here, against the pre-exchange state, rewriting
+                            // the stored change to the `You` shape
+                            // `resolve_new_controller` already handles. A bare
+                            // `SetController(You)` keeps today's
+                            // `frame.controller` path untouched.
+                            let (changes, controller) = match change {
+                                Modification::SetController(value)
+                                    if !matches!(value, Reference::You) =>
+                                {
+                                    if let Some(p) = self.eval_player_ref(value, frame) {
+                                        (vec![Modification::SetController(Reference::You)], p)
+                                    } else {
+                                        void = true;
+                                        (vec![], frame.controller)
+                                    }
+                                }
+                                _ => (
+                                    Modification::flatten(std::slice::from_ref(change)).to_vec(),
+                                    frame.controller,
+                                ),
+                            };
+                            let origin = match &e.duration {
+                                deckmaste_core::Duration::UntilEvent(_)
+                                | deckmaste_core::Duration::ForAsLongAs(_) => {
+                                    Some(Box::new(frame.clone()))
+                                }
+                                _ => None,
+                            };
+                            members.push(Member::Static(Box::new(PendingStatic {
+                                controller,
+                                ids,
+                                changes,
+                                duration: e.duration.clone(),
+                                origin,
+                            })));
+                        }
+                        other => todo!(
+                            "engine seam: non-verb Simultaneously member {other:?} \
+                             ([CR#701.12a,608.2f]) — a Continuously member mints a static row \
+                             instead of events, so it has nothing to contribute to the \
+                             all-or-nothing batch; only Act and a Modify(_, _)-bodied \
+                             Continuously are wired; Sequentially/If/May/nested Simultaneously \
+                             stay unbuilt; owner: engine-simultaneous-member-breadth"
+                        ),
+                    }
+                }
+                if void {
                     return;
                 }
-                let events: Vec<GameEvent> = member_events.into_iter().flatten().collect();
-                // [CR#701.14c]: a creature that fights itself deals ONE instance
-                // equal to twice its power — not two. Within a simultaneous
-                // batch, damage from the same source to the same target (same
-                // combat-ness) is one instance; coalesce by summing amounts so a
-                // self-fight's two `X -> X` packets become one `2x` event. Fight
-                // is the only damage-bearing `Simultaneously` today; other member
-                // events (e.g. exchange `ControlChanged`) pass through untouched.
-                let events = coalesce_simultaneous_damage(events);
-                self.schedule_front(vec![WorkItem::Emit(crate::event::Occurrence::Batch(
-                    events,
-                ))]);
+
+                // Phase B (commit): timestamp allocation and row insertion
+                // mutate, so they wait until every member is known-nonempty
+                // ([CR#701.12a] — if the entire exchange can't be completed,
+                // no part of it occurs).
+                let mut events: Vec<GameEvent> = Vec::new();
+                for member in members {
+                    match member {
+                        Member::Events(es) => events.extend(es),
+                        Member::Static(pending) => {
+                            let PendingStatic {
+                                controller,
+                                ids,
+                                changes,
+                                duration,
+                                origin,
+                            } = *pending;
+                            let timestamp = self.objects.next_timestamp();
+                            self.continuous.push(ContinuousEffect {
+                                timestamp,
+                                controller,
+                                scope: ScopeResolved::Locked(ids),
+                                changes,
+                                rows: vec![],
+                                duration,
+                                origin,
+                                is_cda: false,
+                            });
+                        }
+                    }
+                }
+                if !events.is_empty() {
+                    // [CR#701.14c]: a creature that fights itself deals ONE
+                    // instance equal to twice its power — not two. Within a
+                    // simultaneous batch, damage from the same source to the
+                    // same target (same combat-ness) is one instance;
+                    // coalesce by summing amounts so a self-fight's two
+                    // `X -> X` packets become one `2x` event. Fight is the
+                    // only damage-bearing `Simultaneously` today; other
+                    // member events (e.g. exchange `ControlChanged`) pass
+                    // through untouched. An all-`Continuously` set (Avarice
+                    // Totem) never reaches here — `events` stays empty and no
+                    // batch is scheduled.
+                    let events = coalesce_simultaneous_damage(events);
+                    self.schedule_front(vec![WorkItem::Emit(crate::event::Occurrence::Batch(
+                        events,
+                    ))]);
+                }
             }
             OneShotEffect::Continuously(e) => {
                 // [CR#611.2]/[CR#611.2c]: stamp at creation; lock the object set
@@ -3259,6 +3389,82 @@ mod tests {
         assert!(
             !state.agenda.iter().any(|w| matches!(w, WorkItem::Emit(_))),
             "a same-controller exchange emits nothing ([CR#701.12b])"
+        );
+    }
+
+    /// Avarice Totem's own body ([CR#701.12a,701.12b]): a `Simultaneously` of
+    /// two mirrored `Continuously(EndOfGame, Modify(_, SetController(
+    /// ControllerOf(_))))` halves, the Idris `exchangeControl` macro's exact
+    /// shape — deliberately NOT the `Action::GainControl`-based
+    /// `ExchangeControl` builtin macro `same_controller_exchange_does_nothing`
+    /// above exercises.
+    fn avarice_totem_body(this: &Reference, target: &Reference) -> OneShotEffect {
+        let half = |subject: &Reference, other: &Reference| {
+            OneShotEffect::Continuously(deckmaste_core::Continuously {
+                effect: Arc::new(deckmaste_core::StaticEffect::Modify(
+                    subject.clone(),
+                    deckmaste_core::Modification::SetController(
+                        deckmaste_core::Reference::ControllerOf(Arc::new(other.clone())),
+                    ),
+                )),
+                duration: deckmaste_core::Duration::EndOfGame,
+            })
+        };
+        OneShotEffect::Simultaneously(vec![half(this, target), half(target, this)].into())
+    }
+
+    /// Avarice Totem's ability ([CR#701.12a,701.12b]): the two `Continuously`
+    /// halves mint as ONE simultaneous all-or-nothing swap — a `Continuously`
+    /// member has no event to ride the batch, so it must mint its static row
+    /// through the same read-only-then-commit split an `Act` member's
+    /// events do, and both halves must read the PRE-exchange controllers (one
+    /// snapshot, [CR#611.2c]).
+    #[test]
+    fn avarice_totem_swaps_control_through_two_continuously_members() {
+        let (mut state, mine, other) = two_permanents_on_field();
+        state.objects.obj_mut(other).controller = PlayerId(1);
+
+        let effect = avarice_totem_body(&Reference::This, &Reference::Target(0));
+        let frame = frame_src_targets(mine, vec![other]);
+        state.run_effect(effect, &frame);
+
+        assert_eq!(
+            state.layers().controller(mine),
+            PlayerId(1),
+            "player 1 gained control of player 0's totem"
+        );
+        assert_eq!(
+            state.layers().controller(other),
+            PlayerId(0),
+            "player 0 gained control of player 1's permanent — both halves read \
+             the PRE-exchange controllers (one snapshot)"
+        );
+    }
+
+    /// [CR#701.12b]: exchanging control of two permanents the SAME player
+    /// controls does nothing. Unlike the `Action::GainControl`-based
+    /// `same_controller_exchange_does_nothing` above, a `Continuously` member
+    /// mints a static row rather than an event, so there is no "empty batch"
+    /// to test — the two rows each set the controller to the value it
+    /// already holds, which is an observably inert no-op ([CR#701.12b]) even
+    /// though the rows themselves exist.
+    #[test]
+    fn avarice_totem_same_controller_exchange_is_a_no_op() {
+        let (mut state, mine, other) = two_permanents_on_field();
+
+        let effect = avarice_totem_body(&Reference::This, &Reference::Target(0));
+        let frame = frame_src_targets(mine, vec![other]);
+        state.run_effect(effect, &frame);
+
+        assert_eq!(
+            state.layers().controller(mine),
+            PlayerId(0),
+            "control does not change when both permanents share a controller"
+        );
+        assert_eq!(
+            state.layers().controller(other),
+            PlayerId(0),
+            "control does not change when both permanents share a controller"
         );
     }
 
