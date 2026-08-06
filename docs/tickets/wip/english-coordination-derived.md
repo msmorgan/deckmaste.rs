@@ -118,7 +118,10 @@ Recorded on 2026-08-06 against the provisioned Oracle snapshot:
   tokens;
 - `english roundtrip --require-clean` reports 32,344 clean faces, zero
   mismatches, and zero render errors;
-- the English suite passes 748 unit tests, compile-fail validation, and 122
+- the generated backend rejects a zero-width element before registering its
+  nullable recursive sequence, with a regression that also pins an untouched
+  rule builder;
+- the English suite passes 749 unit tests, compile-fail validation, and 122
   public-API tests; spelling passes 85 unit and four pilot tests; the compiler
   passes 121 unit tests plus compile-fail and golden gates; and the macro passes
   all 13 runtime fixtures plus compile-fail gates.
