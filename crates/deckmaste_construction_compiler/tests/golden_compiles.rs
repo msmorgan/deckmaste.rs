@@ -5,6 +5,10 @@
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FixturePhrase;
 
+pub enum FixturePair {
+    Pair(FixturePairNode),
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct BoundMember {
     pub comma: Comma,

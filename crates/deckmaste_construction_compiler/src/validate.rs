@@ -1803,6 +1803,7 @@ pub(crate) mod fixtures {
                         },
                     }],
                 },
+                projection: None,
                 constraints: vec![],
                 witnesses: vec![],
                 forms: vec![FormDeclaration {

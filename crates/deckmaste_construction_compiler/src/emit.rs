@@ -54,6 +54,11 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .map(|construction| erased_construction_builder(group, construction))
         .collect();
+    let erased_construction_projectors: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .filter_map(erased_construction_projector)
+        .collect();
     let deserialize_impls: Vec<TokenStream> = group
         .constructions
         .iter()
@@ -118,6 +123,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #(#linearizers)*
             #(#erased_element_builders)*
             #(#erased_construction_builders)*
+            #(#erased_construction_projectors)*
             #witness_assertions
             #(#deserialize_impls)*
             #declaration
@@ -460,6 +466,35 @@ fn erased_construction_builder(
                 .map_err(::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration)
         }
     }
+}
+
+fn erased_construction_projector(construction: &ConstructionDeclaration) -> Option<TokenStream> {
+    let projection = construction.projection.as_ref()?;
+    let owner = construction.id.value.as_str();
+    let function = quote::format_ident!("__erased_project_{}", construction.id.value);
+    let category = quote::format_ident!("{}", construction.category.value);
+    let variant = quote::format_ident!("{}", projection.value);
+    let source = match &construction.ast {
+        AstShape::Own { name, .. } => parse_type(&name.value),
+        AstShape::Bind { path, .. } => parse_type(&path.value),
+    };
+    Some(quote! {
+        fn #function(
+            value: ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ) -> Result<
+            ::deckmaste_construction_compiler::runtime::ErasedValue,
+            ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+        > {
+            let value = value.downcast::<#source>().map_err(|_| {
+                ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                    owner: #owner,
+                    field: "projection",
+                    expected: stringify!(#source),
+                }
+            })?;
+            Ok(Box::new(#category::#variant(*value)))
+        }
+    })
 }
 
 fn own_construction(
@@ -1385,6 +1420,14 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             (quote! { None }, quote! { Some(#p) })
         }
     };
+    let (projection_variant, erased_projector) = match &construction.projection {
+        Some(projection) => {
+            let projection = projection.value.as_str();
+            let projector = quote::format_ident!("__erased_project_{}", construction.id.value);
+            (quote! { Some(#projection) }, quote! { Some(#projector) })
+        }
+        None => (quote! { None }, quote! { None }),
+    };
     // `dominance` holds every edge this construction is named in, winner or
     // loser (see `edges_leaving_the_group_are_not_cycle_checked_here` in
     // validate.rs, whose edge lists exactly that shape). `dominates` means
@@ -1524,6 +1567,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             internal: #internal,
             own_type: #own_type,
             bind_path: #bind_path,
+            projection_variant: #projection_variant,
             fields: &[#(#fields),*],
             witnesses: &[#(#witnesses),*],
             deserialize: #deserialize,
@@ -1534,6 +1578,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             recognition_requirements: &[#(#recognition_requirements),*],
             feature_combinators: &[#(#feature_combinators),*],
             erased_builder: Some(#erased_builder),
+            erased_projector: #erased_projector,
         }
     }
 }

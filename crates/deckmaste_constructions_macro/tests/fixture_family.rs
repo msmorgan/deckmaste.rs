@@ -22,6 +22,11 @@
 pub struct FixturePhrase;
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum FixturePair {
+    Pair(FixturePairNode),
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct BoundMember {
     pub comma: Comma,
     pub phrase: FixturePhrase,
@@ -66,6 +71,7 @@ deckmaste_constructions_macro::constructions! {
             members: seq fixture_member,
             conjunction: lex Conjunction,
         }
+        project Pair;
         require members.len() >= 2;
         require conjunction in [And, Or];
         require members.last.comma in [Present];
@@ -457,6 +463,35 @@ fn declaration_metadata_builders_restore_typed_elements_and_constructions() {
             ..
         }
     ));
+}
+
+#[test]
+fn declaration_projection_wraps_the_owned_type_in_its_public_category() {
+    let construction = &FIXTURE_COORDINATION_DECLARATION.constructions[0];
+    assert_eq!(construction.projection_variant, Some("Pair"));
+
+    let value = FixturePairNode::try_new(
+        vec![
+            FixtureMember {
+                comma: None,
+                phrase: FixturePhrase,
+            },
+            FixtureMember {
+                comma: None,
+                phrase: FixturePhrase,
+            },
+        ],
+        Conjunction::And,
+    )
+    .expect("the owned construction is valid");
+    let projected =
+        construction
+            .erased_projector
+            .expect("a declared projection emits an erased projector")(Box::new(value))
+        .expect("the projector accepts its construction's owned type")
+        .downcast::<FixturePair>()
+        .expect("the projector returns the declared public category");
+    assert!(matches!(*projected, FixturePair::Pair(_)));
 }
 
 #[derive(Default)]

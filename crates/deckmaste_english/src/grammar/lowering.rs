@@ -334,6 +334,10 @@ fn lower_generated_construction(
     }
     let fields = fields.into_iter().collect::<Option<Vec<_>>>()?;
     let value = construction.erased_builder?(fields).ok()?;
+    let value = match construction.erased_projector {
+        Some(projector) => projector(value).ok()?,
+        None => value,
+    };
     let projected = project_generated_category(construction, value)?;
     match (rule.context, preposition, projected) {
         (super::rules::GeneratedRuleContext::Value, None, projected) => Some(projected),
@@ -353,28 +357,10 @@ fn project_generated_category(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     value: deckmaste_construction_compiler::runtime::ErasedValue,
 ) -> Option<Lowered> {
-    match construction.id {
-        "noun_phrase_coordination" => {
-            let value = value
-                .downcast::<crate::constructions::coordination::CoordinatedNounPhrase>()
-                .ok()?;
-            return Some(Lowered::NounPhrase(NounPhrase::Coordinated(*value)));
-        }
-        "shared_determiner_nominal" => {
-            let value = value
-                .downcast::<crate::constructions::coordination::CoordinatedNominalPhrase>()
-                .ok()?;
-            let first = value.first().clone();
-            let coordinated = crate::syntax::CoordinatedNominalPhrase::try_new(
-                value.determiner().clone(),
-                first,
-                value.rest().clone(),
-                value.complements().clone(),
-            )
-            .ok()?;
-            return Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(
-                coordinated,
-            )));
+    match construction.category {
+        "NounPhrase" => {
+            let value = value.downcast::<NounPhrase>().ok()?;
+            return Some(Lowered::NounPhrase(*value));
         }
         _ => {}
     }

@@ -57,6 +57,7 @@ deckmaste_constructions_macro::constructions! {
             first: hole box NounPhrase,
             rest: seq noun_phrase_member,
         }
+        project Coordinated;
         require rest.len() >= 1;
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();
@@ -72,6 +73,7 @@ deckmaste_constructions_macro::constructions! {
             rest: seq nominal_phrase_member,
             complements: seq nominal_complement,
         }
+        project CoordinatedNominal;
         require rest.len() >= 1;
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();

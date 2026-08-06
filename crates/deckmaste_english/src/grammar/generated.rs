@@ -701,6 +701,7 @@ mod tests {
             internal,
             own_type: Some("Synthetic"),
             bind_path: None,
+            projection_variant: None,
             deserialize: false,
             selection_unique: false,
             dominates: &[],
@@ -711,6 +712,7 @@ mod tests {
             recognition_requirements: &[],
             feature_combinators: &[],
             erased_builder: None,
+            erased_projector: None,
         }
     }
 
@@ -978,6 +980,7 @@ mod tests {
             internal: true,
             own_type: None,
             bind_path: Some("x::Y"),
+            projection_variant: None,
             deserialize: false,
             selection_unique: false,
             dominates: &[],
@@ -988,6 +991,7 @@ mod tests {
             recognition_requirements: &[],
             feature_combinators: &[],
             erased_builder: None,
+            erased_projector: None,
         }];
         const GROUP: GroupData = GroupData {
             name: "g",

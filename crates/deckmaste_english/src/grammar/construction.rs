@@ -311,6 +311,7 @@ mod tests {
                 internal: true,
                 own_type: Some("Synthetic"),
                 bind_path: None,
+                projection_variant: None,
                 deserialize: false,
                 selection_unique: false,
                 dominates: &[],
@@ -321,6 +322,7 @@ mod tests {
                 recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
+                erased_projector: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);
@@ -340,6 +342,7 @@ mod tests {
                 internal: true,
                 own_type: Some("Synthetic"),
                 bind_path: None,
+                projection_variant: None,
                 deserialize: false,
                 selection_unique: false,
                 dominates: &["missing"],
@@ -350,6 +353,7 @@ mod tests {
                 recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
+                erased_projector: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);
@@ -369,6 +373,7 @@ mod tests {
                 internal: true,
                 own_type: Some("Synthetic"),
                 bind_path: None,
+                projection_variant: None,
                 deserialize: false,
                 selection_unique: false,
                 dominates: &["gen_b"],
@@ -379,6 +384,7 @@ mod tests {
                 recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
+                erased_projector: None,
             }];
         const B_CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
             &[deckmaste_construction_compiler::runtime::ConstructionData {
@@ -387,6 +393,7 @@ mod tests {
                 internal: true,
                 own_type: Some("Synthetic"),
                 bind_path: None,
+                projection_variant: None,
                 deserialize: false,
                 selection_unique: false,
                 dominates: &["gen_a"],
@@ -397,6 +404,7 @@ mod tests {
                 recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
+                erased_projector: None,
             }];
         const GROUP_A: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("a", A_CONSTRUCTIONS);
@@ -427,6 +435,7 @@ mod tests {
                 internal: true,
                 own_type: Some("Synthetic"),
                 bind_path: None,
+                projection_variant: None,
                 deserialize: false,
                 selection_unique: false,
                 dominates: &[],
@@ -437,6 +446,7 @@ mod tests {
                 recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
+                erased_projector: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);

@@ -32,6 +32,7 @@ mod kw {
     syn::custom_keyword!(internal);
     syn::custom_keyword!(bind);
     syn::custom_keyword!(own);
+    syn::custom_keyword!(project);
     syn::custom_keyword!(require);
     syn::custom_keyword!(recognize);
     syn::custom_keyword!(derive);
@@ -282,6 +283,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     let content;
     syn::braced!(content in input);
     let ast = parse_shape(&content)?;
+    let mut projection = None;
     let mut constraints = Vec::new();
     let mut witnesses = Vec::new();
     let mut forms = Vec::new();
@@ -289,7 +291,18 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     let mut selection = SelectionPromise::Packed;
     let mut deserialize = false;
     while !content.is_empty() {
-        if content.peek(kw::recognize) {
+        if content.peek(kw::project) {
+            content.parse::<kw::project>()?;
+            let variant = spanned_ident(&content)?;
+            content.parse::<syn::Token![;]>()?;
+            if projection.is_some() {
+                return Err(syn::Error::new(
+                    variant.span,
+                    "project may be declared at most once",
+                ));
+            }
+            projection = Some(variant);
+        } else if content.peek(kw::recognize) {
             content.parse::<kw::recognize>()?;
             let keyword = content.parse::<kw::require>()?;
             let predicate = parse_pred(&content)?;
@@ -356,7 +369,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
             deserialize = true;
         } else {
             return Err(content.error(
-                "expected recognize require / require / derive / witness / form / dominates / selection / deserialize",
+                "expected project / recognize require / require / derive / witness / form / dominates / selection / deserialize",
             ));
         }
     }
@@ -365,6 +378,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         category,
         internal,
         ast,
+        projection,
         constraints,
         witnesses,
         forms,
@@ -578,6 +592,7 @@ mod tests {
                     members: seq fixture_member,
                     conjunction: lex Conjunction,
                 }
+                project Pair;
                 require members.len() >= 2;
                 require conjunction in [And, Or];
                 require members.last.comma in [Present];

@@ -188,6 +188,7 @@ pub type ErasedValue = Box<dyn std::any::Any>;
 
 pub type ErasedBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
 pub type ErasedSequenceBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
+pub type ErasedProjector = fn(ErasedValue) -> Result<ErasedValue, ErasedBuildError>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ErasedBuildError {
@@ -278,6 +279,7 @@ pub struct ConstructionData {
     /// (Milestone 3 Task 2).
     pub own_type: Option<&'static str>,
     pub bind_path: Option<&'static str>,
+    pub projection_variant: Option<&'static str>,
     pub fields: &'static [FieldData],
     pub witnesses: &'static [WitnessData],
     pub deserialize: bool,
@@ -288,6 +290,7 @@ pub struct ConstructionData {
     pub recognition_requirements: &'static [RequirementData],
     pub feature_combinators: &'static [FeatureCombinatorData],
     pub erased_builder: Option<ErasedBuilder>,
+    pub erased_projector: Option<ErasedProjector>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

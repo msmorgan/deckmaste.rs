@@ -43,6 +43,7 @@ pub struct ConstructionDeclaration {
     pub category: Spanned<String>,
     pub internal: bool,
     pub ast: AstShape,
+    pub projection: Option<Spanned<String>>,
     pub constraints: Vec<Constraint>,
     pub witnesses: Vec<WitnessDeclaration>,
     pub forms: Vec<FormDeclaration>,
