@@ -278,7 +278,13 @@ impl<'de> Visitor<'de> for BareIdentList {
 /// Checks an argument's raw source against a param type, with the macros in
 /// scope (so an argument may itself be a macro that expands to the type).
 /// `Ok(())` accepts; `Err` explains the rejection.
-pub type Validator = fn(&str, &MacroSet) -> Result<(), String>;
+///
+/// The `bool` is the ARGUMENT TEXT's own restriction (spec §4's textual
+/// provenance): a validator reading the argument as its type must read it the
+/// same way the later `param` re-read will, or a banned spelling passes
+/// validation and is rejected further downstream, blamed on the macro body
+/// rather than on the call site that wrote it.
+pub type Validator = fn(&str, &MacroSet, bool) -> Result<(), String>;
 
 /// The param types in scope, each with the validator that enforces it.
 #[derive(Debug, Clone)]
@@ -308,11 +314,14 @@ impl ParamTypeSet {
     /// `DeserializeOwned` supertrait guarantees this works), but any owned-
     /// deserializable type qualifies (`String`, `Vec<CostComponent>`).
     pub fn add_typed<T: DeserializeOwned>(&mut self, name: impl Into<Ident>) {
-        self.add(name, |src, macros| {
-            macros
-                .read_str::<T>(src)
-                .map(drop)
-                .map_err(|e| e.to_string())
+        self.add(name, |src, macros, restricted| {
+            if restricted {
+                macros.read_str_restricted::<T>(src)
+            } else {
+                macros.read_str::<T>(src)
+            }
+            .map(drop)
+            .map_err(|e| e.to_string())
         });
     }
 
@@ -334,7 +343,7 @@ impl Default for ParamTypeSet {
     /// `String` (a quoted literal).
     fn default() -> Self {
         let mut set = ParamTypeSet::empty();
-        set.add("Any", |_, _| Ok(()));
+        set.add("Any", |_, _, _| Ok(()));
         set.add_typed::<String>("String");
         set
     }

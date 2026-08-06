@@ -237,6 +237,38 @@ mod tests {
         }
     }
 
+    /// The whitelists have to REACH the ban, not just the classification.
+    /// Suppression is otherwise per-kind, and every whitelist row sits at a
+    /// registered kind — so a row the kind registry does not carve out is
+    /// classified natively spellable and banned anyway, with no macro allowed
+    /// to cover it. (Found exactly that way: `OneShotEffect::Targeted` and the
+    /// five `KeywordAbility` intrinsics were rejected at hundreds of corpus
+    /// sites the first time a card was read restricted.)
+    #[test]
+    fn whitelisted_rows_survive_suppression() {
+        let set = kinds();
+        for (kind, variant) in NATIVE_CALCULUS.iter().chain(NATIVE_ATOMS) {
+            let k = set
+                .get(kind)
+                .unwrap_or_else(|| panic!("whitelist row ({kind}, {variant}) names no kind"));
+            assert!(
+                k.is_natively_spellable(variant),
+                "{kind}::{variant} is whitelisted but suppressed under restriction"
+            );
+        }
+    }
+
+    /// Negative fixture for the carve-out: an ordinary row at a whitelisted
+    /// kind is NOT carved out. Without this the check above would pass on a
+    /// registry that made everything native.
+    #[test]
+    fn the_carve_out_is_not_a_blanket_yes() {
+        let set = kinds();
+        let effects = set.get("OneShotEffect").expect("OneShotEffect is a kind");
+        assert!(effects.is_natively_spellable("Targeted"));
+        assert!(!effects.is_natively_spellable("Sequentially"));
+    }
+
     /// [`UNCOVERABLE`] rows must still name something real: reachable, and
     /// still classified `NeedsIdentityMacro` — if a future registry change
     /// covered it some other way, this row would be stale rot rather than a

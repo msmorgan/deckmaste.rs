@@ -498,13 +498,16 @@ impl MacroSet {
         self.kinds.get(position).is_some_and(|kind| kind.embeds)
     }
 
-    /// Whether `position` is a registered macroable kind. Restricted reads
-    /// suppress native variant candidacy at these positions only (spec §4):
-    /// closed atoms deliberately outside the macro system — `Cmp`, the
-    /// phase/step enums, `FaceLayout` — are unregistered and keep parsing
-    /// natively.
-    pub(crate) fn is_kind(&self, position: &str) -> bool {
-        self.kinds.contains(position)
+    /// Whether `ident` keeps native candidacy at `position` under a
+    /// restricted read (spec §4). Two ways to say yes: `position` is not a
+    /// registered macroable kind at all — closed atoms deliberately outside
+    /// the macro system (`Cmp`, the phase/step enums, `FaceLayout`) keep
+    /// parsing natively — or the kind names `ident` in its own carve-out
+    /// list ([`Kind::natively_spellable`](crate::Kind::natively_spellable)).
+    pub(crate) fn natively_spellable(&self, position: &str, ident: &str) -> bool {
+        self.kinds
+            .get(position)
+            .is_none_or(|kind| kind.is_natively_spellable(ident))
     }
 
     /// Whether some macro expands to the struct named `name`, i.e. whether

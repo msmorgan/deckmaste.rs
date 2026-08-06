@@ -31,6 +31,10 @@ pub struct Kind {
     /// a hand-built `Kind`, which only costs the checks that consult it
     /// their precision.
     pub(crate) signatures: &'static [(&'static str, VariantSignature)],
+    /// The variants of this kind that keep native candidacy under a
+    /// restricted read — see [`Kind::natively_spellable`]. Empty by default:
+    /// restriction suppresses every variant of a registered kind.
+    pub(crate) natively_spellable: Vec<&'static str>,
 }
 
 impl Kind {
@@ -46,6 +50,7 @@ impl Kind {
             variants: &[],
             own_variants: &[],
             signatures: &[],
+            natively_spellable: Vec::new(),
         }
     }
 
@@ -151,6 +156,32 @@ impl Kind {
     pub fn embeds_untagged(mut self) -> Self {
         self.embeds = true;
         self
+    }
+
+    /// Variants of this kind that keep native candidacy even in a restricted
+    /// read: a consumer's own carve-outs — structural grammar, or closed
+    /// atoms at a kind that is otherwise macroable. Suppression is a
+    /// per-ROW question, not a per-kind one; without this it would be
+    /// per-kind, and a carve-out row at a registered kind would be banned
+    /// with no macro able to cover it.
+    ///
+    /// Which rows those are is consumer policy, exactly like which types are
+    /// kinds. `macro_ron` only honors the list.
+    #[must_use]
+    /// EXTENDS rather than replaces: a carve-out assembled from more than one
+    /// source (deckmaste builds this from two separate whitelists) must not
+    /// depend on which call came last.
+    pub fn natively_spellable(mut self, variants: impl IntoIterator<Item = &'static str>) -> Self {
+        self.natively_spellable.extend(variants);
+        self
+    }
+
+    /// Whether `variant` keeps native candidacy at this kind under a
+    /// restricted read — the query counterpart of
+    /// [`natively_spellable`](Self::natively_spellable).
+    #[must_use]
+    pub fn is_natively_spellable(&self, variant: &str) -> bool {
+        self.natively_spellable.contains(&variant)
     }
 
     /// Whether positions of this kind take the embed-untagged fallthrough

@@ -95,7 +95,42 @@ pub fn kinds() -> KindSet {
     // `OneShotEffect` positions like any effect macro — this kind opens no card
     // position of its own, it is a name-erasing loader tag like `TypeDef`.
     kinds.add(Kind::new("KeywordAction"));
+    apply_native_whitelists(&mut kinds);
     kinds
+}
+
+/// Carves the two native whitelists ([`crate::authoring::NATIVE_CALCULUS`],
+/// [`crate::authoring::NATIVE_ATOMS`]) out of restricted-read suppression.
+///
+/// Those lists are the closed inventory's answer for rows that stay natively
+/// spellable at a kind that is otherwise macroable — the structural scope
+/// calculus, and the five `KeywordAbility` intrinsics. Suppression is
+/// otherwise per-KIND, so without this pass every one of those rows would be
+/// banned at a restricted entry with no macro able to cover it (`Targeted`
+/// alone is spelled at hundreds of corpus sites, and a def for an intrinsic
+/// keyword is rejected by the classification suite). Reading the lists here
+/// rather than re-listing the rows is what keeps the inventory the single
+/// source of truth for both the classification and the ban.
+fn apply_native_whitelists(kinds: &mut KindSet) {
+    let rows = || {
+        crate::authoring::NATIVE_CALCULUS
+            .iter()
+            .chain(crate::authoring::NATIVE_ATOMS)
+    };
+    let mut carved: Vec<Kind> = Vec::new();
+    for kind in kinds.iter() {
+        let name = kind.name();
+        let native: Vec<&'static str> = rows()
+            .filter(|(k, _)| *k == name)
+            .map(|(_, variant)| *variant)
+            .collect();
+        if !native.is_empty() {
+            carved.push(kind.clone().natively_spellable(native));
+        }
+    }
+    for kind in carved {
+        kinds.add(kind);
+    }
 }
 
 /// The raw `ron::Options` everything is read and written with.

@@ -62,7 +62,11 @@ fn kinds() -> KindSet {
             .embeds_untagged()
             .with_variants(EMBED_HOST_VARIANTS),
     );
-    kinds.add(Kind::new("EmbedRef").remembers_expansion());
+    kinds.add(
+        Kind::new("EmbedRef")
+            .remembers_expansion()
+            .with_variants(EMBED_REF_VARIANTS),
+    );
     // A non-remembering position kind (no `Expanded` variant), like
     // deckmaste's `Modification`: exercises nested-macro param forwarding —
     // a body invoking another macro can forward its own `Param`s into that
@@ -1246,7 +1250,7 @@ fn any_accepts_every_shape() {
 fn injected_param_types_validate() {
     // The embedder's path: register a domain validator, then it enforces.
     let mut param_types = ParamTypeSet::default();
-    param_types.add("Number", |src, macros| {
+    param_types.add("Number", |src, macros, _restricted| {
         macros
             .read_str::<u32>(src)
             .map(drop)
@@ -1663,8 +1667,16 @@ enum EmbedHost {
 }
 
 /// The host's own variant names — what the macro layer checks against to
-/// decide whether to fall through to the embedded type.
+/// decide whether to fall through to the embedded type. Faithful to the derive
+/// (`generate.rs`'s `concat_lists`): own names plus flattened compartments',
+/// NEVER the embed payload's, which is exactly what leaves an inherited
+/// identifier to `visit_newtype_struct`.
 const EMBED_HOST_VARIANTS: &[&str] = &["Own", "Wrapped", "Expanded"];
+
+/// The embedded type's dispatch set. A real kind always carries one (the
+/// derive supplies it); the restricted-read ban and the cycle check both
+/// consult it, so the fixture carries one too.
+const EMBED_REF_VARIANTS: &[&str] = &["Bare", "Counted", "Expanded"];
 
 impl<'de> Deserialize<'de> for EmbedHost {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -1779,6 +1791,87 @@ fn embed_host_own_macro_remembered_as_host_expanded() {
     };
     assert_eq!(expanded.name, "HostMacro");
     assert_eq!(*expanded.value, EmbedHost::Own(1));
+}
+
+/// A macro def of `name` at `kind` whose body is `body` — the shape an
+/// identity macro takes (name = variant, body = the variant spelling).
+fn identity_def(kind: &str, name: &str, body: &str) -> MacroDef {
+    MacroDef {
+        name: name.into(),
+        kinds: vec![kind.into()],
+        params: Params::default(),
+        template: None,
+        plural: None,
+        frames: Vec::new(),
+        body: body.into(),
+    }
+}
+
+/// A name the host only inherits from the type it embeds still reaches that
+/// type's identity macro under a RESTRICTED read — how a bare `Green` reads at
+/// a `ManaSymbol` position in a card. Such a name has no macro at the host and
+/// must not have one: a host-registered macro whose body spells the same name
+/// re-enters the same kind and recurses (`authoring::embed_safe`).
+///
+/// This route does NOT depend on the pre-scan's suppression, and the fixture is
+/// built so that stays visible: `EMBED_HOST_VARIANTS` excludes the embed
+/// payload's names exactly as the derive does (`generate.rs`'s `concat_lists`
+/// concatenates OWN plus FLATTEN tails, never the embed payload — that is what
+/// makes `embeds_untagged` reachable at all). So `variants.contains("Bare")` is
+/// already false and the `&&` short-circuits before restriction is consulted.
+/// The free twin is `embed_host_bare_ref_variant_wraps`; what this adds is that
+/// restriction does not disturb the route.
+#[test]
+fn restricted_embed_host_routes_an_inherited_name_to_the_embedded_macro() {
+    let mut macros = empty();
+    macros
+        .insert(&identity_def("EmbedRef", "Bare", "Bare"))
+        .unwrap();
+    let host: EmbedHost = macros.read_str_restricted("Bare").unwrap();
+    let EmbedHost::Wrapped(EmbedRef::Expanded(expanded)) = host else {
+        panic!("expected Wrapped(Expanded(…)), got {host:?}");
+    };
+    assert_eq!(expanded.name, "Bare");
+    assert_eq!(*expanded.value, EmbedRef::Bare);
+}
+
+/// The host's OWN variant still routes at the host: its identity macro is
+/// registered there, so the pre-scan finds it before any fall-through.
+#[test]
+fn restricted_embed_host_routes_its_own_variant_to_its_own_macro() {
+    let mut macros = empty();
+    macros
+        .insert(&identity_def("EmbedHost", "Own", "Own(7)"))
+        .unwrap();
+    let host: EmbedHost = macros.read_str_restricted("Own").unwrap();
+    let EmbedHost::Expanded(expanded) = host else {
+        panic!("expected EmbedHost::Expanded(…), got {host:?}");
+    };
+    assert_eq!(*expanded.value, EmbedHost::Own(7));
+}
+
+/// **The discriminating case for the pre-scan consult, and the whole of what
+/// suppressing it changes.** Only the host's OWN (and flatten-inherited) names
+/// reach `variants.contains` here — see the fixture above — so this is the one
+/// route restriction redirects: `Own` loses host candidacy, falls through to
+/// the embedded type, and the error is reported THERE ("not an `EmbedRef`")
+/// rather than as the host-side "not author vocabulary".
+///
+/// That is a WORSE message, and it is the accepted cost, pinned so it stays a
+/// decision. Leaving `variants.contains` unsuppressed would not open a hole —
+/// `EnumIntercept` is installed unconditionally, so the re-read would still hit
+/// its own suppressed consult and still refuse the spelling, with the better
+/// host-side message. The reason to suppress here anyway is that spec §4's
+/// container NOTE is normative: suppression must cover BOTH native-candidacy
+/// consults. One rule at one place beats two consults with two policies.
+#[test]
+fn restricted_embed_host_variant_with_no_macro_anywhere_errors_embed_side() {
+    let err = empty()
+        .read_str_restricted::<EmbedHost>("Own(7)")
+        .unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("EmbedRef"), "{msg}");
+    assert!(!msg.contains("not author vocabulary"), "{msg}");
 }
 
 // ---------------------------------------------------------------------------
@@ -2965,10 +3058,10 @@ fn add_typed_registers_a_deserialize_validator() {
     assert!(set.contains("Num"));
     let validate = set.get("Num").expect("Num is registered");
     let macros = empty();
-    assert_eq!(validate("7", &macros), Ok(()));
+    assert_eq!(validate("7", &macros, false), Ok(()));
     let as_value: u32 = macros.read_str("7").unwrap();
     assert_eq!(as_value, 7);
-    let err = validate("nope", &macros).unwrap_err();
+    let err = validate("nope", &macros, false).unwrap_err();
     let err = err.clone();
     assert!(
         err.contains("Expected integer"),

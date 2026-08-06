@@ -207,17 +207,19 @@ impl<'de> Ctx<'de, '_> {
         })
     }
 
-    /// Whether an identifier naming a variant of `position` may be taken as
-    /// that native variant here. Under restriction a registered kind's own
+    /// Whether `ident`, naming a variant of `position`, may be taken as that
+    /// native variant here. Under restriction a registered kind's own
     /// variants lose native candidacy (spec §4), so the ident routes to its
     /// identity macro instead. This is candidacy suppression, not
     /// match-then-reject: no value tree is ever built for a banned spelling.
     ///
     /// Suppression applies at registered kinds only — closed atoms outside the
     /// macro system (`Cmp`, the phase/step enums, `FaceLayout`) are
-    /// unregistered and keep parsing natively.
-    fn native_variant_ok(&self, position: &str) -> bool {
-        !self.restricted || !self.read.macros.is_kind(position)
+    /// unregistered and keep parsing natively — and skips the rows a kind
+    /// declares [`natively_spellable`](crate::Kind::natively_spellable),
+    /// which is why this takes the ident and not just the position.
+    fn native_variant_ok(&self, position: &str, ident: &str) -> bool {
+        !self.restricted || self.read.macros.natively_spellable(position, ident)
     }
 
     /// The context for reading an argument or expansion that isn't a body:
@@ -1373,10 +1375,19 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
     type Error = D::Error;
 
     forward! {
-        deserialize_option, deserialize_identifier, deserialize_ignored_any,
+        deserialize_identifier, deserialize_ignored_any,
     }
 
     forward_or_param! {
+        // `deserialize_option` MUST capture the hole rather than forward it:
+        // under `implicit_some` ron commits to `Some` for any input that is
+        // not literally `None`, and `Param(i)` is not. Forwarding therefore
+        // decided the `Option` before the hole resolved, and an argument of
+        // `None` was then read at the INNER type — `Phyrexian(White, None)`
+        // failing with "`None` is neither a variant of `Color` nor a known
+        // `Color` macro". Capturing first resolves the hole to `None` and
+        // re-reads that at the option position, where ron reads it as such.
+        deserialize_option(),
         deserialize_bool(), deserialize_i8(), deserialize_i16(), deserialize_i32(),
         deserialize_i64(), deserialize_i128(), deserialize_u8(), deserialize_u16(),
         deserialize_u32(), deserialize_u64(), deserialize_u128(), deserialize_f32(),
@@ -1584,7 +1595,8 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                     // before `EnumIntercept`, so restriction must suppress
                     // here too or a banned ident at an embed-hosting kind
                     // falls through to the embedded type instead of erroring.
-                    (self.ctx.native_variant_ok(name) && variants.contains(&ident.as_str()))
+                    (self.ctx.native_variant_ok(name, ident.as_str())
+                        && variants.contains(&ident.as_str()))
                         || ident == "Param"
                         || self.ctx.read.macros.get(name, &ident).is_some()
                 }
@@ -1664,12 +1676,18 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
 /// macro and the argument's position in any error. The validator reads the
 /// argument as its type with macros in scope, so the check is the real
 /// grammar — a bad `Color`, say, fails exactly as it would at a real position.
+///
+/// `restricted` is the ARGUMENT TEXT's own provenance, so the validator reads
+/// it exactly as the later `param` re-read will. Validating free would let a
+/// banned spelling through here and fail it downstream, where the error blames
+/// the macro body instead of the call site that wrote the argument.
 fn validate_arg(
     macro_name: Ident,
     position: impl fmt::Display,
     ty: &ParamType,
     arg: &str,
     macros: &MacroSet,
+    restricted: bool,
 ) -> Result<(), String> {
     let Some(validator) = macros.param_validator(&ty.name) else {
         // Unreachable for an inserted macro (param types are checked at
@@ -1679,7 +1697,7 @@ fn validate_arg(
             ty.name
         ));
     };
-    validator(arg.trim(), macros).map_err(|reason| {
+    validator(arg.trim(), macros, restricted).map_err(|reason| {
         format!(
             "macro `{macro_name}` argument {position} ({}): {reason}",
             ty.name
@@ -1724,7 +1742,9 @@ fn fill_defaults<'de>(
             std::borrow::Cow::Borrowed(text) => text,
             std::borrow::Cow::Owned(text) => read.splice(text),
         };
-        validate_arg(name, *key, ty, filled, read.macros)?;
+        // A filled-in default is the definition's own text — free vocabulary
+        // however the invocation was written (`Ctx::param` agrees).
+        validate_arg(name, *key, ty, filled, read.macros, false)?;
         args.push((*key, filled, true));
     }
     Ok(())
@@ -1838,7 +1858,7 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(A::Error::custom)?;
             for (i, ty) in types.iter().take(args.len()).enumerate() {
-                validate_arg(name, i + 1, ty, args[i], ctx.read.macros)
+                validate_arg(name, i + 1, ty, args[i], ctx.read.macros, ctx.restricted)
                     .map_err(A::Error::custom)?;
             }
             let elided = (args.len()..types.len()).map(ParamKey::Index).collect();
@@ -1890,7 +1910,8 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 let ty = signature
                     .get(key)
                     .expect("argument keys were checked against the signature above");
-                validate_arg(name, *key, ty, arg, ctx.read.macros).map_err(A::Error::custom)?;
+                validate_arg(name, *key, ty, arg, ctx.read.macros, ctx.restricted)
+                    .map_err(A::Error::custom)?;
             }
             let mut args: Vec<(Ident, &'de str, bool)> =
                 args.into_iter().map(|(k, v)| (k, v, false)).collect();
@@ -1946,7 +1967,8 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         // list): forward the ident to the visitor instead of treating it as
         // a macro name.
         if self.variants.is_empty()
-            || (self.ctx.native_variant_ok(self.name) && self.variants.contains(&ident.as_str()))
+            || (self.ctx.native_variant_ok(self.name, ident.as_str())
+                && self.variants.contains(&ident.as_str()))
         {
             return self.visitor.visit_enum(Known {
                 ident,
