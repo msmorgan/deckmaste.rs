@@ -8,8 +8,8 @@ impl Lower for deckmaste_authoring::Anchor {
     type Target = deckmaste_core::Anchor;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::FromTop(f0) => deckmaste_core::Anchor::FromTop(f0.lower()),
-            Self::FromBottom(f0) => deckmaste_core::Anchor::FromBottom(f0.lower()),
+            Self::FromTop(offset) => deckmaste_core::Anchor::FromTop(offset.lower()),
+            Self::FromBottom(offset) => deckmaste_core::Anchor::FromBottom(offset.lower()),
         }
     }
 }
@@ -18,8 +18,8 @@ impl Lower for deckmaste_authoring::Destination {
     type Target = deckmaste_core::Destination;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::Zone(f0) => deckmaste_core::Destination::Zone(f0.lower()),
-            Self::Library(f0) => deckmaste_core::Destination::Library(f0.lower()),
+            Self::Zone(zone) => deckmaste_core::Destination::Zone(zone.lower()),
+            Self::Library(anchor) => deckmaste_core::Destination::Library(anchor.lower()),
         }
     }
 }
@@ -30,13 +30,13 @@ impl Lower for deckmaste_authoring::EnterRider {
         match self {
             Self::Tapped => deckmaste_core::EnterRider::Tapped,
             Self::FaceDown => deckmaste_core::EnterRider::FaceDown,
-            Self::UnderControlOf(f0) => deckmaste_core::EnterRider::UnderControlOf(f0.lower()),
+            Self::UnderControlOf(who) => deckmaste_core::EnterRider::UnderControlOf(who.lower()),
             Self::UnderOwnersControl => deckmaste_core::EnterRider::UnderOwnersControl,
-            Self::Attacking(f0) => deckmaste_core::EnterRider::Attacking(f0.lower()),
-            Self::WithCounters(f0, f1) => {
-                deckmaste_core::EnterRider::WithCounters(f0.lower(), f1.lower())
+            Self::Attacking(who) => deckmaste_core::EnterRider::Attacking(who.lower()),
+            Self::WithCounters(kind, count) => {
+                deckmaste_core::EnterRider::WithCounters(kind.lower(), count.lower())
             }
-            Self::AsCopy(f0) => deckmaste_core::EnterRider::AsCopy(f0.lower()),
+            Self::AsCopy(spec) => deckmaste_core::EnterRider::AsCopy(spec.lower()),
         }
     }
 }
@@ -45,7 +45,7 @@ impl Lower for deckmaste_authoring::Arrangement {
     type Target = deckmaste_core::Arrangement;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::ChosenOrder(f0) => deckmaste_core::Arrangement::ChosenOrder(f0.lower()),
+            Self::ChosenOrder(by) => deckmaste_core::Arrangement::ChosenOrder(by.lower()),
             Self::AnyOrder => deckmaste_core::Arrangement::AnyOrder,
             Self::SameOrder => deckmaste_core::Arrangement::SameOrder,
             Self::RandomOrder => deckmaste_core::Arrangement::RandomOrder,
@@ -57,19 +57,19 @@ impl Lower for deckmaste_authoring::Action {
     type Target = deckmaste_core::Action;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::DealDamage(f0, f1, f2) => {
-                deckmaste_core::Action::DealDamage(f0.lower(), f1.lower(), f2.lower())
+            Self::DealDamage(source, amount, target) => {
+                deckmaste_core::Action::DealDamage(source.lower(), amount.lower(), target.lower())
             }
-            Self::Counter(f0) => deckmaste_core::Action::Counter(f0.lower()),
-            Self::Transform(f0) => deckmaste_core::Action::Transform(f0.lower()),
-            Self::Cease(f0) => deckmaste_core::Action::Cease(f0.lower()),
+            Self::Counter(what) => deckmaste_core::Action::Counter(what.lower()),
+            Self::Transform(what) => deckmaste_core::Action::Transform(what.lower()),
+            Self::Cease(what) => deckmaste_core::Action::Cease(what.lower()),
             Self::Attach { what, to } => deckmaste_core::Action::Attach {
                 what: what.lower(),
                 to: to.lower(),
             },
-            Self::Unattach(f0) => deckmaste_core::Action::Unattach(f0.lower()),
-            Self::Move(f0, f1, f2, f3) => {
-                deckmaste_core::Action::Move(f0.lower(), f1.lower(), f2.lower(), f3.lower())
+            Self::Unattach(what) => deckmaste_core::Action::Unattach(what.lower()),
+            Self::Move(what, to, riders, from) => {
+                deckmaste_core::Action::Move(what.lower(), to.lower(), riders.lower(), from.lower())
             }
             Self::MoveGroup {
                 group,
@@ -82,12 +82,14 @@ impl Lower for deckmaste_authoring::Action {
                 to: to.lower(),
                 riders: riders.lower(),
             },
-            Self::GainControl(f0, f1) => {
-                deckmaste_core::Action::GainControl(f0.lower(), f1.lower())
+            Self::GainControl(what, to) => {
+                deckmaste_core::Action::GainControl(what.lower(), to.lower())
             }
-            Self::ExtraPhase(f0, f1) => deckmaste_core::Action::ExtraPhase(f0.lower(), f1.lower()),
-            Self::MoveCounters(f0, f1, f2) => {
-                deckmaste_core::Action::MoveCounters(f0.lower(), f1.lower(), f2.lower())
+            Self::ExtraPhase(phase, who) => {
+                deckmaste_core::Action::ExtraPhase(phase.lower(), who.lower())
+            }
+            Self::MoveCounters(spec, from, to) => {
+                deckmaste_core::Action::MoveCounters(spec.lower(), from.lower(), to.lower())
             }
             Self::CreateReplacement {
                 replacement,
@@ -102,10 +104,14 @@ impl Lower for deckmaste_authoring::Action {
                 name: name.lower(),
                 body: body.lower(),
             },
-            Self::ChangeLife(f0, f1) => deckmaste_core::Action::ChangeLife(f0.lower(), f1.lower()),
-            Self::AddMana(f0, f1, f2) => {
-                deckmaste_core::Action::AddMana(f0.lower(), f1.lower(), f2.lower())
+            Self::ChangeLife(patient, operation) => {
+                deckmaste_core::Action::ChangeLife(patient.lower(), operation.lower())
             }
+            Self::AddMana(recipient, count, production) => deckmaste_core::Action::AddMana(
+                recipient.lower(),
+                count.lower(),
+                production.lower(),
+            ),
             Self::Create {
                 agent,
                 count,
@@ -117,19 +123,23 @@ impl Lower for deckmaste_authoring::Action {
                 token: token.lower(),
                 riders: riders.lower(),
             },
-            Self::Sacrifice(f0, f1) => deckmaste_core::Action::Sacrifice(f0.lower(), f1.lower()),
-            Self::DrawCard(f0) => deckmaste_core::Action::DrawCard(f0.lower()),
-            Self::Tap(f0) => deckmaste_core::Action::Tap(f0.lower()),
-            Self::Untap(f0) => deckmaste_core::Action::Untap(f0.lower()),
-            Self::GetEmblem(f0, f1) => deckmaste_core::Action::GetEmblem(f0.lower(), f1.lower()),
-            Self::GetDesignation(f0, f1) => {
-                deckmaste_core::Action::GetDesignation(f0.lower(), f1.lower())
+            Self::Sacrifice(agent, what) => {
+                deckmaste_core::Action::Sacrifice(agent.lower(), what.lower())
             }
-            Self::SetGameDesignation(f0, f1) => {
-                deckmaste_core::Action::SetGameDesignation(f0.lower(), f1.lower())
+            Self::DrawCard(agent) => deckmaste_core::Action::DrawCard(agent.lower()),
+            Self::Tap(what) => deckmaste_core::Action::Tap(what.lower()),
+            Self::Untap(what) => deckmaste_core::Action::Untap(what.lower()),
+            Self::GetEmblem(recipient, abilities) => {
+                deckmaste_core::Action::GetEmblem(recipient.lower(), abilities.lower())
             }
-            Self::ChooseValue(f0, f1, f2) => {
-                deckmaste_core::Action::ChooseValue(f0.lower(), f1.lower(), f2.lower())
+            Self::GetDesignation(recipient, name) => {
+                deckmaste_core::Action::GetDesignation(recipient.lower(), name.lower())
+            }
+            Self::SetGameDesignation(name, value) => {
+                deckmaste_core::Action::SetGameDesignation(name.lower(), value.lower())
+            }
+            Self::ChooseValue(who, kind, note) => {
+                deckmaste_core::Action::ChooseValue(who.lower(), kind.lower(), note.lower())
             }
             Self::CopySpell {
                 controller,
@@ -140,44 +150,46 @@ impl Lower for deckmaste_authoring::Action {
                 spec: spec.lower(),
                 retarget: retarget.lower(),
             },
-            Self::CastCopy(f0, f1) => deckmaste_core::Action::CastCopy(f0.lower(), f1.lower()),
-            Self::Cast(f0, f1, f2) => {
-                deckmaste_core::Action::Cast(f0.lower(), f1.lower(), f2.lower())
+            Self::CastCopy(agent, spec) => {
+                deckmaste_core::Action::CastCopy(agent.lower(), spec.lower())
+            }
+            Self::Cast(agent, what, cost) => {
+                deckmaste_core::Action::Cast(agent.lower(), what.lower(), cost.lower())
             }
             Self::Retarget { mode, of, by } => deckmaste_core::Action::Retarget {
                 mode: mode.lower(),
                 of: of.lower(),
                 by: by.lower(),
             },
-            Self::FlipCoins(f0, f1, f2) => {
-                deckmaste_core::Action::FlipCoins(f0.lower(), f1.lower(), f2.lower())
+            Self::FlipCoins(agent, count, called) => {
+                deckmaste_core::Action::FlipCoins(agent.lower(), count.lower(), called.lower())
             }
-            Self::RollDice(f0, f1, f2) => {
-                deckmaste_core::Action::RollDice(f0.lower(), f1.lower(), f2.lower())
+            Self::RollDice(agent, count, sides) => {
+                deckmaste_core::Action::RollDice(agent.lower(), count.lower(), sides.lower())
             }
-            Self::RollPlanarDie(f0) => deckmaste_core::Action::RollPlanarDie(f0.lower()),
-            Self::PutCounters(f0, f1, f2) => {
-                deckmaste_core::Action::PutCounters(f0.lower(), f1.lower(), f2.lower())
+            Self::RollPlanarDie(agent) => deckmaste_core::Action::RollPlanarDie(agent.lower()),
+            Self::PutCounters(what, kind, count) => {
+                deckmaste_core::Action::PutCounters(what.lower(), kind.lower(), count.lower())
             }
-            Self::RemoveCounters(f0, f1, f2) => {
-                deckmaste_core::Action::RemoveCounters(f0.lower(), f1.lower(), f2.lower())
+            Self::RemoveCounters(what, kind, count) => {
+                deckmaste_core::Action::RemoveCounters(what.lower(), kind.lower(), count.lower())
             }
-            Self::WinGame(f0) => deckmaste_core::Action::WinGame(f0.lower()),
-            Self::LoseGame(f0) => deckmaste_core::Action::LoseGame(f0.lower()),
+            Self::WinGame(who) => deckmaste_core::Action::WinGame(who.lower()),
+            Self::LoseGame(who) => deckmaste_core::Action::LoseGame(who.lower()),
             Self::RestartGame => deckmaste_core::Action::RestartGame,
-            Self::Shuffle(f0) => deckmaste_core::Action::Shuffle(f0.lower()),
+            Self::Shuffle(what) => deckmaste_core::Action::Shuffle(what.lower()),
             Self::Reveal { what, to } => deckmaste_core::Action::Reveal {
                 what: what.lower(),
                 to: to.lower(),
             },
-            Self::RemoveDamage(f0) => deckmaste_core::Action::RemoveDamage(f0.lower()),
-            Self::Pay(f0) => deckmaste_core::Action::Pay(f0.lower()),
+            Self::RemoveDamage(what) => deckmaste_core::Action::RemoveDamage(what.lower()),
+            Self::Pay(cost) => deckmaste_core::Action::Pay(cost.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
             // a compiled artifact and carries no record of the authored
             // spelling (spec §12). Prose recovers the authored term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
-            Self::Expanded(f0) => *f0.value.lower(),
+            Self::Expanded(expansion) => *expansion.value.lower(),
         }
     }
 }
@@ -186,9 +198,9 @@ impl Lower for deckmaste_authoring::LifeOp {
     type Target = deckmaste_core::LifeOp;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::Set(f0) => deckmaste_core::LifeOp::Set(f0.lower()),
-            Self::Up(f0) => deckmaste_core::LifeOp::Up(f0.lower()),
-            Self::Down(f0) => deckmaste_core::LifeOp::Down(f0.lower()),
+            Self::Set(value) => deckmaste_core::LifeOp::Set(value.lower()),
+            Self::Up(amount) => deckmaste_core::LifeOp::Up(amount.lower()),
+            Self::Down(amount) => deckmaste_core::LifeOp::Down(amount.lower()),
         }
     }
 }
@@ -211,7 +223,7 @@ impl Lower for deckmaste_authoring::CopyRetarget {
         match self {
             Self::AsIs => deckmaste_core::CopyRetarget::AsIs,
             Self::MayChooseNew => deckmaste_core::CopyRetarget::MayChooseNew,
-            Self::TargetsThat(f0) => deckmaste_core::CopyRetarget::TargetsThat(f0.lower()),
+            Self::TargetsThat(what) => deckmaste_core::CopyRetarget::TargetsThat(what.lower()),
         }
     }
 }
