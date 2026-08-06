@@ -1507,7 +1507,7 @@ mod tests {
     }
 
     #[test]
-    fn shared_determiner_builder_derives_oxford_and_supports_typed_complements() {
+    fn shared_determiner_builder_derives_oxford_and_rejects_unrecognized_complements() {
         let built = coordination::build_shared_determiner_nominal(
             Determiner::Any,
             Box::new(nominal(Vocab::Card)),
@@ -1526,7 +1526,7 @@ mod tests {
         assert_eq!(rest[0].conjunction, Some(Conjunction::Or));
         assert_eq!(rest[0].phrase, nominal(Vocab::Spell));
         assert!(complements.is_empty());
-        let complemented = coordination::build_shared_determiner_nominal(
+        let violation = coordination::build_shared_determiner_nominal(
             Determiner::Any,
             Box::new(nominal(Vocab::Card)),
             vec![NominalPhraseCoordination {
@@ -1535,12 +1535,10 @@ mod tests {
             }],
             vec![NominalComplement::Quantity(Quantity::Both)],
         )
-        .expect("recognition constraints do not narrow the typed AST domain");
-        let (_, _, _, complements) = coordination::parts_shared_determiner_nominal(&complemented);
-        assert_eq!(complements, &[NominalComplement::Quantity(Quantity::Both)]);
+        .expect_err("the exact builder must reject complements its parser cannot recognize");
         assert_eq!(
-            nominal_coordination_verdict(&complemented),
-            CoordinationVerdict::Admitted,
+            violation.requirement,
+            "all(complements.first.variant in [Relative], complements.nonfinal.variant in [Relative], complements.last.variant in [Relative])",
         );
     }
 

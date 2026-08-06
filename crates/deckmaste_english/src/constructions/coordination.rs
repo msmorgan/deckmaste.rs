@@ -81,7 +81,7 @@ deckmaste_constructions_macro::constructions! {
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();
         require rest.last.conjunction in [And, Or, AndOr];
-        recognize require all(
+        require all(
             complements.first.variant in [Relative],
             complements.nonfinal.variant in [Relative],
             complements.last.variant in [Relative]
