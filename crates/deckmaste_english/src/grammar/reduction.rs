@@ -2088,7 +2088,7 @@ pub(super) fn reduce_generated(
     if !generated_surface_sequence_scalars_match(rule, &fields) {
         return None;
     }
-    let noun_phrase_features = generated_construction_features(construction, &fields)?;
+    let noun_phrase_features = generated_construction_features(rule.group, construction, &fields)?;
     let features = match (rule.context, preposition) {
         (super::rules::GeneratedRuleContext::Value, None) => noun_phrase_features,
         (super::rules::GeneratedRuleContext::SharedPreposition, Some(preposition)) => {
@@ -2508,6 +2508,7 @@ fn generated_complements_include_keyword_argument(
 }
 
 fn generated_construction_features(
+    group: &deckmaste_construction_compiler::runtime::GroupData,
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     fields: &[Option<&Features>],
 ) -> Option<Features> {
@@ -2517,6 +2518,13 @@ fn generated_construction_features(
         _ => return None,
     };
     let combinator = GeneratedFeatureCombinator::from_name(feature.combinator)?;
+    let member_element = combinator.member_element(construction)?;
+    let element = group
+        .element_data
+        .iter()
+        .find(|element| element.name == member_element)?;
+    let member_value_field = combinator.member_value_field_index(group, construction)?;
+    let (_, conjunction_field) = super::generated::coordination_delimiter_fields(group, element)?;
     let args = feature
         .args
         .iter()
@@ -2530,12 +2538,23 @@ fn generated_construction_features(
         .collect::<Option<Vec<_>>>()?;
     match (combinator, args.as_slice()) {
         (GeneratedFeatureCombinator::CompleteNounPhraseCoordination, [Some(first), Some(rest)]) => {
-            complete_noun_phrase_coordination_features(first, rest)
+            complete_noun_phrase_coordination_features(
+                first,
+                rest,
+                member_value_field,
+                conjunction_field,
+            )
         }
         (
             GeneratedFeatureCombinator::SharedDeterminerCoordination,
             [Some(determiner), Some(first), Some(rest), _complements],
-        ) => shared_determiner_coordination_features(determiner, first, rest),
+        ) => shared_determiner_coordination_features(
+            determiner,
+            first,
+            rest,
+            member_value_field,
+            conjunction_field,
+        ),
         _ => None,
     }
 }
@@ -2543,6 +2562,8 @@ fn generated_construction_features(
 fn complete_noun_phrase_coordination_features(
     first: &Features,
     rest: &Features,
+    member_value_field: usize,
+    conjunction_field: usize,
 ) -> Option<Features> {
     let Features::NounPhrase {
         agreement: first_agreement,
@@ -2578,7 +2599,7 @@ fn complete_noun_phrase_coordination_features(
             coordination: member_coordination,
             recipient_passive_theme,
             ..
-        } = element.fields.get(2)?
+        } = element.fields.get(member_value_field)?
         else {
             return None;
         };
@@ -2590,7 +2611,7 @@ fn complete_noun_phrase_coordination_features(
         last_coordination = *member_coordination;
         all_themes &= *recipient_passive_theme;
     }
-    let conjunction = final_generated_conjunction(tail)?;
+    let conjunction = final_generated_conjunction(tail, conjunction_field)?;
     if elements.len() == 1 {
         let nested_matches = |state| matches!(state, NounPhraseCoordinationState::Binary(inner) if inner == conjunction);
         match (
@@ -2628,6 +2649,8 @@ fn shared_determiner_coordination_features(
     determiner: &Features,
     first: &Features,
     rest: &Features,
+    member_value_field: usize,
+    conjunction_field: usize,
 ) -> Option<Features> {
     let Features::Determiner {
         cardinality,
@@ -2650,7 +2673,7 @@ fn shared_determiner_coordination_features(
     let mut last_form = first.form;
     let mut members = Vec::with_capacity(elements.len());
     for element in &elements {
-        let member = nominal_coordination_member(element.fields.get(2)?)?;
+        let member = nominal_coordination_member(element.fields.get(member_value_field)?)?;
         if !generated_determiner_accepts(*cardinality, *article, member.form, member.initial_sound)
             || *demonstrative_this && !member.demonstrative_shared_determiner
         {
@@ -2670,7 +2693,7 @@ fn shared_determiner_coordination_features(
     {
         return None;
     }
-    let conjunction = final_generated_conjunction(tail)?;
+    let conjunction = final_generated_conjunction(tail, conjunction_field)?;
     Some(Features::NounPhrase {
         agreement: coordination_agreement(
             conjunction,
@@ -2703,11 +2726,14 @@ fn shared_determiner_coordination_features(
     })
 }
 
-fn final_generated_conjunction(sequence: &GeneratedSequenceFeatures) -> Option<Conjunction> {
-    if sequence.element.present_fields & (1 << 1) == 0 {
+fn final_generated_conjunction(
+    sequence: &GeneratedSequenceFeatures,
+    conjunction_field: usize,
+) -> Option<Conjunction> {
+    if sequence.element.present_fields & (1 << conjunction_field) == 0 {
         return None;
     }
-    let Features::Conjunction(conjunction) = sequence.element.fields.get(1)? else {
+    let Features::Conjunction(conjunction) = sequence.element.fields.get(conjunction_field)? else {
         return None;
     };
     matches!(
@@ -3072,7 +3098,11 @@ mod generated_tests {
         let and = sequence(Conjunction::And, Number::Singular);
         let fields = [Some(&first), Some(&and)];
         assert!(matches!(
-            generated_construction_features(construction("noun_phrase_coordination"), &fields),
+            generated_construction_features(
+                coordination::GROUPS[0],
+                construction("noun_phrase_coordination"),
+                &fields,
+            ),
             Some(Features::NounPhrase {
                 agreement: Some(Agreement {
                     number: Number::Plural,
@@ -3085,7 +3115,11 @@ mod generated_tests {
         let or = sequence(Conjunction::Or, Number::Plural);
         let fields = [Some(&first), Some(&or)];
         assert!(matches!(
-            generated_construction_features(construction("noun_phrase_coordination"), &fields),
+            generated_construction_features(
+                coordination::GROUPS[0],
+                construction("noun_phrase_coordination"),
+                &fields,
+            ),
             Some(Features::NounPhrase {
                 agreement: Some(Agreement {
                     number: Number::Plural,
@@ -3102,10 +3136,123 @@ mod generated_tests {
         let then = sequence(Conjunction::Then, Number::Singular);
         assert!(
             generated_construction_features(
+                coordination::GROUPS[0],
                 construction("noun_phrase_coordination"),
                 &[Some(&first), Some(&then)]
             )
             .is_none()
         );
+    }
+
+    #[test]
+    fn generated_feature_roles_follow_reordered_member_metadata() {
+        use deckmaste_construction_compiler::runtime::ConstructionData;
+        use deckmaste_construction_compiler::runtime::ElementData;
+        use deckmaste_construction_compiler::runtime::FeatureCombinatorData;
+        use deckmaste_construction_compiler::runtime::FieldData;
+        use deckmaste_construction_compiler::runtime::FieldKindData;
+        use deckmaste_construction_compiler::runtime::GroupData;
+
+        const CONJUNCTION: FieldKindData = FieldKindData::Scalar {
+            codec: "NounPhraseConjunction",
+        };
+        const ELEMENT_FIELDS: &[FieldData] = &[
+            FieldData {
+                name: "phrase",
+                kind: FieldKindData::Subtree {
+                    category: "NounPhrase",
+                    boxed: false,
+                },
+            },
+            FieldData {
+                name: "comma",
+                kind: FieldKindData::SurfaceScalar { codec: "Comma" },
+            },
+            FieldData {
+                name: "conjunction",
+                kind: FieldKindData::Optional {
+                    inner: &CONJUNCTION,
+                },
+            },
+        ];
+        const ELEMENTS: &[ElementData] = &[ElementData {
+            name: "member",
+            bind_path: None,
+            fields: ELEMENT_FIELDS,
+            variants: &[],
+            erased_builders: &[],
+            erased_sequence_builder: None,
+        }];
+        const CONSTRUCTION_FIELDS: &[FieldData] = &[
+            FieldData {
+                name: "first",
+                kind: FieldKindData::Subtree {
+                    category: "NounPhrase",
+                    boxed: true,
+                },
+            },
+            FieldData {
+                name: "rest",
+                kind: FieldKindData::Sequence { element: "member" },
+            },
+        ];
+        const COMBINATORS: &[FeatureCombinatorData] = &[FeatureCombinatorData {
+            target: "first",
+            combinator: "complete_noun_phrase_coordination",
+            args: &["first", "rest"],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[ConstructionData {
+            id: "reordered",
+            category: "NounPhrase",
+            internal: false,
+            own_type: Some("Reordered"),
+            bind_path: None,
+            projection_variant: None,
+            fields: CONSTRUCTION_FIELDS,
+            witnesses: &[],
+            deserialize: false,
+            selection_unique: false,
+            dominates: &[],
+            dominated_by: &[],
+            forms: &[],
+            requirements: &[],
+            recognition_requirements: &[],
+            feature_combinators: COMBINATORS,
+            erased_builder: None,
+            erased_projector: None,
+        }];
+        const GROUP: GroupData = GroupData {
+            name: "reordered",
+            elements: &["member"],
+            element_data: ELEMENTS,
+            constructions: CONSTRUCTIONS,
+        };
+
+        let first = noun_phrase(Number::Singular);
+        let rest = Features::GeneratedSequence {
+            tail: std::sync::Arc::new(GeneratedSequenceFeatures::seed(GeneratedElementFeatures {
+                fields: std::sync::Arc::from([
+                    noun_phrase(Number::Singular),
+                    Features::None,
+                    Features::Conjunction(Conjunction::And),
+                ]),
+                present_fields: 1 << 0 | 1 << 2,
+                variant: None,
+            })),
+        };
+        assert!(matches!(
+            generated_construction_features(
+                &GROUP,
+                &CONSTRUCTIONS[0],
+                &[Some(&first), Some(&rest)],
+            ),
+            Some(Features::NounPhrase {
+                agreement: Some(Agreement {
+                    number: Number::Plural,
+                    ..
+                }),
+                ..
+            })
+        ));
     }
 }
