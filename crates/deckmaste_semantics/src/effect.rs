@@ -9,6 +9,7 @@ use crate::Cost;
 use crate::Count;
 use crate::Expand;
 use crate::Expansion;
+use crate::MacroFields;
 use crate::Mode;
 use crate::SupportsMacros;
 use crate::TargetSpec;
@@ -65,6 +66,7 @@ pub enum OneShotEffect {
     /// bodies until the wiring generalizes.
     Simultaneously(Arc<[OneShotEffect]>),
     /// A one-shot-created continuous effect ([CR#611.2]).
+    #[macro_ron(spliced)]
     Continuously(Continuously),
     /// A one-shot-created continuous effect over a LIST of static parts —
     /// `Until(EndOfTurn, [Modify(…), Deontic(…)])` ([CR#611.2]). Fixed-vs-
@@ -78,6 +80,7 @@ pub enum OneShotEffect {
     /// `Label { as, effect }` — names the antecedents the inner effect
     /// introduces so later clauses can read them explicitly, rather than by
     /// the positional/anaphoric defaults ([CR#608.2d]).
+    #[macro_ron(spliced)]
     Label(Label),
     /// `SeparatePiles { group, into, by, note, then }` — `by` separates
     /// `group` into labeled piles ([CR#700.3a]; piles may be empty). Each
@@ -85,11 +88,13 @@ pub enum OneShotEffect {
     /// [`Selection::They`](crate::Selection::They)); `note:`
     /// persists the piles as noted groups keyed by (note, label, divider),
     /// read back via [`Selection::PilesOf`](crate::Selection::PilesOf).
+    #[macro_ron(spliced)]
     SeparatePiles(SeparatePiles),
     /// `ChoosePile { from, by, random, then }` — `by` picks one pile
     /// ([CR#700.3b] — the Fact-or-Fiction shape); `then` runs with the
     /// chosen pile bound as a Many antecedent
     /// ([`Selection::Them`](crate::Selection::Them)`(Pile)`).
+    #[macro_ron(spliced)]
     ChoosePile(ChoosePile),
     /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't". The
     /// may-pay/must-pay family collapses into this node ([CR#118.12a]):
@@ -97,8 +102,10 @@ pub enum OneShotEffect {
     /// kicker/punisher over the full [`Cost`] algebra. The English "[do]
     /// unless [who] pays [cost]" order is the builtin `Unless` MACRO — a
     /// render name over this node; core keeps only the `May` form.
+    #[macro_ron(spliced)]
     May(May),
     /// "If [condition], [then]; otherwise [else]" ([CR#603.4]-style branch).
+    #[macro_ron(spliced)]
     If(If),
     /// "As an additional cost, [pay]; then [body]" ([CR#601.2f,118.8]) —
     /// imposes an additional cost whose paid object the body reads through
@@ -110,12 +117,14 @@ pub enum OneShotEffect {
     /// hoists it to cast/activation time (the printed additional cost,
     /// [CR#601.2f]); nested, it is an extra resolution-time cost. Mirrors
     /// the Idris `AdditionalCost (pay : Cost) body`.
+    #[macro_ron(spliced)]
     AdditionalCost(AdditionalCost),
     /// "For each [element of `binder`], [do]" — iterates the many-binder
     /// ([`Binder`](crate::Binder), cardinality Many), binding each element in
     /// turn as the iteration anaphor [`Reference::It`](crate::Reference::It),
     /// then runs the body once per element ([CR#608]). Mirrors the Idris
     /// `Each : Bindable b Many k -> …`.
+    #[macro_ron(spliced)]
     Each(Each),
     /// `With(binder, body)` — binds what `binder` yields into the frame as the
     /// body's anaphor, then runs `body` once. A one-binder
@@ -128,6 +137,7 @@ pub enum OneShotEffect {
     /// is `Each`, which exposes [`Reference::It`](crate::Reference::It) per
     /// element); `This` never rebinds. Mirrors the Idris
     /// `With : Bindable b card k -> …`.
+    #[macro_ron(spliced)]
     With(With),
     /// Divide an `amount` among the elements of a many-binder
     /// ([`Binder`](crate::Binder)) "as you choose", binding each element in
@@ -141,20 +151,26 @@ pub enum OneShotEffect {
     /// (`body: PutCounters(It, <kind>, Allotment)`); the body reads the
     /// allotment anaphor. Named for the Idris north-star `Distribute : Count b
     /// -> Bindable b Many k -> …`, the general divide-or-distribute primitive.
+    #[macro_ron(spliced)]
     Distribute(Distribute),
     /// A delayed triggered ability created on resolution ([CR#603.7]).
     /// Note the object set the inner effect moves/touches under `key`
     /// ([CR#607.2a] exiled-with linkage).
+    #[macro_ron(spliced)]
     Noting(Noting),
+    #[macro_ron(spliced)]
     Delayed(Arc<TriggeredAbility>),
     /// A reflexive triggered ability created on resolution ([CR#603.12]).
+    #[macro_ron(spliced)]
     Reflexive(Arc<TriggeredAbility>),
     /// A modal effect: choose modes, then apply them ([CR#700.2]).
+    #[macro_ron(spliced)]
     Modal(Modal),
     /// Targets scoped over an inner effect ([CR#115.1,601.2c]): the rules-
     /// faithful home for the word "target" — declared on the effect that
     /// consumes it, its announced slots read back by the anaphors
     /// (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth announced slot).
+    #[macro_ron(spliced)]
     Targeted(Targeted),
     /// "[body], [count] times": resolution follows the general
     /// spell/ability resolution walk ([CR#608.2]) — there is no dedicated CR
@@ -192,6 +208,7 @@ pub enum OneShotEffect {
     /// Idris `RevealUntil : (whose : Reference b APlayer) -> (match :
     /// Predicate b AnObject) -> OneShotEffect (bindFound match b) ->
     /// OneShotEffect b`.
+    #[macro_ron(spliced)]
     RevealUntil(RevealUntil),
     /// A remembered `OneShotEffect` macro invocation (declared compound verbs
     /// like `Investigate`). Serialized as the invocation, not the struct.
@@ -225,7 +242,7 @@ impl OneShotEffect {
 /// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
 /// the `OneShotEffect` → `StaticEffect` → `Replacement` → `OneShotEffect` size
 /// cycle.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct Continuously {
     pub effect: Arc<StaticEffect>,
     pub duration: Duration,
@@ -239,7 +256,7 @@ pub struct Continuously {
 /// ([CR#608.2b]) reads each inner instruction's referenced targets. `effect`
 /// is boxed to break the `OneShotEffect` → `Targeted` → `OneShotEffect` size
 /// cycle (mirrors `May`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct Targeted {
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub targets: Arc<[TargetSpec]>,
@@ -269,7 +286,7 @@ impl Targeted {
 /// Any other `effect` takes the plain [CR#608.2]-family branch (yes runs
 /// `effect` then `if_did`; no runs `if_not`). A branchless `May` (`if_did`/
 /// `if_not` both `None`) is the same node either way — one node serves both.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct May {
     pub who: Reference,
     pub effect: Arc<OneShotEffect>,
@@ -281,7 +298,7 @@ pub struct May {
 
 /// `If { condition, then, else }` — `else` is a keyword, so the field is
 /// `otherwise`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct If {
     pub condition: Condition,
     pub then: Arc<OneShotEffect>,
@@ -290,7 +307,7 @@ pub struct If {
 }
 
 /// `Noting { key, effect }` — see `OneShotEffect::Noting`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct Noting {
     pub key: crate::Ident,
     pub effect: Arc<OneShotEffect>,
@@ -317,7 +334,7 @@ fn ref_is_you(r: &Reference) -> bool {
 /// paid by the spell/ability's controller ([CR#601.2b]). `body` is boxed to
 /// break the `OneShotEffect` → `AdditionalCost` → `OneShotEffect` size cycle
 /// (mirrors [`May`]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct AdditionalCost {
     pub pay: Cost,
     pub body: Arc<OneShotEffect>,
@@ -327,7 +344,7 @@ pub struct AdditionalCost {
 /// `binder` is the many-cardinality [`Binder`](crate::Binder) iterated; each
 /// element binds in turn as [`Reference::It`](crate::Reference::It) for one run
 /// of `effect` ([CR#608]). Mirrors the Idris `Each : Bindable b Many k -> …`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct Each {
     pub binder: crate::Binder,
     pub effect: Arc<OneShotEffect>,
@@ -338,7 +355,7 @@ pub struct Each {
 /// the body's anaphor: a one-binder binds
 /// [`Reference::That`](crate::Reference::That), a many-binder binds
 /// [`Selection::That`](crate::Selection::That).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct With {
     pub binder: crate::Binder,
     pub body: Arc<OneShotEffect>,
@@ -351,7 +368,7 @@ pub struct With {
 /// effect that reads [`Count::Allotment`](crate::Count::Allotment) for that
 /// element's share. `body` is boxed to break the `OneShotEffect` → `Distribute`
 /// → `OneShotEffect` size cycle.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct Distribute {
     pub amount: crate::Count,
     pub binder: crate::Binder,
@@ -364,7 +381,7 @@ pub struct Distribute {
 /// the found card bound as `It` and the passed-over prefix bound as the
 /// plural anaphor. `body` is boxed to break the `OneShotEffect` ->
 /// `RevealUntil` -> `OneShotEffect` size cycle.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct RevealUntil {
     pub whose: crate::Reference,
     pub matches: crate::Predicate,
@@ -372,7 +389,7 @@ pub struct RevealUntil {
 }
 
 /// `Modal { choose, modes }` ([CR#700.2]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct Modal {
     pub choose: ChooseSpec,
     pub modes: Arc<[Mode]>,
@@ -380,7 +397,7 @@ pub struct Modal {
 
 /// `Label { as, effect }` — see [`OneShotEffect::Label`]. `as` is a Rust
 /// keyword, hence the raw identifier; the RON field is spelled `as`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct Label {
     pub r#as: crate::Ident,
     pub effect: Arc<OneShotEffect>,
@@ -389,7 +406,7 @@ pub struct Label {
 /// `SeparatePiles { group, into, by, note, then }` — see
 /// [`OneShotEffect::SeparatePiles`]. `by` defaults to `You` and is omitted from
 /// RON when it is; `note`/`then` are omitted when absent.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct SeparatePiles {
     pub group: crate::Selection,
     pub into: Arc<[crate::Ident]>,
@@ -404,7 +421,7 @@ pub struct SeparatePiles {
 /// `ChoosePile { from, by, random, then }` — see [`OneShotEffect::ChoosePile`].
 /// `by` defaults to `You`; `random` defaults to `false`; both are omitted
 /// from RON at their defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct ChoosePile {
     pub from: PileSource,
     #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]

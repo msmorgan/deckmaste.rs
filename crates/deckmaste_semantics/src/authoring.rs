@@ -8,8 +8,6 @@
 //! hand-written, and a test proves each of their rows still names something
 //! reachable, so neither can rot into silence.
 
-use macro_ron::VariantSignature;
-
 use crate::identity_registry::IDENTITY_ROWS;
 use crate::ron::kinds;
 
@@ -165,97 +163,6 @@ pub fn embed_safe(kind: &str, variant: &str) -> bool {
 /// under a different name and so not caught by that filter.
 pub const UNCOVERABLE: &[(&str, &str)] = &[("KeywordAbility", "Composite")];
 
-/// This variant's authored shape at `kind`, if the registry has one — `None`
-/// for a row that isn't actually reachable there (a caller passing a stale
-/// or made-up pair).
-fn signature_of(kind: &str, variant: &str) -> Option<VariantSignature> {
-    kinds()
-        .get(kind)?
-        .signatures()
-        .iter()
-        .find(|(name, _)| *name == variant)
-        .map(|(_, sig)| *sig)
-}
-
-/// Whether `(kind, variant)`'s registered def is structurally CAPABLE of
-/// reading the spelling `deckmaste_semantics`'s own newtype-tuple variants
-/// use when their one field is itself a named struct — see
-/// [`FIELD_SPLICE_HAZARD`]'s doc for the mechanism. A single positional
-/// param (`VariantSignature::Positional` of length 1) is a NECESSARY
-/// condition for the hazard (that's the shape whose macro-call grammar reads
-/// exactly one raw value, so `key: value` pairs can't parse), not a
-/// sufficient one — most such rows wrap an enum or scalar and are perfectly
-/// safe. This is the STRUCTURAL half of [`FIELD_SPLICE_HAZARD`]'s
-/// justification: the rot-guard test uses it to prove every hand-listed row
-/// still has this shape, not to compute the list itself (nothing in the
-/// kind registry names a positional field's Rust TYPE, only its arity and
-/// default — so which arity-1 rows actually wrap a named struct, the
-/// SUFFICIENT half, still has to be verified by hand against the source, the
-/// same way [`UNCOVERABLE`]'s one entry is).
-#[must_use]
-pub fn is_single_positional(kind: &str, variant: &str) -> bool {
-    matches!(signature_of(kind, variant), Some(VariantSignature::Positional(p)) if p.len() == 1)
-}
-
-/// Rows with a REGISTERED def ([`IDENTITY_ROWS`] contains them — they pass
-/// [`is_registered_identity_row`]) whose def is nonetheless known to be
-/// unable to read canon's actual spelling of that variant, so the gate must
-/// NOT certify them: registration proves a def EXISTS, not that it WORKS.
-///
-/// The hazard: `Ability::Activated(Arc<ActivatedAbility>)` and its siblings
-/// below are newtype-tuple variants whose one field is itself a NAMED
-/// struct. Canon spells them field-spliced, leaning on RON's
-/// newtype-transparency (`Activated(cost: [Tap], effect: …)` —
-/// `ability.rs`'s own doc at the `Static`/`Activated` variants documents
-/// this spelling), never as one wrapped value
-/// (`Activated((cost: …, effect: …))`). But a macro invocation's single
-/// positional slot reads exactly one raw value
-/// (`macro_ron::expand`'s `newtype_variant::<&RawValue>()` path) — `key:
-/// value` pairs aren't one — so the scaffolded shape (`params: [Any], body:
-/// Activated(Param(0))`, the ONLY shape the generator's per-variant
-/// signature can see, since the derive doesn't expose a positional field's
-/// own struct fields) cannot parse canon's real calls at all. Confirmed
-/// directly for `Activated`: `Activated(cost: [Tap], effect: RestartGame)`
-/// fails `read_str_restricted` with `ExpectedRawValue`. The other rows below
-/// share the identical shape (a dedicated named struct as the sole
-/// positional field — `ability.rs`'s `TriggeredAbility`/`SpellAbility`,
-/// `effect.rs`'s `Continuously`/`Label`/`SeparatePiles`/`ChoosePile`/`May`/
-/// `If`/`AdditionalCost`/`Each`/`With`/`Distribute`/`Noting`/`Modal`/
-/// `RevealUntil`) and are believed broken the same way, not yet individually
-/// re-confirmed one by one.
-///
-/// This is real corpus exposure, not a corner case — `OneShotEffect::May`
-/// alone is spelled field-spliced hundreds of times across the committed
-/// card corpus (`plugins/builtin` + `plugins/wizards`).
-///
-/// **Not fixed here.** A correct fix needs each payload struct's field list
-/// (names + which carry a constructor default) so a def can be
-/// field-spliced the way `Normal.ron`/`identity/Normal.ron` was hand-shaped
-/// around `CardFace`'s fields — the derive doesn't emit that for a
-/// positional field's wrapped type, so building it is its own capability,
-/// tracked as a follow-up task. Until it lands, these rows stay hand-listed:
-/// removing one requires actually re-scaffolding its def field-spliced and
-/// verifying the round trip under restriction, the same way `Card::Normal`
-/// was closed.
-pub const FIELD_SPLICE_HAZARD: &[(&str, &str)] = &[
-    ("Ability", "Activated"),
-    ("Ability", "Triggered"),
-    ("Ability", "Spell"),
-    ("OneShotEffect", "Continuously"),
-    ("OneShotEffect", "Label"),
-    ("OneShotEffect", "SeparatePiles"),
-    ("OneShotEffect", "ChoosePile"),
-    ("OneShotEffect", "May"),
-    ("OneShotEffect", "If"),
-    ("OneShotEffect", "AdditionalCost"),
-    ("OneShotEffect", "Each"),
-    ("OneShotEffect", "With"),
-    ("OneShotEffect", "Distribute"),
-    ("OneShotEffect", "Noting"),
-    ("OneShotEffect", "Modal"),
-    ("OneShotEffect", "RevealUntil"),
-];
-
 /// Whether a def is registered for `(kind, variant)` in the compiled
 /// registry ([`IDENTITY_ROWS`] — the trust channel; never derived from RON
 /// at runtime). This is the narrow, strict question: **a loader deciding
@@ -279,26 +186,17 @@ pub fn is_registered_identity_row(kind: &str, variant: &str) -> bool {
 /// [`is_registered_identity_row`], which a loader deciding whether to trust
 /// one specific def must use instead.
 ///
-/// A row counts as covered if: [`is_registered_identity_row`] is true AND
-/// it isn't named in [`FIELD_SPLICE_HAZARD`] (a real, registered def that is
-/// nonetheless known unable to read canon's spelling doesn't get to certify
-/// its row); OR the row is a transitively-inherited name at an embed host
+/// A row counts as covered if: [`is_registered_identity_row`] is true; OR
+/// the row is a transitively-inherited name at an embed host
 /// ([`embed_safe`] returns `false`, whose own coverage lives at the
 /// variant's defining kind instead); OR the row is named in [`UNCOVERABLE`]
-/// (real vocabulary that structurally can never get a def, for a reason
-/// unrelated to — and never overlapping with — the field-splice hazard).
+/// (real vocabulary that structurally can never get a def).
 ///
 /// Not a blanket yes: an unregistered `(kind, variant)` spelling at an
 /// ordinary (non-embedding) kind, not listed in [`UNCOVERABLE`], returns
 /// `false`.
 #[must_use]
 pub fn is_identity_exempt(kind: &str, variant: &str) -> bool {
-    if FIELD_SPLICE_HAZARD
-        .iter()
-        .any(|(k, v)| *k == kind && *v == variant)
-    {
-        return false;
-    }
     is_registered_identity_row(kind, variant)
         || !embed_safe(kind, variant)
         || UNCOVERABLE.iter().any(|(k, v)| *k == kind && *v == variant)
@@ -359,55 +257,6 @@ mod tests {
         }
     }
 
-    /// [`FIELD_SPLICE_HAZARD`] rows must still name something real and
-    /// dangerous: reachable, still `NeedsIdentityMacro`, still structurally
-    /// the arity-1-positional shape the hazard requires
-    /// ([`is_single_positional`] — the NECESSARY half of the justification,
-    /// mechanically re-checked every run), and — the point of the whole
-    /// list — still actually REGISTERED (a def exists, which is exactly
-    /// what makes silently certifying it dangerous). A row that stopped
-    /// being any of these would be stale: either fixed and forgotten here,
-    /// or no longer the shape that justified listing it.
-    ///
-    /// Also guards against the list quietly becoming a dumping ground: it
-    /// must stay non-empty, and every entry must independently satisfy
-    /// [`is_single_positional`] — nothing may be listed on say-so alone. As
-    /// rows close (tracked at
-    /// `docs/tickets/planned/identity-scaffolds-field-splice.md`) they come
-    /// out of the list one at a time; this test cannot pass on an empty
-    /// list once that ticket's work is done — the list itself gets deleted
-    /// then, along with the `except` clause in
-    /// [`every_reachable_row_is_covered`] below.
-    #[test]
-    fn field_splice_hazard_names_real_registered_arity_one_rows() {
-        assert!(
-            !FIELD_SPLICE_HAZARD.is_empty(),
-            "expected a real, standing hazard list"
-        );
-        let live = reachable_rows();
-        for (kind, variant) in FIELD_SPLICE_HAZARD {
-            assert!(
-                live.iter().any(|(k, v)| k == kind && v == variant),
-                "FIELD_SPLICE_HAZARD row ({kind}, {variant}) names nothing reachable"
-            );
-            assert_eq!(
-                classify(kind, variant),
-                Coverage::NeedsIdentityMacro,
-                "FIELD_SPLICE_HAZARD row ({kind}, {variant}) is no longer NeedsIdentityMacro"
-            );
-            assert!(
-                is_single_positional(kind, variant),
-                "FIELD_SPLICE_HAZARD row ({kind}, {variant}) is no longer single-positional"
-            );
-            assert!(
-                is_registered_identity_row(kind, variant),
-                "FIELD_SPLICE_HAZARD row ({kind}, {variant}) has no registered def — \
-                 either it was fixed (remove it from the list) or it never had one \
-                 (it belongs in the missing-coverage report, not this list)"
-            );
-        }
-    }
-
     /// The registry really does hand back variant rows — a `reachable_rows`
     /// that silently returned nothing would make every later coverage claim
     /// vacuous.
@@ -451,41 +300,12 @@ mod tests {
     /// The coverage gate that replaces wipe-first regeneration: every
     /// reachable row is covered by an identity macro or named in a
     /// whitelist. A new grammar variant fails here until its def lands.
-    ///
-    /// **Carries one explicit, temporary, TICKETED exception**:
-    /// [`FIELD_SPLICE_HAZARD`]'s 16 rows have a registered def that is
-    /// nonetheless known unable to read canon's own spelling —
-    /// [`is_identity_exempt`] correctly reports them NOT exempt (that
-    /// function's answer stays honest), but this assertion carves them out
-    /// by name rather than letting them fail the whole suite forever. This
-    /// is RECORDING the gap, not hiding it: the list is public, hand-listed,
-    /// rot-guarded (see
-    /// `field_splice_hazard_names_real_registered_arity_one_rows`
-    /// below — it cannot pass on an empty or stale list), and tracked at
-    /// `docs/tickets/planned/identity-scaffolds-field-splice.md`. A
-    /// genuinely NEW uncovered row — anything not already in the exception
-    /// list — still fails here, loudly, by name.
-    ///
-    /// When that ticket closes (every hazard row re-scaffolded
-    /// field-spliced and round-trip verified), **delete the `except`
-    /// filter below, not just the now-empty `FIELD_SPLICE_HAZARD` list** —
-    /// an empty hazard list is itself dead code, and the gate should go
-    /// back to asserting unconditional coverage.
     #[test]
     fn every_reachable_row_is_covered() {
         let missing: Vec<_> = reachable_rows()
             .into_iter()
             .filter(|(k, v)| classify(k, v) == Coverage::NeedsIdentityMacro)
             .filter(|(k, v)| !is_identity_exempt(k, v))
-            // TEMPORARY except clause — see this test's doc comment and
-            // `docs/tickets/planned/identity-scaffolds-field-splice.md`.
-            // Delete this filter (not just empty the list it reads) once
-            // that ticket lands.
-            .filter(|(k, v)| {
-                !FIELD_SPLICE_HAZARD
-                    .iter()
-                    .any(|(hk, hv)| *hk == k.as_str() && *hv == v.as_str())
-            })
             .collect();
         assert!(
             missing.is_empty(),

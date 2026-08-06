@@ -152,10 +152,8 @@ fn load_core_macros(plugins: &[&str]) -> MacroSet {
                 // `UnknownKind` alongside a clean `Ok`, not a failure: the
                 // kind this def is for exists at semantics kinds but has no
                 // counterpart in `deckmaste_core::ron::kinds()` yet (a live
-                // core-to-semantics migration gap — mirrors
-                // `xtask::authoring`'s `unscaffoldable_kinds`, which excludes
-                // exactly these kinds from what it scaffolds in the first
-                // place). This oracle only ever reads a real card/token
+                // core-to-semantics migration gap — `Card` is the standing
+                // case). This oracle only ever reads a real card/token
                 // file's TOP enum tag through `deckmaste_card`'s own native
                 // `Deserialize`, never through the macro layer — see the
                 // module doc — so a def this oracle can't register plays no

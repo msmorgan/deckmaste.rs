@@ -65,41 +65,6 @@ fn identity_dir() -> PathBuf {
 // reason this same row is exempt, not just unscaffoldable; see its doc for
 // the `(KeywordAbility, Composite)` detail).
 
-/// Kinds this generator can't scaffold at all, because a SEPARATE, older
-/// macro-kind registry some workspace test still loads through doesn't know
-/// the kind exists yet: every name in `deckmaste_semantics::ron::kinds()`
-/// (what `reachable_rows`/this generator consult) that's absent from
-/// `deckmaste_core::ron::kinds()`.
-///
-/// That second, hand-maintained registry is what
-/// `deckmaste_plugin/tests/corpus_identity.rs`'s `load_core_macros` builds
-/// its `MacroSet` from — by its own doc, "the last hand-rolled definition
-/// walk in the tree; it dies with `core-demacro`", i.e. a known-transitional
-/// harness for an in-flight core-to-semantics migration, not the real loader
-/// (`deckmaste_plugin::macros::macro_set`, which DOES use the semantics
-/// registry). `Color` and `Supertype` used to be the two real entries here —
-/// `deckmaste_core::ron::kinds()` was simply missing both registrations, and
-/// `deckmaste_core::Supertype` needed a `SupportsMacros` derive (mirroring
-/// `deckmaste_core::Color`, which already had one) before it could gain a
-/// `.kind()` to register at all — closed by registering both there, the same
-/// fix already applied on the semantics side by this feature's Task 1. `Card`
-/// remains listed in the diff (a struct kind, no variant dispatch, so it
-/// never actually yields a row) — left unregistered in `deckmaste_core`
-/// rather than chased, since nothing depends on it. Computed rather than
-/// hand-listed so a FUTURE registry drift between the two keeps getting
-/// caught here rather than surfacing as a confusing load failure downstream.
-fn unscaffoldable_kinds() -> Vec<String> {
-    let semantics: std::collections::BTreeSet<String> = deckmaste_semantics::ron::kinds()
-        .iter()
-        .map(|k| k.name().to_string())
-        .collect();
-    let core: std::collections::BTreeSet<String> = deckmaste_core::ron::kinds()
-        .iter()
-        .map(|k| k.name().to_string())
-        .collect();
-    semantics.difference(&core).cloned().collect()
-}
-
 /// `embed_safe` (`deckmaste_semantics::authoring::embed_safe`) is what filters
 /// out an unsafe scaffold below. A bare self-referencing identity-macro body
 /// (`body: Green`) is safe ONLY at a kind where the name is one of its own
@@ -121,14 +86,11 @@ fn unscaffoldable_kinds() -> Vec<String> {
 /// gate can share it.
 ///
 /// Every reachable row an identity macro must cover and this generator can
-/// actually scaffold safely (see [`UNSCAFFOLDABLE`], [`unscaffoldable_kinds`],
-/// [`embed_safe`]).
+/// actually scaffold safely (see [`UNSCAFFOLDABLE`], [`embed_safe`]).
 fn needs_identity_macro_rows() -> Vec<(String, String)> {
-    let unscaffoldable_kinds = unscaffoldable_kinds();
     reachable_rows()
         .into_iter()
         .filter(|(kind, variant)| classify(kind, variant) == Coverage::NeedsIdentityMacro)
-        .filter(|(kind, _)| !unscaffoldable_kinds.contains(kind))
         .filter(|(kind, variant)| {
             !UNSCAFFOLDABLE
                 .iter()
@@ -763,13 +725,12 @@ mod drift {
 #[cfg(test)]
 mod coverage_gap {
     /// Every `NeedsIdentityMacro` row this generator declines to scaffold is
-    /// accounted for by one of the three documented exclusions
-    /// ([`super::UNSCAFFOLDABLE`], [`super::unscaffoldable_kinds`],
-    /// [`super::embed_safe`]) — never a silent fourth reason. The gap itself
-    /// (currently real: `deckmaste_plugin`'s `keyword_shape` closed
-    /// vocabulary for `Composite`, and the embed-untagged recursion hazard
-    /// for names only reachable at an embedding kind transitively) is
-    /// reported upstream, not hidden here.
+    /// accounted for by one of the two documented exclusions
+    /// ([`super::UNSCAFFOLDABLE`], [`super::embed_safe`]) — never a silent
+    /// third reason. The gap itself (currently real: `deckmaste_plugin`'s
+    /// `keyword_shape` closed vocabulary for `Composite`, and the
+    /// embed-untagged recursion hazard for names only reachable at an
+    /// embedding kind transitively) is reported upstream, not hidden here.
     #[test]
     fn every_excluded_row_is_an_explained_exclusion() {
         use deckmaste_semantics::authoring::Coverage;
@@ -781,15 +742,13 @@ mod coverage_gap {
             .filter(|(k, v)| classify(k, v) == Coverage::NeedsIdentityMacro)
             .collect();
         let scaffoldable = super::needs_identity_macro_rows();
-        let unscaffoldable_kinds = super::unscaffoldable_kinds();
         for row @ (kind, variant) in &all_needs {
             if scaffoldable.contains(row) {
                 continue;
             }
             let listed = super::UNSCAFFOLDABLE
                 .iter()
-                .any(|(k, v)| *k == kind && *v == variant)
-                || unscaffoldable_kinds.contains(kind);
+                .any(|(k, v)| *k == kind && *v == variant);
             assert!(
                 listed || !super::embed_safe(kind, variant),
                 "{kind}::{variant} was excluded without an explanation"
@@ -900,6 +859,74 @@ mod elision_gap {
             macros.replace(&bad),
             Err(macro_ron::InsertError::LoneElidablePositional { .. })
         ));
+    }
+}
+
+#[cfg(test)]
+mod field_splice {
+    /// A newtype variant over a named struct is spelled field-spliced by
+    /// canon (`May(who: …)`, never `May((who: …))`), so its identity macro
+    /// must take a NAMED signature over the payload struct's own fields —
+    /// not the one positional slot a bare newtype tuple would suggest, which
+    /// a macro call reads as exactly one raw value.
+    #[test]
+    fn a_newtype_over_a_named_struct_scaffolds_field_spliced() {
+        use macro_ron::ParamDefault;
+        use macro_ron::VariantSignature;
+
+        let kind_set = deckmaste_semantics::ron::kinds();
+        let signature = super::signature_of(&kind_set, "OneShotEffect", "May");
+        let VariantSignature::Named(params) = signature else {
+            panic!("OneShotEffect::May should carry a named signature, got {signature:?}");
+        };
+        let shape: Vec<(&str, bool)> = params
+            .iter()
+            .map(|p| (p.name, matches!(p.default, ParamDefault::Required)))
+            .collect();
+        assert_eq!(
+            shape,
+            [
+                ("who", true),
+                ("effect", true),
+                ("if_did", false),
+                ("if_not", false),
+            ]
+        );
+
+        let text = super::render("May", &["OneShotEffect".to_string()], &signature);
+        assert!(
+            text.contains(r#"params: { "who": Any, "effect": Any, "if_did": Elidable(Any), "if_not": Elidable(Any) }"#),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "body: May(who: Param(who), effect: Param(effect), \
+                 if_did: Param(if_did), if_not: Param(if_not)),"
+            ),
+            "{text}"
+        );
+    }
+
+    /// A field-spliced payload field with no `#[serde(default)]` but an
+    /// `Option` type still fills itself in when omitted (serde's own
+    /// missing-field-is-`None` rule), so it scaffolds `Elidable(Any)` too —
+    /// `CardFace::power` and kin, the shape `identity/Normal.ron` was
+    /// hand-written around.
+    #[test]
+    fn an_optional_payload_field_scaffolds_elidable_without_a_serde_default() {
+        use macro_ron::ParamDefault;
+        use macro_ron::VariantSignature;
+
+        let kind_set = deckmaste_semantics::ron::kinds();
+        let signature = super::signature_of(&kind_set, "Card", "Normal");
+        let VariantSignature::Named(params) = signature else {
+            panic!("Card::Normal should carry a named signature, got {signature:?}");
+        };
+        let power = params
+            .iter()
+            .find(|p| p.name == "power")
+            .expect("CardFace has a `power` field");
+        assert_eq!(power.default, ParamDefault::Implicit);
     }
 }
 
@@ -1041,13 +1068,10 @@ mod restricted_read {
 
     /// `Card` is the restricted root itself — every committed card file's
     /// top-level shape (see `plugins/builtin/cards/Forest.ron`, used
-    /// verbatim here). `Card::Normal(CardFace)` is a positional variant with
-    /// one opaque-struct param; this row used to fall outside the
-    /// scaffold generator's reach entirely (`unscaffoldable_kinds`'s
-    /// legacy-registry diff excludes it, because `deckmaste_core` has no
-    /// matching `Card` type to register — a real, live migration gap, not
-    /// paperwork) until the coverage gate surfaced it as a genuine miss and
-    /// this def was hand-authored to close it.
+    /// verbatim here). `Card::Normal(CardFace)` is the original
+    /// newtype-over-named-struct row: hand-authored field-spliced once the
+    /// coverage gate surfaced it, now generated from `CardFace`'s own fields
+    /// like the rest of its class.
     #[test]
     fn card_normal_scaffold_round_trips_under_restriction() {
         let macros = real_scaffolds();

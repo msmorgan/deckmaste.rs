@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use macro_ron::Expand;
+use macro_ron::MacroFields;
 use macro_ron::SupportsMacros;
 use serde::Deserialize;
 use serde::Serialize;
@@ -13,7 +14,7 @@ use crate::Subtype;
 use crate::Supertype;
 use crate::TypeDef;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Expand, MacroFields, Serialize)]
 pub struct CardFace {
     pub name: Arc<str>,
 
@@ -79,6 +80,7 @@ pub enum FaceLayout {
     reason = "leaf card model; boxing a face buys nothing"
 )]
 pub enum Card {
+    #[macro_ron(spliced)]
     Normal(CardFace),
     /// A TWO-faced card: `front` (the primary/default face) and `back`,
     /// arranged per `layout` — the Idris `TwoFaced`. Each face is a full

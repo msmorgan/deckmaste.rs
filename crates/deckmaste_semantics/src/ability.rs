@@ -8,6 +8,7 @@ use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
 use crate::KeywordAbility;
+use crate::MacroFields;
 use crate::SupportsMacros;
 use crate::Timing;
 use crate::continuous::StaticEffect;
@@ -20,7 +21,7 @@ use crate::effect::OneShotEffect;
 /// `OneShotEffect::Targeted` wrapper in `effect` ([CR#115.1,601.2c]), read back
 /// by the anaphors (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth
 /// announced slot).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct SpellAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
     /// meaning), pure render metadata: "Domain — …". NEVER a macro tier.
@@ -33,7 +34,7 @@ pub struct SpellAbility {
 /// ([CR#113.3b,602]). Targeting lives on an `OneShotEffect::Targeted` wrapper
 /// in `effect` ([CR#115.1,601.2c]); the `Resolvable` wrapper of the design
 /// sketch is realized as `OneShotEffect::Modal` (see `effect`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct ActivatedAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
     /// meaning), pure render metadata. NEVER a macro tier.
@@ -86,7 +87,7 @@ pub enum UseLimit {
 /// A triggered ability ([CR#113.3c,603]). A named struct because it recurs:
 /// delayed ([CR#603.7]) and reflexive ([CR#603.12]) triggers are the same
 /// value, created inside an `OneShotEffect`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct TriggeredAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
     /// meaning), pure render metadata: "Landfall — Whenever …". NEVER a
@@ -202,8 +203,11 @@ pub enum Ability {
     /// wrappers ([`Conditionally`](crate::StaticEffect::Conditionally)), never
     /// a struct field. Mirrors Idris `Static : StaticEffect -> Ability`.
     Static(Arc<StaticEffect>),
+    #[macro_ron(spliced)]
     Activated(Arc<ActivatedAbility>),
+    #[macro_ron(spliced)]
     Triggered(Arc<TriggeredAbility>),
+    #[macro_ron(spliced)]
     Spell(Arc<SpellAbility>),
     /// A keyword ability ([CR#702]) — always spelled `Keyword(…)` on cards.
     /// The five intrinsic variants read as themselves (`Keyword(Trample)`);
