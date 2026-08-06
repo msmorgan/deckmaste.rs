@@ -1281,7 +1281,11 @@ mod tests {
                 noun.feature_combinators[0].combinator,
                 noun.feature_combinators[0].args,
             ),
-            ("first", "noun_phrase_coordination", &["first", "rest"][..])
+            (
+                "first",
+                "complete_noun_phrase_coordination",
+                &["first", "rest"][..]
+            )
         );
         assert_eq!(noun.forms.len(), 1);
         assert_eq!(noun.forms[0].name, "flat");
@@ -1367,7 +1371,7 @@ mod tests {
             ),
             (
                 "first",
-                "noun_phrase_coordination",
+                "shared_determiner_coordination",
                 &["determiner", "first", "rest"][..]
             )
         );

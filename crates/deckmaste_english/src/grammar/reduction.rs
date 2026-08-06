@@ -2137,13 +2137,7 @@ pub(super) fn reduce_generated(
     if !generated_surface_sequence_scalars_match(rule, &fields) {
         return None;
     }
-    let noun_phrase_features = match construction.feature_combinators {
-        [] => Features::None,
-        [feature] if feature.combinator == "noun_phrase_coordination" => {
-            noun_phrase_coordination_features(construction.id, &fields)?
-        }
-        _ => return None,
-    };
+    let noun_phrase_features = generated_construction_features(construction, &fields)?;
     let features = match (rule.context, preposition) {
         (super::rules::GeneratedRuleContext::Value, None) => noun_phrase_features,
         (super::rules::GeneratedRuleContext::SharedPreposition, Some(preposition)) => {
@@ -2506,177 +2500,215 @@ fn generated_complements_include_keyword_argument(
     })
 }
 
-fn noun_phrase_coordination_features(
-    construction: &str,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GeneratedFeatureCombinator {
+    CompleteNounPhraseCoordination,
+    SharedDeterminerCoordination,
+}
+
+impl GeneratedFeatureCombinator {
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "complete_noun_phrase_coordination" => Some(Self::CompleteNounPhraseCoordination),
+            "shared_determiner_coordination" => Some(Self::SharedDeterminerCoordination),
+            _ => None,
+        }
+    }
+}
+
+fn generated_construction_features(
+    construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     fields: &[Option<&Features>],
 ) -> Option<Features> {
-    match construction {
-        "noun_phrase_coordination" => {
-            let Features::NounPhrase {
-                agreement: first_agreement,
-                coordination_domain: first_domain,
-                adjunct: first_adjunct,
-                set_exception,
-                coordination: first_coordination,
-                recipient_passive_theme: first_theme,
-                ..
-            } = fields.first()?.as_ref()?
-            else {
-                return None;
-            };
-            let Features::GeneratedSequence { tail } = fields.get(1)?.as_ref()? else {
-                return None;
-            };
-            let elements = tail.elements();
-            if *set_exception == SetExceptionState::Closed
-                || elements.len() >= 2 && *first_coordination != NounPhraseCoordinationState::None
-            {
-                return None;
-            }
-            let mut common_adjunct = *first_adjunct;
-            let mut coordination_domain = *first_domain;
-            let mut last_agreement = *first_agreement;
-            let mut last_coordination = NounPhraseCoordinationState::None;
-            let mut all_themes = *first_theme;
-            for element in &elements {
-                let Features::NounPhrase {
-                    agreement,
-                    coordination_domain: member_domain,
-                    adjunct,
-                    coordination: member_coordination,
-                    recipient_passive_theme,
-                    ..
-                } = element.fields.get(2)?
-                else {
-                    return None;
-                };
-                if common_adjunct != *adjunct {
-                    common_adjunct = None;
-                }
-                coordination_domain =
-                    combine_coordination_domains(coordination_domain, *member_domain)?;
-                last_agreement = *agreement;
-                last_coordination = *member_coordination;
-                all_themes &= *recipient_passive_theme;
-            }
-            let conjunction = final_generated_conjunction(tail)?;
-            if elements.len() == 1 {
-                let nested_matches = |state| matches!(state, NounPhraseCoordinationState::Binary(inner) if inner == conjunction);
-                match (
-                    nested_matches(*first_coordination),
-                    nested_matches(last_coordination),
-                ) {
-                    // An unpunctuated same-conjunction chain is not a flat
-                    // three-member coordination. The one licensed one-sided
-                    // grouping is the local `power and toughness` idiom before
-                    // a following quality.
-                    (false, true) => return None,
-                    (true, false) if *first_domain != Some(CoordinationDomain::PowerToughness) => {
-                        return None;
-                    }
-                    (false, false) | (true, true) | (true, false) => {}
-                }
-            }
-            Some(Features::NounPhrase {
-                agreement: coordination_agreement(conjunction, *first_agreement, last_agreement),
-                coordination_domain,
-                pronoun_case: None,
-                adjunct: common_adjunct,
-                set_exception: *set_exception,
-                coordination: if elements.len() >= 2 {
-                    NounPhraseCoordinationState::Oxford(conjunction)
-                } else {
-                    NounPhraseCoordinationState::Binary(conjunction)
-                },
-                recipient_passive_theme: all_themes,
-                rules_object_followup: false,
-            })
-        }
-        "shared_determiner_nominal" => {
-            let Features::Determiner {
-                cardinality,
-                article,
-                demonstrative_this,
-                set_exception_host,
-            } = fields.first()?.as_ref()?
-            else {
-                return None;
-            };
-            let first = nominal_coordination_member(fields.get(1)?.as_ref()?)?;
-            let Features::GeneratedSequence { tail } = fields.get(2)?.as_ref()? else {
-                return None;
-            };
-            let elements = tail.elements();
-            if !first.shared_determiner_open {
-                return None;
-            }
-            let mut common_adjunct = first.adjunct;
-            let mut last_form = first.form;
-            let mut members = Vec::with_capacity(elements.len());
-            for element in &elements {
-                let member = nominal_coordination_member(element.fields.get(2)?)?;
-                if !generated_determiner_accepts(
-                    *cardinality,
-                    *article,
-                    member.form,
-                    member.initial_sound,
-                ) || *demonstrative_this && !member.demonstrative_shared_determiner
-                {
-                    return None;
-                }
-                if common_adjunct != member.adjunct {
-                    common_adjunct = None;
-                }
-                last_form = member.form;
-                members.push(member);
-            }
-            if members
+    let feature = match construction.feature_combinators {
+        [] => return Some(Features::None),
+        [feature] => feature,
+        _ => return None,
+    };
+    let combinator = GeneratedFeatureCombinator::from_name(feature.combinator)?;
+    let args = feature
+        .args
+        .iter()
+        .map(|arg| {
+            let index = construction
+                .fields
                 .iter()
-                .take(members.len().saturating_sub(2))
-                .any(|member| !member.shared_determiner_open)
-                || !generated_determiner_accepts(
-                    *cardinality,
-                    *article,
-                    first.form,
-                    first.initial_sound,
-                )
-            {
-                return None;
-            }
-            let conjunction = final_generated_conjunction(tail)?;
-            Some(Features::NounPhrase {
-                agreement: coordination_agreement(
-                    conjunction,
-                    Some(Agreement {
-                        person: Person::Third,
-                        number: match first.form {
-                            NounForm::Plural => Number::Plural,
-                            NounForm::Singular | NounForm::Mass => Number::Singular,
-                        },
-                    }),
-                    Some(Agreement {
-                        person: Person::Third,
-                        number: match last_form {
-                            NounForm::Plural => Number::Plural,
-                            NounForm::Singular | NounForm::Mass => Number::Singular,
-                        },
-                    }),
-                ),
-                coordination_domain: None,
-                pronoun_case: None,
-                adjunct: common_adjunct,
-                set_exception: if *set_exception_host {
-                    SetExceptionState::Host
-                } else {
-                    SetExceptionState::Ineligible
-                },
-                coordination: NounPhraseCoordinationState::Shared,
-                recipient_passive_theme: false,
-                rules_object_followup: false,
-            })
+                .position(|field| field.name == *arg)?;
+            fields.get(index).copied().flatten()
+        })
+        .collect::<Option<Vec<_>>>()?;
+    match (combinator, args.as_slice()) {
+        (GeneratedFeatureCombinator::CompleteNounPhraseCoordination, [first, rest]) => {
+            complete_noun_phrase_coordination_features(first, rest)
+        }
+        (GeneratedFeatureCombinator::SharedDeterminerCoordination, [determiner, first, rest]) => {
+            shared_determiner_coordination_features(determiner, first, rest)
         }
         _ => None,
     }
+}
+
+fn complete_noun_phrase_coordination_features(
+    first: &Features,
+    rest: &Features,
+) -> Option<Features> {
+    let Features::NounPhrase {
+        agreement: first_agreement,
+        coordination_domain: first_domain,
+        adjunct: first_adjunct,
+        set_exception,
+        coordination: first_coordination,
+        recipient_passive_theme: first_theme,
+        ..
+    } = first
+    else {
+        return None;
+    };
+    let Features::GeneratedSequence { tail } = rest else {
+        return None;
+    };
+    let elements = tail.elements();
+    if *set_exception == SetExceptionState::Closed
+        || elements.len() >= 2 && *first_coordination != NounPhraseCoordinationState::None
+    {
+        return None;
+    }
+    let mut common_adjunct = *first_adjunct;
+    let mut coordination_domain = *first_domain;
+    let mut last_agreement = *first_agreement;
+    let mut last_coordination = NounPhraseCoordinationState::None;
+    let mut all_themes = *first_theme;
+    for element in &elements {
+        let Features::NounPhrase {
+            agreement,
+            coordination_domain: member_domain,
+            adjunct,
+            coordination: member_coordination,
+            recipient_passive_theme,
+            ..
+        } = element.fields.get(2)?
+        else {
+            return None;
+        };
+        if common_adjunct != *adjunct {
+            common_adjunct = None;
+        }
+        coordination_domain = combine_coordination_domains(coordination_domain, *member_domain)?;
+        last_agreement = *agreement;
+        last_coordination = *member_coordination;
+        all_themes &= *recipient_passive_theme;
+    }
+    let conjunction = final_generated_conjunction(tail)?;
+    if elements.len() == 1 {
+        let nested_matches = |state| matches!(state, NounPhraseCoordinationState::Binary(inner) if inner == conjunction);
+        match (
+            nested_matches(*first_coordination),
+            nested_matches(last_coordination),
+        ) {
+            // An unpunctuated same-conjunction chain is not a flat
+            // three-member coordination. The one licensed one-sided
+            // grouping is the local `power and toughness` idiom before
+            // a following quality.
+            (false, true) => return None,
+            (true, false) if *first_domain != Some(CoordinationDomain::PowerToughness) => {
+                return None;
+            }
+            (false, false) | (true, true) | (true, false) => {}
+        }
+    }
+    Some(Features::NounPhrase {
+        agreement: coordination_agreement(conjunction, *first_agreement, last_agreement),
+        coordination_domain,
+        pronoun_case: None,
+        adjunct: common_adjunct,
+        set_exception: *set_exception,
+        coordination: if elements.len() >= 2 {
+            NounPhraseCoordinationState::Oxford(conjunction)
+        } else {
+            NounPhraseCoordinationState::Binary(conjunction)
+        },
+        recipient_passive_theme: all_themes,
+        rules_object_followup: false,
+    })
+}
+
+fn shared_determiner_coordination_features(
+    determiner: &Features,
+    first: &Features,
+    rest: &Features,
+) -> Option<Features> {
+    let Features::Determiner {
+        cardinality,
+        article,
+        demonstrative_this,
+        set_exception_host,
+    } = determiner
+    else {
+        return None;
+    };
+    let first = nominal_coordination_member(first)?;
+    let Features::GeneratedSequence { tail } = rest else {
+        return None;
+    };
+    let elements = tail.elements();
+    if !first.shared_determiner_open {
+        return None;
+    }
+    let mut common_adjunct = first.adjunct;
+    let mut last_form = first.form;
+    let mut members = Vec::with_capacity(elements.len());
+    for element in &elements {
+        let member = nominal_coordination_member(element.fields.get(2)?)?;
+        if !generated_determiner_accepts(*cardinality, *article, member.form, member.initial_sound)
+            || *demonstrative_this && !member.demonstrative_shared_determiner
+        {
+            return None;
+        }
+        if common_adjunct != member.adjunct {
+            common_adjunct = None;
+        }
+        last_form = member.form;
+        members.push(member);
+    }
+    if members
+        .iter()
+        .take(members.len().saturating_sub(2))
+        .any(|member| !member.shared_determiner_open)
+        || !generated_determiner_accepts(*cardinality, *article, first.form, first.initial_sound)
+    {
+        return None;
+    }
+    let conjunction = final_generated_conjunction(tail)?;
+    Some(Features::NounPhrase {
+        agreement: coordination_agreement(
+            conjunction,
+            Some(Agreement {
+                person: Person::Third,
+                number: match first.form {
+                    NounForm::Plural => Number::Plural,
+                    NounForm::Singular | NounForm::Mass => Number::Singular,
+                },
+            }),
+            Some(Agreement {
+                person: Person::Third,
+                number: match last_form {
+                    NounForm::Plural => Number::Plural,
+                    NounForm::Singular | NounForm::Mass => Number::Singular,
+                },
+            }),
+        ),
+        coordination_domain: None,
+        pronoun_case: None,
+        adjunct: common_adjunct,
+        set_exception: if *set_exception_host {
+            SetExceptionState::Host
+        } else {
+            SetExceptionState::Ineligible
+        },
+        coordination: NounPhraseCoordinationState::Shared,
+        recipient_passive_theme: false,
+        rules_object_followup: false,
+    })
 }
 
 fn final_generated_conjunction(sequence: &GeneratedSequenceFeatures) -> Option<Conjunction> {
@@ -3048,7 +3080,7 @@ mod generated_tests {
         let and = sequence(Conjunction::And, Number::Singular);
         let fields = [Some(&first), Some(&and)];
         assert!(matches!(
-            noun_phrase_coordination_features("noun_phrase_coordination", &fields),
+            generated_construction_features(construction("noun_phrase_coordination"), &fields),
             Some(Features::NounPhrase {
                 agreement: Some(Agreement {
                     number: Number::Plural,
@@ -3061,7 +3093,7 @@ mod generated_tests {
         let or = sequence(Conjunction::Or, Number::Plural);
         let fields = [Some(&first), Some(&or)];
         assert!(matches!(
-            noun_phrase_coordination_features("noun_phrase_coordination", &fields),
+            generated_construction_features(construction("noun_phrase_coordination"), &fields),
             Some(Features::NounPhrase {
                 agreement: Some(Agreement {
                     number: Number::Plural,
@@ -3077,8 +3109,8 @@ mod generated_tests {
         let first = noun_phrase(Number::Singular);
         let then = sequence(Conjunction::Then, Number::Singular);
         assert!(
-            noun_phrase_coordination_features(
-                "noun_phrase_coordination",
+            generated_construction_features(
+                construction("noun_phrase_coordination"),
                 &[Some(&first), Some(&then)]
             )
             .is_none()

@@ -10,6 +10,7 @@ use deckmaste_construction_compiler::runtime::ConstructionData;
 use deckmaste_construction_compiler::runtime::ElementData;
 use deckmaste_construction_compiler::runtime::FieldKindData;
 use deckmaste_construction_compiler::runtime::GroupData;
+use deckmaste_construction_compiler::runtime::PredicateData;
 
 use super::EnglishLexicalSlot;
 use super::Expected;
@@ -390,22 +391,21 @@ pub(super) fn register_generated(
                     });
                 }
                 for subset in 0..(1_u64 << sequence_atoms.len()) {
-                    if construction
-                        .feature_combinators
+                    if sequence_atoms
                         .iter()
-                        .any(|feature| feature.combinator == "noun_phrase_coordination")
-                        && sequence_atoms
-                            .iter()
-                            .enumerate()
-                            .any(|(position, &atom_index)| {
-                                matches!(form.atoms.get(atom_index), Some(AtomData::Hole("rest")))
-                                    && subset & (1_u64 << position) == 0
-                            })
+                        .enumerate()
+                        .any(|(position, &atom_index)| {
+                            let Some(AtomData::Hole(path)) = form.atoms.get(atom_index) else {
+                                return false;
+                            };
+                            sequence_is_required_nonempty(construction, path)
+                                && subset & (1_u64 << position) == 0
+                        })
                     {
-                        // The named English combinator requires a nonempty
-                        // coordination tail. Do not register an impossible
-                        // broad NounPhrase production and wait until reduction
-                        // to discover that `rest.len() >= 1` failed.
+                        // Do not register a nullable shape which the
+                        // declaration itself rejects. Besides wasting chart
+                        // work, a recursive category with an omitted required
+                        // tail can seed an unbounded family of empty wrappers.
                         continue;
                     }
                     let mut rhs = Vec::with_capacity(form.atoms.len());
@@ -479,6 +479,39 @@ pub(super) fn register_generated(
         }
     }
     Ok(())
+}
+
+fn sequence_is_required_nonempty(construction: &ConstructionData, path: &str) -> bool {
+    construction
+        .requirements
+        .iter()
+        .chain(construction.recognition_requirements)
+        .any(|requirement| predicate_requires_nonempty(requirement.predicate, path))
+}
+
+fn predicate_requires_nonempty(predicate: PredicateData, path: &str) -> bool {
+    match predicate {
+        PredicateData::LenAtLeast {
+            path: predicate_path,
+            min,
+        } => predicate_path == path && min >= 1,
+        PredicateData::LenIs {
+            path: predicate_path,
+            len,
+        } => predicate_path == path && len >= 1,
+        PredicateData::All(predicates) => predicates
+            .iter()
+            .any(|predicate| predicate_requires_nonempty(*predicate, path)),
+        PredicateData::Any(predicates) => {
+            !predicates.is_empty()
+                && predicates
+                    .iter()
+                    .all(|predicate| predicate_requires_nonempty(*predicate, path))
+        }
+        PredicateData::In { .. } | PredicateData::IsSome { .. } | PredicateData::IsNone { .. } => {
+            false
+        }
+    }
 }
 
 fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
@@ -1028,5 +1061,42 @@ mod tests {
                 rule.production.construction.as_str() == "shared_determiner_nominal"
             })
         );
+        assert!(book.rules.iter().all(|rule| {
+            rule.production.construction.as_str() != "noun_phrase_coordination"
+                || rule.rhs.len() >= 2
+        }));
+        assert!(book.rules.iter().all(|rule| {
+            rule.production.construction.as_str() != "shared_determiner_nominal"
+                || rule.rhs.len() >= 3
+        }));
+    }
+
+    #[test]
+    fn nested_predicates_prove_nonempty_sequences_only_when_every_any_arm_does() {
+        use deckmaste_construction_compiler::runtime::PredicateData;
+
+        const NONEMPTY: PredicateData = PredicateData::LenAtLeast {
+            path: "rest",
+            min: 1,
+        };
+        const OTHER: PredicateData = PredicateData::IsSome { path: "tag" };
+        assert!(super::predicate_requires_nonempty(
+            PredicateData::All(&[OTHER, NONEMPTY]),
+            "rest",
+        ));
+        assert!(!super::predicate_requires_nonempty(
+            PredicateData::Any(&[OTHER, NONEMPTY]),
+            "rest",
+        ));
+        assert!(super::predicate_requires_nonempty(
+            PredicateData::Any(&[
+                NONEMPTY,
+                PredicateData::LenIs {
+                    path: "rest",
+                    len: 2,
+                },
+            ]),
+            "rest",
+        ));
     }
 }

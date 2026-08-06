@@ -62,7 +62,7 @@ deckmaste_constructions_macro::constructions! {
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();
         require rest.last.conjunction in [And, Or, Plus, AndOr];
-        derive first = noun_phrase_coordination(first, rest);
+        derive first = complete_noun_phrase_coordination(first, rest);
         form flat @ 0 = first rest;
     }
 
@@ -83,7 +83,7 @@ deckmaste_constructions_macro::constructions! {
             complements.nonfinal.variant in [Relative],
             complements.last.variant in [Relative]
         );
-        derive first = noun_phrase_coordination(determiner, first, rest);
+        derive first = shared_determiner_coordination(determiner, first, rest);
         form shared @ 0 = determiner first rest complements;
     }
 }
