@@ -19,9 +19,11 @@ use crate::Kind;
 use crate::KindSet;
 use crate::MacroDef;
 use crate::MacroSet;
+use crate::ParamDefault;
 use crate::ParamType;
 use crate::ParamTypeSet;
 use crate::Params;
+use crate::VariantSignature;
 
 /// The deckmaste dialect, for parity with the real consumer: the intercept
 /// layer has to coexist with `implicit_some` and `unwrap_variant_newtypes`
@@ -44,7 +46,8 @@ fn kinds() -> KindSet {
     kinds.add(
         Kind::new("Filter")
             .remembers_expansion()
-            .with_variants(FILTER_VARIANTS),
+            .with_variants(FILTER_VARIANTS)
+            .with_signatures(FILTER_SIGNATURES),
     );
     kinds.add(
         Kind::new("Quantity")
@@ -97,6 +100,36 @@ enum Type {
 /// `ALL_VARIANTS`.
 const FILTER_VARIANTS: &[&str] = &[
     "Any", "Type", "Named", "OneOf", "AllOf", "Power", "Expanded",
+];
+
+/// `Filter`'s signature lookup, hand-written for the same reason
+/// `FILTER_VARIANTS` is: every non-unit variant is a newtype.
+const FILTER_SIGNATURES: &[(&str, VariantSignature)] = &[
+    ("Any", VariantSignature::Unit),
+    (
+        "Type",
+        VariantSignature::Positional(&[ParamDefault::Required]),
+    ),
+    (
+        "Named",
+        VariantSignature::Positional(&[ParamDefault::Required]),
+    ),
+    (
+        "OneOf",
+        VariantSignature::Positional(&[ParamDefault::Required]),
+    ),
+    (
+        "AllOf",
+        VariantSignature::Positional(&[ParamDefault::Required]),
+    ),
+    (
+        "Power",
+        VariantSignature::Positional(&[ParamDefault::Required]),
+    ),
+    (
+        "Expanded",
+        VariantSignature::Positional(&[ParamDefault::Required]),
+    ),
 ];
 
 /// A name-erasing struct kind, like deckmaste's `Subtype`.
@@ -1759,9 +1792,12 @@ mod derived {
     use crate::KindSet;
     use crate::MacroDef;
     use crate::MacroSet;
+    use crate::NamedParam;
+    use crate::ParamDefault;
     use crate::ParamType;
     use crate::Params;
     use crate::SupportsMacros;
+    use crate::VariantSignature;
 
     /// P1 fixture: unit, newtype, 2-tuple, literal, expanded.
     #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
@@ -2242,6 +2278,159 @@ mod derived {
             n: 0,
         };
         assert_eq!(p.clone().expand_all(), p);
+    }
+
+    /// Signature fixture: unit, newtype variants — enough to pin the shape
+    /// mapping without restating the full `Filter` grammar. Distinct from
+    /// (and unrelated to) the hand-built `super::Filter`: that one has no
+    /// `SupportsMacros` impl to read `ALL_SIGNATURES` from, so a real
+    /// derive-backed fixture is needed here, reusing the name for parity.
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Filter {
+        Any,
+        Named(String),
+        Power(u32),
+    }
+
+    /// The derive exposes each variant's shape, not just its name —
+    /// scaffolding an identity macro needs the arity to mirror.
+    #[test]
+    #[allow(
+        clippy::map_unwrap_or,
+        reason = "verbatim task-brief test code: map().unwrap_or_else() reads as the intended shape here"
+    )]
+    fn the_derive_exposes_variant_signatures() {
+        let sigs = Filter::ALL_SIGNATURES;
+        let get = |name: &str| {
+            sigs.iter()
+                .find(|(n, _)| *n == name)
+                .map(|(_, s)| *s)
+                .unwrap_or_else(|| panic!("no signature for `{name}`"))
+        };
+        assert_eq!(get("Any"), VariantSignature::Unit);
+        assert_eq!(
+            get("Named"),
+            VariantSignature::Positional(&[ParamDefault::Required])
+        );
+        assert_eq!(
+            get("Power"),
+            VariantSignature::Positional(&[ParamDefault::Required])
+        );
+    }
+
+    /// A host with its own variant plus an embed, mirroring `Pick` above.
+    /// Distinct from (and unrelated to) the hand-built `super::EmbedHost` used
+    /// for the `embeds_untagged` runtime tests: this one is derive-backed, so
+    /// `ALL_SIGNATURES`/`ALL_VARIANTS` are real associated consts, not a
+    /// hand-maintained list.
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum EmbedHost {
+        Own(u32),
+        #[macro_ron(embed)]
+        Ref(Who),
+        #[macro_ron(expanded)]
+        Expanded(Expansion<EmbedHost>),
+    }
+
+    /// Signatures concatenate transitively, exactly like `ALL_VARIANTS`: a
+    /// host that embeds another type must be able to look up the embedded
+    /// type's variants too, or every inherited row is unscaffoldable.
+    #[test]
+    fn signatures_are_transitive_like_the_dispatch_set() {
+        for (name, _) in EmbedHost::ALL_SIGNATURES {
+            assert!(EmbedHost::ALL_VARIANTS.contains(name));
+        }
+        for name in EmbedHost::ALL_VARIANTS {
+            assert!(
+                EmbedHost::ALL_SIGNATURES.iter().any(|(n, _)| n == name),
+                "`{name}` dispatches at EmbedHost but has no signature"
+            );
+        }
+    }
+
+    /// Tuple-variant fixture mirroring `Action::Move`'s real shape (see
+    /// `deckmaste_core::action::Action::Move`): two required fields, then two
+    /// trailing `#[macro_ron(default = ...)]` fields.
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Move {
+        Go(
+            u32,
+            u32,
+            #[macro_ron(default = "0")] u32,
+            #[macro_ron(default = "None")] Option<u32>,
+        ),
+    }
+
+    /// A tuple variant's trailing defaults must be visible in its signature —
+    /// arity alone (the brief's original `Positional(usize)` recipe) can't
+    /// tell a scaffold which positions are optional or what to fill them
+    /// with.
+    #[test]
+    fn tuple_signature_reports_trailing_defaults() {
+        let sigs = Move::ALL_SIGNATURES;
+        let (_, sig) = *sigs.iter().find(|(n, _)| *n == "Go").unwrap();
+        let VariantSignature::Positional(params) = sig else {
+            panic!("expected a Positional signature for `Go`");
+        };
+        assert_eq!(
+            params.to_vec(),
+            vec![
+                ParamDefault::Required,
+                ParamDefault::Required,
+                ParamDefault::Expr("0"),
+                ParamDefault::Expr("None"),
+            ]
+        );
+    }
+
+    /// Struct-variant fixture: one field forwards `#[serde(default)]`, one
+    /// doesn't — and a second variant carries no defaults at all.
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Note {
+        Say {
+            text: String,
+            #[serde(default)]
+            loud: bool,
+        },
+        Ask {
+            text: String,
+            urgency: u32,
+        },
+    }
+
+    /// A struct variant reports `Implicit` for a field forwarding
+    /// `#[serde(default ...)]`, `Required` for one without.
+    /// `#[macro_ron(default = ...)]` never applies here (rejected on struct
+    /// variants by `input::validate`), so this is the only source of a
+    /// struct field's default.
+    #[test]
+    fn struct_signature_reports_implicit_default() {
+        let sigs = Note::ALL_SIGNATURES;
+        let get_named = |variant: &str| {
+            let (_, sig) = *sigs.iter().find(|(n, _)| *n == variant).unwrap();
+            let VariantSignature::Named(params) = sig else {
+                panic!("expected a Named signature for `{variant}`");
+            };
+            params
+        };
+        let field = |params: &[NamedParam], name: &str| {
+            params.iter().find(|p| p.name == name).unwrap().default
+        };
+        let say = get_named("Say");
+        assert_eq!(field(say, "text"), ParamDefault::Required);
+        assert_eq!(field(say, "loud"), ParamDefault::Implicit);
+    }
+
+    /// A struct variant with no defaulted fields reports `Required`
+    /// throughout.
+    #[test]
+    fn struct_signature_with_no_defaults_is_all_required() {
+        let sigs = Note::ALL_SIGNATURES;
+        let (_, sig) = *sigs.iter().find(|(n, _)| *n == "Ask").unwrap();
+        let VariantSignature::Named(params) = sig else {
+            panic!("expected a Named signature for `Ask`");
+        };
+        assert!(params.iter().all(|p| p.default == ParamDefault::Required));
     }
 }
 
@@ -2870,6 +3059,19 @@ fn a_bare_meta_owned_param_resolves_eagerly() {
         "the meta-owned hole was spliced eagerly, not deferred: {:?}",
         produced.body()
     );
+}
+
+// ---------------------------------------------------------------------------
+// Variant signatures (spec §5)
+// ---------------------------------------------------------------------------
+
+/// The registry carries signatures through, so a consumer with only a
+/// `KindSet` can scaffold without reaching back to the Rust types.
+#[test]
+fn registered_kinds_carry_their_signatures() {
+    let kinds = kinds();
+    let filter = kinds.get("Filter").expect("registered fixture kind");
+    assert!(!filter.signatures().is_empty());
 }
 
 mod support_runtime {

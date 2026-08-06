@@ -195,6 +195,12 @@ fn gen_support(input: &Input) -> Result<TokenStream> {
         .filter(|v| is_named(v))
         .map(|v| v.ident.to_string())
         .collect();
+    let own_sigs: Vec<TokenStream> = input
+        .variants
+        .iter()
+        .filter(|v| is_named(v))
+        .map(own_signature_entry)
+        .collect();
 
     // The dispatch tails: one per `flatten` payload (declaration order),
     // then the embed payload last. The concrete type — not `Self` — names
@@ -209,6 +215,11 @@ fn gen_support(input: &Input) -> Result<TokenStream> {
         tails.push(peeled(&v.embed_payload().ty).0);
     }
     let all = concat_lists(ty, &tails, &flatten_excludes(input));
+    // Excludes are deliberately not mirrored here: a name that never
+    // dispatches is never looked up in the signature table, so
+    // ALL_SIGNATURES may carry extra (unreachable) entries for names an
+    // `exclude(...)` drops from ALL_VARIANTS.
+    let all_sigs = concat_signature_lists(ty, &tails);
 
     let kind = gen_kind(input, &ty_name);
 
@@ -240,6 +251,10 @@ fn gen_support(input: &Input) -> Result<TokenStream> {
         impl ::macro_ron::SupportsMacros for #ty {
             const OWN_VARIANTS: &'static [&'static str] = &[#(#own),*];
             const ALL_VARIANTS: &'static [&'static str] = #all;
+            const OWN_SIGNATURES: &'static [(&'static str, ::macro_ron::VariantSignature)] =
+                &[#(#own_sigs),*];
+            const ALL_SIGNATURES: &'static [(&'static str, ::macro_ron::VariantSignature)] =
+                #all_sigs;
 
             fn kind() -> ::macro_ron::Kind { #kind }
 
@@ -295,6 +310,98 @@ fn concat_lists(ty: &Ident, tails: &[&Type], excludes: &[String]) -> TokenStream
     }
 }
 
+/// One `(name, signature)` entry of `OWN_SIGNATURES`, for a variant kept in
+/// `OWN_VARIANTS` (see [`is_named`]).
+fn own_signature_entry(v: &Variant) -> TokenStream {
+    let name = v.ident.to_string();
+    let sig = variant_signature(&v.shape);
+    quote!((#name, #sig))
+}
+
+/// The `ParamDefault` a positional field maps to: `Expr(text)` when
+/// `#[macro_ron(default = ...)]` is present (rendered to source text),
+/// `Required` otherwise.
+fn positional_default(f: &Field) -> TokenStream {
+    if let Some(expr) = &f.default {
+        let text = quote!(#expr).to_string();
+        quote!(::macro_ron::ParamDefault::Expr(#text))
+    } else {
+        quote!(::macro_ron::ParamDefault::Required)
+    }
+}
+
+/// Whether any forwarded `#[serde(...)]` attribute sets `default` (bare
+/// `#[serde(default)]` or `#[serde(default = "path")]`) — a struct-variant
+/// field's `NamedParam::default` reads its default from here, never from
+/// `Field.default` (`#[macro_ron(default = ...)]` is rejected on struct
+/// variants in `input::validate`; struct fields forward `#[serde(...)]`
+/// instead).
+fn has_serde_default(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        let Ok(metas) = attr.parse_args_with(
+            syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
+        ) else {
+            return false;
+        };
+        metas.iter().any(|m| m.path().is_ident("default"))
+    })
+}
+
+/// The `VariantSignature` a variant's shape maps to: `Unit` for a unit
+/// variant, `Positional(&[…])` for a newtype (always `&[Required]`) or a
+/// tuple (one `ParamDefault` per field, in order), `Named(&[…])` for a
+/// struct variant — one `NamedParam` per field, `Implicit` when the field
+/// forwards a `#[serde(default ...)]`, `Required` otherwise.
+fn variant_signature(shape: &Shape) -> TokenStream {
+    match shape {
+        Shape::Unit => quote!(::macro_ron::VariantSignature::Unit),
+        Shape::Newtype(_) => {
+            quote!(::macro_ron::VariantSignature::Positional(&[
+                ::macro_ron::ParamDefault::Required
+            ]))
+        }
+        Shape::Tuple(fields) => {
+            let entries = fields.iter().map(positional_default);
+            quote!(::macro_ron::VariantSignature::Positional(&[#(#entries),*]))
+        }
+        Shape::Struct(fields) => {
+            let params = fields.iter().map(|f| {
+                let name = f
+                    .ident
+                    .as_ref()
+                    .expect("struct fields are named")
+                    .to_string();
+                let default = if has_serde_default(&f.serde_attrs) {
+                    quote!(::macro_ron::ParamDefault::Implicit)
+                } else {
+                    quote!(::macro_ron::ParamDefault::Required)
+                };
+                quote!(::macro_ron::NamedParam { name: #name, default: #default })
+            });
+            quote!(::macro_ron::VariantSignature::Named(&[#(#params),*]))
+        }
+    }
+}
+
+/// `<T>::OWN_SIGNATURES` alone, or a `concat_signatures` of it with each tail
+/// type's `ALL_SIGNATURES` when there are tails. Mirrors [`concat_lists`]'s
+/// no-excludes branch — excludes are deliberately not mirrored (see
+/// `gen_support`).
+fn concat_signature_lists(ty: &Ident, tails: &[&Type]) -> TokenStream {
+    if tails.is_empty() {
+        return quote!(<#ty as ::macro_ron::SupportsMacros>::OWN_SIGNATURES);
+    }
+    quote! {
+        &::macro_ron::concat_signatures::<{
+            <#ty as ::macro_ron::SupportsMacros>::OWN_SIGNATURES.len()
+                #(+ <#tails as ::macro_ron::SupportsMacros>::ALL_SIGNATURES.len())*
+        }>(&[
+            <#ty as ::macro_ron::SupportsMacros>::OWN_SIGNATURES,
+            #(<#tails as ::macro_ron::SupportsMacros>::ALL_SIGNATURES,)*
+        ])
+    }
+}
+
 /// The `Kind` builder chain: `remembers_expansion` ⇔ an `expanded` variant,
 /// `embeds_untagged` ⇔ an `embed` variant, `literal_wrapper` ⇔ a `literal`
 /// variant.
@@ -302,6 +409,7 @@ fn gen_kind(input: &Input, ty_name: &str) -> TokenStream {
     let mut kind = quote!(
         ::macro_ron::Kind::new(#ty_name)
             .with_variants(<Self as ::macro_ron::SupportsMacros>::ALL_VARIANTS)
+            .with_signatures(<Self as ::macro_ron::SupportsMacros>::ALL_SIGNATURES)
     );
     if input.expanded().is_some() {
         kind = quote!(#kind.remembers_expansion());

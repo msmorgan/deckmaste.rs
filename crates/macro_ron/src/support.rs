@@ -55,6 +55,15 @@ pub trait SupportsMacros: DeserializeOwned {
     /// Creates the remembered form: `Some(Self::Expanded(e))` when the type
     /// carries an `expanded` variant, `None` otherwise (e.g. `Action`).
     fn expanded(e: Expansion<Self>) -> Option<Self>;
+
+    /// This type's own variants' signatures, keyed by name (see
+    /// [`OWN_VARIANTS`](Self::OWN_VARIANTS)).
+    const OWN_SIGNATURES: &'static [(&'static str, VariantSignature)];
+    /// The full transitive signature lookup — see
+    /// [`ALL_VARIANTS`](Self::ALL_VARIANTS) for the same concatenation over
+    /// names. May carry entries for names a `flatten exclude(...)` drops
+    /// from dispatch; a name that never dispatches is never looked up here.
+    const ALL_SIGNATURES: &'static [(&'static str, VariantSignature)];
 }
 
 /// Concatenates variant-name lists at compile time. `N` must equal the
@@ -88,6 +97,67 @@ pub const fn concat_variants<const N: usize>(
     assert!(
         i == N,
         "concat_variants: N must equal the summed list lengths"
+    );
+    out
+}
+
+/// Whether a parameter may be omitted, and with what.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParamDefault {
+    /// No default — the argument must be supplied.
+    Required,
+    /// A default exists but has no RON rendering (`#[serde(default)]`,
+    /// `#[serde(default = "path")]`): a scaffold omits the parameter and lets
+    /// serde fill it.
+    Implicit,
+    /// RON-renderable source text, from `#[macro_ron(default = ...)]`.
+    Expr(&'static str),
+}
+
+/// One named parameter of a struct-shaped variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NamedParam {
+    pub name: &'static str,
+    pub default: ParamDefault,
+}
+
+/// A variant's authored shape — what an identity macro must mirror.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VariantSignature {
+    Unit,
+    /// One entry per position; arity is the slice length.
+    Positional(&'static [ParamDefault]),
+    Named(&'static [NamedParam]),
+}
+
+/// Concatenates variant-signature lists at compile time, mirroring
+/// [`concat_variants`] exactly (same seed-and-copy shape, hence
+/// `VariantSignature` must be `Copy`). `N` must equal the total length.
+///
+/// # Panics
+///
+/// If `N` does not equal the summed list lengths — in const context that's
+/// a compile error, not a runtime panic.
+#[must_use]
+pub const fn concat_signatures<const N: usize>(
+    lists: &[&'static [(&'static str, VariantSignature)]],
+) -> [(&'static str, VariantSignature); N] {
+    let mut out = [("", VariantSignature::Unit); N];
+    let mut i = 0;
+    let mut l = 0;
+    while l < lists.len() {
+        let list = lists[l];
+        let mut j = 0;
+        while j < list.len() {
+            out[i] = list[j];
+            i += 1;
+            j += 1;
+        }
+        l += 1;
+    }
+    assert!(
+        i == N,
+        "concat_signatures: N must equal the summed list lengths"
     );
     out
 }

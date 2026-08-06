@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 
 use crate::Ident;
+use crate::VariantSignature;
 
 /// One macroable kind: the serde name of a type whose parse positions
 /// consult the macro namespace, plus the reader policy at those positions.
@@ -18,6 +19,11 @@ pub struct Kind {
     /// the derive. Empty for a hand-built `Kind`, which only costs the checks
     /// that consult it their precision.
     pub(crate) variants: &'static [&'static str],
+    /// The kind's per-variant signature lookup
+    /// (`SupportsMacros::ALL_SIGNATURES`), supplied by the derive. Empty for
+    /// a hand-built `Kind`, which only costs the checks that consult it
+    /// their precision.
+    pub(crate) signatures: &'static [(&'static str, VariantSignature)],
 }
 
 impl Kind {
@@ -31,6 +37,7 @@ impl Kind {
             literal: None,
             embeds: false,
             variants: &[],
+            signatures: &[],
         }
     }
 
@@ -62,6 +69,27 @@ impl Kind {
     #[must_use]
     pub fn with_variants(mut self, variants: &'static [&'static str]) -> Self {
         self.variants = variants;
+        self
+    }
+
+    /// This kind's per-variant signature lookup — every variant name in
+    /// [`variants()`](Self::variants) mapped to its authored shape. Empty for
+    /// a hand-built `Kind` and for struct kinds, which have no variant
+    /// dispatch.
+    #[must_use]
+    pub fn signatures(&self) -> &'static [(&'static str, VariantSignature)] {
+        self.signatures
+    }
+
+    /// The kind's per-variant signature lookup. The derive passes
+    /// [`SupportsMacros::ALL_SIGNATURES`](crate::SupportsMacros::ALL_SIGNATURES);
+    /// scaffolding an identity macro consults it for each variant's arity.
+    #[must_use]
+    pub fn with_signatures(
+        mut self,
+        signatures: &'static [(&'static str, VariantSignature)],
+    ) -> Self {
+        self.signatures = signatures;
         self
     }
 
