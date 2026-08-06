@@ -1,0 +1,6 @@
+(
+    name: "TwoFaced",
+    kinds: [Card],
+    params: { "layout": Any, "front": Any, "back": Any },
+    body: TwoFaced(layout: Param(layout), front: Param(front), back: Param(back)),
+)

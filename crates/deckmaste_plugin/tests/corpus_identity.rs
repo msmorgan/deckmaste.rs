@@ -149,9 +149,21 @@ fn load_core_macros(plugins: &[&str]) -> MacroSet {
         for (path, source) in pending {
             match macros.read_str::<MacroDef>(&source) {
                 // Later plugins may override an inherited name.
-                Ok(def) => macros
-                    .replace(&def)
-                    .unwrap_or_else(|e| panic!("inserting {}: {e}", path.display())),
+                // `UnknownKind` alongside a clean `Ok`, not a failure: the
+                // kind this def is for exists at semantics kinds but has no
+                // counterpart in `deckmaste_core::ron::kinds()` yet (a live
+                // core-to-semantics migration gap — mirrors
+                // `xtask::authoring`'s `unscaffoldable_kinds`, which excludes
+                // exactly these kinds from what it scaffolds in the first
+                // place). This oracle only ever reads a real card/token
+                // file's TOP enum tag through `deckmaste_card`'s own native
+                // `Deserialize`, never through the macro layer — see the
+                // module doc — so a def this oracle can't register plays no
+                // role in it either way.
+                Ok(def) => match macros.replace(&def) {
+                    Ok(()) | Err(macro_ron::InsertError::UnknownKind { .. }) => {}
+                    Err(e) => panic!("inserting {}: {e}", path.display()),
+                },
                 Err(error) => failures.push((path, source, error)),
             }
         }

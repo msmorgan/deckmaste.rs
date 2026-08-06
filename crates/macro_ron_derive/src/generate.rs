@@ -409,6 +409,7 @@ fn gen_kind(input: &Input, ty_name: &str) -> TokenStream {
     let mut kind = quote!(
         ::macro_ron::Kind::new(#ty_name)
             .with_variants(<Self as ::macro_ron::SupportsMacros>::ALL_VARIANTS)
+            .with_own_variants(<Self as ::macro_ron::SupportsMacros>::OWN_VARIANTS)
             .with_signatures(<Self as ::macro_ron::SupportsMacros>::ALL_SIGNATURES)
     );
     if input.expanded().is_some() {

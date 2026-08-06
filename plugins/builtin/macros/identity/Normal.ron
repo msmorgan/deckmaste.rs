@@ -1,0 +1,41 @@
+(
+    // `Card::Normal(CardFace)` is a newtype-tuple variant, but its one field
+    // is itself a NAMED struct — canon spells it field-by-field
+    // (`Normal(name: "Forest", types: [Land], ...)`), leaning on RON's
+    // newtype-transparency, NOT as one opaque positional value. The derived
+    // variant signature (`Positional([Required])`) can't see through that:
+    // it reports one opaque `Any` slot, and a macro CALL's positional-arg
+    // grammar reads exactly one raw value there — `key: value` pairs aren't
+    // one. So this def is hand-shaped around `CardFace`'s OWN fields
+    // (mirroring its `#[serde(default...)]`s as `Elidable(Any)`) rather than
+    // the generator's usual single-`Any`-positional scaffold, which cannot
+    // express this row at all.
+    name: "Normal",
+    kinds: [Card],
+    params: {
+        "name": Any,
+        "mana_cost": Elidable(Any),
+        "color_indicator": Elidable(Any),
+        "supertypes": Elidable(Any),
+        "types": Any,
+        "subtypes": Elidable(Any),
+        "abilities": Elidable(Any),
+        "power": Elidable(Any),
+        "toughness": Elidable(Any),
+        "loyalty": Elidable(Any),
+        "defense": Elidable(Any),
+    },
+    body: Normal(
+        name: Param(name),
+        mana_cost: Param(mana_cost),
+        color_indicator: Param(color_indicator),
+        supertypes: Param(supertypes),
+        types: Param(types),
+        subtypes: Param(subtypes),
+        abilities: Param(abilities),
+        power: Param(power),
+        toughness: Param(toughness),
+        loyalty: Param(loyalty),
+        defense: Param(defense),
+    ),
+)

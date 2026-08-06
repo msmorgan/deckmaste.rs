@@ -29,14 +29,18 @@
 //! natively-read short spelling.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
 use clap::Args;
 use deckmaste_semantics::authoring::Coverage;
+use deckmaste_semantics::authoring::UNCOVERABLE as UNSCAFFOLDABLE;
 use deckmaste_semantics::authoring::classify;
+use deckmaste_semantics::authoring::embed_safe;
 use deckmaste_semantics::authoring::reachable_rows;
 use macro_ron::KindSet;
+use macro_ron::MacroDef;
 use macro_ron::NamedParam;
 use macro_ron::ParamDefault;
 use macro_ron::VariantSignature;
@@ -53,33 +57,13 @@ fn identity_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin/macros/identity")
 }
 
-/// A row `deckmaste_semantics::authoring::classify` marks `NeedsIdentityMacro`
-/// that this generator can't actually scaffold, because a downstream
-/// consumer rejects any macro def of that shape regardless of how it's
-/// typed. Kept separate from `deckmaste_semantics::authoring`'s own
-/// (kind, variant) whitelists — that crate can't see `deckmaste_plugin`'s
-/// loader — and reported rather than silently forced into a scaffold that
-/// cannot load.
-///
-/// `(KeywordAbility, Composite)`: every `KeywordAbility`-kind macro def is
-/// run through `deckmaste_plugin`'s `keyword_shape`, a CLOSED vocabulary of
-/// param shapes ([CR#702] one-liners: none/count/cost/count+cost/
-/// predicate/predicate+cost/name). `Composite`'s real shape (`name: Ident,
-/// abilities: Vec<Ability>`) fits none of them, so no def of that name at
-/// that kind can load — not with `Any` params, not even with the real
-/// types. `Composite` is itself the STRUCTURAL PAYLOAD a keyword macro's own
-/// body expands into (`Ward([…])` -> `Composite(name: "Ward", abilities:
-/// [...])`; see `KeywordAbility::Composite`'s doc), never spelled bare by a
-/// card author — the same machinery role `Expanded` plays elsewhere, just
-/// under a different name and so not caught by that filter. This is the one
-/// entry that genuinely belongs here: nothing types `Composite` into loading,
-/// so a local exclusion is the only fix available to a scaffold generator.
-///
-/// The five `KeywordAbility::ALL` intrinsics used to be listed here too, but
-/// belong upstream instead — `classify` now returns `NativeAtom` for them
-/// (`deckmaste_semantics::authoring::NATIVE_ATOMS`), so they never reach this
-/// generator as `NeedsIdentityMacro` rows in the first place.
-const UNSCAFFOLDABLE: &[(&str, &str)] = &[("KeywordAbility", "Composite")];
+// Rows `deckmaste_semantics::authoring::classify` marks `NeedsIdentityMacro`
+// that this generator can't actually scaffold, because a downstream consumer
+// rejects any macro def of that shape regardless of how it's typed —
+// `UNSCAFFOLDABLE` (imported above as an alias of
+// `deckmaste_semantics::authoring::UNCOVERABLE`, the coverage gate's own
+// reason this same row is exempt, not just unscaffoldable; see its doc for
+// the `(KeywordAbility, Composite)` detail).
 
 /// Kinds this generator can't scaffold at all, because a SEPARATE, older
 /// macro-kind registry some workspace test still loads through doesn't know
@@ -116,62 +100,29 @@ fn unscaffoldable_kinds() -> Vec<String> {
     semantics.difference(&core).cloned().collect()
 }
 
-/// A kind that reads with `#[macro_ron(embed)]` (`Kind::embeds_untagged`,
-/// set automatically by the derive whenever a variant carries that marker —
-/// `ColorOrColorless`, `SimpleManaSymbol`, `ManaSymbol`, `ManaSpec`,
-/// `ManaProduction`, `StatValue`, verified against `deckmaste_semantics`'s
-/// source), paired with the SMALL closed set of variant names that kind
-/// declares directly. Every OTHER name `reachable_rows` reports at that kind
-/// is there only because the flattened dispatch set (`Kind::variants`)
-/// transitively includes whatever the kind embeds — `Green` shows up at
-/// `ManaSymbol` because `ManaSymbol` embeds `SimpleManaSymbol` embeds
-/// `ColorOrColorless` embeds `Color`, not because `ManaSymbol` itself has a
-/// `Green` variant.
-///
-/// A bare self-referencing identity-macro body (`body: Green`) is safe ONLY
-/// at a kind where the name is one of these direct declarations: reread
-/// there resolves as a genuine native variant and stops. At an embedding
-/// kind, `deckmaste_plugin`'s embed-untagged fallthrough treats "a macro of
-/// this name is registered at this kind" as reason enough to skip the
-/// embedded type's own lookup (`macro_ron::expand`'s embed-candidacy check),
-/// so the macro's own bare-name body re-enters the SAME kind, finds the SAME
-/// macro again, and never bottoms out — confirmed by generating a merged
+/// `embed_safe` (`deckmaste_semantics::authoring::embed_safe`) is what filters
+/// out an unsafe scaffold below. A bare self-referencing identity-macro body
+/// (`body: Green`) is safe ONLY at a kind where the name is one of its own
+/// direct declarations: reread there resolves as a genuine native variant and
+/// stops. At an embedding kind, `deckmaste_plugin`'s embed-untagged
+/// fallthrough treats "a macro of this name is registered at this kind" as
+/// reason enough to skip the embedded type's own lookup
+/// (`macro_ron::expand`'s embed-candidacy check), so the macro's own
+/// bare-name body re-enters the SAME kind, finds the SAME macro again, and
+/// never bottoms out — confirmed by generating a merged
 /// `Green`/`AnyColor`/`Generic` scaffold and hitting `` `Green` is more than
 /// 64 macro expansions deep`` from `cargo xtask validate` on real canon
-/// tokens/basics. `macro_ron::Kind` exposes no public query for "does this
-/// kind embed", so this table is hand-verified against the source rather
-/// than derived.
-const EMBED_HOSTS: &[(&str, &[&str])] = &[
-    ("ColorOrColorless", &["Colorless"]),
-    ("SimpleManaSymbol", &["Generic"]),
-    ("ManaSymbol", &["Variable", "Snow", "Hybrid", "Phyrexian"]),
-    (
-        "ManaSpec",
-        &[
-            "AnyColor",
-            "OneOf",
-            "OneOfRuns",
-            "AmongColorsOf",
-            "ProducedByEvent",
-        ],
-    ),
-    ("ManaProduction", &["WithRiders"]),
-    ("StatValue", &["DefinedByAbility", "Variable", "Number"]),
-];
-
-/// Whether `(kind, variant)` is safe for a bare self-referencing identity
-/// scaffold: either `kind` isn't one of the [`EMBED_HOSTS`] at all, or
-/// `variant` is one of that kind's own directly-declared names.
-fn embed_safe(kind: &str, variant: &str) -> bool {
-    match EMBED_HOSTS.iter().find(|(k, _)| *k == kind) {
-        None => true,
-        Some((_, own)) => own.contains(&variant),
-    }
-}
-
+/// tokens/basics. `embed_safe` used to be a hand-listed table here
+/// (`ColorOrColorless`, `SimpleManaSymbol`, `ManaSymbol`, `ManaSpec`,
+/// `ManaProduction`, `StatValue`, each paired with its own directly-declared
+/// variant names, hand-verified against `deckmaste_semantics`'s source);
+/// retired once `Kind::embeds`/`Kind::own_variants` made the same fact
+/// computable, and moved to `deckmaste_semantics::authoring` so the coverage
+/// gate can share it.
+///
 /// Every reachable row an identity macro must cover and this generator can
 /// actually scaffold safely (see [`UNSCAFFOLDABLE`], [`unscaffoldable_kinds`],
-/// [`EMBED_HOSTS`]).
+/// [`embed_safe`]).
 fn needs_identity_macro_rows() -> Vec<(String, String)> {
     let unscaffoldable_kinds = unscaffoldable_kinds();
     reachable_rows()
@@ -218,7 +169,132 @@ pub fn run(args: &ScaffoldIdentityArgs) -> anyhow::Result<()> {
     }
     let written = scaffold_into(&dir, &rows)?;
     eprintln!("{written} scaffold(s) written to {}", dir.display());
+    let registry_rows = read_committed_rows(&dir)?;
+    std::fs::write(
+        identity_registry_path(),
+        render_identity_registry(&registry_rows),
+    )?;
+    eprintln!(
+        "{} row(s) written to the compiled identity registry",
+        registry_rows.len()
+    );
     Ok(())
+}
+
+/// `crates/deckmaste_semantics/src/identity_registry.rs` — the compiled trust
+/// channel `is_identity_exempt` consults (spec §6). Regenerated in full every
+/// run from whatever `.ron` defs are actually committed under
+/// `plugins/builtin/macros/identity/`, never hand-edited.
+fn identity_registry_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../deckmaste_semantics/src/identity_registry.rs")
+}
+
+/// Every `(kind, variant, signature)` row the REAL, currently-committed
+/// `.ron` defs under `dir` cover — read from the files themselves (each
+/// parsed as an actual [`MacroDef`], not re-derived from
+/// [`needs_identity_macro_rows`]) so a hand-added extra kind on an existing
+/// def (the [`plan`] conflict path this generator surfaces rather than
+/// silently accepting) is reflected here too, exactly as committed.
+///
+/// `signature` is `Debug`-rendered from the DEF'S OWN declared
+/// [`Params`](macro_ron::Params) — what the file actually says it accepts —
+/// not re-derived from the kind registry's variant signature (which every
+/// consumer can already look up from `kind`+`variant` alone, making it inert
+/// data). Recording the def's own params instead means a future consumer can
+/// use this column for a REAL check: whether a def's declared shape still
+/// matches its variant's true signature.
+fn read_committed_rows(dir: &Path) -> anyhow::Result<Vec<(String, String, String)>> {
+    let macros = deckmaste_semantics::macros::macro_set();
+    let mut rows = Vec::new();
+    if !dir.exists() {
+        return Ok(rows);
+    }
+    for entry in std::fs::read_dir(dir)? {
+        let path = entry?.path();
+        if path.extension().and_then(std::ffi::OsStr::to_str) != Some("ron") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path)?;
+        let def: MacroDef = macros
+            .read_str(&text)
+            .map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))?;
+        let variant = def.name.as_str();
+        let signature = render_params(&def.params);
+        for kind in &def.kinds {
+            rows.push((
+                kind.as_str().to_string(),
+                variant.to_string(),
+                signature.clone(),
+            ));
+        }
+    }
+    rows.sort();
+    rows.dedup();
+    Ok(rows)
+}
+
+/// A deterministic `Debug`-style rendering of a def's declared params.
+/// Deliberately NOT `format!("{params:?}")`: `Params::Named` wraps a
+/// `HashMap`, whose iteration (and therefore `Debug`) order is randomized
+/// per process — embedding that directly would make the generated
+/// registry's `signature` column non-reproducible between the run that
+/// generated it and a later run reading the same file (exactly the kind of
+/// spurious drift
+/// [`drift::compiled_registry_matches_the_real_identity_directory`]
+/// exists to rule out, not manufacture). Sorted by param name instead, so
+/// two reads of the same def always render identically.
+fn render_params(params: &macro_ron::Params) -> String {
+    match params {
+        macro_ron::Params::Positional(types) => format!("Positional({types:?})"),
+        macro_ron::Params::Named(map) => {
+            let mut entries: Vec<(&str, &macro_ron::ParamType)> =
+                map.iter().map(|(name, ty)| (name.as_str(), ty)).collect();
+            entries.sort_by_key(|(name, _)| *name);
+            format!("Named({entries:?})")
+        }
+    }
+}
+
+/// Renders `identity_registry.rs`'s full source — struct definition and all,
+/// not just the row list — so every run produces a self-contained file
+/// regardless of what a previous run left behind.
+fn render_identity_registry(rows: &[(String, String, String)]) -> String {
+    let mut out = String::new();
+    out.push_str(
+        "//! GENERATED by `cargo xtask scaffold-identity` from every `.ron` def under\n\
+         //! `plugins/builtin/macros/identity/`. Do not hand-edit — a hand edit is\n\
+         //! silently overwritten the next time the generator runs, and (spec §6) a\n\
+         //! hand-editable trust channel could be forged. Regenerate after touching\n\
+         //! that directory.\n\
+         //!\n\
+         //! This is the compiled half of the identity-macro exemption: a Rust\n\
+         //! `const` slice, never serialized into RON. `deckmaste_semantics::authoring`\n\
+         //! consults it (never the RON files directly) to decide whether a\n\
+         //! `(kind, variant)` row is covered.\n\n\
+         /// One row of the compiled identity registry: an identity-macro def named\n\
+         /// `variant` is registered at kind `kind`. `signature` is `Debug`-rendered\n\
+         /// from the DEF'S OWN declared `macro_ron::Params` (not the kind registry's\n\
+         /// variant signature, which every consumer can already look up from `kind`\n\
+         /// and `variant` alone) — a future consumer can use it to check a def's\n\
+         /// declared shape against its variant's true signature.\n\
+         #[derive(Debug, Clone, Copy, PartialEq, Eq)]\n\
+         pub struct IdentityRow {\n    \
+             pub kind: &'static str,\n    \
+             pub variant: &'static str,\n    \
+             pub signature: &'static str,\n\
+         }\n\n\
+         /// The compiled identity-macro registry, generated from the committed\n\
+         /// `.ron` defs under `plugins/builtin/macros/identity/`.\n\
+         pub const IDENTITY_ROWS: &[IdentityRow] = &[\n",
+    );
+    for (kind, variant, signature) in rows {
+        let _ = writeln!(
+            out,
+            "    IdentityRow {{ kind: {kind:?}, variant: {variant:?}, signature: {signature:?} }},"
+        );
+    }
+    out.push_str("];\n");
+    out
 }
 
 /// One planned scaffold file: its destination path, the variant it's an
@@ -643,6 +719,47 @@ mod tests {
     }
 }
 
+/// The compiled registry's whole reason to exist is that a loader can trust
+/// it without re-reading RON — which only holds if it can't silently drift
+/// from the `.ron` defs it claims to describe. Nothing enforced that: delete
+/// or rename a def under `plugins/builtin/macros/identity/` without
+/// re-running `cargo xtask scaffold-identity`, and `IDENTITY_ROWS` still
+/// claims the row exists, forever, with no test to catch it.
+#[cfg(test)]
+mod drift {
+    /// Compares the two as DATA (`IDENTITY_ROWS`'s own parsed rows against
+    /// [`super::read_committed_rows`]'s fresh read of the real directory),
+    /// never as generated-source TEXT — `render_identity_registry` emits
+    /// one-line struct literals, but the committed file is `cargo fmt`'d
+    /// multi-line, so a text/byte comparison would report spurious drift on
+    /// formatting alone even with the rows perfectly in sync.
+    #[test]
+    fn compiled_registry_matches_the_real_identity_directory() {
+        let mut from_disk = super::read_committed_rows(&super::identity_dir())
+            .expect("the committed identity/ defs all still parse");
+        from_disk.sort();
+
+        let mut from_registry: Vec<(String, String, String)> =
+            deckmaste_semantics::identity_registry::IDENTITY_ROWS
+                .iter()
+                .map(|row| {
+                    (
+                        row.kind.to_string(),
+                        row.variant.to_string(),
+                        row.signature.to_string(),
+                    )
+                })
+                .collect();
+        from_registry.sort();
+
+        assert_eq!(
+            from_registry, from_disk,
+            "identity_registry.rs has drifted from plugins/builtin/macros/identity/ — \
+             run `cargo xtask scaffold-identity` to regenerate"
+        );
+    }
+}
+
 #[cfg(test)]
 mod coverage_gap {
     /// Every `NeedsIdentityMacro` row this generator declines to scaffold is
@@ -808,6 +925,7 @@ mod elision_gap {
 #[cfg(test)]
 mod restricted_read {
     use deckmaste_semantics::Action;
+    use deckmaste_semantics::Card;
     use deckmaste_semantics::ManaProduction;
     use macro_ron::Expand;
     use macro_ron::MacroDef;
@@ -919,5 +1037,32 @@ mod restricted_read {
         for source in ["Cast(You, That(Card))", "Cast(You, That(Card), [Tap])"] {
             assert_restricted_matches_native::<Action>(&macros, source);
         }
+    }
+
+    /// `Card` is the restricted root itself — every committed card file's
+    /// top-level shape (see `plugins/builtin/cards/Forest.ron`, used
+    /// verbatim here). `Card::Normal(CardFace)` is a positional variant with
+    /// one opaque-struct param; this row used to fall outside the
+    /// scaffold generator's reach entirely (`unscaffoldable_kinds`'s
+    /// legacy-registry diff excludes it, because `deckmaste_core` has no
+    /// matching `Card` type to register — a real, live migration gap, not
+    /// paperwork) until the coverage gate surfaced it as a genuine miss and
+    /// this def was hand-authored to close it.
+    #[test]
+    fn card_normal_scaffold_round_trips_under_restriction() {
+        let macros = real_scaffolds();
+        assert_restricted_matches_native::<Card>(&macros, "Normal(name: \"Forest\", types: [])");
+    }
+
+    /// The other half of `Card`'s dispatch: `TwoFaced { layout, front, back
+    /// }`, a named/struct variant with every param required.
+    #[test]
+    fn card_two_faced_scaffold_round_trips_under_restriction() {
+        let macros = real_scaffolds();
+        assert_restricted_matches_native::<Card>(
+            &macros,
+            "TwoFaced(layout: Transforming, front: (name: \"Front\", types: []), \
+             back: (name: \"Back\", types: []))",
+        );
     }
 }

@@ -19,6 +19,13 @@ pub struct Kind {
     /// the derive. Empty for a hand-built `Kind`, which only costs the checks
     /// that consult it their precision.
     pub(crate) variants: &'static [&'static str],
+    /// The kind's own directly-tagged variant names
+    /// (`SupportsMacros::OWN_VARIANTS`, a subset of `variants`), supplied
+    /// by the derive. Empty for a hand-built `Kind` and for a kind with no
+    /// `flatten`/`embed` tails, where it equals `variants` anyway. Lets a
+    /// consumer distinguish a variant this kind itself declares from one it
+    /// only inherits transitively through a flattened/embedded payload.
+    pub(crate) own_variants: &'static [&'static str],
     /// The kind's per-variant signature lookup
     /// (`SupportsMacros::ALL_SIGNATURES`), supplied by the derive. Empty for
     /// a hand-built `Kind`, which only costs the checks that consult it
@@ -37,6 +44,7 @@ impl Kind {
             literal: None,
             embeds: false,
             variants: &[],
+            own_variants: &[],
             signatures: &[],
         }
     }
@@ -69,6 +77,26 @@ impl Kind {
     #[must_use]
     pub fn with_variants(mut self, variants: &'static [&'static str]) -> Self {
         self.variants = variants;
+        self
+    }
+
+    /// This kind's own directly-tagged variant names — a subset of
+    /// [`variants()`](Self::variants) that excludes anything inherited
+    /// transitively through a `flatten`/`embed` tail. Empty for a hand-built
+    /// `Kind` and for struct kinds, which have no variant dispatch.
+    #[must_use]
+    pub fn own_variants(&self) -> &'static [&'static str] {
+        self.own_variants
+    }
+
+    /// The kind's own dispatch set. The derive passes
+    /// [`SupportsMacros::OWN_VARIANTS`](crate::SupportsMacros::OWN_VARIANTS);
+    /// a consumer that needs to tell "this kind's own name" from "a name it
+    /// only inherits" — e.g. the embed-untagged recursion hazard — consults
+    /// it.
+    #[must_use]
+    pub fn with_own_variants(mut self, variants: &'static [&'static str]) -> Self {
+        self.own_variants = variants;
         self
     }
 
@@ -123,6 +151,19 @@ impl Kind {
     pub fn embeds_untagged(mut self) -> Self {
         self.embeds = true;
         self
+    }
+
+    /// Whether positions of this kind take the embed-untagged fallthrough
+    /// (set by [`embeds_untagged`](Self::embeds_untagged)) — the query
+    /// counterpart of that builder. A consumer outside `macro_ron` (the
+    /// author-surface coverage gate) needs this to identify embed hosts
+    /// without hand-listing them: an identifier that is one of this kind's
+    /// own variants stays safe to self-reference there, but one only
+    /// inherited transitively through the embed recurses (see
+    /// `deckmaste_semantics::authoring`'s embed-host ruling).
+    #[must_use]
+    pub fn embeds(&self) -> bool {
+        self.embeds
     }
 }
 
