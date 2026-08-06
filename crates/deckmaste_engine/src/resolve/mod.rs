@@ -674,7 +674,7 @@ mod tests {
     }
 
     // ========================================================================
-    // P0.W3: uncalled coin flips, dice rolls, random discard — the work-item
+    // Unbuilt: uncalled coin flips, dice rolls, random discard — the work-item
     // machinery drawing from the seeded rng (`engine-randomness` Task 3).
     // ========================================================================
 }

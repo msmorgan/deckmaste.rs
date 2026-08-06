@@ -980,7 +980,7 @@ impl GameState {
             }
 
             // [CR#603.2e]: the transition must be the very state named —
-            // phasing/turn-face have no fact shape (P0.W6), so their
+            // phasing/turn-face have no fact shape, so their
             // patterns match no record (kept caps `StateBecame:Phased`/
             // `:TurnedFace`).
             EventFilter::StateBecame { of, becomes, cause } => {
@@ -1115,8 +1115,8 @@ impl GameState {
 
             // [CR#106.12]: no engine fact for "a land was tapped for mana"
             // exists yet — `PlayerAction::AddMana`'s resolution never
-            // records WHICH permanent produced the mana (a P0.W3-adjacent
-            // seam, alongside the coin-flip/dice-roll apply seam below).
+            // records WHICH permanent produced the mana (a seam, alongside
+            // the coin-flip/dice-roll apply seam below).
             // [CR#901.9]: nor does the Planechase planar die have one
             // (Plane cards — a different game-object type — aren't modeled
             // by this engine at all). Both never match: a documented

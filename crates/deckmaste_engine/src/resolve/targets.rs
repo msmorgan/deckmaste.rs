@@ -150,7 +150,8 @@ fn const_target_count(count: &Count) -> Uint {
         Count::Literal(n) => *n,
         other => todo!(
             "engine-target-distinctness: a dynamic target-count bound {other:?} needs a \
-             carrier frame — only literal target quantities are wired (mirrors const_count)"
+             carrier frame — only literal target quantities are wired (mirrors const_count); \
+             owner: engine-target-distinctness"
         ),
     }
 }
@@ -371,7 +372,7 @@ mod target_set_tests {
     }
 
     /// `target_spec_filter` peels the `Distinct` wrapper to the inner
-    /// `Target`'s predicate — no panic (the P0.W7 seam is closed).
+    /// `Target`'s predicate — no panic (that seam is closed).
     #[test]
     fn filter_peels_distinct_to_the_inner_predicate() {
         let spec = distinct(vec![0], t_one());

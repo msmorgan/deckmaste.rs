@@ -521,7 +521,10 @@ impl StrategyEvaluator {
             )
             | PendingDecision::PreGame(crate::decide::pending::PreGame { .. })
             | PendingDecision::LegendRule(crate::decide::pending::LegendRule { .. })) => {
-                todo!("strategy fallback for {other:?} (no v1 deck surfaces it)")
+                todo!(
+                    "strategy fallback for {other:?} (no v1 deck surfaces it); \
+                     owner: engine-shell-decision-strategies"
+                )
             }
         }
     }

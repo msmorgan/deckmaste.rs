@@ -219,7 +219,10 @@ impl GameState {
             let mut demanded: Vec<Vec<ObjectId>> = Vec::new();
             for row in &must_rows {
                 if row.count.is_some() {
-                    todo!("a Must(Block) row carrying an arrangement bound");
+                    todo!(
+                        "a Must(Block) row carrying an arrangement bound; \
+                         owner: engine-combat-requirements"
+                    );
                 }
                 if !self.filter_matches_live(&row.by, b, row.carrier) {
                     continue;
@@ -237,7 +240,7 @@ impl GameState {
                 if bounded {
                     todo!(
                         "Must(Block) × arrangement-bound arbitration \
-                         ([CR#509.1c]'s menace example)"
+                         ([CR#509.1c]'s menace example); owner: engine-combat-requirements"
                     );
                 }
                 if !set.is_empty() {
@@ -253,7 +256,10 @@ impl GameState {
                 .filter(|a| demanded.iter().all(|s| s.contains(a)))
                 .collect();
             if obeys.is_empty() {
-                todo!("conflicting Must(Block) requirements need the maximize arbitration");
+                todo!(
+                    "conflicting Must(Block) requirements need the maximize arbitration; \
+                     owner: engine-combat-requirements"
+                );
             }
             let blocks = pairs.iter().find(|&&(bb, _)| bb == b).map(|&(_, a)| a);
             if !blocks.is_some_and(|a| obeys.contains(&a)) {

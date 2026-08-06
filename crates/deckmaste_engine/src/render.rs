@@ -96,7 +96,8 @@ impl GameState {
     /// ability of `object` — i.e. an action that was never in a legal list.
     /// `describe_action` is meant to render actions the engine offered; the
     /// indexing contract there is `abilities(object)[ability]` ([CR#602.1a]).
-    /// Also panics on `Action::Special` (a P0.W3 shell never enumerated).
+    /// Also panics on `Action::Special` (a shell never enumerated; owner:
+    /// engine-special-actions).
     #[must_use]
     pub fn describe_action(&self, action: &Action) -> ActionView<'_> {
         let name = |id: ObjectId| -> Option<&str> {
@@ -150,10 +151,13 @@ impl GameState {
                     },
                 }
             }
-            // Special actions ([CR#116.2]) are a P0.W3 shell never offered in a
+            // Special actions ([CR#116.2]) are a shell never offered in a
             // legal list, so describe_action is never called on one. Mirror the
             // engine's loud seam rather than inventing a render shape for it.
-            Action::Special(_) => todo!("P0.W3: special actions are not enumerated yet"),
+            Action::Special(_) => todo!(
+                "engine seam: special actions ([CR#116.2]) are not enumerated \
+                 yet; owner: engine-special-actions"
+            ),
         }
     }
 }

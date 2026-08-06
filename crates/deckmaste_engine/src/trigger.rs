@@ -325,15 +325,24 @@ impl GameState {
             }
 
             // [CR#110.5]: tap state is captured on the snapshot; flip/face/
-            // phasing are not (P0.W6).
+            // phasing are not — a filter over an unevaluated status must trip
+            // rather than silently read a default.
             Predicate::State(StatePredicate::Status(status)) => {
                 use deckmaste_core::Status;
                 match status {
                     Status::Tapped => snapshot.tapped,
                     Status::Untapped => !snapshot.tapped,
-                    other => todo!(
-                        "engine-filter-breadth: snapshot Status({other:?}) — flip/face/phasing \
-                         state uncaptured (P0.W6)"
+                    Status::PhasedOut | Status::PhasedIn => todo!(
+                        "engine seam: snapshot status {status:?} ([CR#702.26a]) — phasing state \
+                         uncaptured; owner: engine-phasing"
+                    ),
+                    Status::FaceDown | Status::FaceUp => todo!(
+                        "engine seam: snapshot status {status:?} ([CR#708.1]) — face-down state \
+                         uncaptured; owner: engine-face-down"
+                    ),
+                    Status::Flipped | Status::Unflipped => todo!(
+                        "engine seam: snapshot status {status:?} ([CR#710.3]) — flipped state \
+                         uncaptured; owner: engine-flipped-status"
                     ),
                 }
             }
@@ -368,7 +377,8 @@ impl GameState {
                 | deckmaste_core::RelationPredicate::Attachment(_),
             ) => todo!(
                 "engine-filter-breadth: snapshot attachment relations need LkiSnapshot to capture \
-                 attached_to (engine-attach tracks it only on the live object)"
+                 attached_to (engine-attach tracks it only on the live object); \
+                 owner: engine-filter-breadth"
             ),
 
             // A gone object has no live stack entry, so it currently targets
@@ -376,7 +386,10 @@ impl GameState {
             Predicate::State(StatePredicate::Targets(_) | StatePredicate::TargetCount(_)) => false,
             // [CR#607]: no linked-ability relation registry yet.
             Predicate::State(StatePredicate::RelatedBy(..)) => {
-                todo!("engine-filter-breadth: snapshot RelatedBy needs a CR#607 relation registry")
+                todo!(
+                    "engine-filter-breadth: snapshot RelatedBy needs a CR#607 relation registry; \
+                     owner: engine-filter-breadth"
+                )
             }
             // A gone object has left its ordered zone — [`Predicate::Adjacent`]
             // reads the LIVE `zones.graveyards`/`zones.libraries` order
@@ -2988,7 +3001,8 @@ mod tests {
     }
 
     /// A sacrifice view is a cause-narrowed `ZoneChange` ([CR#701.21a] — the
-    /// W3 unification retired the dedicated verb facts): "you sacrifice" is
+    /// zone-change unification retired the dedicated verb facts): "you
+    /// sacrifice" is
     /// spelled as the moved object being controlled by you.
     #[test]
     fn performed_sacrifice_matches_cause_carried_move() {

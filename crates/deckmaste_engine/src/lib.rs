@@ -4,6 +4,34 @@
 //! Control flow is reified: the agenda (a work queue) holds what the engine
 //! does next, so a `step()` can return mid-cascade and tests can assert
 //! state between any two events.
+//!
+//! # Failure policy
+//!
+//! Three distinct kinds of "this input doesn't work" get three distinct
+//! behaviors, and conflating them is the bug this policy exists to prevent.
+//!
+//! **Invalid semantic input fizzles.** A malformed reference or a missing
+//! semantic object resolves to no applicable object, emits no game facts, and
+//! retains a diagnostic for validation and logging. It does not panic. See
+//! `docs/decisions/invalid-semantic-input-fizzles.md` for the boundary; that
+//! decision is the only thing that licenses a fizzle.
+//!
+//! **An unsupported Magic mechanic panics loudly.** When the input is a legal
+//! card behavior the engine has not built yet, the site keeps a
+//! `todo!()`/`unimplemented!()` whose message names the mechanic, cites the
+//! governing rule where one applies, and names the ticket slug that owns the
+//! work — `owner: <slug>`. Never turn a legal behavior into a silent no-op:
+//! a fizzle here would produce a wrong game result that looks like a correct
+//! one. The message is the contract, so it must stay specific enough to
+//! identify the mechanic from a panic trace alone.
+//!
+//! **An internal invariant stays an assertion.** Where the engine's own
+//! bookkeeping is violated, the panic asserts a property of the engine, not
+//! of the input, and is explicitly outside the fizzle decision. State the
+//! invariant the assertion protects.
+//!
+//! Anonymous owners are not acceptable in any of the three. Every production
+//! panic site names either a rule, an invariant, or a ticket.
 
 mod activate;
 

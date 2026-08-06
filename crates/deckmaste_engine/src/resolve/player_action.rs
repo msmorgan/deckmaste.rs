@@ -278,7 +278,7 @@ impl GameState {
                 // collection shape) has no `Shuffled`-event target yet.
                 _ => vec![],
             },
-            // P0.W6 seams: outcome verbs (immediate, gate-checked at the
+            // Unbuilt seams: outcome verbs (immediate, gate-checked at the
             // OUTCOME layer — never deontic rows) and reveal/look.
             // [CR#104.2b]: "the patient wins the game" — a first-class win
             // event, suppressed by a matching `CantWin` gate ([CR#101.1]).
@@ -309,7 +309,10 @@ impl GameState {
                 )))]
             }
             Action::RestartGame => {
-                todo!("P0.W6: restart ([CR#727.1] — a terminal with carryover, not a reset)")
+                todo!(
+                    "engine seam: restarting the game ([CR#727.1] — a terminal \
+                     with carryover, not a reset); owner: engine-restart-game"
+                )
             }
             Action::Reveal { what, to } => {
                 let object = self.eval_reference(what, frame);
@@ -724,7 +727,8 @@ impl GameState {
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
                         "core-action-riders-cost-modes seam: token enter riders \
-                         (tapped/attacking) execute with the ETB machinery"
+                         (tapped/attacking) execute with the ETB machinery; \
+                         owner: core-action-riders-cost-modes"
                     );
                 }
                 // [CR#701.7a]: one instruction puts all N tokens onto the

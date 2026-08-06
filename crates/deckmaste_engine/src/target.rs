@@ -188,7 +188,8 @@ pub fn matches_with(
         // (no watcher) or a gone carrier leaves `This` unresolvable — no match.
         Predicate::Where(cond) => match watcher {
             None => todo!(
-                "Predicate::Where at a frameless position — the matcher holds no carrier for This/You"
+                "Predicate::Where at a frameless position — the matcher holds no carrier for \
+                 This/You; owner: engine-filter-breadth"
             ),
             Some(w) => {
                 match state
@@ -260,7 +261,10 @@ pub fn matches_with(
         // object. Unreachable without a carrier (frameless targeting).
         Predicate::Ref(Reference::This) => match watcher {
             Some(w) => state.objects.obj(id).source == w,
-            None => todo!("Ref(This) at a frameless position — targeting threads no carrier"),
+            None => todo!(
+                "Ref(This) at a frameless position — targeting threads no carrier; \
+                 owner: engine-filter-breadth"
+            ),
         },
         // "you" ([CR#109.5]): `id` is the watcher's controller's proxy.
         Predicate::Ref(Reference::You) => match watcher {
@@ -269,7 +273,10 @@ pub fn matches_with(
                 matches!(state.objects.obj(id).source,
                     ObjectSource::Player(p) if Some(p) == controller)
             }
-            None => todo!("Ref(You) at a frameless position — targeting threads no carrier"),
+            None => todo!(
+                "Ref(You) at a frameless position — targeting threads no carrier; \
+                 owner: engine-filter-breadth"
+            ),
         },
         // "the host of THIS attachment" ([CR#301.5,303.4]): `id` is the
         // permanent that THIS (the watcher) is attached to. Used by umbra/totem
@@ -295,7 +302,8 @@ pub fn matches_with(
                         .is_some_and(|o| o.attached_to == Some(id))
                 }
                 None => todo!(
-                    "Ref(AttachHostOf(This)) at a frameless position — targeting threads no carrier"
+                    "Ref(AttachHostOf(This)) at a frameless position — targeting threads no \
+                     carrier; owner: engine-filter-breadth"
                 ),
             }
         }
@@ -389,9 +397,10 @@ pub fn matches_with(
             ObjectSource::Card(_) => false,
         },
 
-        // [CR#110.5]: status. Tap state is stored; flip/face/phasing are not
-        // (P0.W6) — a filter over one trips rather than silently read a
-        // default. A player proxy has no status.
+        // [CR#110.5]: status. Tap state is stored; flip/face/phasing are not —
+        // a filter over one must trip rather than silently read a default,
+        // since the answer changes targeting legality. A player proxy has no
+        // status.
         Predicate::State(StatePredicate::Status(status)) => {
             use deckmaste_core::Status;
             if state.objects.obj(id).card_id().is_none() {
@@ -401,14 +410,17 @@ pub fn matches_with(
             match status {
                 Status::Tapped => tapped,
                 Status::Untapped => !tapped,
-                Status::Flipped
-                | Status::Unflipped
-                | Status::FaceDown
-                | Status::FaceUp
-                | Status::PhasedOut
-                | Status::PhasedIn => todo!(
-                    "engine-filter-breadth: Status({status:?}) — flip/face/phasing state unstored \
-                     (P0.W6)"
+                Status::PhasedOut | Status::PhasedIn => todo!(
+                    "engine seam: permanent status {status:?} ([CR#702.26a]) — phasing state \
+                     unstored; owner: engine-phasing"
+                ),
+                Status::FaceDown | Status::FaceUp => todo!(
+                    "engine seam: permanent status {status:?} ([CR#708.1]) — face-down state \
+                     unstored; owner: engine-face-down"
+                ),
+                Status::Flipped | Status::Unflipped => todo!(
+                    "engine seam: permanent status {status:?} ([CR#710.3]) — flipped state \
+                     unstored; owner: engine-flipped-status"
                 ),
             }
         }
@@ -512,7 +524,7 @@ pub fn matches_with(
         // record yet (engine-alt-costs).
         Predicate::State(StatePredicate::WasPaidWith(tag)) => todo!(
             "engine-alt-costs: WasPaidWith({tag:?}) needs the [CR#601.2b] optional-cost \
-             announce record"
+             announce record; owner: engine-alt-costs"
         ),
         // The alt-cost twin of `WasPaidWith` ([CR#118.9,702.34a]) — a filter
         // over "a spell cast with [keyword]". No card fixture forces it yet
@@ -520,19 +532,20 @@ pub fn matches_with(
         // filter); it needs the same engine-alt-costs announce record.
         Predicate::State(StatePredicate::WasCastWith(tag)) => todo!(
             "engine-alt-costs: WasCastWith({tag:?}) needs the [CR#118.9,702.34a] alt-cost \
-             announce record"
+             announce record; owner: engine-alt-costs"
         ),
         // [CR#607]: linked-ability relations have no registry yet.
         Predicate::State(StatePredicate::RelatedBy(..)) => todo!(
             "engine-filter-breadth: RelatedBy needs a CR#607 linked-ability relation registry \
-             (unbuilt)"
+             (unbuilt); owner: engine-filter-breadth"
         ),
         // Frame-needing references: the matcher carries only a `watcher`, not a
         // `Frame` with announced targets / trigger bindings. `This`/`You` are
         // handled above; the rest resolve only where a Frame exists
         // (`resolve::eval_reference`).
         Predicate::Ref(r) => todo!(
-            "engine-filter-breadth: Ref({r:?}) needs a carrier Frame (matcher holds only a watcher)"
+            "engine-filter-breadth: Ref({r:?}) needs a carrier Frame (matcher holds only a \
+             watcher); owner: engine-filter-breadth"
         ),
     }
 }
@@ -675,7 +688,7 @@ fn const_count(count: &deckmaste_core::Count) -> Uint {
         deckmaste_core::Count::Literal(n) => *n,
         other => todo!(
             "engine-filter-breadth: dynamic filter bound {other:?} needs a carrier frame \
-             (only literal bounds evaluate in the frameless matcher)"
+             (only literal bounds evaluate in the frameless matcher); owner: engine-filter-breadth"
         ),
     }
 }

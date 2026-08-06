@@ -242,7 +242,8 @@ impl GameState {
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
                         "core-action-riders-cost-modes seam: enter riders (tapped/attacking/\
-                         with-counters) execute with the ETB machinery"
+                         with-counters) execute with the ETB machinery; \
+                         owner: core-action-riders-cost-modes"
                     );
                 }
                 self.move_items(sel, destination, *from, frame)
@@ -336,7 +337,7 @@ impl GameState {
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
                         "core-action-riders-cost-modes seam: MoveGroup enter riders execute \
-                         with the ETB machinery"
+                         with the ETB machinery; owner: core-action-riders-cost-modes"
                     );
                 }
                 // A group member with no zone to leave — a player proxy
@@ -421,7 +422,10 @@ impl GameState {
             // semantics, never `Simultaneously` sugar (fight is its own CR
             // event family).
             Action::ExtraPhase(..) => {
-                todo!("engine seam: extra phases ([CR#500.8]) — turn-structure insertion unbuilt")
+                todo!(
+                    "engine seam: extra phases ([CR#500.8]) — turn-structure insertion unbuilt; \
+                     owner: engine-turn-modification"
+                )
             }
             // [CR#701.27a]: flip each targeted transforming DFC. No-op (fizzle,
             // never panic) on a non-transforming-DFC permanent — the check is on
@@ -3807,7 +3811,7 @@ mod tests {
         );
     }
 
-    // --- P0.W5 resolution note slots ([CR#608.2c,607.2]) --------------------
+    // --- resolution note slots ([CR#608.2c,607.2]) --------------------
 
     /// [CR#120.1,701.14a]: `DealDamage`'s explicit `source` is the dealer — the
     /// emitted `DamageDealt` carries it, NOT `frame.source`. The fight shape:
@@ -5062,7 +5066,7 @@ mod tests {
 
     /// A game-scope enum designation transition is generic vocabulary: the
     /// action emits and applies the named mode, and setting the same mode again
-    /// is idempotent ([CR#731.1] is the founding DayNight consumer).
+    /// is idempotent ([CR#731.1] is the founding `DayNight` consumer).
     #[test]
     fn set_game_designation_applies_named_mode_once() {
         use crate::state::DesignationValue;

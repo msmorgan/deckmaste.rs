@@ -57,7 +57,8 @@ pub enum PreGameKind {
 
 /// A special action ([CR#116.2]) — taken with priority, no stack; the
 /// closed CR list (land play is already `Action::PlayLand`). All arms are
-/// P0.W3 shells: `legal_actions` never offers them yet.
+/// a shell: `legal_actions` never offers them yet (owner:
+/// engine-special-actions).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecialAction {
     /// Turn a face-down creature face up ([CR#116.2b]).
@@ -232,7 +233,8 @@ pub(crate) trait DecisionHandler {
 /// An answer to the pending decision.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Decision {
-    /// Modes chosen, by option index ([CR#700.2]) — P0.W3 shell.
+    /// Modes chosen, by option index ([CR#700.2]) — a shell: `legal_actions`
+    /// never offers it yet.
     Modes(Vec<Uint>),
     /// A division among targets ([CR#601.2d]) — shell.
     Divide(Vec<(ObjectId, Uint)>),
@@ -303,8 +305,9 @@ pub enum Action {
     /// decision's decider; out-of-band concession by a player who is NOT
     /// being asked anything is a runner-API seam.
     Concede,
-    /// A special action ([CR#116.2]) — P0.W3 shell; never offered in the
-    /// legal list yet, so submissions reject as Illegal.
+    /// A special action ([CR#116.2]) — a shell: never offered in the
+    /// legal list yet, so submissions reject as Illegal (owner:
+    /// engine-special-actions).
     Special(SpecialAction),
     /// Special action, no stack ([CR#116.2a,305]).
     PlayLand {
@@ -418,7 +421,8 @@ pub(crate) fn unless_cost_action(
         // 'unless' costs, so this seam is unreached today.
         CostComponent::TapTotal { .. } => todo!(
             "engine-resolve-effects seam: an aggregate-stat (tap-total) 'unless' cost \
-             ([CR#118.12a,702.122a]) needs a payment-time subset choice"
+             ([CR#118.12a,702.122a]) needs a payment-time subset choice; \
+             owner: engine-resolve-effects"
         ),
         // The `MayPayCost` continuation (the collapsed `May(Pay(cost))`
         // shape) routes `Mana` components to `WorkItem::TollMana` (see
@@ -427,7 +431,8 @@ pub(crate) fn unless_cost_action(
         // like "equal to its mana cost" ([CR#202.1]).
         CostComponent::Mana(_) | CostComponent::ManaCostOf(_) => todo!(
             "engine-resolve-effects seam: a mid-resolution mana cost outside the \
-             May(Pay)/MayPayCost toll path ([CR#118.12a]) — announce-slot-bound"
+             May(Pay)/MayPayCost toll path ([CR#118.12a]) — announce-slot-bound; \
+             owner: engine-resolve-effects"
         ),
     }
 }
@@ -882,7 +887,11 @@ impl GameState {
     /// haunting the table.
     fn concede(&mut self, player: PlayerId) {
         if self.live_count() > 2 {
-            todo!("P0.W6: multiplayer leave-game cleanup ([CR#800.4a])");
+            todo!(
+                "engine seam: multiplayer leave-game cleanup ([CR#800.4a]) \
+                 — owned objects leave, control effects end, residue exiled; \
+                 owner: engine-multiplayer-leave-game"
+            );
         }
         self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
             GameEvent::PlayerLost(PlayerLost {
@@ -894,9 +903,13 @@ impl GameState {
 
     fn take_priority_action(&mut self, player: PlayerId, action: &Action) {
         match action {
-            // P0.W3 shell: special actions are never in the legal list, so
+            // A shell: `legal_actions` never offers special actions, so
             // submission already rejected them as Illegal; loud if reached.
-            Action::Special(_) => todo!("P0.W3: special actions ([CR#116.2] machinery)"),
+            Action::Special(_) => todo!(
+                "engine seam: special actions ([CR#116.2]) — legal_actions \
+                 never offers them, so submission machinery is unbuilt; \
+                 owner: engine-special-actions"
+            ),
             // Normally short-circuited by the `submit_decision` pre-check;
             // kept for exhaustiveness and direct callers.
             Action::Concede => self.concede(player),

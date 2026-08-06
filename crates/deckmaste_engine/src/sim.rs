@@ -480,7 +480,7 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         // for both the X-announce and a resolution note number ("choose a
         // number") — both answered through the `Decision::XValue` shape. A
         // smarter value is a follow-up; the note-number arm closes that slice
-        // of the P0.W3 seam.
+        // of the shell-decision-strategy seam.
         PendingDecision::ChooseXValue(crate::decide::pending::ChooseXValue { .. })
         | PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber { .. }) => {
             Decision::XValue(0)
@@ -505,7 +505,10 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         PendingDecision::Retarget(crate::decide::pending::Retarget {
             entry, spec, legal, ..
         }) => Decision::Targets(keep_current_targets(state, *entry, spec, legal)),
-        other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
+        other => todo!(
+            "engine seam: shell decision strategy for {other:?} — no mechanical/pending-player \
+             handling wired for this PendingDecision kind yet; owner: engine-shell-decision-strategies"
+        ),
     }
 }
 
@@ -581,7 +584,10 @@ pub(crate) fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::Retarget(crate::decide::pending::Retarget { player, .. })
         | PendingDecision::LegendRule(crate::decide::pending::LegendRule { player, .. })
         | PendingDecision::CallFlip(crate::decide::pending::CallFlip { player }) => *player,
-        other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
+        other => todo!(
+            "engine seam: shell decision strategy for {other:?} — no mechanical/pending-player \
+             handling wired for this PendingDecision kind yet; owner: engine-shell-decision-strategies"
+        ),
     }
 }
 

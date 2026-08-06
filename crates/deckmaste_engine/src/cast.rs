@@ -78,7 +78,9 @@ fn add_mana_components(cost: &mut Vec<ManaSymbol>, components: &[CostComponent])
         match c {
             CostComponent::Mana(m) => cost.extend(m.iter().copied()),
             other => {
-                todo!("P0.W2 residue: non-mana cost increase {other:?} — fold when a card needs it")
+                todo!(
+                    "engine seam: non-mana cost-increase component {other:?} ([CR#601.2f]) — fold when a card needs it; owner: engine-cost-modification-residue"
+                )
             }
         }
     }
@@ -96,7 +98,9 @@ fn reduce_mana_components(cost: &mut Vec<ManaSymbol>, components: &[CostComponen
                     reduce_symbol(cost, *sym);
                 }
             }
-            other => todo!("P0.W2 residue: non-mana cost reduction {other:?}"),
+            other => todo!(
+                "engine seam: non-mana cost-reduction component {other:?} ([CR#601.2f]) — fold when a card needs it; owner: engine-cost-modification-residue"
+            ),
         }
     }
 }
@@ -130,7 +134,9 @@ fn reduce_symbol(cost: &mut Vec<ManaSymbol>, sym: ManaSymbol) {
                 cost.remove(i);
             }
         }
-        other => todo!("P0.W2 residue: {other:?} in a cost reduction"),
+        other => todo!(
+            "engine seam: reduce_symbol can't handle {other:?} in a cost reduction ([CR#601.2f]) — fold when a card needs it; owner: engine-cost-modification-residue"
+        ),
     }
 }
 
@@ -1566,7 +1572,7 @@ impl GameState {
                         }
                         other => todo!(
                             "engine-alt-costs seam: an optional-cost component \
-                             beyond Mana/Do ({other:?})"
+                             beyond Mana/Do ({other:?}); owner: engine-alt-costs"
                         ),
                     }
                 }

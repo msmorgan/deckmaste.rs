@@ -494,10 +494,10 @@ pub struct Revealed {
     pub to: Option<Vec<PlayerId>>,
 }
 
-/// A GAME-scope designation transition in the W5 registry (day/night,
+/// A GAME-scope designation transition in the designation registry (day/night,
 /// [CR#731.1] — "day becomes night" = losing one designation and
 /// gaining the other, [CR#731.1a]). Shaped, unbuilt: designation
-/// GRANTING effects are P0.W5/W6 seams. Object/player designation
+/// GRANTING effects are unbuilt seams. Object/player designation
 /// deltas ride their own facts when granting lands.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DesignationChanged {
@@ -518,7 +518,7 @@ pub struct GotDesignation {
 
 /// An object became the target of the spell/ability `source` at
 /// announce ([CR#601.2c]; ward is the family exemplar [CR#702.21a]).
-/// Shaped, unbuilt: the announce flow emits it (P0.W7 seam).
+/// Shaped, unbuilt: the announce flow emits it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BecameTarget {
     pub target: ObjectId,
@@ -757,7 +757,7 @@ pub enum GameEvent {
     /// A library was shuffled ([CR#701.24a]) — an INFORMATION event:
     /// order knowledge is destroyed for every player; revealed cards in
     /// it stop being revealed and become new objects ([CR#701.20d] —
-    /// revealed-state reset is a P0.W6 seam). Why library actions never
+    /// revealed-state reset is unbuilt). Why library actions never
     /// rewind: [CR#733.1].
     Shuffled(PlayerId),
     BecameTarget(BecameTarget),

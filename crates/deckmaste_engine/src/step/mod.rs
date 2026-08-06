@@ -1157,7 +1157,7 @@ impl GameState {
     /// Run AFTER an occurrence applies, so a simultaneous multi-loss batch is a
     /// draw, not a win for whoever was checked first.
     ///
-    /// P0.W6 seam (no trip point exists yet): the mandatory-loop draw
+    /// Seam (no trip point exists yet): the mandatory-loop draw
     /// ([CR#104.4b]) needs a loop MONITOR, and the monitor needs a
     /// game-state equality predicate — UD-11, still OPEN (no rule defines
     /// when two states are "the same"; see docs/engine-adrs.md).

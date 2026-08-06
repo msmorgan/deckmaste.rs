@@ -71,11 +71,11 @@ pub(crate) fn statics_present<F: Fn(&StaticEffect) -> bool>(
         .any(|&id| object_has_static(view, id, &pred))
 }
 
-/// P0.W1 presence guard ([CR#101.2,601.3] seam): the deontic grammar is
-/// complete, but declaration legality does not evaluate the rows yet. Any
-/// matching-verb row in the derived view trips the seam LOUDLY rather than
-/// being silently ignored. Never delete a trip to silence it — convert it
-/// to the legality evaluation.
+/// Deontic legality presence guard ([CR#101.2,601.3] seam): the deontic
+/// grammar is complete, but declaration legality does not evaluate the rows
+/// yet. Any matching-verb row in the derived view trips the seam LOUDLY
+/// rather than being silently ignored. Never delete a trip to silence it —
+/// convert it to the legality evaluation.
 fn guard_deontic_seam(
     state: &GameState,
     view: &LayeredView,
@@ -88,7 +88,11 @@ fn guard_deontic_seam(
         |e| matches!(e, StaticEffect::Deontic(d) if row(d)),
     );
     if hit {
-        todo!("P0.W1: deontic {what} legality — rows present in the derived view go unevaluated");
+        todo!(
+            "engine seam: deontic {what} legality ([CR#101.2,601.3]) — a deontic row is present \
+             in the derived view and would change legality, so it cannot be silently ignored; \
+             not yet evaluated; owner: engine-deontic-legality-residue"
+        );
     }
 }
 
@@ -261,7 +265,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         },
         "cast (flash May + slotless-Cant evaluated) + from-zone/non-May play + non-Cant attach + May/Gate target",
     );
-    // The former P0.W2 `CostModifier` presence guard converted to the real
+    // The former `CostModifier` presence guard, now converted to the real
     // [CR#601.2f] pipeline: `GameState::mana_cost` applies the rows (see
     // `cast::modified_mana_cost`), so `can_cast` below already gates on the
     // modified total.
@@ -2386,7 +2390,7 @@ mod tests {
     /// `Must(Cast(...))` row ("you must cast this spell") is one such shape,
     /// never silently ignored.
     #[test]
-    #[should_panic(expected = "P0.W1")]
+    #[should_panic(expected = "deontic")]
     fn cant_cast_guard_still_trips_on_a_must_cast_row() {
         let mut state = game();
         let _herald = obj_on_field(
@@ -2416,7 +2420,7 @@ mod tests {
     /// it rather than silently treating it as an all-zones prohibition
     /// (which would be an over-application, not the semantic restriction).
     #[test]
-    #[should_panic(expected = "P0.W1")]
+    #[should_panic(expected = "deontic")]
     fn cant_cast_guard_still_trips_on_a_slotted_cant_cast_row() {
         let mut state = game();
         let _grave_lockout = obj_on_field(

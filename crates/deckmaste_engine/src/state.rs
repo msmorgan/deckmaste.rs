@@ -45,7 +45,7 @@ pub enum DesignationValue {
 /// other than [the goader]", [CR#701.15b..701.15c]) and the duration
 /// ("until your next turn"). Multiple goaders = multiple instances, each
 /// expiring on its own clock — never a merged set. Payload application is
-/// the layers pipeline's designation source (P0.W5 seam); duration sweep
+/// the layers pipeline's designation source (seam); duration sweep
 /// rides the effect-instance machinery (seam).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DesignationInstance {
@@ -55,7 +55,7 @@ pub struct DesignationInstance {
 
 /// The generic designation registry — storage mirrors the data-driven
 /// declaration model rather than per-mechanic fields; granting effects are
-/// P0.W5 seams, but `Designated(name)` filter reads are LIVE against it
+/// unbuilt seams, but `Designated(name)` filter reads are LIVE against it
 /// (an empty store correctly means nothing is goaded/suspected/…).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DesignationStore {
@@ -483,7 +483,7 @@ pub struct GameState {
 }
 
 /// The scalar value a resolution note slot stores ([CR#607.2] slots;
-/// [CR#608.2c] a choice made while applying an effect). This P0.W5 store
+/// [CR#608.2c] a choice made while applying an effect). This store
 /// mints scalar `Number` and `CardName` values. Object-set notes ride the
 /// fact-backed `noted` product group (`NotedMember`) instead of this map;
 /// Color/Piles stay unbuilt until reader grammar for them lands.
@@ -861,7 +861,7 @@ impl GameState {
     ///
     /// Other durations (the remaining `FixedUntil` markers, `ForAsLongAs`,
     /// `UntilEvent`, `EndOfGame`) have no sweep/tracking yet — `resolve`
-    /// trips a `P0.W1` seam before any instance carrying one is created.
+    /// trips a seam before any instance carrying one is created.
     /// The choices.md §6 boundary record for the pending decision, schema
     /// derived from the kind (see `PendingDecision`'s schema methods).
     #[must_use]

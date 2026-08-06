@@ -114,18 +114,18 @@ impl GameState {
         for part in parts {
             let StaticEffect::Deontic(Deontic::Cant(action)) = part else {
                 todo!(
-                    "P0.W1: ForThisEvent rider {part:?} — only Cant(Regenerate) is wired [CR#701.19c]"
+                    "engine seam: ForThisEvent rider {part:?} ([CR#701.19c]) — only Cant(Regenerate) is wired; owner: engine-forthisevent-riders"
                 );
             };
             let DeonticAction::Regenerate { on, .. } = action else {
                 todo!(
-                    "P0.W1: ForThisEvent Cant rider {action:?} — only Regenerate is wired [CR#701.19c]"
+                    "engine seam: ForThisEvent Cant rider {action:?} ([CR#701.19c]) — only Regenerate is wired; owner: engine-forthisevent-riders"
                 );
             };
             match on {
                 Predicate::Ref(r) => ids.push(self.eval_reference(r, frame)),
                 other => todo!(
-                    "P0.W1: Cant(Regenerate(on: {other:?})) — only a bare object Ref is wired"
+                    "engine seam: Cant(Regenerate(on: {other:?})) ([CR#701.19c]) — only a bare object Ref is wired; owner: engine-forthisevent-riders"
                 ),
             }
         }
@@ -535,8 +535,8 @@ impl GameState {
                             vec![],
                         ),
                         other => todo!(
-                            "P0.W1: Continuously(Each(SelectAll, {other:?})) — only a bare \
-                             Modify(It, _) inner is wired"
+                            "engine seam: Continuously(Each(SelectAll, {other:?})) — only a bare \
+                             Modify(It, _) inner is wired; owner: engine-granted-static-rows"
                         ),
                     },
                     // A granted `Deontic` restriction ("target creature can't
@@ -566,12 +566,12 @@ impl GameState {
                     // ([CR#615.1]); the PreventNext/PreventAll macros stay
                     // blocked until that ticket lands.
                     StaticEffect::Prevention(_) => todo!(
-                        "P0.W1: Continuously(Prevention) — engine-prevention owns shields/windows [CR#615.1]"
+                        "engine seam: Continuously(Prevention) ([CR#615.1]) — granted prevention shields/windows unbuilt; owner: engine-granted-prevention-rows"
                     ),
                     // Narrower than the old catch-all: name the specific unbuilt
                     // granted static-row kind.
                     StaticEffect::Each(sel, _) => todo!(
-                        "P0.W1: Continuously(Each({sel:?}, _)) — only Each(SelectAll, Modify(It, _)) is wired"
+                        "engine seam: Continuously(Each({sel:?}, _)) — only Each(SelectAll, Modify(It, _)) is wired; owner: engine-granted-static-rows"
                     ),
                     // Becomes-a-copy is a deferred-exec seam: its copiable-value install is
                     // owned by engine-layers-1-copy-facedown-text (base_values). Until that
@@ -579,7 +579,9 @@ impl GameState {
                     // never-panic contract, matching the early-return fizzles above (473/555).
                     StaticEffect::BecomesCopy(..) => return,
                     other => {
-                        todo!("P0.W1: Continuously({other:?}) — granted static-row kind unbuilt")
+                        todo!(
+                            "engine seam: Continuously({other:?}) — granted static-row kind unbuilt; owner: engine-granted-static-rows"
+                        )
                     }
                 };
                 // Only the two data-re-evaluating durations keep the minting
@@ -837,7 +839,8 @@ impl GameState {
                     let deckmaste_core::Action::Move(subject, _, _, _) = action.as_ref() else {
                         unimplemented!(
                             "Binder::Produce over a non-Move action: only zone-moves \
-                             produce-and-capture in this cut ({action:?})"
+                             produce-and-capture in this cut ({action:?}); \
+                             owner: engine-find-moved-object"
                         );
                     };
                     let id = self.eval_reference(subject, frame);
@@ -3147,7 +3150,7 @@ mod tests {
         );
     }
 
-    /// P0.W3 seam filled for the new decision kind: the mechanical strategy
+    /// Seam filled for the new decision kind: the mechanical strategy
     /// notes the minimum (0, the X=0 default, via the reused `Decision::XValue`
     /// answer), and the seat resolver names the deciding player.
     #[test]
@@ -3622,9 +3625,11 @@ mod tests {
         assert!(matches!(&ce.rows[..], [StaticEffect::CantHappen(_)]));
     }
 
-    /// A granted `Prevention` is LOUD — engine-prevention owns the machinery.
+    /// A granted `Prevention` is LOUD — `engine-granted-prevention-rows` owns
+    /// the machinery. (`engine-prevention` shipped only the one-shot
+    /// shields; it never unblocked this granted-continuous arm.)
     #[test]
-    #[should_panic(expected = "engine-prevention")]
+    #[should_panic(expected = "Continuously(Prevention)")]
     fn continuously_prevention_is_loud() {
         use deckmaste_core::Continuously;
         use deckmaste_core::Duration;

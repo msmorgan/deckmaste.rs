@@ -139,7 +139,11 @@ pub struct Division {
 
 impl DecisionHandler for Division {
     fn resolve(self, _g: &mut GameState, _answer: Decision) -> Result<(), DecisionError> {
-        todo!("P0.W4/W7: submission handling for shell decision kinds")
+        todo!(
+            "engine seam: dividing/distributing an effect among chosen \
+             targets ([CR#601.2d]) — the announced division isn't applied \
+             yet; owner: engine-divided-distribution-as-you-choose"
+        )
     }
 }
 
@@ -152,7 +156,10 @@ pub struct Vote {
 
 impl DecisionHandler for Vote {
     fn resolve(self, _g: &mut GameState, _answer: Decision) -> Result<(), DecisionError> {
-        todo!("P0.W4/W7: submission handling for shell decision kinds")
+        todo!(
+            "engine seam: voting among players in turn order ([CR#701.38a]) \
+             — submitted votes aren't tallied yet; owner: engine-voting-procedure"
+        )
     }
 }
 
@@ -344,7 +351,11 @@ pub struct OrderReplacements {
 
 impl DecisionHandler for OrderReplacements {
     fn resolve(self, _g: &mut GameState, _answer: Decision) -> Result<(), DecisionError> {
-        todo!("P0.W4/W7: submission handling for shell decision kinds")
+        todo!(
+            "engine seam: ordering multiple applicable replacement/prevention \
+             effects ([CR#616.1]) — the chosen order isn't applied yet; \
+             owner: engine-order-replacements-decision"
+        )
     }
 }
 
@@ -391,7 +402,10 @@ pub struct PreGame {
 
 impl DecisionHandler for PreGame {
     fn resolve(self, _g: &mut GameState, _answer: Decision) -> Result<(), DecisionError> {
-        todo!("P0.W4/W7: submission handling for shell decision kinds")
+        todo!(
+            "engine seam: the pre-game procedure ([CR#103]) — submitted \
+             pre-game choices aren't applied yet; owner: engine-pregame-procedure"
+        )
     }
 }
 
