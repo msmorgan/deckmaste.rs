@@ -87,6 +87,18 @@ pub(super) enum RegistrationOrder {
 }
 
 impl RuleBuilder {
+    pub(super) fn remove_replaced_handwritten(
+        &mut self,
+        groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
+    ) {
+        self.registrations.retain(|registration| {
+            let RuleImpl::Handwritten(tag) = registration.rule_impl else {
+                return true;
+            };
+            !super::construction::handwritten_replaced_by(groups, tag)
+        });
+    }
+
     pub(super) fn add(
         &mut self,
         tag: RuleTag,
@@ -132,13 +144,24 @@ impl RuleBuilder {
         lhs: Nonterminal,
         rhs: impl IntoIterator<Item = Expected<Nonterminal, EnglishLexicalSlot>>,
     ) {
+        self.add_generated_with_cost(rule_impl, production, lhs, rhs, ParseCost::default());
+    }
+
+    pub(super) fn add_generated_with_cost(
+        &mut self,
+        rule_impl: RuleImpl,
+        production: ProductionId,
+        lhs: Nonterminal,
+        rhs: impl IntoIterator<Item = Expected<Nonterminal, EnglishLexicalSlot>>,
+        local_cost: ParseCost,
+    ) {
         self.registrations.push(RuleRegistration {
             rule_impl,
             rule: Rule {
                 production,
                 lhs,
                 rhs: rhs.into_iter().collect(),
-                local_cost: ParseCost::default(),
+                local_cost,
             },
         });
     }

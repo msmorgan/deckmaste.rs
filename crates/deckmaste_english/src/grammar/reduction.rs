@@ -2144,10 +2144,10 @@ fn nominal_coordination_member(
             form,
             initial_sound,
             determined: false,
-            modified: true,
+            modified,
             adjunct,
             ..
-        } => Some((*form, *initial_sound, *adjunct, true)),
+        } => Some((*form, *initial_sound, *adjunct, *modified)),
         _ => None,
     }
 }

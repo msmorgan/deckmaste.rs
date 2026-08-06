@@ -121,9 +121,34 @@ pub(super) fn merged_registry(
         })
     });
     ConstructionRegistry::new(
-        RuleTag::iter().map(family).chain(generated_families),
+        RuleTag::iter()
+            .filter(|tag| !handwritten_replaced_by(groups, *tag))
+            .map(family)
+            .chain(generated_families),
         dominance_edges().into_iter().chain(generated_edges),
     )
+}
+
+pub(super) fn handwritten_replaced_by(
+    groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
+    tag: RuleTag,
+) -> bool {
+    let declares = |id: &str| {
+        groups
+            .iter()
+            .flat_map(|group| group.constructions)
+            .any(|construction| construction.id == id)
+    };
+    if declares(construction_id(tag).as_str()) {
+        return true;
+    }
+    match tag {
+        RuleTag::NounPhraseListSingle
+        | RuleTag::NounPhraseListComma
+        | RuleTag::NounPhraseCoordinationOxford => declares("noun_phrase_coordination"),
+        RuleTag::NounPhraseSharedDeterminer => declares("shared_determiner_nominal"),
+        _ => false,
+    }
 }
 
 fn generated_family(
@@ -261,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn generated_id_colliding_with_a_handwritten_family_is_refused() {
+    fn generated_id_replaces_its_handwritten_family() {
         const CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
             &[deckmaste_construction_compiler::runtime::ConstructionData {
                 id: "noun_phrase_coordination",
@@ -280,13 +305,12 @@ mod tests {
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);
-        let error = super::merged_registry(&[&GROUP]).unwrap_err();
-        assert_eq!(
-            error,
-            ConstructionRegistryError::DuplicateId(construction_id(
-                RuleTag::NounPhraseCoordination
-            ))
-        );
+        let merged = super::merged_registry(&[&GROUP])
+            .expect("activating a generated owner replaces the handwritten row");
+        let family = merged
+            .family(construction_id(RuleTag::NounPhraseCoordination))
+            .expect("the generated replacement remains registered");
+        assert_eq!(family.owner(), ConstructionOwner::Generated);
     }
 
     #[test]

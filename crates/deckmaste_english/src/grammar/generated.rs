@@ -386,7 +386,17 @@ pub(super) fn register_generated(
                     if rhs.is_empty() {
                         continue;
                     }
-                    builder.add_generated(
+                    if sequence_atoms
+                        .iter()
+                        .any(|&index| present & (1_u64 << index) == 0)
+                        && matches!(
+                            rhs.as_slice(),
+                            [Expected::Nonterminal(target)] if *target == lhs
+                        )
+                    {
+                        continue;
+                    }
+                    builder.add_generated_with_cost(
                         RuleImpl::Generated(GeneratedRuleRef {
                             group,
                             construction: construction_index,
@@ -399,12 +409,23 @@ pub(super) fn register_generated(
                         },
                         lhs,
                         rhs,
+                        generated_cost(construction),
                     );
                 }
             }
         }
     }
     Ok(())
+}
+
+fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
+    match construction.id {
+        "noun_phrase_coordination" => super::ParseCost {
+            precedence: 1,
+            ..super::ParseCost::default()
+        },
+        _ => super::ParseCost::default(),
+    }
 }
 
 fn register_element(

@@ -43,6 +43,13 @@ pub(crate) struct GeneratedParse {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneratedNounPhraseParse {
+    pub(crate) value: crate::syntax::NounPhrase,
+    pub(crate) construction: &'static str,
+    pub(crate) form_ordinal: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum GeneratedPart {
     Literal(&'static str),
     Scalar {
@@ -466,6 +473,81 @@ fn parse_as_with_registration_order(
                 continue;
             };
             let Some(exact) = chart.forest.exact_result(root, alternative, ast) else {
+                continue;
+            };
+            if !results.contains(&exact) {
+                results.push(exact);
+            }
+        }
+    }
+    Ok(results)
+}
+
+fn parse_generated_noun_phrase_as(
+    source: &str,
+    catalogs: &Catalogs,
+    activation: GeneratedActivation,
+    budget: usize,
+    order: RegistrationOrder,
+) -> Result<Vec<ExactParse<GeneratedNounPhraseParse, EnglishSurfaceWitness>>, ExactParseError> {
+    let self_reference = SelfReference::default();
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
+        source,
+        catalogs,
+        Nonterminal::NounPhrase,
+        OpacityMode::Exact,
+        self_reference,
+        order,
+        activation,
+    );
+    let chart = parse_chart(&grammar, &tokens).map_err(ExactParseError::Grammar)?;
+    let mut remaining = budget;
+    let mut results = Vec::new();
+    for &root in &chart.roots {
+        let selections = chart
+            .forest
+            .enumerate_selections(root, &mut remaining)
+            .map_err(|error| match error {
+                SelectionEnumerationError::Cycle(_) => ExactParseError::Cycle,
+                SelectionEnumerationError::BudgetExhausted => {
+                    ExactParseError::TooManyAlternatives { budget }
+                }
+            })?;
+        for selection in selections {
+            let forest_node = chart.forest.node(root);
+            let Some(alternative_index) = selection.alternative(root) else {
+                continue;
+            };
+            let Some(alternative) = forest_node.alternatives.get(alternative_index) else {
+                continue;
+            };
+            let Some(rule) = alternative.rule else {
+                continue;
+            };
+            let Some(RuleImpl::Generated(generated)) = grammar.impls.get(rule.index()).copied()
+            else {
+                continue;
+            };
+            let Some(construction) = generated.group.constructions.get(generated.construction)
+            else {
+                continue;
+            };
+            let Some(form) = construction.forms.get(generated.form) else {
+                continue;
+            };
+            let Some(super::lowering::Lowered::NounPhrase(value)) =
+                lower(&grammar, &chart.forest, root, &selection)
+            else {
+                continue;
+            };
+            let ast = GeneratedNounPhraseParse {
+                value,
+                construction: construction.id,
+                form_ordinal: form.ordinal,
+            };
+            let Some(exact) = chart.forest.exact_result(root, alternative_index, ast) else {
                 continue;
             };
             if !results.contains(&exact) {
@@ -2053,6 +2135,57 @@ mod tests {
             "the declared `@ 7` ordinal is the form witness",
         );
         assert_eq!(linearize(padded[0].ast()), ", and");
+    }
+
+    #[test]
+    fn real_generated_exact_parses_carry_built_ast_and_form_witness() {
+        let activation = GeneratedActivation::Groups(coordination::GROUPS);
+        for (source, construction) in [
+            ("an artifact or a creature", "noun_phrase_coordination"),
+            ("target artifact or creature", "shared_determiner_nominal"),
+        ] {
+            let normal = parse_generated_noun_phrase_as(
+                source,
+                &fixture_catalogs(),
+                activation,
+                10_000,
+                RegistrationOrder::Normal,
+            )
+            .unwrap_or_else(|error| panic!("exact parse failed for {source:?}: {error:?}"));
+            let expected = normal
+                .iter()
+                .find(|parse| parse.ast().construction == construction)
+                .unwrap_or_else(|| {
+                    panic!("no exact {construction} reading for {source:?}: {normal:#?}")
+                });
+            assert_eq!(expected.ast().form_ordinal, 0);
+            let rendered = match &expected.ast().value {
+                NounPhrase::Coordinated(value) => {
+                    linearize_coordinated_noun_phrase(value).expect("generated noun linearizes")
+                }
+                NounPhrase::CoordinatedNominal(value) => {
+                    linearize_coordinated_nominal_phrase(value)
+                        .expect("generated shared determiner linearizes")
+                }
+                other => panic!("generated coordination built the wrong AST: {other:#?}"),
+            };
+            assert_eq!(rendered, source);
+
+            let reversed = parse_generated_noun_phrase_as(
+                source,
+                &fixture_catalogs(),
+                activation,
+                10_000,
+                RegistrationOrder::Reversed,
+            )
+            .unwrap_or_else(|error| {
+                panic!("reversed exact parse failed for {source:?}: {error:?}")
+            });
+            assert!(
+                reversed.contains(expected),
+                "the built AST/form witness must survive registration reversal: {expected:#?}",
+            );
+        }
     }
 
     #[test]

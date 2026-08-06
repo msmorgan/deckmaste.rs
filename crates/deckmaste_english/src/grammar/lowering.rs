@@ -327,22 +327,20 @@ fn lower_generated_construction(
     }
     let fields = fields.into_iter().collect::<Option<Vec<_>>>()?;
     let value = construction.erased_builder?(fields).ok()?;
-    Some(Lowered::Generated(GeneratedValue::Typed(
-        project_generated_category(construction, value)?,
-    )))
+    project_generated_category(construction, value)
 }
 
 fn project_generated_category(
     _construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     value: deckmaste_construction_compiler::runtime::ErasedValue,
-) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
+) -> Option<Lowered> {
     #[cfg(test)]
     match _construction.id {
         "noun_phrase_coordination" => {
             let value = value
                 .downcast::<crate::constructions::coordination::DerivedCoordinatedNounPhrase>()
                 .ok()?;
-            return Some(Box::new(NounPhrase::Coordinated(
+            return Some(Lowered::NounPhrase(NounPhrase::Coordinated(
                 crate::syntax::CoordinatedNounPhrase {
                     first: value.first().clone(),
                     rest: value.rest().clone(),
@@ -353,7 +351,7 @@ fn project_generated_category(
             let value = value
                 .downcast::<crate::constructions::coordination::DerivedCoordinatedNominalPhrase>()
                 .ok()?;
-            return Some(Box::new(NounPhrase::CoordinatedNominal(
+            return Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(
                 crate::syntax::CoordinatedNominalPhrase {
                     determiner: value.determiner().clone(),
                     first: value.first().clone(),
@@ -370,29 +368,37 @@ fn project_generated_category(
             value
                 .downcast::<crate::constructions::probe::ProbeWordNode>()
                 .ok()?;
-            return Some(Box::new(crate::constructions::probe::ProbeItem));
+            return Some(Lowered::Generated(GeneratedValue::Typed(Box::new(
+                crate::constructions::probe::ProbeItem,
+            ))));
         }
         "probe_pick" => {
             value
                 .downcast::<crate::constructions::probe::ProbePickNode>()
                 .ok()?;
-            return Some(Box::new(crate::constructions::probe::ProbeRoot));
+            return Some(Lowered::Generated(GeneratedValue::Typed(Box::new(
+                crate::constructions::probe::ProbeRoot,
+            ))));
         }
         "probe_pick_shadow" => {
             value
                 .downcast::<crate::constructions::probe::ProbeShadowNode>()
                 .ok()?;
-            return Some(Box::new(crate::constructions::probe::ProbeRoot));
+            return Some(Lowered::Generated(GeneratedValue::Typed(Box::new(
+                crate::constructions::probe::ProbeRoot,
+            ))));
         }
         "law_letter" => {
             value
                 .downcast::<crate::constructions::law::LawLetterNode>()
                 .ok()?;
-            return Some(Box::new(crate::constructions::law::LawItem));
+            return Some(Lowered::Generated(GeneratedValue::Typed(Box::new(
+                crate::constructions::law::LawItem,
+            ))));
         }
         _ => {}
     }
-    Some(value)
+    Some(Lowered::Generated(GeneratedValue::Typed(value)))
 }
 
 fn erased_field(

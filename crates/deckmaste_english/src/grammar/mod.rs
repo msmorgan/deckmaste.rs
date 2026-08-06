@@ -1969,6 +1969,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // objects; family order does not decide their selection.
         builder.add_rules_object_attachment_rules();
         if let Some(groups) = activation.groups() {
+            builder.remove_replaced_handwritten(groups);
             let cats = generated::internal_categories(groups);
             generated::register_generated(&mut builder, groups, &cats)
                 .expect("active generated groups must assemble");

@@ -1163,11 +1163,106 @@ mod generated_adapter_tests {
     use super::*;
     use crate::catalog::Catalogs;
     use crate::construction::ConstructionOwner;
+    use crate::constructions::coordination;
     use crate::constructions::probe;
 
     fn probe_category(name: &str) -> Nonterminal {
         let cats = super::super::generated::internal_categories(probe::GROUPS);
         Nonterminal::Generated(cats[name])
+    }
+
+    fn coordination_catalogs() -> Catalogs {
+        Catalogs::default().with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
+    }
+
+    fn generated_coordination(source: &str) -> ParsedNonterminal {
+        let parsed = parse_nonterminal_with_activation(
+            source,
+            &coordination_catalogs(),
+            Nonterminal::NounPhrase,
+            GeneratedActivation::Groups(coordination::GROUPS),
+        )
+        .unwrap_or_else(|error| {
+            panic!("generated coordination did not parse {source:?}: {error:?}")
+        });
+        assert!(
+            parsed.construction_decisions().iter().any(|decision| {
+                matches!(
+                    decision.selected().as_str(),
+                    "noun_phrase_coordination" | "shared_determiner_nominal"
+                ) && decision.owner() == ConstructionOwner::Generated
+            }),
+            "no generated coordination owner recorded for {source:?}: {:#?}",
+            parsed.construction_decisions(),
+        );
+        parsed
+    }
+
+    #[test]
+    fn real_generated_binary_coordination_parses() {
+        let parsed = generated_coordination("an artifact or a creature");
+        let Some(NounPhrase::Coordinated(coordination)) = parsed.noun_phrase() else {
+            panic!(
+                "binary coordination lowered to the wrong syntax: {:?}",
+                parsed.syntax
+            );
+        };
+        assert_eq!(coordination.rest.len(), 1);
+        assert_eq!(coordination.rest[0].comma, crate::features::Comma::Absent);
+    }
+
+    #[test]
+    fn real_generated_oxford_coordination_parses() {
+        let parsed = generated_coordination("an artifact, a creature, and a land");
+        let Some(NounPhrase::Coordinated(coordination)) = parsed.noun_phrase() else {
+            panic!(
+                "Oxford coordination lowered to the wrong syntax: {:?}",
+                parsed.syntax
+            );
+        };
+        assert_eq!(coordination.rest.len(), 2);
+        assert!(
+            coordination
+                .rest
+                .iter()
+                .all(|member| member.comma == crate::features::Comma::Present)
+        );
+    }
+
+    #[test]
+    fn real_generated_nested_coordination_parses() {
+        let parsed = generated_coordination("an artifact and a creature or a land");
+        let Some(NounPhrase::Coordinated(coordination)) = parsed.noun_phrase() else {
+            panic!(
+                "nested coordination lowered to the wrong syntax: {:?}",
+                parsed.syntax
+            );
+        };
+        assert!(
+            matches!(coordination.first.as_ref(), NounPhrase::Coordinated(_))
+                || coordination
+                    .rest
+                    .iter()
+                    .any(|member| matches!(member.phrase, NounPhrase::Coordinated(_))),
+            "one binary group must be nested inside the other: {coordination:#?}",
+        );
+    }
+
+    #[test]
+    fn real_generated_shared_determiner_coordination_parses() {
+        let parsed = generated_coordination("target artifact or creature");
+        let Some(NounPhrase::CoordinatedNominal(coordination)) = parsed.noun_phrase() else {
+            panic!(
+                "shared-determiner coordination lowered to the wrong syntax: {:?}\n{:#?}",
+                parsed.syntax,
+                parsed.construction_decisions(),
+            );
+        };
+        assert_eq!(
+            coordination.determiner,
+            crate::syntax::Determiner::Target(None)
+        );
+        assert_eq!(coordination.rest.len(), 1);
     }
 
     #[test]
