@@ -502,8 +502,20 @@ impl GameState {
         };
         let watcher = Some(self.objects.obj(source).source);
         match &**binder {
-            // A captured reference / existing selection resolves directly.
-            Binder::TheRef(_) | Binder::Existing(_) => true,
+            // A captured reference / existing selection resolves directly —
+            // always payable. A search binder ([CR#701.23b..701.23d]) joins them
+            // here for an unrelated reason: unlike `Choose`, a search's
+            // fail-to-find is never a partial-payment problem — even the
+            // compulsory bare-quantity case explicitly settles for "as many
+            // as exist" ([CR#701.23d]) rather than failing outright, and a
+            // stated-quality search never compels a find at all
+            // ([CR#701.23b]). Searching a zone — even an empty one — is
+            // always a legal outcome, so a search-binder cost is always
+            // payable too.
+            Binder::TheRef(_)
+            | Binder::Existing(_)
+            | Binder::Search { .. }
+            | Binder::SearchOne { .. } => true,
             // ≥ 1 candidate to choose ([CR#601.2b]).
             Binder::ChooseOne { filter, .. } => {
                 !crate::target::candidates_with(self, filter, watcher).is_empty()
@@ -527,13 +539,6 @@ impl GameState {
                 "engine seam: Produce as a cost binder ([CR#601.2h,400.7j]) — no runtime \
                  produce-and-capture primitive, so payability can't be decided; \
                  owner: engine-produce-capture-binder"
-            ),
-            // SEAM: search cost binders — same shape, different missing
-            // primitive (the reveal + shuffle + fail-to-find discipline).
-            Binder::Search { .. } | Binder::SearchOne { .. } => unimplemented!(
-                "engine seam: Search/SearchOne as a cost binder ([CR#601.2h,701.23]) — no runtime \
-                 library-search primitive, so payability can't be decided; \
-                 owner: engine-library-search-primitive"
             ),
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
@@ -1633,6 +1638,54 @@ mod tests {
         assert!(
             state.with_cost_feasible(&with, source, player),
             "a second creature satisfies 'sacrifice another creature'"
+        );
+    }
+
+    /// [CR#701.23b..701.23d]: a search-binder cost is always payable — even the
+    /// compulsory bare-quantity case settles for "as many as exist"
+    /// ([CR#701.23d]) rather than failing outright, unlike `Choose`'s
+    /// no-partial-payment rule. An EMPTY library (the hardest case) still
+    /// doesn't block payment.
+    #[test]
+    fn search_cost_binder_is_always_payable_even_over_an_empty_library() {
+        use deckmaste_core::Binder;
+        use deckmaste_core::Cost;
+        use deckmaste_core::ObjectKind;
+        use deckmaste_core::Quantity;
+
+        let mut state = game();
+        let player = PlayerId(0);
+        let source = make_object_on_battlefield(&mut state, player);
+
+        let search_one = CostComponent::With {
+            binder: Arc::new(Binder::SearchOne {
+                filter: Predicate::Kind(ObjectKind::Card),
+                by: Reference::You,
+                whose: Reference::You,
+                from: vec![Zone::Library].into(),
+                if_none: None,
+            }),
+            body: Cost(Arc::from(vec![])),
+        };
+        assert!(
+            state.with_cost_feasible(&search_one, source, player),
+            "SearchOne over an empty library is still payable"
+        );
+
+        let search = CostComponent::With {
+            binder: Arc::new(Binder::Search {
+                quantity: Quantity::one(),
+                filter: Predicate::Kind(ObjectKind::Card),
+                by: Reference::You,
+                whose: Reference::You,
+                from: vec![Zone::Library].into(),
+                if_none: None,
+            }),
+            body: Cost(Arc::from(vec![])),
+        };
+        assert!(
+            state.with_cost_feasible(&search, source, player),
+            "Search over an empty library is still payable"
         );
     }
 

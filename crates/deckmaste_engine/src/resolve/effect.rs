@@ -10,8 +10,10 @@ use deckmaste_core::DeonticAction;
 use deckmaste_core::Destination;
 use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
+use deckmaste_core::ObjectKind;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::Predicate;
+use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
@@ -136,8 +138,12 @@ impl GameState {
     /// Resolve a [`Binder`](deckmaste_core::Binder) to its bound group of
     /// element ids ([CR#608.2]) — the shared spine of `With`/`Each`/
     /// `Distribute`. `TheRef` is a singleton, `Existing` evaluates its
-    /// `Selection`, and a chooser (`ChooseOne`/`Choose`) reads the picks that a
-    /// prior [`Self::binder_choice`] surfaced into `frame.anaphora.chosen`.
+    /// `Selection`, and a chooser (`ChooseOne`/`Choose`, and the search
+    /// binders `SearchOne`/`Search` [CR#701.23] — a search surfaces its
+    /// hidden-zone candidates the same `ChooseObjects` way) reads the picks
+    /// that a prior [`Self::binder_choice`] surfaced into
+    /// `frame.anaphora.chosen`; a search's picks may be empty (a failed
+    /// find).
     pub(crate) fn resolve_binder(
         &self,
         binder: &deckmaste_core::Binder,
@@ -147,7 +153,10 @@ impl GameState {
         match binder {
             Binder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
             Binder::Existing(selection) => self.eval_selection_set(selection, frame),
-            Binder::ChooseOne { .. } | Binder::Choose { .. } => frame
+            Binder::ChooseOne { .. }
+            | Binder::Choose { .. }
+            | Binder::SearchOne { .. }
+            | Binder::Search { .. } => frame
                 .anaphora
                 .chosen
                 .clone()
@@ -162,16 +171,6 @@ impl GameState {
                 "engine seam: Produce resolved outside OneShotEffect::With ([CR#400.7j]) — With is \
                  the only consumer wired to run a producer's Action and capture its product; \
                  owner: engine-produce-capture-binder"
-            ),
-            // SEAM: search/tutor binders ([CR#701.23a]). Selecting from hidden
-            // zones (library/graveyard) with the reveal + shuffle (and
-            // fail-to-find) discipline has no runtime primitive; resolving
-            // these via the plain `ChooseObjects` chooser would silently skip
-            // reveal/shuffle, so this stays an explicit labeled seam.
-            Binder::Search { .. } | Binder::SearchOne { .. } => unimplemented!(
-                "engine seam: Search/SearchOne binders ([CR#701.23]) — no library-search primitive; \
-                 searching hidden zones with the reveal + shuffle + fail-to-find discipline is \
-                 unbuilt; owner: engine-library-search-primitive"
             ),
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
@@ -205,15 +204,15 @@ impl GameState {
         }
     }
 
-    /// If `binder` is a chooser (`ChooseOne`/`Choose`) whose pick has not yet
-    /// been made, the `(chooser, candidates, min, max)` to surface as a
-    /// `ChooseObjects` decision ([CR#601.2d]); else `None` (a
-    /// `TheRef`/`Existing` binder, or a chooser already resolved into
-    /// `frame.anaphora.chosen`). The chooser is the binder's `by` resolved
-    /// to a player ([CR#608.2d] — default `You` = the controller; "that
-    /// player sacrifices a creature of their choice" routes to the foreign
-    /// actor). Shared by `With`/`Each`/`Distribute` so all three iterate a
-    /// player-chosen group identically.
+    /// If `binder` is a chooser (`ChooseOne`/`Choose`, or a search binder
+    /// `SearchOne`/`Search` [CR#701.23]) whose pick has not yet been made,
+    /// the `(chooser, candidates, min, max)` to surface as a `ChooseObjects`
+    /// decision ([CR#601.2d]); else `None` (a `TheRef`/`Existing` binder, or
+    /// a chooser already resolved into `frame.anaphora.chosen`). The chooser
+    /// is the binder's `by` resolved to a player ([CR#608.2d] — default
+    /// `You` = the controller; "that player sacrifices a creature of their
+    /// choice" routes to the foreign actor). Shared by `With`/`Each`/
+    /// `Distribute` so all three iterate a player-chosen group identically.
     fn binder_choice(
         &self,
         binder: &deckmaste_core::Binder,
@@ -247,6 +246,46 @@ impl GameState {
                 let (min, max) = self.choice_bounds(quantity, candidates.len(), frame);
                 Some((self.acting_player(by, frame), candidates, min, max))
             }
+            // [CR#701.23a]: look at every card in `whose`'s `from` zone(s),
+            // even a hidden one — the server is omniscient, so surfacing the
+            // full candidate set to the searching player IS the "look". The
+            // fail-to-find floor is NOT `Choose`'s: a STATED quality
+            // ([CR#701.23b]) never compels a find even when matches exist
+            // (floor 0); only a BARE quantity (no quality at all —
+            // `search_is_bare_quantity`) is compulsory ([CR#701.23d]), and
+            // even that settles for "as many as possible" once
+            // `choice_bounds` clamps to availability. An UNDEFINED quality
+            // ([CR#701.23c]) needs no separate arm: it can never actually
+            // match a candidate, so it already floors to 0 through the same
+            // mechanism the optional case uses. `SearchOne` is exactly-one
+            // search — reuse `choice_bounds` with `Quantity::one()` so it
+            // clamps to availability the same way `Search`'s own quantity
+            // does.
+            Binder::SearchOne {
+                filter,
+                by,
+                whose,
+                from,
+                ..
+            } => {
+                let candidates = self.search_candidates(whose, from, filter, frame, watcher);
+                let (lo, hi) = self.choice_bounds(&Quantity::one(), candidates.len(), frame);
+                let min = if Self::search_is_bare_quantity(filter) { lo } else { 0 };
+                Some((self.acting_player(by, frame), candidates, min, hi))
+            }
+            Binder::Search {
+                quantity,
+                filter,
+                by,
+                whose,
+                from,
+                ..
+            } => {
+                let candidates = self.search_candidates(whose, from, filter, frame, watcher);
+                let (lo, hi) = self.choice_bounds(quantity, candidates.len(), frame);
+                let min = if Self::search_is_bare_quantity(filter) { lo } else { 0 };
+                Some((self.acting_player(by, frame), candidates, min, hi))
+            }
             // [CR#607.2a,608.2d]: a CONSTRAINING `AmongNoted` inside `Existing`
             // ("exile two of THEM") is a chooser over the noted group's LIVE
             // members — surface the same `ChooseObjects` a `Choose` binder does,
@@ -263,6 +302,39 @@ impl GameState {
             }
             _ => None,
         }
+    }
+
+    /// The candidates a search binder ([CR#701.23]) offers: every object
+    /// owned by `whose`, currently in one of the `from` zones, matching
+    /// `filter` — computed directly against the (possibly hidden) zone
+    /// rather than the whole-game `candidates_with` scan, since a search's
+    /// domain is a specific player's specific zone(s), not "anywhere".
+    fn search_candidates(
+        &self,
+        whose: &Reference,
+        from: &[Zone],
+        filter: &Predicate,
+        frame: &Frame,
+        watcher: Option<crate::object::ObjectSource>,
+    ) -> Vec<ObjectId> {
+        let whose_player = self.acting_player(whose, frame);
+        self.objects
+            .iter()
+            .filter(|o| o.zone.is_some_and(|z| from.contains(&z)))
+            .filter(|o| self.owner_of(o.id) == whose_player)
+            .filter(|o| crate::target::matches_with(self, o.id, filter, watcher))
+            .map(|o| o.id)
+            .collect()
+    }
+
+    /// Whether `filter` states NO quality at all — "a card"/"N cards", the
+    /// bare-quantity search [CR#701.23d] compels finding that many (or as
+    /// many as exist); anything else is a STATED quality
+    /// ([CR#701.23b]), which never compels a find even when matches are
+    /// present. `Kind(Card)` is what the migrations parser emits for a bare
+    /// "a card"; `Any` is its match-everything twin.
+    fn search_is_bare_quantity(filter: &Predicate) -> bool {
+        matches!(filter, Predicate::Kind(ObjectKind::Card) | Predicate::Any)
     }
 
     /// [CR#701.9b] "at random": when `binder` is
@@ -1019,6 +1091,21 @@ impl GameState {
                     return;
                 }
                 let group = self.resolve_binder(&with.binder, frame);
+                // [CR#701.23b..701.23d]: a search binder's WHIFF branch — a failed
+                // find runs `if_none` INSTEAD of the body, on the frame
+                // UNCHANGED (no `That` binding; reading the search's `That`
+                // inside `if_none` is unsound, per the binder's own doc).
+                // Every other binder always binds and always runs body; only
+                // `SearchOne`/`Search` carry an `if_none`.
+                if group.is_empty()
+                    && let Some(otherwise) = search_if_none(&with.binder)
+                {
+                    self.schedule_front(vec![WorkItem::RunEffect {
+                        effect: otherwise,
+                        frame: frame.clone(),
+                    }]);
+                    return;
+                }
                 let cardinality = Self::binder_cardinality(&with.binder);
                 let kind = group
                     .first()
@@ -1971,6 +2058,19 @@ fn among_noted_choice(
         {
             Some((label, quantity))
         }
+        _ => None,
+    }
+}
+
+/// A search binder's ([CR#701.23]) `if_none` branch, if `binder` is
+/// `SearchOne`/`Search` and it has one — the WHIFF effect to run instead of
+/// the body on a failed find. `None` for every other binder shape, or a
+/// search binder with no `if_none` (the corpus-common bare tutor: the body
+/// runs regardless, gracefully fizzling its `That`-reading verbs).
+fn search_if_none(binder: &deckmaste_core::Binder) -> Option<Arc<OneShotEffect>> {
+    use deckmaste_core::Binder;
+    match binder {
+        Binder::SearchOne { if_none, .. } | Binder::Search { if_none, .. } => if_none.clone(),
         _ => None,
     }
 }
@@ -5728,6 +5828,449 @@ mod tests {
         for _ in 0..10 {
             state.step();
         }
+    }
+
+    /// [CR#701.23a,701.23b]: a stated-quality search (Rampant Growth: "search
+    /// your library for a basic land card, put it onto the battlefield
+    /// tapped, then shuffle") end-to-end — the engine surfaces the hidden
+    /// library as `ChooseObjects` candidates (a non-match never offered), the
+    /// player finds the land, and the BODY (not the binder) moves/shuffles
+    /// it. No reveal step in this shape, so no `Revealed` fact.
+    #[test]
+    fn search_one_semantic_land_tutor_finds_moves_and_shuffles() {
+        use deckmaste_core::Destination;
+        use deckmaste_core::EnterRider;
+        use deckmaste_core::Sort;
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let forest = mint_library_top(&mut state, p0, "Forest", Type::Land);
+        let bear = mint_library_top(&mut state, p0, "Bear", Type::Creature);
+        let frame = frame_for(&state, p0);
+
+        let effect = OneShotEffect::With(With {
+            binder: Binder::SearchOne {
+                filter: Predicate::r#type(Type::Land),
+                by: Reference::You,
+                whose: Reference::You,
+                from: vec![Zone::Library].into(),
+                if_none: None,
+            },
+            body: Arc::new(OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(Action::Move(
+                        Reference::That(Sort::Card),
+                        Destination::Zone(Zone::Battlefield),
+                        vec![EnterRider::Tapped].into(),
+                        None,
+                    )),
+                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You))),
+                ]
+                .into(),
+            )),
+        });
+        state.run_effect(effect, &frame);
+
+        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            player,
+            candidates,
+            min,
+            max,
+        })) = state.pending.clone()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0);
+        assert_eq!(
+            candidates,
+            vec![forest],
+            "the bear doesn't match the land filter — only the land is offered"
+        );
+        assert_eq!(
+            (min, max),
+            (0, 1),
+            "a STATED quality never compels a find ([CR#701.23b])"
+        );
+
+        state
+            .submit_decision(Decision::Chosen(vec![forest]))
+            .expect("the land is a legal find");
+        run_injected(&mut state);
+
+        // A zone change remints a fresh id ([CR#400.7]) — chase the move.
+        let landed = state.chase_moved(forest);
+        assert!(
+            state.zones.battlefield.contains(&landed),
+            "the found land landed on the battlefield"
+        );
+        assert!(
+            state.objects.obj(landed).tapped,
+            "the body's own Tapped enter-rider applied"
+        );
+        assert!(
+            state.zones.libraries[p0.index()].contains(&bear),
+            "the non-match stayed in the library"
+        );
+        assert!(
+            logged(&state, |e| matches!(e, GameEvent::Shuffled(p) if *p == p0)),
+            "the body's own Shuffle step ran ([CR#701.24a])"
+        );
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Revealed(_))),
+            "no reveal step in the body ([CR#701.23e]) — nothing revealed"
+        );
+    }
+
+    /// [CR#701.23e]: reveal happens ONLY when the effect says to — a body
+    /// that opens with `Reveal(That)` produces a `Revealed` fact naming the
+    /// found card.
+    #[test]
+    fn search_one_reveal_step_in_body_reveals_the_found_card() {
+        use deckmaste_core::Destination;
+        use deckmaste_core::Sort;
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+        use crate::event::Revealed;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let forest = mint_library_top(&mut state, p0, "Forest", Type::Land);
+        let frame = frame_for(&state, p0);
+
+        let effect = OneShotEffect::With(With {
+            binder: Binder::SearchOne {
+                filter: Predicate::r#type(Type::Land),
+                by: Reference::You,
+                whose: Reference::You,
+                from: vec![Zone::Library].into(),
+                if_none: None,
+            },
+            body: Arc::new(OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(Action::Reveal {
+                        what: Reference::That(Sort::Card),
+                        to: None,
+                    }),
+                    OneShotEffect::Act(Action::Move(
+                        Reference::That(Sort::Card),
+                        Destination::Zone(Zone::Hand),
+                        vec![].into(),
+                        None,
+                    )),
+                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You))),
+                ]
+                .into(),
+            )),
+        });
+        state.run_effect(effect, &frame);
+        state
+            .submit_decision(Decision::Chosen(vec![forest]))
+            .expect("the land is a legal find");
+        run_injected(&mut state);
+
+        assert!(
+            logged(&state, |e| matches!(
+                e,
+                GameEvent::Revealed(Revealed { objects, .. }) if objects == &vec![forest]
+            )),
+            "the body's Reveal step ran and named the found card"
+        );
+    }
+
+    /// [CR#701.23d]: a BARE quantity ("search your library for a card") — no
+    /// stated quality — compels the find whenever the zone has one, unlike
+    /// the stated-quality floor the test above pins.
+    #[test]
+    fn search_one_bare_quantity_compels_a_find_when_present() {
+        use deckmaste_core::Destination;
+        use deckmaste_core::Sort;
+        use deckmaste_core::With;
+
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let card = mint_library_top(&mut state, p0, "Anything", Type::Creature);
+        let frame = frame_for(&state, p0);
+
+        state.run_effect(
+            OneShotEffect::With(With {
+                binder: Binder::SearchOne {
+                    filter: Predicate::Kind(ObjectKind::Card),
+                    by: Reference::You,
+                    whose: Reference::You,
+                    from: vec![Zone::Library].into(),
+                    if_none: None,
+                },
+                body: Arc::new(OneShotEffect::Act(Action::Move(
+                    Reference::That(Sort::Card),
+                    Destination::Zone(Zone::Hand),
+                    vec![].into(),
+                    None,
+                ))),
+            }),
+            &frame,
+        );
+
+        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            candidates,
+            min,
+            max,
+            ..
+        })) = state.pending.clone()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(candidates, vec![card]);
+        assert_eq!(
+            (min, max),
+            (1, 1),
+            "a bare quantity compels the find ([CR#701.23d])"
+        );
+    }
+
+    /// [CR#701.23d]: "or as many as possible" — a bare-quantity search over
+    /// an EMPTY zone degrades to a legal zero-find, never an impossible
+    /// decision, and the body (which shuffles) still runs.
+    #[test]
+    fn search_one_bare_quantity_finds_none_from_an_empty_library() {
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+
+        state.run_effect(
+            OneShotEffect::With(With {
+                binder: Binder::SearchOne {
+                    filter: Predicate::Kind(ObjectKind::Card),
+                    by: Reference::You,
+                    whose: Reference::You,
+                    from: vec![Zone::Library].into(),
+                    if_none: None,
+                },
+                body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
+                    Reference::You,
+                )))),
+            }),
+            &frame,
+        );
+
+        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            candidates,
+            min,
+            max,
+            ..
+        })) = state.pending.clone()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert!(candidates.is_empty());
+        assert_eq!((min, max), (0, 0), "an empty zone can't force a find");
+
+        state
+            .submit_decision(Decision::Chosen(vec![]))
+            .expect("zero is the only legal answer");
+        run_injected(&mut state);
+        assert!(
+            logged(&state, |e| matches!(e, GameEvent::Shuffled(p) if *p == p0)),
+            "the body still runs (and shuffles) on a failed find ([CR#608.2c])"
+        );
+    }
+
+    /// [CR#701.23b]: a STATED quality never compels a find — the player may
+    /// decline even with a match sitting right there; the body still runs
+    /// (and shuffles) on the decline.
+    #[test]
+    fn search_one_stated_quality_may_decline_a_present_match() {
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let forest = mint_library_top(&mut state, p0, "Forest", Type::Land);
+        let frame = frame_for(&state, p0);
+
+        state.run_effect(
+            OneShotEffect::With(With {
+                binder: Binder::SearchOne {
+                    filter: Predicate::r#type(Type::Land),
+                    by: Reference::You,
+                    whose: Reference::You,
+                    from: vec![Zone::Library].into(),
+                    if_none: None,
+                },
+                body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
+                    Reference::You,
+                )))),
+            }),
+            &frame,
+        );
+        state
+            .submit_decision(Decision::Chosen(vec![]))
+            .expect("declining is legal even though the land matches");
+        run_injected(&mut state);
+
+        assert!(
+            state.zones.libraries[p0.index()].contains(&forest),
+            "the declined land stays in the library"
+        );
+        assert!(
+            logged(&state, |e| matches!(e, GameEvent::Shuffled(p) if *p == p0)),
+            "the body still shuffles even on a decline"
+        );
+    }
+
+    /// [CR#701.23b..701.23d]: `if_none` runs INSTEAD of the body on a failed
+    /// find, with no `That` bound. The body's own Shuffle step never fires on
+    /// this path, so a card whose printed "then shuffle" must survive a failed
+    /// find has to spell that Shuffle inside `if_none` too. The shuffle is
+    /// printed text, not a rules guarantee, so this is an authoring
+    /// constraint rather than an engine gap; the corpus never populates
+    /// `if_none` today.
+    #[test]
+    fn search_if_none_runs_instead_of_body_on_a_failed_find() {
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        // No land in the library — the stated-quality filter can't match.
+        mint_library_top(&mut state, p0, "Bear", Type::Creature);
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+
+        state.run_effect(
+            OneShotEffect::With(With {
+                binder: Binder::SearchOne {
+                    filter: Predicate::r#type(Type::Land),
+                    by: Reference::You,
+                    whose: Reference::You,
+                    from: vec![Zone::Library].into(),
+                    if_none: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                        Reference::You,
+                        LifeOp::Down(Count::Literal(1)),
+                    )))),
+                },
+                body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
+                    Reference::You,
+                )))),
+            }),
+            &frame,
+        );
+        state
+            .submit_decision(Decision::Chosen(vec![]))
+            .expect("zero is the only legal answer — no land to find");
+        run_injected(&mut state);
+
+        assert_eq!(
+            state.player(p0).life,
+            life0 - 1,
+            "if_none ran on the failed find"
+        );
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Shuffled(p) if *p == p0)),
+            "if_none replaces the body outright — the body's Shuffle never ran"
+        );
+    }
+
+    /// A plural `Search` ([CR#701.23]) binds the found set as a GROUP `That`
+    /// — the body's `Each(Existing(They), …)` iterates every found card, not
+    /// just one, proving the many-binder's group binding (not just
+    /// `SearchOne`'s singular `That`) actually works.
+    #[test]
+    fn search_many_binds_the_found_group_as_they() {
+        use deckmaste_core::Destination;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::Reference as R;
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let a = mint_library_top(&mut state, p0, "Forest A", Type::Land);
+        let b = mint_library_top(&mut state, p0, "Forest B", Type::Land);
+        let bear = mint_library_top(&mut state, p0, "Bear", Type::Creature);
+        let frame = frame_for(&state, p0);
+
+        state.run_effect(
+            OneShotEffect::With(With {
+                binder: Binder::Search {
+                    quantity: Quantity::Range(Some(Count::Literal(0)), Some(Count::Literal(2))),
+                    filter: Predicate::r#type(Type::Land),
+                    by: Reference::You,
+                    whose: Reference::You,
+                    from: vec![Zone::Library].into(),
+                    if_none: None,
+                },
+                body: Arc::new(OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::Each(deckmaste_core::Each {
+                            binder: Binder::Existing(Selection::They),
+                            effect: Arc::new(OneShotEffect::Act(Action::Move(
+                                R::It,
+                                Destination::Zone(Zone::Hand),
+                                vec![].into(),
+                                None,
+                            ))),
+                        }),
+                        OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(R::You))),
+                    ]
+                    .into(),
+                )),
+            }),
+            &frame,
+        );
+
+        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            candidates,
+            min,
+            max,
+            ..
+        })) = state.pending.clone()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        let mut got = candidates.clone();
+        got.sort();
+        let mut want = vec![a, b];
+        want.sort();
+        assert_eq!(got, want, "the bear doesn't match; both lands do");
+        assert_eq!(
+            (min, max),
+            (0, 2),
+            "up to two, never compelled ([CR#701.23b])"
+        );
+
+        state
+            .submit_decision(Decision::Chosen(vec![a, b]))
+            .expect("both lands are legal finds");
+        run_injected(&mut state);
+        // A zone change remints a fresh id ([CR#400.7]), so the moved
+        // objects aren't `a`/`b` themselves anymore — check counts and the
+        // untouched non-match's identity instead.
+        assert_eq!(
+            state.zones.hands[p0.index()].len(),
+            2,
+            "the body's Each(They) iterated BOTH found cards — the group `That` bound both"
+        );
+        assert_eq!(
+            state.zones.libraries[p0.index()],
+            vec![bear],
+            "only the non-match is left in the library"
+        );
     }
 
     /// Mint a single card of type `ty` onto the (empty) top of `owner`'s
