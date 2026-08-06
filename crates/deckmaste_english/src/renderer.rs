@@ -327,6 +327,63 @@ struct GeneratedCoordinationRenderer<'renderer, 'identity> {
     skip_payload_subtrees: usize,
 }
 
+struct GeneratedSentenceRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    capitalize: bool,
+    rendered: Option<(String, bool)>,
+}
+
+impl<'renderer, 'identity> GeneratedSentenceRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>, capitalize: bool) -> Self {
+        Self {
+            renderer,
+            capitalize,
+            rendered: None,
+        }
+    }
+
+    fn finish(self) -> (String, bool) {
+        self.rendered
+            .expect("the sentence declaration always visits its Clause hole")
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedSentenceRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        let (rendered, _) = self
+            .rendered
+            .as_mut()
+            .expect("the sentence declaration visits its body before punctuation");
+        rendered.push_str(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(category, "Clause");
+        let body = (value as &dyn std::any::Any)
+            .downcast_ref::<SentenceBody>()
+            .expect("the sentence declaration's Clause adapter supplies SentenceBody");
+        self.rendered = Some(self.renderer.sentence_body(body, self.capitalize)?);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        panic!("sentence declaration has no `{codec}` scalar")
+    }
+}
+
 impl<'renderer, 'identity> GeneratedCoordinationRenderer<'renderer, 'identity> {
     fn new(renderer: &'renderer Renderer<'identity>) -> Self {
         Self {
@@ -1022,14 +1079,34 @@ impl<'identity> Renderer<'identity> {
             sentence_terminal_quote(sentence).map(std::ptr::from_ref)
         };
         let previous = self.terminal_quote.replace(published);
-        let body = self.sentence_body(sentence, capitalize);
+        let form = if !force_no_period && self.sentence_takes_period(sentence) {
+            crate::constructions::sentence::period_form_ordinal()
+        } else {
+            crate::constructions::sentence::terminal_form_ordinal()
+        };
+        let mut visitor = GeneratedSentenceRenderer::new(self, capitalize);
+        let body = if form == crate::constructions::sentence::period_form_ordinal() {
+            crate::constructions::sentence::linearize_sentence_with(sentence, &mut visitor)
+        } else {
+            crate::constructions::sentence::linearize_sentence_form_with(
+                sentence,
+                form,
+                &mut visitor,
+            )
+        };
         self.terminal_quote.set(previous);
-        let (body, capitalize) = body?;
-        let mut rendered = if capitalize { capitalize_first(body) } else { body };
-        if !force_no_period && self.sentence_takes_period(sentence) {
-            rendered.push('.');
+        match body {
+            Ok(()) => {
+                let (body, capitalize) = visitor.finish();
+                Ok(if capitalize { capitalize_first(body) } else { body })
+            }
+            Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+                Err(error)
+            }
+            Err(error) => {
+                unreachable!("sentence renderer selects a declared form ordinal: {error:?}")
+            }
         }
-        Ok(rendered)
     }
 
     /// Renders a sentence's body, reporting whether the result still wants
@@ -1037,10 +1114,10 @@ impl<'identity> Renderer<'identity> {
     /// terminal-quote channel is restored on the error path as well.
     fn sentence_body(
         &self,
-        sentence: &Sentence,
+        body: &SentenceBody,
         capitalize: bool,
     ) -> Result<(String, bool), RenderError> {
-        Ok(match &sentence.body {
+        Ok(match body {
             SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
             SentenceBody::Choice(choice) => (self.choice_instruction(choice)?, capitalize),
             SentenceBody::PowerToughness(value) => (
@@ -2512,6 +2589,13 @@ fn sentence_terminal_quote(sentence: &Sentence) -> Option<&QuotedAbility> {
         SentenceBody::Triggered(triggered) => &triggered.effect,
     };
     independent_clause_terminal_quote(clause)
+}
+
+/// Whether sentence structure itself supplies a terminator without renderer
+/// context such as a card name or modal-header suffix.
+pub(crate) fn sentence_has_structural_terminator(sentence: &Sentence) -> bool {
+    matches!(sentence.body, SentenceBody::Recovered(_))
+        || sentence_terminal_quote(sentence).is_some()
 }
 
 /// The closed quoted ability a clause's final *rendered* constituent is, if

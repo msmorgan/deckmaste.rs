@@ -338,6 +338,14 @@ fn lower_generated_construction(
         Some(projector) => projector(value).ok()?,
         None => value,
     };
+    if construction.id == "sentence"
+        && form.ordinal == crate::constructions::sentence::period_form_ordinal()
+    {
+        let sentence = value.downcast_ref::<Sentence>()?;
+        if crate::renderer::sentence_has_structural_terminator(sentence) {
+            return None;
+        }
+    }
     let projected = project_generated_category(construction, value)?;
     match (rule.context, preposition, projected) {
         (super::rules::GeneratedRuleContext::Value, None, projected) => Some(projected),
@@ -360,6 +368,10 @@ fn project_generated_category(
     if construction.category == "NounPhrase" {
         let value = value.downcast::<NounPhrase>().ok()?;
         return Some(Lowered::NounPhrase(*value));
+    }
+    if construction.category == "Sentence" {
+        let value = value.downcast::<Sentence>().ok()?;
+        return Some(Lowered::Sentence(*value));
     }
     #[cfg(test)]
     match construction.id {
@@ -478,6 +490,13 @@ fn erased_subtree(
             let Lowered::Clause(Clause::Independent(value)) = value else {
                 return None;
             };
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        "Clause" => {
+            let Lowered::Clause(Clause::Independent(value)) = value else {
+                return None;
+            };
+            let value = crate::syntax::SentenceBody::Independent(value);
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "KeywordArgument" => {
@@ -839,8 +858,9 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::CopularRemainderCoordinatedAdjective
-        | RuleTag::RelativeContractedCopularCoordinatedAdjective
-        | RuleTag::Sentence => clause::lower_clause(tag, children),
+        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
+            clause::lower_clause(tag, children)
+        }
         RuleTag::NounOpaque => opacity::lower_opacity(tag, children),
     }
 }

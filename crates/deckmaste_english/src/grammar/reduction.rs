@@ -221,8 +221,9 @@ pub(super) fn reduce(
         | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::CopularRemainderCoordinatedAdjective
-        | RuleTag::RelativeContractedCopularCoordinatedAdjective
-        | RuleTag::Sentence => clause::reduce_clause(tag, children)?,
+        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
+            clause::reduce_clause(tag, children)?
+        }
         RuleTag::NounOpaque => opacity::reduce_opacity(tag, children)?,
     };
     let mut local_cost = clause::reduction_cost(tag, children);
@@ -2457,6 +2458,19 @@ fn generated_construction_features(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     fields: &[Option<&Features>],
 ) -> Option<Features> {
+    if construction.id == "sentence" {
+        let [
+            Some(Features::Clause {
+                standalone: true,
+                subjunctive: false,
+                ..
+            }),
+        ] = fields
+        else {
+            return None;
+        };
+        return Some(Features::Sentence);
+    }
     let feature = match construction.feature_combinators {
         [] => return Some(Features::None),
         [feature] => feature,

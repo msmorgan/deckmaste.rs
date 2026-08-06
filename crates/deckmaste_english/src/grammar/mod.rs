@@ -1908,7 +1908,6 @@ enum RuleTag {
     /// The `["only", <adjunct-or-if-clause>]` production building one
     /// restriction-run member.
     ClauseRestrictionMember,
-    Sentence,
     NounOpaque,
     FrequencyPhrase,
     /// A coordinable modifier atom built from an adjective phrase.

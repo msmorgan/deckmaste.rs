@@ -697,6 +697,18 @@ pub struct Sentence {
     pub body: SentenceBody,
 }
 
+impl Sentence {
+    pub(crate) fn from_body(body: SentenceBody) -> Self {
+        crate::constructions::sentence::build_sentence(body)
+            .expect("SentenceBody has no fallible construction invariant")
+    }
+
+    #[must_use]
+    pub fn body(&self) -> &SentenceBody {
+        crate::constructions::sentence::parts_sentence(self)
+    }
+}
+
 #[allow(
     clippy::large_enum_variant,
     reason = "sentence bodies can legitimately hold a large independent clause payload"

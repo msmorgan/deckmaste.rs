@@ -271,7 +271,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn sentence(&mut self, sentence: &'syntax Sentence, context: Option<RecoveryRole>) {
-        match &sentence.body {
+        match sentence.body() {
             SentenceBody::Independent(clause) => self.independent_clause(clause, context),
             SentenceBody::Choice(choice) => self.choice_instruction(choice, context),
             SentenceBody::PowerToughness(_) => {}
@@ -1311,7 +1311,7 @@ mod tests {
     fn paragraph_body(body: SentenceBody) -> Paragraph {
         Paragraph {
             flavor_header: None,
-            sentences: vec![Sentence { body }],
+            sentences: vec![Sentence::from_body(body)],
         }
     }
 }

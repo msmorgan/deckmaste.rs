@@ -871,6 +871,7 @@ fn constituent_spans_cross(left: Span, right: Span) -> bool {
 #[cfg(test)]
 mod root_lowering_tests {
     use super::*;
+    use crate::construction::ConstructionOwner;
     use crate::syntax::IndependentClause;
 
     /// The pre-ticket algorithm: choose exactly one root by cost and stable
@@ -916,6 +917,30 @@ mod root_lowering_tests {
         Catalogs::default()
             .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
             .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"])
+    }
+
+    #[test]
+    fn sentence_root_reports_one_generated_family_and_declared_form_ordinals() {
+        // Mutation caught: restore either handwritten Sentence production.
+        // Both real surfaces must select the same generated construction;
+        // their independently declared ordinals preserve exact form identity.
+        for (source, expected_ordinal) in [("Draw a card.", 0), ("Draw a card", 1)] {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence)
+                .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+            let decision = parsed
+                .construction_decisions()
+                .iter()
+                .find(|decision| decision.selected().as_str() == "sentence")
+                .unwrap_or_else(|| panic!("no sentence construction decision: {parsed:#?}"));
+            assert_eq!(decision.owner(), ConstructionOwner::Generated);
+            let ordinal = decision
+                .alternatives()
+                .iter()
+                .find(|alternative| alternative.id().as_str() == "sentence")
+                .expect("the selected sentence family names its production")
+                .production_ordinal();
+            assert_eq!(ordinal, expected_ordinal, "{source:?}");
+        }
     }
 
     #[test]

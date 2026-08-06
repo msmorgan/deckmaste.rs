@@ -39,7 +39,6 @@ use crate::syntax::RelativeBody;
 use crate::syntax::RelativeMarker;
 use crate::syntax::RestrictionCoordination;
 use crate::syntax::RestrictionRun;
-use crate::syntax::SentenceBody;
 use crate::syntax::SubordinateBody;
 
 mod lowering;

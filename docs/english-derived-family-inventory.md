@@ -12,24 +12,25 @@ The chart census comes from `RuleTag` in
 `crates/deckmaste_english/src/grammar/mod.rs`. `RuleTag` derives `EnumIter` and
 `IntoStaticStr` with `snake_case`, and
 `grammar/construction.rs::handwritten_registry` maps every iterated tag to one
-handwritten, fan-out-one chart row. The merged production registry adds two
-already-generated rows, `noun_phrase_coordination` and
+handwritten, fan-out-one chart row. The merged production registry adds three
+generated rows: `sentence`, `noun_phrase_coordination`, and
 `shared_determiner_nominal`; they are not remaining work. The ability census
 comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 190 | 2 | 192 |
+| chart construction registry | 189 | 3 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 193 | 2 | 195 |
+| migration inventory | 192 | 3 | 195 |
 
-Every one of the 190 chart IDs occurs once in exactly one unit below. The unit
-counts sum to 190. The three ability IDs occur once in A01. Thus the remaining
-work is 193 families, with no `later` row. No raw corpus query was needed for
-this accounting; the census is grounded in the registry and the current
-`FragmentKind` dispatch. Future corpus evidence must use supported faces, and
-normalized-template questions must use the existing English instruments.
+Every one of the 192 chart IDs occurs once in the ledger below: 189 remain
+handwritten, while S01 and the two coordination rows are generated. The three
+ability IDs occur once in A01. Thus the remaining work is 192 families, with
+no `later` row. No raw corpus query was needed for this accounting; the census
+is grounded in the registry and the current `FragmentKind` dispatch. Future
+corpus evidence must use supported faces, and normalized-template questions
+must use the existing English instruments.
 
 ## How to read the unit records
 
@@ -102,7 +103,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | valency, form, and attachment constraints |
 | F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, structural design, tuple yields |
 | R01 relative clause | 8 | C3 | `english-derived-relative-clause-family` | valency and gaps |
-| S01 sentence | 1 | C1 | `english-derived-sentence-family` | inventory |
+| S01 sentence | 1 | C1 | `english-derived-sentence-family` | generated |
 | C01 phrase coordination | 15 | C4 | `english-derived-phrase-coordination-family` | lens, valency, structural design, tuple yields |
 | A01 ability layer | 3 | C5 | `english-ability-construction-backend` | inventory |
 
@@ -532,8 +533,11 @@ permanent exception.
 
 **Stable ID (1):** `sentence`.
 
-- **Owners and AST:** CR → `Sentence`/`SentenceBody`; REN and SYN-A own output
-  and ingress.
+**Status:** generated.
+
+- **Owners and AST:** the `sentence` declaration and generated chart adapter →
+  `Sentence`/`SentenceBody`; REN linearizes the declaration and SYN-A routes
+  ingress through its checked builder.
 - **Holes and constraints:** one whole `Clause` subtree; no local hole or
   selection upgrade is needed.
 - **Ambiguity/backend:** fan-out one on Chart, no dominance edge. The two
@@ -643,7 +647,7 @@ one change. It must also run the build-excluding parent/current
 so a family migration cannot hide work growth in failed or abandoned paths.
 It may not defer any of those to completion.
 
-The completion node depends on all fifteen chart tickets and the existing
-ability-backend ticket. Its final audit therefore has 193 newly migrated plus
-two already-generated families—195 generated families in all—to prove, with no
-handwritten or unregistered family left to discover.
+The completion node depends on the remaining fourteen chart tickets and the
+existing ability-backend ticket. Its final audit therefore has 192 newly
+migrated plus three already-generated families—195 generated families in
+all—to prove, with no handwritten or unregistered family left to discover.

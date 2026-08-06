@@ -1328,10 +1328,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return sentence;
         }
         if let Some(body) = self.parse_power_toughness_body(tokens) {
-            return Sentence { body };
+            return Sentence::from_body(body);
         }
         if let Some(body) = self.attempt(|parser| parser.parse_triggered_sentence(tokens)) {
-            return Sentence { body };
+            return Sentence::from_body(body);
         }
 
         self.diagnostics.push(AbilityDiagnostic {
@@ -1343,12 +1343,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // renderer therefore never appends a period to a recovered sentence.
         // (`source_tokens` still counts the whole span, so the recovery census
         // is unchanged.)
-        Sentence {
-            body: SentenceBody::Recovered(RecoveredText::new(
-                self.tokens_text(tokens),
-                tokens.len(),
-            )),
-        }
+        Sentence::from_body(SentenceBody::Recovered(RecoveredText::new(
+            self.tokens_text(tokens),
+            tokens.len(),
+        )))
     }
 
     /// Parses a sentence whose body is a trigger clause plus its effect.
@@ -1429,16 +1427,16 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             };
             Self::coordinates_with_or(body).then(|| body.clone())
         })?;
-        Some(Sentence {
-            body: SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
+        Some(Sentence::from_body(SentenceBody::Independent(
+            IndependentClause::Complex(ComplexClause {
                 matrix: Box::new(matrix),
                 attachments: vec![ClauseAttachment {
                     position: AttachmentPosition::AfterMatrix,
                     comma: crate::features::Comma::Absent,
                     payload: ClauseAttachmentKind::Appositive(Box::new(body)),
                 }],
-            })),
-        })
+            }),
+        )))
     }
 
     /// Position of the first top-level spaced em dash (` — `), or `None`. The
@@ -1529,9 +1527,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn parse_choice_sentence(&mut self, tokens: &[Token]) -> Sentence {
         let body = peel_sentence_ending(tokens);
         if let Some(choice) = self.attempt(|parser| parser.parse_choice_instruction(body)) {
-            return Sentence {
-                body: SentenceBody::Choice(choice),
-            };
+            return Sentence::from_body(SentenceBody::Choice(choice));
         }
         self.parse_sentence(tokens)
     }
@@ -1683,9 +1679,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         } else {
             self.quoted_grant_object_clause(prefix, quoted)?
         };
-        Some(Sentence {
-            body: SentenceBody::Independent(clause),
-        })
+        Some(Sentence::from_body(SentenceBody::Independent(clause)))
     }
 
     /// Attaches a quoted ability as the object of a `with` postmodifier on the

@@ -160,8 +160,7 @@ pub(in crate::grammar) fn reduce_clause(
         | RuleTag::ExceptionRiderOxford
         | RuleTag::ClauseExcepted
         | RuleTag::ClauseRestrictionMember
-        | RuleTag::ClauseRestrictionRun
-        | RuleTag::Sentence => reduce_composed_clause(tag, children),
+        | RuleTag::ClauseRestrictionRun => reduce_composed_clause(tag, children),
         _ => None,
     }
 }
@@ -2080,17 +2079,6 @@ pub(super) fn reduce_composed_clause(
                 }
                 _ => None,
             }
-        }
-        RuleTag::Sentence => {
-            let Features::Clause {
-                standalone: true,
-                subjunctive: false,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::Sentence)
         }
         _ => None,
     }

@@ -5,3 +5,8 @@ pub(crate) mod coordination;
 pub(crate) mod law;
 #[cfg(test)]
 pub(crate) mod probe;
+pub(crate) mod sentence;
+
+use deckmaste_construction_compiler::runtime::GroupData;
+
+pub(crate) static GROUPS: &[&GroupData] = &[coordination::GROUPS[0], sentence::GROUPS[0]];

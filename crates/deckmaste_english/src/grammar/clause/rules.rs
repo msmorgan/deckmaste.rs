@@ -534,16 +534,6 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::SubjectAuxiliary), n(N::PrepositionalPhrase)],
     );
 
-    // Both rules carry the same tag: the terminal period is derivable from the
-    // sentence's structure at render time, so the parse need not record whether
-    // it was present. The period-consuming rule simply discards the token.
-    builder.add(
-        RuleTag::Sentence,
-        N::Sentence,
-        [n(N::Clause), l(L::Punctuation(Punctuation::Period))],
-    );
-    builder.add(RuleTag::Sentence, N::Sentence, [n(N::Clause)]);
-
     // The productions below are appended after every pre-existing rule so their
     // rule indices are the highest in the grammar. The forest's equal-cost
     // tiebreak prefers the lowest rule index, so a new production that competes

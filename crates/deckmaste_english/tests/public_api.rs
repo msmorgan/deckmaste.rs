@@ -5,11 +5,14 @@ use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::ConstructionBackend;
 use deckmaste_english::ConstructionOwner;
+use deckmaste_english::FragmentKind;
 use deckmaste_english::Numeral;
 use deckmaste_english::ParseSelection;
 use deckmaste_english::SelectionReason;
+use deckmaste_english::parse_fragment;
 use deckmaste_english::parse_with_catalogs;
 use deckmaste_english::parse_with_identity;
+use deckmaste_english::render_fragment;
 use deckmaste_english::syntax::*;
 use deckmaste_english::word::*;
 use serde::Serialize;
@@ -38,6 +41,62 @@ fn predicated_keyword_single_pp_keeps_generic_ast_with_declared_dominance() {
     assert!(decision.alternatives().iter().any(|candidate| {
         candidate.id().as_str() == "nominal_keyword_predicated_argument" && candidate.is_dominated()
     }));
+}
+
+#[test]
+fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
+    // Mutation caught: restore the handwritten Sentence route or store/guess
+    // punctuation instead of deriving it from the terminal quote structure.
+    let catalogs = Catalogs::default()
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+        .with_catalog(CatalogKind::CreatureType, ["Satyr"]);
+    let punctuated = parse_with_catalogs("Draw a card.", &catalogs);
+    let bare = parse_with_catalogs("Draw a card", &catalogs);
+    assert_eq!(punctuated.ast(), bare.ast());
+
+    let sentence = punctuated
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .find(|decision| decision.selected().as_str() == "sentence")
+        .expect("the public report includes its selected sentence construction");
+    assert_eq!(sentence.owner(), ConstructionOwner::Generated);
+    assert_eq!(sentence.backend(), ConstructionBackend::Chart);
+
+    let quoted = "Enchanted creature has \"{T}: Draw a card.\"";
+    let quoted_report = parse_with_catalogs(quoted, &catalogs);
+    assert_eq!(
+        quoted_report
+            .ast()
+            .render("Test Card", false)
+            .expect("quote-terminal AST renders"),
+        quoted,
+    );
+
+    let doubled = "Enchanted creature has \"{T}: Draw a card.\".";
+    let doubled_report = parse_fragment(
+        doubled,
+        &catalogs,
+        FragmentKind::Sentence,
+        "Test Card",
+        false,
+    );
+    assert!(doubled_report.fragment().is_none());
+
+    let quoted_fragment = parse_fragment(
+        quoted,
+        &catalogs,
+        FragmentKind::Sentence,
+        "Test Card",
+        false,
+    )
+    .into_fragment()
+    .expect("quote-terminal sentence fragment parses");
+    assert_eq!(
+        render_fragment(&quoted_fragment, "Test Card", false).expect("fragment renders"),
+        quoted,
+    );
 }
 
 #[test]

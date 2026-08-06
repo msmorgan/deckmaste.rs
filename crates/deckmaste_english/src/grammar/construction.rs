@@ -90,7 +90,7 @@ fn dominance_edges() -> [DominanceEdge; 18] {
 pub(super) fn registry() -> &'static ConstructionRegistry {
     static REGISTRY: OnceLock<ConstructionRegistry> = OnceLock::new();
     REGISTRY.get_or_init(|| {
-        merged_registry(crate::constructions::coordination::GROUPS)
+        merged_registry(crate::constructions::GROUPS)
             .expect("production construction registry must be valid")
     })
 }
@@ -315,6 +315,17 @@ mod tests {
             .family(ConstructionId::new("noun_phrase_coordination"))
             .expect("the generated family is registered");
         assert_eq!(family.owner(), ConstructionOwner::Generated);
+    }
+
+    #[test]
+    fn production_sentence_has_only_the_generated_owner() {
+        let id = ConstructionId::new("sentence");
+        assert!(handwritten_registry().family(id).is_none());
+        let family = registry()
+            .family(id)
+            .expect("production sentence declaration is registered");
+        assert_eq!(family.owner(), ConstructionOwner::Generated);
+        assert_eq!(family.backend(), ConstructionBackend::Chart);
     }
 
     #[test]

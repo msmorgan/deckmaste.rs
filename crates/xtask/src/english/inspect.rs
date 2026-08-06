@@ -408,6 +408,11 @@ mod tests {
         assert!(!normal.contains("ForestStats"));
         assert!(verbose.contains("Provenance:"));
         assert!(verbose.contains("bytes 0.."));
+        // Mutation caught: restore either handwritten Sentence production.
+        // Inspect is the public provenance surface and must attribute this
+        // root to the generated family, independently of inner handwritten
+        // clause constructions.
+        assert!(verbose.contains("sentence owner=generated backend=chart"));
         assert!(verbose.contains("owner=handwritten"));
         assert!(verbose.contains("cost={opaque_words:"));
         assert!(!verbose.contains("Span {"));

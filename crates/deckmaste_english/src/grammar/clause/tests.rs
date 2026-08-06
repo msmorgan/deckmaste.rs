@@ -97,6 +97,45 @@ fn clause_fixtures_parse_structurally_and_render_without_source() {
 }
 
 #[test]
+fn sentence_forms_share_one_ast_and_derive_terminal_punctuation() {
+    // Mutation caught: store or guess a punctuation bit instead of routing
+    // both admitted surfaces through the generated sentence declaration.
+    let punctuated = parse("Draw a card.");
+    let bare = parse("Draw a card");
+    assert_eq!(punctuated.sentence(), bare.sentence());
+    assert_eq!(
+        render_sentence(punctuated.sentence().unwrap()),
+        "Draw a card."
+    );
+    assert_eq!(render_sentence(bare.sentence().unwrap()), "Draw a card.");
+}
+
+#[test]
+fn quote_terminal_sentence_neither_requires_nor_admits_an_outer_period() {
+    // Mutation caught: choose the period-consuming sentence form without
+    // consulting the terminal quoted-ability structure, producing or
+    // accepting doubled punctuation after the closing quote.
+    let source = "Enchanted creature has \"{T}: Draw a card.\"";
+    let parsed = parse(source);
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+    let doubled = "Enchanted creature has \"{T}: Draw a card.\".";
+    assert!(
+        parse_nonterminal(doubled, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+        "a quote-terminated sentence must not admit a second outer period",
+    );
+    assert!(
+        parse_nonterminal(
+            "if you control a creature",
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+        )
+        .is_err(),
+        "a dependent-only clause must not become a Sentence root",
+    );
+}
+
+#[test]
 fn singular_demonstratives_determine_mass_nouns() {
     // Positive: `that`/`this` now determine a mass noun (`that damage`), the
     // demonstrative object of a prevention/replacement imperative.
@@ -754,7 +793,7 @@ fn as_though_were_reading_is_dispreferenced_to_indicative_plural() {
 #[test]
 fn bare_subjunctive_clause_does_not_parse() {
     // N1: a bare subjunctive main clause is not a sentence — the
-    // recognition-level gate at `RuleTag::Sentence` requires
+    // generated sentence feature gate requires
     // `subjunctive: false`.
     assert!(
         parse_nonterminal(
@@ -5295,7 +5334,7 @@ fn fixture_catalogs() -> Catalogs {
                 "Double strike",
             ],
         )
-        .with_catalog(CatalogKind::CreatureType, ["Goblin", "Mount"])
+        .with_catalog(CatalogKind::CreatureType, ["Goblin", "Mount", "Satyr"])
         .with_catalog(CatalogKind::LandType, ["Plains", "Swamp", "Mountain"])
         .with_catalog(
             CatalogKind::CardType,

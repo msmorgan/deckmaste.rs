@@ -211,7 +211,7 @@ impl GeneratedActivation {
     )]
     pub(super) fn groups(self) -> Option<&'static [&'static GroupData]> {
         match self {
-            Self::Production => Some(crate::constructions::coordination::GROUPS),
+            Self::Production => Some(crate::constructions::GROUPS),
             #[cfg(test)]
             Self::Inactive => None,
             #[cfg(test)]
@@ -231,7 +231,7 @@ pub(super) enum GeneratedAssemblyError {
         construction: &'static str,
         category: &'static str,
     },
-    /// The generated literal table currently admits `","` only.
+    /// The generated literal table admits only its closed punctuation set.
     UnsupportedLiteral {
         construction: &'static str,
         literal: &'static str,
@@ -327,7 +327,8 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "Quantity" => Nonterminal::Quantity,
         "DevotionColors" => Nonterminal::DevotionColors,
         "PowerToughness" => Nonterminal::PowerToughness,
-        "IndependentClause" => Nonterminal::Clause,
+        "IndependentClause" | "Clause" => Nonterminal::Clause,
+        "Sentence" => Nonterminal::Sentence,
         "KeywordArgument" => Nonterminal::PredicatedArgumentBare,
         _ => return None,
     })
@@ -415,6 +416,9 @@ fn atom_expected(
     match atom {
         AtomData::Literal(",") => Ok(Expected::Lexical(EnglishLexicalSlot::Punctuation(
             Punctuation::Comma,
+        ))),
+        AtomData::Literal(".") => Ok(Expected::Lexical(EnglishLexicalSlot::Punctuation(
+            Punctuation::Period,
         ))),
         AtomData::Literal(literal) => Err(GeneratedAssemblyError::UnsupportedLiteral {
             construction: construction.id,

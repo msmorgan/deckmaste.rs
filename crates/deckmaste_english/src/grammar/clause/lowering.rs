@@ -52,8 +52,6 @@ use super::RelativeMarker;
 use super::RestrictionCoordination;
 use super::RestrictionRun;
 use super::RuleTag;
-use super::Sentence;
-use super::SentenceBody;
 use super::SimpleClause;
 use super::Subject;
 use super::SubordinateBody;
@@ -195,8 +193,7 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
         | RuleTag::ExceptionRiderOxford
         | RuleTag::ClauseExcepted
         | RuleTag::ClauseRestrictionMember
-        | RuleTag::ClauseRestrictionRun
-        | RuleTag::Sentence => lower_composed_clause(tag, children),
+        | RuleTag::ClauseRestrictionRun => lower_composed_clause(tag, children),
         _ => None,
     }
 }
@@ -1472,14 +1469,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
             }
             _ => None,
         },
-        RuleTag::Sentence => {
-            let Lowered::Clause(Clause::Independent(clause)) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::Sentence(Sentence {
-                body: SentenceBody::Independent(clause),
-            }))
-        }
         _ => None,
     }
 }

@@ -386,6 +386,7 @@ mod tests {
     use crate::constructions::coordination;
     use crate::constructions::law;
     use crate::constructions::probe;
+    use crate::constructions::sentence;
     use crate::features::Comma;
     use crate::features::Conjunction;
     use crate::grammar::lowering::Lowered;
@@ -445,6 +446,49 @@ mod tests {
                     "Avatar", "Citizen", "Halfling", "Human", "Kithkin", "Scout", "Soldier",
                 ],
             )
+    }
+
+    #[test]
+    fn generated_sentence_builder_has_no_terminal_period_input() {
+        // Mutation caught: restore the handwritten Sentence constructor or
+        // add a terminal-period field instead of deriving punctuation from
+        // the sentence tail. The two literal surfaces must lower to one AST,
+        // and the declaration-emitted door accepts only that AST body.
+        let punctuated = parse_fixture_sentence(
+            "Draw a card.",
+            &fixture_catalogs(),
+            SelfReference::default(),
+        );
+        let bare =
+            parse_fixture_sentence("Draw a card", &fixture_catalogs(), SelfReference::default());
+        assert_eq!(punctuated, bare);
+
+        let built = sentence::build_sentence(punctuated.body.clone())
+            .expect("the generated sentence builder accepts an independent clause body");
+        assert_eq!(built, punctuated);
+        assert_eq!(sentence::parts_sentence(&built), &punctuated.body);
+
+        let declaration = &sentence::SENTENCE_DECLARATION.constructions[0];
+        assert_eq!(declaration.id, "sentence");
+        assert_eq!(
+            declaration.fields,
+            [deckmaste_construction_compiler::runtime::FieldData {
+                name: "body",
+                kind: FieldKindData::Subtree {
+                    category: "Clause",
+                    boxed: false,
+                },
+            }],
+        );
+        assert!(declaration.witnesses.is_empty());
+        assert_eq!(
+            declaration
+                .forms
+                .iter()
+                .map(|form| (form.name, form.ordinal))
+                .collect::<Vec<_>>(),
+            [("period", 0), ("terminal", 1)],
+        );
     }
 
     fn nominal(head: Vocab) -> NominalPhrase {
