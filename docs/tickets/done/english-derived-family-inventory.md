@@ -46,3 +46,8 @@ ticket defers its consumers or deletion work; `scripts/todo check` reports a
 complete acyclic graph. This inventory changes no production behavior.
 
 Standard constraints apply.
+
+Result: `docs/english-derived-family-inventory.md` accounts once for all 190
+handwritten chart rows and three ability-layer families, and fourteen
+self-contained chart migrations plus the existing ability-backend wave now
+block derived-grammar completion through an acyclic dependency graph.
