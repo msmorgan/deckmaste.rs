@@ -21,19 +21,29 @@ whose CPU or I/O signature shows compiling or another unrelated workload leaked
 into the measurement. `elapsed_millis` in the JSON is diagnostic; parent/current
 review gates deterministic work counters, not a cross-machine time budget.
 
-To compare a change with its already-measured parent, retain the parent's JSON
-outside the repository and run the current binary with it. The allowance is a
-reviewed relative change, not a timeless machine budget.
+To compare a change with its parent, first enter a separately provisioned
+workspace whose revision is the current change's parent. Build and measure the
+parent there, saving its audit outside the repository; then return to the
+current workspace, rebuild before measuring, and check the current audit
+against that parent file. The allowance is a reviewed relative change, not a
+timeless machine budget.
 
 ```sh
+# Parent-revision workspace (the parent of the change under review):
+cargo build -p xtask
+PERF_BIN=target/debug/cargo-xtask
+/usr/bin/time -f 'wall_seconds\t%e\npeak_rss_kib\t%M\ncpu_percent\t%P\nmajor_page_faults\t%F\nfilesystem_inputs\t%I\nfilesystem_outputs\t%O' "$PERF_BIN" english performance --json > /tmp/english-performance-parent.json
+
+# Current-revision workspace:
+cargo build -p xtask
 PERF_BIN=target/debug/cargo-xtask
 /usr/bin/time -f 'wall_seconds\t%e\npeak_rss_kib\t%M\ncpu_percent\t%P\nmajor_page_faults\t%F\nfilesystem_inputs\t%I\nfilesystem_outputs\t%O' "$PERF_BIN" english performance --json --check --baseline /tmp/english-performance-parent.json --max-work-growth-percent 10 > /tmp/english-performance-current.json
 ```
 
-The clean case is a current audit copied to `/tmp/english-performance-parent.json`;
-the command reports `performance check passed`. The checked regression fixture
-in `crates/xtask/src/english/performance.rs` raises `chart_unique_items` from
-100 to 111 with a 10% allowance and asserts that the gate rejects it.
+The redirected current file remains valid JSON; the successful check status is
+written to stderr with the timing record. The checked regression fixture in
+`crates/xtask/src/english/performance.rs` raises `chart_unique_items` from 100
+to 111 with a 10% allowance and asserts that the gate rejects it.
 
 Only after both single inputs have been audited, measure corpus parallelism.
 The `--workers` value is explicit and is included in each report; the current

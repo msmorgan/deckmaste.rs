@@ -7,6 +7,8 @@
 //! cross-machine comparison can actually gate.
 
 use std::fs::File;
+use std::io;
+use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -113,7 +115,7 @@ pub(super) fn run(args: &PerformanceArgs) -> Result<()> {
     };
 
     if args.json {
-        println!("{}", serde_json::to_string_pretty(&current)?);
+        write_json_audit(io::stdout().lock(), &current)?;
     } else {
         print_human(&current);
     }
@@ -135,12 +137,35 @@ pub(super) fn run(args: &PerformanceArgs) -> Result<()> {
             )
         })?;
         check_against(&baseline, &current, args.max_work_growth_percent)?;
-        println!(
-            "performance check passed against {} with {}% reviewed work allowance",
-            baseline_path.display(),
-            args.max_work_growth_percent
-        );
+        write_check_success(
+            io::stderr().lock(),
+            baseline_path,
+            args.max_work_growth_percent,
+        )?;
     }
+    Ok(())
+}
+
+/// Write the machine-readable audit to stdout without any gate-status prose.
+///
+/// A parent/current command redirects stdout into its next JSON baseline, while
+/// a check result belongs on stderr with the timing diagnostics.
+fn write_json_audit(mut writer: impl Write, audit: &PerformanceAudit) -> Result<()> {
+    serde_json::to_writer_pretty(&mut writer, audit)?;
+    writeln!(writer)?;
+    Ok(())
+}
+
+fn write_check_success(
+    mut writer: impl Write,
+    baseline_path: &std::path::Path,
+    allowance_percent: usize,
+) -> Result<()> {
+    writeln!(
+        writer,
+        "performance check passed against {} with {allowance_percent}% reviewed work allowance",
+        baseline_path.display(),
+    )?;
     Ok(())
 }
 
@@ -254,6 +279,36 @@ mod tests {
         assert!(
             audit.work.chart_max_column_width > 0,
             "the audit must expose the chart's maximum column width"
+        );
+    }
+
+    #[test]
+    fn json_audit_stdout_remains_a_parseable_baseline_after_a_clean_check() {
+        let audit = audit(
+            "stress",
+            WorkCounters {
+                chart_unique_items: 100,
+                ..WorkCounters::default()
+            },
+        );
+        let mut stdout = Vec::new();
+        write_json_audit(&mut stdout, &audit).unwrap();
+        let mut stderr = Vec::new();
+        write_check_success(&mut stderr, std::path::Path::new("parent.json"), 10).unwrap();
+
+        let decoded: PerformanceAudit = serde_json::from_slice(&stdout).unwrap();
+        assert_eq!(decoded, audit);
+        assert!(
+            !String::from_utf8(stdout)
+                .unwrap()
+                .contains("performance check passed"),
+            "the redirected JSON baseline must contain no check-status prose"
+        );
+        assert!(
+            String::from_utf8(stderr)
+                .unwrap()
+                .contains("performance check passed"),
+            "the check-status prose belongs with stderr timing diagnostics"
         );
     }
 
