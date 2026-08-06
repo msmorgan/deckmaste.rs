@@ -149,9 +149,9 @@ fn const_target_count(count: &Count) -> Uint {
     match count {
         Count::Literal(n) => *n,
         other => todo!(
-            "engine-target-distinctness: a dynamic target-count bound {other:?} needs a \
-             carrier frame — only literal target quantities are wired (mirrors const_count); \
-             owner: engine-target-distinctness"
+            "engine seam: a dynamic target-count bound {other:?} needs a carrier frame — only \
+             literal target quantities are wired (mirrors const_count); \
+             owner: engine-candidate-frame-context"
         ),
     }
 }

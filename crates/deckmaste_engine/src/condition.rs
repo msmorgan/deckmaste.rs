@@ -152,7 +152,11 @@ impl GameState {
             // the fact carried the count across ANY of them.
             Condition::Crossed { thresholds, .. } => {
                 let Some((before, after)) = frame.anaphora.crossed else {
-                    todo!("Crossed with no before/after channel in the frame is not yet supported")
+                    todo!(
+                        "engine seam: Crossed evaluated with no before/after channel in the frame \
+                         ([CR#714.2b]) — only the Chapter trigger gate threads one; \
+                         owner: engine-crossed-channel-scope"
+                    )
                 };
                 thresholds.iter().any(|t| {
                     let n = self.eval_count(t, frame);

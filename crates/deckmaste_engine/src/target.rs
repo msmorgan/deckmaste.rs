@@ -188,8 +188,8 @@ pub fn matches_with(
         // (no watcher) or a gone carrier leaves `This` unresolvable — no match.
         Predicate::Where(cond) => match watcher {
             None => todo!(
-                "Predicate::Where at a frameless position — the matcher holds no carrier for \
-                 This/You; owner: engine-filter-breadth"
+                "engine seam: Predicate::Where at a frameless position — the matcher holds no \
+                 carrier for This/You; owner: engine-frameless-carrier-threading"
             ),
             Some(w) => {
                 match state
@@ -262,8 +262,8 @@ pub fn matches_with(
         Predicate::Ref(Reference::This) => match watcher {
             Some(w) => state.objects.obj(id).source == w,
             None => todo!(
-                "Ref(This) at a frameless position — targeting threads no carrier; \
-                 owner: engine-filter-breadth"
+                "engine seam: Ref(This) at a frameless position — targeting threads no \
+                 carrier; owner: engine-frameless-carrier-threading"
             ),
         },
         // "you" ([CR#109.5]): `id` is the watcher's controller's proxy.
@@ -274,8 +274,8 @@ pub fn matches_with(
                     ObjectSource::Player(p) if Some(p) == controller)
             }
             None => todo!(
-                "Ref(You) at a frameless position — targeting threads no carrier; \
-                 owner: engine-filter-breadth"
+                "engine seam: Ref(You) at a frameless position — targeting threads no \
+                 carrier; owner: engine-frameless-carrier-threading"
             ),
         },
         // "the host of THIS attachment" ([CR#301.5,303.4]): `id` is the
@@ -302,8 +302,9 @@ pub fn matches_with(
                         .is_some_and(|o| o.attached_to == Some(id))
                 }
                 None => todo!(
-                    "Ref(AttachHostOf(This)) at a frameless position — targeting threads no \
-                     carrier; owner: engine-filter-breadth"
+                    "engine seam: Ref(AttachHostOf(This)) at a frameless position \
+                     ([CR#701.3]) — targeting threads no carrier; \
+                     owner: engine-frameless-carrier-threading"
                 ),
             }
         }
@@ -536,16 +537,16 @@ pub fn matches_with(
         ),
         // [CR#607]: linked-ability relations have no registry yet.
         Predicate::State(StatePredicate::RelatedBy(..)) => todo!(
-            "engine-filter-breadth: RelatedBy needs a CR#607 linked-ability relation registry \
-             (unbuilt); owner: engine-filter-breadth"
+            "engine seam: RelatedBy ([CR#607.1]) — no linked-ability relation registry; \
+             owner: engine-filter-breadth"
         ),
         // Frame-needing references: the matcher carries only a `watcher`, not a
         // `Frame` with announced targets / trigger bindings. `This`/`You` are
         // handled above; the rest resolve only where a Frame exists
         // (`resolve::eval_reference`).
         Predicate::Ref(r) => todo!(
-            "engine-filter-breadth: Ref({r:?}) needs a carrier Frame (matcher holds only a \
-             watcher); owner: engine-filter-breadth"
+            "engine seam: Ref({r:?}) needs a carrier Frame — the matcher holds only a \
+             watcher; owner: engine-candidate-frame-context"
         ),
     }
 }
@@ -687,8 +688,9 @@ fn const_count(count: &deckmaste_core::Count) -> Uint {
     match count {
         deckmaste_core::Count::Literal(n) => *n,
         other => todo!(
-            "engine-filter-breadth: dynamic filter bound {other:?} needs a carrier frame \
-             (only literal bounds evaluate in the frameless matcher); owner: engine-filter-breadth"
+            "engine seam: dynamic filter bound {other:?} needs a carrier frame — only \
+             literal bounds evaluate in the frameless matcher; \
+             owner: engine-candidate-frame-context"
         ),
     }
 }

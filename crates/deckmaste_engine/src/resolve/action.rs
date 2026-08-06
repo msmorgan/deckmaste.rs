@@ -241,9 +241,9 @@ impl GameState {
                 // see `crate::copy::has_unbuilt_enter_rider`.
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
-                        "core-action-riders-cost-modes seam: enter riders (tapped/attacking/\
-                         with-counters) execute with the ETB machinery; \
-                         owner: core-action-riders-cost-modes"
+                        "engine seam: Move enter riders ([CR#603.6d,614.12]) — tapped/\
+                         attacking/with-counters have grammar but no execution; \
+                         owner: engine-enter-rider-execution"
                     );
                 }
                 self.move_items(sel, destination, *from, frame)
@@ -336,8 +336,8 @@ impl GameState {
                 // `crate::copy::has_unbuilt_enter_rider`.
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
-                        "core-action-riders-cost-modes seam: MoveGroup enter riders execute \
-                         with the ETB machinery; owner: core-action-riders-cost-modes"
+                        "engine seam: MoveGroup enter riders ([CR#603.6d,614.12]) — grammar \
+                         but no execution; owner: engine-enter-rider-execution"
                     );
                 }
                 // A group member with no zone to leave — a player proxy

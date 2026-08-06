@@ -376,9 +376,9 @@ impl GameState {
                 deckmaste_core::RelationPredicate::AttachedTo(_)
                 | deckmaste_core::RelationPredicate::Attachment(_),
             ) => todo!(
-                "engine-filter-breadth: snapshot attachment relations need LkiSnapshot to capture \
-                 attached_to (engine-attach tracks it only on the live object); \
-                 owner: engine-filter-breadth"
+                "engine seam: snapshot attachment relations ([CR#701.3,603.10]) — LkiSnapshot \
+                 never captured attached_to, which engine-attach tracks only on the live object; \
+                 owner: engine-snapshot-attachment-capture"
             ),
 
             // A gone object has no live stack entry, so it currently targets
@@ -387,8 +387,8 @@ impl GameState {
             // [CR#607]: no linked-ability relation registry yet.
             Predicate::State(StatePredicate::RelatedBy(..)) => {
                 todo!(
-                    "engine-filter-breadth: snapshot RelatedBy needs a CR#607 relation registry; \
-                     owner: engine-filter-breadth"
+                    "engine seam: snapshot RelatedBy ([CR#607.1]) — no linked-ability relation \
+                     registry; owner: engine-filter-breadth"
                 )
             }
             // A gone object has left its ordered zone — [`Predicate::Adjacent`]
@@ -433,7 +433,17 @@ impl GameState {
 
             // Combinators (`And`/`Or`/`Not`/`Any`) are handled by
             // `walk_combinators` before this match.
-            other => todo!("stage 3 does not evaluate snapshot filter {other:?}"),
+            //
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both. Named explicitly
+            // so the seam below reports only genuinely unbuilt shapes.
+            Predicate::Expanded(_) => unreachable!("provenance erased at lower"),
+            other => todo!(
+                "engine seam: stage 3 does not evaluate snapshot filter {other:?} — the LKI \
+                 matcher covers only part of the live matcher's leaves; \
+                 owner: engine-snapshot-predicate-breadth"
+            ),
         }
     }
 

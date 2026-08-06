@@ -312,8 +312,8 @@ impl GameState {
             }
             Selection::PilesOf { .. } => {
                 todo!(
-                    "engine-piles: labeled pile groups at runtime land with the piles \
-                     engine subsystem"
+                    "engine seam: Selection::PilesOf ([CR#700.3a,700.3b]) — labeled pile groups \
+                     have no runtime store to read back; owner: engine-piles"
                 )
             }
             // The top `count` cards of `of`'s library, front-to-back (top→down).

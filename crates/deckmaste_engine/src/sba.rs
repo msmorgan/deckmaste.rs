@@ -356,7 +356,16 @@ fn run_sba_effect(
                 out.extend(run_sba_effect(state, child, frame));
             }
         }
-        other => todo!("SBA effect is only Act/Sequentially in this stage (got {other:?})"),
+        // NOT unbuilt work: `docs/decisions/state-based-actions-are-data.md`
+        // scopes the data-driven `SbaRule.then` path to unconditional effects,
+        // because "choice cannot be represented by an unconditional effect".
+        // Choice-bearing SBAs (the legend rule, illegal auras) stay imperative
+        // native Rust and never route through this interpreter. So this arm is
+        // a design boundary, not a seam awaiting a ticket.
+        other => todo!(
+            "SBA effect is only Act/Sequentially by design (got {other:?}) — a choice-bearing \
+             SBA stays imperative; owner: docs/decisions/state-based-actions-are-data.md"
+        ),
     }
     out
 }

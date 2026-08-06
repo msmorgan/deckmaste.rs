@@ -79,8 +79,10 @@ impl DecisionHandler for ChooseTargets {
                 }
                 if g.placing_trigger.is_some() {
                     todo!(
-                        "Must(Target) row matching a triggered ability — the by-filter \
-                         can't exempt triggers yet"
+                        "engine seam: Must(Target) row matching a triggered ability \
+                         ([CR#601.2c,602.2a,603.3]) — ObjectKind::Ability collapses activated and \
+                         triggered, so the by-filter can't exempt a placing trigger; \
+                         owner: engine-deed-agent-ability-kind"
                     );
                 }
                 let able = legal

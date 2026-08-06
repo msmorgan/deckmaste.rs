@@ -138,7 +138,12 @@ impl GameState {
                     self.apply_as_enters(otherwise, entering, status);
                 }
             }
-            other => todo!("stage 3 does not interpret enters-replacement effect {other:?}"),
+            other => todo!(
+                "engine seam: stage 3 does not interpret enters-replacement effect {other:?} \
+                 ([CR#614.1c]) — a Sequentially/Simultaneously of two self-augment folds \
+                 (enters tapped WITH counters) has no composing arm; \
+                 owner: engine-enters-replacement-compose"
+            ),
         }
     }
 

@@ -726,9 +726,8 @@ impl GameState {
                 // redundant, never-crash-safe semantic input.)
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
-                        "core-action-riders-cost-modes seam: token enter riders \
-                         (tapped/attacking) execute with the ETB machinery; \
-                         owner: core-action-riders-cost-modes"
+                        "engine seam: token enter riders ([CR#603.6d]) — tapped/attacking have \
+                         grammar but no execution; owner: engine-enter-rider-execution"
                     );
                 }
                 // [CR#701.7a]: one instruction puts all N tokens onto the

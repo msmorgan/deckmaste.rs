@@ -158,8 +158,9 @@ impl GameState {
             // took a `Produce` binder (they don't — `Produce`/`SearchOne` are
             // One-binders, not the many-binder those expect).
             Binder::Produce(_) => unimplemented!(
-                "Binder::Produce: resolved outside OneShotEffect::With, which is the only binder \
-                 consumer wired to run a producer's Action and capture its product"
+                "engine seam: Produce resolved outside OneShotEffect::With ([CR#400.7j]) — With is \
+                 the only consumer wired to run a producer's Action and capture its product; \
+                 owner: engine-produce-capture-binder"
             ),
             // SEAM: search/tutor binders ([CR#701.23a]). Selecting from hidden
             // zones (library/graveyard) with the reveal + shuffle (and
@@ -167,8 +168,9 @@ impl GameState {
             // these via the plain `ChooseObjects` chooser would silently skip
             // reveal/shuffle, so this stays an explicit labeled seam.
             Binder::Search { .. } | Binder::SearchOne { .. } => unimplemented!(
-                "Binder::Search/SearchOne: no library-search/tutor primitive — searching hidden \
-                 zones (reveal + shuffle) is not yet wired"
+                "engine seam: Search/SearchOne binders ([CR#701.23]) — no library-search primitive; \
+                 searching hidden zones with the reveal + shuffle + fail-to-find discipline is \
+                 unbuilt; owner: engine-library-search-primitive"
             ),
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
@@ -463,7 +465,12 @@ impl GameState {
                 let mut member_events: Vec<Vec<GameEvent>> = Vec::new();
                 for child in children.iter() {
                     let OneShotEffect::Act(action) = child else {
-                        todo!("a non-verb Simultaneously member is not yet supported: {child:?}")
+                        todo!(
+                            "engine seam: non-verb Simultaneously member {child:?} \
+                     ([CR#701.12a,608.2f]) — a Continuously member mints a static row instead of \
+                     events, so it has nothing to contribute to the all-or-nothing batch \
+                     (Avarice Totem needs this); owner: engine-simultaneous-non-verb-members"
+                        )
                     };
                     let mut events = Vec::new();
                     for item in self.action_items(action, frame) {
@@ -473,7 +480,10 @@ impl GameState {
                                 events.extend(es);
                             }
                             other => todo!(
-                                "a choice-bearing Simultaneously member is not yet supported: scheduled {other:?}"
+                                "engine seam: choice-bearing Simultaneously member, scheduled \
+                                 {other:?} ([CR#701.12a]) — the verb lowers to a decision rather \
+                                 than events, which the one-snapshot batch has no way to await; \
+                                 owner: engine-simultaneous-choice-members"
                             ),
                         }
                     }
@@ -1352,7 +1362,16 @@ impl GameState {
             OneShotEffect::Reflexive(ability) => {
                 self.scan_created_reflexive(&ability, frame);
             }
-            other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
+            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+            // loaded value reaches here wrapped. The arm survives only because
+            // the variant does; `core-demacro` deletes both. Named explicitly
+            // so the seam below reports only genuinely unbuilt shapes.
+            OneShotEffect::Expanded(_) => unreachable!("provenance erased at lower"),
+            // What remains is the pile family: `SeparatePiles`/`ChoosePile`.
+            other => todo!(
+                "engine seam: stage 3 does not interpret effect {other:?} \
+                 ([CR#700.3a,700.3b]) — the pile family has no resolution; owner: engine-piles"
+            ),
         }
     }
 

@@ -510,17 +510,23 @@ impl GameState {
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
             }
-            // SEAM: producer/search cost binders — payability needs the same
-            // produce-and-capture / library-search primitive the resolution
-            // spine lacks, so it can't be decided here. No corpus card uses
-            // these in a cost; an explicit labeled arm keeps a future use a
-            // loud seam rather than a silent `true`/`false`.
-            Binder::Produce(_) | Binder::Search { .. } | Binder::SearchOne { .. } => {
-                unimplemented!(
-                    "Binder::{{Produce,Search,SearchOne}} as a cost binder: producer/search binders \
-                 are not yet wired (no runtime produce-and-capture / library-search primitive)"
-                )
-            }
+            // SEAM: producer cost binder. [CR#400.7j] is explicit that a COST
+            // may move an object to a public zone for the spell's effects to
+            // find, so this is a real hole, not a guard. No corpus card uses
+            // one in a cost; an explicit labeled arm keeps a future use a loud
+            // seam rather than a silent `true`/`false`.
+            Binder::Produce(_) => unimplemented!(
+                "engine seam: Produce as a cost binder ([CR#601.2h,400.7j]) — no runtime \
+                 produce-and-capture primitive, so payability can't be decided; \
+                 owner: engine-produce-capture-binder"
+            ),
+            // SEAM: search cost binders — same shape, different missing
+            // primitive (the reveal + shuffle + fail-to-find discipline).
+            Binder::Search { .. } | Binder::SearchOne { .. } => unimplemented!(
+                "engine seam: Search/SearchOne as a cost binder ([CR#601.2h,701.23]) — no runtime \
+                 library-search primitive, so payability can't be decided; \
+                 owner: engine-library-search-primitive"
+            ),
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
