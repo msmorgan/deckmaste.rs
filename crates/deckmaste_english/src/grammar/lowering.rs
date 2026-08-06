@@ -365,24 +365,11 @@ fn project_generated_category(
                 .downcast::<crate::constructions::coordination::CoordinatedNominalPhrase>()
                 .ok()?;
             let first = value.first().clone();
-            let mut rest = value.rest().clone();
-            let mut complements = value.complements().clone();
-            if complements.is_empty() {
-                let earlier_has_relative = nominal_has_relative(&first)
-                    || rest
-                        .iter()
-                        .take(rest.len().saturating_sub(1))
-                        .any(|member| nominal_has_relative(&member.phrase));
-                if let Some(last) = rest.last_mut() {
-                    complements =
-                        take_trailing_group_complements(earlier_has_relative, &mut last.phrase);
-                }
-            }
             let coordinated = crate::syntax::CoordinatedNominalPhrase::try_new(
                 value.determiner().clone(),
                 first,
-                rest,
-                complements,
+                value.rest().clone(),
+                value.complements().clone(),
             )
             .ok()?;
             return Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(
@@ -1971,32 +1958,4 @@ pub(super) fn lower_arithmetic_phrase(tag: RuleTag, children: &mut [Lowered]) ->
 pub(super) fn take(children: &mut [Lowered], index: usize) -> Option<Lowered> {
     let child = children.get_mut(index)?;
     Some(std::mem::replace(child, Lowered::Ignored))
-}
-
-fn nominal_has_relative(nominal: &NominalPhrase) -> bool {
-    nominal
-        .complements
-        .iter()
-        .any(|complement| matches!(complement, NominalComplement::Relative(_)))
-}
-
-/// With no parallel relative on an earlier member, a trailing relative scopes
-/// over the completed selection (`another target creature or artifact you
-/// control`). Move it and every following complement together so their surface
-/// order remains intact. Parallel relatives remain member-local.
-fn take_trailing_group_complements(
-    earlier_has_relative: bool,
-    next: &mut NominalPhrase,
-) -> Vec<NominalComplement> {
-    if earlier_has_relative {
-        return Vec::new();
-    }
-    let Some(relative_index) = next
-        .complements
-        .iter()
-        .position(|complement| matches!(complement, NominalComplement::Relative(_)))
-    else {
-        return Vec::new();
-    };
-    next.complements.split_off(relative_index)
 }
