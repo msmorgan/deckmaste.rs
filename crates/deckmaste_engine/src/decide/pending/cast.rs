@@ -58,47 +58,48 @@ impl DecisionHandler for ChooseTargets {
         // Disjoint multi-row conflicts would need the maximize
         // arbitration (identical rows — the printed class — are
         // jointly satisfied by one choice, so per-row checks are
-        // exact today). Triggered abilities are exempt by the
-        // printed wording, but `by` can't spell that
-        // discrimination yet — a row matching a placing trigger's
-        // source is a LOUD seam, not an evaluation.
-        let view = g.layers();
-        let must_rows = crate::legal::must_target_rows(g, &view);
-        if !must_rows.is_empty() {
-            // Both staging slots carry a real stack identity: a
-            // placing trigger's is minted at placement
-            // ([CR#603.3d]), an announce's when it opened
-            // ([CR#602.2a] / a spell's own id).
-            let targeting = match &g.placing_trigger {
-                Some(t) => t.id,
-                None => g.announcing.as_ref().expect("an announce in flight").id,
-            };
-            for (carrier, by, on) in &must_rows {
-                if !crate::legal::deed_agent_matches(g, by, targeting, *carrier) {
-                    continue;
-                }
-                if g.placing_trigger.is_some() {
-                    todo!(
-                        "engine seam: Must(Target) row matching a triggered ability \
-                         ([CR#601.2c,602.2a,603.3]) — ObjectKind::Ability collapses activated and \
-                         triggered, so the by-filter can't exempt a placing trigger; \
-                         owner: engine-deed-agent-ability-kind"
-                    );
-                }
-                let able = legal
-                    .iter()
-                    .any(|set| set.iter().any(|&t| g.filter_matches_live(on, t, *carrier)));
-                let obeyed = chosen
-                    .iter()
-                    .flatten()
-                    .any(|&t| g.filter_matches_live(on, t, *carrier));
-                if able && !obeyed {
-                    return Err(DecisionError::Illegal {
-                        reason: format!(
-                            "a Must(Target) requirement on {carrier:?} obliges this \
-                             choice to include a matching target"
-                        ),
-                    });
+        // exact today).
+        //
+        // [CR#601.2c,602.2a,603.3,603.3d]: a triggered ability is
+        // exempt. The printed wording scopes the requirement to
+        // choosing targets while casting a spell or activating an
+        // ability, but a trigger instead chooses its targets as it
+        // is PUT ON the stack — a moment that wording never names.
+        // The exemption is the wording's, not the rules': [CR#603.3d]
+        // routes placement through [CR#601.2c], obligation clause
+        // included, so skipping wholesale is only sound while every
+        // printed must-target effect carries that casting/activating
+        // scope. One that didn't would need a per-row check here.
+        // `g.placing_trigger` is `Some` only while a triggered
+        // ability's placement-time target choice is in flight, an
+        // orthogonal discriminator from the `by` filter's
+        // `ObjectKind::Ability` collapse (which stays untouched —
+        // it still lets a filter match "activated or triggered
+        // ability" for Stifle-style effects).
+        if g.placing_trigger.is_none() {
+            let view = g.layers();
+            let must_rows = crate::legal::must_target_rows(g, &view);
+            if !must_rows.is_empty() {
+                let targeting = g.announcing.as_ref().expect("an announce in flight").id;
+                for (carrier, by, on) in &must_rows {
+                    if !crate::legal::deed_agent_matches(g, by, targeting, *carrier) {
+                        continue;
+                    }
+                    let able = legal
+                        .iter()
+                        .any(|set| set.iter().any(|&t| g.filter_matches_live(on, t, *carrier)));
+                    let obeyed = chosen
+                        .iter()
+                        .flatten()
+                        .any(|&t| g.filter_matches_live(on, t, *carrier));
+                    if able && !obeyed {
+                        return Err(DecisionError::Illegal {
+                            reason: format!(
+                                "a Must(Target) requirement on {carrier:?} obliges this \
+                                 choice to include a matching target"
+                            ),
+                        });
+                    }
                 }
             }
         }

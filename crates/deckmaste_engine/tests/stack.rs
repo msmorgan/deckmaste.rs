@@ -3105,6 +3105,129 @@ fn flagbearer_does_not_constrain_its_controllers_spells() {
         .unwrap();
 }
 
+/// The Flagbearer row is scoped to choosing targets while casting a spell
+/// ([CR#601.2c]) or activating an ability ([CR#602.2a]) — a triggered
+/// ability instead chooses its targets as it's put ON the stack
+/// ([CR#603.3,603.3d]), a moment neither the printed wording nor the row's
+/// `by` filter names, so it's exempt.
+///
+/// P1's own bolt kills P0's Footlight Fiend (a P1-controlled spell is never
+/// bound by P1's own Standard Bearer row — the sibling
+/// `flagbearer_does_not_constrain_its_controllers_spells` case — so the
+/// killing spell itself is unconstrained). P0's dies-trigger then targets
+/// "any target" past P1's able Standard Bearer: this trigger IS
+/// opponent-controlled from the bearer's perspective, so without the fix the
+/// row would bind it too. The choice must be legal.
+#[test]
+fn flagbearer_does_not_constrain_a_triggered_abilitys_target_choice() {
+    let bolt = card("Lightning Bolt");
+    let fiend = card("Footlight Fiend");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let bearer = card("Standard Bearer");
+    let mut p0 = vec![Arc::clone(&fiend); 3];
+    p0.extend(vec![Arc::clone(&mountain); 9]);
+    let mut p1 = vec![Arc::clone(&bolt); 4];
+    p1.extend(vec![Arc::clone(&mountain); 4]);
+    p1.extend(vec![Arc::clone(&bearer); 1]);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
+    p1.extend(vec![Arc::clone(&forest); 3]);
+    let build = |seed: u64| {
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: p0.clone() },
+                PlayerConfig { deck: p1.clone() },
+            ],
+            seed,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        })
+    };
+    // A seed whose P1 opening hand holds a bolt (cast from hand) — the
+    // fiend, and P1's Mountain and Standard Bearer, are pulled from the
+    // libraries by `force_into_play`.
+    let mut state = (0u64..1000)
+        .map(build)
+        .find(|s| {
+            s.zones.hands[1]
+                .iter()
+                .any(|&o| is_card(s, o, "Lightning Bolt"))
+        })
+        .expect("a seed with a bolt in P1's opening hand");
+    state.sba_rules = builtin().sba_rules;
+
+    let fiend_obj = force_into_play(&mut state, PlayerId(0), "Footlight Fiend");
+    force_into_play(&mut state, PlayerId(1), "Mountain");
+    let bearer_obj = force_into_play(&mut state, PlayerId(1), "Standard Bearer");
+
+    // P0 passes their precombat main priority without acting; P1 floats
+    // {R} and bolts P0's fiend.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(1), 1);
+    let bolt = find_in_hand(&state, PlayerId(1), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
+        panic!("expected ChooseTargets for the bolt, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![vec![fiend_obj]]))
+        .unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+
+    // Both players pass repeatedly: the bolt resolves (3 to the fiend), the
+    // SBA destroys it, and the dies-trigger NOTES — then `PlaceTriggers`
+    // surfaces a `ChooseTargets` for the trigger's own "any target".
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let stop = loop {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => break other,
+        }
+    };
+
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { player, legal, .. },
+    )) = stop
+    else {
+        panic!("expected the dies-trigger's ChooseTargets, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0), "the fiend's controller chooses");
+    // The able Flagbearer is among the "any target" candidates — a
+    // Must(Target) row is live and would bind an announce/activation.
+    assert!(
+        legal[0].contains(&bearer_obj),
+        "Standard Bearer is a legal any-target, legal: {legal:?}"
+    );
+    // Choosing P1's proxy instead — past the able Flagbearer — is legal:
+    // the trigger's placement-time targeting is exempt.
+    let p1_proxy = state.players[1].object;
+    assert!(
+        legal[0].contains(&p1_proxy),
+        "P1's proxy is a legal any-target, legal: {legal:?}"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![vec![p1_proxy]]))
+        .unwrap();
+}
+
 /// The control: without a flash row, a creature spell stays
 /// sorcery-speed-only ([CR#117.1a]) — never offered at upkeep even with
 /// the cost funded.
