@@ -48,6 +48,8 @@ pub(super) fn scan_opaque(
 #[cfg(test)]
 mod tests {
     use super::super::*;
+    use crate::fragment::Fragment;
+    use crate::fragment::render_fragment;
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::Determiner;
@@ -107,6 +109,36 @@ mod tests {
                         ..ParseCost::default()
                     }
         }));
+    }
+
+    #[test]
+    fn mixed_case_opaque_noun_replays_bytes_after_generated_lowering() {
+        // Mutations caught: normalize opaque identity into a lowercase byte
+        // witness, or bypass generated noun_opaque reduction/lowering.
+        let source = "Draw a BlOrPlE.";
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::OpaqueNouns);
+        let predicate = transitive(parsed.sentence().expect("sentence root lowers"));
+        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
+            panic!("expected one nominal direct object")
+        };
+        assert!(matches!(
+            &object.head,
+            NounInstance::Singular(Noun::Opaque(opaque)) if opaque.spelling() == "BlOrPlE"
+        ));
+        assert!(parsed.construction_decisions().iter().any(|decision| {
+            decision.selected().as_str() == "noun_opaque"
+                && decision.owner() == crate::construction::ConstructionOwner::Generated
+        }));
+        assert_eq!(
+            render_fragment(
+                &Fragment::Sentence(parsed.sentence().unwrap().clone()),
+                "Test Card",
+                false,
+            )
+            .expect("the lowered opaque identity remains renderable"),
+            source,
+        );
     }
 
     #[test]

@@ -423,6 +423,53 @@ mod tests {
     }
 
     #[test]
+    fn verbose_output_distinguishes_known_and_opaque_generated_noun_owners() {
+        // Mutations caught: attribute noun_opaque to the known family, admit
+        // it in the zero-cost exact result, or omit opaque generated
+        // provenance from inspect.
+        let render = |source: &str| {
+            let cards = [CardFace {
+                card_name: "Test Card".to_owned(),
+                face_name: None,
+                is_legendary: false,
+                supported: false,
+                source_text: source.to_owned(),
+                oracle_text: source.to_owned(),
+            }];
+            let mut verbose = Vec::new();
+            write_cards(
+                &mut verbose,
+                &cards,
+                &Catalogs::default(),
+                &OutputConfig {
+                    verbose: true,
+                    abilities_only: false,
+                },
+            )
+            .unwrap();
+            String::from_utf8(verbose).unwrap()
+        };
+
+        let known = render("Draw a card.");
+        assert!(
+            known.contains(
+                "noun owner=generated backend=chart form=0 evidence=structural:generated production reason=unique cost={opaque_words:0,opaque_lexemes:0"
+            ),
+            "{known}"
+        );
+        assert!(!known.contains("noun_opaque owner="));
+
+        let opaque = render("Draw a BlOrPlE.");
+        assert!(
+            opaque.contains(
+                "noun_opaque owner=generated backend=chart form=0 evidence=structural:generated production reason=unique cost={opaque_words:1,opaque_lexemes:1"
+            ),
+            "{opaque}"
+        );
+        assert!(!opaque.contains(" noun owner=generated"));
+    }
+
+    #[test]
     fn verbose_quote_terminal_output_reports_generated_sentence_form_identity() {
         // Mutation caught: inspect only the ordinary period form, or discard
         // the generated form ordinal after lowering a terminal quote.

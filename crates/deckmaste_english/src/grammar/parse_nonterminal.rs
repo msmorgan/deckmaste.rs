@@ -1195,6 +1195,10 @@ mod generated_adapter_tests {
     use crate::constructions::coordination;
     use crate::constructions::noun;
     use crate::constructions::probe;
+    use crate::word::BareNominalAdjunct;
+    use crate::word::Noun;
+    use crate::word::NounInstance;
+    use crate::word::Vocab;
 
     static COORDINATION_GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] =
         &[noun::GROUPS[0], coordination::GROUPS[0]];
@@ -1298,6 +1302,75 @@ mod generated_adapter_tests {
             &crate::syntax::Determiner::Target(None)
         );
         assert_eq!(coordination.rest().len(), 1);
+    }
+
+    #[test]
+    fn generated_noun_reduction_and_lowering_preserve_every_inherent_feature() {
+        // Mutations caught: replace identity-feature propagation in
+        // generated_construction_features with Features::None, drop one noun
+        // feature there, or lower a value other than the recognized identity.
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CreatureType, ["Elf"]);
+        for source in ["Elf", "turn", "damage"] {
+            let parsed =
+                parse_nonterminal(source, &catalogs, Nonterminal::Noun).unwrap_or_else(|error| {
+                    panic!("generated noun did not parse {source:?}: {error:?}")
+                });
+            assert_eq!(parsed.opacity_mode, OpacityMode::Exact, "{source}");
+            assert!(parsed.construction_decisions.iter().any(|decision| {
+                decision.selected().as_str() == "noun"
+                    && decision.owner() == ConstructionOwner::Generated
+            }));
+            let features = parsed
+                .chart
+                .forest
+                .node(parsed.root)
+                .key
+                .constituent_features()
+                .expect("selected generated root carries constituent features");
+
+            match (source, &parsed.syntax, features) {
+                (
+                    "Elf",
+                    Lowered::Noun(NounInstance::Singular(Noun::Catalog(lowered))),
+                    Features::Noun {
+                        identity: Some(feature_identity),
+                        coordination_domain: Some(super::super::CoordinationDomain::Entity),
+                        form: super::super::NounForm::Singular,
+                        initial_sound: crate::word::InitialSound::Vowel,
+                        adjunct: None,
+                        opaque: false,
+                        recipient_passive_theme: false,
+                    },
+                ) => assert_eq!(lowered, feature_identity),
+                (
+                    "turn",
+                    Lowered::Noun(NounInstance::Singular(Noun::Word(Vocab::Turn))),
+                    Features::Noun {
+                        identity: None,
+                        coordination_domain: None,
+                        form: super::super::NounForm::Singular,
+                        initial_sound: crate::word::InitialSound::Consonant,
+                        adjunct: Some(BareNominalAdjunct::Temporal),
+                        opaque: false,
+                        recipient_passive_theme: false,
+                    },
+                )
+                | (
+                    "damage",
+                    Lowered::Noun(NounInstance::Mass(Noun::Word(Vocab::Damage))),
+                    Features::Noun {
+                        identity: None,
+                        coordination_domain: Some(super::super::CoordinationDomain::Damage),
+                        form: super::super::NounForm::Mass,
+                        initial_sound: crate::word::InitialSound::Consonant,
+                        adjunct: None,
+                        opaque: false,
+                        recipient_passive_theme: true,
+                    },
+                ) => {}
+                other => panic!("generated noun lost inherent state: {other:#?}"),
+            }
+        }
     }
 
     #[test]
