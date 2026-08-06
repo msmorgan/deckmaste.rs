@@ -8,7 +8,8 @@ use deckmaste_english::syntax::RecoveryRole;
 use serde::Serialize;
 
 use crate::english::data::OracleDataArgs;
-use crate::english::data::map_supported_faces;
+use crate::english::data::map_supported_faces_with_workers;
+use crate::english::data::supported_face_jobs;
 
 #[derive(Debug, Args)]
 pub(super) struct RecoveryArgs {
@@ -22,6 +23,10 @@ pub(super) struct RecoveryArgs {
     /// Fail unless the supported corpus has no structural recovery.
     #[arg(long)]
     require_complete: bool,
+
+    /// Maximum parser workers for this corpus run (reported with the result).
+    #[arg(long, default_value_t = 4)]
+    workers: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
@@ -109,6 +114,7 @@ impl LexicalOpacityCounts {
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize)]
 struct Census {
+    workers: usize,
     supported_faces: usize,
     source_tokens: usize,
     recovery: RecoveryCounts,
@@ -137,8 +143,15 @@ impl Census {
 }
 
 pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
+    if args.workers == 0 {
+        bail!("--workers must be at least 1");
+    }
     let data = args.data.load()?;
-    let census = map_supported_faces(&data.faces, |_, card| {
+    let workers = supported_face_jobs(
+        args.workers,
+        data.faces.iter().filter(|card| card.supported).count(),
+    );
+    let census = map_supported_faces_with_workers(&data.faces, args.workers, |_, card| {
         let report = parse_with_identity(
             &card.oracle_text,
             &data.catalogs,
@@ -150,10 +163,16 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
         census
     })
     .into_iter()
-    .fold(Census::default(), |mut census, card| {
-        census.add(&card);
-        census
-    });
+    .fold(
+        Census {
+            workers,
+            ..Census::default()
+        },
+        |mut census, card| {
+            census.add(&card);
+            census
+        },
+    );
 
     if args.json {
         println!("{}", serde_json::to_string_pretty(&census)?);
@@ -173,8 +192,8 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
 
 fn print_human(census: &Census) {
     println!(
-        "audited {} supported faces ({} source tokens)",
-        census.supported_faces, census.source_tokens
+        "audited {} supported faces ({} source tokens) with {} parser worker(s)",
+        census.supported_faces, census.source_tokens, census.workers
     );
     println!("structural recovery:");
     print_counts("clause", census.recovery.clause);

@@ -96,6 +96,20 @@ pub(super) fn map_supported_faces<T: Send>(
     faces: &[CardFace],
     map: impl Fn(usize, &CardFace) -> T + Send + Sync,
 ) -> Vec<T> {
+    let available = std::thread::available_parallelism().map_or(1, usize::from);
+    map_supported_faces_with_workers(faces, available, map)
+}
+
+/// Map the supported corpus with an explicit upper bound on parser workers.
+///
+/// Corpus runners use this when the worker count is part of a measurement. A
+/// single input must be audited separately first: this bound limits only the
+/// outer multiplier, never the work one parse creates.
+pub(super) fn map_supported_faces_with_workers<T: Send>(
+    faces: &[CardFace],
+    requested_workers: usize,
+    map: impl Fn(usize, &CardFace) -> T + Send + Sync,
+) -> Vec<T> {
     let supported: Vec<_> = faces
         .iter()
         .enumerate()
@@ -104,8 +118,7 @@ pub(super) fn map_supported_faces<T: Send>(
     if supported.is_empty() {
         return Vec::new();
     }
-    let available = std::thread::available_parallelism().map_or(1, usize::from);
-    let jobs = supported_face_jobs(available, supported.len());
+    let jobs = supported_face_jobs(requested_workers, supported.len());
     rayon::ThreadPoolBuilder::new()
         .num_threads(jobs)
         .thread_name(|index| format!("english-corpus-{index}"))
@@ -119,8 +132,11 @@ pub(super) fn map_supported_faces<T: Send>(
         })
 }
 
-fn supported_face_jobs(available: usize, supported: usize) -> usize {
-    available.min(MAX_SUPPORTED_FACE_JOBS).min(supported).max(1)
+pub(super) fn supported_face_jobs(requested_workers: usize, supported: usize) -> usize {
+    requested_workers
+        .min(MAX_SUPPORTED_FACE_JOBS)
+        .min(supported)
+        .max(1)
 }
 
 #[derive(Debug, Deserialize)]

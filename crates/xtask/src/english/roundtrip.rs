@@ -7,7 +7,8 @@ use serde::Serialize;
 
 use crate::english::data::CardFace;
 use crate::english::data::OracleDataArgs;
-use crate::english::data::map_supported_faces;
+use crate::english::data::map_supported_faces_with_workers;
+use crate::english::data::supported_face_jobs;
 
 #[derive(Debug, Args)]
 pub(super) struct RoundtripArgs {
@@ -25,6 +26,10 @@ pub(super) struct RoundtripArgs {
     /// Fail unless every supported face round-trips clean.
     #[arg(long)]
     require_clean: bool,
+
+    /// Maximum parser workers for this corpus run (reported with the result).
+    #[arg(long, default_value_t = 4)]
+    workers: usize,
 }
 
 /// Outcome of round-tripping one supported face through render.
@@ -72,6 +77,7 @@ fn classify(card: &CardFace, catalogs: &Catalogs) -> Outcome {
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize)]
 struct Summary {
+    workers: usize,
     supported_faces: usize,
     clean: usize,
     mismatched: usize,
@@ -94,15 +100,25 @@ impl Summary {
 }
 
 pub(super) fn run(args: &RoundtripArgs) -> Result<()> {
+    if args.workers == 0 {
+        bail!("--workers must be at least 1");
+    }
     let data = args.data.load()?;
-    let outcomes = map_supported_faces(&data.faces, |_, card| {
+    let workers = supported_face_jobs(
+        args.workers,
+        data.faces.iter().filter(|card| card.supported).count(),
+    );
+    let outcomes = map_supported_faces_with_workers(&data.faces, args.workers, |_, card| {
         let outcome = classify(card, &data.catalogs);
         // Capture the printed name only for the faces `--list` reports.
         let name = outcome.list_label().map(|_| card.printed_name().to_owned());
         (outcome, name)
     });
 
-    let mut summary = Summary::default();
+    let mut summary = Summary {
+        workers,
+        ..Summary::default()
+    };
     for &(outcome, _) in &outcomes {
         summary.observe(outcome);
     }
@@ -132,7 +148,10 @@ pub(super) fn run(args: &RoundtripArgs) -> Result<()> {
 }
 
 fn print_human(summary: &Summary) {
-    println!("audited {} supported faces", summary.supported_faces);
+    println!(
+        "audited {} supported faces with {} parser worker(s)",
+        summary.supported_faces, summary.workers
+    );
     println!("round-trip:");
     print_count("clean", summary.clean);
     print_count("mismatched", summary.mismatched);

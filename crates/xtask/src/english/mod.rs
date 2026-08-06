@@ -7,6 +7,7 @@ use clap::Subcommand;
 use self::bracket::BracketArgs;
 use self::inspect::InspectArgs;
 use self::lint::LintArgs;
+use self::performance::PerformanceArgs;
 use self::probe::ProbeArgs;
 use self::recovery::RecoveryArgs;
 use self::roundtrip::RoundtripArgs;
@@ -17,6 +18,7 @@ mod bracket;
 mod data;
 mod inspect;
 mod lint;
+mod performance;
 mod probe;
 mod recovery;
 mod roundtrip;
@@ -49,6 +51,8 @@ enum EnglishCommand {
     /// Probe the parser directly: free-text parses, ceiling calibration, and
     /// a printed-text law baseline.
     Probe(ProbeArgs),
+    /// Audit deterministic single-input parser work before timing corpus runs.
+    Performance(PerformanceArgs),
 }
 
 pub fn run(args: EnglishArgs) -> anyhow::Result<()> {
@@ -61,5 +65,6 @@ pub fn run(args: EnglishArgs) -> anyhow::Result<()> {
         EnglishCommand::Shapes(args) => shapes::run(&args),
         EnglishCommand::Lint(args) => lint::run(&args),
         EnglishCommand::Probe(args) => probe::run(&args),
+        EnglishCommand::Performance(args) => performance::run(&args),
     }
 }
