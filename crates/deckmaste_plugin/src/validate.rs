@@ -723,6 +723,27 @@ mod tests {
         let cards = root.join(plugin).join("cards");
         std::fs::create_dir_all(&cards).unwrap();
         std::fs::write(cards.join(file), source).unwrap();
+        write_card_root_prelude(root);
+    }
+
+    /// A card is read as restricted author vocabulary (spec §4), so every
+    /// spelling in these fixtures needs its identity macro in scope — the card
+    /// root `Normal`, the mana-cost `Green`, and `Number`, which the bare
+    /// numeral `power: 1` splices to. Installed as a sibling
+    /// `builtin/`, which is what `load_with_sibling_prelude` looks for, and
+    /// COPIED from the real defs rather than restated so they cannot drift.
+    fn write_card_root_prelude(root: &Path) {
+        let macros = root.join("builtin").join("macros");
+        std::fs::create_dir_all(&macros).unwrap();
+        for def in ["Normal", "Green", "Number"] {
+            std::fs::copy(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../plugins/builtin/macros/identity")
+                    .join(format!("{def}.ron")),
+                macros.join(format!("{def}.ron")),
+            )
+            .unwrap();
+        }
     }
 
     /// Two plugins finishing the same-named card with different values: the

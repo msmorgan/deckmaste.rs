@@ -363,12 +363,19 @@ impl Plugin {
     /// path-taking entries read the file and delegate, so there is a single
     /// read path, not two that drift.
     ///
-    /// `tests/read_api_gate.rs` holds the line mechanically. It parses the
-    /// workspace and rejects a turbofish or annotated read of `Card`,
-    /// `CardFace` or `Token` — wrapped, inside a macro body, or behind an
-    /// aliased import — outside this API. It is a strong check, not a total
-    /// one; that test's module doc states exactly what it does and does not
-    /// reach, and is the thing to read before assuming a bypass is impossible.
+    /// ONE further entry reads a typed card, and only because it reads this
+    /// one first: [`Plugin::rendering_card_from_str`] runs the restricted read
+    /// and propagates its error before re-reading free, so it cannot admit a
+    /// spelling this API rejects. It is confined to the legacy renderer, and
+    /// `tests/read_api_gate.rs` enforces that confinement by name.
+    ///
+    /// That gate holds the whole line mechanically. It parses the workspace
+    /// and rejects a turbofish or annotated read of `Card`, `CardFace` or
+    /// `Token` — wrapped, inside a macro body, or behind an aliased import —
+    /// outside this API, and separately rejects a rendering-view call outside
+    /// `deckmaste_legacy_render`. It is a strong check, not a total one; that
+    /// test's module doc states exactly what it does and does not reach, and
+    /// is the thing to read before assuming a bypass is impossible.
     ///
     /// # Errors
     /// If the file is missing or doesn't expand to a card.
@@ -385,11 +392,62 @@ impl Plugin {
     /// # Errors
     /// If the source doesn't expand to a card.
     pub fn card_from_str(&self, source: &str) -> anyhow::Result<LoadedCard> {
-        let semantic: deckmaste_semantics::Card = self.macros.read_str(source)?;
+        let semantic: deckmaste_semantics::Card = self.macros.read_str_restricted(source)?;
         Ok(LoadedCard {
             core: semantic.clone().lower(),
             semantic,
         })
+    }
+
+    /// A semantic card WITHOUT identity-macro invocation provenance: the value
+    /// shape a card had before the ban routed mirrored spellings through
+    /// identity macros (spec §5, "wrapper interaction at remembering kinds").
+    ///
+    /// The one caller is `deckmaste_legacy_render`, which matches semantic
+    /// terms structurally at dozens of nested positions AND reads a real
+    /// macro's remembered `template:` — so it needs the wrappers that carry a
+    /// template and not the ones that carry nothing but the value's own
+    /// variant name. A FREE read is exactly that value: native variants win,
+    /// so an identity macro is never consulted, while a real macro still
+    /// expands and is still remembered.
+    ///
+    /// Not a hole in the ban: the restricted read runs first and its error is
+    /// what propagates, so nothing reaches the free read that the author
+    /// surface would have rejected. It retires with the legacy renderer.
+    ///
+    /// **Confined on purpose, and enforced.** The two reads agree only while
+    /// every variant-named macro is a faithful identity mirror. A non-identity
+    /// macro shadowing a variant name — `macro-collision-diagnostic`'s open
+    /// scope — would make this value differ from the one the engine loads, and
+    /// a renderer grading rules text against it would report green on a card
+    /// that does not exist. `tests/read_api_gate.rs` therefore rejects a call
+    /// to this or [`Plugin::rendering_card`] outside
+    /// `crates/deckmaste_legacy_render/`; the plain syn matcher there cannot
+    /// see such a call (it names no `read_str` and no `Card`), so that scan is
+    /// separate.
+    ///
+    /// # Errors
+    /// As [`Plugin::card_from_str`].
+    pub fn rendering_card_from_str(
+        &self,
+        source: &str,
+    ) -> anyhow::Result<deckmaste_semantics::Card> {
+        // The restricted read is the gate, and only the gate: its value is
+        // discarded, so it reads at the semantic type and skips `lower`.
+        self.macros
+            .read_str_restricted::<deckmaste_semantics::Card>(source)?;
+        Ok(self.macros.read_str(source)?)
+    }
+
+    /// [`Plugin::rendering_card_from_str`] for a card in this plugin's
+    /// `cards/` directory — the rendering twin of [`Plugin::card`].
+    ///
+    /// # Errors
+    /// As [`Plugin::card`].
+    pub fn rendering_card(&self, name: &str) -> anyhow::Result<deckmaste_semantics::Card> {
+        let path = self.card_path(name);
+        self.rendering_card_from_str(&read(&path)?)
+            .with_context(|| format!(r#"parsing "{}""#, path.display()))
     }
 
     /// The file a token of this name would live in.
@@ -415,7 +473,7 @@ impl Plugin {
     /// # Errors
     /// If the source doesn't expand to a token.
     pub fn token_from_str(&self, source: &str) -> anyhow::Result<LoadedToken> {
-        let semantic: deckmaste_semantics::Token = self.macros.read_str(source)?;
+        let semantic: deckmaste_semantics::Token = self.macros.read_str_restricted(source)?;
         Ok(LoadedToken {
             core: semantic.clone().lower(),
             semantic,

@@ -97,8 +97,16 @@ fn walker_reaches_every_gain_ability_in_the_canon_corpus() {
     let mut grants = 0usize;
     for (path, source) in card_sources(&workspace_plugin("canon")) {
         let Ok(loaded) = plugin.card_from_str(&source) else { continue };
-        let debug = format!("{:?}", loaded.semantic);
-        let mut reached: Vec<String> = all_abilities(&loaded.semantic)
+        // Expanded, because the oracle reads a `Debug` rendering as text: an
+        // `Expanded` wrapper carries the invocation's RAW ARGUMENT SOURCE, so
+        // an unexpanded rendering contains the string `GainAbility(` for every
+        // grant that was written inside a macro argument — payloads with no
+        // value tree behind them. Expanding drops provenance and leaves only
+        // real positions. The walker's own look-through `Expanded` arms are
+        // exercised by the provenance tests below.
+        let semantic = macro_ron::Expand::expand_all(loaded.semantic);
+        let debug = format!("{semantic:?}");
+        let mut reached: Vec<String> = all_abilities(&semantic)
             .iter()
             .map(|a| format!("{a:?}"))
             .collect();

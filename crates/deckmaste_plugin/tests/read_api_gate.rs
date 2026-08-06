@@ -3,6 +3,16 @@
 //! that is where the semantic term is retained and where `lower` is called —
 //! the single point at which provenance will later be erased.
 //!
+//! `Plugin::rendering_card`/`rendering_card_from_str` is the one further entry
+//! that reads a typed card. It is not a second read path: it runs the
+//! restricted read first and propagates its error, so it can only ever return
+//! a value the API above accepted, with identity-macro provenance dropped.
+//! What it IS is a value the engine never sees, valid only while every
+//! variant-named macro mirrors its variant faithfully — so it belongs to the
+//! legacy renderer and nothing else. [`rendering_view_calls_are_confined`]
+//! keeps it there, as a SEPARATE scan: such a call names no `read_str` and no
+//! `Card`, so the matcher below is structurally blind to it.
+//!
 //! MECHANICAL, like `no_dead_grammar.rs`: it PARSES the workspace source with
 //! `syn` rather than carrying a hand-maintained list that can silently rot.
 //!
@@ -129,7 +139,80 @@ fn typed_card_reads_go_through_the_restricted_api() {
     assert!(
         offenders.is_empty(),
         "typed card/token reads outside the restricted API \
-         (`Plugin::card`/`token`/`card_from_str`/`token_from_str`):\n{}",
+         (`Plugin::card`/`token`/`card_from_str`/`token_from_str`, plus the \
+          legacy renderer's `rendering_card`/`rendering_card_from_str`):\n{}",
+        offenders.join("\n")
+    );
+}
+
+/// The rendering-view entries as they appear at a CALL — receiver, dot, name,
+/// open paren. Matching the bare names would also match every doc comment and
+/// error message that mentions them, including this file's and the one in
+/// `tests/restricted_containers.rs` (which found this the first time it ran).
+/// A rustdoc link spells them `Plugin::rendering_card`, with `::` and no
+/// parenthesis, so the leading dot separates a call from prose about one.
+const RENDERING_VIEW: &[&str] = &[".rendering_card(", ".rendering_card_from_str("];
+const RENDERING_VIEW_CALLERS: &str = "crates/deckmaste_legacy_render/";
+
+/// `Plugin::rendering_card`(`_from_str`) returns a card the ENGINE never sees:
+/// the same source read free, so identity-macro provenance is absent. That is
+/// only equivalent to the loaded card while every variant-named macro mirrors
+/// its variant faithfully. Let one leak into a non-rendering consumer and it
+/// would compare, lower, or grade against a value the loader does not produce
+/// — the fidelity gate would report green on a card that does not exist.
+///
+/// A textual scan, not a syn walk: the call is an ordinary method call naming
+/// no restricted type, so there is no shape to match on — the NAME is the whole
+/// signal. It keys on the CALL spelling (see [`RENDERING_VIEW`]) rather than
+/// the bare name, so prose about the entry does not read as a use of it.
+#[test]
+fn rendering_view_calls_are_confined() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let sources = rust_sources(&root);
+    assert!(
+        !sources.is_empty(),
+        "no Rust sources found under {} — the walk is broken, not the tree clean",
+        root.display()
+    );
+    let mut offenders = Vec::new();
+    let mut permitted = 0usize;
+    for path in sources {
+        let rel = path
+            .strip_prefix(&root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let Ok(source) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        if !RENDERING_VIEW.iter().any(|call| source.contains(call)) {
+            continue;
+        }
+        if rel.starts_with(RENDERING_VIEW_CALLERS) {
+            permitted += 1;
+            continue;
+        }
+        // The same allowances as the read gate — chiefly the definition site,
+        // where `rendering_card` delegates to `rendering_card_from_str`. Shared
+        // rather than restated so both lists get the staleness check above.
+        // This file names the call spellings as data.
+        if ALLOWED.iter().any(|a| rel.ends_with(a)) || rel.ends_with("read_api_gate.rs") {
+            continue;
+        }
+        offenders.push(rel);
+    }
+    // Vacuity guard: if the renderer stopped calling it, this gate would pass
+    // by finding nothing rather than by holding a line.
+    assert!(
+        permitted > 0,
+        "no {RENDERING_VIEW_CALLERS} file mentions the rendering view — either it \
+         is unused (delete it) or the walk is broken"
+    );
+    assert!(
+        offenders.is_empty(),
+        "`Plugin::rendering_card`/`rendering_card_from_str` is for \
+         {RENDERING_VIEW_CALLERS} only — it returns a card the engine never \
+         loads:\n{}",
         offenders.join("\n")
     );
 }

@@ -199,14 +199,15 @@ pub fn check_plugin(plugin_dir: &Path, oracle: &Oracle) -> anyhow::Result<Vec<Ca
         if is_todo_source(&source) {
             continue;
         }
-        // `.semantic`: the gate renders the semantic term, not the engine
-        // image. Semantic terms keep their `Expanded` invocation provenance —
-        // and so the rules-text templates the renderer needs — where lowered
-        // core carries none once `lower` erases it.
+        // The gate renders the semantic term, not the engine image: semantic
+        // terms keep their `Expanded` invocation provenance — and so the
+        // rules-text templates the renderer needs — where lowered core
+        // carries none once `lower` erases it. The RENDERING view of that
+        // term drops identity-macro provenance, which carries no template
+        // and would only hide the structure this renderer matches on.
         let card = plugin
-            .card_from_str(&source)
-            .with_context(|| format!(r#"parsing "{}""#, path.display()))?
-            .semantic;
+            .rendering_card_from_str(&source)
+            .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
         let waiver = waiver_annotation(&source);
         for face in faces(&card) {
             out.push(CardFidelity {

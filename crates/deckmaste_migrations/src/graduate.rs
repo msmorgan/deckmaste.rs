@@ -198,6 +198,23 @@ mod tests {
         let cards = root.join(plugin).join("cards");
         std::fs::create_dir_all(&cards).unwrap();
         std::fs::write(cards.join(file), source).unwrap();
+        write_card_root_prelude(root);
+    }
+
+    /// A graduation candidate is read as restricted author vocabulary, so the
+    /// card ROOT needs its identity macro in scope (spec §4) — but nothing
+    /// else from builtin, or `card_blocked_on_macro_is_tallied` would stop
+    /// having a missing macro to tally. Just that one def, copied from the
+    /// real one so it cannot drift.
+    fn write_card_root_prelude(root: &Path) {
+        let macros = root.join("builtin").join("macros");
+        std::fs::create_dir_all(&macros).unwrap();
+        std::fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../plugins/builtin/macros/identity/Normal.ron"),
+            macros.join("Normal.ron"),
+        )
+        .unwrap();
     }
 
     /// A `.ron.todo` whose body parses as a Card graduates: renamed to `.ron`,
@@ -242,6 +259,34 @@ mod tests {
         // NOT as a macro the user should build.
         assert_eq!(report.unresolved, 1);
         assert!(!report.blocked_on_macro.contains_key("Unparsed"));
+    }
+
+    /// **The `.ron.todo` row of spec §4's container table, driven end to end.**
+    /// A graduation candidate is read through `Plugin::card_from_str`, so it is
+    /// restricted author vocabulary: a spelling that names a real variant with
+    /// no macro behind it (`KeywordAbility::Composite`, the one `UNCOVERABLE`
+    /// row) does not graduate, and the file stays a `.ron.todo`.
+    #[test]
+    fn a_candidate_spelling_banned_vocabulary_does_not_graduate() {
+        let root = tempfile::tempdir().unwrap();
+        write_card(
+            root.path(),
+            "wizards",
+            "Warded.ron.todo",
+            r#"Normal(name: "Warded", types: [TypeDef(name: "Creature", permanent: true)], abilities: [Keyword(Composite(name: "Ward", abilities: []))], power: 1, toughness: 1)"#,
+        );
+        let report = graduate_plugin(&root.path().join("wizards")).unwrap();
+
+        let cards = root.path().join("wizards").join("cards");
+        assert!(cards.join("Warded.ron.todo").exists(), "still a .ron.todo");
+        assert!(!cards.join("Warded.ron").exists());
+        assert_eq!(report.graduated.len(), 0);
+        assert_eq!(report.remaining, 1);
+        // Not a missing macro the author should go build: the spelling is
+        // machinery a keyword macro expands INTO, so it lands in `other`.
+        assert!(report.blocked_on_macro.is_empty());
+        let (_, reason) = report.other.first().expect("a recorded failure");
+        assert!(reason.contains("not author vocabulary"), "{reason}");
     }
 
     /// A card whose ability references a macro that isn't registered (here
