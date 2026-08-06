@@ -494,9 +494,21 @@ impl GameState {
             unreachable!("only card-backed objects change zones")
         };
         let owner = self.cards.get(card).owner;
-        // [CR#110.2,108.4]: a permanent keeps its caster as controller; elsewhere
-        // the object is controlled by its owner.
-        let controller = if to == Zone::Battlefield { snapshot.controller } else { owner };
+        // [CR#614.12]: how it enters — emitted status (Stage 4 replacements)
+        // plus the object's own AsEnters self-replacement (enters tapped /
+        // attached) folded in below. Cloned (not moved) so the original
+        // `enters` is still available below to ride through unchanged on the
+        // scheduled past-form `ZoneChange`.
+        let mut entering = enters.clone().unwrap_or_default();
+        // [CR#110.2,108.4,110.2a]: a permanent keeps its caster as controller
+        // by default; an `EnterRider::UnderControlOf`/`UnderOwnersControl`
+        // rider (`entering.controller`) overrides that default. Elsewhere the
+        // object is controlled by its owner.
+        let controller = if to == Zone::Battlefield {
+            entering.controller.unwrap_or(snapshot.controller)
+        } else {
+            owner
+        };
         let new = self.objects.mint(snapshot.source, controller, Some(to));
         // [CR#400.7j,400.7e]: the same effect (and a zone-change trigger) can
         // find the object it became — but only in a PUBLIC zone. Hidden
@@ -504,11 +516,6 @@ impl GameState {
         if !to.is_hidden() {
             self.moved_chain.push((object, new));
         }
-        // [CR#614.12]: how it enters — emitted status (Stage 4 replacements) plus
-        // the object's own AsEnters self-replacement (enters tapped / attached).
-        // Cloned (not moved) so the original `enters` is still available below
-        // to ride through unchanged on the scheduled past-form `ZoneChange`.
-        let mut entering = enters.clone().unwrap_or_default();
         if to == Zone::Battlefield {
             let as_enters = self.as_enters_status(snapshot.source, new);
             entering.tapped |= as_enters.tapped;
@@ -535,6 +542,18 @@ impl GameState {
         });
         if let Some(host) = attached_host {
             self.objects.obj_mut(new).attached_to = Some(host);
+        }
+        // [CR#508.4,508.4a]: an `EnterRider::Attacking` target that's
+        // stopped existing since it was resolved (or a non-battlefield
+        // destination — riders are ETB-only) is never considered an
+        // attacking creature. `declare_attacker` mutates `CombatState`
+        // directly — no `GameEvent::Attacking` fires (see `EnterStatus::
+        // attacking`'s doc comment for why).
+        let attacking_target = entering
+            .attacking
+            .filter(|&target| to == Zone::Battlefield && self.objects.get(target).is_some());
+        if let Some(target) = attacking_target {
+            self.combat.declare_attacker(new, target);
         }
         match to {
             Zone::Battlefield => self.zones.battlefield.push(new),
@@ -588,20 +607,46 @@ impl GameState {
 
     /// Applies a `TokenCreated` ([CR#701.7a]): synthesizes the token's
     /// definition into the card table ([CR#111.2]: `player` is its owner and
-    /// it enters under their control), mints the object straight onto the
-    /// battlefield (summoning-sick, [CR#302.6]; its own `AsEnters`
-    /// self-replacements folded, [CR#614.12]), and schedules the past-form
-    /// `ZoneChange { from: None, to: Battlefield, .. }` fact so enter-triggers
-    /// fire ([CR#603.6]). There is no future/replaceable form here — the token
-    /// existed nowhere to move *from*; its snapshot is captured from the
-    /// freshly minted object.
-    fn apply_token_created(&mut self, player: PlayerId, token: &deckmaste_core::Token) {
+    /// it enters under their control, unless `enters.controller` overrides
+    /// it — [CR#110.2a]), mints the object straight onto the battlefield
+    /// (summoning-sick, [CR#302.6]; its own `AsEnters` self-replacements
+    /// folded in with any `Action::Create` rider list, [CR#614.12,508.4]),
+    /// and schedules the past-form `ZoneChange { from: None, to:
+    /// Battlefield, .. }` fact so enter-triggers fire ([CR#603.6]). There is
+    /// no future/replaceable form here — the token existed nowhere to move
+    /// *from*; its snapshot is captured from the freshly minted object.
+    fn apply_token_created(
+        &mut self,
+        player: PlayerId,
+        token: &deckmaste_core::Token,
+        enters: Option<crate::event::EnterStatus>,
+    ) {
+        let mut entering = enters.clone().unwrap_or_default();
         let card = self.cards.push_token(token, player);
         let source = ObjectSource::Card(card);
-        let new = self.objects.mint(source, player, Some(Zone::Battlefield));
+        let controller = entering.controller.unwrap_or(player);
+        let new = self
+            .objects
+            .mint(source, controller, Some(Zone::Battlefield));
         self.objects.obj_mut(new).summoning_sick = true;
-        if self.as_enters_status(source, new).tapped {
+        let as_enters = self.as_enters_status(source, new);
+        entering.tapped |= as_enters.tapped;
+        entering.counters.extend(as_enters.counters);
+        if entering.tapped {
             self.objects.obj_mut(new).tapped = true;
+        }
+        // [CR#122.6a,614.1c]: place enters-with counters atomically at mint —
+        // same no-counterless-window guarantee as `apply_zone_will_change`.
+        for (kind, n) in &entering.counters {
+            *self.objects.obj_mut(new).counters.entry(*kind).or_insert(0) += n;
+        }
+        // [CR#508.4,508.4a]: see `apply_zone_will_change`'s twin block — no
+        // `GameEvent::Attacking` fires here either.
+        if let Some(target) = entering
+            .attacking
+            .filter(|&t| self.objects.get(t).is_some())
+        {
+            self.combat.declare_attacker(new, target);
         }
         self.zones.battlefield.push(new);
         let snapshot = crate::lki::LkiSnapshot::capture(self, new);
@@ -613,7 +658,7 @@ impl GameState {
             snapshot: Some(Box::new(snapshot)),
             from: None,
             to: Zone::Battlefield,
-            enters: None,
+            enters,
             position: None,
             face: None,
             cause: None,

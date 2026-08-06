@@ -239,15 +239,18 @@ pub struct ManaEmptied {
 /// [CR#701.7a,111.2]: `player` creates one token with the characteristics
 /// `token` specifies. Its apply synthesizes a token entry in the card
 /// table (owner = creator), mints the object straight onto the battlefield
-/// (controller = creator), folds `AsEnters` self-replacements, and emits
-/// the past-form `ZoneChange { from: None, to: Battlefield, .. }` fact so
-/// enter-triggers fire. Creating N tokens is a `Batch` of N of these (one
-/// instruction, simultaneous). "Whenever you create a token" triggers
-/// match here.
+/// (controller = creator, unless `enters.controller` overrides it), folds
+/// `AsEnters` self-replacements plus `enters` (an `Action::Create` rider
+/// list folded through `crate::copy::enter_status_from_riders`,
+/// [CR#508.4,614.12]), and emits the past-form `ZoneChange { from: None, to:
+/// Battlefield, .. }` fact so enter-triggers fire. Creating N tokens is a
+/// `Batch` of N of these (one instruction, simultaneous). "Whenever you
+/// create a token" triggers match here.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TokenCreated {
     pub player: PlayerId,
     pub token: Token,
+    pub enters: Option<EnterStatus>,
 }
 
 /// [CR#114.1]: a player gets an emblem. Its apply synthesizes an
@@ -797,10 +800,28 @@ pub struct EnterStatus {
     pub attach_to: Option<ObjectId>,
     /// Counters the permanent enters with ([CR#122.6a,614.1c]) — `(kind,
     /// count)` pairs folded in from its own `AsEnters(PutCounters(This,
-    /// kind, n))` self-replacement, placed atomically at mint before the
-    /// past-form `ZoneChange` fact (so no observable counterless window, and
-    /// the entering P/T already reflects them).
+    /// kind, n))` self-replacement OR an `EnterRider::WithCounters` rider
+    /// (`crate::copy::enter_status_from_riders`) — both sources extend the
+    /// same list, placed atomically at mint before the past-form
+    /// `ZoneChange` fact (so no observable counterless window, and the
+    /// entering P/T already reflects them).
     pub counters: Vec<(deckmaste_core::Ident, deckmaste_core::Uint)>,
+    /// The controller an `EnterRider::UnderControlOf`/`UnderOwnersControl`
+    /// rider assigns ([CR#110.2a]), overriding the mint-time default. `None`
+    /// = the ordinary default (a `Move`'s pre-move controller, or the
+    /// creating player for a `Create` token) — no self-replacement shape
+    /// sets this field, only `crate::copy::enter_status_from_riders`.
+    pub controller: Option<PlayerId>,
+    /// The defending target ([CR#508.4]) an `EnterRider::Attacking` rider
+    /// resolves to (a player proxy or a planeswalker/battle), already
+    /// legality-filtered against a still-existing target
+    /// (`enter_status_from_riders`/apply — [CR#508.4a]). Folded directly
+    /// into `CombatState` at mint, deliberately WITHOUT firing the ordinary
+    /// `GameEvent::Attacking` fact: [CR#508.4] "such creatures are
+    /// attacking but... they never attacked" (no "whenever ~ attacks"
+    /// trigger fires) and no [CR#508.1f] declaration-tap applies — only an
+    /// explicit `Tapped` rider taps it.
+    pub attacking: Option<ObjectId>,
 }
 
 /// Who learns an event's full payload — the projection-boundary annotation

@@ -1716,6 +1716,13 @@ fn enter_rider_phrase(riders: &[EnterRider], ctx: &Ctx) -> String {
     for rider in riders {
         match rider {
             EnterRider::UnderOwnersControl => parts.push("under its owner's control".to_string()),
+            // [CR#110.2a]: "under your control" — Cloudshift's wording, and
+            // English's only irregular possessive pronoun in this position
+            // ("you's" is not a word). Every other reference takes the
+            // regular `'s` possessive.
+            EnterRider::UnderControlOf(Reference::You) => {
+                parts.push("under your control".to_string());
+            }
             EnterRider::UnderControlOf(who) => {
                 parts.push(format!("under {}'s control", fragment::reference(who, ctx)));
             }

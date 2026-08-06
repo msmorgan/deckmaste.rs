@@ -1,0 +1,32 @@
+// Cloudshift — "Exile target creature you control, then return that card to
+// the battlefield under your control." Hand-written: the "under your
+// control" phrasing isn't parsed by the extraction pipeline yet
+// (plugins/wizards/cards/Cloudshift.ron.todo carries it Unparsed) — see
+// docs/decisions/card-data.md's hand-written-entries policy. Exercises
+// `EnterRider::UnderControlOf(You)` ([CR#110.2a]): unlike
+// `UnderOwnersControl` (Otherworldly Journey), "your control" names a
+// SPECIFIC player rather than defaulting to the owner — the only real card
+// in this canon slice covering that grammar node
+// (`no_dead_grammar.rs`'s `EnterRider::UnderControlOf` entry).
+Normal(
+  name: "Cloudshift",
+  mana_cost: [
+    White,
+  ],
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Spell(
+      effect: Targeted(
+        targets: [TargetOne(And([Creature, ControlledBy(Ref(You))]))],
+        effect: Sequentially([
+          Move(Target(0), Exile),
+          Move(That(Card), Battlefield, [
+            UnderControlOf(You),
+          ]),
+        ]),
+      ),
+    ),
+  ],
+)

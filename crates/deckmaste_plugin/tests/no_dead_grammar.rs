@@ -221,11 +221,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "DEFERRED: no covered morph/manifest real card.",
         ),
         (
-            n("EnterRider", "UnderControlOf"),
-            "DEFERRED: no 'enters under a NAMED player's control' \
-            covered real card (Otherworldly Journey covers UnderOwnersControl).",
-        ),
-        (
             n("EnterRider", "AsCopy"),
             "DEFERRED: the grammar is present (an \
             EnterRider carrying the shared CopySpec, [CR#707.5]) and a documented never-panic \

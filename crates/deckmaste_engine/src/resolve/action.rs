@@ -4,6 +4,7 @@ use deckmaste_core::Action;
 use deckmaste_core::Agency;
 use deckmaste_core::Anchor;
 use deckmaste_core::Destination;
+use deckmaste_core::EnterRider;
 use deckmaste_core::Reference;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -234,19 +235,18 @@ impl GameState {
             // `move_items` skips any object not currently in that zone —
             // never a panic, per-object like the existing gone-object skip.
             Action::Move(sel, destination, riders, from) => {
-                // Enter riders ([CR#614.12]) await the enters-the-battlefield
-                // machinery — a loud seam, like the other unbuilt verbs.
-                // `AsCopy` is excluded: it's a layer-1a copy input consumed
-                // by `engine-layers-1-copy-facedown-text`, not this seam —
-                // see `crate::copy::has_unbuilt_enter_rider`.
+                // Face-down arrival ([CR#708]) awaits `engine-face-down`'s
+                // state machinery — a loud seam, like the other unbuilt
+                // verbs. `AsCopy` is excluded: it's a layer-1a copy input
+                // consumed by `engine-layers-1-copy-facedown-text`, not this
+                // seam — see `crate::copy::has_unbuilt_enter_rider`.
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
-                        "engine seam: Move enter riders ([CR#603.6d,614.12]) — tapped/\
-                         attacking/with-counters have grammar but no execution; \
-                         owner: engine-enter-rider-execution"
+                        "engine seam: Move enter riders ([CR#708]) — face-down arrival has \
+                         grammar but no execution; owner: engine-face-down"
                     );
                 }
-                self.move_items(sel, destination, *from, frame)
+                self.move_items(sel, destination, *from, riders, frame)
             }
             // [CR#122]: move counters object→object — a remove from `from` plus
             // a place on `to`, emitted as one simultaneous batch (the apply
@@ -336,8 +336,8 @@ impl GameState {
                 // `crate::copy::has_unbuilt_enter_rider`.
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
-                        "engine seam: MoveGroup enter riders ([CR#603.6d,614.12]) — grammar \
-                         but no execution; owner: engine-enter-rider-execution"
+                        "engine seam: MoveGroup enter riders ([CR#708]) — face-down arrival has \
+                         grammar but no execution; owner: engine-face-down"
                     );
                 }
                 // A group member with no zone to leave — a player proxy
@@ -361,12 +361,25 @@ impl GameState {
                 let events: Vec<GameEvent> = objects
                     .iter()
                     .map(|&(object, from)| {
+                        // Riders are ETB-only; see the `Move` arm's twin
+                        // comment above `move_items`.
+                        let enters = if to_zone == Zone::Battlefield && !riders.is_empty() {
+                            Some(crate::copy::enter_status_from_riders(
+                                self,
+                                frame,
+                                riders,
+                                self.objects.obj(object).controller,
+                                self.owner_of(object),
+                            ))
+                        } else {
+                            None
+                        };
                         GameEvent::ZoneChange(ZoneChange {
                             snapshot: None,
                             object,
                             from: Some(from),
                             to: to_zone,
-                            enters: None,
+                            enters,
                             position: anchor.map(|a| self.library_index(object, a, frame)),
                             face: None,
                             cause: None,
@@ -470,6 +483,7 @@ impl GameState {
         sel: &Reference,
         destination: &Destination,
         guard: Option<Zone>,
+        riders: &[EnterRider],
         frame: &Frame,
     ) -> Vec<WorkItem> {
         let mut items: Vec<WorkItem> = Vec::new();
@@ -515,12 +529,27 @@ impl GameState {
                             Some(self.library_index(object, anchor, frame))
                         }
                     };
+                    // Riders are ETB-only ([CR#614.12]; a non-battlefield
+                    // destination with riders is ill-formed, rejected by the
+                    // elaborator) — computed per object since
+                    // `UnderOwnersControl` reads THIS object's own owner.
+                    let enters = if to == Zone::Battlefield && !riders.is_empty() {
+                        Some(crate::copy::enter_status_from_riders(
+                            self,
+                            frame,
+                            riders,
+                            self.objects.obj(object).controller,
+                            self.owner_of(object),
+                        ))
+                    } else {
+                        None
+                    };
                     zone_events.push(GameEvent::ZoneChange(ZoneChange {
                         snapshot: None,
                         object,
                         from: Some(from),
                         to,
-                        enters: None,
+                        enters,
                         position,
                         face: None,
                         cause: None,
@@ -5546,6 +5575,44 @@ mod tests {
             Some(lib),
             "the pre-existing card is untouched beneath the pile"
         );
+    }
+
+    /// `Action::MoveGroup`'s own rider list ([CR#614.12]) folds per landing
+    /// member, same mechanism as `Action::Move` — a group "return them to
+    /// the battlefield tapped" shape taps every arrival, not just one.
+    #[test]
+    fn move_group_riders_tap_every_landing_member() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let a = mint_in_hand(&mut state, p0, "A");
+        let b = mint_in_hand(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        let before: std::collections::HashSet<ObjectId> =
+            state.zones.battlefield.iter().copied().collect();
+        let effect = OneShotEffect::Act(Action::MoveGroup {
+            group: Selection::SelectAll(Predicate::State(StatePredicate::InZone(Zone::Hand))),
+            arrangement: deckmaste_core::Arrangement::SameOrder,
+            to: Destination::Zone(Zone::Battlefield),
+            riders: vec![deckmaste_core::EnterRider::Tapped].into(),
+        });
+        state.run_effect(effect, &frame);
+        // `run_injected`, not `drain_events`: draining into the real turn
+        // loop would run turn 1's untap step, which untaps everything the
+        // Tapped rider just set — a test-timing artifact, not a rider bug.
+        run_injected(&mut state);
+        let landed: Vec<ObjectId> = state
+            .zones
+            .battlefield
+            .iter()
+            .copied()
+            .filter(|o| !before.contains(o))
+            .collect();
+        assert_eq!(landed.len(), 2, "both hand cards land on the battlefield");
+        assert!(
+            landed.iter().all(|&o| state.objects.obj(o).tapped),
+            "the Tapped rider taps every landing member of the group"
+        );
+        let _ = (a, b);
     }
 
     /// Mint (on the battlefield, player 0) a transforming DFC whose front and

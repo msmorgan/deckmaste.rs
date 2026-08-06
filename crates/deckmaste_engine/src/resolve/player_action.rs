@@ -726,10 +726,23 @@ impl GameState {
                 // redundant, never-crash-safe semantic input.)
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
-                        "engine seam: token enter riders ([CR#603.6d]) — tapped/attacking have \
-                         grammar but no execution; owner: engine-enter-rider-execution"
+                        "engine seam: token enter riders ([CR#708]) — face-down arrival has \
+                         grammar but no execution; owner: engine-face-down"
                     );
                 }
+                // A created token always enters the battlefield ([CR#614.12]
+                // doc comment on `Action::Create`), so every rider is
+                // computed once and shared by every minted copy — the
+                // creating player IS the default controller and the owner
+                // ([CR#111.2]), so both `enter_status_from_riders` seeds are
+                // `actor`.
+                let enters = if riders.is_empty() {
+                    None
+                } else {
+                    Some(crate::copy::enter_status_from_riders(
+                        self, frame, riders, actor, actor,
+                    ))
+                };
                 // [CR#701.7a]: one instruction puts all N tokens onto the
                 // battlefield — one simultaneous batch of `TokenCreated`
                 // facts. (Token copies — `Create` of a copy-defined token —
@@ -776,6 +789,7 @@ impl GameState {
                         GameEvent::TokenCreated(TokenCreated {
                             player: actor,
                             token: token.clone(),
+                            enters: enters.clone(),
                         })
                     })
                     .collect();
@@ -945,6 +959,258 @@ mod tests {
             before + 1,
             "the move completes: a second permanent lands on the battlefield \
              even though the AsCopy rider isn't applied yet"
+        );
+    }
+
+    /// Move `object` onto the battlefield with `riders` and drain the agenda,
+    /// returning the NEW object id it became (a `Move` remints, [CR#400.7]).
+    /// Panics if no new battlefield member appeared.
+    fn move_onto_battlefield_with_riders(
+        state: &mut GameState,
+        object: ObjectId,
+        riders: Vec<deckmaste_core::EnterRider>,
+    ) -> ObjectId {
+        use deckmaste_core::Destination;
+
+        let before: std::collections::HashSet<ObjectId> =
+            state.zones.battlefield.iter().copied().collect();
+        let frame = frame_src(object);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                Destination::Zone(Zone::Battlefield),
+                riders.into(),
+                None,
+            )),
+            &frame,
+        );
+        for _ in 0..3 {
+            let _ = state.step();
+        }
+        *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|o| !before.contains(o))
+            .expect("a new object landed on the battlefield")
+    }
+
+    /// `EnterRider::Tapped` ([CR#603.6d]) executes at `Action::Move`: the
+    /// [CR#603.6d]-style "search library, put onto the battlefield tapped"
+    /// shape lands the permanent already tapped, mechanically — no combat,
+    /// no controller change.
+    #[test]
+    fn move_tapped_rider_taps_the_entering_permanent() {
+        use deckmaste_core::EnterRider;
+
+        let (mut state, _bear) = bear_on_field();
+        let second = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
+            .expect("a second Grizzly Bears in the opening hand");
+        let new = move_onto_battlefield_with_riders(&mut state, second, vec![EnterRider::Tapped]);
+        assert!(
+            state.objects.obj(new).tapped,
+            "the Tapped rider taps the entering permanent"
+        );
+    }
+
+    /// `EnterRider::WithCounters` ([CR#122.6a,614.12]) places the named
+    /// counters atomically at mint — the reanimation "+1/+1 counter on it"
+    /// shape, executed via `Action::Move` (Otherworldly Journey's delayed
+    /// "return that card to the battlefield ... with a +1/+1 counter on it"
+    /// exercises the exact same rider structurally).
+    #[test]
+    fn move_with_counters_rider_places_counters_atomically() {
+        use deckmaste_core::CounterRef;
+        use deckmaste_core::EnterRider;
+        use deckmaste_core::Ident;
+
+        let (mut state, _bear) = bear_on_field();
+        let second = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
+            .expect("a second Grizzly Bears in the opening hand");
+        let new = move_onto_battlefield_with_riders(
+            &mut state,
+            second,
+            vec![EnterRider::WithCounters(
+                CounterRef::from("P1P1Counter"),
+                Count::Literal(2),
+            )],
+        );
+        assert_eq!(
+            state
+                .objects
+                .obj(new)
+                .counters
+                .get(&Ident::from("P1P1Counter"))
+                .copied(),
+            Some(2),
+            "the WithCounters rider places 2 +1/+1 counters at mint"
+        );
+    }
+
+    /// `EnterRider::UnderControlOf` ([CR#110.2a]) overrides the mint-time
+    /// controller to the named player — the Cloudshift-style "return that
+    /// card to the battlefield under your control" shape, where "your"
+    /// names a SPECIFIC player rather than defaulting to the mover.
+    #[test]
+    fn move_under_control_of_rider_overrides_controller() {
+        use deckmaste_core::EnterRider;
+
+        let (mut state, _bear) = bear_on_field();
+        let second = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
+            .expect("a second Grizzly Bears in the opening hand");
+        let new = move_onto_battlefield_with_riders(
+            &mut state,
+            second,
+            vec![EnterRider::UnderControlOf(Reference::Opponent)],
+        );
+        assert_eq!(
+            state.objects.obj(new).controller,
+            PlayerId(1),
+            "UnderControlOf(Opponent) gives the entering permanent to player 1, \
+             not its owner (player 0)"
+        );
+    }
+
+    /// `EnterRider::UnderOwnersControl` ([CR#110.2a]) — the blink/reanimation
+    /// "under its owner's control" wording, spelled without naming a player.
+    /// Owner and mover coincide in this fixture (the card's owner IS the
+    /// mover), so this pins the rider is READ at all, not that it differs
+    /// from the ordinary default.
+    #[test]
+    fn move_under_owners_control_rider_sets_controller_to_owner() {
+        use deckmaste_core::EnterRider;
+
+        let (mut state, _bear) = bear_on_field();
+        let second = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
+            .expect("a second Grizzly Bears in the opening hand");
+        let owner = state.owner_of(second);
+        let new = move_onto_battlefield_with_riders(
+            &mut state,
+            second,
+            vec![EnterRider::UnderOwnersControl],
+        );
+        assert_eq!(
+            state.objects.obj(new).controller,
+            owner,
+            "UnderOwnersControl sets the entering permanent's controller to its owner"
+        );
+    }
+
+    /// `EnterRider::Attacking(Some(_))` ([CR#508.4]) folds the entering
+    /// creature into the current combat's attacker set against the named
+    /// target — the Ninjutsu-style "put onto the battlefield tapped and
+    /// attacking" shape. No `GameEvent::Attacking` fires for it ([CR#508.4]:
+    /// "they never attacked"), so pairing WITHOUT a `Tapped` rider here also
+    /// pins that no automatic declaration-tap sneaks in.
+    #[test]
+    fn move_attacking_rider_declares_the_entering_creature_an_attacker() {
+        use deckmaste_core::EnterRider;
+
+        let (mut state, _bear) = bear_on_field();
+        let second = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
+            .expect("a second Grizzly Bears in the opening hand");
+        let defender = state.player(PlayerId(1)).object;
+        let new = move_onto_battlefield_with_riders(
+            &mut state,
+            second,
+            vec![EnterRider::Attacking(Some(Reference::Opponent))],
+        );
+        assert!(
+            state.combat.is_attacking(new),
+            "the Attacking rider declares the entering creature an attacker"
+        );
+        assert_eq!(
+            state.combat.target_of(new),
+            Some(defender),
+            "it attacks the named target (the opponent)"
+        );
+        assert!(
+            !state.objects.obj(new).tapped,
+            "entering attacking does NOT itself tap the creature ([CR#508.4] is \
+             distinct from the [CR#508.1f] declaration-tap) — only an explicit \
+             Tapped rider would"
+        );
+    }
+
+    /// `EnterRider::Attacking(None)` — the target left unspecified, so
+    /// [CR#508.4] has the entering creature's controller choose. This
+    /// engine's fixed 2-player field makes that choice forced: the sole
+    /// legal defending player is the entering controller's opponent.
+    #[test]
+    fn move_attacking_rider_with_no_target_defaults_to_the_sole_opponent() {
+        use deckmaste_core::EnterRider;
+
+        let (mut state, _bear) = bear_on_field();
+        let second = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
+            .expect("a second Grizzly Bears in the opening hand");
+        let defender = state.player(PlayerId(1)).object;
+        let new = move_onto_battlefield_with_riders(
+            &mut state,
+            second,
+            vec![EnterRider::Attacking(None)],
+        );
+        assert_eq!(
+            state.combat.target_of(new),
+            Some(defender),
+            "an unspecified Attacking target defaults to the sole opponent"
+        );
+    }
+
+    /// `Action::Create` folds its own rider list the same way `Action::Move`
+    /// does ([CR#508.4,614.12]) — "create a token tapped" mints it already
+    /// tapped, proving the token-minting call site is wired too, not just
+    /// the zone-move one.
+    #[test]
+    fn create_tapped_rider_taps_the_minted_token() {
+        use deckmaste_core::EnterRider;
+
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        let token = deckmaste_core::Token {
+            name: Some("Test Token".into()),
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Creature.def()].into(),
+            subtypes: vec![].into(),
+            abilities: vec![].into(),
+            power: None,
+            toughness: None,
+        };
+        let before: std::collections::HashSet<ObjectId> =
+            state.zones.battlefield.iter().copied().collect();
+        state.run_effect(
+            OneShotEffect::Act(Action::Create {
+                agent: Reference::You,
+                count: Count::Literal(1),
+                token: token.into(),
+                riders: vec![EnterRider::Tapped].into(),
+            }),
+            &frame,
+        );
+        for _ in 0..3 {
+            let _ = state.step();
+        }
+        let new = *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|o| !before.contains(o))
+            .expect("the created token landed on the battlefield");
+        assert!(
+            state.objects.obj(new).tapped,
+            "Action::Create's Tapped rider taps the minted token"
         );
     }
 

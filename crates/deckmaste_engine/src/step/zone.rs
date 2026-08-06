@@ -60,7 +60,7 @@ impl EventApply for Unattached {
 
 impl EventApply for TokenCreated {
     fn apply(&self, g: &mut GameState) -> Option<GameEvent> {
-        g.apply_token_created(self.player, &self.token);
+        g.apply_token_created(self.player, &self.token, self.enters.clone());
         None
     }
 }

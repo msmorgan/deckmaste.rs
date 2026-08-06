@@ -869,6 +869,7 @@ mod tests {
             &Reference::That(deckmaste_core::Sort::Card),
             &Destination::Zone(Zone::Exile),
             None,
+            &[],
             &frame,
         );
         assert!(

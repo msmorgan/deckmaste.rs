@@ -3304,6 +3304,103 @@ fn inline_blink() -> Card {
     })
 }
 
+/// Cloudshift end-to-end ([CR#400.7j,110.2a]): a REAL canon card (unlike
+/// `inline_blink` below, which predates `engine-enter-rider-execution` and
+/// carries no rider at all) casts through the full stack, exiles the
+/// targeted creature, and returns that card to the battlefield with
+/// `EnterRider::UnderControlOf(You)` ([CR#110.2a,614.12]) — the first canon
+/// card to exercise that grammar node
+/// (`no_dead_grammar.rs`'s `EnterRider::UnderControlOf` entry).
+#[test]
+fn cloudshift_returns_the_exiled_creature_under_the_casters_control() {
+    let cloudshift = card("Cloudshift");
+    let bears = card("Grizzly Bears");
+    let plains = Arc::new(builtin().card("Plains").unwrap().core);
+    let mut p0 = vec![Arc::clone(&cloudshift); 5];
+    p0.extend(vec![Arc::clone(&bears); 5]);
+    p0.extend(vec![Arc::clone(&plains); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&plains); 10],
+            },
+        ],
+        seed: 5,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    let before = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    force_onto_battlefield(&mut state, PlayerId(0), "Plains");
+    let cloudshift = find_in_hand(&state, PlayerId(0), "Cloudshift");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1); // {W}
+
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: cloudshift }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert!(
+        legal[0].contains(&before),
+        "the controlled creature is a legal target"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![vec![before]]))
+        .unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "Cloudshift sits on the stack");
+    assert_eq!(state.stack[0].object, StackObject::Spell(cloudshift));
+
+    // Both players pass: Cloudshift resolves — exile then return, one resolution.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    assert!(
+        state.objects.get(before).is_none(),
+        "pre-exile object is gone ([CR#400.7])"
+    );
+    assert!(
+        state.zones.exile.is_empty(),
+        "the exile leg is transient within this one resolution"
+    );
+    let after = *state
+        .zones
+        .battlefield
+        .iter()
+        .find(|&&o| is_card(&state, o, "Grizzly Bears"))
+        .expect("the returned creature is on the battlefield");
+    assert_ne!(after, before, "a NEW object returned ([CR#400.7])");
+    assert_eq!(state.objects.obj(after).zone, Some(Zone::Battlefield));
+    assert_eq!(
+        state.objects.obj(after).controller,
+        PlayerId(0),
+        "UnderControlOf(You) returns it under the caster's control"
+    );
+    assert_eq!(
+        printed_pt(&state, after),
+        Some((2, 2)),
+        "still Grizzly Bears"
+    );
+    assert!(state.stack.is_empty());
+}
+
 /// Blink end-to-end ([CR#400.7j]): cast through the full stack, exile the
 /// targeted creature and return THAT CARD in one resolution. The original id
 /// is gone; a NEW object is on the battlefield ([CR#400.7]).

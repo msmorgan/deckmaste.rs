@@ -81,6 +81,10 @@
             reason: "Action::Cast (resolution-time cast-as-effect, [CR#608.2g]) has no Idris OneShotEffect counterpart — Idris casts via the 601 permission pipeline",
         ),
         (
+            card: "Cloudshift",
+            reason: "EnterRider list has no Idris Move/MoveGroup counterpart beyond a lone Attacking(Some(_))",
+        ),
+        (
             card: "Cursed Scroll",
             reason: "ChooseValue(You, CardName, Ident(\"CursedScrollName\")) not yet mapped (no Idris counterpart or not implemented)",
         ),

@@ -148,18 +148,111 @@ pub fn additional_riders(exceptions: &[CopyException]) -> Vec<EnterRider> {
 
 /// Whether an [`EnterRider`] list holds anything the ETB-rider machinery
 /// (the seam guarding `Action::Move`/`Action::MoveGroup`/`Action::Create`)
-/// still needs built. [`EnterRider::AsCopy`] is deliberately EXCLUDED from this
-/// check: it's a layer-1a copy INPUT ([CR#707.5]), and applying it —
-/// deriving and installing the copiable values — is
-/// handled by `layer::base_values`, not this function. So a rider list holding
-/// only `AsCopy` entries never trips the other riders' `todo!()`: the
-/// move/create proceeds as a documented fizzle — the object still relocates/is
-/// created, just without the copy installed yet — never a panic. A list that
-/// mixes `AsCopy` with an actually-unbuilt rider (`Tapped`, `Attacking`, …)
-/// still trips the `todo!()` for THAT rider, unrelated to this seam.
+/// still needs built. Two riders are excluded from this check, for
+/// different reasons: [`EnterRider::AsCopy`] is a layer-1a copy INPUT
+/// ([CR#707.5]) applied by `layer::base_values`, not this function, so it
+/// never trips this seam at all; every other rider (`Tapped`,
+/// `UnderControlOf`, `UnderOwnersControl`, `Attacking`, `WithCounters`) is
+/// now built (`enter_status_from_riders`, below) and folded in at mint by
+/// `apply_zone_will_change`/`apply_token_created`. Only
+/// [`EnterRider::FaceDown`] remains genuinely unbuilt — it needs the
+/// face-down permanent state `engine-face-down` hasn't landed yet. A list
+/// mixing `AsCopy`/a built rider with `FaceDown` still trips the `todo!()`
+/// for `FaceDown`.
 #[must_use]
 pub fn has_unbuilt_enter_rider(riders: &[EnterRider]) -> bool {
-    riders.iter().any(|r| !matches!(r, EnterRider::AsCopy(_)))
+    riders.iter().any(|r| matches!(r, EnterRider::FaceDown))
+}
+
+/// Fold an [`EnterRider`] list into an [`EnterStatus`] — the SAME target
+/// struct the enters-replacement self-fold populates
+/// (`GameState::as_enters_status`, `replace.rs`), so a rider and a
+/// permanent's own `AsEnters` self-replacement converge on one mechanism at
+/// `apply_zone_will_change`/`apply_token_created` (union for `tapped`,
+/// extend for `counters`, `.or` for `attach_to` — `controller`/`attacking`
+/// are rider-only, no self-replacement shape sets them). Callers must
+/// already know [`has_unbuilt_enter_rider`] is `false` — `FaceDown` panics
+/// here since nothing upstream should ever pass one through.
+///
+/// `default_controller`/`owner` seed the two controller-affecting riders:
+/// `default_controller` is what the entering object's controller would be
+/// with NO rider present (the pre-move object's live controller for a
+/// `Move`/`MoveGroup`, the creating player for a `Create` token — both
+/// equal what `apply_zone_will_change`/`apply_token_created` would otherwise
+/// default to) — it seeds `EnterRider::Attacking(None)`'s "its controller"
+/// read ([CR#508.4]) so that read reflects a same-list `UnderControlOf`/
+/// `UnderOwnersControl` override rather than the stale pre-rider value.
+/// `owner` is the entering object's owner, for `UnderOwnersControl`.
+///
+/// `Attacking`'s defending target is resolved NOW, against the pre-move
+/// frame/state: the target (a player proxy or a planeswalker/battle) is
+/// unaffected by the entering object's own remint, so resolving it before
+/// the move is safe — the same reasoning the enchant-target `attach_to`
+/// cast path already relies on (`resolve/mod.rs`). A resolved target that
+/// no longer exists by apply time is filtered out by
+/// `apply_zone_will_change`/`apply_token_created`, mirroring [CR#508.4a].
+#[must_use]
+pub(crate) fn enter_status_from_riders(
+    state: &GameState,
+    frame: &Frame,
+    riders: &[EnterRider],
+    default_controller: crate::player::PlayerId,
+    owner: crate::player::PlayerId,
+) -> crate::event::EnterStatus {
+    let mut status = crate::event::EnterStatus::default();
+    for rider in riders {
+        match rider {
+            EnterRider::Tapped => status.tapped = true,
+            // [CR#110.2a]: overrides the mint-time default controller.
+            // Silently ignored on a non-player reference (never-crash on
+            // invalid semantic input) — `status.controller` stays whatever
+            // an earlier rider in the list set, if any.
+            EnterRider::UnderControlOf(r) => {
+                if let Some(p) = state.eval_player_ref(r, frame) {
+                    status.controller = Some(p);
+                }
+            }
+            EnterRider::UnderOwnersControl => status.controller = Some(owner),
+            // [CR#122.6a,614.12]: same atomic-at-mint slot the self-fold's
+            // `PutCounters(This, ...)` writes — `apply_zone_will_change`
+            // extends both lists together, so a card enters with BOTH kinds
+            // of counters in the same no-counterless-window batch.
+            EnterRider::WithCounters(kind, count) => {
+                let n = state.eval_count(count, frame);
+                if n > 0 {
+                    status.counters.push((kind.0, n));
+                }
+            }
+            // `Attacking` is resolved in the second pass below, once every
+            // controller rider in this SAME list has been folded —
+            // order-independent. `AsCopy` is a layer-1a copy input, not this
+            // seam (see doc comment). Neither writes `status` here.
+            EnterRider::Attacking(_) | EnterRider::AsCopy(_) => {}
+            EnterRider::FaceDown => {
+                unreachable!("callers must gate on has_unbuilt_enter_rider before reaching here")
+            }
+        }
+    }
+    if let Some(target_ref) = riders.iter().find_map(|r| match r {
+        EnterRider::Attacking(target) => Some(target),
+        _ => None,
+    }) {
+        let effective_controller = status.controller.unwrap_or(default_controller);
+        status.attacking = match target_ref {
+            Some(r) => Some(state.eval_reference(r, frame)),
+            // [CR#508.4]: "its controller chooses which defending player...
+            // it's attacking" — in this engine's fixed 2-player field, the
+            // sole legal choice is the entering controller's opponent
+            // (mirroring `declare_attackers`' own defender computation),
+            // so no decision needs surfacing.
+            None => Some(
+                state
+                    .player(state.next_live_after(effective_controller))
+                    .object,
+            ),
+        };
+    }
+    status
 }
 
 /// Map a copy's resolved [`CopiableValues`] to a [`Token`] for minting
@@ -866,13 +959,14 @@ mod tests {
     /// `todo!()` (`resolve/action.rs`, `resolve/player_action.rs`) gates on:
     /// a rider list holding ONLY `AsCopy` entries — any count — never trips
     /// it (the layer-1a copy input fizzles here, applied downstream by
-    /// `engine-layers-1-copy-facedown-text`), an empty list never trips it
-    /// (the existing no-op case), but a list mixing `AsCopy` with an
-    /// actually-unbuilt rider (`Tapped`) still does — that combination is
-    /// unrelated to copy grammar and stays the `core-action-riders-cost-modes`
-    /// seam's problem.
+    /// `engine-layers-1-copy-facedown-text`); a genuinely BUILT rider
+    /// (`Tapped`) no longer trips it either
+    /// (`engine-enter-rider-execution`); an empty list never trips it (the
+    /// existing no-op case); but `FaceDown` — the one rider still awaiting
+    /// `engine-face-down`'s state machinery — always does, whether alone or
+    /// mixed with `AsCopy`/a built rider.
     #[test]
-    fn has_unbuilt_enter_rider_excludes_as_copy_only() {
+    fn has_unbuilt_enter_rider_excludes_as_copy_and_built_riders() {
         let spec = deckmaste_core::CopySpec {
             source: CopySource::Object(Reference::Target(0)),
             exceptions: vec![],
@@ -894,12 +988,16 @@ mod tests {
             "multiple AsCopy riders still fizzle"
         );
         assert!(
-            has_unbuilt_enter_rider(&[EnterRider::Tapped]),
-            "a genuinely-unbuilt rider still trips the seam"
+            !has_unbuilt_enter_rider(&[EnterRider::Tapped]),
+            "a built rider (Tapped) no longer trips the seam"
         );
         assert!(
-            has_unbuilt_enter_rider(&[EnterRider::AsCopy(spec), EnterRider::Tapped]),
-            "AsCopy mixed with an unbuilt rider still trips the seam for that rider"
+            has_unbuilt_enter_rider(&[EnterRider::FaceDown]),
+            "the still-unbuilt FaceDown rider trips the seam"
+        );
+        assert!(
+            has_unbuilt_enter_rider(&[EnterRider::AsCopy(spec), EnterRider::FaceDown]),
+            "AsCopy mixed with the unbuilt rider still trips the seam for FaceDown"
         );
     }
 }
