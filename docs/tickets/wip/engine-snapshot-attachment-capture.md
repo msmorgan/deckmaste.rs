@@ -33,3 +33,19 @@ its LKI-captured host, and an unattached departed object reads the relation as
 false rather than panicking.
 
 Effort: **S**.
+
+## Done
+
+Added `LkiSnapshot::attached_to` (`crates/deckmaste_engine/src/lki.rs`),
+populated at capture from the live object alongside `tapped`/`counters`, and
+replaced the `AttachedTo`/`Attachment` seam in `filter_matches_snapshot`
+(`crates/deckmaste_engine/src/trigger.rs`) with arms that read it.
+
+`AttachedTo` resolves the captured host against the live store. `Attachment`
+is the inverse — it scans live objects whose `attached_to` still points at the
+departed id, which [CR#704.8] licenses: LKI predates the simultaneous
+state-based sweep that clears the relation. Unattached reads false.
+
+Pinned by three `trigger.rs` tests: the captured host resolves, the inverse
+relation sees a still-live attachment, and an unattached departed object reads
+both relations false instead of panicking.

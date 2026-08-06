@@ -26,6 +26,11 @@ pub struct LkiSnapshot {
     pub controller: PlayerId,
     pub tapped: bool,
     pub damage: Uint,
+    /// The attachment host it was attached to the instant it left
+    /// ([CR#701.3,603.10a]) — mirrors `GameObject::attached_to`. A departed
+    /// Aura/Equipment's leaves-the-battlefield ability reads its last host
+    /// through this once the live object is gone.
+    pub attached_to: Option<ObjectId>,
     /// Counters on the object the instant it left ([CR#122.1,603.10a]) — keyed
     /// by counter name, mirroring `GameObject::counters`. A dies-trigger
     /// reads these once the live object is gone (its id is stale):
@@ -52,6 +57,7 @@ impl LkiSnapshot {
             controller: o.controller,
             tapped: o.tapped,
             damage: o.total_damage(),
+            attached_to: o.attached_to,
             counters: o.counters.clone(),
             left: o.zone.expect("a zoned object has a zone to leave"),
         }

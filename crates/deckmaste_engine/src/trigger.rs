@@ -367,19 +367,29 @@ impl GameState {
                 deckmaste_core::RelationPredicate::OpponentOf(_)
                 | deckmaste_core::RelationPredicate::Controls(_),
             ) => false,
-            // Attachment relations over a snapshot: engine-attach tracks
-            // `attached_to` on the LIVE object, but `LkiSnapshot` does not
-            // capture it, so a gone object's last attachment is unknown. Reading
-            // the live store by the stale id would be wrong; a loud seam beats a
-            // silently-wrong `false` until the snapshot captures the relation.
-            Predicate::Relation(
-                deckmaste_core::RelationPredicate::AttachedTo(_)
-                | deckmaste_core::RelationPredicate::Attachment(_),
-            ) => todo!(
-                "engine seam: snapshot attachment relations ([CR#701.3,603.10]) — LkiSnapshot \
-                 never captured attached_to, which engine-attach tracks only on the live object; \
-                 owner: engine-snapshot-attachment-capture"
-            ),
+            // [CR#301.5,303.4]: the departed attachment's captured host
+            // ([CR#603.10a]) — mirrors `target::matches_with`'s `AttachedTo`
+            // arm, but reads the CAPTURED relation (the live object is
+            // already gone) and resolves the host LIVE. The shape a departed
+            // Aura's leaves-the-battlefield ability needs to read its last
+            // host. Unattached reads false, never a panic.
+            Predicate::Relation(deckmaste_core::RelationPredicate::AttachedTo(inner)) => snapshot
+                .attached_to
+                .is_some_and(|host| self.filter_matches_live(inner, host, watcher)),
+            // The inverse: some LIVE object still points its `attached_to` at
+            // this object's now-stale id — captured before the attach
+            // relation is cleared, since LKI is taken before the
+            // simultaneous state-based sweep ([CR#704.8]) — and matches
+            // `inner`. `snapshot.object` is a label/reference token here,
+            // never a live lookup: slotmap's generational keys make the
+            // comparison self-checking, so a reused id can never
+            // false-match.
+            Predicate::Relation(deckmaste_core::RelationPredicate::Attachment(inner)) => {
+                self.objects.iter().any(|o| {
+                    o.attached_to == Some(snapshot.object)
+                        && self.filter_matches_live(inner, o.id, watcher)
+                })
+            }
 
             // A gone object has no live stack entry, so it currently targets
             // nothing ([CR#115.9b] — departed objects are not read through LKI).
@@ -1657,6 +1667,7 @@ mod tests {
             tapped: false,
             damage: 0,
             counters: std::collections::HashMap::new(),
+            attached_to: None,
             left: Zone::Hand,
         };
         let enter_event = GameEvent::ZoneChange(ZoneChange {
@@ -1705,6 +1716,7 @@ mod tests {
             tapped: false,
             damage: 0,
             counters: std::collections::HashMap::new(),
+            attached_to: None,
             left: Zone::Battlefield,
         };
         let event = GameEvent::ZoneChange(ZoneChange {
@@ -1867,6 +1879,7 @@ mod tests {
             tapped: false,
             damage: 0,
             counters: std::collections::HashMap::new(),
+            attached_to: None,
             // For an enter, the snapshot's `left` represents what zone it came
             // from — Hand in this case.
             left: Zone::Hand,
@@ -5206,6 +5219,100 @@ mod tests {
             &snap,
             w
         ));
+    }
+
+    /// [CR#301.5,303.4,603.10a]: a departed attachment's captured
+    /// `attached_to` still resolves the LIVE host through
+    /// `filter_matches_snapshot` — the shape a departed Aura's
+    /// leaves-the-battlefield ability needs to read its last host. Mirrors
+    /// `target::relation_filters_match_attachment_and_host`.
+    #[test]
+    fn snapshot_attached_to_resolves_the_captured_host() {
+        use deckmaste_core::RelationPredicate;
+        let (mut state, host) = bear_on_field();
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let attachment_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let attachment = state.objects.mint(
+            ObjectSource::Card(attachment_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(attachment);
+        state.objects.obj_mut(attachment).attached_to = Some(host);
+
+        // Capture the attachment's LKI as if it just left the battlefield.
+        let snap = LkiSnapshot::capture(&state, attachment);
+        let w = state.objects.obj(attachment).source;
+
+        assert!(
+            state.filter_matches_snapshot(
+                &Predicate::Relation(RelationPredicate::AttachedTo(Arc::new(
+                    Predicate::creature()
+                ))),
+                &snap,
+                w
+            ),
+            "the departed attachment's captured host is a live creature"
+        );
+    }
+
+    /// The inverse relation: a departed host's snapshot still sees a LIVE
+    /// object pointing its `attached_to` at the departed host's now-stale id
+    /// — captured before the attach relation is cleared ([CR#704.8]).
+    #[test]
+    fn snapshot_attachment_reads_the_live_object_still_pointing_at_it() {
+        use deckmaste_core::RelationPredicate;
+        let (mut state, host) = bear_on_field();
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
+        let attachment_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let attachment = state.objects.mint(
+            ObjectSource::Card(attachment_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(attachment);
+        state.objects.obj_mut(attachment).attached_to = Some(host);
+
+        // Capture the HOST's LKI, as if it just left the battlefield while
+        // the still-live attachment hasn't been cleaned up yet.
+        let snap = LkiSnapshot::capture(&state, host);
+        let w = state.objects.obj(host).source;
+
+        assert!(
+            state.filter_matches_snapshot(
+                &Predicate::Relation(RelationPredicate::Attachment(Arc::new(Predicate::Any))),
+                &snap,
+                w
+            ),
+            "a live object still points its attached_to at the departed host's stale id"
+        );
+    }
+
+    /// An unattached departed object reads both relations as `false`, never
+    /// a panic — the fix for the seam this ticket closes.
+    #[test]
+    fn snapshot_attachment_relations_false_when_unattached() {
+        use deckmaste_core::RelationPredicate;
+        let (state, bear) = bear_on_field();
+        let snap = LkiSnapshot::capture(&state, bear);
+        let w = state.objects.obj(bear).source;
+
+        assert!(
+            !state.filter_matches_snapshot(
+                &Predicate::Relation(RelationPredicate::AttachedTo(Arc::new(Predicate::Any))),
+                &snap,
+                w
+            ),
+            "an unattached departed object is not AttachedTo anything"
+        );
+        assert!(
+            !state.filter_matches_snapshot(
+                &Predicate::Relation(RelationPredicate::Attachment(Arc::new(Predicate::Any))),
+                &snap,
+                w
+            ),
+            "a departed object with nothing attached to it has no Attachment"
+        );
     }
 
     // -------------------------------------------------------------------------
