@@ -2122,10 +2122,7 @@ pub(super) fn reduce_generated(
     {
         local_cost.attachment_count = local_cost
             .attachment_count
-            .saturating_add(generated_relative_complement_count(rule, &fields));
-        if generated_complements_include_keyword_argument(rule, &fields) {
-            local_cost.precedence = 1;
-        }
+            .saturating_add(generated_group_complement_count(construction, &fields));
     }
     Some(Reduction {
         features,
@@ -2317,13 +2314,10 @@ fn generated_scalar_in(feature: &Features, allowed: &[&str]) -> Option<bool> {
     Some(allowed.contains(&name))
 }
 
-fn generated_relative_complement_count(
-    rule: super::rules::GeneratedRuleRef,
+fn generated_group_complement_count(
+    construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     fields: &[Option<&Features>],
 ) -> u32 {
-    let Some(construction) = rule.group.constructions.get(rule.construction) else {
-        return 0;
-    };
     let Some(combinator) = GeneratedFeatureCombinator::from_construction(construction) else {
         return 0;
     };
@@ -2352,35 +2346,7 @@ fn generated_relative_complement_count(
     else {
         return 0;
     };
-    let Some(deckmaste_construction_compiler::runtime::FieldKindData::Sequence {
-        element: complement_element,
-    }) = construction
-        .fields
-        .get(complements_field)
-        .map(|field| field.kind)
-    else {
-        return 0;
-    };
-    let Some(element_declaration) = rule
-        .group
-        .element_data
-        .iter()
-        .find(|element| element.name == complement_element)
-    else {
-        return 0;
-    };
-    u32::try_from(
-        tail.elements()
-            .into_iter()
-            .filter(|sequence_element| {
-                sequence_element
-                    .variant
-                    .and_then(|variant| element_declaration.variants.get(variant))
-                    .is_some_and(|variant| variant.name == "Relative")
-            })
-            .count(),
-    )
-    .unwrap_or(u32::MAX)
+    u32::try_from(tail.len).unwrap_or(u32::MAX)
 }
 
 fn generated_prepositional_coordination_features(
@@ -2473,49 +2439,6 @@ fn generated_surface_sequence_scalars_match(
                 .into_iter()
                 .all(|element| (element.present_fields & (1_u64 << comma_index) != 0) == expected)
         })
-}
-
-fn generated_complements_include_keyword_argument(
-    rule: super::rules::GeneratedRuleRef,
-    fields: &[Option<&Features>],
-) -> bool {
-    let Some(construction) = rule.group.constructions.get(rule.construction) else {
-        return false;
-    };
-    let Some(combinator) = GeneratedFeatureCombinator::from_construction(construction) else {
-        return false;
-    };
-    let Some(complements_field) = combinator.complements_field_index(construction) else {
-        return false;
-    };
-    let Some(Features::GeneratedSequence { tail }) =
-        fields.get(complements_field).copied().flatten()
-    else {
-        return false;
-    };
-    let Some(deckmaste_construction_compiler::runtime::FieldKindData::Sequence {
-        element: complement_element,
-    }) = construction
-        .fields
-        .get(complements_field)
-        .map(|field| field.kind)
-    else {
-        return false;
-    };
-    let Some(element) = rule
-        .group
-        .element_data
-        .iter()
-        .find(|element| element.name == complement_element)
-    else {
-        return false;
-    };
-    tail.elements().into_iter().any(|sequence_element| {
-        sequence_element
-            .variant
-            .and_then(|variant| element.variants.get(variant))
-            .is_some_and(|variant| variant.name == "KeywordArgument")
-    })
 }
 
 fn generated_construction_features(
