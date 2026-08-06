@@ -101,6 +101,28 @@ the heterogeneous and member-scoped coordination forms remain designed by
 `english-coordination-structural-design` but must be assigned to a derived
 family migration there.
 
+## Completion record
+
+Recorded on 2026-08-06 against the provisioned Oracle snapshot:
+
+- all 18 transferred faces have direct selected-AST fixtures: four clause
+  boundaries, two flat destination lists with per-member PPs, four determiner
+  scopes, six local power/toughness groups, and the classified Arwen/Shadow
+  attachments;
+- verbose `inspect` attributes the migrated structures to generated
+  `noun_phrase_coordination` and `shared_determiner_nominal` productions while
+  Bound in Gold's disputed comma remains owned by clause coordination;
+- recovery is byte-identical to the post-defect baseline over 32,344 supported
+  faces: 3,413 occurrences / 63,250 source tokens total, including 3,283 /
+  62,214 at clause scope, zero nominal recovery, and 841 / 841 noun-opacity
+  tokens;
+- `english roundtrip --require-clean` reports 32,344 clean faces, zero
+  mismatches, and zero render errors;
+- the English suite passes 748 unit tests, compile-fail validation, and 122
+  public-API tests; spelling passes 85 unit and four pilot tests; the compiler
+  passes 121 unit tests plus compile-fail and golden gates; and the macro passes
+  all 13 runtime fixtures plus compile-fail gates.
+
 ## Compiler and backend prerequisites
 
 The `english-construction-compiler` pilot classified its residue as four named
