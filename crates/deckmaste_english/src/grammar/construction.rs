@@ -275,6 +275,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                feature_combinators: &[],
                 erased_builder: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
@@ -303,6 +304,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                feature_combinators: &[],
                 erased_builder: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
@@ -329,6 +331,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                feature_combinators: &[],
                 erased_builder: None,
             }];
         const B_CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
@@ -344,6 +347,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                feature_combinators: &[],
                 erased_builder: None,
             }];
         const GROUP_A: deckmaste_construction_compiler::runtime::GroupData =
@@ -381,6 +385,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                feature_combinators: &[],
                 erased_builder: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =

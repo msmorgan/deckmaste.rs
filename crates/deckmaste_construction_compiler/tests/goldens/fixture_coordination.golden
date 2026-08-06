@@ -781,6 +781,7 @@ mod __constructions_fixture_coordination {
                         ],
                     },
                 ],
+                feature_combinators: &[],
                 erased_builder: Some(__erased_build_fixture_pair),
             },
             ::deckmaste_construction_compiler::runtime::ConstructionData {
@@ -833,6 +834,7 @@ mod __constructions_fixture_coordination {
                         ],
                     },
                 ],
+                feature_combinators: &[],
                 erased_builder: Some(__erased_build_fixture_solo),
             },
         ],

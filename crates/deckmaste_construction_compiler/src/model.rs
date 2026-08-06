@@ -229,7 +229,7 @@ pub enum SelectionPromise {
     Unique,
 }
 
-pub const KNOWN_COMBINATORS: &[&str] = &["from_first", "fixed"];
+pub const KNOWN_COMBINATORS: &[&str] = &["from_first", "fixed", "noun_phrase_coordination"];
 
 /// `snake_case` to `PascalCase`. Shared between `validate.rs`'s EC006
 /// generated-name collision check and `emit.rs`'s struct-name rendering —

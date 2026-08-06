@@ -1143,6 +1143,15 @@ mod tests {
             },
         );
         assert_eq!(noun.witnesses.len(), 1);
+        assert_eq!(noun.feature_combinators.len(), 1);
+        assert_eq!(
+            (
+                noun.feature_combinators[0].target,
+                noun.feature_combinators[0].combinator,
+                noun.feature_combinators[0].args,
+            ),
+            ("first", "noun_phrase_coordination", &["first", "rest"][..])
+        );
         assert_eq!(noun.witnesses[0].name, "oxford");
         assert_eq!(
             noun.witnesses[0].class,
@@ -1195,6 +1204,19 @@ mod tests {
             },
         );
         assert_eq!(shared.witnesses.len(), 1);
+        assert_eq!(shared.feature_combinators.len(), 1);
+        assert_eq!(
+            (
+                shared.feature_combinators[0].target,
+                shared.feature_combinators[0].combinator,
+                shared.feature_combinators[0].args,
+            ),
+            (
+                "first",
+                "noun_phrase_coordination",
+                &["determiner", "first", "rest"][..]
+            )
+        );
         assert_eq!(shared.witnesses[0].name, "oxford");
         assert_eq!(
             shared.witnesses[0].class,

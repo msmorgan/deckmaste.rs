@@ -1285,6 +1285,12 @@ pub(crate) enum Features {
         initial_sound: InitialSound,
         all_adjectives: bool,
     },
+    GeneratedElement {
+        fields: Vec<Features>,
+    },
+    GeneratedSequence {
+        elements: Vec<Vec<Features>>,
+    },
 }
 
 impl Features {
@@ -2965,12 +2971,10 @@ impl Grammar for EnglishGrammar<'_, '_> {
     ) -> Option<Reduction<Self::Features>> {
         match self.impls.get(rule.index()).copied()? {
             RuleImpl::Handwritten(tag) => reduce(tag, children),
-            // Generated rules use neutral features until a declaration names
-            // an English feature combinator.
-            RuleImpl::Generated(_) | RuleImpl::GeneratedAux(_) => Some(Reduction {
-                features: Features::None,
-                local_cost: ParseCost::default(),
-            }),
+            RuleImpl::Generated(generated) => reduction::reduce_generated(generated, children),
+            RuleImpl::GeneratedAux(generated) => {
+                reduction::reduce_generated_aux(generated, children)
+            }
         }
     }
 

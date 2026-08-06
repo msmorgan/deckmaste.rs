@@ -572,6 +572,7 @@ mod tests {
             fields,
             witnesses: &[],
             forms,
+            feature_combinators: &[],
             erased_builder: None,
         }
     }
@@ -846,6 +847,7 @@ mod tests {
             fields: &[],
             witnesses: &[],
             forms: &[],
+            feature_combinators: &[],
             erased_builder: None,
         }];
         const GROUP: GroupData = GroupData {

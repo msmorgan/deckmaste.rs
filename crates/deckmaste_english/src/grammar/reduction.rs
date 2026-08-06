@@ -1890,6 +1890,268 @@ pub(super) fn reduce_noun_phrase_coordination(
     })
 }
 
+pub(super) fn reduce_generated_aux(
+    rule: super::rules::GeneratedAuxRuleRef,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Option<Reduction<Features>> {
+    use super::rules::GeneratedAuxRuleRef as R;
+    let features = match rule {
+        R::Transparent => children.first()?.features.clone(),
+        R::ElementStruct {
+            group,
+            element,
+            present_fields,
+        } => {
+            let element = group.element_data.get(element)?;
+            let mut children = children.iter();
+            let mut fields = Vec::with_capacity(element.fields.len());
+            for index in 0..element.fields.len() {
+                fields.push(if present_fields & (1_u64 << index) == 0 {
+                    Features::None
+                } else {
+                    children.next()?.features.clone()
+                });
+            }
+            if children.next().is_some() {
+                return None;
+            }
+            Features::GeneratedElement { fields }
+        }
+        R::ElementVariant { .. } => Features::GeneratedElement {
+            fields: vec![children.first()?.features.clone()],
+        },
+        R::SequenceSeed { .. } => {
+            let Features::GeneratedElement { fields } = children.first()?.features else {
+                return None;
+            };
+            Features::GeneratedSequence {
+                elements: vec![fields.clone()],
+            }
+        }
+        R::SequenceExtend { .. } => {
+            let Features::GeneratedSequence { elements } = children.first()?.features else {
+                return None;
+            };
+            let Features::GeneratedElement { fields } = children.get(1)?.features else {
+                return None;
+            };
+            let mut elements = elements.clone();
+            elements.push(fields.clone());
+            Features::GeneratedSequence { elements }
+        }
+    };
+    Some(Reduction {
+        features,
+        local_cost: super::ParseCost::default(),
+    })
+}
+
+pub(super) fn reduce_generated(
+    rule: super::rules::GeneratedRuleRef,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Option<Reduction<Features>> {
+    use deckmaste_construction_compiler::runtime::AtomData;
+
+    let construction = rule.group.constructions.get(rule.construction)?;
+    let form = construction.forms.get(rule.form)?;
+    let mut child_index = 0_usize;
+    let mut fields = vec![None; construction.fields.len()];
+    for (atom_index, atom) in form.atoms.iter().enumerate() {
+        if matches!(atom, AtomData::Literal(_)) {
+            child_index += 1;
+            continue;
+        }
+        let path = match atom {
+            AtomData::Hole(path) | AtomData::Lexeme(path) => *path,
+            AtomData::Literal(_) => unreachable!(),
+        };
+        let field_index = construction
+            .fields
+            .iter()
+            .position(|field| field.name == path)?;
+        if matches!(
+            construction.fields[field_index].kind,
+            deckmaste_construction_compiler::runtime::FieldKindData::Sequence { .. }
+        ) && rule.sequence_atoms & (1_u64 << atom_index) == 0
+        {
+            continue;
+        }
+        fields[field_index] = Some(children.get(child_index)?.features);
+        child_index += 1;
+    }
+    if child_index != children.len() {
+        return None;
+    }
+    let features = match construction.feature_combinators {
+        [] => Features::None,
+        [feature] if feature.combinator == "noun_phrase_coordination" => {
+            noun_phrase_coordination_features(construction.id, &fields)?
+        }
+        _ => return None,
+    };
+    Some(Reduction {
+        features,
+        local_cost: super::ParseCost::default(),
+    })
+}
+
+fn noun_phrase_coordination_features(
+    construction: &str,
+    fields: &[Option<&Features>],
+) -> Option<Features> {
+    match construction {
+        "noun_phrase_coordination" => {
+            let Features::NounPhrase {
+                agreement: first_agreement,
+                adjunct: first_adjunct,
+                set_exception,
+                ..
+            } = fields.first()?.as_ref()?
+            else {
+                return None;
+            };
+            let Features::GeneratedSequence { elements } = fields.get(1)?.as_ref()? else {
+                return None;
+            };
+            let mut common_adjunct = *first_adjunct;
+            let mut last_agreement = *first_agreement;
+            for element in elements {
+                let Features::NounPhrase {
+                    agreement, adjunct, ..
+                } = element.get(2)?
+                else {
+                    return None;
+                };
+                if common_adjunct != *adjunct {
+                    common_adjunct = None;
+                }
+                last_agreement = *agreement;
+            }
+            let conjunction = final_generated_conjunction(elements)?;
+            Some(Features::NounPhrase {
+                agreement: coordination_agreement(conjunction, *first_agreement, last_agreement)?,
+                pronoun_case: None,
+                adjunct: common_adjunct,
+                set_exception: *set_exception,
+            })
+        }
+        "shared_determiner_nominal" => {
+            let Features::Determiner {
+                cardinality,
+                article,
+                set_exception_host,
+            } = fields.first()?.as_ref()?
+            else {
+                return None;
+            };
+            let first = nominal_coordination_member(fields.get(1)?.as_ref()?)?;
+            let Features::GeneratedSequence { elements } = fields.get(2)?.as_ref()? else {
+                return None;
+            };
+            let mut common_adjunct = first.2;
+            let mut last_form = first.0;
+            for element in elements {
+                let member = nominal_coordination_member(element.get(2)?)?;
+                if member.3 != first.3
+                    || !cardinality_accepts(*cardinality, member.0)
+                    || !article_accepts(*article, member.1)
+                {
+                    return None;
+                }
+                if common_adjunct != member.2 {
+                    common_adjunct = None;
+                }
+                last_form = member.0;
+            }
+            if !cardinality_accepts(*cardinality, first.0) || !article_accepts(*article, first.1) {
+                return None;
+            }
+            let conjunction = final_generated_conjunction(elements)?;
+            Some(Features::NounPhrase {
+                agreement: coordination_agreement(
+                    conjunction,
+                    Some(Agreement {
+                        person: Person::Third,
+                        number: match first.0 {
+                            NounForm::Plural => Number::Plural,
+                            NounForm::Singular | NounForm::Mass => Number::Singular,
+                        },
+                    }),
+                    Some(Agreement {
+                        person: Person::Third,
+                        number: match last_form {
+                            NounForm::Plural => Number::Plural,
+                            NounForm::Singular | NounForm::Mass => Number::Singular,
+                        },
+                    }),
+                )?,
+                pronoun_case: None,
+                adjunct: common_adjunct,
+                set_exception: if *set_exception_host {
+                    SetExceptionState::Host
+                } else {
+                    SetExceptionState::Ineligible
+                },
+            })
+        }
+        _ => None,
+    }
+}
+
+fn final_generated_conjunction(elements: &[Vec<Features>]) -> Option<Conjunction> {
+    let Features::Conjunction(conjunction) = elements.last()?.get(1)? else {
+        return None;
+    };
+    matches!(
+        conjunction,
+        Conjunction::And | Conjunction::Or | Conjunction::AndOr
+    )
+    .then_some(*conjunction)
+}
+
+fn coordination_agreement(
+    conjunction: Conjunction,
+    first: Option<Agreement>,
+    last: Option<Agreement>,
+) -> Option<Option<Agreement>> {
+    Some(match conjunction {
+        Conjunction::And => Some(Agreement {
+            person: Person::Third,
+            number: Number::Plural,
+        }),
+        Conjunction::Or | Conjunction::AndOr => last,
+        Conjunction::Plus => first,
+        Conjunction::Then => return None,
+    })
+}
+
+fn nominal_coordination_member(
+    features: &Features,
+) -> Option<(
+    NounForm,
+    InitialSound,
+    Option<super::BareNominalAdjunct>,
+    bool,
+)> {
+    match features {
+        Features::Noun {
+            form,
+            initial_sound,
+            adjunct,
+            ..
+        } => Some((*form, *initial_sound, *adjunct, false)),
+        Features::Nominal {
+            form,
+            initial_sound,
+            determined: false,
+            modified: true,
+            adjunct,
+            ..
+        } => Some((*form, *initial_sound, *adjunct, true)),
+        _ => None,
+    }
+}
+
 pub(super) fn propagate(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Reduced {
     child.features.clone()
 }
@@ -1998,4 +2260,74 @@ pub(super) fn slot_agrees(slot: VerbSlot, agreement: Agreement) -> bool {
         VerbSlot::Present { person, number } | VerbSlot::Past { person, number }
             if person == agreement.person && number == agreement.number
     )
+}
+
+#[cfg(test)]
+mod generated_tests {
+    use super::*;
+
+    fn noun_phrase(number: Number) -> Features {
+        Features::NounPhrase {
+            agreement: Some(Agreement {
+                person: Person::Third,
+                number,
+            }),
+            pronoun_case: None,
+            adjunct: None,
+            set_exception: SetExceptionState::Ineligible,
+        }
+    }
+
+    fn sequence(conjunction: Conjunction, number: Number) -> Features {
+        Features::GeneratedSequence {
+            elements: vec![vec![
+                Features::None,
+                Features::Conjunction(conjunction),
+                noun_phrase(number),
+            ]],
+        }
+    }
+
+    #[test]
+    fn generated_noun_coordination_combines_agreement_by_conjunction() {
+        let first = noun_phrase(Number::Singular);
+        let and = sequence(Conjunction::And, Number::Singular);
+        let fields = [Some(&first), Some(&and)];
+        assert!(matches!(
+            noun_phrase_coordination_features("noun_phrase_coordination", &fields),
+            Some(Features::NounPhrase {
+                agreement: Some(Agreement {
+                    number: Number::Plural,
+                    ..
+                }),
+                ..
+            })
+        ));
+
+        let or = sequence(Conjunction::Or, Number::Plural);
+        let fields = [Some(&first), Some(&or)];
+        assert!(matches!(
+            noun_phrase_coordination_features("noun_phrase_coordination", &fields),
+            Some(Features::NounPhrase {
+                agreement: Some(Agreement {
+                    number: Number::Plural,
+                    ..
+                }),
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn generated_noun_coordination_rejects_noncoordinating_then() {
+        let first = noun_phrase(Number::Singular);
+        let then = sequence(Conjunction::Then, Number::Singular);
+        assert!(
+            noun_phrase_coordination_features(
+                "noun_phrase_coordination",
+                &[Some(&first), Some(&then)]
+            )
+            .is_none()
+        );
+    }
 }

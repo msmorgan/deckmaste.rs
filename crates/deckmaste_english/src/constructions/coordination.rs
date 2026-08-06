@@ -64,6 +64,7 @@ deckmaste_constructions_macro::constructions! {
         require rest.nonfinal.conjunction.is_none();
         require any(rest.len() >= 2, rest.last.comma in [Absent]);
         require rest.last.conjunction.is_some();
+        derive first = noun_phrase_coordination(first, rest);
         witness oxford = stored rest.last.comma;
         form flat @ 0 = first rest;
     }
@@ -84,6 +85,7 @@ deckmaste_constructions_macro::constructions! {
         // lands with the lowering backend. Keep the inactive family honest
         // about its present chart capability until that slice removes this.
         require complements.len() == 0;
+        derive first = noun_phrase_coordination(determiner, first, rest);
         witness oxford = stored rest.last.comma;
         // The final atom is always empty but is required for EC021 and makes
         // the whole target shape explicit.

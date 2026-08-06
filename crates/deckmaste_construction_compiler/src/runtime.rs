@@ -197,7 +197,15 @@ pub struct ConstructionData {
     pub selection_unique: bool,
     pub dominates: &'static [&'static str],
     pub forms: &'static [FormData],
+    pub feature_combinators: &'static [FeatureCombinatorData],
     pub erased_builder: Option<ErasedBuilder>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FeatureCombinatorData {
+    pub target: &'static str,
+    pub combinator: &'static str,
+    pub args: &'static [&'static str],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

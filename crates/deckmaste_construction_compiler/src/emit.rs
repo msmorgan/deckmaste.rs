@@ -1387,6 +1387,30 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             }
         })
         .collect();
+    let feature_combinators: Vec<TokenStream> = construction
+        .constraints
+        .iter()
+        .filter_map(|constraint| {
+            let Constraint::DeriveFeature {
+                target,
+                combinator,
+                args,
+            } = constraint
+            else {
+                return None;
+            };
+            let target = target.dotted();
+            let combinator = combinator.value.as_str();
+            let args = args.iter().map(crate::model::FieldPath::dotted);
+            Some(quote! {
+                ::deckmaste_construction_compiler::runtime::FeatureCombinatorData {
+                    target: #target,
+                    combinator: #combinator,
+                    args: &[#(#args),*],
+                }
+            })
+        })
+        .collect();
     let erased_builder = quote::format_ident!("__erased_build_{}", construction.id.value);
     quote! {
         ::deckmaste_construction_compiler::runtime::ConstructionData {
@@ -1401,6 +1425,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             selection_unique: #selection_unique,
             dominates: &[#(#dominates),*],
             forms: &[#(#forms),*],
+            feature_combinators: &[#(#feature_combinators),*],
             erased_builder: Some(#erased_builder),
         }
     }
