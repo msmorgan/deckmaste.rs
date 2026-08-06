@@ -10,8 +10,11 @@ Migrate Q01 from `docs/english-derived-family-inventory.md`: `quantity_exact`,
 
 Land declarations and the compiler's local scalar-hole support with this first
 consumer. The declarations cover every `Quantity`/`QuantityValue` variant,
-numeric value and notation, comparative-word identity, cardinality flow, and
-the stored-versus-derived witnesses classified in Q01.
+numeric value and notation, cardinality flow, and the stored-versus-derived
+witnesses classified in Q01. `ComparativeWord` uses Q01's finite bound-value
+mapping and the existing typed lexeme spelling form; it does not require the
+generic identity holes first landed by N01, so Q01 remains
+capability-independent from that ticket.
 
 This is one vertical migration: generated parse/reduction/lowering, total
 render and validated build projections; active spelling-frame and serialized

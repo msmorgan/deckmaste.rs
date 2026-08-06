@@ -27,7 +27,11 @@ Land declarations and generated parse/reduction/lowering, total render, and
 validated build projections; Nominal/Sentence/Ability plus every spelling/view
 consumer; direct-AST and `inspect` grouping/attachment fixtures; exact comma/
 conjunction replay and illegal-list negatives; all 15 registry flips; and
-deletion of every handwritten mirror and constructor bypass. Update the
-inventory. No consumer or deletion work is deferred.
+deletion of every NR registration and phrase-side reducer/lowerer arm, the CR
+reducer/lowerer arms for `verb_phrase_coordinated_adjective`,
+`copular_remainder_coordinated_adjective`, and
+`relative_contracted_copular_coordinated_adjective`, every renderer mirror,
+and every constructor bypass. Update the inventory. No consumer or deletion
+work is deferred.
 
 Standard constraints apply.

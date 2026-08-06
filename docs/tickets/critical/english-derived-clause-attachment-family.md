@@ -1,14 +1,9 @@
 ---
-needs: [english-derived-family-inventory, english-derived-finite-clause-family, english-derived-nonfinite-clause-family, english-derived-phrase-coordination-family]
+needs: [english-derived-family-inventory, english-derived-finite-clause-family, english-derived-nonfinite-clause-family]
 ---
-**Derive complex clause coordination and attachment.**
+**Derive contiguous clause attachments and riders.**
 
 Migrate F03 from `docs/english-derived-family-inventory.md`:
-`clause_coordination`, `clause_coordination_comma`,
-`clause_coordination_asyndetic`,
-`clause_coordination_copular_noun_prepositional`,
-`clause_coordination_copular_noun_prepositional_comma`,
-`clause_coordination_copular_noun_prepositional_asyndetic`,
 `clause_adverb_before`, `clause_sentence_adverbial_before`,
 `clause_prepositional_before`, `clause_subordinate_before`,
 `clause_subordinate_gerund_before`, `clause_subordinate_after_elliptical`,
@@ -18,18 +13,20 @@ Migrate F03 from `docs/english-derived-family-inventory.md`:
 `exception_rider_oxford`, `clause_excepted`, `clause_restriction_run`, and
 `clause_restriction_member`.
 
-Use the phrase-coordination C4 backend for shared and member-scoped yields and
-the finite/nonfinite constraints for attachment owners, positions, forms,
-subordinators, exception hosts, and restriction roles. The structural-design
-per-member trailing conditions and shared-subject `A, B, then C` chains land
-here, not as residue. Preserve `ClauseCoordination`'s stored comma and every
-legitimate packed scope alternative.
+Every right-hand side in this unit is contiguous and fan-out one. Use the
+finite/nonfinite C3 constraints for attachment owners, positions, forms,
+subordinators, exception hosts, restriction roles, and member scope; no C4
+tuple-yield dependency applies. Preserve attachment comma witnesses, derive
+exception/restriction serial commas only under their measured member-count
+law, and keep every legitimate packed scope alternative.
 
 Land declarations and generated parse/reduction/lowering, total render, and
 validated build projections; all Sentence/Ability/spelling/view consumers;
 direct-AST and verbose-`inspect` scope fixtures; exact punctuation replay and
-invalid-host/arity/subordinator negatives; all 22 registry flips; and deletion
-of every handwritten mirror and constructor bypass together. Update the
-inventory. No consumer or deletion work is deferred.
+invalid-host/arity/subordinator negatives; all 16 registry flips; and deletion
+of CR's registrations and substantive reducer/lowerer arms, NR's late
+fronted-gerund registration and top-level dispatch, every renderer mirror, and
+every constructor bypass together. Update the inventory. No consumer or
+deletion work is deferred.
 
 Standard constraints apply.

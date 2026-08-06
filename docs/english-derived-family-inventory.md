@@ -98,7 +98,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | V01 predicate spine | 34 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
 | F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | valency and form |
 | F02 finite and copular clause | 18 | C3 | `english-derived-finite-clause-family` | valency and agreement |
-| F03 complex attachment | 22 | C4 | `english-derived-clause-attachment-family` | constrained clauses and tuple yields |
+| F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | valency, form, and attachment constraints |
+| F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, structural design, tuple yields |
 | R01 relative clause | 8 | C3 | `english-derived-relative-clause-family` | valency and gaps |
 | S01 sentence | 1 | C1 | `english-derived-sentence-family` | inventory |
 | C01 phrase coordination | 15 | C4 | `english-derived-phrase-coordination-family` | lens, valency, structural design, tuple yields |
@@ -114,8 +115,11 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
   `ComparativeWord`; REN renders the quantity inside determiners, modifiers,
   complements, and arithmetic values; SYN-P exposes the constructors.
 - **Holes and constraints:** scalar holes for values and numeral notation,
-  identity holes for the comparative word, and no discontinuity. Cardinality,
-  `X`, mass/count behavior, and literal-one tests are semantic feature flow.
+  and no discontinuity. `ComparativeWord` is a closed four-variant enum handled
+  by Q01's finite bound-value mapping and existing typed lexeme spelling form,
+  not an open identity hole; generic identity-hole support first lands in N01.
+  Cardinality, `X`, mass/count behavior, and literal-one tests are semantic
+  feature flow.
 - **Ambiguity/backend:** fan-out one on Chart; no declared dominance edge.
   Existing per-form costs and any equal-cost alternatives remain explicit.
 - **Witnesses:** numeral notation and `ComparativeWord` are stored exactness
@@ -412,14 +416,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
   contradictory distributive/contraction state, and non-numeric variable
   constraints.
 
-## F03 — complex attachment
+## F03 — clause attachment
 
-**Stable IDs (22):** `clause_coordination`, `clause_coordination_comma`,
-`clause_coordination_asyndetic`,
-`clause_coordination_copular_noun_prepositional`,
-`clause_coordination_copular_noun_prepositional_comma`,
-`clause_coordination_copular_noun_prepositional_asyndetic`,
-`clause_adverb_before`, `clause_sentence_adverbial_before`,
+**Stable IDs (16):** `clause_adverb_before`,
+`clause_sentence_adverbial_before`,
 `clause_prepositional_before`, `clause_subordinate_before`,
 `clause_subordinate_gerund_before`, `clause_subordinate_after_elliptical`,
 `clause_subordinate_after`, `clause_subordinate_after_comma`,
@@ -430,28 +430,64 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 - **Owners and AST:** CR, including late exception/restriction rules and NR's
   late fronted-gerund registration, → `ComplexClause`, positioned
-  `ClauseAttachment`, coordinated independent clauses, exception riders, and
-  restriction runs; REN and SYN-C own output and ingress.
+  `ClauseAttachment`, exception riders, and restriction runs; REN and SYN-C
+  own output and ingress.
 - **Holes and constraints:** clause/gerund/infinitive/PP/adverb subtrees,
-  conjunction and comma identities, member sequences, and lenses into shared
-  subjects/copulas and attachment lists. Attachment position/owner,
-  subordinator class, finite/nonfinite form, exception host, restriction role,
-  and member scope are required.
-- **Ambiguity/backend:** current recognition is one-span Chart, but shared
-  subject/copula and member-scoped coordinated yields first require C4: either
-  tuple-yield support or a measured CFG approximation with filtering.
-  Coordination costs and packed alternatives stay visible; no undeclared
-  insertion-order choice may survive.
+  conjunction identities, member sequences, and lenses into attachment lists.
+  Attachment position/owner, subordinator class, finite/nonfinite form,
+  exception host, restriction role, and member scope are required.
+- **Ambiguity/backend:** fan-out one on Chart. Every right-hand side is a
+  contiguous CFG production; C3 attachment/selection constraints are the
+  first missing capability. Attachment costs and packed scope alternatives
+  stay visible; no registration-order choice may survive.
 - **Witnesses:** conjunction, sequence, condition scope, and attachment
-  position are semantic. `ClauseCoordination` comma is a stored house-style
-  witness; exception/restriction serial commas are stored until exactness
-  proves derivation (style guide §§3 and 10).
+  position are semantic. `ClauseAttachment::comma` remains stored where the
+  attachment topology cannot derive it. Exception/restriction serial commas
+  are derived from member count and conjunction under the existing measured
+  exactness law (style guide §§3 and 10).
 - **Consumers and gates:** Sentence/Ability fragments, spelling frames and
   views, inspect. Direct ASTs cover every position, exception/restriction fold,
-  shared-subject/copula continuation, and member-scoped condition; inspect
-  exposes scope and viable alternatives; exactness covers every comma form;
-  negatives reject binary Oxford commas, orphan dependents, wrong
-  subordinators, and attachment to an ineligible host.
+  and attachment scope; inspect exposes scope and viable alternatives;
+  exactness covers every comma form; negatives reject binary Oxford commas,
+  orphan dependents, wrong subordinators, and attachment to an ineligible
+  host.
+
+## F04 — clause coordination
+
+**Stable IDs (6):** `clause_coordination`, `clause_coordination_comma`,
+`clause_coordination_asyndetic`,
+`clause_coordination_copular_noun_prepositional`,
+`clause_coordination_copular_noun_prepositional_comma`,
+`clause_coordination_copular_noun_prepositional_asyndetic`.
+
+- **Owners and AST:** CR registers the three general rows; NR registers the
+  three late shared-copular rows. CR owns substantive reduction/lowering for
+  all six. They construct `IndependentClause::Coordinated`,
+  `ClauseCoordination`, shared predicate continuations, and shared-copular
+  continuations; REN and SYN-C own output and ingress.
+- **Holes and constraints:** clause/simple-clause, noun-phrase, and PP
+  subtrees; conjunction/comma identity; member sequences; and lenses into the
+  shared subject, predicate, and copula. Finite agreement, subject presence,
+  imperative adoption, conjunction class, copular agreement, continuation
+  kind, and member scope are required.
+- **Ambiguity/backend:** recognition uses one-span Chart productions, but
+  total destruction of the flattened coordinated AST cannot assign every
+  continuation one local subtree yield: subjectless predicates and copular
+  continuations linearize with subject/agreement context stored outside the
+  member. The six rows share that recursive ingress and renderer, so they
+  migrate atomically after C4 tuple-valued/discontinuous declarations or a
+  measured CFG approximation plus filtering. Packed complete-member versus
+  shared-predicate readings stay visible.
+- **Witnesses:** conjunction, member grouping, shared-subject/copula scope,
+  and continuation kind are semantic. `ClauseCoordination::comma` is stored
+  because the AST and measured corpus do not determine it; exact replay must
+  preserve it (style guide §§3 and 10).
+- **Consumers and gates:** Sentence/Ability fragments, spelling frames and
+  views, inspect. Direct ASTs cover complete members, subjectless predicate
+  continuations, shared copulas, agreement, and member-scoped conditions;
+  inspect exposes scope and viable alternatives; exactness covers every comma
+  and conjunction form; negatives reject invalid agreement, conjunction,
+  shared-subject, and copular continuations.
 
 The member-scoped predicate lists from
 `english-coordination-structural-design` land here: per-member trailing
@@ -516,8 +552,13 @@ permanent exception.
 `relative_contracted_copular_coordinated_adjective`,
 `nominal_power_toughness_complement`.
 
-- **Owners and AST:** NR's late coordination/consumer builders → modifier and
-  PP sequences, `AdjectivePhraseCoordination`,
+- **Owners and AST:** NR registers all fifteen rows and owns substantive
+  reduction/lowering for the modifier, PP, and nominal rows. The top-level NR
+  dispatch sends `verb_phrase_coordinated_adjective`,
+  `copular_remainder_coordinated_adjective`, and
+  `relative_contracted_copular_coordinated_adjective` to CR, whose reduction
+  and lowering modules own their substantive handwritten logic. The rows
+  construct modifier and PP sequences, `AdjectivePhraseCoordination`,
   `PrepositionalPhraseCoordination`, nominal complements, and the consuming
   nominal/predicate/copular/relative variants; REN plus SYN-P/SYN-C own output
   and ingress.
@@ -591,7 +632,7 @@ projections, active consumer and serialized-view changes, direct-AST and
 handwritten parse/reduction/lowering/renderer/constructor deletion audit in
 one change. It may not defer any of those to completion.
 
-The completion node depends on all fourteen chart tickets and the existing
+The completion node depends on all fifteen chart tickets and the existing
 ability-backend ticket. Its final audit therefore has 193 newly migrated plus
 two already-generated families—195 generated families in all—to prove, with no
 handwritten or unregistered family left to discover.
