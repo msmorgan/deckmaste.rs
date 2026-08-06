@@ -25,6 +25,7 @@ use super::RuleTag;
 use super::SetExceptionState;
 use super::VerbSlot;
 use super::clause;
+use super::generated::GeneratedFeatureCombinator;
 use super::noun_phrase_accepts_set_exception;
 use super::opacity;
 
@@ -2141,7 +2142,11 @@ pub(super) fn reduce_generated(
     let features = match (rule.context, preposition) {
         (super::rules::GeneratedRuleContext::Value, None) => noun_phrase_features,
         (super::rules::GeneratedRuleContext::SharedPreposition, Some(preposition)) => {
-            generated_prepositional_coordination_features(construction.id, preposition, &fields)?
+            generated_prepositional_coordination_features(
+                GeneratedFeatureCombinator::from_construction(construction)?,
+                preposition,
+                &fields,
+            )?
         }
         _ => return None,
     };
@@ -2149,7 +2154,9 @@ pub(super) fn reduce_generated(
     if rule.context == super::rules::GeneratedRuleContext::SharedPreposition {
         local_cost.attachment_count = 1;
     }
-    if construction.id == "shared_determiner_nominal" {
+    if GeneratedFeatureCombinator::from_construction(construction)
+        == Some(GeneratedFeatureCombinator::SharedDeterminerCoordination)
+    {
         local_cost.attachment_count = local_cost
             .attachment_count
             .saturating_add(generated_relative_complement_count(rule, &fields));
@@ -2391,12 +2398,12 @@ fn generated_relative_complement_count(
 }
 
 fn generated_prepositional_coordination_features(
-    construction: &str,
+    combinator: GeneratedFeatureCombinator,
     preposition: Preposition,
     fields: &[Option<&Features>],
 ) -> Option<Features> {
-    match construction {
-        "noun_phrase_coordination" => {
+    match combinator {
+        GeneratedFeatureCombinator::CompleteNounPhraseCoordination => {
             let Features::GeneratedSequence { tail } = fields.get(1)?.as_ref()? else {
                 return None;
             };
@@ -2423,13 +2430,14 @@ fn generated_prepositional_coordination_features(
                 nearer_relative_host: preposition == Preposition::To,
             })
         }
-        "shared_determiner_nominal" => Some(Features::PrepositionalPhrase {
-            preposition,
-            nominal_attachment: true,
-            shared_determiner_object: true,
-            nearer_relative_host: false,
-        }),
-        _ => None,
+        GeneratedFeatureCombinator::SharedDeterminerCoordination => {
+            Some(Features::PrepositionalPhrase {
+                preposition,
+                nominal_attachment: true,
+                shared_determiner_object: true,
+                nearer_relative_host: false,
+            })
+        }
     }
 }
 
@@ -2498,22 +2506,6 @@ fn generated_complements_include_keyword_argument(
             .and_then(|variant| element.variants.get(variant))
             .is_some_and(|variant| variant.name == "KeywordArgument")
     })
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum GeneratedFeatureCombinator {
-    CompleteNounPhraseCoordination,
-    SharedDeterminerCoordination,
-}
-
-impl GeneratedFeatureCombinator {
-    fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "complete_noun_phrase_coordination" => Some(Self::CompleteNounPhraseCoordination),
-            "shared_determiner_coordination" => Some(Self::SharedDeterminerCoordination),
-            _ => None,
-        }
-    }
 }
 
 fn generated_construction_features(

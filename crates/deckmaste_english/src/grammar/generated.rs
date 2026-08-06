@@ -24,6 +24,46 @@ use crate::construction::ConstructionId;
 use crate::construction::ProductionId;
 use crate::surface::Punctuation;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum GeneratedFeatureCombinator {
+    CompleteNounPhraseCoordination,
+    SharedDeterminerCoordination,
+}
+
+impl GeneratedFeatureCombinator {
+    pub(super) fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "complete_noun_phrase_coordination" => Some(Self::CompleteNounPhraseCoordination),
+            "shared_determiner_coordination" => Some(Self::SharedDeterminerCoordination),
+            _ => None,
+        }
+    }
+
+    pub(super) fn from_construction(construction: &ConstructionData) -> Option<Self> {
+        let [feature] = construction.feature_combinators else {
+            return None;
+        };
+        Self::from_name(feature.combinator)
+    }
+
+    const fn admits_shared_preposition(self) -> bool {
+        matches!(
+            self,
+            Self::CompleteNounPhraseCoordination | Self::SharedDeterminerCoordination
+        )
+    }
+
+    fn base_cost(self) -> super::ParseCost {
+        match self {
+            Self::CompleteNounPhraseCoordination => super::ParseCost {
+                precedence: 1,
+                ..super::ParseCost::default()
+            },
+            Self::SharedDeterminerCoordination => super::ParseCost::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(super) enum GeneratedActivation {
     /// The production constructicon.
@@ -450,10 +490,9 @@ pub(super) fn register_generated(
                         rhs.clone(),
                         generated_cost(construction),
                     );
-                    if matches!(
-                        construction.id,
-                        "noun_phrase_coordination" | "shared_determiner_nominal"
-                    ) {
+                    if GeneratedFeatureCombinator::from_construction(construction)
+                        .is_some_and(GeneratedFeatureCombinator::admits_shared_preposition)
+                    {
                         let mut prepositional_rhs = Vec::with_capacity(rhs.len() + 1);
                         prepositional_rhs.push(Expected::Lexical(EnglishLexicalSlot::Preposition));
                         prepositional_rhs.extend(rhs.iter().copied());
@@ -515,13 +554,10 @@ fn predicate_requires_nonempty(predicate: PredicateData, path: &str) -> bool {
 }
 
 fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
-    match construction.id {
-        "noun_phrase_coordination" => super::ParseCost {
-            precedence: 1,
-            ..super::ParseCost::default()
-        },
-        _ => super::ParseCost::default(),
-    }
+    GeneratedFeatureCombinator::from_construction(construction).map_or_else(
+        super::ParseCost::default,
+        GeneratedFeatureCombinator::base_cost,
+    )
 }
 
 fn rules_object_member_rhs(

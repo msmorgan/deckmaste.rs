@@ -548,7 +548,10 @@ fn collect_lowered_coordination_spans(
         let Some(construction) = rule.group.constructions.get(rule.construction) else {
             return;
         };
-        if construction.id == "shared_determiner_nominal"
+        let combinator =
+            super::generated::GeneratedFeatureCombinator::from_construction(construction);
+        if combinator
+            == Some(super::generated::GeneratedFeatureCombinator::SharedDeterminerCoordination)
             && let (Some(first), Some(rest)) = (children.get(1), children.get(2))
             && let Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(group))) =
                 lower(grammar, forest, node, best)
@@ -564,7 +567,8 @@ fn collect_lowered_coordination_spans(
                 spans.push(span);
             }
         }
-        if construction.id == "noun_phrase_coordination"
+        if combinator
+            == Some(super::generated::GeneratedFeatureCombinator::CompleteNounPhraseCoordination)
             && let (Some(first_node), Some(next_node)) = (children.first(), children.get(1))
             && let Some(Lowered::NounPhrase(before)) = lower(grammar, forest, *first_node, best)
             && let Some(Lowered::NounPhrase(after)) = lower(grammar, forest, node, best)
