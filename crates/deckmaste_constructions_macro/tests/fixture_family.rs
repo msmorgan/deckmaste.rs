@@ -729,13 +729,13 @@ deckmaste_constructions_macro::constructions! {
         bind AdaptedPhrase via make_adapted_phrase, split_adapted_phrase {
             phrase: hole FixturePhrase,
         }
-        form suffixed @ 0 when check(adapted_phrase_takes_suffix) = phrase ".";
         form bare @ 1 otherwise = phrase;
+        form suffixed @ 0 when check(adapted_phrase_takes_suffix) = phrase ".";
     }
 }
 
 #[test]
-fn adapted_bind_generates_typed_build_parts_recognition_and_exact_form_linearization() {
+fn adapted_bind_selection_ignores_fallback_declaration_order_and_replays_exact_forms() {
     let value = build_adapted_phrase(FixturePhrase).expect("adapter builds the semantic type");
     assert_eq!(parts_adapted_phrase(&value), FixturePhrase);
 
@@ -744,7 +744,11 @@ fn adapted_bind_generates_typed_build_parts_recognition_and_exact_form_lineariza
         .iter()
         .find(|construction| construction.id == "adapted_phrase")
         .expect("adapted declaration");
-    let suffix = declaration.forms.first().expect("suffix form");
+    let suffix = declaration
+        .forms
+        .iter()
+        .find(|form| form.ordinal == 0)
+        .expect("suffix form");
     assert!(suffix
         .erased_recognizer
         .expect("guarded form emits a recognizer")(&value));

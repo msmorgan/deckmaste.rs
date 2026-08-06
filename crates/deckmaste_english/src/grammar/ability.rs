@@ -1321,11 +1321,21 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_sentence(&mut self, tokens: &[Token]) -> Sentence {
-        if let Some(sentence) = self.attempt(|parser| parser.parse_quoted_sentence(tokens)) {
+        if let Some(sentence) = self.attempt(|parser| {
+            let sentence = parser.parse_quoted_sentence(tokens)?;
+            parser
+                .sentence_form_is_admitted(tokens, &sentence)
+                .then_some(sentence)
+        }) {
             return sentence;
         }
-        if let Some(sentence) = self.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
-            parsed.sentence().cloned()
+        if let Some(sentence) = self.attempt(|parser| {
+            let sentence = parser.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
+                parsed.sentence().cloned()
+            })?;
+            parser
+                .sentence_form_is_admitted(tokens, &sentence)
+                .then_some(sentence)
         }) {
             return sentence;
         }
@@ -1352,6 +1362,18 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.tokens_text(tokens),
             tokens.len(),
         )))
+    }
+
+    fn sentence_form_is_admitted(&self, tokens: &[Token], sentence: &Sentence) -> bool {
+        crate::renderer::sentence_form_is_admitted(
+            sentence,
+            tokens
+                .last()
+                .is_some_and(|token| token.kind == TokenKind::Punctuation(Punctuation::Period)),
+            self.self_reference.name(),
+            self.self_reference.is_legendary(),
+            self.quoted_fragment,
+        )
     }
 
     /// Parses a sentence whose body is a trigger clause plus its effect.
@@ -1700,7 +1722,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             construction: Some(id),
             constructions: vec![ConstructionDecision::new(
                 tokens_span(tokens),
-                id,
+                production,
                 family,
                 cost,
                 SelectionReason::Unique,

@@ -78,6 +78,8 @@ fn prefix_before_epithet(name: &str) -> Option<&str> {
 /// accented words) is recognized as one self-reference.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct SelfReference {
+    name: String,
+    is_legendary: bool,
     full_name: Vec<String>,
     nickname: Option<Vec<String>>,
 }
@@ -88,9 +90,21 @@ impl SelfReference {
     #[must_use]
     pub(crate) fn new(name: &str, is_legendary: bool) -> Self {
         Self {
+            name: name.to_owned(),
+            is_legendary,
             full_name: token_spellings(name),
             nickname: short_name(name, is_legendary).map(token_spellings),
         }
+    }
+
+    /// The face name whose spelling rendering re-derives for this referent.
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Whether the face may use a shortened legendary self-reference.
+    pub(crate) const fn is_legendary(&self) -> bool {
+        self.is_legendary
     }
 
     /// The full-name token spellings; empty for an anonymous parse.

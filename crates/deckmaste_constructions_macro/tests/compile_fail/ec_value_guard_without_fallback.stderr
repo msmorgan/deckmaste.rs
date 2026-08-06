@@ -1,0 +1,5 @@
+error: EC023: opaque value-guarded forms require exactly one unguarded `otherwise` form for total canonical selection (construction `adapted_phrase`)
+  --> tests/compile_fail/ec_value_guard_without_fallback.rs:22:37
+   |
+22 |         form guarded @ 0 when check(takes_guarded_form) = phrase;
+   |                                     ^^^^^^^^^^^^^^^^^^

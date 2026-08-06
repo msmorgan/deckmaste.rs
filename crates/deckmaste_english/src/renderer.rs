@@ -248,12 +248,21 @@ pub(crate) fn render_fragment(
 /// Whether a sentence in top-level ability context derives an outer period.
 /// Parsing uses this same structural decision to reject a period-form surface
 /// that rendering would necessarily erase.
-pub(crate) fn top_level_sentence_takes_period(
+pub(crate) fn sentence_form_is_admitted(
     sentence: &Sentence,
+    has_outer_period: bool,
     name: &str,
     is_legendary: bool,
+    nested: bool,
 ) -> bool {
-    Renderer::new(name, is_legendary).sentence_takes_period(sentence)
+    if !has_outer_period {
+        return true;
+    }
+    let renderer = Renderer::new(name, is_legendary);
+    if nested {
+        renderer.nesting.set(1);
+    }
+    renderer.sentence_takes_period(sentence)
 }
 
 #[cfg(test)]

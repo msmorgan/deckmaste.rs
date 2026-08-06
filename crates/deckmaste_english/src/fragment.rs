@@ -308,9 +308,14 @@ pub fn parse_fragment(
         }
     };
 
-    if source.ends_with('.')
-        && let Some(Fragment::Sentence(sentence)) = &fragment
-        && !crate::renderer::top_level_sentence_takes_period(sentence, name, is_legendary)
+    if let Some(Fragment::Sentence(sentence)) = &fragment
+        && !crate::renderer::sentence_form_is_admitted(
+            sentence,
+            source.ends_with('.'),
+            name,
+            is_legendary,
+            false,
+        )
     {
         fragment = None;
     }

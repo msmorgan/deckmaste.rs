@@ -5,6 +5,7 @@ use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::ConstructionBackend;
 use deckmaste_english::ConstructionOwner;
+use deckmaste_english::DiagnosticKind;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::Numeral;
 use deckmaste_english::ParseSelection;
@@ -63,6 +64,7 @@ fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
         .expect("the public report includes its selected sentence construction");
     assert_eq!(sentence.owner(), ConstructionOwner::Generated);
     assert_eq!(sentence.backend(), ConstructionBackend::Chart);
+    assert_eq!(sentence.selected_production_ordinal(), 0);
 
     let quoted = "Enchanted creature has \"{T}: Draw a card.\"";
     let quoted_report = parse_with_catalogs(quoted, &catalogs);
@@ -97,6 +99,7 @@ fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
         })
         .expect("quote-terminal parsing retains sentence provenance");
     assert_eq!(quoted_sentence.owner(), ConstructionOwner::Generated);
+    assert_eq!(quoted_sentence.selected_production_ordinal(), 1);
     assert!(quoted_sentence.alternatives().iter().any(|alternative| {
         alternative.id().as_str() == "sentence" && alternative.production_ordinal() == 1
     }));
@@ -145,6 +148,55 @@ fn public_sentence_forms_reject_renderer_inconsistent_outer_periods() {
     assert!(
         self_reference.fragment().is_none(),
         "terminal punctuation in the resolved card name owns the terminator"
+    );
+}
+
+#[test]
+fn whole_card_sentence_rejects_a_renderer_inconsistent_period_form() {
+    // Mutation caught: accept an exact chart Sentence in the whole-card path
+    // without applying the same top-level form-admission rule as rendering.
+    let catalogs = Catalogs::default()
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+        .with_catalog(CatalogKind::KeywordAbility, ["Enchant"]);
+    let report = parse_with_identity("Enchant creature.", &catalogs, "Test Aura", false);
+
+    assert!(
+        report
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic.kind() == DiagnosticKind::NoCompleteParse),
+        "the impossible period form must recover instead of entering the exact AST"
+    );
+    assert_eq!(
+        report
+            .ast()
+            .render("Test Aura", false)
+            .expect("recovery preserves the source surface"),
+        "Enchant creature."
+    );
+}
+
+#[test]
+fn whole_card_quote_terminal_sentence_rejects_a_doubled_outer_period() {
+    // Mutation caught: let the dedicated quoted-sentence recognizer bypass
+    // contextual form admission before the exact chart gets a chance to
+    // reject an outer period already supplied inside the closing quote.
+    let source = "Enchanted creature has \"{T}: Draw a card.\".";
+    let catalogs = Catalogs::default()
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+        .with_catalog(CatalogKind::CreatureType, ["Satyr"]);
+    let report = parse_with_identity(source, &catalogs, "Test Card", false);
+
+    assert!(
+        report
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic.kind() == DiagnosticKind::NoCompleteParse)
+    );
+    assert_eq!(
+        report.ast().render("Test Card", false).unwrap(),
+        source,
+        "recovery retains the rejected outer period"
     );
 }
 

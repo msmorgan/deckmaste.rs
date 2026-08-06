@@ -131,41 +131,20 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
         for decision in selection.constructions() {
             let span = decision.span();
             let evidence = decision.evidence();
-            let selected_form = decision
-                .alternatives()
-                .iter()
-                .find(|alternative| alternative.id() == decision.selected())
-                .map(deckmaste_english::ConstructionAlternative::production_ordinal);
-            if let Some(form) = selected_form {
-                writeln!(
-                    writer,
-                    "bytes {}..{} {} owner={} backend={} form={} evidence={}:{} reason={} cost={}",
-                    span.start,
-                    span.end,
-                    decision.selected(),
-                    owner_name(decision.owner()),
-                    backend_name(decision.backend()),
-                    form,
-                    evidence_kind_name(evidence.kind()),
-                    evidence.label(),
-                    reason_name(decision.reason()),
-                    cost_text(decision.cost()),
-                )?;
-            } else {
-                writeln!(
-                    writer,
-                    "bytes {}..{} {} owner={} backend={} evidence={}:{} reason={} cost={}",
-                    span.start,
-                    span.end,
-                    decision.selected(),
-                    owner_name(decision.owner()),
-                    backend_name(decision.backend()),
-                    evidence_kind_name(evidence.kind()),
-                    evidence.label(),
-                    reason_name(decision.reason()),
-                    cost_text(decision.cost()),
-                )?;
-            }
+            writeln!(
+                writer,
+                "bytes {}..{} {} owner={} backend={} form={} evidence={}:{} reason={} cost={}",
+                span.start,
+                span.end,
+                decision.selected(),
+                owner_name(decision.owner()),
+                backend_name(decision.backend()),
+                decision.selected_production_ordinal(),
+                evidence_kind_name(evidence.kind()),
+                evidence.label(),
+                reason_name(decision.reason()),
+                cost_text(decision.cost()),
+            )?;
             for alternative in decision.alternatives() {
                 writeln!(
                     writer,

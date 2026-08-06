@@ -1,0 +1,11 @@
+error: EC024: canonical fallback must be unique; forms `first`, `second` are all marked `otherwise` (construction `adapted_phrase`)
+  --> tests/compile_fail/ec_multiple_fallbacks.rs:18:14
+   |
+18 |         form first @ 0 otherwise = phrase;
+   |              ^^^^^
+
+error: note (EC024): another fallback is here
+  --> tests/compile_fail/ec_multiple_fallbacks.rs:19:14
+   |
+19 |         form second @ 1 otherwise = phrase;
+   |              ^^^^^^

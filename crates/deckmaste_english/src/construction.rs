@@ -74,7 +74,7 @@ impl ConstructionAlternative {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstructionDecision {
     span: Span,
-    selected: ConstructionId,
+    selected: ProductionId,
     owner: ConstructionOwner,
     backend: ConstructionBackend,
     evidence: ConstructionEvidence,
@@ -86,7 +86,7 @@ pub struct ConstructionDecision {
 impl ConstructionDecision {
     pub(crate) const fn new(
         span: Span,
-        selected: ConstructionId,
+        selected: ProductionId,
         family: ConstructionFamily,
         cost: ParseCost,
         reason: SelectionReason,
@@ -116,7 +116,13 @@ impl ConstructionDecision {
 
     #[must_use]
     pub const fn selected(&self) -> ConstructionId {
-        self.selected
+        self.selected.construction
+    }
+
+    /// Declared form ordinal of the production selected within the family.
+    #[must_use]
+    pub const fn selected_production_ordinal(&self) -> u16 {
+        self.selected.ordinal
     }
 
     #[must_use]
@@ -372,5 +378,50 @@ impl ConstructionRegistry {
             let id = family.id();
             self.dominates(id, id)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decision_retains_the_selected_form_when_same_family_alternatives_are_sorted_before_it() {
+        // Mutation caught: store only the selected family and let inspect pick
+        // the first alternative with that ID. Here form 7 won even though form
+        // 0 precedes it in the same-family alternative list.
+        let id = ConstructionId::new("probe_word");
+        let selected = ProductionId {
+            construction: id,
+            ordinal: 7,
+        };
+        let family = ConstructionFamily::new(
+            id,
+            ConstructionOwner::Generated,
+            ConstructionBackend::Chart,
+            ConstructionEvidence::structural("test"),
+        );
+        let cost = ParseCost::default();
+        let decision = ConstructionDecision::new(
+            Span::new(0, 4),
+            selected,
+            family,
+            cost,
+            SelectionReason::StableIdentity,
+            vec![
+                ConstructionAlternative::new(
+                    ProductionId {
+                        construction: id,
+                        ordinal: 0,
+                    },
+                    cost,
+                    false,
+                ),
+                ConstructionAlternative::new(selected, cost, false),
+            ],
+        );
+
+        assert_eq!(decision.selected(), id);
+        assert_eq!(decision.selected_production_ordinal(), 7);
     }
 }

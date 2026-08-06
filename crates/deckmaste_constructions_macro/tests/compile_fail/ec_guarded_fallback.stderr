@@ -1,0 +1,5 @@
+error: EC024: canonical fallback form `guarded` must be unguarded; `otherwise` already means the complement of every guarded form (construction `adapted_phrase`)
+  --> tests/compile_fail/ec_guarded_fallback.rs:22:37
+   |
+22 |         form guarded @ 0 when check(takes_guarded_form) otherwise = phrase;
+   |                                     ^^^^^^^^^^^^^^^^^^

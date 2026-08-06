@@ -58,9 +58,88 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_paths(group, diags);
     check_kinds(group, diags);
     check_forms(group, diags);
+    check_fallback_contract(group, diags);
     check_surface_domain(group, diags);
     check_constraints(group, diags);
     check_strata(group, diags);
+}
+
+/// Opaque whole-value predicates cannot prove their own complement. Canonical
+/// selection is therefore total only when they have one unconditional
+/// fallback, and source order is non-semantic only when that fallback is
+/// unique. Explicit ordinal replay remains available for every form.
+fn check_fallback_contract(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        let mut fallbacks = construction
+            .forms
+            .iter()
+            .filter(|form| form.fallback)
+            .collect::<Vec<_>>();
+
+        if construction
+            .forms
+            .iter()
+            .any(|form| form.value_guard.is_some())
+            && fallbacks.is_empty()
+        {
+            let span = construction
+                .forms
+                .iter()
+                .find_map(|form| form.value_guard.as_ref())
+                .expect("a value-guarded form supplied the predicate span")
+                .span;
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::UncoveredValueSpace,
+                    id,
+                    "opaque value-guarded forms require exactly one unguarded `otherwise` form for total canonical selection",
+                )
+                .with_span(span),
+            );
+        }
+
+        if fallbacks.len() > 1 {
+            fallbacks.sort_by_key(|form| form.name.value.as_str());
+            let names = fallbacks
+                .iter()
+                .map(|form| format!("`{}`", form.name.value))
+                .collect::<Vec<_>>()
+                .join(", ");
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::AmbiguousLinearization,
+                    id,
+                    format!(
+                        "canonical fallback must be unique; forms {names} are all marked `otherwise`"
+                    ),
+                )
+                .with_span(fallbacks[0].name.span)
+                .with_note("another fallback is here", fallbacks[1].name.span),
+            );
+        }
+
+        for fallback in fallbacks {
+            let guard_span = fallback
+                .guard
+                .as_ref()
+                .map(|guard| guard.span)
+                .or_else(|| fallback.value_guard.as_ref().map(|guard| guard.span));
+            if let Some(span) = guard_span {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::AmbiguousLinearization,
+                        id,
+                        format!(
+                            "canonical fallback form `{}` must be unguarded; `otherwise` already means the complement of every guarded form",
+                            fallback.name.value
+                        ),
+                    )
+                    .with_span(span),
+                );
+            }
+        }
+    }
 }
 
 fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
@@ -3239,6 +3318,72 @@ mod tests {
             },
         );
         validate(&group).expect("disjoint guards are exactly the promise");
+    }
+
+    #[test]
+    fn opaque_value_guard_requires_a_canonical_fallback() {
+        // Mutation caught: treat an opaque whole-value guard as if it proved
+        // total coverage, leaving unmatched values with no canonical form.
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].value_guard = Some(crate::model::Spanned::call_site(
+            "takes_guarded_form".to_owned(),
+        ));
+
+        let err = validate(&group).expect_err("opaque guards cannot prove total coverage");
+        assert_eq!(codes(&err), vec!["EC023"]);
+    }
+
+    #[test]
+    fn canonical_fallback_must_be_unique() {
+        // Mutation caught: let emitter declaration order choose between two
+        // canonical fallbacks for the same semantic value.
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].fallback = true;
+        let mut second = group.constructions[0].forms[0].clone();
+        second.name = crate::model::Spanned::call_site("second".to_owned());
+        second.ordinal = crate::model::Spanned::call_site(1);
+        group.constructions[0].forms.push(second);
+
+        let err = validate(&group).expect_err("two canonical fallbacks are ambiguous");
+        assert_eq!(codes(&err), vec!["EC024"]);
+    }
+
+    #[test]
+    fn canonical_fallback_must_be_unguarded() {
+        // Mutation caught: accept `when ... otherwise`, whose explicit guard
+        // and unconditional fallback meanings disagree during selection.
+        let mut group = minimal_group();
+        group.constructions[0].forms[0].fallback = true;
+        group.constructions[0].forms[0].guard =
+            Some(crate::model::Spanned::call_site(conjunction_in(&["And"])));
+
+        let err = validate(&group).expect_err("a canonical fallback is unconditional");
+        assert_eq!(codes(&err), vec!["EC024"]);
+    }
+
+    #[test]
+    fn fallback_diagnostic_is_independent_of_declaration_order() {
+        // Mutation caught: report or select whichever duplicate fallback was
+        // first, making source order observable despite explicit ordinals.
+        let mut forward = minimal_group();
+        forward.constructions[0].forms[0].fallback = true;
+        let mut alpha = forward.constructions[0].forms[0].clone();
+        forward.constructions[0].forms[0].name =
+            crate::model::Spanned::call_site("zeta".to_owned());
+        alpha.name = crate::model::Spanned::call_site("alpha".to_owned());
+        alpha.ordinal = crate::model::Spanned::call_site(1);
+        forward.constructions[0].forms.push(alpha);
+        let mut backward = forward.clone();
+        backward.constructions[0].forms.reverse();
+
+        let render = |group: &crate::model::GroupDeclaration| {
+            validate(group)
+                .expect_err("duplicate fallbacks must be rejected")
+                .into_iter()
+                .map(|diagnostic| format!("{}:{}", diagnostic.code.as_str(), diagnostic.message))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(render(&forward), render(&backward));
     }
 
     #[test]

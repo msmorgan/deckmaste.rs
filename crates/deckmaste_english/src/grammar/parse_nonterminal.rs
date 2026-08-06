@@ -452,7 +452,7 @@ fn collect_construction_decisions(
         });
         decisions.push(ConstructionDecision::new(
             span,
-            production.construction,
+            production,
             family,
             cost,
             reason,
@@ -933,13 +933,11 @@ mod root_lowering_tests {
                 .find(|decision| decision.selected().as_str() == "sentence")
                 .unwrap_or_else(|| panic!("no sentence construction decision: {parsed:#?}"));
             assert_eq!(decision.owner(), ConstructionOwner::Generated);
-            let ordinal = decision
-                .alternatives()
-                .iter()
-                .find(|alternative| alternative.id().as_str() == "sentence")
-                .expect("the selected sentence family names its production")
-                .production_ordinal();
-            assert_eq!(ordinal, expected_ordinal, "{source:?}");
+            assert_eq!(
+                decision.selected_production_ordinal(),
+                expected_ordinal,
+                "{source:?}"
+            );
         }
     }
 
@@ -1365,14 +1363,9 @@ mod generated_adapter_tests {
             .iter()
             .find(|decision| decision.selected().as_str() == "probe_word")
             .expect("probe_word decision recorded");
-        let ordinal = word
-            .alternatives()
-            .iter()
-            .find(|alternative| alternative.id().as_str() == "probe_word")
-            .expect("probe_word names its own alternative")
-            .production_ordinal();
         assert_eq!(
-            ordinal, 7,
+            word.selected_production_ordinal(),
+            7,
             "the padded form's declared ordinal must reach the decision"
         );
     }
