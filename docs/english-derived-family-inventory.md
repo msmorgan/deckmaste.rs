@@ -70,10 +70,11 @@ The active serialized consumer is `serde::Serialize` through
 `deckmaste_spelling::view::of`; active frame consumers are
 `deckmaste_spelling::{compile,unify,render,witness}` through
 `parse_fragment`/`render_fragment`. `xtask` consumes parse provenance through
-`english::{inspect,recovery,unknown_phrases}`. Every unit must migrate those
-consumers when its shape changes. None of the syntax nodes currently exposes
-a general `Deserialize` ingress; a migration that adds one must route it
-through the generated validator.
+`english::{inspect,recovery,unknown_phrases}` and aggregate parser work through
+`english::performance`. Every unit must migrate those consumers when its shape
+changes. None of the syntax nodes currently exposes a general `Deserialize`
+ingress; a migration that adds one must route it through the generated
+validator.
 
 Surface facts are classified against the Oracle style guide, which is
 evidence rather than grammar authority. Meaning-bearing choices stay typed;
@@ -337,11 +338,18 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `verb_phrase_power_toughness`, `verb_phrase_quantity`,
 `verb_phrase_causative`, `frequency_phrase`.
 
-- **Owners and AST:** CR for predicates, mana helpers, frequency, and the late
-  `verb_phrase_causative`; these lower
-  to `Predicate`, `PredicateHead`, `VerbPhrase`, `PredicateObject`,
-  `PredicateComplement`, `PredicateAdjunct`, `FrequencyPhrase`, and typed mana
-  sequences. REN owns predicate/element rendering; SYN-C owns ingress.
+- **Owners and AST:** CR owns ordinary predicate registration and substantive
+  predicate reduction/lowering, mana helpers, frequency, and the late
+  `verb_phrase_causative`. NR additionally registers five V01 IDs in
+  `add_reduced_recipient_passive_rules`—`verb_phrase_base`,
+  `verb_phrase_direct_object`, `verb_phrase_prepositional`,
+  `verb_phrase_adverb`, and `verb_phrase_frequency`—and is the sole
+  registration owner of `verb_phrase_coin_result` through
+  `add_coin_result_rules`; all six still dispatch reduction/lowering to CR.
+  These lower to `Predicate`, `PredicateHead`, `VerbPhrase`,
+  `PredicateObject`, `PredicateComplement`, `PredicateAdjunct`,
+  `FrequencyPhrase`, and typed mana sequences. REN owns predicate/element
+  rendering; SYN-C owns ingress.
 - **Holes and constraints:** identity holes for verbs, auxiliaries, particles,
   coin results, adverbs, and symbols; scalar holes for quantities and
   power/toughness; subtree holes for NP, PP, infinitive, adjective, and ability;
@@ -630,7 +638,10 @@ Each migration ticket must land its declaration, parse/render/build
 projections, active consumer and serialized-view changes, direct-AST and
 `inspect` fixtures, exactness and negative fixtures, registry flip, and
 handwritten parse/reduction/lowering/renderer/constructor deletion audit in
-one change. It may not defer any of those to completion.
+one change. It must also run the build-excluding parent/current
+`english performance --check` audit from `docs/english-parser-performance.md`
+so a family migration cannot hide work growth in failed or abandoned paths.
+It may not defer any of those to completion.
 
 The completion node depends on all fifteen chart tickets and the existing
 ability-backend ticket. Its final audit therefore has 193 newly migrated plus

@@ -76,17 +76,17 @@ struct WorkCounters {
 
 impl WorkCounters {
     fn observe(&mut self, report: &ParseReport) {
-        for selection in report.provenance().selections() {
-            let chart = selection.chart_stats();
-            let forest = selection.forest_stats();
-            self.chart_unique_items += chart.unique_items();
-            self.chart_max_column_width = self.chart_max_column_width.max(chart.max_column_width());
-            self.forest_constituent_nodes += forest.constituent_nodes();
-            self.forest_intermediate_nodes += forest.intermediate_nodes();
-            self.forest_packed_alternatives += forest.packed_alternatives();
-            self.forest_max_alternatives =
-                self.forest_max_alternatives.max(forest.max_alternatives());
-        }
+        let work = report.work();
+        self.chart_unique_items += work.chart_unique_items();
+        self.chart_max_column_width = self
+            .chart_max_column_width
+            .max(work.chart_max_column_width());
+        self.forest_constituent_nodes += work.forest_constituent_nodes();
+        self.forest_intermediate_nodes += work.forest_intermediate_nodes();
+        self.forest_packed_alternatives += work.forest_packed_alternatives();
+        self.forest_max_alternatives = self
+            .forest_max_alternatives
+            .max(work.forest_max_alternatives());
     }
 
     fn checked_dimensions(self) -> [(&'static str, usize); 6] {
@@ -280,6 +280,36 @@ mod tests {
             audit.work.chart_max_column_width > 0,
             "the audit must expose the chart's maximum column width"
         );
+    }
+
+    #[test]
+    fn abandoned_chart_attempt_increases_gated_work() {
+        let source = "Suspend 3, definitely not a keyword.";
+        let catalogs = Catalogs::default()
+            .with_catalog(deckmaste_english::CatalogKind::KeywordAbility, ["Suspend"]);
+        let report = parse_with_identity(source, &catalogs, "", false);
+        let accepted_chart_items = report
+            .provenance()
+            .selections()
+            .iter()
+            .map(|selection| selection.chart_stats().unique_items())
+            .sum::<usize>();
+        let current_input = audit_text("abandoned branch", source, &catalogs, "", false);
+
+        assert!(
+            current_input.work.chart_unique_items > accepted_chart_items,
+            "abandoned chart work must exceed the accepted-only provenance control: total={} accepted={accepted_chart_items}",
+            current_input.work.chart_unique_items,
+        );
+
+        let mut accepted_only = current_input.work;
+        accepted_only.chart_unique_items = accepted_chart_items;
+        let parent = audit("abandoned branch", accepted_only);
+        let current = PerformanceAudit {
+            inputs: vec![current_input],
+        };
+        let error = check_against(&parent, &current, 0).unwrap_err();
+        assert!(error.to_string().contains("chart_unique_items regressed"));
     }
 
     #[test]

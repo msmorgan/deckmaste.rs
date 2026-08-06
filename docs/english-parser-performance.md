@@ -3,9 +3,11 @@
 Run the single-input audit before a corpus command. It reports deterministic
 parser work for a representative short input and the supported `Ballroom
 Brawlers` face: unique chart items, maximum chart-column width, and packed
-forest counters. A large single-input increase is an algorithmic regression;
-lowering corpus workers or imposing a process-memory limit is containment, not
-an accepted fix.
+forest counters. These are aggregates over every chart invocation, including
+failed probes, retries, and later-abandoned alternatives; accepted parse
+provenance is not the work ledger. A large single-input increase is an
+algorithmic regression; lowering corpus workers or imposing a process-memory
+limit is containment, not an accepted fix.
 
 Build before measuring. The measured process is the already-built binary, not
 `cargo`, so compiler CPU, I/O, wall time, and RSS cannot contaminate the result.
@@ -43,7 +45,9 @@ PERF_BIN=target/debug/cargo-xtask
 The redirected current file remains valid JSON; the successful check status is
 written to stderr with the timing record. The checked regression fixture in
 `crates/xtask/src/english/performance.rs` raises `chart_unique_items` from 100
-to 111 with a 10% allowance and asserts that the gate rejects it.
+to 111 with a 10% allowance and asserts that the gate rejects it. A second
+causal fixture abandons a real keyword-list alternative and proves its chart
+work both exceeds accepted-only provenance and trips the comparison.
 
 Only after both single inputs have been audited, measure corpus parallelism.
 The `--workers` value is explicit and is included in each report; the current

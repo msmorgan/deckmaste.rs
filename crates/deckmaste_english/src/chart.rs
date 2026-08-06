@@ -9,6 +9,7 @@ use hashbrown::hash_map::Entry;
 use crate::construction::ProductionId;
 use crate::features::ChartFeatureBundle;
 use crate::features::SurfaceWitnessPayload;
+use crate::forest::ForestStats;
 use crate::forest::NodeId;
 use crate::forest::NodeKey;
 use crate::forest::PackedAlternative;
@@ -204,7 +205,10 @@ pub(crate) fn parse_chart<G>(
 where
     G: Grammar,
 {
-    validate_grammar(grammar)?;
+    if let Err(error) = validate_grammar(grammar) {
+        crate::parse::record_chart_work(ChartStats::default(), ForestStats::default());
+        return Err(error);
+    }
     ChartParser::new(grammar, tokens).run()
 }
 
@@ -261,9 +265,13 @@ where
             if let Some(limit) = self.grammar.state_limit()
                 && processed >= limit
             {
+                self.record_work();
                 return Err(GrammarError::StateLimitExceeded { limit });
             }
-            self.process_item(position, &item)?;
+            if let Err(error) = self.process_item(position, &item) {
+                self.record_work();
+                return Err(error);
+            }
             processed += 1;
         }
 
@@ -275,7 +283,17 @@ where
             .copied()
             .filter(|&root| self.forest.node(root).key.end == self.tokens.len())
             .collect();
-        let stats = ChartStats {
+        let stats = self.stats();
+        crate::parse::record_chart_work(stats, self.forest.stats());
+        Ok(ChartResult {
+            forest: self.forest,
+            roots,
+            stats,
+        })
+    }
+
+    fn stats(&self) -> ChartStats {
+        ChartStats {
             unique_items: self.chart.iter().map(|column| column.seen.len()).sum(),
             max_column_width: self
                 .chart
@@ -283,12 +301,11 @@ where
                 .map(|column| column.seen.len())
                 .max()
                 .unwrap_or_default(),
-        };
-        Ok(ChartResult {
-            forest: self.forest,
-            roots,
-            stats,
-        })
+        }
+    }
+
+    fn record_work(&self) {
+        crate::parse::record_chart_work(self.stats(), self.forest.stats());
     }
 
     fn seed(&mut self) {

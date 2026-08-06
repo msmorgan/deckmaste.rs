@@ -60,6 +60,7 @@ pub use parse::DiagnosticKind;
 pub use parse::ParseProvenance;
 pub use parse::ParseReport;
 pub use parse::ParseSelection;
+pub use parse::ParseWork;
 pub use parse::parse;
 pub use parse::parse_with_catalogs;
 pub use parse::parse_with_identity;

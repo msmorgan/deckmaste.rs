@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use crate::Span;
 use crate::catalog::Catalogs;
 use crate::chart::ChartStats;
@@ -24,6 +26,111 @@ pub struct Diagnostic {
     pub(crate) span: Span,
 }
 
+/// Deterministic work performed by every chart invocation in one parse.
+///
+/// Unlike [`ParseProvenance`], this includes failed probes, opaque-noun
+/// retries, rejected semantic projections, and later-abandoned alternatives.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ParseWork {
+    chart_unique_items: usize,
+    chart_max_column_width: usize,
+    forest_constituent_nodes: usize,
+    forest_intermediate_nodes: usize,
+    forest_packed_alternatives: usize,
+    forest_max_alternatives: usize,
+}
+
+thread_local! {
+    static ACTIVE_PARSE_WORK: RefCell<Vec<ParseWork>> = const { RefCell::new(Vec::new()) };
+}
+
+struct ParseWorkScope {
+    active: bool,
+}
+
+impl ParseWorkScope {
+    fn new() -> Self {
+        ACTIVE_PARSE_WORK.with(|scopes| scopes.borrow_mut().push(ParseWork::default()));
+        Self { active: true }
+    }
+
+    fn finish(mut self) -> ParseWork {
+        let work = ACTIVE_PARSE_WORK.with(|scopes| {
+            scopes
+                .borrow_mut()
+                .pop()
+                .expect("a parse-work scope must be active")
+        });
+        self.active = false;
+        work
+    }
+}
+
+impl Drop for ParseWorkScope {
+    fn drop(&mut self) {
+        if self.active {
+            ACTIVE_PARSE_WORK.with(|scopes| {
+                scopes.borrow_mut().pop();
+            });
+        }
+    }
+}
+
+impl ParseWork {
+    fn observe(&mut self, chart: ChartStats, forest: ForestStats) {
+        self.chart_unique_items += chart.unique_items();
+        self.chart_max_column_width = self.chart_max_column_width.max(chart.max_column_width());
+        self.forest_constituent_nodes += forest.constituent_nodes();
+        self.forest_intermediate_nodes += forest.intermediate_nodes();
+        self.forest_packed_alternatives += forest.packed_alternatives();
+        self.forest_max_alternatives = self.forest_max_alternatives.max(forest.max_alternatives());
+    }
+
+    #[must_use]
+    pub const fn chart_unique_items(self) -> usize {
+        self.chart_unique_items
+    }
+
+    #[must_use]
+    pub const fn chart_max_column_width(self) -> usize {
+        self.chart_max_column_width
+    }
+
+    #[must_use]
+    pub const fn forest_constituent_nodes(self) -> usize {
+        self.forest_constituent_nodes
+    }
+
+    #[must_use]
+    pub const fn forest_intermediate_nodes(self) -> usize {
+        self.forest_intermediate_nodes
+    }
+
+    #[must_use]
+    pub const fn forest_packed_alternatives(self) -> usize {
+        self.forest_packed_alternatives
+    }
+
+    #[must_use]
+    pub const fn forest_max_alternatives(self) -> usize {
+        self.forest_max_alternatives
+    }
+}
+
+pub(crate) fn record_chart_work(chart: ChartStats, forest: ForestStats) {
+    ACTIVE_PARSE_WORK.with(|scopes| {
+        for work in scopes.borrow_mut().iter_mut() {
+            work.observe(chart, forest);
+        }
+    });
+}
+
+fn collect_parse_work<T>(parse: impl FnOnce() -> T) -> (T, ParseWork) {
+    let scope = ParseWorkScope::new();
+    let parsed = parse();
+    (parsed, scope.finish())
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ParseProvenance {
     pub(crate) selections: Vec<ParseSelection>,
@@ -48,6 +155,7 @@ pub struct ParseReport {
     pub(crate) ability_spans: Vec<Span>,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) provenance: ParseProvenance,
+    pub(crate) work: ParseWork,
     pub(crate) source_tokens: usize,
 }
 
@@ -71,6 +179,12 @@ impl ParseReport {
     #[must_use]
     pub const fn provenance(&self) -> &ParseProvenance {
         &self.provenance
+    }
+
+    /// Aggregate chart and packed-forest work across every parse attempt.
+    #[must_use]
+    pub const fn work(&self) -> ParseWork {
+        self.work
     }
 
     #[must_use]
@@ -198,7 +312,8 @@ fn parse_internal(
     // from dividing a comma-bearing self-reference.
     let source_tokens = surface.tokens.len();
     let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
-    let parsed = parse_oracle_text(source, catalogs, &tokens, self_reference);
+    let (parsed, work) =
+        collect_parse_work(|| parse_oracle_text(source, catalogs, &tokens, self_reference));
     let mut diagnostics = surface
         .diagnostics
         .into_iter()
@@ -236,6 +351,7 @@ fn parse_internal(
                 })
                 .collect(),
         },
+        work,
         source_tokens,
     }
 }

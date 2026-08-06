@@ -32,6 +32,13 @@ validated build projections; every Sentence/Cost/KeywordLine/Ability and
 spelling/view consumer change; direct-AST and verbose `inspect` fixtures for
 every valency/role; exactness and invalid-argument/list negatives; all 34
 registry flips; and deletion of handwritten mirrors and raw construction paths
-together. Update the inventory. No consumer or deletion work is deferred.
+together. The deletion audit must remove CR's ordinary registrations and
+substantive reduction/lowering arms, NR's sole
+`verb_phrase_coin_result` registration in `add_coin_result_rules`, and NR's
+five V01 registrations in `add_reduced_recipient_passive_rules`:
+`verb_phrase_base`, `verb_phrase_direct_object`,
+`verb_phrase_prepositional`, `verb_phrase_adverb`, and
+`verb_phrase_frequency`. Update the inventory. No consumer or deletion work is
+deferred.
 
 Standard constraints apply.
