@@ -2432,6 +2432,97 @@ mod derived {
         };
         assert!(params.iter().all(|p| p.default == ParamDefault::Required));
     }
+
+    /// Payload fixture for the `spliced` marker: a named struct whose fields
+    /// a newtype variant lifts into its own call. `when` carries no
+    /// `#[serde(default)]` — serde fills a missing `Option` field anyway, so
+    /// it must still report droppable. `r#as` pins the raw-identifier
+    /// spelling (RON says `as`).
+    #[derive(
+        Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize, Expand, crate::MacroFields,
+    )]
+    struct Wish {
+        what: String,
+        #[serde(default)]
+        urgent: bool,
+        when: Option<u32>,
+        r#as: String,
+    }
+
+    /// A newtype-over-named-struct variant, boxed the way the real grammar
+    /// boxes its ability payloads.
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Grant {
+        Plain(u32),
+        #[macro_ron(spliced)]
+        Wish(std::sync::Arc<Wish>),
+    }
+
+    /// The payload struct's own field list is what `MacroFields` exposes —
+    /// names in declaration order, droppability from the serde attribute or
+    /// an `Option` type.
+    #[test]
+    fn macro_fields_reports_a_structs_own_fields() {
+        use crate::MacroFields as _;
+
+        assert_eq!(
+            Wish::FIELDS.to_vec(),
+            vec![
+                NamedParam {
+                    name: "what",
+                    default: ParamDefault::Required
+                },
+                NamedParam {
+                    name: "urgent",
+                    default: ParamDefault::Implicit
+                },
+                NamedParam {
+                    name: "when",
+                    default: ParamDefault::Implicit
+                },
+                NamedParam {
+                    name: "as",
+                    default: ParamDefault::Required
+                },
+            ]
+        );
+    }
+
+    /// A `spliced` newtype variant reports its PAYLOAD's fields as a `Named`
+    /// signature — the shape canon actually spells (`Wish(what: …)`, never
+    /// `Wish((what: …))`) — while an ordinary newtype stays one positional
+    /// slot. Wrappers (`Arc`/`Box`/`Rc`) are seen through.
+    #[test]
+    fn a_spliced_newtype_variant_reports_its_payloads_fields() {
+        use crate::MacroFields as _;
+
+        let sigs = Grant::ALL_SIGNATURES;
+        let get = |name: &str| sigs.iter().find(|(n, _)| *n == name).unwrap().1;
+        assert_eq!(
+            get("Plain"),
+            VariantSignature::Positional(&[ParamDefault::Required])
+        );
+        assert_eq!(get("Wish"), VariantSignature::Named(Wish::FIELDS));
+    }
+
+    /// The marker changes the reported SHAPE only: reading and writing a
+    /// `spliced` variant stays the ordinary flat newtype round trip.
+    #[test]
+    fn a_spliced_variant_still_reads_and_writes_flat() {
+        let source = r#"Wish(what: "rain", as: "weather")"#;
+        let value: Grant = super::options()
+            .from_str(source)
+            .expect("a spliced variant reads field-spliced");
+        assert_eq!(
+            value,
+            Grant::Wish(std::sync::Arc::new(Wish {
+                what: "rain".into(),
+                urgent: false,
+                when: None,
+                r#as: "weather".into(),
+            }))
+        );
+    }
 }
 
 /// Macro names appear as bare identifiers at value positions, so a

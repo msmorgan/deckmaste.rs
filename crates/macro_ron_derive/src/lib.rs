@@ -19,6 +19,17 @@ pub fn derive_supports_macros(input: TokenStream) -> TokenStream {
         .into()
 }
 
+// `serde` is registered so a payload struct's field attributes (`default`,
+// `rename`) are visible here — the field list they describe is what a
+// `#[macro_ron(spliced)]` variant splices into its call.
+#[proc_macro_derive(MacroFields, attributes(serde))]
+pub fn derive_macro_fields(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    generate::macro_fields(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
 // `macro_ron` is registered so a stray marker on an Expand-only type gets
 // this derive's "markers belong to SupportsMacros" error instead of rustc's
 // unresolved-attribute one.

@@ -42,6 +42,8 @@ pub use kind::KindSet;
 #[cfg(feature = "derive")]
 pub use macro_ron_derive::Expand;
 #[cfg(feature = "derive")]
+pub use macro_ron_derive::MacroFields;
+#[cfg(feature = "derive")]
 pub use macro_ron_derive::SupportsMacros;
 pub use param::ParamType;
 pub use param::ParamTypeSet;
@@ -50,6 +52,7 @@ pub use set::InsertError;
 pub use set::MacroDef;
 pub use set::MacroSet;
 pub use set::Params;
+pub use support::MacroFields;
 pub use support::NamedParam;
 pub use support::Pair;
 pub use support::PairPlusDefault;

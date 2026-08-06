@@ -124,6 +124,22 @@ pub struct NamedParam {
     pub default: ParamDefault,
 }
 
+/// A named struct whose fields a newtype variant splices into its own call:
+/// `#[derive(MacroFields)]`.
+///
+/// A newtype-tuple variant over a named struct reads FLAT in RON — ron's
+/// `unwrap_variant_newtypes` extension spells it `Activated(cost: …, effect:
+/// …)`, never `Activated((cost: …))` — so its AUTHORED shape is the payload
+/// struct's field list, not one opaque positional slot. Those fields belong
+/// to another type entirely, which `#[derive(SupportsMacros)]` on the enum
+/// cannot see; the payload derives this trait, and the enum's
+/// `#[macro_ron(spliced)]` variant reads them back out through it to report a
+/// [`VariantSignature::Named`].
+pub trait MacroFields {
+    /// The struct's fields in declaration order, under their RON names.
+    const FIELDS: &'static [NamedParam];
+}
+
 /// A variant's authored shape — what an identity macro must mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VariantSignature {

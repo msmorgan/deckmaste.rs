@@ -1,4 +1,4 @@
-//! Code generation for the two public derive entry points:
+//! Code generation for the three public derive entry points:
 //!
 //! * **`supports_macros`** (`#[derive(SupportsMacros)]`): emits four impls
 //!   inside one `const _: () = { … }` block — `SupportsMacros` (the variant
@@ -11,6 +11,11 @@
 //!   ::macro_ron::Expand` with no helper structs and no surrounding `const _`
 //!   block — for plain grammar types (`SupportsMacros` doesn't apply): every
 //!   field recurses via `expand_all`, no serde involvement.
+//!
+//! * **`macro_fields`** (`#[derive(MacroFields)]`): emits a single `impl
+//!   ::macro_ron::MacroFields` naming a named struct's own fields — the field
+//!   list a `#[macro_ron(spliced)]` newtype variant over that struct splices
+//!   into its call.
 //!
 //! Generated code names items only via absolute `::macro_ron::…` /
 //! `::serde::…` / `::core::…` paths (`extern crate self as macro_ron` makes
@@ -77,6 +82,24 @@ fn peeled(ty: &Type) -> (&Type, bool) {
         return (inner, true);
     }
     (ty, false)
+}
+
+/// Sees through every layer of `Box`/`Arc`/`Rc` when naming the payload type
+/// a `spliced` variant reads its field list from: `Arc<ActivatedAbility>`
+/// splices `ActivatedAbility`'s fields. Unlike [`peeled`] this is lookup-only
+/// — it never feeds a constructor, so it can peel wrappers `peeled` must
+/// leave alone.
+fn unwrapped(ty: &Type) -> &Type {
+    if let Type::Path(p) = ty
+        && let Some(seg) = p.path.segments.last()
+        && matches!(seg.ident.to_string().as_str(), "Box" | "Arc" | "Rc")
+        && let syn::PathArguments::AngleBracketed(args) = &seg.arguments
+        && args.args.len() == 1
+        && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
+    {
+        return unwrapped(inner);
+    }
+    ty
 }
 
 /// The `flatten` variants' payload types, peeled, in declaration order.
@@ -314,7 +337,7 @@ fn concat_lists(ty: &Ident, tails: &[&Type], excludes: &[String]) -> TokenStream
 /// `OWN_VARIANTS` (see [`is_named`]).
 fn own_signature_entry(v: &Variant) -> TokenStream {
     let name = v.ident.to_string();
-    let sig = variant_signature(&v.shape);
+    let sig = variant_signature(v);
     quote!((#name, #sig))
 }
 
@@ -347,13 +370,70 @@ fn has_serde_default(attrs: &[Attribute]) -> bool {
     })
 }
 
-/// The `VariantSignature` a variant's shape maps to: `Unit` for a unit
-/// variant, `Positional(&[…])` for a newtype (always `&[Required]`) or a
-/// tuple (one `ParamDefault` per field, in order), `Named(&[…])` for a
-/// struct variant — one `NamedParam` per field, `Implicit` when the field
-/// forwards a `#[serde(default ...)]`, `Required` otherwise.
-fn variant_signature(shape: &Shape) -> TokenStream {
-    match shape {
+/// Whether the type is spelled `Option<…>`. serde fills a missing `Option`
+/// field with `None` without any `#[serde(default)]` (its `missing_field`
+/// deserializer answers `deserialize_option` with `visit_none`), so such a
+/// field is droppable exactly like a defaulted one and must report the same
+/// [`ParamDefault::Implicit`] — otherwise a scaffold makes it required and
+/// breaks the short spelling canon actually uses.
+fn is_option(ty: &Type) -> bool {
+    matches!(ty, Type::Path(p) if p.path.segments.last().is_some_and(|s| s.ident == "Option"))
+}
+
+/// A named field's RON spelling: its `#[serde(rename = "…")]` when it has
+/// one, else the ident with any raw-identifier `r#` prefix dropped (`r#as`
+/// reads and writes as `as`, matching serde).
+fn ron_field_name(ident: &Ident, serde_attrs: &[Attribute]) -> String {
+    for attr in serde_attrs {
+        let Ok(metas) = attr.parse_args_with(
+            syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
+        ) else {
+            continue;
+        };
+        for meta in &metas {
+            if meta.path().is_ident("rename")
+                && let syn::Meta::NameValue(nv) = meta
+                && let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                }) = &nv.value
+            {
+                return s.value();
+            }
+        }
+    }
+    ident.to_string().trim_start_matches("r#").to_string()
+}
+
+/// The `ParamDefault` a named (struct or spliced-payload) field maps to.
+fn named_default(ty: &Type, serde_attrs: &[Attribute]) -> TokenStream {
+    if has_serde_default(serde_attrs) || is_option(ty) {
+        quote!(::macro_ron::ParamDefault::Implicit)
+    } else {
+        quote!(::macro_ron::ParamDefault::Required)
+    }
+}
+
+/// The `VariantSignature` a variant maps to: `Unit` for a unit variant,
+/// `Positional(&[…])` for a newtype (always `&[Required]`) or a tuple (one
+/// `ParamDefault` per field, in order), `Named(&[…])` for a struct variant —
+/// one `NamedParam` per field, `Implicit` when the field is droppable
+/// ([`named_default`]), `Required` otherwise.
+///
+/// A `#[macro_ron(spliced)]` newtype variant reports the payload struct's own
+/// `Named` field list instead, read through
+/// [`MacroFields`](macro_ron::MacroFields) — see [`Marker::Spliced`].
+fn variant_signature(v: &Variant) -> TokenStream {
+    if v.marker == Some(Marker::Spliced) {
+        let Shape::Newtype(f) = &v.shape else {
+            unreachable!("spliced is a newtype (validated in parse())");
+        };
+        let payload = unwrapped(&f.ty);
+        return quote!(::macro_ron::VariantSignature::Named(
+            <#payload as ::macro_ron::MacroFields>::FIELDS
+        ));
+    }
+    match &v.shape {
         Shape::Unit => quote!(::macro_ron::VariantSignature::Unit),
         Shape::Newtype(_) => {
             quote!(::macro_ron::VariantSignature::Positional(&[
@@ -366,16 +446,9 @@ fn variant_signature(shape: &Shape) -> TokenStream {
         }
         Shape::Struct(fields) => {
             let params = fields.iter().map(|f| {
-                let name = f
-                    .ident
-                    .as_ref()
-                    .expect("struct fields are named")
-                    .to_string();
-                let default = if has_serde_default(&f.serde_attrs) {
-                    quote!(::macro_ron::ParamDefault::Implicit)
-                } else {
-                    quote!(::macro_ron::ParamDefault::Required)
-                };
+                let ident = f.ident.as_ref().expect("struct fields are named");
+                let name = ron_field_name(ident, &f.serde_attrs);
+                let default = named_default(&f.ty, &f.serde_attrs);
                 quote!(::macro_ron::NamedParam { name: #name, default: #default })
             });
             quote!(::macro_ron::VariantSignature::Named(&[#(#params),*]))
@@ -911,6 +984,43 @@ pub fn expand_only(derive: &DeriveInput) -> Result<TokenStream> {
         }
     };
     Ok(expand_impl(ty, &body))
+}
+
+/// `#[derive(MacroFields)]` — a named struct's own field list, for the
+/// `#[macro_ron(spliced)]` newtype variants that splice it into their call.
+/// Field-list only: no serde involvement, no `Expand`, nothing about how the
+/// struct reads.
+pub fn macro_fields(derive: &DeriveInput) -> Result<TokenStream> {
+    input::reject_generics(derive)?;
+    let ty = &derive.ident;
+    let Data::Struct(syn::DataStruct {
+        fields: syn::Fields::Named(fields),
+        ..
+    }) = &derive.data
+    else {
+        return Err(Error::new(
+            ty.span(),
+            "MacroFields applies to structs with named fields",
+        ));
+    };
+    let entries = fields.named.iter().map(|f| {
+        let serde_attrs: Vec<Attribute> = f
+            .attrs
+            .iter()
+            .filter(|a| a.path().is_ident("serde"))
+            .cloned()
+            .collect();
+        let ident = f.ident.as_ref().expect("named fields have idents");
+        let name = ron_field_name(ident, &serde_attrs);
+        let default = named_default(&f.ty, &serde_attrs);
+        quote!(::macro_ron::NamedParam { name: #name, default: #default })
+    });
+    Ok(quote! {
+        #[automatically_derived]
+        impl ::macro_ron::MacroFields for #ty {
+            const FIELDS: &'static [::macro_ron::NamedParam] = &[#(#entries),*];
+        }
+    })
 }
 
 /// `#[macro_ron(...)]` markers describe macro-layer behavior and belong to

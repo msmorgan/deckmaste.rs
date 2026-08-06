@@ -30,6 +30,13 @@ pub enum Marker {
     Flatten,
     /// Bare-literal wrapper (`Count::Literal`) — Kind metadata only.
     Literal,
+    /// Newtype over a NAMED STRUCT, spelled field-spliced in RON
+    /// (`Activated(cost: …, effect: …)`, via `unwrap_variant_newtypes`).
+    /// Read and write are the ordinary newtype ones; the marker only tells
+    /// the signature emitter to report the payload's own fields
+    /// (`<Payload as MacroFields>::FIELDS`) instead of one opaque positional
+    /// slot, so a scaffolded identity macro mirrors the spelling canon uses.
+    Spliced,
 }
 
 pub struct Field {
@@ -205,10 +212,12 @@ fn variant_marker(attrs: &[Attribute]) -> Result<(Option<Marker>, Vec<Ident>)> {
                 Marker::Flatten
             } else if meta.path.is_ident("literal") {
                 Marker::Literal
+            } else if meta.path.is_ident("spliced") {
+                Marker::Spliced
             } else {
-                return Err(
-                    meta.error("expected one of: expanded, embed, flatten, literal, exclude(...)")
-                );
+                return Err(meta.error(
+                    "expected one of: expanded, embed, flatten, literal, spliced, exclude(...)",
+                ));
             };
             if marker.replace(m).is_some() {
                 return Err(meta.error("at most one macro_ron marker per variant"));
@@ -251,15 +260,15 @@ fn field(f: &syn::Field) -> Result<Field> {
 
 fn validate(ident: &Ident, marker: Option<Marker>, shape: &Shape) -> Result<()> {
     match marker {
-        Some(Marker::Expanded | Marker::Literal | Marker::Flatten)
+        Some(Marker::Expanded | Marker::Literal | Marker::Flatten | Marker::Spliced)
             if !matches!(shape, Shape::Newtype(_)) =>
         {
             return Err(Error::new(
                 ident.span(),
-                "expanded/literal/flatten markers require a newtype variant",
+                "expanded/literal/flatten/spliced markers require a newtype variant",
             ));
         }
-        Some(Marker::Expanded | Marker::Literal | Marker::Flatten) | None => {}
+        Some(Marker::Expanded | Marker::Literal | Marker::Flatten | Marker::Spliced) | None => {}
         Some(Marker::Embed) => match shape {
             Shape::Newtype(_) => {}
             Shape::Tuple(fs) => {
