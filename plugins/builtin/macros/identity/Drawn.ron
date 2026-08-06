@@ -1,0 +1,6 @@
+(
+    name: "Drawn",
+    kinds: [EventFilter],
+    params: { "who": Elidable(Any), "amount": Elidable(Any) },
+    body: Drawn(who: Param(who), amount: Param(amount)),
+)

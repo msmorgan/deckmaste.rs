@@ -1,0 +1,6 @@
+(
+    name: "CounterRemoved",
+    kinds: [EventFilter],
+    params: { "kind": Elidable(Any), "on": Elidable(Any), "amount": Elidable(Any), "cause": Elidable(Any) },
+    body: CounterRemoved(kind: Param(kind), on: Param(on), amount: Param(amount), cause: Param(cause)),
+)

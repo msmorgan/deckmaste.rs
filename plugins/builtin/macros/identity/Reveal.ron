@@ -1,0 +1,6 @@
+(
+    name: "Reveal",
+    kinds: [Action, OneShotEffect],
+    params: { "what": Any, "to": Elidable(Any) },
+    body: Reveal(what: Param(what), to: Param(to)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Cast",
+    kinds: [EventFilter],
+    params: { "who": Elidable(Any), "what": Elidable(Any) },
+    body: Cast(who: Param(who), what: Param(what)),
+)

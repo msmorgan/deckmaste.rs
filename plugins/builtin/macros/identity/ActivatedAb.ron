@@ -1,0 +1,6 @@
+(
+    name: "ActivatedAb",
+    kinds: [EventFilter],
+    params: { "who": Elidable(Any), "what": Elidable(Any) },
+    body: ActivatedAb(who: Param(who), what: Param(what)),
+)

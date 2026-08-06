@@ -1,0 +1,6 @@
+(
+    name: "MoveGroup",
+    kinds: [Action, OneShotEffect],
+    params: { "group": Any, "arrangement": Any, "to": Any, "riders": Elidable(Any) },
+    body: MoveGroup(group: Param(group), arrangement: Param(arrangement), to: Param(to), riders: Param(riders)),
+)

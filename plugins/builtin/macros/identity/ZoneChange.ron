@@ -1,0 +1,6 @@
+(
+    name: "ZoneChange",
+    kinds: [EventFilter],
+    params: { "what": Elidable(Any), "from": Elidable(Any), "to": Elidable(Any), "cause": Elidable(Any) },
+    body: ZoneChange(what: Param(what), from: Param(from), to: Param(to), cause: Param(cause)),
+)

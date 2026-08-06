@@ -1,0 +1,6 @@
+(
+    name: "BlockDeclared",
+    kinds: [EventFilter],
+    params: { "by": Elidable(Any), "of": Elidable(Any) },
+    body: BlockDeclared(by: Param(by), of: Param(of)),
+)

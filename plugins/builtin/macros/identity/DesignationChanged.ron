@@ -1,0 +1,6 @@
+(
+    name: "DesignationChanged",
+    kinds: [EventFilter],
+    params: { "name": Any, "of": Elidable(Any), "to": Elidable(Any) },
+    body: DesignationChanged(name: Param(name), of: Param(of), to: Param(to)),
+)

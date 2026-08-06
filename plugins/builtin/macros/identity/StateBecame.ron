@@ -1,0 +1,6 @@
+(
+    name: "StateBecame",
+    kinds: [EventFilter],
+    params: { "of": Elidable(Any), "becomes": Any, "cause": Elidable(Any) },
+    body: StateBecame(of: Param(of), becomes: Param(becomes), cause: Param(cause)),
+)

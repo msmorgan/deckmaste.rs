@@ -1,0 +1,6 @@
+(
+    name: "Damage",
+    kinds: [EventFilter],
+    params: { "source": Elidable(Any), "to": Elidable(Any), "combat": Elidable(Any), "amount": Elidable(Any) },
+    body: Damage(source: Param(source), to: Param(to), combat: Param(combat), amount: Param(amount)),
+)

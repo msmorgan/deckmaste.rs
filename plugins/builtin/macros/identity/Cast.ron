@@ -1,0 +1,6 @@
+(
+    name: "Cast",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Elidable(Any)],
+    body: Cast(Param(0), Param(1), Param(2)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Act",
+    kinds: [EventFilter],
+    params: { "verb": Any, "who": Elidable(Any), "on": Elidable(Any), "cause": Elidable(Any) },
+    body: Act(verb: Param(verb), who: Param(who), on: Param(on), cause: Param(cause)),
+)

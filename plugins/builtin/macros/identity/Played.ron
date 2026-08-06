@@ -1,0 +1,6 @@
+(
+    name: "Played",
+    kinds: [EventFilter],
+    params: { "who": Elidable(Any), "what": Elidable(Any) },
+    body: Played(who: Param(who), what: Param(what)),
+)

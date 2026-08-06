@@ -1,0 +1,6 @@
+(
+    name: "Copied",
+    kinds: [EventFilter],
+    params: { "who": Elidable(Any), "what": Elidable(Any) },
+    body: Copied(who: Param(who), what: Param(what)),
+)

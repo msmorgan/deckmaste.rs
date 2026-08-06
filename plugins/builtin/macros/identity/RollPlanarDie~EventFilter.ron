@@ -1,0 +1,6 @@
+(
+    name: "RollPlanarDie",
+    kinds: [EventFilter],
+    params: { "by": Elidable(Any), "face": Elidable(Any) },
+    body: RollPlanarDie(by: Param(by), face: Param(face)),
+)

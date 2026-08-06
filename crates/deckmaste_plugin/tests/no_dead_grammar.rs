@@ -1306,12 +1306,8 @@ fn cause_verbs_are_entailment_rows() {
             // skip only the literal `Param(` forwarding shape (not "any
             // captured word followed by `(`", which would also blind the
             // scan to a real typo'd verb that happens to precede a
-            // parenthesized fragment elsewhere in the match). No scaffold
-            // currently hits this (`EventFilter::Act`'s `verb` field is
-            // elision-blocked — `macro-ron-optional-param-elision.md` — so
-            // it isn't scaffolded at all right now); kept because a
-            // `verb`-forwarding macro is a real, expected shape once that
-            // gap closes, not a one-off.
+            // parenthesized fragment elsewhere in the match).
+            // `EventFilter::Act`'s identity scaffold is the live instance.
             if m.as_str() == "Param" && text.as_bytes().get(m.end()) == Some(&b'(') {
                 continue;
             }

@@ -1,0 +1,6 @@
+(
+    name: "Move",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Elidable(Any), Elidable(Any)],
+    body: Move(Param(0), Param(1), Param(2), Param(3)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "AttackDeclared",
+    kinds: [EventFilter],
+    params: { "by": Elidable(Any), "against": Elidable(Any) },
+    body: AttackDeclared(by: Param(by), against: Param(against)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "TopOfLibrary",
+    kinds: [Selection],
+    params: { "count": Any, "whose": Elidable(Any) },
+    body: TopOfLibrary(count: Param(count), whose: Param(whose)),
+)

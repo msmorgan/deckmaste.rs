@@ -1,0 +1,6 @@
+(
+    name: "Create",
+    kinds: [Action, OneShotEffect],
+    params: { "agent": Any, "count": Any, "token": Any, "riders": Elidable(Any) },
+    body: Create(agent: Param(agent), count: Param(count), token: Param(token), riders: Param(riders)),
+)

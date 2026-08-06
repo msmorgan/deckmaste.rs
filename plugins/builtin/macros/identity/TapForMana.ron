@@ -1,0 +1,6 @@
+(
+    name: "TapForMana",
+    kinds: [EventFilter],
+    params: { "what": Elidable(Any), "by": Elidable(Any) },
+    body: TapForMana(what: Param(what), by: Param(by)),
+)

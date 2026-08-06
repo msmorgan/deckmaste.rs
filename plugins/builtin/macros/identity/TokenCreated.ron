@@ -1,0 +1,6 @@
+(
+    name: "TokenCreated",
+    kinds: [EventFilter],
+    params: { "what": Elidable(Any), "by": Elidable(Any) },
+    body: TokenCreated(what: Param(what), by: Param(by)),
+)

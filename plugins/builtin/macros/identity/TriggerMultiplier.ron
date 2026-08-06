@@ -1,0 +1,6 @@
+(
+    name: "TriggerMultiplier",
+    kinds: [StaticEffect],
+    params: { "cause": Any, "extra": Any, "affected": Elidable(Any) },
+    body: TriggerMultiplier(cause: Param(cause), extra: Param(extra), affected: Param(affected)),
+)

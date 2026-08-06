@@ -1,0 +1,6 @@
+(
+    name: "Revealed",
+    kinds: [EventFilter],
+    params: { "what": Elidable(Any) },
+    body: Revealed(what: Param(what)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Attached",
+    kinds: [EventFilter],
+    params: { "what": Elidable(Any), "to": Elidable(Any) },
+    body: Attached(what: Param(what), to: Param(to)),
+)

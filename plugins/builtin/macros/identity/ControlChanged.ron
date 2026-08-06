@@ -1,0 +1,6 @@
+(
+    name: "ControlChanged",
+    kinds: [EventFilter],
+    params: { "of": Elidable(Any), "to": Elidable(Any) },
+    body: ControlChanged(of: Param(of), to: Param(to)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "TopOfGraveyard",
+    kinds: [Selection],
+    params: { "count": Any, "of": Elidable(Any) },
+    body: TopOfGraveyard(count: Param(count), of: Param(of)),
+)

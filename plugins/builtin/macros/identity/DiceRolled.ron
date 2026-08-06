@@ -1,0 +1,6 @@
+(
+    name: "DiceRolled",
+    kinds: [EventFilter],
+    params: { "by": Elidable(Any) },
+    body: DiceRolled(by: Param(by)),
+)

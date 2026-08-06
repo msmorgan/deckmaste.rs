@@ -1,0 +1,6 @@
+(
+    name: "BecomesTarget",
+    kinds: [EventFilter],
+    params: { "what": Elidable(Any), "by": Elidable(Any), "source": Elidable(Any) },
+    body: BecomesTarget(what: Param(what), by: Param(by), source: Param(source)),
+)

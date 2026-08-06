@@ -1,0 +1,6 @@
+(
+    name: "Shuffled",
+    kinds: [EventFilter],
+    params: { "by": Elidable(Any) },
+    body: Shuffled(by: Param(by)),
+)

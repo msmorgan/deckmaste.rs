@@ -1,0 +1,6 @@
+(
+    name: "LifeLost",
+    kinds: [EventFilter],
+    params: { "who": Elidable(Any), "amount": Elidable(Any) },
+    body: LifeLost(who: Param(who), amount: Param(amount)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "CoinFlipped",
+    kinds: [EventFilter],
+    params: { "by": Elidable(Any), "won": Elidable(Any) },
+    body: CoinFlipped(by: Param(by), won: Param(won)),
+)

@@ -890,4 +890,34 @@ mod restricted_read {
         let macros = real_scaffolds();
         assert_restricted_matches_native::<Action>(&macros, "Attach(what: This, to: You)");
     }
+    /// The two-directional gate this capability exists for: an elidable
+    /// param's LONG spelling (supplying the value the field's default would
+    /// have filled) and its SHORT one (omitting it) must both read, and both
+    /// must produce exactly what a native read of the same text produces.
+    /// `EventFilter::Cast` is the real shape — both `who` and `what` carry
+    /// `#[serde(default = "Predicate::any")]`, and canon spells it
+    /// `Cast(who: Ref(You))`, one supplied and one omitted.
+    #[test]
+    fn an_elidable_params_spellings_all_round_trip_under_restriction() {
+        let macros = real_scaffolds();
+        for source in [
+            "Cast(who: Ref(You), what: Any)",
+            "Cast(who: Ref(You))",
+            "Cast(what: Any)",
+            "Cast()",
+        ] {
+            assert_restricted_matches_native::<deckmaste_semantics::EventFilter>(&macros, source);
+        }
+    }
+
+    /// The same, positionally: `Action::Cast`'s trailing alternative-cost
+    /// slot carries a constructor default, so a call may stop short of it —
+    /// `Cast(You, That(Card))` is canon's own spelling.
+    #[test]
+    fn an_elidable_positional_params_arities_round_trip_under_restriction() {
+        let macros = real_scaffolds();
+        for source in ["Cast(You, That(Card))", "Cast(You, That(Card), [Tap])"] {
+            assert_restricted_matches_native::<Action>(&macros, source);
+        }
+    }
 }

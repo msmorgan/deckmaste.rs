@@ -1,0 +1,6 @@
+(
+    name: "CounterPlaced",
+    kinds: [EventFilter],
+    params: { "kind": Elidable(Any), "on": Elidable(Any), "amount": Elidable(Any), "cause": Elidable(Any) },
+    body: CounterPlaced(kind: Param(kind), on: Param(on), amount: Param(amount), cause: Param(cause)),
+)
