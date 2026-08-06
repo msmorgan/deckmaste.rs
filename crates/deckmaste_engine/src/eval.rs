@@ -1032,12 +1032,14 @@ impl GameState {
             // [CR#109.3]: a game-scope record has no carrier — only the
             // match-anything default is satisfiable; a player-scope gain
             // runs `of` against the gaining player.
-            EventFilter::DesignationChanged { name, of } => {
+            EventFilter::DesignationChanged { name, of, to } => {
                 fact.kind == FactKind::DesignationChanged
-                    && fact
-                        .designation
-                        .as_ref()
-                        .is_some_and(|(n, _)| n.as_ref() == name)
+                    && fact.designation.as_ref().is_some_and(|(n, value)| {
+                        n.as_ref() == name
+                            && to.as_ref().is_none_or(|want| {
+                                value.as_ref().is_some_and(|got| got.as_ref() == want)
+                            })
+                    })
                     && self.part_matches(of, fact.patient.as_ref(), bindings)
             }
 
@@ -1120,22 +1122,6 @@ impl GameState {
             // by this engine at all). Both never match: a documented
             // absent-subsystem fizzle, not a soundness claim.
             EventFilter::TapForMana { .. } | EventFilter::RollPlanarDie { .. } => false,
-
-            // [CR#731.1a]: the day/night designation transitions.
-            EventFilter::BecameDay => {
-                fact.kind == FactKind::DesignationChanged
-                    && fact.designation.as_ref().is_some_and(|(n, b)| {
-                        n.as_str() == "DayNight"
-                            && b.as_deref().is_some_and(|b| b.as_str() == "Day")
-                    })
-            }
-            EventFilter::BecameNight => {
-                fact.kind == FactKind::DesignationChanged
-                    && fact.designation.as_ref().is_some_and(|(n, b)| {
-                        n.as_str() == "DayNight"
-                            && b.as_deref().is_some_and(|b| b.as_str() == "Night")
-                    })
-            }
 
             // [CR#603.2]: refinement conjunction — one occurrence, every
             // sub-pattern.

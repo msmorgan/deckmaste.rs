@@ -2028,7 +2028,6 @@ fn verb_agent(action: &Action) -> Option<&Reference> {
         | Action::AddMana(who, _, _)
         | Action::Sacrifice(who, _)
         | Action::DrawCard(who)
-        | Action::VentureIntoDungeon(who)
         | Action::GetEmblem(who, _)
         | Action::GetDesignation(who, _)
         | Action::CastCopy(who, _)

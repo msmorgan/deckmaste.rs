@@ -3094,12 +3094,10 @@ mod tests {
     }
 
     /// The game-scope day/night flip ([CR#731.1a] — "day becomes night"
-    /// loses one designation and gains the other) rides the expletive forms:
-    /// `BecameNight` matches the to-Night transition and nothing else, and
-    /// `BecameDay` its mirror. A name-only "any `DayNight` transition" watch is
-    /// no longer spellable game-scope; the named `DesignationChanged{name,of}`
-    /// form matches a game-scope fact only with the match-anything `of` (the
-    /// game designation has no carrier to filter).
+    /// loses one designation and gains the other) is a generic named enum
+    /// designation transition. `to` distinguishes Day from Night; omitting it
+    /// matches either transition. A game-scope fact has no carrier, so only
+    /// the match-anything `of` is satisfiable.
     #[test]
     fn designation_changed_matches_game_scope_flip() {
         let (state, bear) = bear_on_field();
@@ -3112,28 +3110,29 @@ mod tests {
             name: "DayNight".into(),
             becomes: Some("Day".into()),
         });
-        assert!(state.event_matches(&EventFilter::BecameNight, &to_night, watcher_source));
-        assert!(!state.event_matches(&EventFilter::BecameNight, &to_day, watcher_source));
-        assert!(state.event_matches(&EventFilter::BecameDay, &to_day, watcher_source));
-        assert!(!state.event_matches(&EventFilter::BecameDay, &to_night, watcher_source));
-
-        // The named form: a game-scope fact has no carrier, so only the
-        // match-anything `of` is satisfiable; a carrier-narrowed `of` never
-        // matches game scope. A player-scope `GotDesignation` runs `of`
-        // against the gaining player's proxy.
         let named_any = EventFilter::DesignationChanged {
             name: "DayNight".into(),
             of: Predicate::Any,
+            to: None,
+        };
+        let became_night = EventFilter::DesignationChanged {
+            name: "DayNight".into(),
+            of: Predicate::Any,
+            to: Some("Night".into()),
         };
         let named_narrowed = EventFilter::DesignationChanged {
             name: "DayNight".into(),
             of: Predicate::Ref(Reference::You),
+            to: None,
         };
         let wrong_name = EventFilter::DesignationChanged {
             name: "Monarch".into(),
             of: Predicate::Any,
+            to: None,
         };
         assert!(state.event_matches(&named_any, &to_night, watcher_source));
+        assert!(state.event_matches(&became_night, &to_night, watcher_source));
+        assert!(!state.event_matches(&became_night, &to_day, watcher_source));
         assert!(!state.event_matches(&named_narrowed, &to_night, watcher_source));
         assert!(!state.event_matches(&wrong_name, &to_night, watcher_source));
         let got = GameEvent::GotDesignation(GotDesignation {
@@ -3143,6 +3142,7 @@ mod tests {
         let monarch_you = EventFilter::DesignationChanged {
             name: "Monarch".into(),
             of: Predicate::Ref(Reference::You),
+            to: None,
         };
         assert!(
             state.event_matches(&monarch_you, &got, watcher_source),

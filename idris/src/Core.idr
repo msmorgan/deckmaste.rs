@@ -2464,6 +2464,10 @@ mutual
       -- `agent` rolls the (Planechase) planar die as a special action ([CR#901.9]); NO numeric result
       -- ([CR#901.9d]) so unlike `RollDice`/`FlipCoins` this introduces nothing for `ThatMany`.
       RollPlanarDie : Reference b APlayer -> Action b
+      -- Set a game-scope enum designation to a named value. Both strings are
+      -- open declaration vocabulary; day/night is the founding consumer
+      -- (`SetGameDesignation "DayNight" "Day"`, [CR#731.1]).
+      SetGameDesignation : String -> String -> Action b
       -- pay a cost as an action ([CR#118.12]) — a slotless `Cost` -> `Action` adapter; the payer is
       -- rule-forced by every legal host, never a slot (`May.who` for the collapsed `MayPay`/`MustPay`
       -- shape [CR#118.12a], `AdditionalCost`'s controller [CR#601.2b]). Bare effect-position `Pay` has
@@ -2507,6 +2511,7 @@ mutual
   actionEventCaps (Action.RollDice _ _ _)     = eventKindCaps RollDice
   actionEventCaps (Action.FlipCoins _ _ _)    = eventKindCaps (FlipCoin Nothing)
   actionEventCaps (Action.RollPlanarDie _)    = eventKindCaps (RollPlanarDie Nothing)
+  actionEventCaps (Action.SetGameDesignation _ _) = NoCaps
   -- a payment's own event caps are never read through THIS channel (`Pay` is
   -- never a cost-side `Do` component — it has no legal host there); `NoCaps`
   -- keeps the enumeration total without a forward reference to `costCaps`.
@@ -2809,6 +2814,7 @@ mutual
   actionIntro (Action.RollDice _ _ _) = [amountAnte]
   actionIntro (Action.FlipCoins _ _ _) = [amountAnte]
   actionIntro (Action.RollPlanarDie _) = []
+  actionIntro (Action.SetGameDesignation _ _) = []
   -- the payment's own event-role antecedents ([CR#118.12a]) — dead for the
   -- `May (Act (Pay cost))` path (`intro`'s own `Pay` arm below wins there via
   -- `bindEvent`, which ALSO wipes stale event-role antecedents); kept for

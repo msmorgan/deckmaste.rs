@@ -7,10 +7,11 @@ transitions fire triggered abilities.
 
 ## Current state (2026-07-18 deep-dive)
 
-`PlayerAction::VentureIntoDungeon` is a loud seam
-(`resolve/player_action.rs` `todo!("engine seam: venture")`), no parse/render
-arm, no idris constructor, zero live corpus cards (candidates sit in
-`wizards.bak`). `Type::Dungeon` + the `Dungeon.ron` TypeDef macro exist.
+The mechanic-specific action variant has been retired. A future venture
+builtin macro will expand to `Action::Composite` over the dungeon subsystem;
+there is no parse/render arm or Idris spec yet, and zero live corpus cards
+(candidates sit in `wizards.bak`). `Type::Dungeon` + the `Dungeon.ron` TypeDef
+macro exist.
 
 ## Shape
 

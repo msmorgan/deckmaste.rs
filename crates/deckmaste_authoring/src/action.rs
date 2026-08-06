@@ -240,14 +240,6 @@ pub enum Action {
     /// Add an extra phase of the given kind to the referenced player's turn,
     /// directly after the current phase ([CR#500.8]).
     ExtraPhase(crate::PhaseKind, Reference),
-    /// "It becomes day." ([CR#731.1]) — the game gains the day designation.
-    BecomeDay,
-    /// "It becomes night." ([CR#731.1]).
-    BecomeNight,
-    /// "The Ring tempts [player]" ([CR#701.54a]) — the game tempts the
-    /// referenced player (Ring-bearer choice and The Ring emblem are the
-    /// engine's); a footing verb: the shape lands here, execution later.
-    TheRingTempts(Reference),
     /// Move counters from one object onto another ([CR#122] — counters move
     /// object→object as a single operation, distinct from a separate
     /// remove-then-put). The [`CounterSpec`](crate::CounterSpec) names a
@@ -348,9 +340,6 @@ pub enum Action {
     /// two read different argument shapes, never the same arity+type. Keep
     /// any new bare variant's name distinct from every macro name regardless.
     DrawCard(Reference),
-    /// "`agent` ventures into the dungeon" ([CR#701.49a]) — a footing verb:
-    /// the venture-marker/dungeon machinery is the engine's.
-    VentureIntoDungeon(Reference),
     /// Tap the referenced object ([CR#701.26a]).
     Tap(Reference),
     /// Untap the referenced object ([CR#701.26b]).
@@ -365,6 +354,12 @@ pub enum Action {
     /// the initiative — they evict the prior holder) and object-scope grants
     /// (goad, suspected) are seams the verb does not yet cover.
     GetDesignation(Reference, crate::Ident),
+    /// Set a GAME-scope enum designation to the named value. Day/night is the
+    /// founding consumer: `SetGameDesignation("DayNight", "Day")` replaces
+    /// the mechanic-specific `BecomeDay` action ([CR#731.1]). Both names are
+    /// open vocabulary backed by a [`crate::DesignationDecl`]; this primitive
+    /// is not specific to day/night.
+    SetGameDesignation(crate::Ident, crate::Ident),
     /// `who` makes a resolution choice stored under a note key ([CR#608.2d]
     /// choice + [CR#607.2] slot): "choose a color" and kin. `kind` narrows to
     /// the CHOSEN-VALUE kinds ([`ChosenValueKind`]) — the persisted
@@ -1473,33 +1468,24 @@ mod tests {
         }
     }
 
-    /// The new verb shapes — `ExtraPhase` ([CR#500.8]), day/night
-    /// ([CR#731.1]), `TheRingTempts` ([CR#701.54a]), and the player verb
-    /// `VentureIntoDungeon` ([CR#701.49a]) — read and round-trip; the player
-    /// verb's agent is spelled. (Fight is now a grammar macro over
-    /// `DealDamage`, not a primitive verb; Mill is now the `Composite`
-    /// keyword-action atom `Action::mill`, not a bespoke verb.)
+    /// The extra-phase verb shape reads and round-trips. (Fight is now a
+    /// grammar macro over `DealDamage`, not a primitive verb; Mill is now the
+    /// `Composite` keyword-action atom `Action::mill`, not a bespoke verb.)
     #[test]
     fn new_verb_shapes_round_trip() {
         let phase = Action::ExtraPhase(crate::PhaseKind::Combat, Reference::You);
         assert_eq!(read("ExtraPhase(Combat, You)"), phase);
         assert_eq!(read(&write(&phase)), phase);
+    }
 
-        for (source, want) in [
-            ("BecomeDay", Action::BecomeDay),
-            ("BecomeNight", Action::BecomeNight),
-        ] {
-            assert_eq!(read(source), want);
-            assert_eq!(read(&write(&want)), want);
-        }
-
-        let tempt = Action::TheRingTempts(Reference::You);
-        assert_eq!(read("TheRingTempts(You)"), tempt);
-        assert_eq!(read(&write(&tempt)), tempt);
-
-        let venture = Action::VentureIntoDungeon(Reference::You);
-        assert_eq!(read("VentureIntoDungeon(You)"), venture);
-        assert_eq!(read(&write(&venture)), venture);
+    /// A game-scope designation transition names the declaration and its new
+    /// enum value; day/night is data, not grammar vocabulary ([CR#731.1]).
+    #[test]
+    fn set_game_designation_round_trips() {
+        let v = Action::SetGameDesignation("DayNight".into(), "Day".into());
+        let written = write(&v);
+        assert_eq!(read(&written), v);
+        assert_eq!(read(r#"SetGameDesignation("DayNight", "Day")"#), v);
     }
 
     /// The at-random distinction ([CR#701.9b]) rides the body's `With`

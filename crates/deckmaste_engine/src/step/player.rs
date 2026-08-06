@@ -118,8 +118,15 @@ impl EventApply for CounterRemoved {
 }
 
 impl EventApply for DesignationChanged {
-    fn apply(&self, _g: &mut GameState) -> Option<GameEvent> {
-        todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
+    fn apply(&self, g: &mut GameState) -> Option<GameEvent> {
+        if let Some(value) = self.becomes {
+            g.designations
+                .game
+                .insert(self.name, crate::state::DesignationValue::Mode(value));
+        } else {
+            g.designations.game.remove(&self.name);
+        }
+        None
     }
 }
 

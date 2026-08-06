@@ -254,10 +254,11 @@ impl Lower for deckmaste_authoring::EventFilter {
                 of: of.lower(),
                 to: to.lower(),
             },
-            Self::DesignationChanged { name, of } => {
+            Self::DesignationChanged { name, of, to } => {
                 deckmaste_core::EventFilter::DesignationChanged {
                     name: name.lower(),
                     of: of.lower(),
+                    to: to.lower(),
                 }
             }
             Self::TokenCreated { what, by } => deckmaste_core::EventFilter::TokenCreated {
@@ -280,8 +281,6 @@ impl Lower for deckmaste_authoring::EventFilter {
                 by: by.lower(),
                 face: face.lower(),
             },
-            Self::BecameDay => deckmaste_core::EventFilter::BecameDay,
-            Self::BecameNight => deckmaste_core::EventFilter::BecameNight,
             Self::AllOf(f0) => deckmaste_core::EventFilter::AllOf(f0.lower()),
             Self::OneOf(f0) => deckmaste_core::EventFilter::OneOf(f0.lower()),
             Self::Not(f0) => deckmaste_core::EventFilter::Not(f0.lower()),
@@ -956,13 +955,15 @@ mod tests {
         assert_matches!(
             deckmaste_authoring::EventFilter::DesignationChanged {
                 name: "X".into(),
-                of: minimal_predicate()
+                of: minimal_predicate(),
+                to: Some("Y".into()),
             }
             .lower(),
             deckmaste_core::EventFilter::DesignationChanged {
-                name: _,
-                of: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
-            }
+                name,
+                of: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                to: Some(value),
+            } if name.as_ref() == "X" && value.as_ref() == "Y"
         );
     }
 
@@ -1075,22 +1076,6 @@ mod tests {
                 by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 face: None
             }
-        );
-    }
-
-    #[test]
-    fn lowers_event_filter_became_day() {
-        assert_matches!(
-            deckmaste_authoring::EventFilter::BecameDay.lower(),
-            deckmaste_core::EventFilter::BecameDay
-        );
-    }
-
-    #[test]
-    fn lowers_event_filter_became_night() {
-        assert_matches!(
-            deckmaste_authoring::EventFilter::BecameNight.lower(),
-            deckmaste_core::EventFilter::BecameNight
         );
     }
 

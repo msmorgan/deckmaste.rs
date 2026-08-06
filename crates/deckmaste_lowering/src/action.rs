@@ -86,9 +86,6 @@ impl Lower for deckmaste_authoring::Action {
                 deckmaste_core::Action::GainControl(f0.lower(), f1.lower())
             }
             Self::ExtraPhase(f0, f1) => deckmaste_core::Action::ExtraPhase(f0.lower(), f1.lower()),
-            Self::BecomeDay => deckmaste_core::Action::BecomeDay,
-            Self::BecomeNight => deckmaste_core::Action::BecomeNight,
-            Self::TheRingTempts(f0) => deckmaste_core::Action::TheRingTempts(f0.lower()),
             Self::MoveCounters(f0, f1, f2) => {
                 deckmaste_core::Action::MoveCounters(f0.lower(), f1.lower(), f2.lower())
             }
@@ -122,12 +119,14 @@ impl Lower for deckmaste_authoring::Action {
             },
             Self::Sacrifice(f0, f1) => deckmaste_core::Action::Sacrifice(f0.lower(), f1.lower()),
             Self::DrawCard(f0) => deckmaste_core::Action::DrawCard(f0.lower()),
-            Self::VentureIntoDungeon(f0) => deckmaste_core::Action::VentureIntoDungeon(f0.lower()),
             Self::Tap(f0) => deckmaste_core::Action::Tap(f0.lower()),
             Self::Untap(f0) => deckmaste_core::Action::Untap(f0.lower()),
             Self::GetEmblem(f0, f1) => deckmaste_core::Action::GetEmblem(f0.lower(), f1.lower()),
             Self::GetDesignation(f0, f1) => {
                 deckmaste_core::Action::GetDesignation(f0.lower(), f1.lower())
+            }
+            Self::SetGameDesignation(f0, f1) => {
+                deckmaste_core::Action::SetGameDesignation(f0.lower(), f1.lower())
             }
             Self::ChooseValue(f0, f1, f2) => {
                 deckmaste_core::Action::ChooseValue(f0.lower(), f1.lower(), f2.lower())
@@ -490,30 +489,6 @@ mod tests {
     }
 
     #[test]
-    fn lowers_action_become_day() {
-        assert_matches!(
-            deckmaste_authoring::Action::BecomeDay.lower(),
-            deckmaste_core::Action::BecomeDay
-        );
-    }
-
-    #[test]
-    fn lowers_action_become_night() {
-        assert_matches!(
-            deckmaste_authoring::Action::BecomeNight.lower(),
-            deckmaste_core::Action::BecomeNight
-        );
-    }
-
-    #[test]
-    fn lowers_action_the_ring_tempts() {
-        assert_matches!(
-            deckmaste_authoring::Action::TheRingTempts(minimal_reference()).lower(),
-            deckmaste_core::Action::TheRingTempts(deckmaste_core::Reference::This)
-        );
-    }
-
-    #[test]
     fn lowers_action_move_counters() {
         assert_matches!(
             deckmaste_authoring::Action::MoveCounters(
@@ -638,14 +613,6 @@ mod tests {
     }
 
     #[test]
-    fn lowers_action_venture_into_dungeon() {
-        assert_matches!(
-            deckmaste_authoring::Action::VentureIntoDungeon(minimal_reference()).lower(),
-            deckmaste_core::Action::VentureIntoDungeon(deckmaste_core::Reference::This)
-        );
-    }
-
-    #[test]
     fn lowers_action_tap() {
         assert_matches!(
             deckmaste_authoring::Action::Tap(minimal_reference()).lower(),
@@ -674,6 +641,15 @@ mod tests {
         assert_matches!(
             deckmaste_authoring::Action::GetDesignation(minimal_reference(), "X".into()).lower(),
             deckmaste_core::Action::GetDesignation(deckmaste_core::Reference::This, _)
+        );
+    }
+
+    #[test]
+    fn lowers_action_set_game_designation() {
+        assert_matches!(
+            deckmaste_authoring::Action::SetGameDesignation("X".into(), "Y".into()).lower(),
+            deckmaste_core::Action::SetGameDesignation(name, value)
+                if name.as_ref() == "X" && value.as_ref() == "Y"
         );
     }
 

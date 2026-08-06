@@ -263,33 +263,14 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             Relentless Assault) has coverage.",
         ),
         (
-            n("Action", "BecomeDay"),
-            "DEFERRED: no day/night real card (e.g. Alrund's Epiphany) in \
-            covered.",
-        ),
-        (
-            n("Action", "BecomeNight"),
-            "DEFERRED: see Action::BecomeDay.",
-        ),
-        (
-            n("Action", "TheRingTempts"),
-            "DEFERRED: no 'the Ring tempts you' real card in this \
-            batch.",
-        ),
-        (
             n("Action", "Cease"),
             "ENGINE-INTERNAL: the cease-to-exist verb the copy-cease SBA \
             ([CR#704.5d,707.10a], sba.rs) speaks through — no card will ever spell it \
-            directly (it has no Idris counterpart either, same gap() shape as ExtraPhase/\
-            TheRingTempts above); it exists purely so the SBA's removal routes through the \
+            directly (it has no Idris counterpart either, same gap() shape as ExtraPhase); \
+            it exists purely so the SBA's removal routes through the \
             data-usable Action grammar (unit-testable, reusable) instead of building its \
             GameEvent inline. Not a DEFERRED buildable-someday gap — see the \
             copy-grammar report.",
-        ),
-        (
-            n("Action", "VentureIntoDungeon"),
-            "DEFERRED: no dungeon-venture real card in this \
-            batch.",
         ),
         (
             n("Action", "Untap"),
@@ -307,6 +288,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             machinery (loyalty-ability activation, animation, prevention, token creation, \
             variable exile costs) — graduating one would drag in all of it. See the \
             the documented emblem limitations.",
+        ),
+        (
+            n("Action", "SetGameDesignation"),
+            "DEFERRED: the generic game-scope designation transition is wired, but no \
+            day/night macro or real card uses it until engine-day-night lands.",
         ),
         (
             n("Action", "ChooseValue"),
@@ -646,15 +632,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             subsystem — Plane cards, a different game-object type, and the chaos/planeswalking \
             abilities a roll triggers — isn't modeled by this engine at all; no real permanent/\
             spell card rolls the planar die (only Plane cards do, out of scope). Never matches at \
-            runtime (see eval.rs's documented fizzle), matching PlayerAction::RollPlanarDie below.",
-        ),
-        (
-            n("EventFilter", "BecameDay"),
-            "DEFERRED: see EventFilter::LifeLost.",
-        ),
-        (
-            n("EventFilter", "BecameNight"),
-            "DEFERRED: see EventFilter::LifeLost.",
+            runtime (see eval.rs's documented fizzle), matching Action::RollPlanarDie below.",
         ),
         (
             n("EventFilter", "Nth"),

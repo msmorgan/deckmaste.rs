@@ -76,7 +76,7 @@ from the implementation and tests, not inferred solely from surviving P0 tags.
 | becomes-target (announce-time) | `EventFilter::BecomesTarget{what, by, source}` ([CR#601.2c]; ward the exemplar [CR#702.21a]) + engine `BecameTarget` | ✓ — announce emission and source-aware matching are live |
 | attack / block declaration events | `Attacking` / `Blocked` | ✓ |
 | phase / step / turn entry | `TurnBegan` / `StepBegan`; core `BeginningOf(Phase, WhoseTurn)` | ✓ |
-| day/night flip | `EventFilter::BecameDay`/`BecameNight` ([CR#731.1a]) + shaped engine event; registry holds the `Mode` | ✓ grammar; flip emission engine-seam |
+| day/night flip | generic `DesignationChanged(name: "DayNight", to: "Day"/"Night")` ([CR#731.1a]); registry holds the `Mode` | ✓ grammar; untap-step flip emission engine-seam |
 | phase in / out (explicitly NOT a zone change) | `StateChange::Phased(Phasing)` ([CR#702.26b]) | ✓ grammar; phasing machinery engine-seam |
 | coin flip / die roll (ignored-roll never happened) | `CoinFlipped`/`DieRolled` + `FlipCoins`/`RollDice` verbs | ✓ — seeded execution, ignored-roll handling, and event emission are live |
 | shuffle (also an information event) | `PlayerAction::Shuffle` + `Shuffled` apply — REAL, seeded rng ([CR#701.24a]; UD-8) | ✓ (revealed-state reset [CR#701.20d] = seam) |

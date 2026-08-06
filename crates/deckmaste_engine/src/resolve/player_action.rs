@@ -24,6 +24,7 @@ use crate::event::Copied;
 use crate::event::CounterPlaced;
 use crate::event::CounterRemoved;
 use crate::event::DamageRemoved;
+use crate::event::DesignationChanged;
 use crate::event::EmblemCreated;
 use crate::event::GameEvent;
 use crate::event::GotDesignation;
@@ -513,10 +514,6 @@ impl GameState {
                     contained: frame.anaphora.contained_in_batch,
                 })))]
             }
-            // core-action-riders-cost-modes: shapes landed, execution seams.
-            Action::VentureIntoDungeon(_agent) => {
-                todo!("engine seam: venture into the dungeon ([CR#701.49a]) — dungeons unbuilt")
-            }
             // [CR#706.1]: roll `count` `sides`-sided dice — draw in the work
             // item; the applied batch fixes "that many" to the summed
             // results ([CR#706.2] — `result = natural` until the modifier
@@ -797,6 +794,20 @@ impl GameState {
                     ))]
                 }
             }
+            Action::SetGameDesignation(name, value) => {
+                if self.designations.game.get(name).is_some_and(
+                    |current| matches!(current, crate::state::DesignationValue::Mode(v) if v == value),
+                ) {
+                    vec![]
+                } else {
+                    vec![WorkItem::Emit(Occurrence::Single(
+                        GameEvent::DesignationChanged(DesignationChanged {
+                            name: *name,
+                            becomes: Some(*value),
+                        }),
+                    ))]
+                }
+            }
             // [CR#614.8,701.19a]: remove all marked damage from each selected
             // object and remove it from combat if it's attacking or blocking.
             // This is the regeneration "heal" clause — its apply zeroes damage
@@ -836,9 +847,6 @@ impl GameState {
             | Action::MoveGroup { .. }
             | Action::GainControl(..)
             | Action::ExtraPhase(..)
-            | Action::BecomeDay
-            | Action::BecomeNight
-            | Action::TheRingTempts(_)
             | Action::MoveCounters(..)
             | Action::CreateReplacement { .. }
             | Action::Composite { .. }) => {

@@ -1824,8 +1824,6 @@ fn emit_action(a: &Action) -> R {
             "Action::GainControl has no Idris one-shot Action counterpart (only the continuous Modification)",
         )),
         Action::ExtraPhase(..) => Err(gap("Action::ExtraPhase has no Idris counterpart")),
-        Action::BecomeDay | Action::BecomeNight => Err(gap("day/night has no Idris counterpart")),
-        Action::TheRingTempts(_) => Err(gap("Action::TheRingTempts has no Idris counterpart")),
         Action::MoveCounters(spec, from, to) => Ok(app(
             "MoveCounters",
             vec![
@@ -1934,8 +1932,7 @@ fn emit_action(a: &Action) -> R {
             ]
             .into(),
         )),
-        Action::VentureIntoDungeon(_)
-        | Action::GetEmblem(_, _)
+        Action::GetEmblem(_, _)
         | Action::GetDesignation(_, _)
         | Action::ChooseValue(_, _, _)
         | Action::RestartGame => Err(gap(format!(
@@ -2026,6 +2023,10 @@ fn emit_action(a: &Action) -> R {
         Action::RollPlanarDie(agent) => {
             Ok(app("RollPlanarDie", vec![emit_reference(agent)?].into()))
         }
+        Action::SetGameDesignation(name, value) => Ok(app(
+            "SetGameDesignation",
+            vec![ilit(name.as_str()), ilit(value.as_str())].into(),
+        )),
         Action::PutCounters(r, kind, count) => {
             let k = counter_ref_idris(kind.as_str())?;
             Ok(app(
@@ -3233,9 +3234,6 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
             vec![format!("(RollPlanarDie {})", opt_planar_face(*face))].into(),
             actor_facet(by)?,
         ),
-        EventFilter::BecameDay | EventFilter::BecameNight => {
-            return Err(gap("day/night events have no Idris EventKind counterpart"));
-        }
         EventFilter::AllOf(fs) => merge_all_of(fs)?,
         EventFilter::OneOf(fs) => merge_one_of(fs)?,
         EventFilter::Not(_) => return Err(gap("EventFilter::Not not yet mapped")),

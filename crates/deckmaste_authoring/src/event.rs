@@ -504,16 +504,17 @@ pub enum EventFilter {
         #[serde(default = "Predicate::any")]
         to: Predicate,
     },
-    /// A named designation changed hands ([CR#109.3]): "becomes the
-    /// monarch" / "becomes goaded" — `of` matches the gaining carrier
-    /// (player proxy or object). The GAME-scope day/night designation
-    /// ([CR#731.1]) rides the expletive forms
-    /// [`BecameDay`](EventFilter::BecameDay)/
-    /// [`BecameNight`](EventFilter::BecameNight) instead.
+    /// A named designation changed: "becomes the monarch" /
+    /// "becomes goaded" — `of` matches the gaining carrier (player proxy or
+    /// object). `to` narrows an enum designation's new value; game-scope
+    /// day/night is `DesignationChanged(name: "DayNight", to: "Day")`
+    /// ([CR#731.1]).
     DesignationChanged {
         name: Ident,
         #[serde(default = "Predicate::any")]
         of: Predicate,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        to: Option<Ident>,
     },
     /// A token was created ([CR#701.7a,111.2]). `what` matches the created
     /// token, `by` its creator.
@@ -587,11 +588,6 @@ pub enum EventFilter {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         face: Option<crate::PlanarFace>,
     },
-    /// "It becomes day" — the game gained the day designation
-    /// ([CR#731.1,731.1a]; an expletive-"it" verb, no participants).
-    BecameDay,
-    /// "It becomes night" ([CR#731.1,731.1a]).
-    BecameNight,
     /// Every sub-pattern matches the same occurrence ([CR#603.2]) — a
     /// refinement conjunction. All conjuncts must agree on one master-form
     /// kind (a disagreement is unrepresentable in the Idris model).
@@ -849,8 +845,8 @@ mod tests {
             "Not(ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play)))",
             "AllOf([ZoneChange(what: Any, to: Battlefield), ZoneChange(what: Supertype(Basic))])",
             "When(StepBegins(at: Ending(End), whose: EachPlayers), YourTurn)",
-            "BecameDay",
-            "BecameNight",
+            r#"DesignationChanged(name: "DayNight", to: "Day")"#,
+            r#"DesignationChanged(name: "DayNight", to: "Night")"#,
             "CoinFlipped(by: Ref(You), won: true)",
             "DiceRolled(by: Ref(You))",
         ] {

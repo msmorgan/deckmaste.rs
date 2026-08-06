@@ -6,10 +6,10 @@ with a level-style progression.
 
 ## Current state (2026-07-18 deep-dive)
 
-`Action::TheRingTempts(Reference)` is a loud seam (`resolve/action.rs`
-`todo!("engine seam: the Ring tempts")`), no parse/render arm, no idris
-constructor, zero live corpus cards. Closer to buildable than the other
-footing verbs: emblem minting is real (`GetEmblem` → command zone,
+The mechanic-specific action variant has been retired. A future `The Ring
+tempts you` builtin macro will expand to `Action::Composite` plus the
+designation/emblem primitives; there is no parse/render arm yet and zero live
+corpus cards. Emblem minting is real (`GetEmblem` → command zone,
 `core-emblems` done) and the designation machinery fits — your-Ring-bearer
 uniqueness is exactly `DesignationUniqueness::PerPlayer`, and the Monarch
 macro is the precedent for a designation as pure RON data.

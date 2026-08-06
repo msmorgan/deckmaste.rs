@@ -423,12 +423,6 @@ impl GameState {
             Action::ExtraPhase(..) => {
                 todo!("engine seam: extra phases ([CR#500.8]) — turn-structure insertion unbuilt")
             }
-            Action::BecomeDay | Action::BecomeNight => {
-                todo!("engine seam: day/night designations ([CR#731.1]) unbuilt")
-            }
-            Action::TheRingTempts(_) => {
-                todo!("engine seam: the Ring tempts you ([CR#701.54a]) — Ring machinery unbuilt")
-            }
             // [CR#701.27a]: flip each targeted transforming DFC. No-op (fizzle,
             // never panic) on a non-transforming-DFC permanent — the check is on
             // the CARD, not copied characteristics ([CR#701.27c,712.9]) — or when
@@ -5064,6 +5058,31 @@ mod tests {
             .insert((p0, "CitysBlessing".into()), DesignationValue::Flag);
         let items = state.player_action_items(&act, &frame);
         assert!(items.is_empty(), "already-held designation emits nothing");
+    }
+
+    /// A game-scope enum designation transition is generic vocabulary: the
+    /// action emits and applies the named mode, and setting the same mode again
+    /// is idempotent ([CR#731.1] is the founding DayNight consumer).
+    #[test]
+    fn set_game_designation_applies_named_mode_once() {
+        use crate::state::DesignationValue;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let act = deckmaste_core::Action::SetGameDesignation("Weather".into(), "Stormy".into());
+
+        state.run_effect(OneShotEffect::Act(act.clone()), &frame);
+        run_injected(&mut state);
+        assert_eq!(
+            state.designations.game.get("Weather"),
+            Some(&DesignationValue::Mode("Stormy".into()))
+        );
+
+        assert!(
+            state.player_action_items(&act, &frame).is_empty(),
+            "setting the already-current mode emits no duplicate fact"
+        );
     }
 
     /// [CR#114.1]: the `GetEmblem` verb lowers to exactly one `EmblemCreated`

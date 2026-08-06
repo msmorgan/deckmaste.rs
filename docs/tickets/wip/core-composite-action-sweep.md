@@ -31,6 +31,22 @@ Design-phase candidates, same smell, need a ruling before removal:
 - `Action::RollPlanarDie(Reference)` — Planechase-variant machinery sitting
   beside the general `RollDice`.
 
+Resolved design rulings:
+
+- Remove `BecomeDay`/`BecomeNight`. They are enum values of the game-scoped
+  `DayNight` designation, represented by the general
+  `SetGameDesignation(name, value)` primitive. Their trigger twins likewise
+  collapse into `DesignationChanged{name, to}`.
+- Keep `RollPlanarDie`. It is an atomic, nonnumeric randomness event with a
+  distinct face domain and trigger behavior; ordinary numeric die-result
+  effects explicitly ignore it [CR#901.9d], so `RollDice` cannot express it.
+- The sibling-enum sweep found the day/night `EventFilter` pair above; no
+  other mechanic-specific sibling variants required removal in this pass.
+
+Implementation scope was narrowed by user ruling: retire the baked variants
+and their consumers now; Ring and venture RON macro definitions remain for
+their engine-subsystem tickets.
+
 Scope per removed variant — the grammars are mirrors, so every change lands
 in ALL mirror surfaces:
 
