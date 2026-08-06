@@ -2,7 +2,7 @@
 needs: []
 ---
 **Post-reshape comment and naming rot: small fixes, one sweep.** Found
-during the 2026-08-02 authoring-program recon; none block anything.
+during the 2026-08-02 semantics-program recon; none block anything.
 
 - `crates/deckmaste_core/src/ron.rs` (~line 70): kind-registration comment
   still claims "No card position reads TypeDef yet — types stays
@@ -25,7 +25,7 @@ during the 2026-08-02 authoring-program recon; none block anything.
 - `crates/deckmaste_core/src/action.rs` (~61-63): `EnterRider`'s claim
   that non-battlefield riders are "rejected by the Idris re-emit gate" is
   false (no such proof exists) — coordinate with
-  `idris-mirror-authoring`, which owns resolving it (mint the proof or
+  `idris-mirror-semantics`, which owns resolving it (mint the proof or
   correct this prose); do not fix independently.
 
 Line numbers are as of 2026-08-02 — re-grep at claim time.

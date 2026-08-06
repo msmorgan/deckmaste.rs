@@ -2,7 +2,7 @@
 needs: []
 ---
 Make one-shot effect verbs FIZZLE on an unbound reference instead of panicking, as
-required by [Invalid authoring fizzles](../../decisions/invalid-authoring-fizzles.md).
+required by [Invalid semantic input fizzles](../../decisions/invalid-semantic-input-fizzles.md).
 An unbound `Reference::It`/`That`
 (the anaphora slot is `None` and no lone-target fallback applies) correctly degrades to a
 sentinel `ObjectId::null()` in `GameState::eval_reference`

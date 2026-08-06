@@ -1,6 +1,6 @@
 [package]
 publish = false
-name = "deckmaste_authoring"
+name = "deckmaste_semantics"
 version = "0.1.0"
 edition = "2024"
 
@@ -16,4 +16,4 @@ serde = { version = "1.0.228", features = ["derive", "rc"] }
 
 # NOTE: no `deckmaste_core` dependency, now or ever. The two grammars are
 # siblings joined only by `deckmaste_lowering`; the build graph is the
-# architecture (docs/decisions/authoring-spelling-lowering.md §1).
+# architecture (docs/decisions/semantics-spelling-lowering.md §1).

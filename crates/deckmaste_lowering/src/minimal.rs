@@ -6,20 +6,20 @@
     reason = "a type not used at any field position needs no helper caller"
 )]
 
-pub fn minimal_ability() -> deckmaste_authoring::Ability {
-    deckmaste_authoring::Ability::Static(std::sync::Arc::new(minimal_static_effect()))
+pub fn minimal_ability() -> deckmaste_semantics::Ability {
+    deckmaste_semantics::Ability::Static(std::sync::Arc::new(minimal_static_effect()))
 }
 
-pub fn minimal_action() -> deckmaste_authoring::Action {
-    deckmaste_authoring::Action::DealDamage(
+pub fn minimal_action() -> deckmaste_semantics::Action {
+    deckmaste_semantics::Action::DealDamage(
         minimal_reference(),
         minimal_count(),
         minimal_reference(),
     )
 }
 
-pub fn minimal_activated_ability() -> deckmaste_authoring::ActivatedAbility {
-    deckmaste_authoring::ActivatedAbility {
+pub fn minimal_activated_ability() -> deckmaste_semantics::ActivatedAbility {
+    deckmaste_semantics::ActivatedAbility {
         ability_word: None,
         cost: minimal_cost(),
         from: None,
@@ -30,61 +30,61 @@ pub fn minimal_activated_ability() -> deckmaste_authoring::ActivatedAbility {
     }
 }
 
-pub fn minimal_additional_cost() -> deckmaste_authoring::AdditionalCost {
-    deckmaste_authoring::AdditionalCost {
+pub fn minimal_additional_cost() -> deckmaste_semantics::AdditionalCost {
+    deckmaste_semantics::AdditionalCost {
         pay: minimal_cost(),
         body: std::sync::Arc::new(minimal_one_shot_effect()),
     }
 }
 
-pub fn minimal_adjacency() -> deckmaste_authoring::Adjacency {
-    deckmaste_authoring::Adjacency::Above
+pub fn minimal_adjacency() -> deckmaste_semantics::Adjacency {
+    deckmaste_semantics::Adjacency::Above
 }
 
-pub fn minimal_agency() -> deckmaste_authoring::Agency {
-    deckmaste_authoring::Agency::CostPayment
+pub fn minimal_agency() -> deckmaste_semantics::Agency {
+    deckmaste_semantics::Agency::CostPayment
 }
 
-pub fn minimal_aggregate_op() -> deckmaste_authoring::AggregateOp {
-    deckmaste_authoring::AggregateOp::SumOf
+pub fn minimal_aggregate_op() -> deckmaste_semantics::AggregateOp {
+    deckmaste_semantics::AggregateOp::SumOf
 }
 
-pub fn minimal_alternative_cost() -> deckmaste_authoring::AlternativeCost {
-    deckmaste_authoring::AlternativeCost::Free
+pub fn minimal_alternative_cost() -> deckmaste_semantics::AlternativeCost {
+    deckmaste_semantics::AlternativeCost::Free
 }
 
-pub fn minimal_anchor() -> deckmaste_authoring::Anchor {
-    deckmaste_authoring::Anchor::FromTop(minimal_count())
+pub fn minimal_anchor() -> deckmaste_semantics::Anchor {
+    deckmaste_semantics::Anchor::FromTop(minimal_count())
 }
 
-pub fn minimal_arrangement() -> deckmaste_authoring::Arrangement {
-    deckmaste_authoring::Arrangement::ChosenOrder(minimal_reference())
+pub fn minimal_arrangement() -> deckmaste_semantics::Arrangement {
+    deckmaste_semantics::Arrangement::ChosenOrder(minimal_reference())
 }
 
-pub fn minimal_as_though() -> deckmaste_authoring::AsThough {
-    deckmaste_authoring::AsThough::Counterfactual {
+pub fn minimal_as_though() -> deckmaste_semantics::AsThough {
+    deckmaste_semantics::AsThough::Counterfactual {
         premise: minimal_predicate(),
         then: std::sync::Arc::new(minimal_deontic()),
     }
 }
 
-pub fn minimal_beginning_step() -> deckmaste_authoring::BeginningStep {
-    deckmaste_authoring::BeginningStep::Untap
+pub fn minimal_beginning_step() -> deckmaste_semantics::BeginningStep {
+    deckmaste_semantics::BeginningStep::Untap
 }
 
-pub fn minimal_binder() -> deckmaste_authoring::Binder {
-    deckmaste_authoring::Binder::TheRef(minimal_reference())
+pub fn minimal_binder() -> deckmaste_semantics::Binder {
+    deckmaste_semantics::Binder::TheRef(minimal_reference())
 }
 
-pub fn minimal_card() -> deckmaste_authoring::Card {
-    deckmaste_authoring::Card::Normal(minimal_card_face())
+pub fn minimal_card() -> deckmaste_semantics::Card {
+    deckmaste_semantics::Card::Normal(minimal_card_face())
 }
 
-pub fn minimal_card_face() -> deckmaste_authoring::CardFace {
-    deckmaste_authoring::CardFace {
+pub fn minimal_card_face() -> deckmaste_semantics::CardFace {
+    deckmaste_semantics::CardFace {
         name: "x".into(),
-        mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
-            [deckmaste_authoring::ManaSymbol],
+        mana_cost: deckmaste_semantics::ManaCost::from(std::sync::Arc::<
+            [deckmaste_semantics::ManaSymbol],
         >::from([])),
         color_indicator: Vec::new(),
         supertypes: Vec::new(),
@@ -98,28 +98,28 @@ pub fn minimal_card_face() -> deckmaste_authoring::CardFace {
     }
 }
 
-pub fn minimal_cause() -> deckmaste_authoring::Cause {
-    deckmaste_authoring::Cause::Cause(minimal_cause_pattern())
+pub fn minimal_cause() -> deckmaste_semantics::Cause {
+    deckmaste_semantics::Cause::Cause(minimal_cause_pattern())
 }
 
-pub fn minimal_cause_pattern() -> deckmaste_authoring::CausePattern {
-    deckmaste_authoring::CausePattern {
+pub fn minimal_cause_pattern() -> deckmaste_semantics::CausePattern {
+    deckmaste_semantics::CausePattern {
         verb: None,
         agency: None,
         agent: None,
     }
 }
 
-pub fn minimal_characteristic() -> deckmaste_authoring::Characteristic {
-    deckmaste_authoring::Characteristic::Colors
+pub fn minimal_characteristic() -> deckmaste_semantics::Characteristic {
+    deckmaste_semantics::Characteristic::Colors
 }
 
-pub fn minimal_characteristic_predicate() -> deckmaste_authoring::CharacteristicPredicate {
-    deckmaste_authoring::CharacteristicPredicate::Type(minimal_type_ref())
+pub fn minimal_characteristic_predicate() -> deckmaste_semantics::CharacteristicPredicate {
+    deckmaste_semantics::CharacteristicPredicate::Type(minimal_type_ref())
 }
 
-pub fn minimal_choose_pile() -> deckmaste_authoring::ChoosePile {
-    deckmaste_authoring::ChoosePile {
+pub fn minimal_choose_pile() -> deckmaste_semantics::ChoosePile {
+    deckmaste_semantics::ChoosePile {
         from: minimal_pile_source(),
         by: minimal_reference(),
         random: false,
@@ -127,8 +127,8 @@ pub fn minimal_choose_pile() -> deckmaste_authoring::ChoosePile {
     }
 }
 
-pub fn minimal_choose_spec() -> deckmaste_authoring::ChooseSpec {
-    deckmaste_authoring::ChooseSpec {
+pub fn minimal_choose_spec() -> deckmaste_semantics::ChooseSpec {
+    deckmaste_semantics::ChooseSpec {
         count: minimal_quantity(),
         up_to: false,
         repeats: false,
@@ -137,53 +137,53 @@ pub fn minimal_choose_spec() -> deckmaste_authoring::ChooseSpec {
     }
 }
 
-pub fn minimal_chosen_value_kind() -> deckmaste_authoring::ChosenValueKind {
-    deckmaste_authoring::ChosenValueKind::Color
+pub fn minimal_chosen_value_kind() -> deckmaste_semantics::ChosenValueKind {
+    deckmaste_semantics::ChosenValueKind::Color
 }
 
-pub fn minimal_cmp() -> deckmaste_authoring::Cmp {
-    deckmaste_authoring::Cmp::Eq
+pub fn minimal_cmp() -> deckmaste_semantics::Cmp {
+    deckmaste_semantics::Cmp::Eq
 }
 
-pub fn minimal_collection_op<T>() -> deckmaste_authoring::CollectionOp<T> {
-    deckmaste_authoring::CollectionOp::Set([].into())
+pub fn minimal_collection_op<T>() -> deckmaste_semantics::CollectionOp<T> {
+    deckmaste_semantics::CollectionOp::Set([].into())
 }
 
-pub fn minimal_color() -> deckmaste_authoring::Color {
-    deckmaste_authoring::Color::White
+pub fn minimal_color() -> deckmaste_semantics::Color {
+    deckmaste_semantics::Color::White
 }
 
-pub fn minimal_color_or_colorless() -> deckmaste_authoring::ColorOrColorless {
-    deckmaste_authoring::ColorOrColorless::Colorless
+pub fn minimal_color_or_colorless() -> deckmaste_semantics::ColorOrColorless {
+    deckmaste_semantics::ColorOrColorless::Colorless
 }
 
-pub fn minimal_combat_step() -> deckmaste_authoring::CombatStep {
-    deckmaste_authoring::CombatStep::BeginningOfCombat
+pub fn minimal_combat_step() -> deckmaste_semantics::CombatStep {
+    deckmaste_semantics::CombatStep::BeginningOfCombat
 }
 
-pub fn minimal_condition() -> deckmaste_authoring::Condition {
-    deckmaste_authoring::Condition::Compare(minimal_count(), minimal_cmp(), minimal_count())
+pub fn minimal_condition() -> deckmaste_semantics::Condition {
+    deckmaste_semantics::Condition::Compare(minimal_count(), minimal_cmp(), minimal_count())
 }
 
-pub fn minimal_conferral_rule() -> deckmaste_authoring::ConferralRule {
-    deckmaste_authoring::ConferralRule {
+pub fn minimal_conferral_rule() -> deckmaste_semantics::ConferralRule {
+    deckmaste_semantics::ConferralRule {
         scope: minimal_predicate(),
         confer: minimal_property(),
     }
 }
 
-pub fn minimal_continuously() -> deckmaste_authoring::Continuously {
-    deckmaste_authoring::Continuously {
+pub fn minimal_continuously() -> deckmaste_semantics::Continuously {
+    deckmaste_semantics::Continuously {
         effect: std::sync::Arc::new(minimal_static_effect()),
         duration: minimal_duration(),
     }
 }
 
-pub fn minimal_copiable_values() -> deckmaste_authoring::CopiableValues {
-    deckmaste_authoring::CopiableValues {
+pub fn minimal_copiable_values() -> deckmaste_semantics::CopiableValues {
+    deckmaste_semantics::CopiableValues {
         name: "x".into(),
-        mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
-            [deckmaste_authoring::ManaSymbol],
+        mana_cost: deckmaste_semantics::ManaCost::from(std::sync::Arc::<
+            [deckmaste_semantics::ManaSymbol],
         >::from([])),
         color_indicator: Vec::new(),
         supertypes: Vec::new(),
@@ -197,117 +197,117 @@ pub fn minimal_copiable_values() -> deckmaste_authoring::CopiableValues {
     }
 }
 
-pub fn minimal_copy_exception() -> deckmaste_authoring::CopyException {
-    deckmaste_authoring::CopyException::Modify(minimal_modification())
+pub fn minimal_copy_exception() -> deckmaste_semantics::CopyException {
+    deckmaste_semantics::CopyException::Modify(minimal_modification())
 }
 
-pub fn minimal_copy_retarget() -> deckmaste_authoring::CopyRetarget {
-    deckmaste_authoring::CopyRetarget::AsIs
+pub fn minimal_copy_retarget() -> deckmaste_semantics::CopyRetarget {
+    deckmaste_semantics::CopyRetarget::AsIs
 }
 
-pub fn minimal_copy_source() -> deckmaste_authoring::CopySource {
-    deckmaste_authoring::CopySource::Object(minimal_reference())
+pub fn minimal_copy_source() -> deckmaste_semantics::CopySource {
+    deckmaste_semantics::CopySource::Object(minimal_reference())
 }
 
-pub fn minimal_copy_spec() -> deckmaste_authoring::CopySpec {
-    deckmaste_authoring::CopySpec {
+pub fn minimal_copy_spec() -> deckmaste_semantics::CopySpec {
+    deckmaste_semantics::CopySpec {
         source: minimal_copy_source(),
         exceptions: Vec::new(),
     }
 }
 
-pub fn minimal_cost() -> deckmaste_authoring::Cost {
-    deckmaste_authoring::Cost([].into())
+pub fn minimal_cost() -> deckmaste_semantics::Cost {
+    deckmaste_semantics::Cost([].into())
 }
 
-pub fn minimal_cost_change() -> deckmaste_authoring::CostChange {
-    deckmaste_authoring::CostChange::Increase([].into())
+pub fn minimal_cost_change() -> deckmaste_semantics::CostChange {
+    deckmaste_semantics::CostChange::Increase([].into())
 }
 
-pub fn minimal_cost_component() -> deckmaste_authoring::CostComponent {
-    deckmaste_authoring::CostComponent::Mana(deckmaste_authoring::ManaCost::from(std::sync::Arc::<
-        [deckmaste_authoring::ManaSymbol],
+pub fn minimal_cost_component() -> deckmaste_semantics::CostComponent {
+    deckmaste_semantics::CostComponent::Mana(deckmaste_semantics::ManaCost::from(std::sync::Arc::<
+        [deckmaste_semantics::ManaSymbol],
     >::from([])))
 }
 
-pub fn minimal_cost_predicate() -> deckmaste_authoring::CostPredicate {
-    deckmaste_authoring::CostPredicate::IncludesTapSymbol
+pub fn minimal_cost_predicate() -> deckmaste_semantics::CostPredicate {
+    deckmaste_semantics::CostPredicate::IncludesTapSymbol
 }
 
-pub fn minimal_cost_tag() -> deckmaste_authoring::CostTag {
-    deckmaste_authoring::CostTag("X".into())
+pub fn minimal_cost_tag() -> deckmaste_semantics::CostTag {
+    deckmaste_semantics::CostTag("X".into())
 }
 
-pub fn minimal_count() -> deckmaste_authoring::Count {
-    deckmaste_authoring::Count::X
+pub fn minimal_count() -> deckmaste_semantics::Count {
+    deckmaste_semantics::Count::X
 }
 
-pub fn minimal_count_bound() -> deckmaste_authoring::CountBound {
-    deckmaste_authoring::CountBound::Eq(minimal_count())
+pub fn minimal_count_bound() -> deckmaste_semantics::CountBound {
+    deckmaste_semantics::CountBound::Eq(minimal_count())
 }
 
-pub fn minimal_countable() -> deckmaste_authoring::Countable {
-    deckmaste_authoring::Countable::Objects(std::sync::Arc::new(minimal_predicate()))
+pub fn minimal_countable() -> deckmaste_semantics::Countable {
+    deckmaste_semantics::Countable::Objects(std::sync::Arc::new(minimal_predicate()))
 }
 
-pub fn minimal_counter() -> deckmaste_authoring::Counter {
-    deckmaste_authoring::Counter {
+pub fn minimal_counter() -> deckmaste_semantics::Counter {
+    deckmaste_semantics::Counter {
         name: "X".into(),
         scope: minimal_counter_scope(),
         confers: Vec::new(),
     }
 }
 
-pub fn minimal_counter_ref() -> deckmaste_authoring::CounterRef {
-    deckmaste_authoring::CounterRef("X".into())
+pub fn minimal_counter_ref() -> deckmaste_semantics::CounterRef {
+    deckmaste_semantics::CounterRef("X".into())
 }
 
-pub fn minimal_counter_scope() -> deckmaste_authoring::CounterScope {
-    deckmaste_authoring::CounterScope::Object
+pub fn minimal_counter_scope() -> deckmaste_semantics::CounterScope {
+    deckmaste_semantics::CounterScope::Object
 }
 
-pub fn minimal_counter_spec() -> deckmaste_authoring::CounterSpec {
-    deckmaste_authoring::CounterSpec::Named(minimal_counter_ref(), minimal_count())
+pub fn minimal_counter_spec() -> deckmaste_semantics::CounterSpec {
+    deckmaste_semantics::CounterSpec::Named(minimal_counter_ref(), minimal_count())
 }
 
-pub fn minimal_damage_result_rule() -> deckmaste_authoring::DamageResultRule {
-    deckmaste_authoring::DamageResultRule {
+pub fn minimal_damage_result_rule() -> deckmaste_semantics::DamageResultRule {
+    deckmaste_semantics::DamageResultRule {
         recipient: minimal_predicate(),
         remove: minimal_counter_ref(),
     }
 }
 
-pub fn minimal_decider_spec() -> deckmaste_authoring::DeciderSpec {
-    deckmaste_authoring::DeciderSpec::Controller
+pub fn minimal_decider_spec() -> deckmaste_semantics::DeciderSpec {
+    deckmaste_semantics::DeciderSpec::Controller
 }
 
-pub fn minimal_deed_agent() -> deckmaste_authoring::DeedAgent {
-    deckmaste_authoring::DeedAgent {
+pub fn minimal_deed_agent() -> deckmaste_semantics::DeedAgent {
+    deckmaste_semantics::DeedAgent {
         stack_object: None,
         source: None,
     }
 }
 
-pub fn minimal_deontic() -> deckmaste_authoring::Deontic {
-    deckmaste_authoring::Deontic::May(minimal_deontic_action())
+pub fn minimal_deontic() -> deckmaste_semantics::Deontic {
+    deckmaste_semantics::Deontic::May(minimal_deontic_action())
 }
 
-pub fn minimal_deontic_action() -> deckmaste_authoring::DeonticAction {
-    deckmaste_authoring::DeonticAction::Attack {
+pub fn minimal_deontic_action() -> deckmaste_semantics::DeonticAction {
+    deckmaste_semantics::DeonticAction::Attack {
         by: minimal_predicate(),
         on: minimal_predicate(),
     }
 }
 
-pub fn minimal_designation_decl() -> deckmaste_authoring::DesignationDecl {
-    deckmaste_authoring::DesignationDecl {
+pub fn minimal_designation_decl() -> deckmaste_semantics::DesignationDecl {
+    deckmaste_semantics::DesignationDecl {
         name: "X".into(),
         definition: minimal_designation_def(),
     }
 }
 
-pub fn minimal_designation_def() -> deckmaste_authoring::DesignationDef {
-    deckmaste_authoring::DesignationDef::Stored {
+pub fn minimal_designation_def() -> deckmaste_semantics::DesignationDef {
+    deckmaste_semantics::DesignationDef::Stored {
         scope: minimal_designation_scope(),
         shape: minimal_designation_shape(),
         uniqueness: minimal_designation_uniqueness(),
@@ -316,55 +316,55 @@ pub fn minimal_designation_def() -> deckmaste_authoring::DesignationDef {
     }
 }
 
-pub fn minimal_designation_persistence() -> deckmaste_authoring::DesignationPersistence {
-    deckmaste_authoring::DesignationPersistence::ObjectLifetime
+pub fn minimal_designation_persistence() -> deckmaste_semantics::DesignationPersistence {
+    deckmaste_semantics::DesignationPersistence::ObjectLifetime
 }
 
-pub fn minimal_designation_scope() -> deckmaste_authoring::DesignationScope {
-    deckmaste_authoring::DesignationScope::Object
+pub fn minimal_designation_scope() -> deckmaste_semantics::DesignationScope {
+    deckmaste_semantics::DesignationScope::Object
 }
 
-pub fn minimal_designation_shape() -> deckmaste_authoring::DesignationShape {
-    deckmaste_authoring::DesignationShape::Flag
+pub fn minimal_designation_shape() -> deckmaste_semantics::DesignationShape {
+    deckmaste_semantics::DesignationShape::Flag
 }
 
-pub fn minimal_designation_uniqueness() -> deckmaste_authoring::DesignationUniqueness {
-    deckmaste_authoring::DesignationUniqueness::None
+pub fn minimal_designation_uniqueness() -> deckmaste_semantics::DesignationUniqueness {
+    deckmaste_semantics::DesignationUniqueness::None
 }
 
-pub fn minimal_destination() -> deckmaste_authoring::Destination {
-    deckmaste_authoring::Destination::Zone(minimal_zone())
+pub fn minimal_destination() -> deckmaste_semantics::Destination {
+    deckmaste_semantics::Destination::Zone(minimal_zone())
 }
 
-pub fn minimal_distribute() -> deckmaste_authoring::Distribute {
-    deckmaste_authoring::Distribute {
+pub fn minimal_distribute() -> deckmaste_semantics::Distribute {
+    deckmaste_semantics::Distribute {
         amount: minimal_count(),
         binder: minimal_binder(),
         body: std::sync::Arc::new(minimal_one_shot_effect()),
     }
 }
 
-pub fn minimal_duration() -> deckmaste_authoring::Duration {
-    deckmaste_authoring::Duration::FixedUntil(minimal_turn_marker())
+pub fn minimal_duration() -> deckmaste_semantics::Duration {
+    deckmaste_semantics::Duration::FixedUntil(minimal_turn_marker())
 }
 
-pub fn minimal_each() -> deckmaste_authoring::Each {
-    deckmaste_authoring::Each {
+pub fn minimal_each() -> deckmaste_semantics::Each {
+    deckmaste_semantics::Each {
         binder: minimal_binder(),
         effect: std::sync::Arc::new(minimal_one_shot_effect()),
     }
 }
 
-pub fn minimal_ending_step() -> deckmaste_authoring::EndingStep {
-    deckmaste_authoring::EndingStep::End
+pub fn minimal_ending_step() -> deckmaste_semantics::EndingStep {
+    deckmaste_semantics::EndingStep::End
 }
 
-pub fn minimal_enter_rider() -> deckmaste_authoring::EnterRider {
-    deckmaste_authoring::EnterRider::Tapped
+pub fn minimal_enter_rider() -> deckmaste_semantics::EnterRider {
+    deckmaste_semantics::EnterRider::Tapped
 }
 
-pub fn minimal_event_filter() -> deckmaste_authoring::EventFilter {
-    deckmaste_authoring::EventFilter::ZoneChange {
+pub fn minimal_event_filter() -> deckmaste_semantics::EventFilter {
+    deckmaste_semantics::EventFilter::ZoneChange {
         what: minimal_predicate(),
         from: None,
         to: None,
@@ -372,12 +372,12 @@ pub fn minimal_event_filter() -> deckmaste_authoring::EventFilter {
     }
 }
 
-pub fn minimal_face() -> deckmaste_authoring::Face {
-    deckmaste_authoring::Face::Up
+pub fn minimal_face() -> deckmaste_semantics::Face {
+    deckmaste_semantics::Face::Up
 }
 
-pub fn minimal_face_down_characteristics() -> deckmaste_authoring::FaceDownCharacteristics {
-    deckmaste_authoring::FaceDownCharacteristics {
+pub fn minimal_face_down_characteristics() -> deckmaste_semantics::FaceDownCharacteristics {
+    deckmaste_semantics::FaceDownCharacteristics {
         name: None,
         types: Vec::new(),
         subtypes: Vec::new(),
@@ -387,87 +387,87 @@ pub fn minimal_face_down_characteristics() -> deckmaste_authoring::FaceDownChara
     }
 }
 
-pub fn minimal_face_down_spec() -> deckmaste_authoring::FaceDownSpec {
-    deckmaste_authoring::FaceDownSpec::Listed(minimal_face_down_characteristics())
+pub fn minimal_face_down_spec() -> deckmaste_semantics::FaceDownSpec {
+    deckmaste_semantics::FaceDownSpec::Listed(minimal_face_down_characteristics())
 }
 
-pub fn minimal_face_layout() -> deckmaste_authoring::FaceLayout {
-    deckmaste_authoring::FaceLayout::Transforming
+pub fn minimal_face_layout() -> deckmaste_semantics::FaceLayout {
+    deckmaste_semantics::FaceLayout::Transforming
 }
 
-pub fn minimal_if() -> deckmaste_authoring::If {
-    deckmaste_authoring::If {
+pub fn minimal_if() -> deckmaste_semantics::If {
+    deckmaste_semantics::If {
         condition: minimal_condition(),
         then: std::sync::Arc::new(minimal_one_shot_effect()),
         otherwise: None,
     }
 }
 
-pub fn minimal_ignore_rule() -> deckmaste_authoring::IgnoreRule {
-    deckmaste_authoring::IgnoreRule::IgnoreLowest
+pub fn minimal_ignore_rule() -> deckmaste_semantics::IgnoreRule {
+    deckmaste_semantics::IgnoreRule::IgnoreLowest
 }
 
-pub fn minimal_keyword_ability() -> deckmaste_authoring::KeywordAbility {
-    deckmaste_authoring::KeywordAbility::FirstStrike
+pub fn minimal_keyword_ability() -> deckmaste_semantics::KeywordAbility {
+    deckmaste_semantics::KeywordAbility::FirstStrike
 }
 
-pub fn minimal_keyword_decl() -> deckmaste_authoring::KeywordDecl {
-    deckmaste_authoring::KeywordDecl {
+pub fn minimal_keyword_decl() -> deckmaste_semantics::KeywordDecl {
+    deckmaste_semantics::KeywordDecl {
         name: "X".into(),
         shape: minimal_param_shape(),
     }
 }
 
-pub fn minimal_keyword_ref() -> deckmaste_authoring::KeywordRef {
-    deckmaste_authoring::KeywordRef("X".into())
+pub fn minimal_keyword_ref() -> deckmaste_semantics::KeywordRef {
+    deckmaste_semantics::KeywordRef("X".into())
 }
 
-pub fn minimal_label() -> deckmaste_authoring::Label {
-    deckmaste_authoring::Label {
+pub fn minimal_label() -> deckmaste_semantics::Label {
+    deckmaste_semantics::Label {
         r#as: "X".into(),
         effect: std::sync::Arc::new(minimal_one_shot_effect()),
     }
 }
 
-pub fn minimal_life_op() -> deckmaste_authoring::LifeOp {
-    deckmaste_authoring::LifeOp::Set(minimal_count())
+pub fn minimal_life_op() -> deckmaste_semantics::LifeOp {
+    deckmaste_semantics::LifeOp::Set(minimal_count())
 }
 
-pub fn minimal_lock_point() -> deckmaste_authoring::LockPoint {
-    deckmaste_authoring::LockPoint::Announce
+pub fn minimal_lock_point() -> deckmaste_semantics::LockPoint {
+    deckmaste_semantics::LockPoint::Announce
 }
 
-pub fn minimal_lookback() -> deckmaste_authoring::Lookback {
-    deckmaste_authoring::Lookback::ThisTurn
+pub fn minimal_lookback() -> deckmaste_semantics::Lookback {
+    deckmaste_semantics::Lookback::ThisTurn
 }
 
-pub fn minimal_mana_cost() -> deckmaste_authoring::ManaCost {
-    deckmaste_authoring::ManaCost::from(std::sync::Arc::<[deckmaste_authoring::ManaSymbol]>::from(
+pub fn minimal_mana_cost() -> deckmaste_semantics::ManaCost {
+    deckmaste_semantics::ManaCost::from(std::sync::Arc::<[deckmaste_semantics::ManaSymbol]>::from(
         [],
     ))
 }
 
-pub fn minimal_mana_production() -> deckmaste_authoring::ManaProduction {
-    deckmaste_authoring::ManaProduction::WithRiders {
+pub fn minimal_mana_production() -> deckmaste_semantics::ManaProduction {
+    deckmaste_semantics::ManaProduction::WithRiders {
         mana: minimal_mana_spec(),
         riders: [].into(),
     }
 }
 
-pub fn minimal_mana_rider() -> deckmaste_authoring::ManaRider {
-    deckmaste_authoring::ManaRider::SpendOnly(minimal_predicate())
+pub fn minimal_mana_rider() -> deckmaste_semantics::ManaRider {
+    deckmaste_semantics::ManaRider::SpendOnly(minimal_predicate())
 }
 
-pub fn minimal_mana_spec() -> deckmaste_authoring::ManaSpec {
-    deckmaste_authoring::ManaSpec::AnyColor
+pub fn minimal_mana_spec() -> deckmaste_semantics::ManaSpec {
+    deckmaste_semantics::ManaSpec::AnyColor
 }
 
-pub fn minimal_mana_symbol() -> deckmaste_authoring::ManaSymbol {
-    deckmaste_authoring::ManaSymbol::Variable
+pub fn minimal_mana_symbol() -> deckmaste_semantics::ManaSymbol {
+    deckmaste_semantics::ManaSymbol::Variable
 }
 
-pub fn minimal_may() -> deckmaste_authoring::May {
-    deckmaste_authoring::May {
+pub fn minimal_may() -> deckmaste_semantics::May {
+    deckmaste_semantics::May {
         who: minimal_reference(),
         effect: std::sync::Arc::new(minimal_one_shot_effect()),
         if_did: None,
@@ -475,113 +475,113 @@ pub fn minimal_may() -> deckmaste_authoring::May {
     }
 }
 
-pub fn minimal_modal() -> deckmaste_authoring::Modal {
-    deckmaste_authoring::Modal {
+pub fn minimal_modal() -> deckmaste_semantics::Modal {
+    deckmaste_semantics::Modal {
         choose: minimal_choose_spec(),
         modes: [].into(),
     }
 }
 
-pub fn minimal_modal_cost_rider() -> deckmaste_authoring::ModalCostRider {
-    deckmaste_authoring::ModalCostRider::Entwine(minimal_cost())
+pub fn minimal_modal_cost_rider() -> deckmaste_semantics::ModalCostRider {
+    deckmaste_semantics::ModalCostRider::Entwine(minimal_cost())
 }
 
-pub fn minimal_mode() -> deckmaste_authoring::Mode {
-    deckmaste_authoring::Mode {
+pub fn minimal_mode() -> deckmaste_semantics::Mode {
+    deckmaste_semantics::Mode {
         effect: minimal_one_shot_effect(),
         cost: None,
     }
 }
 
-pub fn minimal_modification() -> deckmaste_authoring::Modification {
-    deckmaste_authoring::Modification::Power(minimal_numeric_op())
+pub fn minimal_modification() -> deckmaste_semantics::Modification {
+    deckmaste_semantics::Modification::Power(minimal_numeric_op())
 }
 
-pub fn minimal_noted_kind() -> deckmaste_authoring::NotedKind {
-    deckmaste_authoring::NotedKind::Objects
+pub fn minimal_noted_kind() -> deckmaste_semantics::NotedKind {
+    deckmaste_semantics::NotedKind::Objects
 }
 
-pub fn minimal_noting() -> deckmaste_authoring::Noting {
-    deckmaste_authoring::Noting {
+pub fn minimal_noting() -> deckmaste_semantics::Noting {
+    deckmaste_semantics::Noting {
         key: "X".into(),
         effect: std::sync::Arc::new(minimal_one_shot_effect()),
     }
 }
 
-pub fn minimal_numeric_op() -> deckmaste_authoring::NumericOp {
-    deckmaste_authoring::NumericOp::Set(minimal_stat_value())
+pub fn minimal_numeric_op() -> deckmaste_semantics::NumericOp {
+    deckmaste_semantics::NumericOp::Set(minimal_stat_value())
 }
 
-pub fn minimal_object_kind() -> deckmaste_authoring::ObjectKind {
-    deckmaste_authoring::ObjectKind::Ability
+pub fn minimal_object_kind() -> deckmaste_semantics::ObjectKind {
+    deckmaste_semantics::ObjectKind::Ability
 }
 
-pub fn minimal_one_shot_effect() -> deckmaste_authoring::OneShotEffect {
-    deckmaste_authoring::OneShotEffect::Act(minimal_action())
+pub fn minimal_one_shot_effect() -> deckmaste_semantics::OneShotEffect {
+    deckmaste_semantics::OneShotEffect::Act(minimal_action())
 }
 
-pub fn minimal_optional_cost() -> deckmaste_authoring::OptionalCost {
-    deckmaste_authoring::OptionalCost {
+pub fn minimal_optional_cost() -> deckmaste_semantics::OptionalCost {
+    deckmaste_semantics::OptionalCost {
         components: [].into(),
         tag: minimal_cost_tag(),
         repeatable: false,
     }
 }
 
-pub fn minimal_outcome_gate_kind() -> deckmaste_authoring::OutcomeGateKind {
-    deckmaste_authoring::OutcomeGateKind::CantLose
+pub fn minimal_outcome_gate_kind() -> deckmaste_semantics::OutcomeGateKind {
+    deckmaste_semantics::OutcomeGateKind::CantLose
 }
 
-pub fn minimal_param_shape() -> deckmaste_authoring::ParamShape {
-    deckmaste_authoring::ParamShape::None
+pub fn minimal_param_shape() -> deckmaste_semantics::ParamShape {
+    deckmaste_semantics::ParamShape::None
 }
 
-pub fn minimal_pay_act() -> deckmaste_authoring::PayAct {
-    deckmaste_authoring::PayAct::TapToPay(minimal_predicate())
+pub fn minimal_pay_act() -> deckmaste_semantics::PayAct {
+    deckmaste_semantics::PayAct::TapToPay(minimal_predicate())
 }
 
-pub fn minimal_phase_kind() -> deckmaste_authoring::PhaseKind {
-    deckmaste_authoring::PhaseKind::Beginning
+pub fn minimal_phase_kind() -> deckmaste_semantics::PhaseKind {
+    deckmaste_semantics::PhaseKind::Beginning
 }
 
-pub fn minimal_phase_step() -> deckmaste_authoring::PhaseStep {
-    deckmaste_authoring::PhaseStep::Beginning(minimal_beginning_step())
+pub fn minimal_phase_step() -> deckmaste_semantics::PhaseStep {
+    deckmaste_semantics::PhaseStep::Beginning(minimal_beginning_step())
 }
 
-pub fn minimal_phasing() -> deckmaste_authoring::Phasing {
-    deckmaste_authoring::Phasing::In
+pub fn minimal_phasing() -> deckmaste_semantics::Phasing {
+    deckmaste_semantics::Phasing::In
 }
 
-pub fn minimal_pile_source() -> deckmaste_authoring::PileSource {
-    deckmaste_authoring::PileSource::Labels([].into())
+pub fn minimal_pile_source() -> deckmaste_semantics::PileSource {
+    deckmaste_semantics::PileSource::Labels([].into())
 }
 
-pub fn minimal_pip_class() -> deckmaste_authoring::PipClass {
-    deckmaste_authoring::PipClass::Generic
+pub fn minimal_pip_class() -> deckmaste_semantics::PipClass {
+    deckmaste_semantics::PipClass::Generic
 }
 
-pub fn minimal_planar_face() -> deckmaste_authoring::PlanarFace {
-    deckmaste_authoring::PlanarFace::Blank
+pub fn minimal_planar_face() -> deckmaste_semantics::PlanarFace {
+    deckmaste_semantics::PlanarFace::Blank
 }
 
-pub fn minimal_player_attr() -> deckmaste_authoring::PlayerAttr {
-    deckmaste_authoring::PlayerAttr::Life
+pub fn minimal_player_attr() -> deckmaste_semantics::PlayerAttr {
+    deckmaste_semantics::PlayerAttr::Life
 }
 
-pub fn minimal_player_mod() -> deckmaste_authoring::PlayerMod {
-    deckmaste_authoring::PlayerMod::SetTo(minimal_player_attr(), minimal_count())
+pub fn minimal_player_mod() -> deckmaste_semantics::PlayerMod {
+    deckmaste_semantics::PlayerMod::SetTo(minimal_player_attr(), minimal_count())
 }
 
-pub fn minimal_predefined_token() -> deckmaste_authoring::PredefinedToken {
-    deckmaste_authoring::PredefinedToken::Treasure
+pub fn minimal_predefined_token() -> deckmaste_semantics::PredefinedToken {
+    deckmaste_semantics::PredefinedToken::Treasure
 }
 
-pub fn minimal_predicate() -> deckmaste_authoring::Predicate {
-    deckmaste_authoring::Predicate::Kind(minimal_object_kind())
+pub fn minimal_predicate() -> deckmaste_semantics::Predicate {
+    deckmaste_semantics::Predicate::Kind(minimal_object_kind())
 }
 
-pub fn minimal_prevention() -> deckmaste_authoring::Prevention {
-    deckmaste_authoring::Prevention::PreventNext {
+pub fn minimal_prevention() -> deckmaste_semantics::Prevention {
+    deckmaste_semantics::Prevention::PreventNext {
         n: minimal_count(),
         from: minimal_predicate(),
         to: minimal_predicate(),
@@ -589,66 +589,66 @@ pub fn minimal_prevention() -> deckmaste_authoring::Prevention {
     }
 }
 
-pub fn minimal_projection() -> deckmaste_authoring::Projection {
-    deckmaste_authoring::Projection {
+pub fn minimal_projection() -> deckmaste_semantics::Projection {
+    deckmaste_semantics::Projection {
         of: minimal_countable(),
         by: std::sync::Arc::new(minimal_count()),
     }
 }
 
-pub fn minimal_property() -> deckmaste_authoring::Property {
-    deckmaste_authoring::Property::Ability(std::sync::Arc::new(minimal_ability()))
+pub fn minimal_property() -> deckmaste_semantics::Property {
+    deckmaste_semantics::Property::Ability(std::sync::Arc::new(minimal_ability()))
 }
 
-pub fn minimal_quantity() -> deckmaste_authoring::Quantity {
-    deckmaste_authoring::Quantity::Range(None, None)
+pub fn minimal_quantity() -> deckmaste_semantics::Quantity {
+    deckmaste_semantics::Quantity::Range(None, None)
 }
 
-pub fn minimal_reference() -> deckmaste_authoring::Reference {
-    deckmaste_authoring::Reference::This
+pub fn minimal_reference() -> deckmaste_semantics::Reference {
+    deckmaste_semantics::Reference::This
 }
 
-pub fn minimal_relation_predicate() -> deckmaste_authoring::RelationPredicate {
-    deckmaste_authoring::RelationPredicate::ControlledBy(std::sync::Arc::new(minimal_predicate()))
+pub fn minimal_relation_predicate() -> deckmaste_semantics::RelationPredicate {
+    deckmaste_semantics::RelationPredicate::ControlledBy(std::sync::Arc::new(minimal_predicate()))
 }
 
-pub fn minimal_replacement() -> deckmaste_authoring::Replacement {
-    deckmaste_authoring::Replacement::Instead {
+pub fn minimal_replacement() -> deckmaste_semantics::Replacement {
+    deckmaste_semantics::Replacement::Instead {
         would: minimal_event_filter(),
         instead: minimal_one_shot_effect(),
     }
 }
 
-pub fn minimal_retarget_mode() -> deckmaste_authoring::RetargetMode {
-    deckmaste_authoring::RetargetMode::ChangeAll
+pub fn minimal_retarget_mode() -> deckmaste_semantics::RetargetMode {
+    deckmaste_semantics::RetargetMode::ChangeAll
 }
 
-pub fn minimal_reveal_until() -> deckmaste_authoring::RevealUntil {
-    deckmaste_authoring::RevealUntil {
+pub fn minimal_reveal_until() -> deckmaste_semantics::RevealUntil {
+    deckmaste_semantics::RevealUntil {
         whose: minimal_reference(),
         matches: minimal_predicate(),
         body: std::sync::Arc::new(minimal_one_shot_effect()),
     }
 }
 
-pub fn minimal_round_mode() -> deckmaste_authoring::RoundMode {
-    deckmaste_authoring::RoundMode::RoundUp
+pub fn minimal_round_mode() -> deckmaste_semantics::RoundMode {
+    deckmaste_semantics::RoundMode::RoundUp
 }
 
-pub fn minimal_sba_rule() -> deckmaste_authoring::SbaRule {
-    deckmaste_authoring::SbaRule {
+pub fn minimal_sba_rule() -> deckmaste_semantics::SbaRule {
+    deckmaste_semantics::SbaRule {
         scope: minimal_predicate(),
         when: minimal_condition(),
         then: minimal_one_shot_effect(),
     }
 }
 
-pub fn minimal_selection() -> deckmaste_authoring::Selection {
-    deckmaste_authoring::Selection::SelectAll(minimal_predicate())
+pub fn minimal_selection() -> deckmaste_semantics::Selection {
+    deckmaste_semantics::Selection::SelectAll(minimal_predicate())
 }
 
-pub fn minimal_separate_piles() -> deckmaste_authoring::SeparatePiles {
-    deckmaste_authoring::SeparatePiles {
+pub fn minimal_separate_piles() -> deckmaste_semantics::SeparatePiles {
+    deckmaste_semantics::SeparatePiles {
         group: minimal_selection(),
         into: [].into(),
         by: minimal_reference(),
@@ -657,82 +657,82 @@ pub fn minimal_separate_piles() -> deckmaste_authoring::SeparatePiles {
     }
 }
 
-pub fn minimal_simple_mana_symbol() -> deckmaste_authoring::SimpleManaSymbol {
-    deckmaste_authoring::SimpleManaSymbol::Generic(0)
+pub fn minimal_simple_mana_symbol() -> deckmaste_semantics::SimpleManaSymbol {
+    deckmaste_semantics::SimpleManaSymbol::Generic(0)
 }
 
-pub fn minimal_sort() -> deckmaste_authoring::Sort {
-    deckmaste_authoring::Sort::Player
+pub fn minimal_sort() -> deckmaste_semantics::Sort {
+    deckmaste_semantics::Sort::Player
 }
 
-pub fn minimal_spell_ability() -> deckmaste_authoring::SpellAbility {
-    deckmaste_authoring::SpellAbility {
+pub fn minimal_spell_ability() -> deckmaste_semantics::SpellAbility {
+    deckmaste_semantics::SpellAbility {
         ability_word: None,
         effect: minimal_one_shot_effect(),
     }
 }
 
-pub fn minimal_stat() -> deckmaste_authoring::Stat {
-    deckmaste_authoring::Stat::Power
+pub fn minimal_stat() -> deckmaste_semantics::Stat {
+    deckmaste_semantics::Stat::Power
 }
 
-pub fn minimal_stat_value() -> deckmaste_authoring::StatValue {
-    deckmaste_authoring::StatValue::DefinedByAbility
+pub fn minimal_stat_value() -> deckmaste_semantics::StatValue {
+    deckmaste_semantics::StatValue::DefinedByAbility
 }
 
-pub fn minimal_state_change() -> deckmaste_authoring::StateChange {
-    deckmaste_authoring::StateChange::Tapped
+pub fn minimal_state_change() -> deckmaste_semantics::StateChange {
+    deckmaste_semantics::StateChange::Tapped
 }
 
-pub fn minimal_state_predicate() -> deckmaste_authoring::StatePredicate {
-    deckmaste_authoring::StatePredicate::InZone(minimal_zone())
+pub fn minimal_state_predicate() -> deckmaste_semantics::StatePredicate {
+    deckmaste_semantics::StatePredicate::InZone(minimal_zone())
 }
 
-pub fn minimal_static_effect() -> deckmaste_authoring::StaticEffect {
-    deckmaste_authoring::StaticEffect::Modify(minimal_reference(), minimal_modification())
+pub fn minimal_static_effect() -> deckmaste_semantics::StaticEffect {
+    deckmaste_semantics::StaticEffect::Modify(minimal_reference(), minimal_modification())
 }
 
-pub fn minimal_status() -> deckmaste_authoring::Status {
-    deckmaste_authoring::Status::Tapped
+pub fn minimal_status() -> deckmaste_semantics::Status {
+    deckmaste_semantics::Status::Tapped
 }
 
-pub fn minimal_subtype() -> deckmaste_authoring::Subtype {
-    deckmaste_authoring::Subtype {
+pub fn minimal_subtype() -> deckmaste_semantics::Subtype {
+    deckmaste_semantics::Subtype {
         name: "X".into(),
         types: [].into(),
         confers: [].into(),
     }
 }
 
-pub fn minimal_subtype_ref() -> deckmaste_authoring::SubtypeRef {
-    deckmaste_authoring::SubtypeRef(std::sync::Arc::new(minimal_subtype()))
+pub fn minimal_subtype_ref() -> deckmaste_semantics::SubtypeRef {
+    deckmaste_semantics::SubtypeRef(std::sync::Arc::new(minimal_subtype()))
 }
 
-pub fn minimal_supertype() -> deckmaste_authoring::Supertype {
-    deckmaste_authoring::Supertype::Basic
+pub fn minimal_supertype() -> deckmaste_semantics::Supertype {
+    deckmaste_semantics::Supertype::Basic
 }
 
-pub fn minimal_symbol_pred() -> deckmaste_authoring::SymbolPred {
-    deckmaste_authoring::SymbolPred::AnyColor
+pub fn minimal_symbol_pred() -> deckmaste_semantics::SymbolPred {
+    deckmaste_semantics::SymbolPred::AnyColor
 }
 
-pub fn minimal_target_spec() -> deckmaste_authoring::TargetSpec {
-    deckmaste_authoring::TargetSpec::Target(minimal_quantity(), minimal_predicate())
+pub fn minimal_target_spec() -> deckmaste_semantics::TargetSpec {
+    deckmaste_semantics::TargetSpec::Target(minimal_quantity(), minimal_predicate())
 }
 
-pub fn minimal_targeted() -> deckmaste_authoring::Targeted {
-    deckmaste_authoring::Targeted {
+pub fn minimal_targeted() -> deckmaste_semantics::Targeted {
+    deckmaste_semantics::Targeted {
         targets: [].into(),
         effect: std::sync::Arc::new(minimal_one_shot_effect()),
     }
 }
 
-pub fn minimal_timing() -> deckmaste_authoring::Timing {
-    deckmaste_authoring::Timing::InstantSpeed
+pub fn minimal_timing() -> deckmaste_semantics::Timing {
+    deckmaste_semantics::Timing::InstantSpeed
 }
 
-pub fn minimal_token() -> deckmaste_authoring::Token {
-    deckmaste_authoring::Token {
+pub fn minimal_token() -> deckmaste_semantics::Token {
+    deckmaste_semantics::Token {
         name: None,
         color_indicator: [].into(),
         supertypes: [].into(),
@@ -744,24 +744,24 @@ pub fn minimal_token() -> deckmaste_authoring::Token {
     }
 }
 
-pub fn minimal_token_name() -> deckmaste_authoring::TokenName {
-    deckmaste_authoring::TokenName("X".into())
+pub fn minimal_token_name() -> deckmaste_semantics::TokenName {
+    deckmaste_semantics::TokenName("X".into())
 }
 
-pub fn minimal_token_spec() -> deckmaste_authoring::TokenSpec {
-    deckmaste_authoring::TokenSpec::Token(std::sync::Arc::new(minimal_token()))
+pub fn minimal_token_spec() -> deckmaste_semantics::TokenSpec {
+    deckmaste_semantics::TokenSpec::Token(std::sync::Arc::new(minimal_token()))
 }
 
-pub fn minimal_total_cost() -> deckmaste_authoring::TotalCost {
-    deckmaste_authoring::TotalCost {
+pub fn minimal_total_cost() -> deckmaste_semantics::TotalCost {
+    deckmaste_semantics::TotalCost {
         base: [].into(),
         trace: [].into(),
         locked: false,
     }
 }
 
-pub fn minimal_triggered_ability() -> deckmaste_authoring::TriggeredAbility {
-    deckmaste_authoring::TriggeredAbility {
+pub fn minimal_triggered_ability() -> deckmaste_semantics::TriggeredAbility {
+    deckmaste_semantics::TriggeredAbility {
         ability_word: None,
         event: minimal_event_filter(),
         from: None,
@@ -772,49 +772,49 @@ pub fn minimal_triggered_ability() -> deckmaste_authoring::TriggeredAbility {
     }
 }
 
-pub fn minimal_turn_marker() -> deckmaste_authoring::TurnMarker {
-    deckmaste_authoring::TurnMarker::EndOfTurn
+pub fn minimal_turn_marker() -> deckmaste_semantics::TurnMarker {
+    deckmaste_semantics::TurnMarker::EndOfTurn
 }
 
-pub fn minimal_type() -> deckmaste_authoring::Type {
-    deckmaste_authoring::Type::Artifact
+pub fn minimal_type() -> deckmaste_semantics::Type {
+    deckmaste_semantics::Type::Artifact
 }
 
-pub fn minimal_type_def() -> deckmaste_authoring::TypeDef {
-    deckmaste_authoring::TypeDef {
+pub fn minimal_type_def() -> deckmaste_semantics::TypeDef {
+    deckmaste_semantics::TypeDef {
         name: "X".into(),
         permanent: false,
         confers: [].into(),
     }
 }
 
-pub fn minimal_type_ref() -> deckmaste_authoring::TypeRef {
-    deckmaste_authoring::TypeRef(std::sync::Arc::new(minimal_type_def()))
+pub fn minimal_type_ref() -> deckmaste_semantics::TypeRef {
+    deckmaste_semantics::TypeRef(std::sync::Arc::new(minimal_type_def()))
 }
 
-pub fn minimal_use_limit() -> deckmaste_authoring::UseLimit {
-    deckmaste_authoring::UseLimit::OncePerTurn
+pub fn minimal_use_limit() -> deckmaste_semantics::UseLimit {
+    deckmaste_semantics::UseLimit::OncePerTurn
 }
 
-pub fn minimal_verb_name() -> deckmaste_authoring::VerbName {
-    deckmaste_authoring::VerbName("X".into())
+pub fn minimal_verb_name() -> deckmaste_semantics::VerbName {
+    deckmaste_semantics::VerbName("X".into())
 }
 
-pub fn minimal_visibility() -> deckmaste_authoring::Visibility {
-    deckmaste_authoring::Visibility::Open
+pub fn minimal_visibility() -> deckmaste_semantics::Visibility {
+    deckmaste_semantics::Visibility::Open
 }
 
-pub fn minimal_whose_turn() -> deckmaste_authoring::WhoseTurn {
-    deckmaste_authoring::WhoseTurn::Your
+pub fn minimal_whose_turn() -> deckmaste_semantics::WhoseTurn {
+    deckmaste_semantics::WhoseTurn::Your
 }
 
-pub fn minimal_with() -> deckmaste_authoring::With {
-    deckmaste_authoring::With {
+pub fn minimal_with() -> deckmaste_semantics::With {
+    deckmaste_semantics::With {
         binder: minimal_binder(),
         body: std::sync::Arc::new(minimal_one_shot_effect()),
     }
 }
 
-pub fn minimal_zone() -> deckmaste_authoring::Zone {
-    deckmaste_authoring::Zone::Battlefield
+pub fn minimal_zone() -> deckmaste_semantics::Zone {
+    deckmaste_semantics::Zone::Battlefield
 }

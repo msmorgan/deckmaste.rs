@@ -9,8 +9,8 @@ separate production sites from inline-test fixtures. Sixteen are the old
 
 The inventory must distinguish four cases that require different behavior:
 
-1. **Malformed authored reference or missing authored object.** Fizzle only
-   when the site falls under `docs/decisions/invalid-authoring-fizzles.md`:
+1. **Malformed semantic reference or missing semantic object.** Fizzle only
+   when the site falls under `docs/decisions/invalid-semantic-input-fizzles.md`:
    resolve to no applicable object, emit no game facts, and retain a
    diagnostic suitable for validation/logging.
 2. **Valid but unsupported Magic mechanic.** Keep a loud, mechanic-specific
@@ -35,7 +35,7 @@ Deliverables:
   reachability, class, governing decision/rule, and owner ticket;
 - focused child tickets for every class-2 site and every non-ad-hoc class-4
   site, with no anonymous `P0.Wn` owner left;
-- one engine-crate policy paragraph distinguishing invalid-authoring fizzle,
+- one engine-crate policy paragraph distinguishing invalid-semantic-input fizzle,
   unsupported mechanics, and invariant failure; and
 - a final grep proving every remaining production `todo!`/`unimplemented!`
   has a durable diagnostic and a ticket slug.

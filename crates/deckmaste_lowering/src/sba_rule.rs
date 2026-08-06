@@ -1,10 +1,10 @@
-//! `sba_rule` — authored grammar to engine AST.
+//! `sba_rule` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::SbaRule {
+impl Lower for deckmaste_semantics::SbaRule {
     type Target = deckmaste_core::SbaRule;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::SbaRule {
@@ -31,7 +31,7 @@ mod tests {
     #[test]
     fn lowers_sba_rule() {
         assert_matches!(
-            deckmaste_authoring::SbaRule {
+            deckmaste_semantics::SbaRule {
                 scope: minimal_predicate(),
                 when: minimal_condition(),
                 then: minimal_one_shot_effect()

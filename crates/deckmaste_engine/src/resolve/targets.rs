@@ -128,7 +128,7 @@ pub(crate) fn target_spec_quantity(spec: &TargetSpec) -> &deckmaste_core::Quanti
 /// The sibling slot indices a [`TargetSpec::Distinct`] slot must stay disjoint
 /// from ([CR#115.7e], Arc Trail's "any *other* target") — `&[]` for a plain
 /// `Target`. Peels `Expanded`; the outermost `Distinct` is authoritative (a
-/// nested `Distinct` is not an authored shape).
+/// nested `Distinct` is not a semantic shape).
 pub(crate) fn distinct_siblings(spec: &TargetSpec) -> &[usize] {
     match spec {
         TargetSpec::Distinct(siblings, _) => siblings,
@@ -166,7 +166,7 @@ pub(crate) fn slot_count_bounds(spec: &TargetSpec) -> (Uint, Option<Uint>) {
 
 /// The cross-slot distinctness portion of the set check ([CR#115.7e]): every
 /// [`TargetSpec::Distinct`] slot's chosen set is disjoint from the union of its
-/// named sibling slots' sets. Malformed authoring — a sibling index out of
+/// named sibling slots' sets. Malformed semantic input — a sibling index out of
 /// range or naming the slot itself — is treated as a violation (`false`), so
 /// the spec is unsatisfiable and fizzles rather than panicking (Idris proves
 /// `distinctOk` statically; Rust catches it at runtime). Shared by
@@ -196,7 +196,7 @@ pub(crate) fn target_set_distinct_ok(specs: &[TargetSpec], chosen: &[Vec<ObjectI
 /// the same object can't be chosen twice for one "target" ([CR#601.2c]); (d)
 /// each `Distinct` slot disjoint from its siblings ([CR#115.7e]). The same id
 /// ACROSS unrelated slots stays legal (the artifact-land example). `Err`
-/// carries the rejection reason; authoring mistakes (inverted/zero bounds,
+/// carries the rejection reason; semantic-input errors (inverted/zero bounds,
 /// bad sibling index) reject rather than panic.
 pub(crate) fn validate_target_set(
     specs: &[TargetSpec],
@@ -244,10 +244,10 @@ pub(crate) fn validate_target_set(
 /// DISTINCT representatives ([CR#115.7e]). A min-0 slot ("up to N" / "any
 /// number") is satisfiable even with no candidates (choose zero).
 ///
-/// The distinctness feasibility is EXACT for the authored shape — quantity-one
+/// The distinctness feasibility is EXACT for the semantic shape — quantity-one
 /// slots linked by `Distinct` (Fate Transfer's two "target creature" slots) —
 /// via bounded backtracking over just the distinct-linked quantity-one slots.
-/// Their number is a small authoring constant, so the search is trivial. A
+/// Their number is a small semantic constant, so the search is trivial. A
 /// `Distinct` slot whose count is not exactly one is the unbuilt general case
 /// (no canon card): it is skipped from the representative search and gated only
 /// by its per-slot minimum — permissive rather than a panic or a false reject.
@@ -276,7 +276,7 @@ pub(crate) fn announce_satisfiable(specs: &[TargetSpec], legal: &[Vec<ObjectId>]
     // Backtracking system-of-distinct-representatives over the quantity-one
     // slots that participate in any Distinct edge (as a Distinct spec or as a
     // named sibling). Edges to non-quantity-one slots are dropped (the unbuilt
-    // general case), so the search covers exactly the authored pairwise shape.
+    // general case), so the search covers exactly the semantic pairwise shape.
     let is_one = |i: usize| slot_count_bounds(&specs[i]) == (1, Some(1));
     let mut involved: Vec<usize> = Vec::new();
     let mut edges: Vec<(usize, usize)> = Vec::new();
@@ -298,7 +298,7 @@ pub(crate) fn announce_satisfiable(specs: &[TargetSpec], legal: &[Vec<ObjectId>]
 /// Backtrack a distinct representative for each slot in `involved`, one legal
 /// candidate apiece, honoring the `Distinct` `edges` (assigned reps of edge-
 /// linked slots must differ). `assigned` accumulates `(slot, rep)`. Exponential
-/// in `involved.len()`, which is a tiny authoring constant.
+/// in `involved.len()`, which is a tiny semantic constant.
 fn distinct_reps_exist(
     involved: &[usize],
     edges: &[(usize, usize)],
@@ -443,9 +443,9 @@ mod target_set_tests {
         );
     }
 
-    /// Malformed authoring — a sibling index out of range or naming the slot
-    /// itself — is a rejected set, never a panic (Idris proves `distinctOk`;
-    /// Rust catches it at runtime).
+    /// Malformed semantic input — a sibling index out of range or naming the
+    /// slot itself — is a rejected set, never a panic (Idris proves
+    /// `distinctOk`; Rust catches it at runtime).
     #[test]
     fn malformed_sibling_index_rejected_not_panicking() {
         let out_of_range = [t_one(), distinct(vec![5], t_one())];

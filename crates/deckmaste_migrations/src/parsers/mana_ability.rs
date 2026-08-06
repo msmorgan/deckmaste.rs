@@ -8,8 +8,8 @@
 //! mana of any color", or a `for each` scaler. A painland tail (`. ~ deals N
 //! damage to you.`) rides as a second effect in the same resolution.
 
-use deckmaste_authoring::ColorOrColorless;
 use deckmaste_legacy_render::template::index::TemplateIndex;
+use deckmaste_semantics::ColorOrColorless;
 
 use crate::parsers::cost::VariableMana;
 use crate::parsers::cost::{self};

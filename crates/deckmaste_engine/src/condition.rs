@@ -73,7 +73,7 @@ impl GameState {
                     // A gone object with no bound LKI snapshot matches no
                     // CURRENT-state filter — it is not on the battlefield, has no
                     // characteristics to test — so the sound answer is `false`
-                    // (never a panic; authoring mistakes fizzle, [CR#608.2b]).
+                    // (never a panic; semantic-input errors fizzle, [CR#608.2b]).
                     // First consumer: fight's both-or-neither guard
                     // `Is(Target(n), Creature)` when a fighter has left the
                     // battlefield ([CR#701.14b]) — the whole fight then no-ops.
@@ -251,7 +251,7 @@ impl GameState {
 /// behind `Is(Source, F)` ([CR#702.2c]): only what a mark captures — the
 /// source's abilities — is testable, so keyword predicates (`Has(Deathtouch)`)
 /// and their combinators are honored and every other predicate fizzles to
-/// `false` (an authoring mistake no-ops, never crashes). Peels
+/// `false` (a semantic-input error no-ops, never crashes). Peels
 /// `Innate`/`Expanded` via `ability_is_named`, matching the live `Has` arm.
 fn source_abilities_match(
     filter: &deckmaste_core::Predicate,

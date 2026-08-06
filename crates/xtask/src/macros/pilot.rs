@@ -13,7 +13,7 @@
 //!   / 7 / 0, and is what [`COVERAGE_FLOOR`] pins.)
 //! - **G4 ground truth**: for every canon ability line whose parse `unify`s to
 //!   a non-`Residual` under the pilot lexicon, does the recovered structure —
-//!   emitted as RON text and expanded — equal the card's own authored value,
+//!   emitted as RON text and expanded — equal the card's own semantic value,
 //!   likewise expanded? Both directions go through
 //!   [`deckmaste_spelling::guard::normalized`]/`normalize_source`, the round's
 //!   one canonicalizer, never a second implementation. The comparison is on
@@ -75,7 +75,7 @@
 //! denominator). A line that recovers a non-`Residual` top level but leaves a
 //! residual filler inside is *covered* and counted `Diverged` (with
 //! `recovered_ron: None`, see [`G4Outcome::Diverged`]) — a recovery that is
-//! provably incomplete is not asserted equal to the authored value, so it is
+//! provably incomplete is not asserted equal to the semantic value, so it is
 //! a real divergence, not an exclusion.
 //!
 //! G3's own population is the narrower one — "canon usage of a pilot
@@ -96,10 +96,6 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
-use deckmaste_authoring::Ability;
-use deckmaste_authoring::Card;
-use deckmaste_authoring::CardFace;
-use deckmaste_authoring::Supertype;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;
 use deckmaste_english::CatalogKind;
@@ -113,6 +109,10 @@ use deckmaste_legacy_render::render::CardView;
 use deckmaste_legacy_render::render::render;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::plugin::read;
+use deckmaste_semantics::Ability;
+use deckmaste_semantics::Card;
+use deckmaste_semantics::CardFace;
+use deckmaste_semantics::Supertype;
 use deckmaste_spelling::Lexicon;
 use deckmaste_spelling::ReassembledDifferently;
 use deckmaste_spelling::Recovered;
@@ -432,7 +432,7 @@ pub(super) fn real_catalogs(workspace_root: &Path) -> anyhow::Result<Catalogs> {
 }
 
 /// One isolated, testable canon line: a single `Keyword` or `Spell` ability,
-/// legacy-rendered on its own, alongside its own authored value already
+/// legacy-rendered on its own, alongside its own semantic value already
 /// normalized to a comparable [`View`] (see the module doc's "Population and
 /// scope").
 struct Line {
@@ -442,13 +442,13 @@ struct Line {
     is_legendary: bool,
     kind: FragmentKind,
     text: String,
-    /// The RON type this line's authored value normalizes at —
+    /// The RON type this line's semantic value normalizes at —
     /// `"KeywordAbility"` for a keyword line, `"OneShotEffect"` for a spell
     /// effect (which reads a raw `Action`-flattened constructor like
     /// `DealDamage(...)` directly too — `OneShotEffect::Act` is
     /// `#[macro_ron(flatten)]`, `crates/deckmaste_core/src/effect.rs`).
     ron_type: &'static str,
-    authored_view: View,
+    semantic_view: View,
 }
 
 /// Why one canon ability never became a swept [`Line`] at all — the layer
@@ -511,7 +511,7 @@ fn collect_lines(canon_dir: &Path, plugin: &Plugin) -> anyhow::Result<Swept> {
         let card = plugin
             .card_from_str(&source)
             .map_err(|error| anyhow::anyhow!("parsing {}: {error:#}", path.display()))?
-            .authored;
+            .semantic;
         for face in faces(&card) {
             let is_legendary = face.supertypes.contains(&Supertype::Legendary);
             for ability in &face.abilities {
@@ -566,7 +566,7 @@ fn testable_line(
     ability: &Ability,
 ) -> Result<Line, SweepExclusion> {
     let peeled = peel_expanded(ability);
-    let (kind, ron_type, authored_view, tag, rendering_ability) = match peeled {
+    let (kind, ron_type, semantic_view, tag, rendering_ability) = match peeled {
         Ability::Keyword(k) => (
             FragmentKind::KeywordLine,
             "KeywordAbility",
@@ -595,7 +595,7 @@ fn testable_line(
                 "OneShotEffect",
                 guard::normalized(t.effect.clone()),
                 "Triggered-effect",
-                Ability::Spell(std::sync::Arc::new(deckmaste_authoring::SpellAbility {
+                Ability::Spell(std::sync::Arc::new(deckmaste_semantics::SpellAbility {
                     ability_word: None,
                     effect: t.effect.clone(),
                 })),
@@ -629,7 +629,7 @@ fn testable_line(
         kind,
         text,
         ron_type,
-        authored_view,
+        semantic_view,
     })
 }
 
@@ -734,7 +734,7 @@ enum G4Outcome {
         /// *still* a divergence, not an exclusion (see [`evaluate_g4`]'s
         /// doc): the population is "unify's to a non-Residual" at the top
         /// level, full stop, and a recovery that is provably incomplete
-        /// cannot be asserted equal to the fully concrete authored value.
+        /// cannot be asserted equal to the fully concrete semantic value.
         ///
         /// `Some` on every other divergence, where the recovery *does* denote
         /// a value and this is its RON text — shown for the reader, never
@@ -816,10 +816,10 @@ fn evaluate_g4(recovered: &Recovered, line: &Line, macros: &MacroSet) -> G4Outco
     };
     match recovered.to_ron(macros) {
         Ok(ron_text) => match guard::normalize_source(macros, line.ron_type, &ron_text) {
-            Ok(recovered_view) if recovered_view == line.authored_view => G4Outcome::Equal,
+            Ok(recovered_view) if recovered_view == line.semantic_view => G4Outcome::Equal,
             Ok(_) => G4Outcome::Diverged {
                 recovered_ron: Some(ron_text),
-                reason: "expands to a different normal form than the authored RON".to_string(),
+                reason: "expands to a different normal form than the semantic RON".to_string(),
             },
             Err(error) => G4Outcome::Diverged {
                 recovered_ron: Some(ron_text),
@@ -1182,7 +1182,7 @@ mod tests {
             kind: FragmentKind::Sentence,
             text: "fixture line".to_string(),
             ron_type: "OneShotEffect",
-            authored_view: View::Absent,
+            semantic_view: View::Absent,
         };
         let result = |g3| LineResult {
             line: &line,
@@ -1267,20 +1267,20 @@ mod tests {
     // G4 compares values, not spellings.
     // -----------------------------------------------------------------
 
-    /// A line whose authored value is `authored`, read at `ron_type`.
+    /// A line whose semantic value is `semantic`, read at `ron_type`.
     /// Everything else is diagnostic-only: [`evaluate_g4`] reads exactly
-    /// `ron_type` and `authored_view`.
-    fn line_authored(ron_type: &'static str, authored: &str) -> Line {
-        let authored_view = guard::normalize_source(guard::core_reader(), ron_type, authored)
-            .unwrap_or_else(|error| panic!("normalizing {authored} as {ron_type}: {error:#}"));
+    /// `ron_type` and `semantic_view`.
+    fn line_semantic(ron_type: &'static str, semantic: &str) -> Line {
+        let semantic_view = guard::normalize_source(guard::core_reader(), ron_type, semantic)
+            .unwrap_or_else(|error| panic!("normalizing {semantic} as {ron_type}: {error:#}"));
         Line {
-            label: format!("<fixture>: {authored}"),
+            label: format!("<fixture>: {semantic}"),
             name: String::new(),
             is_legendary: false,
             kind: FragmentKind::Sentence,
             text: String::new(),
             ron_type,
-            authored_view,
+            semantic_view,
         }
     }
 
@@ -1316,7 +1316,7 @@ mod tests {
             "the spellings really do differ"
         );
 
-        let line = line_authored("OneShotEffect", "ChangeLife(You, Up(3))");
+        let line = line_semantic("OneShotEffect", "ChangeLife(You, Up(3))");
         assert!(
             matches!(
                 evaluate_g4(&recovered, &line, guard::core_reader()),
@@ -1328,10 +1328,10 @@ mod tests {
 
         // And it is a comparison, not an acceptance: a recovery denoting a
         // different value still diverges.
-        let other = line_authored("OneShotEffect", "ChangeLife(You, Up(4))");
+        let other = line_semantic("OneShotEffect", "ChangeLife(You, Up(4))");
         assert_eq!(
             g4_label(&evaluate_g4(&recovered, &other, guard::core_reader())),
-            "diverged: expands to a different normal form than the authored RON",
+            "diverged: expands to a different normal form than the semantic RON",
         );
     }
 
@@ -1352,7 +1352,7 @@ mod tests {
             body: Some("ChangeLife(Param(0), Up(Literal(Param(1))))".to_string()),
             ambiguities: Vec::new(),
         };
-        let line = line_authored("OneShotEffect", "ChangeLife(You, Up(3))");
+        let line = line_semantic("OneShotEffect", "ChangeLife(You, Up(3))");
         let G4Outcome::Diverged {
             recovered_ron,
             reason,

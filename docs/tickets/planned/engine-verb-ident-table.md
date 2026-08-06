@@ -7,7 +7,7 @@ vocabulary.** There are 51 `as_str() == "…"` sites in
 `Destroy`, `Draw`, `Mill`, `Discard`, and `DayNight`/`Day`/`Night`. A typo at a
 call site silently disables behavior.
 
-Inventory the sites and separate open-ended authored-name comparisons from
+Inventory the sites and separate open-ended semantic-name comparisons from
 the closed set of verbs the engine assigns semantics. Introduce one
 `EngineVerb`-style enum/table for the closed set, with a single tested mapping
 to interned `Ident` spellings, and route production dispatch through typed

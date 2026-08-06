@@ -11,11 +11,11 @@ workspace = true
 anyhow = { version = "1.0.102" }
 deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
-# The authored rules grammar: the loader parses THIS, and the macro
-# configuration (kinds, param types) is the authoring crate's, not a second
-# copy over core types (docs/decisions/authoring-spelling-lowering.md §1).
-deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
-# The one-way compile authored → engine. The loader owns the erasure point:
+# The semantics rules grammar: the loader parses THIS, and the macro
+# configuration (kinds, param types) is the semantics crate's, not a second
+# copy over core types (docs/decisions/semantics-spelling-lowering.md §1).
+deckmaste_semantics = { version = "0.1.0", path = "../deckmaste_semantics" }
+# The one-way compile semantics → engine. The loader owns the erasure point:
 # `lower` is called here and nowhere upstream of here.
 deckmaste_lowering = { version = "0.1.0", path = "../deckmaste_lowering" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }

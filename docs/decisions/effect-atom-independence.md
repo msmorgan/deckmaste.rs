@@ -10,7 +10,7 @@ cardinality, or rendered representation.
 
 Independent atoms compose across ability shapes and target counts. Reading
 enclosing state to repair an underspecified atom creates hidden coupling and
-turns one authored shape into an engine special case.
+turns one semantic shape into an engine special case.
 
 ## Consequences
 

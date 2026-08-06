@@ -1,10 +1,10 @@
-//! `binder` — authored grammar to engine AST.
+//! `binder` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Binder {
+impl Lower for deckmaste_semantics::Binder {
     type Target = deckmaste_core::Binder;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -53,8 +53,8 @@ impl Lower for deckmaste_authoring::Binder {
                 if_none: if_none.lower(),
             },
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn lowers_binder_the_ref() {
         assert_matches!(
-            deckmaste_authoring::Binder::TheRef(minimal_reference()).lower(),
+            deckmaste_semantics::Binder::TheRef(minimal_reference()).lower(),
             deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This)
         );
     }
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn lowers_binder_choose_one() {
         assert_matches!(
-            deckmaste_authoring::Binder::ChooseOne {
+            deckmaste_semantics::Binder::ChooseOne {
                 filter: minimal_predicate(),
                 by: minimal_reference()
             }
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn lowers_binder_produce() {
         assert_matches!(
-            deckmaste_authoring::Binder::Produce(std::sync::Arc::new(minimal_action())).lower(),
+            deckmaste_semantics::Binder::Produce(std::sync::Arc::new(minimal_action())).lower(),
             deckmaste_core::Binder::Produce(_)
         );
     }
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn lowers_binder_search_one() {
         assert_matches!(
-            deckmaste_authoring::Binder::SearchOne {
+            deckmaste_semantics::Binder::SearchOne {
                 filter: minimal_predicate(),
                 by: minimal_reference(),
                 whose: minimal_reference(),
@@ -130,7 +130,7 @@ mod tests {
     #[test]
     fn lowers_binder_choose() {
         assert_matches!(
-            deckmaste_authoring::Binder::Choose {
+            deckmaste_semantics::Binder::Choose {
                 quantity: minimal_quantity(),
                 filter: minimal_predicate(),
                 by: minimal_reference()
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn lowers_binder_existing() {
         assert_matches!(
-            deckmaste_authoring::Binder::Existing(minimal_selection()).lower(),
+            deckmaste_semantics::Binder::Existing(minimal_selection()).lower(),
             deckmaste_core::Binder::Existing(deckmaste_core::Selection::SelectAll(
                 deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
             ))
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn lowers_binder_search() {
         assert_matches!(
-            deckmaste_authoring::Binder::Search {
+            deckmaste_semantics::Binder::Search {
                 quantity: minimal_quantity(),
                 filter: minimal_predicate(),
                 by: minimal_reference(),
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn lowers_binder_expanded() {
         assert_matches!(
-            deckmaste_authoring::Binder::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Binder::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,

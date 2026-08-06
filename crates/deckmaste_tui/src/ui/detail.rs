@@ -1,6 +1,6 @@
 //! The detail pane's text. An object's printed face plus its *derived*
 //! [`Characteristics`](deckmaste_engine::Characteristics) are raised back to
-//! AUTHORED terms through the load-time provenance index, bridged into a
+//! SEMANTIC terms through the load-time provenance index, bridged into a
 //! [`CardView`] and run through the engine-free `deckmaste_legacy_render`
 //! renderer, so the pane shows real rules text over the live (pumped, animated,
 //! control-changed) object — not the printed encoding.
@@ -10,8 +10,6 @@
 //! prose, but it must not quietly show a shorter card than the object has.
 use std::fmt::Write as _;
 
-use deckmaste_authoring::Expand;
-use deckmaste_authoring::StatValue as AuthoredStatValue;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LayeredView;
 use deckmaste_engine::ObjectId;
@@ -22,6 +20,8 @@ use deckmaste_legacy_render::render::CardView;
 use deckmaste_legacy_render::render::RenderedCard;
 use deckmaste_legacy_render::render::render as render_card_view;
 use deckmaste_plugin::provenance::raise_supertype;
+use deckmaste_semantics::Expand;
+use deckmaste_semantics::StatValue as SemanticStatValue;
 use ratatui::text::Text;
 
 use crate::game::ProvenanceRefs;
@@ -59,14 +59,14 @@ fn object_detail(
     let printed = face(state.def(id));
     let chars = view.get(id);
 
-    // The renderer reads AUTHORED terms; `chars` is derived engine state and is
+    // The renderer reads SEMANTIC terms; `chars` is derived engine state and is
     // core-typed in every field. Raise it component-wise through the load-time
-    // index rather than substituting the printed authored card — a pumped,
+    // index rather than substituting the printed semantic card — a pumped,
     // animated, type-changed object is exactly what this pane exists to show,
     // so the derived values are the ones that must survive.
     //
-    // Every component is expected to have an authored preimage: abilities are
-    // printed (`lower` of an authored one), granted (a verbatim clone,
+    // Every component is expected to have a semantic preimage: abilities are
+    // printed (`lower` of a semantic one), granted (a verbatim clone,
     // [CR#613.1f]) or conferred (from the registry); subtypes and card types
     // are clones of registry entries; supertypes are a closed enum. A miss is
     // not an error, but it is never silent: the unraised core value is kept
@@ -91,17 +91,17 @@ fn object_detail(
     });
 
     // Name and mana cost aren't derived characteristics. The cost comes from
-    // the authored card via the companion table; a token has no authored card
+    // the semantic card via the companion table; a token has no semantic card
     // and no cost, which is the `None` this resolves to. Power/toughness derive
     // to concrete numbers — lift them back into the `StatValue` `CardView`
-    // wants, now the authored one.
-    let authored = card_id(state, id).and_then(|c| provenance.cards.get(c));
-    let authored_face = authored.map(|c| authored_front_face(c));
-    let power = chars.power.map(AuthoredStatValue::Number);
-    let toughness = chars.toughness.map(AuthoredStatValue::Number);
+    // wants, now the semantic one.
+    let semantic = card_id(state, id).and_then(|c| provenance.cards.get(c));
+    let semantic_face = semantic.map(|c| semantic_front_face(c));
+    let power = chars.power.map(SemanticStatValue::Number);
+    let toughness = chars.toughness.map(SemanticStatValue::Number);
     let card_view = CardView {
         name: &printed.name,
-        mana_cost: authored_face.map(|f| &f.mana_cost),
+        mana_cost: semantic_face.map(|f| &f.mana_cost),
         supertypes: &supertypes,
         types: &types,
         subtypes: &subtypes,
@@ -113,7 +113,7 @@ fn object_detail(
     // Remembered macro invocations carry templates that usually produce the
     // best prose. If any rule still falls back to Debug output, rerender the
     // whole card without that provenance so the marker describes concrete,
-    // recursively expanded grammar instead of the authored macro spelling.
+    // recursively expanded grammar instead of the semantic macro spelling.
     if card.rules.iter().any(|rule| rule.contains("[unrendered")) {
         let expanded_abilities = abilities
             .iter()
@@ -135,7 +135,7 @@ fn object_detail(
 
 /// The visible form of a provenance miss: the core value's `Debug`, truncated.
 ///
-/// Deliberately not prose. The pane has no authored term for this value, and
+/// Deliberately not prose. The pane has no semantic term for this value, and
 /// inventing one would be worse than saying so; `Debug` at least identifies
 /// WHICH value went unrecovered. Truncated because a derived ability's `Debug`
 /// can run to thousands of characters and would push the rest of the card off
@@ -150,7 +150,7 @@ fn unrendered_marker(value: &impl std::fmt::Debug) -> String {
     }
 }
 
-/// Raises each derived value to its authored term, collecting the misses into
+/// Raises each derived value to its semantic term, collecting the misses into
 /// `unraised` as marker lines. A partition, not a filter: dropping a miss would
 /// make the pane render a shorter card than the object actually is.
 fn raise<'a, C, A>(
@@ -165,7 +165,7 @@ where
     let mut raised = Vec::new();
     for value in derived {
         match lookup(value) {
-            Some(authored) => raised.push(authored.clone()),
+            Some(semantic) => raised.push(semantic.clone()),
             None => unraised.push(unrendered_marker(value)),
         }
     }
@@ -183,11 +183,11 @@ fn card_id(state: &GameState, id: ObjectId) -> Option<deckmaste_engine::CardId> 
     }
 }
 
-/// The authored front face — the one whose printed cost the pane shows.
-fn authored_front_face(card: &deckmaste_authoring::Card) -> &deckmaste_authoring::CardFace {
+/// The semantic front face — the one whose printed cost the pane shows.
+fn semantic_front_face(card: &deckmaste_semantics::Card) -> &deckmaste_semantics::CardFace {
     match card {
-        deckmaste_authoring::Card::Normal(f) => f,
-        deckmaste_authoring::Card::TwoFaced { front, .. } => front,
+        deckmaste_semantics::Card::Normal(f) => f,
+        deckmaste_semantics::Card::TwoFaced { front, .. } => front,
     }
 }
 
@@ -366,7 +366,7 @@ mod tests {
     /// registry's `Continuous(This, GainAbility(Keyword(Flying)))` into a
     /// continuous effect and pushes the payload verbatim ([CR#613.1f]). Nothing
     /// on the host card mentions it, so the index's counter entry is the only
-    /// thing that can raise it back to authored text.
+    /// thing that can raise it back to semantic text.
     #[test]
     #[cfg_attr(
         not(wizards_corpus),

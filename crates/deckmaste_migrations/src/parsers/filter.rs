@@ -260,7 +260,7 @@ pub(crate) fn is_subtype(word: &str) -> bool {
 /// A spell-subject phrase ("Goblin spells you cast", "creature spells") → a
 /// `Predicate` matching a SPELL on the stack ([CR#112.1] — a card on the
 /// stack). The `of` filter of a
-/// [`CostModifier`](deckmaste_authoring::StaticEffect) reducer/ taxer. Always
+/// [`CostModifier`](deckmaste_semantics::StaticEffect) reducer/ taxer. Always
 /// leads with `Kind(Spell)`; then one characteristic atom from the leading
 /// adjective (a card type, a color, or a catalog subtype); then, if the phrase
 /// ends "… you cast", `ControlledBy(Ref(You))` — the caster controls the spell

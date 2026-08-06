@@ -40,12 +40,12 @@ pub struct Plugin {
     /// value's **printed name** (what card values carry and the lint looks
     /// up), not the macro's registration ident; the two differ for names
     /// like "Time Lord"/`TimeLord`.
-    /// Authored provenance for everything this plugin's registries confer,
+    /// Semantic provenance for everything this plugin's registries confer,
     /// plus every token it defines and every predefined token ([CR#111.10]).
     ///
-    /// Built at load because that is the only moment the authored halves of
+    /// Built at load because that is the only moment the semantic halves of
     /// the registry values exist: `subtypes`/`types`/`counters` below keep the
-    /// LOWERED value, and the authored one is dropped right after `lower`. A
+    /// LOWERED value, and the semantic one is dropped right after `lower`. A
     /// conferred ability appears on no card, and a token's abilities reach an
     /// object through a `CardId` past the end of the card companion table, so
     /// this is their only indexing opportunity.
@@ -64,7 +64,7 @@ pub struct Plugin {
     pub types: HashMap<Ident, TypeDef>,
     /// The counter kinds defined by `macros/`, fully expanded — keyed by the
     /// counter's identity (`P1P1Counter`), which is what a `CounterRef`
-    /// resolves to. No load-time pass validates authored `CounterRef`s against
+    /// resolves to. No load-time pass validates semantic `CounterRef`s against
     /// this registry yet — only the Idris emitter flags unknown counter refs
     /// yet.
     pub counters: HashMap<Ident, Counter>,
@@ -303,7 +303,7 @@ impl Plugin {
         // fills the table — keyed by the value's printed name, which is
         // what card values carry and the lint looks up.
         for name in declared {
-            let subtype: deckmaste_authoring::Subtype = macros
+            let subtype: deckmaste_semantics::Subtype = macros
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding subtype `{name}`"))?;
             provenance.insert_subtype(&subtype);
@@ -315,7 +315,7 @@ impl Plugin {
         // table — keyed by the value's printed name, mirroring the subtype
         // expansion above exactly.
         for name in declared_types {
-            let type_def: deckmaste_authoring::TypeDef = macros
+            let type_def: deckmaste_semantics::TypeDef = macros
                 .read_str(name.as_str())
                 .with_context(|| format!("expanding type `{name}`"))?;
             provenance.insert_type_def(&type_def);
@@ -354,7 +354,7 @@ impl Plugin {
         card_path(&self.root, name)
     }
 
-    /// Reads and parses `cards/<name>.ron` as an authored card, with the
+    /// Reads and parses `cards/<name>.ron` as a semantic card, with the
     /// plugin's macros in scope, and lowers it to its engine image.
     ///
     /// This and its three siblings ([`Plugin::card_from_str`],
@@ -378,17 +378,17 @@ impl Plugin {
             .with_context(|| format!(r#"parsing "{}""#, path.display()))
     }
 
-    /// Reads an authored card from SOURCE TEXT rather than from the plugin's
+    /// Reads a semantic card from SOURCE TEXT rather than from the plugin's
     /// `cards/` directory — the entry test fixtures and the migration
     /// graduation path use. Same restriction, same erasure point.
     ///
     /// # Errors
     /// If the source doesn't expand to a card.
     pub fn card_from_str(&self, source: &str) -> anyhow::Result<LoadedCard> {
-        let authored: deckmaste_authoring::Card = self.macros.read_str(source)?;
+        let semantic: deckmaste_semantics::Card = self.macros.read_str(source)?;
         Ok(LoadedCard {
-            core: authored.clone().lower(),
-            authored,
+            core: semantic.clone().lower(),
+            semantic,
         })
     }
 
@@ -398,7 +398,7 @@ impl Plugin {
         token_path(&self.root, name)
     }
 
-    /// Reads and parses `tokens/<name>.ron` as an authored token, with the
+    /// Reads and parses `tokens/<name>.ron` as a semantic token, with the
     /// plugin's macros in scope, and lowers it to its engine image.
     ///
     /// # Errors
@@ -409,16 +409,16 @@ impl Plugin {
             .with_context(|| format!(r#"parsing "{}""#, path.display()))
     }
 
-    /// Reads an authored token from SOURCE TEXT rather than from the plugin's
+    /// Reads a semantic token from SOURCE TEXT rather than from the plugin's
     /// `tokens/` directory. Mirrors [`Plugin::card_from_str`].
     ///
     /// # Errors
     /// If the source doesn't expand to a token.
     pub fn token_from_str(&self, source: &str) -> anyhow::Result<LoadedToken> {
-        let authored: deckmaste_authoring::Token = self.macros.read_str(source)?;
+        let semantic: deckmaste_semantics::Token = self.macros.read_str(source)?;
         Ok(LoadedToken {
-            core: authored.clone().lower(),
-            authored,
+            core: semantic.clone().lower(),
+            semantic,
         })
     }
 }
@@ -428,7 +428,7 @@ impl Plugin {
 #[derive(Default)]
 struct Inherited {
     /// The prelude's registry provenance, carried down so a dependent plugin
-    /// can recover authored terms for subtypes it never declared itself.
+    /// can recover semantic terms for subtypes it never declared itself.
     provenance: crate::provenance::ProvenanceIndex,
     subtypes: HashMap<Ident, Subtype>,
     types: HashMap<Ident, TypeDef>,
@@ -466,7 +466,7 @@ fn verb_params(params: &crate::macros::Params) -> Vec<Ident> {
     }
 }
 
-/// The [`deckmaste_authoring::ParamShape`] a keyword macro's typed parameter
+/// The [`deckmaste_semantics::ParamShape`] a keyword macro's typed parameter
 /// signature spells ([CR#702] keyword one-liners): nothing, a `Count`, a
 /// `Cost`, `Count` then `Cost` (suspend/awaken), a `Predicate` (landwalk,
 /// hexproof-from), `Predicate` then `Cost` (splice), or a `String` name
@@ -474,7 +474,7 @@ fn verb_params(params: &crate::macros::Params) -> Vec<Ident> {
 /// keeping the arg vocabulary closed. Named single-param signatures
 /// (`{"from": Default(Predicate, Any)}`) map by their one value type. The
 /// caller lowers the result at the insert, like every other registry row.
-fn keyword_shape(params: &crate::macros::Params) -> Option<deckmaste_authoring::ParamShape> {
+fn keyword_shape(params: &crate::macros::Params) -> Option<deckmaste_semantics::ParamShape> {
     use crate::macros::Params;
     let names: Vec<&str> = match params {
         Params::Positional(list) => list.iter().map(|p| p.name.as_str()).collect(),
@@ -486,15 +486,15 @@ fn keyword_shape(params: &crate::macros::Params) -> Option<deckmaste_authoring::
         }
     };
     Some(match names.as_slice() {
-        [] => deckmaste_authoring::ParamShape::None,
-        ["Count"] => deckmaste_authoring::ParamShape::Counted,
-        ["Cost"] => deckmaste_authoring::ParamShape::Costed,
-        ["Count", "Cost"] | ["Cost", "Count"] => deckmaste_authoring::ParamShape::CountedCost,
-        ["Predicate"] => deckmaste_authoring::ParamShape::Predicated,
+        [] => deckmaste_semantics::ParamShape::None,
+        ["Count"] => deckmaste_semantics::ParamShape::Counted,
+        ["Cost"] => deckmaste_semantics::ParamShape::Costed,
+        ["Count", "Cost"] | ["Cost", "Count"] => deckmaste_semantics::ParamShape::CountedCost,
+        ["Predicate"] => deckmaste_semantics::ParamShape::Predicated,
         ["Predicate", "Cost"] | ["Cost", "Predicate"] => {
-            deckmaste_authoring::ParamShape::PredicatedCosted
+            deckmaste_semantics::ParamShape::PredicatedCosted
         }
-        ["String"] => deckmaste_authoring::ParamShape::Named,
+        ["String"] => deckmaste_semantics::ParamShape::Named,
         _ => return Option::None,
     })
 }
@@ -509,7 +509,7 @@ fn load_sba_rules(root: &Path, macros: &MacroSet) -> anyhow::Result<Vec<deckmast
     let mut rules = Vec::new();
     for path in ron_files_recursive(&dir)? {
         let source = read(&path)?;
-        let file: Vec<deckmaste_authoring::SbaRule> = macros
+        let file: Vec<deckmaste_semantics::SbaRule> = macros
             .read_str(&source)
             .with_context(|| format!(r#"loading SBA rules from "{}""#, path.display()))?;
         rules.extend(file.into_iter().map(Lower::lower));
@@ -531,7 +531,7 @@ fn load_conferral_rules(
     let mut rules = Vec::new();
     for path in ron_files_recursive(&dir)? {
         let source = read(&path)?;
-        let file: Vec<deckmaste_authoring::ConferralRule> = macros
+        let file: Vec<deckmaste_semantics::ConferralRule> = macros
             .read_str(&source)
             .with_context(|| format!(r#"loading conferral rules from "{}""#, path.display()))?;
         rules.extend(file.into_iter().map(Lower::lower));
@@ -553,7 +553,7 @@ fn load_damage_result_rules(
     let mut rules = Vec::new();
     for path in ron_files_recursive(&dir)? {
         let source = read(&path)?;
-        let file: Vec<deckmaste_authoring::DamageResultRule> = macros
+        let file: Vec<deckmaste_semantics::DamageResultRule> = macros
             .read_str(&source)
             .with_context(|| format!(r#"loading damage result rules from "{}""#, path.display()))?;
         rules.extend(file.into_iter().map(Lower::lower));
@@ -573,7 +573,7 @@ pub fn read(path: &Path) -> anyhow::Result<String> {
 
 /// Expands each declared counter, validating its body and filling the registry
 /// — keyed by the counter's identity (the `name` field, what a `CounterRef`
-/// resolves to). The authored form is indexed on the way past: a keyword
+/// resolves to). The semantic form is indexed on the way past: a keyword
 /// counter's grant appears on no card, so this is its only chance.
 fn expand_counters(
     macros: &MacroSet,
@@ -582,7 +582,7 @@ fn expand_counters(
     counters: &mut HashMap<Ident, Counter>,
 ) -> anyhow::Result<()> {
     for name in declared {
-        let counter: deckmaste_authoring::Counter = macros
+        let counter: deckmaste_semantics::Counter = macros
             .read_str(name.as_str())
             .with_context(|| format!("expanding counter `{name}`"))?;
         provenance.insert_counter(&counter);
@@ -600,7 +600,7 @@ fn expand_designations(
     designations: &mut HashMap<Ident, DesignationDecl>,
 ) -> anyhow::Result<()> {
     for name in declared {
-        let decl: deckmaste_authoring::DesignationDecl = macros
+        let decl: deckmaste_semantics::DesignationDecl = macros
             .read_str(name.as_str())
             .with_context(|| format!("expanding designation `{name}`"))?;
         let decl = decl.lower();
@@ -634,7 +634,7 @@ fn index_tokens(
     for path in ron_files_recursive(&root.join(TOKENS_DIR))? {
         match read(&path) {
             Err(e) => skipped.push((path, format!("reading: {e}"))),
-            Ok(source) => match macros.read_str::<deckmaste_authoring::Token>(&source) {
+            Ok(source) => match macros.read_str::<deckmaste_semantics::Token>(&source) {
                 Err(e) => skipped.push((path, format!("expanding: {e}"))),
                 Ok(token) => provenance.insert_token(&token),
             },

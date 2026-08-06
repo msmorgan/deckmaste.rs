@@ -1,8 +1,8 @@
-//! The one-way compile: `deckmaste_authoring` → `deckmaste_core` /
+//! The one-way compile: `deckmaste_semantics` → `deckmaste_core` /
 //! `deckmaste_card`.
 //!
 //! The only edge between the two grammars; neither depends on the other
-//! (`docs/decisions/authoring-spelling-lowering.md` §1, §9).
+//! (`docs/decisions/semantics-spelling-lowering.md` §1, §9).
 //!
 //! This crate is the divergence ledger: arms are identities while the grammars
 //! mirror each other, and any arm that stops being one carries its reason in
@@ -13,7 +13,7 @@ use std::sync::Arc;
 use macro_ron::ExpansionArgs;
 use macro_ron::Ident;
 
-/// The total map from an authored value to its engine image.
+/// The total map from a semantic value to its engine image.
 ///
 /// Every field lowers by calling `.lower()` on it, so no arm needs to know what
 /// type a field holds — which is what let the arms be scaffolded.
@@ -21,7 +21,7 @@ pub trait Lower {
     /// The engine-side type this lowers to.
     type Target;
 
-    /// Compile this authored value to its engine image.
+    /// Compile this semantic value to its engine image.
     fn lower(self) -> Self::Target;
 }
 
@@ -102,14 +102,14 @@ where
     A: Lower<Target = C> + serde::Serialize,
     C: serde::Serialize,
 {
-    let authored = deckmaste_authoring::ron::options()
+    let semantic = deckmaste_semantics::ron::options()
         .to_string(&value)
-        .expect("authored value serializes");
+        .expect("semantic value serializes");
     let lowered = deckmaste_core::ron::options()
         .to_string(&value.lower())
         .expect("lowered value serializes");
     assert_eq!(
-        authored, lowered,
+        semantic, lowered,
         "lowering changed the serialized form of this variant"
     );
 }

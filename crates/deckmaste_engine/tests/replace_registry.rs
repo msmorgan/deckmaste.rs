@@ -589,7 +589,7 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
     );
     // [CR#614.3]: the shield's subject is bound by an enclosing `With` as the
     // singular `That`; `create_shield` freezes that resolved identity (no
-    // authored `subject:` field).
+    // semantic `subject:` field).
     OneShotEffect::With(deckmaste_core::With {
         binder: deckmaste_core::Binder::TheRef(subject_ref),
         body: Arc::new(OneShotEffect::Act(Action::CreateReplacement {

@@ -1,15 +1,15 @@
-//! Authored provenance, recovered from a lowered value.
+//! Semantic provenance, recovered from a lowered value.
 //!
 //! Lowering erases macro-invocation provenance, so a core value carries no
 //! template and no invocation name
-//! (`docs/decisions/authoring-spelling-lowering.md` §12). This index is the
-//! replacement channel: it recovers the authored term a core value compiled
+//! (`docs/decisions/semantics-spelling-lowering.md` §12). This index is the
+//! replacement channel: it recovers the semantic term a core value compiled
 //! from, which is what the renderer needs to produce invocation prose.
 //!
 //! Keyed by VALUE, not by identity. A layer-6 grant pushes a verbatim clone of
 //! its `GainAbility` payload ([CR#613.1f]), so a granted ability is `Eq` to the
-//! authored one it came from; layer-3 text-changing is a documented empty slot,
-//! so nothing synthesizes an ability that was never authored.
+//! semantic one it came from; layer-3 text-changing is a documented empty slot,
+//! so nothing synthesizes an ability that had no semantic source.
 //!
 //! A miss is not an error, but it is never silent: the caller renders the
 //! unrecovered core value as a visible `[unrendered: …]` marker rather than
@@ -18,21 +18,21 @@
 
 use std::collections::HashMap;
 
-use deckmaste_authoring::AbilitySubterms as _;
 use deckmaste_core::Ident;
 use deckmaste_lowering::Lower as _;
+use deckmaste_semantics::AbilitySubterms as _;
 
-/// The authored term behind a lowered value.
+/// The semantic term behind a lowered value.
 #[derive(Debug, Clone, Default)]
 pub struct ProvenanceIndex {
-    abilities: HashMap<deckmaste_core::Ability, deckmaste_authoring::Ability>,
-    subtypes: HashMap<Ident, deckmaste_authoring::Subtype>,
-    type_defs: HashMap<Ident, deckmaste_authoring::TypeDef>,
+    abilities: HashMap<deckmaste_core::Ability, deckmaste_semantics::Ability>,
+    subtypes: HashMap<Ident, deckmaste_semantics::Subtype>,
+    type_defs: HashMap<Ident, deckmaste_semantics::TypeDef>,
 }
 
 impl ProvenanceIndex {
     /// Records every ability of every face, and everything nested inside them.
-    pub fn insert_card(&mut self, card: &deckmaste_authoring::Card) {
+    pub fn insert_card(&mut self, card: &deckmaste_semantics::Card) {
         let mut top = Vec::new();
         card.push_abilities(&mut top);
         for ability in top {
@@ -46,7 +46,7 @@ impl ProvenanceIndex {
     /// (`Cards::push_token` copies them into a synthesized card def), and the
     /// `CardId` it mints sits past the end of the companion table — so this
     /// index is the ONLY provenance a token permanent has.
-    pub fn insert_token(&mut self, token: &deckmaste_authoring::Token) {
+    pub fn insert_token(&mut self, token: &deckmaste_semantics::Token) {
         let mut top = Vec::new();
         token.abilities.push_abilities(&mut top);
         for ability in top {
@@ -61,12 +61,12 @@ impl ProvenanceIndex {
     /// reach it from a card (see `AbilitySubterms for TokenSpec`). The set is
     /// closed and cheap, so index all of it once.
     pub fn insert_predefined_tokens(&mut self) {
-        for predefined in deckmaste_authoring::PredefinedToken::ALL {
+        for predefined in deckmaste_semantics::PredefinedToken::ALL {
             self.insert_token(&predefined.token());
         }
     }
 
-    /// Records `authored` and, recursively, every ability nested inside it.
+    /// Records `semantic` and, recursively, every ability nested inside it.
     ///
     /// Pre-order, first-insert-wins. `Innate` and `Expanded` are look-through
     /// wrappers whose payload lowers to the SAME core ability the wrapper does
@@ -74,16 +74,16 @@ impl ProvenanceIndex {
     /// the invocation template. Inserting outermost-first and never overwriting
     /// keeps the spelling that renders best; reversing the order silently
     /// degrades prose without failing any type check.
-    fn insert_ability(&mut self, authored: &deckmaste_authoring::Ability) {
-        self.insert_ability_owned(authored.clone());
+    fn insert_ability(&mut self, semantic: &deckmaste_semantics::Ability) {
+        self.insert_ability_owned(semantic.clone());
     }
 
-    fn insert_ability_owned(&mut self, authored: deckmaste_authoring::Ability) {
-        let nested: Vec<deckmaste_authoring::Ability> =
-            authored.nested_abilities().into_iter().cloned().collect();
+    fn insert_ability_owned(&mut self, semantic: deckmaste_semantics::Ability) {
+        let nested: Vec<deckmaste_semantics::Ability> =
+            semantic.nested_abilities().into_iter().cloned().collect();
         self.abilities
-            .entry(authored.clone().lower())
-            .or_insert(authored);
+            .entry(semantic.clone().lower())
+            .or_insert(semantic);
         for child in nested {
             self.insert_ability_owned(child);
         }
@@ -97,23 +97,23 @@ impl ProvenanceIndex {
     /// projection the engine applies, `Innate` wrapper and all — indexing the
     /// raw payload instead would key the map on a value the engine never
     /// produces.
-    pub fn insert_subtype(&mut self, authored: &deckmaste_authoring::Subtype) {
-        for property in authored.confers.iter() {
+    pub fn insert_subtype(&mut self, semantic: &deckmaste_semantics::Subtype) {
+        for property in semantic.confers.iter() {
             if let Some(conferred) = property.conferred_ability() {
                 self.insert_ability_owned(conferred);
             }
         }
-        self.subtypes.insert(authored.name, authored.clone());
+        self.subtypes.insert(semantic.name, semantic.clone());
     }
 
     /// The type-def twin of [`insert_subtype`](Self::insert_subtype).
-    pub fn insert_type_def(&mut self, authored: &deckmaste_authoring::TypeDef) {
-        for property in authored.confers.iter() {
+    pub fn insert_type_def(&mut self, semantic: &deckmaste_semantics::TypeDef) {
+        for property in semantic.confers.iter() {
             if let Some(conferred) = property.conferred_ability() {
                 self.insert_ability_owned(conferred);
             }
         }
-        self.type_defs.insert(authored.name, authored.clone());
+        self.type_defs.insert(semantic.name, semantic.clone());
     }
 
     /// Records the abilities a counter kind confers.
@@ -125,9 +125,9 @@ impl ProvenanceIndex {
     /// no `Innate` wrapper, unlike [`insert_subtype`](Self::insert_subtype).
     /// Indexing the `conferred_ability` form here would key the map on a value
     /// the engine never produces.
-    pub fn insert_counter(&mut self, authored: &deckmaste_authoring::Counter) {
+    pub fn insert_counter(&mut self, semantic: &deckmaste_semantics::Counter) {
         let mut top = Vec::new();
-        authored.confers.push_abilities(&mut top);
+        semantic.confers.push_abilities(&mut top);
         for ability in top {
             self.insert_ability(ability);
         }
@@ -142,7 +142,7 @@ impl ProvenanceIndex {
     ///
     /// The ability map keeps this index's entry instead. It is not a registry
     /// and carries no plugin precedence: any preimage of a lowered ability is
-    /// semantically exact (`docs/decisions/authoring-spelling-lowering.md` §9),
+    /// semantically exact (`docs/decisions/semantics-spelling-lowering.md` §9),
     /// so the choice is a SPELLING preference, and the same first-insert-wins
     /// rule that keeps the outermost (template-carrying) form within one
     /// insertion keeps it across a fold.
@@ -158,16 +158,16 @@ impl ProvenanceIndex {
         }
     }
 
-    /// The authored ability a core ability compiled from, if it was indexed.
+    /// The semantic ability a core ability compiled from, if it was indexed.
     #[must_use]
-    pub fn ability(&self, core: &deckmaste_core::Ability) -> Option<&deckmaste_authoring::Ability> {
+    pub fn ability(&self, core: &deckmaste_core::Ability) -> Option<&deckmaste_semantics::Ability> {
         self.abilities.get(core)
     }
 
     /// Keyed by printed name: `deckmaste_core::Subtype` compares by name alone
     /// (`types`/`confers` ride along), so the name IS the identity here.
     #[must_use]
-    pub fn subtype(&self, core: &deckmaste_core::Subtype) -> Option<&deckmaste_authoring::Subtype> {
+    pub fn subtype(&self, core: &deckmaste_core::Subtype) -> Option<&deckmaste_semantics::Subtype> {
         self.subtypes.get(&core.name)
     }
 
@@ -176,7 +176,7 @@ impl ProvenanceIndex {
     pub fn type_def(
         &self,
         core: &deckmaste_core::TypeDef,
-    ) -> Option<&deckmaste_authoring::TypeDef> {
+    ) -> Option<&deckmaste_semantics::TypeDef> {
         self.type_defs.get(&core.name)
     }
 }
@@ -184,12 +184,12 @@ impl ProvenanceIndex {
 /// `Supertype` is a closed five-variant enum on both sides, so raising one is
 /// total and needs no index.
 #[must_use]
-pub fn raise_supertype(core: deckmaste_core::Supertype) -> deckmaste_authoring::Supertype {
+pub fn raise_supertype(core: deckmaste_core::Supertype) -> deckmaste_semantics::Supertype {
     match core {
-        deckmaste_core::Supertype::Basic => deckmaste_authoring::Supertype::Basic,
-        deckmaste_core::Supertype::Legendary => deckmaste_authoring::Supertype::Legendary,
-        deckmaste_core::Supertype::Ongoing => deckmaste_authoring::Supertype::Ongoing,
-        deckmaste_core::Supertype::Snow => deckmaste_authoring::Supertype::Snow,
-        deckmaste_core::Supertype::World => deckmaste_authoring::Supertype::World,
+        deckmaste_core::Supertype::Basic => deckmaste_semantics::Supertype::Basic,
+        deckmaste_core::Supertype::Legendary => deckmaste_semantics::Supertype::Legendary,
+        deckmaste_core::Supertype::Ongoing => deckmaste_semantics::Supertype::Ongoing,
+        deckmaste_core::Supertype::Snow => deckmaste_semantics::Supertype::Snow,
+        deckmaste_core::Supertype::World => deckmaste_semantics::Supertype::World,
     }
 }

@@ -96,7 +96,7 @@ pub enum Countable {
     /// feed (`Aggregate`/`CountOf`, never `CountDistinct`/`Pick` — those stay
     /// pinned to `Objects`/`Singleton`); the engine mirrors that by fizzling
     /// the ungated combinations rather than enforcing it at the Rust type
-    /// level (never-crash on an authoring mistake).
+    /// level (never-crash on a semantic-input error).
     Players(Arc<Predicate>),
     /// The mana symbols in a referenced object's mana cost, filtered by a
     /// [`SymbolPred`](crate::SymbolPred) ([CR#700.5] devotion) —

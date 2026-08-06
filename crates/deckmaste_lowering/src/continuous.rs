@@ -1,10 +1,10 @@
-//! `continuous` — authored grammar to engine AST.
+//! `continuous` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Duration {
+impl Lower for deckmaste_semantics::Duration {
     type Target = deckmaste_core::Duration;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -17,7 +17,7 @@ impl Lower for deckmaste_authoring::Duration {
     }
 }
 
-impl Lower for deckmaste_authoring::NumericOp {
+impl Lower for deckmaste_semantics::NumericOp {
     type Target = deckmaste_core::NumericOp;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -28,7 +28,7 @@ impl Lower for deckmaste_authoring::NumericOp {
     }
 }
 
-impl<T: Lower + Clone> Lower for deckmaste_authoring::CollectionOp<T> {
+impl<T: Lower + Clone> Lower for deckmaste_semantics::CollectionOp<T> {
     type Target = deckmaste_core::CollectionOp<<T as Lower>::Target>;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -39,7 +39,7 @@ impl<T: Lower + Clone> Lower for deckmaste_authoring::CollectionOp<T> {
     }
 }
 
-impl Lower for deckmaste_authoring::Modification {
+impl Lower for deckmaste_semantics::Modification {
     type Target = deckmaste_core::Modification;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -64,8 +64,8 @@ impl Lower for deckmaste_authoring::Modification {
             }
             Self::Several(f0) => deckmaste_core::Modification::Several(f0.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -73,7 +73,7 @@ impl Lower for deckmaste_authoring::Modification {
     }
 }
 
-impl Lower for deckmaste_authoring::CostChange {
+impl Lower for deckmaste_semantics::CostChange {
     type Target = deckmaste_core::CostChange;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -90,7 +90,7 @@ impl Lower for deckmaste_authoring::CostChange {
     }
 }
 
-impl Lower for deckmaste_authoring::StaticEffect {
+impl Lower for deckmaste_semantics::StaticEffect {
     type Target = deckmaste_core::StaticEffect;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -151,8 +151,8 @@ impl Lower for deckmaste_authoring::StaticEffect {
             },
             Self::PayPips(f0, f1) => deckmaste_core::StaticEffect::PayPips(f0.lower(), f1.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -160,7 +160,7 @@ impl Lower for deckmaste_authoring::StaticEffect {
     }
 }
 
-impl Lower for deckmaste_authoring::OutcomeGateKind {
+impl Lower for deckmaste_semantics::OutcomeGateKind {
     type Target = deckmaste_core::OutcomeGateKind;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -170,7 +170,7 @@ impl Lower for deckmaste_authoring::OutcomeGateKind {
     }
 }
 
-impl Lower for deckmaste_authoring::IgnoreRule {
+impl Lower for deckmaste_semantics::IgnoreRule {
     type Target = deckmaste_core::IgnoreRule;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -180,7 +180,7 @@ impl Lower for deckmaste_authoring::IgnoreRule {
     }
 }
 
-impl Lower for deckmaste_authoring::PipClass {
+impl Lower for deckmaste_semantics::PipClass {
     type Target = deckmaste_core::PipClass;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -190,7 +190,7 @@ impl Lower for deckmaste_authoring::PipClass {
     }
 }
 
-impl Lower for deckmaste_authoring::PayAct {
+impl Lower for deckmaste_semantics::PayAct {
     type Target = deckmaste_core::PayAct;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -200,7 +200,7 @@ impl Lower for deckmaste_authoring::PayAct {
     }
 }
 
-impl Lower for deckmaste_authoring::PlayerAttr {
+impl Lower for deckmaste_semantics::PlayerAttr {
     type Target = deckmaste_core::PlayerAttr;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -212,7 +212,7 @@ impl Lower for deckmaste_authoring::PlayerAttr {
     }
 }
 
-impl Lower for deckmaste_authoring::PlayerMod {
+impl Lower for deckmaste_semantics::PlayerMod {
     type Target = deckmaste_core::PlayerMod;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn lowers_duration_fixed_until() {
         assert_matches!(
-            deckmaste_authoring::Duration::FixedUntil(minimal_turn_marker()).lower(),
+            deckmaste_semantics::Duration::FixedUntil(minimal_turn_marker()).lower(),
             deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
         );
     }
@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn lowers_duration_until_event() {
         assert_matches!(
-            deckmaste_authoring::Duration::UntilEvent(minimal_event_filter()).lower(),
+            deckmaste_semantics::Duration::UntilEvent(minimal_event_filter()).lower(),
             deckmaste_core::Duration::UntilEvent(deckmaste_core::EventFilter::ZoneChange {
                 what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 from: None,
@@ -261,7 +261,7 @@ mod tests {
     #[test]
     fn lowers_duration_for_as_long_as() {
         assert_matches!(
-            deckmaste_authoring::Duration::ForAsLongAs(minimal_condition()).lower(),
+            deckmaste_semantics::Duration::ForAsLongAs(minimal_condition()).lower(),
             deckmaste_core::Duration::ForAsLongAs(deckmaste_core::Condition::Compare(
                 deckmaste_core::Count::X,
                 deckmaste_core::Cmp::Eq,
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn lowers_duration_for_this_event() {
         assert_matches!(
-            deckmaste_authoring::Duration::ForThisEvent.lower(),
+            deckmaste_semantics::Duration::ForThisEvent.lower(),
             deckmaste_core::Duration::ForThisEvent
         );
     }
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn lowers_duration_end_of_game() {
         assert_matches!(
-            deckmaste_authoring::Duration::EndOfGame.lower(),
+            deckmaste_semantics::Duration::EndOfGame.lower(),
             deckmaste_core::Duration::EndOfGame
         );
     }
@@ -289,7 +289,7 @@ mod tests {
     #[test]
     fn lowers_numeric_op_set() {
         assert_matches!(
-            deckmaste_authoring::NumericOp::Set(minimal_stat_value()).lower(),
+            deckmaste_semantics::NumericOp::Set(minimal_stat_value()).lower(),
             deckmaste_core::NumericOp::Set(deckmaste_core::StatValue::DefinedByAbility)
         );
     }
@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn lowers_numeric_op_up() {
         assert_matches!(
-            deckmaste_authoring::NumericOp::Up(minimal_count()).lower(),
+            deckmaste_semantics::NumericOp::Up(minimal_count()).lower(),
             deckmaste_core::NumericOp::Up(deckmaste_core::Count::X)
         );
     }
@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn lowers_numeric_op_down() {
         assert_matches!(
-            deckmaste_authoring::NumericOp::Down(minimal_count()).lower(),
+            deckmaste_semantics::NumericOp::Down(minimal_count()).lower(),
             deckmaste_core::NumericOp::Down(deckmaste_core::Count::X)
         );
     }
@@ -313,7 +313,7 @@ mod tests {
     #[test]
     fn lowers_collection_op_set() {
         assert_matches!(
-            deckmaste_authoring::CollectionOp::<deckmaste_authoring::Color>::Set([].into()).lower(),
+            deckmaste_semantics::CollectionOp::<deckmaste_semantics::Color>::Set([].into()).lower(),
             deckmaste_core::CollectionOp::Set(_)
         );
     }
@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn lowers_collection_op_add() {
         assert_matches!(
-            deckmaste_authoring::CollectionOp::<deckmaste_authoring::Color>::Add(minimal_color())
+            deckmaste_semantics::CollectionOp::<deckmaste_semantics::Color>::Add(minimal_color())
                 .lower(),
             deckmaste_core::CollectionOp::Add(_)
         );
@@ -329,13 +329,13 @@ mod tests {
 
     #[test]
     fn lowers_collection_op_remove() {
-        assert_matches!(deckmaste_authoring::CollectionOp::<deckmaste_authoring::Color>::Remove(minimal_color()).lower(), deckmaste_core::CollectionOp::Remove(_));
+        assert_matches!(deckmaste_semantics::CollectionOp::<deckmaste_semantics::Color>::Remove(minimal_color()).lower(), deckmaste_core::CollectionOp::Remove(_));
     }
 
     #[test]
     fn lowers_modification_power() {
         assert_matches!(
-            deckmaste_authoring::Modification::Power(minimal_numeric_op()).lower(),
+            deckmaste_semantics::Modification::Power(minimal_numeric_op()).lower(),
             deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
                 deckmaste_core::StatValue::DefinedByAbility
             ))
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn lowers_modification_toughness() {
         assert_matches!(
-            deckmaste_authoring::Modification::Toughness(minimal_numeric_op()).lower(),
+            deckmaste_semantics::Modification::Toughness(minimal_numeric_op()).lower(),
             deckmaste_core::Modification::Toughness(deckmaste_core::NumericOp::Set(
                 deckmaste_core::StatValue::DefinedByAbility
             ))
@@ -355,7 +355,7 @@ mod tests {
     #[test]
     fn lowers_modification_switch_power_toughness() {
         assert_matches!(
-            deckmaste_authoring::Modification::SwitchPowerToughness.lower(),
+            deckmaste_semantics::Modification::SwitchPowerToughness.lower(),
             deckmaste_core::Modification::SwitchPowerToughness
         );
     }
@@ -363,8 +363,8 @@ mod tests {
     #[test]
     fn lowers_modification_colors() {
         assert_matches!(
-            deckmaste_authoring::Modification::Colors(minimal_collection_op::<
-                deckmaste_authoring::Color,
+            deckmaste_semantics::Modification::Colors(minimal_collection_op::<
+                deckmaste_semantics::Color,
             >())
             .lower(),
             deckmaste_core::Modification::Colors(deckmaste_core::CollectionOp::Set(_))
@@ -374,8 +374,8 @@ mod tests {
     #[test]
     fn lowers_modification_card_types() {
         assert_matches!(
-            deckmaste_authoring::Modification::CardTypes(minimal_collection_op::<
-                deckmaste_authoring::Ident,
+            deckmaste_semantics::Modification::CardTypes(minimal_collection_op::<
+                deckmaste_semantics::Ident,
             >())
             .lower(),
             deckmaste_core::Modification::CardTypes(deckmaste_core::CollectionOp::Set(_))
@@ -385,8 +385,8 @@ mod tests {
     #[test]
     fn lowers_modification_subtypes() {
         assert_matches!(
-            deckmaste_authoring::Modification::Subtypes(minimal_collection_op::<
-                deckmaste_authoring::SubtypeRef,
+            deckmaste_semantics::Modification::Subtypes(minimal_collection_op::<
+                deckmaste_semantics::SubtypeRef,
             >())
             .lower(),
             deckmaste_core::Modification::Subtypes(deckmaste_core::CollectionOp::Set(_))
@@ -396,8 +396,8 @@ mod tests {
     #[test]
     fn lowers_modification_supertypes() {
         assert_matches!(
-            deckmaste_authoring::Modification::Supertypes(minimal_collection_op::<
-                deckmaste_authoring::Supertype,
+            deckmaste_semantics::Modification::Supertypes(minimal_collection_op::<
+                deckmaste_semantics::Supertype,
             >())
             .lower(),
             deckmaste_core::Modification::Supertypes(deckmaste_core::CollectionOp::Set(_))
@@ -407,7 +407,7 @@ mod tests {
     #[test]
     fn lowers_modification_gain_ability() {
         assert_matches!(
-            deckmaste_authoring::Modification::GainAbility(std::sync::Arc::new(minimal_ability()))
+            deckmaste_semantics::Modification::GainAbility(std::sync::Arc::new(minimal_ability()))
                 .lower(),
             deckmaste_core::Modification::GainAbility(_)
         );
@@ -416,7 +416,7 @@ mod tests {
     #[test]
     fn lowers_modification_lose_ability() {
         assert_matches!(
-            deckmaste_authoring::Modification::LoseAbility("X".into()).lower(),
+            deckmaste_semantics::Modification::LoseAbility("X".into()).lower(),
             deckmaste_core::Modification::LoseAbility(_)
         );
     }
@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn lowers_modification_lose_all_abilities() {
         assert_matches!(
-            deckmaste_authoring::Modification::LoseAllAbilities.lower(),
+            deckmaste_semantics::Modification::LoseAllAbilities.lower(),
             deckmaste_core::Modification::LoseAllAbilities
         );
     }
@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn lowers_modification_cant_have_ability() {
         assert_matches!(
-            deckmaste_authoring::Modification::CantHaveAbility("X".into()).lower(),
+            deckmaste_semantics::Modification::CantHaveAbility("X".into()).lower(),
             deckmaste_core::Modification::CantHaveAbility(_)
         );
     }
@@ -440,7 +440,7 @@ mod tests {
     #[test]
     fn lowers_modification_set_controller() {
         assert_matches!(
-            deckmaste_authoring::Modification::SetController(minimal_reference()).lower(),
+            deckmaste_semantics::Modification::SetController(minimal_reference()).lower(),
             deckmaste_core::Modification::SetController(deckmaste_core::Reference::This)
         );
     }
@@ -448,7 +448,7 @@ mod tests {
     #[test]
     fn lowers_modification_set_text() {
         assert_matches!(
-            deckmaste_authoring::Modification::SetText(String::new()).lower(),
+            deckmaste_semantics::Modification::SetText(String::new()).lower(),
             deckmaste_core::Modification::SetText(_)
         );
     }
@@ -456,7 +456,7 @@ mod tests {
     #[test]
     fn lowers_modification_all_creature_types() {
         assert_matches!(
-            deckmaste_authoring::Modification::AllCreatureTypes.lower(),
+            deckmaste_semantics::Modification::AllCreatureTypes.lower(),
             deckmaste_core::Modification::AllCreatureTypes
         );
     }
@@ -464,7 +464,7 @@ mod tests {
     #[test]
     fn lowers_modification_base_loyalty() {
         assert_matches!(
-            deckmaste_authoring::Modification::BaseLoyalty(minimal_numeric_op()).lower(),
+            deckmaste_semantics::Modification::BaseLoyalty(minimal_numeric_op()).lower(),
             deckmaste_core::Modification::BaseLoyalty(deckmaste_core::NumericOp::Set(
                 deckmaste_core::StatValue::DefinedByAbility
             ))
@@ -474,7 +474,7 @@ mod tests {
     #[test]
     fn lowers_modification_base_defense() {
         assert_matches!(
-            deckmaste_authoring::Modification::BaseDefense(minimal_numeric_op()).lower(),
+            deckmaste_semantics::Modification::BaseDefense(minimal_numeric_op()).lower(),
             deckmaste_core::Modification::BaseDefense(deckmaste_core::NumericOp::Set(
                 deckmaste_core::StatValue::DefinedByAbility
             ))
@@ -484,7 +484,7 @@ mod tests {
     #[test]
     fn lowers_modification_become_basic_land_type() {
         assert_matches!(
-            deckmaste_authoring::Modification::BecomeBasicLandType([].into()).lower(),
+            deckmaste_semantics::Modification::BecomeBasicLandType([].into()).lower(),
             deckmaste_core::Modification::BecomeBasicLandType(_)
         );
     }
@@ -492,7 +492,7 @@ mod tests {
     #[test]
     fn lowers_modification_several() {
         assert_matches!(
-            deckmaste_authoring::Modification::Several([].into()).lower(),
+            deckmaste_semantics::Modification::Several([].into()).lower(),
             deckmaste_core::Modification::Several(_)
         );
     }
@@ -500,7 +500,7 @@ mod tests {
     #[test]
     fn lowers_modification_expanded() {
         assert_matches!(
-            deckmaste_authoring::Modification::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Modification::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,
@@ -516,7 +516,7 @@ mod tests {
     #[test]
     fn lowers_cost_change_increase() {
         assert_matches!(
-            deckmaste_authoring::CostChange::Increase([].into()).lower(),
+            deckmaste_semantics::CostChange::Increase([].into()).lower(),
             deckmaste_core::CostChange::Increase(_)
         );
     }
@@ -524,7 +524,7 @@ mod tests {
     #[test]
     fn lowers_cost_change_reduce() {
         assert_matches!(
-            deckmaste_authoring::CostChange::Reduce([].into()).lower(),
+            deckmaste_semantics::CostChange::Reduce([].into()).lower(),
             deckmaste_core::CostChange::Reduce(_)
         );
     }
@@ -532,7 +532,7 @@ mod tests {
     #[test]
     fn lowers_cost_change_additional() {
         assert_matches!(
-            deckmaste_authoring::CostChange::Additional {
+            deckmaste_semantics::CostChange::Additional {
                 components: [].into()
             }
             .lower(),
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn lowers_cost_change_scaled() {
         assert_matches!(
-            deckmaste_authoring::CostChange::Scaled {
+            deckmaste_semantics::CostChange::Scaled {
                 change: std::sync::Arc::new(minimal_cost_change()),
                 times: minimal_count()
             }
@@ -558,7 +558,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_modify() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::Modify(minimal_reference(), minimal_modification())
+            deckmaste_semantics::StaticEffect::Modify(minimal_reference(), minimal_modification())
                 .lower(),
             deckmaste_core::StaticEffect::Modify(
                 deckmaste_core::Reference::This,
@@ -572,7 +572,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_becomes_copy() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::BecomesCopy(
+            deckmaste_semantics::StaticEffect::BecomesCopy(
                 minimal_reference(),
                 minimal_copy_spec()
             )
@@ -590,7 +590,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_each() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::Each(
+            deckmaste_semantics::StaticEffect::Each(
                 minimal_selection(),
                 std::sync::Arc::new(minimal_static_effect())
             )
@@ -607,7 +607,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_conditionally() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::Conditionally(
+            deckmaste_semantics::StaticEffect::Conditionally(
                 minimal_condition(),
                 std::sync::Arc::new(minimal_static_effect())
             )
@@ -626,7 +626,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_deontic() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::Deontic(minimal_deontic()).lower(),
+            deckmaste_semantics::StaticEffect::Deontic(minimal_deontic()).lower(),
             deckmaste_core::StaticEffect::Deontic(deckmaste_core::Deontic::May(
                 deckmaste_core::DeonticAction::Attack {
                     by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
@@ -639,7 +639,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_cost_modifier() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::CostModifier {
+            deckmaste_semantics::StaticEffect::CostModifier {
                 of: minimal_predicate(),
                 change: minimal_cost_change()
             }
@@ -654,7 +654,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_cost_option() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::CostOption(minimal_optional_cost()).lower(),
+            deckmaste_semantics::StaticEffect::CostOption(minimal_optional_cost()).lower(),
             deckmaste_core::StaticEffect::CostOption(deckmaste_core::OptionalCost {
                 components: _,
                 tag: deckmaste_core::CostTag(_),
@@ -666,7 +666,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_trigger_multiplier() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::TriggerMultiplier {
+            deckmaste_semantics::StaticEffect::TriggerMultiplier {
                 cause: minimal_event_filter(),
                 extra: minimal_count(),
                 affected: minimal_predicate()
@@ -688,7 +688,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_modify_player() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::ModifyPlayer(
+            deckmaste_semantics::StaticEffect::ModifyPlayer(
                 minimal_reference(),
                 minimal_player_mod()
             )
@@ -706,7 +706,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_replacement() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::Replacement(std::sync::Arc::new(
+            deckmaste_semantics::StaticEffect::Replacement(std::sync::Arc::new(
                 minimal_replacement()
             ))
             .lower(),
@@ -717,7 +717,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_prevention() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::Prevention(
+            deckmaste_semantics::StaticEffect::Prevention(
                 std::sync::Arc::new(minimal_prevention())
             )
             .lower(),
@@ -728,7 +728,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_cant_prevent() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::CantPrevent {
+            deckmaste_semantics::StaticEffect::CantPrevent {
                 from: minimal_predicate(),
                 to: minimal_predicate()
             }
@@ -743,7 +743,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_spend_as_though() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::SpendAsThough {
+            deckmaste_semantics::StaticEffect::SpendAsThough {
                 mana_from: minimal_predicate(),
                 as_: minimal_symbol_pred()
             }
@@ -758,7 +758,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_as_though() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::AsThough(minimal_as_though()).lower(),
+            deckmaste_semantics::StaticEffect::AsThough(minimal_as_though()).lower(),
             deckmaste_core::StaticEffect::AsThough(deckmaste_core::AsThough::Counterfactual {
                 premise: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 then: _
@@ -769,7 +769,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_sba() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::Sba {
+            deckmaste_semantics::StaticEffect::Sba {
                 when: std::sync::Arc::new(minimal_condition()),
                 then: std::sync::Arc::new(minimal_one_shot_effect())
             }
@@ -781,7 +781,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_outcome_gate() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::OutcomeGate {
+            deckmaste_semantics::StaticEffect::OutcomeGate {
                 who: minimal_predicate(),
                 gate: minimal_outcome_gate_kind()
             }
@@ -796,7 +796,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_cant_happen() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::CantHappen(minimal_event_filter()).lower(),
+            deckmaste_semantics::StaticEffect::CantHappen(minimal_event_filter()).lower(),
             deckmaste_core::StaticEffect::CantHappen(deckmaste_core::EventFilter::ZoneChange {
                 what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 from: None,
@@ -809,7 +809,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_replace_roll() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::ReplaceRoll {
+            deckmaste_semantics::StaticEffect::ReplaceRoll {
                 query: minimal_event_filter(),
                 extra: minimal_count(),
                 ignore: minimal_ignore_rule()
@@ -831,7 +831,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_pay_pips() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::PayPips(minimal_pip_class(), minimal_pay_act())
+            deckmaste_semantics::StaticEffect::PayPips(minimal_pip_class(), minimal_pay_act())
                 .lower(),
             deckmaste_core::StaticEffect::PayPips(
                 deckmaste_core::PipClass::Generic,
@@ -845,7 +845,7 @@ mod tests {
     #[test]
     fn lowers_static_effect_expanded() {
         assert_matches!(
-            deckmaste_authoring::StaticEffect::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::StaticEffect::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,
@@ -864,7 +864,7 @@ mod tests {
     #[test]
     fn lowers_outcome_gate_kind_cant_lose() {
         assert_matches!(
-            deckmaste_authoring::OutcomeGateKind::CantLose.lower(),
+            deckmaste_semantics::OutcomeGateKind::CantLose.lower(),
             deckmaste_core::OutcomeGateKind::CantLose
         );
     }
@@ -872,7 +872,7 @@ mod tests {
     #[test]
     fn lowers_outcome_gate_kind_cant_win() {
         assert_matches!(
-            deckmaste_authoring::OutcomeGateKind::CantWin.lower(),
+            deckmaste_semantics::OutcomeGateKind::CantWin.lower(),
             deckmaste_core::OutcomeGateKind::CantWin
         );
     }
@@ -880,7 +880,7 @@ mod tests {
     #[test]
     fn lowers_ignore_rule_ignore_lowest() {
         assert_matches!(
-            deckmaste_authoring::IgnoreRule::IgnoreLowest.lower(),
+            deckmaste_semantics::IgnoreRule::IgnoreLowest.lower(),
             deckmaste_core::IgnoreRule::IgnoreLowest
         );
     }
@@ -888,7 +888,7 @@ mod tests {
     #[test]
     fn lowers_ignore_rule_ignore_chosen() {
         assert_matches!(
-            deckmaste_authoring::IgnoreRule::IgnoreChosen(0).lower(),
+            deckmaste_semantics::IgnoreRule::IgnoreChosen(0).lower(),
             deckmaste_core::IgnoreRule::IgnoreChosen(0)
         );
     }
@@ -896,7 +896,7 @@ mod tests {
     #[test]
     fn lowers_pip_class_generic() {
         assert_matches!(
-            deckmaste_authoring::PipClass::Generic.lower(),
+            deckmaste_semantics::PipClass::Generic.lower(),
             deckmaste_core::PipClass::Generic
         );
     }
@@ -904,7 +904,7 @@ mod tests {
     #[test]
     fn lowers_pip_class_colored() {
         assert_matches!(
-            deckmaste_authoring::PipClass::Colored(minimal_color()).lower(),
+            deckmaste_semantics::PipClass::Colored(minimal_color()).lower(),
             deckmaste_core::PipClass::Colored(deckmaste_core::Color::White)
         );
     }
@@ -912,7 +912,7 @@ mod tests {
     #[test]
     fn lowers_pay_act_tap_to_pay() {
         assert_matches!(
-            deckmaste_authoring::PayAct::TapToPay(minimal_predicate()).lower(),
+            deckmaste_semantics::PayAct::TapToPay(minimal_predicate()).lower(),
             deckmaste_core::PayAct::TapToPay(deckmaste_core::Predicate::Kind(
                 deckmaste_core::ObjectKind::Ability
             ))
@@ -922,7 +922,7 @@ mod tests {
     #[test]
     fn lowers_pay_act_exile_to_pay() {
         assert_matches!(
-            deckmaste_authoring::PayAct::ExileToPay(minimal_predicate()).lower(),
+            deckmaste_semantics::PayAct::ExileToPay(minimal_predicate()).lower(),
             deckmaste_core::PayAct::ExileToPay(deckmaste_core::Predicate::Kind(
                 deckmaste_core::ObjectKind::Ability
             ))
@@ -932,7 +932,7 @@ mod tests {
     #[test]
     fn lowers_player_attr_life() {
         assert_matches!(
-            deckmaste_authoring::PlayerAttr::Life.lower(),
+            deckmaste_semantics::PlayerAttr::Life.lower(),
             deckmaste_core::PlayerAttr::Life
         );
     }
@@ -940,7 +940,7 @@ mod tests {
     #[test]
     fn lowers_player_attr_hand_size() {
         assert_matches!(
-            deckmaste_authoring::PlayerAttr::HandSize.lower(),
+            deckmaste_semantics::PlayerAttr::HandSize.lower(),
             deckmaste_core::PlayerAttr::HandSize
         );
     }
@@ -948,7 +948,7 @@ mod tests {
     #[test]
     fn lowers_player_attr_hand_size_limit() {
         assert_matches!(
-            deckmaste_authoring::PlayerAttr::HandSizeLimit.lower(),
+            deckmaste_semantics::PlayerAttr::HandSizeLimit.lower(),
             deckmaste_core::PlayerAttr::HandSizeLimit
         );
     }
@@ -956,7 +956,7 @@ mod tests {
     #[test]
     fn lowers_player_attr_land_plays_per_turn() {
         assert_matches!(
-            deckmaste_authoring::PlayerAttr::LandPlaysPerTurn.lower(),
+            deckmaste_semantics::PlayerAttr::LandPlaysPerTurn.lower(),
             deckmaste_core::PlayerAttr::LandPlaysPerTurn
         );
     }
@@ -964,7 +964,7 @@ mod tests {
     #[test]
     fn lowers_player_mod_set_to() {
         assert_matches!(
-            deckmaste_authoring::PlayerMod::SetTo(minimal_player_attr(), minimal_count()).lower(),
+            deckmaste_semantics::PlayerMod::SetTo(minimal_player_attr(), minimal_count()).lower(),
             deckmaste_core::PlayerMod::SetTo(
                 deckmaste_core::PlayerAttr::Life,
                 deckmaste_core::Count::X
@@ -975,7 +975,7 @@ mod tests {
     #[test]
     fn lowers_player_mod_raise() {
         assert_matches!(
-            deckmaste_authoring::PlayerMod::Raise(minimal_player_attr(), minimal_count()).lower(),
+            deckmaste_semantics::PlayerMod::Raise(minimal_player_attr(), minimal_count()).lower(),
             deckmaste_core::PlayerMod::Raise(
                 deckmaste_core::PlayerAttr::Life,
                 deckmaste_core::Count::X
@@ -986,7 +986,7 @@ mod tests {
     #[test]
     fn lowers_player_mod_lower() {
         assert_matches!(
-            deckmaste_authoring::PlayerMod::Lower(minimal_player_attr(), minimal_count()).lower(),
+            deckmaste_semantics::PlayerMod::Lower(minimal_player_attr(), minimal_count()).lower(),
             deckmaste_core::PlayerMod::Lower(
                 deckmaste_core::PlayerAttr::Life,
                 deckmaste_core::Count::X
@@ -997,7 +997,7 @@ mod tests {
     #[test]
     fn lowers_player_mod_no_max() {
         assert_matches!(
-            deckmaste_authoring::PlayerMod::NoMax(minimal_player_attr()).lower(),
+            deckmaste_semantics::PlayerMod::NoMax(minimal_player_attr()).lower(),
             deckmaste_core::PlayerMod::NoMax(deckmaste_core::PlayerAttr::Life)
         );
     }

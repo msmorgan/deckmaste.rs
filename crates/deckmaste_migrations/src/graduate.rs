@@ -109,7 +109,7 @@ enum Outcome {
 }
 
 /// Graduates every `cards/*.ron.todo` in `plugin_dir` that the macro reader
-/// parses as a [`deckmaste_authoring::Card`] — renaming it to `<name>.ron`. The
+/// parses as a [`deckmaste_semantics::Card`] — renaming it to `<name>.ron`. The
 /// plugin's builtin sibling prelude is in scope. A file that fails to parse
 /// (an `Unparsed(…)` placeholder, or a referenced macro/subtype that isn't
 /// real yet) is left in place and counted as `remaining`.

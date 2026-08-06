@@ -1,17 +1,17 @@
-//! `counter` — authored grammar to engine AST.
+//! `counter` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::CounterRef {
+impl Lower for deckmaste_semantics::CounterRef {
     type Target = deckmaste_core::CounterRef;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::CounterRef(self.0.lower())
     }
 }
 
-impl Lower for deckmaste_authoring::CounterSpec {
+impl Lower for deckmaste_semantics::CounterSpec {
     type Target = deckmaste_core::CounterSpec;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -21,7 +21,7 @@ impl Lower for deckmaste_authoring::CounterSpec {
     }
 }
 
-impl Lower for deckmaste_authoring::CounterScope {
+impl Lower for deckmaste_semantics::CounterScope {
     type Target = deckmaste_core::CounterScope;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -31,7 +31,7 @@ impl Lower for deckmaste_authoring::CounterScope {
     }
 }
 
-impl Lower for deckmaste_authoring::Counter {
+impl Lower for deckmaste_semantics::Counter {
     type Target = deckmaste_core::Counter;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::Counter {
@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn lowers_counter_ref() {
         assert_matches!(
-            deckmaste_authoring::CounterRef("X".into()).lower(),
+            deckmaste_semantics::CounterRef("X".into()).lower(),
             deckmaste_core::CounterRef(_)
         );
     }
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn lowers_counter_spec_named() {
         assert_matches!(
-            deckmaste_authoring::CounterSpec::Named(minimal_counter_ref(), minimal_count()).lower(),
+            deckmaste_semantics::CounterSpec::Named(minimal_counter_ref(), minimal_count()).lower(),
             deckmaste_core::CounterSpec::Named(
                 deckmaste_core::CounterRef(_),
                 deckmaste_core::Count::X
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn lowers_counter_spec_all_kinds() {
         assert_matches!(
-            deckmaste_authoring::CounterSpec::AllKinds.lower(),
+            deckmaste_semantics::CounterSpec::AllKinds.lower(),
             deckmaste_core::CounterSpec::AllKinds
         );
     }
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn lowers_counter_scope_object() {
         assert_matches!(
-            deckmaste_authoring::CounterScope::Object.lower(),
+            deckmaste_semantics::CounterScope::Object.lower(),
             deckmaste_core::CounterScope::Object
         );
     }
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn lowers_counter_scope_player() {
         assert_matches!(
-            deckmaste_authoring::CounterScope::Player.lower(),
+            deckmaste_semantics::CounterScope::Player.lower(),
             deckmaste_core::CounterScope::Player
         );
     }
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn lowers_counter() {
         assert_matches!(
-            deckmaste_authoring::Counter {
+            deckmaste_semantics::Counter {
                 name: "X".into(),
                 scope: minimal_counter_scope(),
                 confers: Vec::new()

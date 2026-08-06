@@ -5,8 +5,8 @@ needs: []
 
 An unbound `Reference::EventObject` ("it" with no "it" bound) flowing into
 `PlayerAction::PutCounters` panics at the object store's live-id assert
-instead of fizzling — violating the engine's never-crash-on-authoring-mistake
-principle ("bad authoring fizzles, never panics").
+instead of fizzling — violating the engine's never-crash-on-invalid-semantics
+principle ("invalid semantic input fizzles, never panics").
 
 ## The chain
 

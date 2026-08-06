@@ -15,7 +15,7 @@ other power/toughness-setting and -modifying effects. The engine already models
 the distinction: the internal layer-pass struct carries `is_cda: bool`
 (`crates/deckmaste_engine/src/layer.rs`, on `ContinuousEffect`).
 
-The problem is purely authoring-side: **every construction site that builds a
+The problem is purely semantics-side: **every construction site that builds a
 continuous effect from ability/static data hardcodes `is_cda: false`**
 (`crates/deckmaste_engine/src/layer.rs` — the sites that lower `Ability` /
 `StaticEffect` / `Modification` into layer effects). There is no field on

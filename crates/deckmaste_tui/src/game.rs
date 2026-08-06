@@ -13,21 +13,21 @@ use deckmaste_plugin::Deck;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::provenance::ProvenanceIndex;
 
-/// The authored half of every card in the game, indexed by the engine's
+/// The semantic half of every card in the game, indexed by the engine's
 /// `CardId`.
 ///
 /// A `Vec`, not a map: `CardId` is a dense index into the game's card table,
 /// and the deck cards occupy the whole prefix of it. Tokens and emblems are
 /// minted later, past the end, and resolve `None` — their prose comes from the
-/// ability index, not from an authored card.
+/// ability index, not from a semantic card.
 pub struct CardProvenance {
-    by_card: Vec<Arc<deckmaste_authoring::Card>>,
+    by_card: Vec<Arc<deckmaste_semantics::Card>>,
 }
 
 impl CardProvenance {
-    /// The authored card behind a `CardId`, or `None` for a token or emblem.
+    /// The semantic card behind a `CardId`, or `None` for a token or emblem.
     #[must_use]
-    pub fn get(&self, id: deckmaste_engine::CardId) -> Option<&Arc<deckmaste_authoring::Card>> {
+    pub fn get(&self, id: deckmaste_engine::CardId) -> Option<&Arc<deckmaste_semantics::Card>> {
         self.by_card.get(usize::try_from(id.0).ok()?)
     }
 }
@@ -95,9 +95,9 @@ pub fn build_game_with_seed(seed: u64) -> Result<BuiltGame> {
     let loaded1 = elves.resolve(&[&canon, &builtin, &wizards])?;
 
     // Both halves of the pair survive here. The engine gets the core half; the
-    // authored half becomes the provenance the renderer needs, because lowering
+    // semantic half becomes the provenance the renderer needs, because lowering
     // erases invocation provenance and a core value carries no template
-    // (docs/decisions/authoring-spelling-lowering.md §12).
+    // (docs/decisions/semantics-spelling-lowering.md §12).
     let p0: Vec<Arc<deckmaste_card::Card>> =
         loaded0.iter().map(|l| Arc::new(l.core.clone())).collect();
     let p1: Vec<Arc<deckmaste_card::Card>> =
@@ -107,13 +107,13 @@ pub fn build_game_with_seed(seed: u64) -> Result<BuiltGame> {
     // each player's deck in player order, then the library is shuffled. So
     // flattening the decks in that same order makes index == CardId. The
     // engine cannot build this itself — it must not learn about
-    // `deckmaste_authoring` — which is why the zip lives here and why
+    // `deckmaste_semantics` — which is why the zip lives here and why
     // `pins_card_ids_to_deck_order` guards it.
     let card_provenance = CardProvenance {
         by_card: loaded0
             .iter()
             .chain(loaded1.iter())
-            .map(|l| Arc::new(l.authored.clone()))
+            .map(|l| Arc::new(l.semantic.clone()))
             .collect(),
     };
 
@@ -127,14 +127,14 @@ pub fn build_game_with_seed(seed: u64) -> Result<BuiltGame> {
     // index's ability map is first-insert-wins instead, and deliberately so:
     // it is keyed by lowered VALUE, not by name, so it carries no plugin
     // precedence to mirror — every preimage is semantically exact
-    // (`docs/decisions/authoring-spelling-lowering.md` §9) and the rule there
+    // (`docs/decisions/semantics-spelling-lowering.md` §9) and the rule there
     // picks the best SPELLING, not the winning plugin.
     let mut provenance = ProvenanceIndex::default();
     provenance.extend(&canon.provenance);
     provenance.extend(&builtin.provenance);
     provenance.extend(&wizards.provenance);
     for loaded in loaded0.iter().chain(loaded1.iter()) {
-        provenance.insert_card(&loaded.authored);
+        provenance.insert_card(&loaded.semantic);
     }
 
     let sba_rules = canon
@@ -222,9 +222,9 @@ mod tests {
     /// `GameState::new` assigns `CardId`s densely, in player order, in deck
     /// order, before the shuffle — so flattening the two resolved decklists in
     /// that same order makes index == `CardId`. Nothing type-checks that, and
-    /// getting it wrong would give every object the wrong card's authored half
+    /// getting it wrong would give every object the wrong card's semantic half
     /// (a silently misattributed detail pane, not a crash). Pin it by name:
-    /// the authored card at each `CardId` must be the card the engine holds
+    /// the semantic card at each `CardId` must be the card the engine holds
     /// there.
     ///
     /// The tail of the invariant matters too — the table covers exactly the
@@ -245,23 +245,23 @@ mod tests {
         for i in 0..count {
             let id = CardId(u32::try_from(i).expect("card count fits in a CardId"));
             let engine = &deckmaste_engine::face(&game.state.cards.get(id).def).name;
-            let authored = game
+            let semantic = game
                 .cards
                 .get(id)
-                .unwrap_or_else(|| panic!("{id:?} has an authored half"));
-            let authored = match &**authored {
-                deckmaste_authoring::Card::Normal(f) => &f.name,
-                deckmaste_authoring::Card::TwoFaced { front, .. } => &front.name,
+                .unwrap_or_else(|| panic!("{id:?} has a semantic half"));
+            let semantic = match &**semantic {
+                deckmaste_semantics::Card::Normal(f) => &f.name,
+                deckmaste_semantics::Card::TwoFaced { front, .. } => &front.name,
             };
             assert_eq!(
-                &**authored, &**engine,
-                "the authored card at {id:?} is not the card the engine holds there",
+                &**semantic, &**engine,
+                "the semantic card at {id:?} is not the card the engine holds there",
             );
         }
         let past_end = CardId(u32::try_from(count).expect("card count fits in a CardId"));
         assert!(
             game.cards.get(past_end).is_none(),
-            "a token's {past_end:?} must resolve to no authored card",
+            "a token's {past_end:?} must resolve to no semantic card",
         );
     }
 

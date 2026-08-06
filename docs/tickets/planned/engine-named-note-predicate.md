@@ -17,4 +17,4 @@ Fix: a distinct `NamedNoted(key)` predicate (or typed note keys) so the
 literal-name read and the noted-name read are different grammar; while at it,
 decide the note lifetime story ("during this resolution" per the `state.rs`
 doc vs the actual clear-on-next-resolution) and scope reads accordingly.
-Migrate Cursed Scroll's authored RON to the new predicate.
+Migrate Cursed Scroll's semantic RON to the new predicate.

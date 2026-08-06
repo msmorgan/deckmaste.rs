@@ -2,7 +2,7 @@
 needs: [plugin-crate-split]
 ---
 **Split the non-loader riders out of `deckmaste_plugin`.** Design:
-`docs/decisions/authoring-spelling-lowering.md` (§1, §11). Deferred from
+`docs/decisions/semantics-spelling-lowering.md` (§1, §11). Deferred from
 `plugin-crate-split`, which landed the rename only.
 
 The loader core is `plugin.rs` + `macros.rs` (mutually referential). Two

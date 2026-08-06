@@ -1,36 +1,36 @@
 //! Framing for triggered/activated/static abilities (the clause around the
 //! effect).
 
-use deckmaste_authoring::Ability;
-use deckmaste_authoring::AsThough;
-use deckmaste_authoring::CharacteristicPredicate;
-use deckmaste_authoring::Cmp;
-use deckmaste_authoring::CollectionOp;
-use deckmaste_authoring::Color;
-use deckmaste_authoring::Condition;
-use deckmaste_authoring::Count;
-use deckmaste_authoring::DeedAgent;
-use deckmaste_authoring::Deontic;
-use deckmaste_authoring::DeonticAction;
-use deckmaste_authoring::EventFilter;
-use deckmaste_authoring::IgnoreRule;
-use deckmaste_authoring::Modification;
-use deckmaste_authoring::NumericOp;
-use deckmaste_authoring::ObjectKind;
-use deckmaste_authoring::PayAct;
-use deckmaste_authoring::PlayerAttr;
-use deckmaste_authoring::PlayerMod;
-use deckmaste_authoring::Predicate;
-use deckmaste_authoring::Reference;
-use deckmaste_authoring::RelationPredicate;
-use deckmaste_authoring::Stat;
-use deckmaste_authoring::StatValue;
-use deckmaste_authoring::StateChange;
-use deckmaste_authoring::StatePredicate;
-use deckmaste_authoring::StaticEffect;
-use deckmaste_authoring::TriggeredAbility;
-use deckmaste_authoring::Type;
-use deckmaste_authoring::Zone;
+use deckmaste_semantics::Ability;
+use deckmaste_semantics::AsThough;
+use deckmaste_semantics::CharacteristicPredicate;
+use deckmaste_semantics::Cmp;
+use deckmaste_semantics::CollectionOp;
+use deckmaste_semantics::Color;
+use deckmaste_semantics::Condition;
+use deckmaste_semantics::Count;
+use deckmaste_semantics::DeedAgent;
+use deckmaste_semantics::Deontic;
+use deckmaste_semantics::DeonticAction;
+use deckmaste_semantics::EventFilter;
+use deckmaste_semantics::IgnoreRule;
+use deckmaste_semantics::Modification;
+use deckmaste_semantics::NumericOp;
+use deckmaste_semantics::ObjectKind;
+use deckmaste_semantics::PayAct;
+use deckmaste_semantics::PlayerAttr;
+use deckmaste_semantics::PlayerMod;
+use deckmaste_semantics::Predicate;
+use deckmaste_semantics::Reference;
+use deckmaste_semantics::RelationPredicate;
+use deckmaste_semantics::Stat;
+use deckmaste_semantics::StatValue;
+use deckmaste_semantics::StateChange;
+use deckmaste_semantics::StatePredicate;
+use deckmaste_semantics::StaticEffect;
+use deckmaste_semantics::TriggeredAbility;
+use deckmaste_semantics::Type;
+use deckmaste_semantics::Zone;
 
 use super::CardView;
 use super::Ctx;
@@ -186,7 +186,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
 /// and a loyalty ability never reaches `triggered()` anyway), mirroring
 /// [`activation_rider`]'s suppression.
 fn trigger_limit_rider(t: &TriggeredAbility) -> String {
-    use deckmaste_authoring::UseLimit;
+    use deckmaste_semantics::UseLimit;
     let mut out = String::new();
     for limit in t.limits.iter() {
         match limit {
@@ -217,7 +217,7 @@ fn self_type_phrase(view: &CardView) -> String {
 /// there.
 fn adjacent_in_zone_if_clause(
     cond: &Condition,
-    from: Option<deckmaste_authoring::Zone>,
+    from: Option<deckmaste_semantics::Zone>,
 ) -> Option<String> {
     let zone = from.filter(|&z| z != Zone::Battlefield)?;
     let Condition::Exists(Predicate::And(parts)) = cond else {
@@ -230,8 +230,8 @@ fn adjacent_in_zone_if_clause(
         return None;
     };
     let dir_word = match dir {
-        deckmaste_authoring::Adjacency::Above => "above",
-        deckmaste_authoring::Adjacency::Below => "below",
+        deckmaste_semantics::Adjacency::Above => "above",
+        deckmaste_semantics::Adjacency::Below => "below",
     };
     let noun = effect::a_an(&format!("{} card", super::fragment::filter_noun(other)));
     Some(format!(
@@ -244,7 +244,7 @@ fn adjacent_in_zone_if_clause(
 /// cost, colon, effect). The cost renders through the shared symbol
 /// renderer; a cost with no clean symbol rendering falls back to the
 /// structural form.
-pub(super) fn activated(a: &deckmaste_authoring::ActivatedAbility, view: &CardView) -> String {
+pub(super) fn activated(a: &deckmaste_semantics::ActivatedAbility, view: &CardView) -> String {
     // Battlefield-context self-reference conventionally names the card by
     // TYPE ("this artifact"), never by repeating its own printed name — the
     // one activated-ability shape that reads its own `This` in the body is
@@ -277,8 +277,8 @@ pub(super) fn activated(a: &deckmaste_authoring::ActivatedAbility, view: &CardVi
 /// a fixed printed order (real cards vary which clause leads when several
 /// combine; this renderer picks one canonical order rather than tracking
 /// which was printed first).
-fn activation_rider(a: &deckmaste_authoring::ActivatedAbility, ctx: &Ctx) -> String {
-    use deckmaste_authoring::UseLimit;
+fn activation_rider(a: &deckmaste_semantics::ActivatedAbility, ctx: &Ctx) -> String {
+    use deckmaste_semantics::UseLimit;
 
     // A loyalty ability's sorcery-speed-only + shared-once-per-turn gate is
     // an implicit RULE, never printed as its own rider sentence — real cards
@@ -306,12 +306,12 @@ fn activation_rider(a: &deckmaste_authoring::ActivatedAbility, ctx: &Ctx) -> Str
     }
 }
 
-/// A [`Timing`](deckmaste_authoring::Timing) window as the clause following
+/// A [`Timing`](deckmaste_semantics::Timing) window as the clause following
 /// "Activate only ": "as a sorcery", "during your turn". Reuses
 /// [`whose_word`]/[`step_noun`] — the same building blocks the
 /// triggered-ability "At the beginning of your upkeep" event clause uses.
-fn activation_window_clause(t: deckmaste_authoring::Timing) -> String {
-    use deckmaste_authoring::Timing;
+fn activation_window_clause(t: deckmaste_semantics::Timing) -> String {
+    use deckmaste_semantics::Timing;
     match t {
         Timing::InstantSpeed => "as an instant".to_string(),
         Timing::SorcerySpeed => "as a sorcery".to_string(),
@@ -323,14 +323,14 @@ fn activation_window_clause(t: deckmaste_authoring::Timing) -> String {
     }
 }
 
-/// A [`UseLimit`](deckmaste_authoring::UseLimit) as the clause following
+/// A [`UseLimit`](deckmaste_semantics::UseLimit) as the clause following
 /// "Activate only ": "once each turn", "once each game". The shared loyalty
 /// use-limit never reaches this renderer today —
 /// a loyalty ability prints via its own `LoyaltyPlus`/`Minus`/`Zero` macro
 /// template, not the generic `activated()` line — but reads the same
 /// "once each turn" phrase if it ever does.
-fn use_limit_clause(l: deckmaste_authoring::UseLimit) -> String {
-    use deckmaste_authoring::UseLimit;
+fn use_limit_clause(l: deckmaste_semantics::UseLimit) -> String {
+    use deckmaste_semantics::UseLimit;
     match l {
         UseLimit::OncePerTurn | UseLimit::LoyaltyOncePerTurn => "once each turn".to_string(),
         UseLimit::OncePerGame => "once each game".to_string(),
@@ -340,8 +340,8 @@ fn use_limit_clause(l: deckmaste_authoring::UseLimit) -> String {
 /// Whether an activated ability's effect (through its `Targeted` wrapper, if
 /// any) is the "exchange control" `Simultaneously` shape — see
 /// [`activated`]'s doc comment for why this drives the `Ctx.subject` choice.
-fn effect_wants_self_type_phrase(e: &deckmaste_authoring::OneShotEffect) -> bool {
-    use deckmaste_authoring::OneShotEffect;
+fn effect_wants_self_type_phrase(e: &deckmaste_semantics::OneShotEffect) -> bool {
+    use deckmaste_semantics::OneShotEffect;
     let inner: &OneShotEffect = match e {
         OneShotEffect::Targeted(t) => &t.effect,
         other => other,
@@ -353,7 +353,7 @@ fn effect_wants_self_type_phrase(e: &deckmaste_authoring::OneShotEffect) -> bool
 /// ([CR#113.6,113.6b]) for a non-battlefield `from`; the battlefield default
 /// (and `None`) is left bare.
 pub(super) fn from_zone_qualified(
-    from: Option<deckmaste_authoring::Zone>,
+    from: Option<deckmaste_semantics::Zone>,
     subject: &str,
     text: String,
 ) -> String {
@@ -675,8 +675,8 @@ fn tap_for_mana_subject(by: &Predicate) -> String {
 /// The possessive turn-owner phrase for a [`WhoseTurn`] (mirrors
 /// `condition::turn_owner`'s "your"/"an opponent's" phrasing — a templating
 /// convention, not itself a cited rule).
-fn whose_word(w: deckmaste_authoring::WhoseTurn) -> &'static str {
-    use deckmaste_authoring::WhoseTurn;
+fn whose_word(w: deckmaste_semantics::WhoseTurn) -> &'static str {
+    use deckmaste_semantics::WhoseTurn;
     match w {
         WhoseTurn::Your => "your",
         WhoseTurn::EachPlayers => "each player's",
@@ -684,14 +684,14 @@ fn whose_word(w: deckmaste_authoring::WhoseTurn) -> &'static str {
     }
 }
 
-/// The step/phase noun a [`PhaseStep`](deckmaste_authoring::PhaseStep) prints
+/// The step/phase noun a [`PhaseStep`](deckmaste_semantics::PhaseStep) prints
 /// after its possessive owner ("your **upkeep**"). `None` for a phase/step
 /// this corpus hasn't needed phrasing for yet (a combat sub-step) — the
 /// caller falls back to the generic unrendered marker rather than guessing.
-fn step_noun(at: deckmaste_authoring::PhaseStep) -> Option<&'static str> {
-    use deckmaste_authoring::BeginningStep;
-    use deckmaste_authoring::EndingStep;
-    use deckmaste_authoring::PhaseStep;
+fn step_noun(at: deckmaste_semantics::PhaseStep) -> Option<&'static str> {
+    use deckmaste_semantics::BeginningStep;
+    use deckmaste_semantics::EndingStep;
+    use deckmaste_semantics::PhaseStep;
     Some(match at {
         PhaseStep::Beginning(BeginningStep::Upkeep) => "upkeep",
         PhaseStep::Beginning(BeginningStep::Untap) => "untap step",
@@ -1181,7 +1181,7 @@ fn is_flip_coin_query(e: &EventFilter) -> bool {
 /// power, i.e. "gets +X/+0" where X takes power to its post-doubling value
 /// (the official ruling's own phrasing). `None` for any other shape.
 fn doubling_power_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Option<String> {
-    use deckmaste_authoring::Stat;
+    use deckmaste_semantics::Stat;
 
     let Modification::Power(NumericOp::Up(delta)) = change else {
         return None;
@@ -1212,7 +1212,7 @@ fn doubling_power_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opt
 
 /// "{subj} gets +1/+1 for each supertype, card type, and subtype it has" —
 /// Embiggen's own real-card phrasing for a triple-axis
-/// [`Countable::Singleton`](deckmaste_authoring::Countable::Singleton) sum,
+/// [`Countable::Singleton`](deckmaste_semantics::Countable::Singleton) sum,
 /// whose per-object-axis-enumeration idiom ("... it has") reads nothing like
 /// the group-fold `CountDistinct(_, Objects(..))` phrasing (Domain/Coven's "the
 /// number of X among Y"). The recognized shape is `Several([Power(Up(c)),
@@ -1222,9 +1222,9 @@ fn doubling_power_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opt
 /// coefficient-`k` "+k/+k for each ..." generalization is unforced until a
 /// real card needs it). `None` for any other shape.
 fn axis_sum_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Option<String> {
-    use deckmaste_authoring::Characteristic;
-    use deckmaste_authoring::Countable;
-    use deckmaste_authoring::Expand;
+    use deckmaste_semantics::Characteristic;
+    use deckmaste_semantics::Countable;
+    use deckmaste_semantics::Expand;
 
     let normalized = change.clone().expand_all();
     let Modification::Several(parts) = &normalized else {
@@ -1375,7 +1375,7 @@ fn strip_count_expanded(c: &Count) -> &Count {
 /// look-through reason as [`strip_modification_expanded`]. `None` for any
 /// other `Count` shape.
 fn for_each_magnitude(c: &Count) -> Option<(i64, &Predicate)> {
-    use deckmaste_authoring::Countable;
+    use deckmaste_semantics::Countable;
 
     match strip_count_expanded(c) {
         Count::CountOf(Countable::Objects(pred)) => Some((1, pred.as_ref())),
@@ -1626,7 +1626,7 @@ fn trigger_multiplier(cause: &EventFilter, extra: &Count, affected: &Predicate) 
 fn cause_phrase(cause: &EventFilter) -> String {
     if let EventFilter::ZoneChange {
         what,
-        to: Some(deckmaste_authoring::Zone::Battlefield),
+        to: Some(deckmaste_semantics::Zone::Battlefield),
         ..
     } = cause
     {
@@ -1640,7 +1640,7 @@ fn cause_phrase(cause: &EventFilter) -> String {
 /// The affected-source clause: the "you control" default renders as "a
 /// permanent you control"; anything else as a generic "an affected permanent".
 fn affected_phrase(affected: &Predicate) -> String {
-    use deckmaste_authoring::RelationPredicate;
+    use deckmaste_semantics::RelationPredicate;
     if matches!(
         affected,
         Predicate::Relation(RelationPredicate::ControlledBy(inner))
@@ -1929,13 +1929,13 @@ mod tests {
     /// is an implicit rule, never printed).
     #[test]
     fn activation_rider_renders_window_and_limit() {
-        use deckmaste_authoring::Action;
-        use deckmaste_authoring::ActivatedAbility;
-        use deckmaste_authoring::Cost;
-        use deckmaste_authoring::LifeOp;
-        use deckmaste_authoring::OneShotEffect;
-        use deckmaste_authoring::Timing;
-        use deckmaste_authoring::UseLimit;
+        use deckmaste_semantics::Action;
+        use deckmaste_semantics::ActivatedAbility;
+        use deckmaste_semantics::Cost;
+        use deckmaste_semantics::LifeOp;
+        use deckmaste_semantics::OneShotEffect;
+        use deckmaste_semantics::Timing;
+        use deckmaste_semantics::UseLimit;
 
         let ctx = Ctx {
             subject: "Test",
@@ -2001,10 +2001,10 @@ mod tests {
     /// this is the fallback arm for a directly written static.)
     #[test]
     fn pay_pips_renders_its_keyword_name() {
-        use deckmaste_authoring::PayAct;
-        use deckmaste_authoring::PipClass;
-        use deckmaste_authoring::RelationPredicate;
-        use deckmaste_authoring::StatePredicate;
+        use deckmaste_semantics::PayAct;
+        use deckmaste_semantics::PipClass;
+        use deckmaste_semantics::RelationPredicate;
+        use deckmaste_semantics::StatePredicate;
 
         let ctx = Ctx {
             subject: "Test",
@@ -2184,8 +2184,8 @@ mod tests {
     /// Compound card names retain Oracle's plural agreement.
     #[test]
     fn event_disjunction_renders_shared_subject_or_verb() {
-        use deckmaste_authoring::CharacteristicPredicate;
-        use deckmaste_authoring::RelationPredicate;
+        use deckmaste_semantics::CharacteristicPredicate;
+        use deckmaste_semantics::RelationPredicate;
 
         let ctx = Ctx {
             subject: "Test",
@@ -2228,11 +2228,11 @@ mod tests {
 
         let another_ally = Predicate::And(
             vec![
-                Predicate::State(deckmaste_authoring::StatePredicate::InZone(
+                Predicate::State(deckmaste_semantics::StatePredicate::InZone(
                     Zone::Battlefield,
                 )),
                 Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                    deckmaste_authoring::SubtypeRef::named("Ally".into()),
+                    deckmaste_semantics::SubtypeRef::named("Ally".into()),
                 )),
                 Predicate::Not(Arc::new(this())),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
@@ -2279,17 +2279,17 @@ mod tests {
     /// upkeep, sacrifice this enchantment unless you pay {2}."
     #[test]
     fn step_begins_self_sacrifice_names_its_own_type() {
-        use deckmaste_authoring::Action;
-        use deckmaste_authoring::BeginningStep;
-        use deckmaste_authoring::Cost;
-        use deckmaste_authoring::CostComponent;
-        use deckmaste_authoring::ManaCost;
-        use deckmaste_authoring::ManaSymbol;
-        use deckmaste_authoring::May;
-        use deckmaste_authoring::OneShotEffect;
-        use deckmaste_authoring::PhaseStep;
-        use deckmaste_authoring::SimpleManaSymbol;
-        use deckmaste_authoring::WhoseTurn;
+        use deckmaste_semantics::Action;
+        use deckmaste_semantics::BeginningStep;
+        use deckmaste_semantics::Cost;
+        use deckmaste_semantics::CostComponent;
+        use deckmaste_semantics::ManaCost;
+        use deckmaste_semantics::ManaSymbol;
+        use deckmaste_semantics::May;
+        use deckmaste_semantics::OneShotEffect;
+        use deckmaste_semantics::PhaseStep;
+        use deckmaste_semantics::SimpleManaSymbol;
+        use deckmaste_semantics::WhoseTurn;
 
         let event = EventFilter::StepBegins {
             at: PhaseStep::Beginning(BeginningStep::Upkeep),
@@ -2366,12 +2366,12 @@ mod tests {
     /// per-game forms round-trip.
     #[test]
     fn trigger_limit_rider_renders_per_turn_and_per_game() {
-        use deckmaste_authoring::Action;
-        use deckmaste_authoring::BeginningStep;
-        use deckmaste_authoring::OneShotEffect;
-        use deckmaste_authoring::PhaseStep;
-        use deckmaste_authoring::UseLimit;
-        use deckmaste_authoring::WhoseTurn;
+        use deckmaste_semantics::Action;
+        use deckmaste_semantics::BeginningStep;
+        use deckmaste_semantics::OneShotEffect;
+        use deckmaste_semantics::PhaseStep;
+        use deckmaste_semantics::UseLimit;
+        use deckmaste_semantics::WhoseTurn;
 
         let event = EventFilter::StepBegins {
             at: PhaseStep::Beginning(BeginningStep::Upkeep),
@@ -2648,8 +2648,8 @@ mod tests {
                     vec![
                         Predicate::Kind(ObjectKind::Spell),
                         Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                            deckmaste_authoring::SubtypeRef::named(
-                                deckmaste_authoring::Ident::from("Elf")
+                            deckmaste_semantics::SubtypeRef::named(
+                                deckmaste_semantics::Ident::from("Elf")
                             )
                         )),
                     ]
@@ -2670,13 +2670,13 @@ mod tests {
                         Predicate::Or(
                             vec![
                                 Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                                    deckmaste_authoring::SubtypeRef::named(
-                                        deckmaste_authoring::Ident::from("Spirit")
+                                    deckmaste_semantics::SubtypeRef::named(
+                                        deckmaste_semantics::Ident::from("Spirit")
                                     )
                                 )),
                                 Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                                    deckmaste_authoring::SubtypeRef::named(
-                                        deckmaste_authoring::Ident::from("Arcane")
+                                    deckmaste_semantics::SubtypeRef::named(
+                                        deckmaste_semantics::Ident::from("Arcane")
                                     )
                                 )),
                             ]
@@ -2823,7 +2823,7 @@ mod tests {
     /// predicate/wording.
     #[test]
     fn for_each_pump_renders_symmetric_power_only_and_coefficient() {
-        use deckmaste_authoring::Countable;
+        use deckmaste_semantics::Countable;
 
         let ctx = Ctx {
             subject: "Test",
@@ -2890,7 +2890,7 @@ mod tests {
         let goblin_pred = Predicate::And(
             vec![
                 Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                    deckmaste_authoring::SubtypeRef::named("Goblin".into()),
+                    deckmaste_semantics::SubtypeRef::named("Goblin".into()),
                 )),
                 Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
                 Predicate::State(StatePredicate::Attacking),

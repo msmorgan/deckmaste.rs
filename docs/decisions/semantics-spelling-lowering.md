@@ -1,46 +1,50 @@
-# Authoring, spelling, lowering — the card-grammar split
+# Semantics, spelling, lowering — the card-grammar split
 
 Settled 2026-08-02, after the action-role-reshape landed. This decision is
-the design contract for the authored-grammar program; the ticket map in §15
+the design contract for the semantics-grammar program; the ticket map in §15
 implements it. Like every decision doc: it records intended design, current
 code wins on incidental drift, and changing it requires explicit review.
 Clarified 2026-08-04 to distinguish Oracle text's upstream authority from the
-authored form's downstream canonicality; no type boundary changed.
+semantic form's downstream canonicality; no type boundary changed.
+Renamed 2026-08-05 from “authoring” to “semantics”: most terms are recovered
+from Oracle rather than written by hand, while all terms share their role as
+the canonical meaning representation. This is a vocabulary and crate rename;
+the architecture and type boundary are unchanged.
 
 ## 1. Summary
 
-One authored grammar, two derived projections, three new crates:
+One semantics grammar, two derived projections, three new crates:
 
 ```
                 deckmaste_spelling            deckmaste_lowering
-deckmaste_english ◄════════════════► deckmaste_authoring ────────► deckmaste_core
-  English AST       two-way ranked      the authored        one-way    pure engine
+deckmaste_english ◄════════════════► deckmaste_semantics ────────► deckmaste_core
+  English AST       two-way ranked      the semantics       one-way    pure engine
   text ⇄ AST only   relation            rules grammar       total      AST; plain
                     (frames ENGINE      + macro layer       compile    serde; NOT
                     lives here;         + Idris mirror                 Idris-mirrored
                     frames: DATA
-                    rides authoring
+                    rides semantics
                     defs)
 ```
 
-- **`deckmaste_authoring`** is the canonical semantic form: the normalized,
+- **`deckmaste_semantics`** is the canonical semantic form: the normalized,
   information-complete rules grammar persisted in every card-content container
   — card files, token files, and the `rules/` engine tables. For existing Magic
   cards, Oracle text is the authoritative source input and recovery compiles it
-  into this form; downstream rendering and lowering then treat the authored term
+  into this form; downstream rendering and lowering then treat the semantic term
   as their single source of truth. The crate owns the types, the kind registry
   and `SupportsMacros` machinery, identity-macro registration, the collision
   diagnostic, the scope-calculus and sugar forms, and normalization (desugar +
-  scope elaboration, authored → authored normal form).
-- **`deckmaste_spelling`** is the authored ⇄ English relation:
+  scope elaboration, semantics → semantic normal form).
+- **`deckmaste_spelling`** is the semantics ⇄ English relation:
   `deckmaste_frames` renamed and absorbed — the ENGINE (compile/unify/
   render). "Frames" survives as the name of the lexicon's entries, and the
   frame SCHEMA (`FrameSpec` and kin) deliberately stays in neutral
   `macro_ron`: defs carry `frames:` and `macro_ron` parses defs, so moving
   the schema into spelling would cycle schema and consumer.
-- **`deckmaste_lowering`** is the one-way compile authored → core: it
-  invokes authoring's normalization, then owns the cross-grammar type
-  mapping, authored-invariant enforcement, and the divergence ledger.
+- **`deckmaste_lowering`** is the one-way compile semantics → core: it
+  invokes semantics' normalization, then owns the cross-grammar type
+  mapping, semantic-invariant enforcement, and the divergence ledger.
 - **`deckmaste_core`** becomes a pure engine AST: no macro machinery, plain
   serde, no Idris obligations (until an engine-side dependent invariant
   earns a thin mirror back).
@@ -77,9 +81,9 @@ deckmaste_english ◄════════════════► deckmas
   that rides it move together into `deckmaste_legacy_render`, in
   `runtime-prose-link` (owner-settled 2026-08-02, superseding "stays put to
   die in place"): that ticket must retype every one of the renderer's
-  `Expanded` match sites onto authored terms regardless, so moving and
+  `Expanded` match sites onto semantic terms regardless, so moving and
   retyping in one traversal is cheaper than two. Once those sites match
-  authored `Expanded`, which no ticket deletes, the renderer stops blocking
+  semantic `Expanded`, which no ticket deletes, the renderer stops blocking
   `core-demacro`; `plugin-rider-split` is left splitting only the Idris
   emitter and validation, as it says.
 
@@ -105,7 +109,7 @@ Design principles that did the deciding, recorded because they generalize:
    gets a mechanism; only closed idioms (`Mill`, `DestroyNoRegen`) get
    words.
 5. **Proof follows purpose.** The Idris gate's obligations are
-   author-mistake proofs, so the mirror attaches to the authored grammar,
+   author-mistake proofs, so the mirror attaches to the semantics grammar,
    not to whichever type family historically hosted it.
 6. **Formal budget goes where the entropy is.** The open-ended human/
    generated corpus gets the proof gate; the closed mechanical mapping gets
@@ -124,7 +128,7 @@ re-derivable the same way):
 - Canon cards spell 182 distinct bare variants across ~842 file-hits — the
   parse ban is a whole-corpus property, not a cleanup.
 - The `rules/` tables are the densest bare-grammar spellers (23 distinct
-  variants across 6 files) — the authored grammar is container-neutral, not
+  variants across 6 files) — the semantics grammar is container-neutral, not
   card-shaped.
 - The frames constructor catalog has exactly 7 entries — retirement is
   cheap now and only now.
@@ -137,11 +141,11 @@ re-derivable the same way):
 
 ## 3. Architecture: one canonical form, two projections
 
-**Oracle text is authoritative input; authored form is canonical semantics.**
+**Oracle text is authoritative input; semantic form is canonical semantics.**
 For the existing Magic corpus, recovery compiles Oracle text into one normalized,
 information-complete form. Persisting that form as RON caches a compilation worth
 performing once across roughly thirty thousand cards; it does not make RON a
-competing upstream authority. Once compiled, the authored term is the only input
+competing upstream authority. Once compiled, the semantic term is the only input
 to the two downstream projections: English rendering and core lowering. Core is
 a compiled artifact — cached at most, keyed by content digest, never treated as
 source.
@@ -168,19 +172,19 @@ The authoring interface for future custom-content plugins remains open: prose,
 direct RON, or both can be accepted, provided every path produces this same
 normalized form before rendering or lowering. One narrow, declared exception:
 engine STRATEGY configuration is authored directly in core terms via plain serde
-— it is engine configuration, not card content, and sits outside the authoring
-program (see the §4 container table). The spelling relation is **ranked, not
+— it is engine configuration, not card content, and sits outside the card-semantics
+pipeline (see the §4 container table). The spelling relation is **ranked, not
 bijective**: several authored spellings may word identically and one sentence may
 recover to several candidates; ambiguity surfaces as candidates, never resolved
 by assembly order. "Faithful" means semantic round-trip plus canonical wording;
 byte-exact replay is out of scope (an optional non-semantic surface witness can
 be added later if it is ever genuinely needed).
 
-Recovery (English → authored) uses transient, in-memory handles for
+Recovery (English → semantics) uses transient, in-memory handles for
 binder/discourse linking inside its derivation; the derivation is erased to
-an authored term and no handle is ever serialized (principle 2).
+a semantic term and no handle is ever serialized (principle 2).
 
-## 4. The authoring grammar and the parse-position ban
+## 4. The semantics grammar and the parse-position ban
 
 **One grammar, many containers, restriction per container.** The
 normative container table (restriction mode inherits through NESTED
@@ -221,8 +225,8 @@ a card file is card-authored text and restricted):
   that text is re-read; body re-reads are exempt however reached. (The
   `Ctx::frameless()` param-re-read path is exactly why frame-gating alone
   is wrong.)
-- **Entry points**: ONE restricted read API (a `read_authored_card`/
-  `read_authored_token` pair or equivalent) shared by `Plugin::card`/
+- **Entry points**: ONE restricted read API (a `read_semantic_card`/
+  `read_semantic_token` pair or equivalent) shared by `Plugin::card`/
   `token`, the migrations graduation path, AND every typed production
   reader that currently bypasses the loader — validation, fidelity, the
   canon comparison path, and the Idris bulk emitter all `read_str` typed
@@ -231,7 +235,7 @@ a card file is card-authored text and restricted):
   untouched — restriction is opt-in at the entry, never a global default.
 - **Structural binding forms carve-out**: `Targeted`, `Target(n)`,
   `Targets(n)`, `Distinct` are designated structural grammar — the
-  authoring layer is "a typed macro-invocation tree plus a small built-in
+  semantics layer is "a typed macro-invocation tree plus a small built-in
   indexed scope calculus," and pretending the calculus is macros would only
   hide its binding behavior.
 - **Straggler registration**: `Color` (currently unregistered as a kind — a
@@ -245,7 +249,7 @@ a card file is card-authored text and restricted):
 
 ## 5. Identity macros: scaffolded once, then hand-owned
 
-Every authoring-reachable variant OUTSIDE the native whitelists gets a
+Every semantics-reachable variant OUTSIDE the native whitelists gets a
 wrapping macro def under its variant's own name (mirror-by-default — this
 is what makes the ban near-zero-churn: invocation syntax is identical to
 variant syntax, so canon re-parses byte-identically). **Reachable** means:
@@ -288,7 +292,7 @@ under is an **error**, checked against the complete dispatch set
 ordinary insertion and plugin-layer replacement. The identity-wrapper
 exemption's trust channel is a **compiled registry**: the scaffold
 generator emits a Rust-side table of `(kind, variant, signature)` rows in
-the authoring crate, and the loader confers the exemption when a def
+the semantics crate, and the loader confers the exemption when a def
 matches a row — the marker is never serialized in RON (a serialized marker
 would be forgeable; a serde-skipped one would be lost on reread). Per-kind,
 because same-name different-kind reuse is intentional practice (`Draw` the
@@ -341,7 +345,7 @@ target.
   text — a macro body may FORWARD sugar through a `Param` hole but may
   never introduce it (bodies are scope-free).
 - **Occurrence counting is defined over the PRE-EXPANSION invocation
-  AST**: each caller-side authored site is one occurrence, regardless of
+  AST**: each caller-side semantic site is one occurrence, regardless of
   how many times an idiom's body re-reads the parameter (`Fight` re-reads
   each of its two arguments several times and is the normative fixture —
   its caller writes each `Target(spec)` once, so both slots are
@@ -350,19 +354,19 @@ target.
   re-reads raw argument text at every `Param`, so sugar recognition needs
   either a pre-expansion elaboration layer or origin-tagged sugar nodes
   propagated through expansion — priced as such in
-  `target-sugar-elaboration`. Every authored `Target(n)`/`Targets(n)`
+  `target-sugar-elaboration`. Every semantic `Target(n)`/`Targets(n)`
   site counts (including characteristic reads — `PowerOf(Target(0))` is a
   site); English `Mention` occurrences and expanded-core reads do not. A
   sugared slot is unreferenceable by construction, so the one-site rule is
   enforced by syntax; needing a second site means writing the explicit
-  form. Worked verdict: Rabid Bite's slot 0 has two authored sites (agent
+  form. Worked verdict: Rabid Bite's slot 0 has two semantic sites (agent
   position and the power read), so it must be explicit; its slot 1 has
   one site and may append inline under the mixing rule below.
 - **Direction labels on the two scope rules** (they are not in tension —
   they govern different directions): *acceptance-time validation* — a
-  sugared introduction is accepted iff it is that slot's only authored
+  sugared introduction is accepted iff it is that slot's only semantic
   site, and a `Distinct` edge cannot attach to a sugared slot at all
-  (authored indices must be `< E`); *canonical-writer contraction* (the
+  (semantic indices must be `< E`); *canonical-writer contraction* (the
   future formatter direction) — a slot contracts to inline form only if it
   has one site and no `Distinct` edge, and a cross-constrained connected
   component stays wholly explicit.
@@ -370,8 +374,8 @@ target.
   permanently own `0..E`; inline sites append in the elaborator's
   traversal order, which is DEFINED as schema order — fields in
   declaration order, list elements in sequence — so named-field reordering
-  in RON text does not change indices; authored indices must be `< E`; the
-  validator rejects an authored index landing on a generated slot.
+  in RON text does not change indices; semantic indices must be `< E`; the
+  validator rejects a semantic index landing on a generated slot.
 - **The elaborator is the only scope introducer.** Idiom bodies are
   scope-free with spec-typed parameters. Elaboration normalizes to the
   engine's single top-level `Targeted` per spell/ability and stops
@@ -385,7 +389,7 @@ target.
   cross-slot constraints is predicate-embedded slot references — slot i's
   criteria may reference strictly-earlier slots
   (`Target(And([Not(Ref(Target(0))), Creature]))`) — making
-  `TargetSpec::Distinct` derived and deletable (the authored other-form
+  `TargetSpec::Distinct` derived and deletable (the semantic other-form
   lowers to the predicate shape; recheck-correctness comes free because
   the rules recheck targets against the criteria themselves). This is a
   STATIC, order-free constraint — distinct from the rejected dynamic
@@ -430,7 +434,7 @@ Fight(Target(TargetOne(Creature)), Target(TargetOne(Creature)))
                                         effect: <Fight expansion over Target(0), Target(1)>)
 ```
 
-## 8. Spelling (the authored ⇄ English relation)
+## 8. Spelling (the semantics ⇄ English relation)
 
 - **The constructors catalog retires.** Its 7 entries migrate into their
   words' `frames:`; the lexicon becomes single-origin; macro entries absorb
@@ -460,13 +464,13 @@ Fight(Target(TargetOne(Creature)), Target(TargetOne(Creature)))
   effort's frame-minting rounds write frames into defs, never the catalog;
   targeting-adjacent frames wait for the occurrence-class design.
 
-## 9. Lowering (the authored → core compile)
+## 9. Lowering (the semantics → core compile)
 
-Phases of the one pass: normalization (authoring-side: desugar + scope
+Phases of the one pass: normalization (semantics-side: desugar + scope
 elaboration + single-`Targeted` normalization, §7 rules) → type mapping
-(authored types → core/card types) → authored-invariant enforcement at the
+(semantics types → core/card types) → semantic-invariant enforcement at the
 point where violation would produce wrong core. Normalization is an
-authoring-crate transformation — sugar is authoring's own feature — so the
+semantics-crate transformation — sugar is semantics' own feature — so the
 Idris emitter reaches the normal form without depending on lowering;
 lowering invokes it and owns the cross-grammar mapping.
 
@@ -474,7 +478,7 @@ lowering invokes it and owns the cross-grammar mapping.
   generated), because the fork duplicates the freshly-reshaped grammar.
 - **Divergence discipline**: shapes stay mirrored unless a divergence earns
   its mapping complexity; every non-identity arm carries its justification
-  in place — the crate IS the divergence ledger. Authored terms have no
+  in place — the crate IS the divergence ledger. Semantic terms have no
   independent semantics: a term means its image under `lower`.
 - **Correctness story** (because the compiler forces totality, not
   correctness): generated identity arms while mirrored; **one mapping test
@@ -493,7 +497,7 @@ lowering invokes it and owns the cross-grammar mapping.
   which is exactly when a mapping test earns its keep.
 
   What replaces it: **one test per variant, stating the expected engine
-  shape** — `assert_matches!(authored.lower(), core::T::V(<nested…>))`.
+  shape** — `assert_matches!(semantic.lower(), core::T::V(<nested…>))`.
   The pattern is written to the depth stable Rust can reach: it spells
   nested variants and `None`/numeric leaves exactly as the test's value
   builds them, and bottoms out at `_` only where no pattern can go
@@ -506,7 +510,7 @@ lowering invokes it and owns the cross-grammar mapping.
   with differently-typed payloads is a COMPILE error, so the tests are
   covering the residue the type system leaves, chiefly variants sharing a
   payload type. A **serialization comparison**
-  (`core::to_string(lower(x))` vs `authoring::to_string(x)`) was carried
+  (`core::to_string(lower(x))` vs `semantics::to_string(x)`) was carried
   alongside for a while and measured redundant once the patterns were
   written to full depth — identical detection on a mutation sweep — so it
   survives for exactly one type: `ManaCost` wraps a private field, and
@@ -522,10 +526,10 @@ lowering invokes it and owns the cross-grammar mapping.
   are updated with that pass; the "equal up to consistent slot renumbering
   with `Distinct` edges re-anchored" equivalence lands there if it is ever
   needed.
-- The error taxonomy (authoring parse errors / lowering errors / core
+- The error taxonomy (semantics parse errors / lowering errors / core
   validation) gets its one deliberate pass here, where the layers meet.
 
-## 10. Idris: the mirror attaches to authoring
+## 10. Idris: the mirror attaches to semantics
 
 The mirror's existing obligations are author-mistake proofs — unbound-
 anaphor soundness (the R1/R2 gates), target-read range and cardinality,
@@ -536,15 +540,15 @@ riders-battlefield-only rule exists solely as prose on `EnterRider` in
 `action.rs` ("rejected by the Idris re-emit gate" — it is not), and the
 emitter passes rider shapes through or gaps on them without destination
 checks. Minting that proof — or correcting the prose — rides
-`idris-mirror-authoring`.
+`idris-mirror-semantics`.
 
-- The mirror models the **authoring kernel**: the post-expansion,
+- The mirror models the **semantics kernel**: the post-expansion,
   post-desugar normal-form value universe of the families the emitter
   emits — the container types (`Card`/`Token`) and the grammar reachable
   from them, exactly as emitted today. Excluded: strategy terms, the
   `MacroDef` machinery, frames data. The reattachment is
   **content-preserving, not shape-identical**: the emitted kernel and the
-  idris-check pass set are unchanged (the emitter walks authored mirrors
+  idris-check pass set are unchanged (the emitter walks semantics mirrors
   of the same shapes it walked before), while the PRE-EXISTING Rust↔Idris
   drift — missing variants, arity differences the emitter bridges —
   remains exactly what `idris-mirror-enum-gaps` records: untouched,
@@ -576,10 +580,10 @@ the visible policy).
   split out of core — a cross-cutting, land-anytime migration
   (deliberately `needs: []`; whichever of it and the fork lands second
   adapts). No semantic change.
-- **Stage 1 — the fork**: `deckmaste_authoring` created as a mirror of
+- **Stage 1 — the fork**: `deckmaste_semantics` created as a mirror of
   core's grammar WITH the macro machinery; `deckmaste_lowering` with the
   generated identity mapping; loaders and migrations repoint (parse
-  authoring, lower to core); Idris mirror reattaches; THEN core is stripped
+  semantics, lower to core); Idris mirror reattaches; THEN core is stripped
   of macro machinery, with the test-fixture sweep (the priced big-boring
   item: every `#[cfg(test)]` macro-aware spelling of core values repoints
   or re-spells).
@@ -611,7 +615,7 @@ spine    authoring-crate-fork → lowering-crate → plugin-repoint
 (waves     (side lane, off the pinch path: spelling-crate-rename —
  2–4):      needs only the fork)
 pinch:   plugin-repoint  (the one true serialization point; freeze window)
-wave 5:  macro-author-surface ∥ idris-mirror-authoring ∥ runtime-prose-link
+wave 5:  macro-author-surface ∥ idris-mirror-semantics ∥ runtime-prose-link
 wave 6:  core-demacro ∥ target-sugar-elaboration ∥ frames-catalog-merge
          ∥ macro-collision-diagnostic (resequenced 2026-08-02)
 ```
@@ -619,7 +623,7 @@ wave 6:  core-demacro ∥ target-sugar-elaboration ∥ frames-catalog-merge
 The two Stage-0 renames conflict textually (workspace-wide import sweeps),
 not semantically — integrate them back-to-back or fold both into one
 workspace. Steady state after Stage 1, contention is sharded by crate:
-english rounds in spelling + authoring data, def/frames work in authoring,
+english rounds in spelling + semantics data, def/frames work in semantics,
 engine correctness in core/card, with the dependency DAG making
 cross-interference a build error.
 
@@ -631,19 +635,19 @@ cross-interference a build error.
   resolve/trigger test modules, core mana/filter tests, the plugin-crate
   fixture helpers, integration suites).
 - `Expanded` / `remembers_expansion` invocation provenance relocates from
-  core values to authored values (a real sub-project inside Stage 1, not a
-  rename) — the loader grows a dual-result contract (authored term AND
+  core values to semantic values (a real sub-project inside Stage 1, not a
+  rename) — the loader grows a dual-result contract (semantic term AND
   lowered core value; provenance erased exactly at `lower`), and the ~97
   production `Expanded(…)` match sites across ~14 `deckmaste_engine`
   modules stop existing once core values carry no wrappers. The relocation
   is sequenced in two landings so that no landing degrades (owner-settled
   2026-08-02). `plugin-repoint` builds the dual-result contract with the
   `Expansion` arms still identities: its lowered core is byte-identical to
-  today's — gated by `lower(authored_read(src)) == core_read(src)` over the
+  today's — gated by `lower(semantic_read(src)) == core_read(src)` over the
   corpus — and every consumer of invocation provenance keeps working
   untouched. `runtime-prose-link` then erases the wrappers in the same
   landing that moves the legacy renderer and fidelity into
-  `deckmaste_legacy_render` and repoints them onto authored terms (a further
+  `deckmaste_legacy_render` and repoints them onto semantic terms (a further
   ~30+ `Expanded` match sites, outside the ~97-site engine count) and builds
   the provenance index — so prose that feeds on invocation templates never
   loses them, and the ~97 engine arms are deleted alongside the erasure that
@@ -651,7 +655,7 @@ cross-interference a build error.
   last.
 - Blame/history lineage for the grammar types breaks at the fork; the fork
   commit message must state the provenance.
-- Existing `idris-*` and macro-machinery tickets re-aim at the authoring
+- Existing `idris-*` and macro-machinery tickets re-aim at the semantics
   mirror and the renamed crates — an open-ended set: grep the ticket tree
   at claim time rather than trusting any closed list here.
 
@@ -668,7 +672,7 @@ cross-interference a build error.
    never-diverge) are named so reviews can watch for both.
 4. Stage 1 is a coordination big-bang; concurrent efforts (the english
    frames rounds) queue behind the fork window.
-5. The formal gate shifted from "core well-formed" to "authored
+5. The formal gate shifted from "core well-formed" to "semantic
    well-formed" — resolved deliberately in §10, with the thin-core-mirror
    escape hatch recorded.
 
@@ -686,14 +690,14 @@ cross-interference a build error.
   and every binder feature would compound there.
 - **Per-verb compound frame entries**: O(verbs × wrappers) corpus
   explosion; the prototype's own type mismatch documented it.
-- **A separate semantic IR beside authoring and core**: a third authority;
+- **A separate semantic IR beside semantics and core**: a third authority;
   the needed intermediate is only the transient derivation.
 - **Mandatory `core::` qualification in bodies**: the diagnostic wins under
   this policy.
 - **Wipe-first identity defs with generator-input surface text**:
   reintroduces the pin-table disease (principle 2's external mapping
   files) and destroys hand `frames:`.
-- **Storing expanded core beside authored terms**: they will drift; core is
+- **Storing expanded core beside semantic terms**: they will drift; core is
   a disposable cache only.
 
 ## 15. Supersessions and ticket map
@@ -716,7 +720,7 @@ tracked tree); the deltas restated here are self-contained.
   to that ticket.
 - Ticket map — Stage 0: `plugin-crate-split` (+ `card-crate-split`,
   cross-cutting/anytime). Stage 1: `authoring-crate-fork`,
-  `lowering-crate`, `plugin-repoint`, `idris-mirror-authoring`,
+  `lowering-crate`, `plugin-repoint`, `idris-mirror-semantics`,
   `runtime-prose-link` (added 2026-08-02 — the render-side seam),
   `core-demacro`. Stage 2: `macro-author-surface` (rewritten),
   `macro-collision-diagnostic`. Stage 3: `spelling-crate-rename`,

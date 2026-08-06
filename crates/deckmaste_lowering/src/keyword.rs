@@ -1,17 +1,17 @@
-//! `keyword` — authored grammar to engine AST.
+//! `keyword` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::KeywordRef {
+impl Lower for deckmaste_semantics::KeywordRef {
     type Target = deckmaste_core::KeywordRef;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::KeywordRef(self.0.lower())
     }
 }
 
-impl Lower for deckmaste_authoring::ParamShape {
+impl Lower for deckmaste_semantics::ParamShape {
     type Target = deckmaste_core::ParamShape;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -26,7 +26,7 @@ impl Lower for deckmaste_authoring::ParamShape {
     }
 }
 
-impl Lower for deckmaste_authoring::KeywordDecl {
+impl Lower for deckmaste_semantics::KeywordDecl {
     type Target = deckmaste_core::KeywordDecl;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::KeywordDecl {
@@ -36,7 +36,7 @@ impl Lower for deckmaste_authoring::KeywordDecl {
     }
 }
 
-impl Lower for deckmaste_authoring::KeywordAbility {
+impl Lower for deckmaste_semantics::KeywordAbility {
     type Target = deckmaste_core::KeywordAbility;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -50,8 +50,8 @@ impl Lower for deckmaste_authoring::KeywordAbility {
                 abilities: abilities.lower(),
             },
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn lowers_keyword_ref() {
         assert_matches!(
-            deckmaste_authoring::KeywordRef("X".into()).lower(),
+            deckmaste_semantics::KeywordRef("X".into()).lower(),
             deckmaste_core::KeywordRef(_)
         );
     }
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn lowers_param_shape_none() {
         assert_matches!(
-            deckmaste_authoring::ParamShape::None.lower(),
+            deckmaste_semantics::ParamShape::None.lower(),
             deckmaste_core::ParamShape::None
         );
     }
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn lowers_param_shape_counted() {
         assert_matches!(
-            deckmaste_authoring::ParamShape::Counted.lower(),
+            deckmaste_semantics::ParamShape::Counted.lower(),
             deckmaste_core::ParamShape::Counted
         );
     }
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn lowers_param_shape_costed() {
         assert_matches!(
-            deckmaste_authoring::ParamShape::Costed.lower(),
+            deckmaste_semantics::ParamShape::Costed.lower(),
             deckmaste_core::ParamShape::Costed
         );
     }
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn lowers_param_shape_counted_cost() {
         assert_matches!(
-            deckmaste_authoring::ParamShape::CountedCost.lower(),
+            deckmaste_semantics::ParamShape::CountedCost.lower(),
             deckmaste_core::ParamShape::CountedCost
         );
     }
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn lowers_param_shape_predicated() {
         assert_matches!(
-            deckmaste_authoring::ParamShape::Predicated.lower(),
+            deckmaste_semantics::ParamShape::Predicated.lower(),
             deckmaste_core::ParamShape::Predicated
         );
     }
@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn lowers_param_shape_predicated_costed() {
         assert_matches!(
-            deckmaste_authoring::ParamShape::PredicatedCosted.lower(),
+            deckmaste_semantics::ParamShape::PredicatedCosted.lower(),
             deckmaste_core::ParamShape::PredicatedCosted
         );
     }
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn lowers_param_shape_named() {
         assert_matches!(
-            deckmaste_authoring::ParamShape::Named.lower(),
+            deckmaste_semantics::ParamShape::Named.lower(),
             deckmaste_core::ParamShape::Named
         );
     }
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn lowers_keyword_decl() {
         assert_matches!(
-            deckmaste_authoring::KeywordDecl {
+            deckmaste_semantics::KeywordDecl {
                 name: "X".into(),
                 shape: minimal_param_shape()
             }
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn lowers_keyword_ability_first_strike() {
         assert_matches!(
-            deckmaste_authoring::KeywordAbility::FirstStrike.lower(),
+            deckmaste_semantics::KeywordAbility::FirstStrike.lower(),
             deckmaste_core::KeywordAbility::FirstStrike
         );
     }
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     fn lowers_keyword_ability_double_strike() {
         assert_matches!(
-            deckmaste_authoring::KeywordAbility::DoubleStrike.lower(),
+            deckmaste_semantics::KeywordAbility::DoubleStrike.lower(),
             deckmaste_core::KeywordAbility::DoubleStrike
         );
     }
@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn lowers_keyword_ability_deathtouch() {
         assert_matches!(
-            deckmaste_authoring::KeywordAbility::Deathtouch.lower(),
+            deckmaste_semantics::KeywordAbility::Deathtouch.lower(),
             deckmaste_core::KeywordAbility::Deathtouch
         );
     }
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn lowers_keyword_ability_trample() {
         assert_matches!(
-            deckmaste_authoring::KeywordAbility::Trample.lower(),
+            deckmaste_semantics::KeywordAbility::Trample.lower(),
             deckmaste_core::KeywordAbility::Trample
         );
     }
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn lowers_keyword_ability_vigilance() {
         assert_matches!(
-            deckmaste_authoring::KeywordAbility::Vigilance.lower(),
+            deckmaste_semantics::KeywordAbility::Vigilance.lower(),
             deckmaste_core::KeywordAbility::Vigilance
         );
     }
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn lowers_keyword_ability_composite() {
         assert_matches!(
-            deckmaste_authoring::KeywordAbility::Composite {
+            deckmaste_semantics::KeywordAbility::Composite {
                 name: "X".into(),
                 abilities: Vec::new()
             }
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn lowers_keyword_ability_expanded() {
         assert_matches!(
-            deckmaste_authoring::KeywordAbility::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::KeywordAbility::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,

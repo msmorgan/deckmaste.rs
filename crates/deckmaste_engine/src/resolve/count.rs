@@ -56,7 +56,7 @@ impl GameState {
                 // [CR#700.5]: devotion — count mana symbols in the
                 // referenced object's printed cost matching `pred`. A
                 // stale/absent/non-card-backed reference fizzles to 0
-                // (never-crash on an authoring mistake).
+                // (never-crash on a semantic-input error).
                 Countable::ManaSymbols(reference, pred) => {
                     let id = self.eval_reference(reference, frame);
                     let n = match self
@@ -286,7 +286,7 @@ impl GameState {
             // happened, post-replacement) — or, for a triggered ability, the
             // firing event's magnitude seeded from `TriggerBindings.that_much`
             // by `resolve_object`. Still loud when neither fixed an amount:
-            // that is an authoring error (a `ThatMuch` with no antecedent
+            // that is a semantic-input error (a `ThatMuch` with no antecedent
             // magnitude), not an engine seam.
             Count::ThatMany | Count::ThatMuch => self.that_much.unwrap_or_else(|| {
                 panic!(
@@ -366,7 +366,7 @@ impl GameState {
             }
             // [CR#607.2,608.2c]: a scalar note read back in the SAME resolution
             // ("that number"). A present `Number` note reads its value; a
-            // MISSING key (or a future non-number value) is an authoring
+            // MISSING key (or a future non-number value) is a semantic-input
             // mistake, not a legal 0 — the engine-stat-none-fizzle ruling says
             // fizzle the consuming read, never a silent bare 0. `eval_count`
             // returns a bare `Uint` with no fizzle channel, so — exactly as the
@@ -1358,7 +1358,7 @@ mod tests {
             "the total life across all players"
         );
 
-        // An empty player set (an authoring mistake, but must stay safe on
+        // An empty player set (a semantic-input error, but must stay safe on
         // ANY input, not just the real ≥1-player fixtures) folds every op to
         // 0 rather than panicking on `Iterator::min`/`max` of an empty set.
         let no_players = Predicate::Not(Arc::new(Predicate::Any));
@@ -1589,9 +1589,9 @@ mod tests {
         assert_eq!(state.eval_count(&Count::X, &frame), 3);
     }
 
-    /// [CR#607.2,608.2c] a `Count::Noted` read of an ABSENT key is an authoring
-    /// mistake — it fizzles to 0 (engine-stat-none-fizzle), never a panic and
-    /// never a silent-but-plausible value.
+    /// [CR#607.2,608.2c] a `Count::Noted` read of an ABSENT key is a
+    /// semantic-input mistake — it fizzles to 0 (engine-stat-none-fizzle),
+    /// never a panic and never a silent-but-plausible value.
     #[test]
     fn count_noted_missing_key_fizzles_to_zero() {
         let (state, a) = bear_on_field();
@@ -1785,10 +1785,10 @@ mod tests {
             // `canon()` (not `builtin()`): the filter names the canon-declared
             // `Goblin` subtype, whose macro lives in canon — a bare `Subtype(Goblin)`
             // only expands with that macro in scope. Parsed through the
-            // AUTHORED path (`authoring::Predicate` → `lower()`), the path
+            // SEMANTICS path (`semantics::Predicate` → `lower()`), the path
             // production now takes.
-            let authored: deckmaste_authoring::Predicate = canon().macros.read_str(filter).unwrap();
-            let parsed: Predicate = deckmaste_lowering::Lower::lower(authored);
+            let semantic: deckmaste_semantics::Predicate = canon().macros.read_str(filter).unwrap();
+            let parsed: Predicate = deckmaste_lowering::Lower::lower(semantic);
             let frame = frame_src(source);
             let before = state.zones.battlefield.len();
             state.run_effect(

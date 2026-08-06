@@ -3,7 +3,7 @@ needs: [macro-author-surface, spelling-crate-rename]
 ---
 **Retire `plugins/builtin/frames/constructors.ron`: its seven entries
 migrate into their words' `frames:`, and the lexicon becomes
-single-origin.** Design: `docs/decisions/authoring-spelling-lowering.md`
+single-origin.** Design: `docs/decisions/semantics-spelling-lowering.md`
 (§8). Do this while the catalog is still seven entries — it only grows
 otherwise.
 

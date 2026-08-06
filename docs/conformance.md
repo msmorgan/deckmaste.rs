@@ -144,7 +144,7 @@ from the implementation and tests, not inferred solely from surviving P0 tags.
 | additional costs, mandatory + optional/kicker (pipeline-positional) | `CostChange::Additional { components }` plus announce-stage cost choices | ✓ for the implemented cost-component subset; broader optional/additional choice shapes remain engine-seams |
 | alternative cost, one-per-spell, rides the cast permission | `AlternativeCost::{Free, Components}` on `May(Cast(cost: …))` | ✓ grammar; announce selection + one-per-spell rule engine-seam |
 | declaration toll / resolution toll | `Deontic::Gate` / `Effect::Unless` | ✓ |
-| recurring slots (echo, cumulative upkeep) | builtin `Echo` / `CumulativeUpkeep` keyword macros | partial — grammar is authored; upkeep-anchored lookback for Echo and count-scaled tolls for cumulative upkeep remain engine seams |
+| recurring slots (echo, cumulative upkeep) | builtin `Echo` / `CumulativeUpkeep` keyword macros | partial — semantics grammar exists; upkeep-anchored lookback for Echo and count-scaled tolls for cumulative upkeep remain engine seams |
 | special-action costs (X chosen before payment) | — | MISSING — post-P0 grammar backlog (needs design dialogue, with the 116-machinery) |
 | total-cost pipeline + lock ([CR#601.2f]) | `TotalCost { base, trace, locked }` | ✓ for mana increases, reductions, scaled changes, and additional components; unsupported non-mana modifier branches remain loud seams |
 | cost-modification hook (convoke/delve/improvise/assist/waterbend) | the composite-given primitive | engine-seam (payment-substitution interface, post-P0) |

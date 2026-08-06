@@ -1,10 +1,10 @@
-//! `selection` — authored grammar to engine AST.
+//! `selection` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Selection {
+impl Lower for deckmaste_semantics::Selection {
     type Target = deckmaste_core::Selection;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -43,8 +43,8 @@ impl Lower for deckmaste_authoring::Selection {
                 proj: proj.lower(),
             },
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn lowers_selection_select_all() {
         assert_matches!(
-            deckmaste_authoring::Selection::SelectAll(minimal_predicate()).lower(),
+            deckmaste_semantics::Selection::SelectAll(minimal_predicate()).lower(),
             deckmaste_core::Selection::SelectAll(deckmaste_core::Predicate::Kind(
                 deckmaste_core::ObjectKind::Ability
             ))
@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn lowers_selection_union() {
         assert_matches!(
-            deckmaste_authoring::Selection::Union(Vec::new()).lower(),
+            deckmaste_semantics::Selection::Union(Vec::new()).lower(),
             deckmaste_core::Selection::Union(_)
         );
     }
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn lowers_selection_in_chosen_order() {
         assert_matches!(
-            deckmaste_authoring::Selection::InChosenOrder(
+            deckmaste_semantics::Selection::InChosenOrder(
                 std::sync::Arc::new(minimal_selection()),
                 minimal_reference()
             )
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn lowers_selection_random() {
         assert_matches!(
-            deckmaste_authoring::Selection::Random(minimal_quantity(), minimal_predicate()).lower(),
+            deckmaste_semantics::Selection::Random(minimal_quantity(), minimal_predicate()).lower(),
             deckmaste_core::Selection::Random(
                 deckmaste_core::Quantity::Range(None, None),
                 deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn lowers_selection_among_noted() {
         assert_matches!(
-            deckmaste_authoring::Selection::AmongNoted("X".into(), minimal_quantity()).lower(),
+            deckmaste_semantics::Selection::AmongNoted("X".into(), minimal_quantity()).lower(),
             deckmaste_core::Selection::AmongNoted(_, deckmaste_core::Quantity::Range(None, None))
         );
     }
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn lowers_selection_top_of_library() {
         assert_matches!(
-            deckmaste_authoring::Selection::TopOfLibrary {
+            deckmaste_semantics::Selection::TopOfLibrary {
                 count: minimal_count(),
                 whose: minimal_reference()
             }
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn lowers_selection_bottom_of_library() {
         assert_matches!(
-            deckmaste_authoring::Selection::BottomOfLibrary {
+            deckmaste_semantics::Selection::BottomOfLibrary {
                 count: minimal_count(),
                 whose: minimal_reference()
             }
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn lowers_selection_library_of() {
         assert_matches!(
-            deckmaste_authoring::Selection::LibraryOf(minimal_reference()).lower(),
+            deckmaste_semantics::Selection::LibraryOf(minimal_reference()).lower(),
             deckmaste_core::Selection::LibraryOf(deckmaste_core::Reference::This)
         );
     }
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn lowers_selection_top_of_graveyard() {
         assert_matches!(
-            deckmaste_authoring::Selection::TopOfGraveyard {
+            deckmaste_semantics::Selection::TopOfGraveyard {
                 count: minimal_count(),
                 of: minimal_reference()
             }
@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn lowers_selection_targets() {
         assert_matches!(
-            deckmaste_authoring::Selection::Targets(0).lower(),
+            deckmaste_semantics::Selection::Targets(0).lower(),
             deckmaste_core::Selection::Targets(0)
         );
     }
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn lowers_selection_valid_targets_for() {
         assert_matches!(
-            deckmaste_authoring::Selection::ValidTargetsFor(minimal_reference()).lower(),
+            deckmaste_semantics::Selection::ValidTargetsFor(minimal_reference()).lower(),
             deckmaste_core::Selection::ValidTargetsFor(deckmaste_core::Reference::This)
         );
     }
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn lowers_selection_they() {
         assert_matches!(
-            deckmaste_authoring::Selection::They.lower(),
+            deckmaste_semantics::Selection::They.lower(),
             deckmaste_core::Selection::They
         );
     }
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn lowers_selection_them() {
         assert_matches!(
-            deckmaste_authoring::Selection::Them(minimal_sort()).lower(),
+            deckmaste_semantics::Selection::Them(minimal_sort()).lower(),
             deckmaste_core::Selection::Them(deckmaste_core::Sort::Player)
         );
     }
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn lowers_selection_piles_of() {
         assert_matches!(
-            deckmaste_authoring::Selection::PilesOf {
+            deckmaste_semantics::Selection::PilesOf {
                 note: "X".into(),
                 of: minimal_reference()
             }
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn lowers_selection_pick() {
         assert_matches!(
-            deckmaste_authoring::Selection::Pick {
+            deckmaste_semantics::Selection::Pick {
                 op: minimal_aggregate_op(),
                 proj: minimal_projection()
             }
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn lowers_selection_expanded() {
         assert_matches!(
-            deckmaste_authoring::Selection::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Selection::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,

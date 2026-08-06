@@ -1,6 +1,6 @@
 //! Validating a plugin's finished cards and tokens through the macro-aware
 //! reader, plus a lint pass over parsed values for shapes that read fine but
-//! are always authoring mistakes.
+//! are always semantic-input errors.
 //!
 //! **Token walking**: every `tokens/**/*.ron` is read as a
 //! [`deckmaste_core::Token`] with the same macro scope and todo-skipping as

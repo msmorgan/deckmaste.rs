@@ -8,11 +8,11 @@ edition = "2024"
 workspace = true
 
 [dependencies]
-# The one-way compile: authored grammar in, engine AST out. This crate is the
+# The one-way compile: semantics grammar in, engine AST out. This crate is the
 # ONLY edge between the two grammars — neither depends on the other, and the
 # build graph is the architecture
-# (docs/decisions/authoring-spelling-lowering.md §1, §9).
-deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
+# (docs/decisions/semantics-spelling-lowering.md §1, §9).
+deckmaste_semantics = { version = "0.1.0", path = "../deckmaste_semantics" }
 # Lowering targets both engine-side crates: the loose primitives in core and
 # the card packaging in `deckmaste_card`.
 deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }

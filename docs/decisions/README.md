@@ -9,7 +9,7 @@ requires explicit review rather than an opportunistic refactor.
   structural, and stable.
 - [Effect atom independence](effect-atom-independence.md) — An effect atom reads
   only its arguments and explicitly bound references.
-- [Invalid authoring fizzles](invalid-authoring-fizzles.md) — Bad authored
+- [Invalid semantic input fizzles](invalid-semantic-input-fizzles.md) — Bad semantic
   references degrade to no-ops instead of crashing play.
 - [Engine and runner boundary](engine-runner-boundary.md) — Core exposes legal
   decisions; consumers own convenience policy.
@@ -22,7 +22,7 @@ requires explicit review rather than an opportunistic refactor.
 - [Types grant capabilities](types-grant-capabilities.md) — Current
   characteristics positively grant the capabilities subsystems consume.
 - [Idris is a soundness gate](idris-is-a-soundness-gate.md) — Idris validates
-  authored model shape without becoming a second engine.
+  semantic model shape without becoming a second engine.
 - [Macro templates are bidirectional](macro-templates-are-bidirectional.md) —
   One typed template drives both rendering and parsing.
 - [State-based actions are data](state-based-actions-are-data.md) — Ordinary
@@ -31,8 +31,8 @@ requires explicit review rather than an opportunistic refactor.
   dependency, valency, voice, modality, and attachment before Magic lowering.
 - [English productions ship their inverse](english-productions-ship-their-inverse.md) —
   A grammar slice lands only with its exact renderer inverse.
-- [Authoring, spelling, lowering](authoring-spelling-lowering.md) — One
-  authored grammar; English relates two-way via spelling, core derives
+- [Semantics, spelling, lowering](semantics-spelling-lowering.md) — One
+  semantics grammar; English relates two-way via spelling, core derives
   one-way via lowering.
 - [English grammar is derived](english-grammar-is-derived.md) — One
   construction declaration compiles parse, render, and build.

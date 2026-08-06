@@ -287,10 +287,10 @@ impl CompiledFrame {
 /// on fully-expanded canonical form (see [`crate::guard`]), and the catalog's
 /// preferred guard spelling is the readable macro sugar — the seeded
 /// `Target` entry guards `Exactly(1)`, which is a plugin macro and not a
-/// `deckmaste_authoring` constructor at all. A compiler that cannot see the
+/// `deckmaste_semantics` constructor at all. A compiler that cannot see the
 /// macros therefore cannot evaluate the guards it is handed. Pass
 /// [`guard::core_reader`] only for a frame set known to guard with bare
-/// authoring constructors.
+/// semantic constructors.
 ///
 /// # Errors
 /// If the frame spells a reserved witness token; if a hole names a param that
@@ -1407,10 +1407,10 @@ mod tests {
             "and `param` is what it actually binds"
         );
         assert_eq!(guarded.guards.len(), 1);
-        assert_eq!(guarded.guards[0].source, "You", "stored as authored");
+        assert_eq!(guarded.guards[0].source, "You", "stored as semantic");
         assert_eq!(
             guarded.guards[0].value,
-            guard::normalized(deckmaste_authoring::Reference::You),
+            guard::normalized(deckmaste_semantics::Reference::You),
             "a card-side `You` argument satisfies it through the same function"
         );
         assert_eq!(holes_in(&guarded.tree), vec![0]);
@@ -1552,8 +1552,8 @@ mod tests {
     /// keeps this a fixture — registering the real param-type set is
     /// `deckmaste_plugin`'s job, and this crate sits below it.
     fn reader() -> MacroSet {
-        let mut macros = MacroSet::new(deckmaste_authoring::ron::kinds())
-            .with_options(deckmaste_authoring::ron::raw_options());
+        let mut macros = MacroSet::new(deckmaste_semantics::ron::kinds())
+            .with_options(deckmaste_semantics::ron::raw_options());
         let def: macro_ron::MacroDef = macros
             .read_str(r#"(name: "Exactly", kinds: [Quantity], params: [Any], body: Range(Param(0), Param(0)))"#)
             .expect("the fixture definition reads");
@@ -1592,11 +1592,11 @@ mod tests {
         );
         assert_eq!(
             sugar.source, "Exactly(1)",
-            "but the authored spelling is kept"
+            "but the semantic spelling is kept"
         );
         assert_eq!(
             sugar.value,
-            guard::normalized(deckmaste_authoring::Quantity::one()),
+            guard::normalized(deckmaste_semantics::Quantity::one()),
             "and a card-side argument reaches it through `guard::normalized`"
         );
     }

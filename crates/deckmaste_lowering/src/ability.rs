@@ -1,10 +1,10 @@
-//! `ability` — authored grammar to engine AST.
+//! `ability` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::SpellAbility {
+impl Lower for deckmaste_semantics::SpellAbility {
     type Target = deckmaste_core::SpellAbility;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::SpellAbility {
@@ -14,7 +14,7 @@ impl Lower for deckmaste_authoring::SpellAbility {
     }
 }
 
-impl Lower for deckmaste_authoring::ActivatedAbility {
+impl Lower for deckmaste_semantics::ActivatedAbility {
     type Target = deckmaste_core::ActivatedAbility;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::ActivatedAbility {
@@ -29,7 +29,7 @@ impl Lower for deckmaste_authoring::ActivatedAbility {
     }
 }
 
-impl Lower for deckmaste_authoring::UseLimit {
+impl Lower for deckmaste_semantics::UseLimit {
     type Target = deckmaste_core::UseLimit;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -40,7 +40,7 @@ impl Lower for deckmaste_authoring::UseLimit {
     }
 }
 
-impl Lower for deckmaste_authoring::TriggeredAbility {
+impl Lower for deckmaste_semantics::TriggeredAbility {
     type Target = deckmaste_core::TriggeredAbility;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::TriggeredAbility {
@@ -55,7 +55,7 @@ impl Lower for deckmaste_authoring::TriggeredAbility {
     }
 }
 
-impl Lower for deckmaste_authoring::ChooseSpec {
+impl Lower for deckmaste_semantics::ChooseSpec {
     type Target = deckmaste_core::ChooseSpec;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::ChooseSpec {
@@ -68,7 +68,7 @@ impl Lower for deckmaste_authoring::ChooseSpec {
     }
 }
 
-impl Lower for deckmaste_authoring::ModalCostRider {
+impl Lower for deckmaste_semantics::ModalCostRider {
     type Target = deckmaste_core::ModalCostRider;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -78,7 +78,7 @@ impl Lower for deckmaste_authoring::ModalCostRider {
     }
 }
 
-impl Lower for deckmaste_authoring::Mode {
+impl Lower for deckmaste_semantics::Mode {
     type Target = deckmaste_core::Mode;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::Mode {
@@ -88,7 +88,7 @@ impl Lower for deckmaste_authoring::Mode {
     }
 }
 
-impl Lower for deckmaste_authoring::Ability {
+impl Lower for deckmaste_semantics::Ability {
     type Target = deckmaste_core::Ability;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -99,8 +99,8 @@ impl Lower for deckmaste_authoring::Ability {
             Self::Keyword(f0) => deckmaste_core::Ability::Keyword(f0.lower()),
             Self::Innate(f0) => deckmaste_core::Ability::Innate(f0.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn lowers_spell_ability() {
         assert_matches!(
-            deckmaste_authoring::SpellAbility {
+            deckmaste_semantics::SpellAbility {
                 ability_word: None,
                 effect: minimal_one_shot_effect()
             }
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn lowers_activated_ability() {
         assert_matches!(
-            deckmaste_authoring::ActivatedAbility {
+            deckmaste_semantics::ActivatedAbility {
                 ability_word: None,
                 cost: minimal_cost(),
                 from: None,
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn lowers_use_limit_once_per_turn() {
         assert_matches!(
-            deckmaste_authoring::UseLimit::OncePerTurn.lower(),
+            deckmaste_semantics::UseLimit::OncePerTurn.lower(),
             deckmaste_core::UseLimit::OncePerTurn
         );
     }
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn lowers_use_limit_once_per_game() {
         assert_matches!(
-            deckmaste_authoring::UseLimit::OncePerGame.lower(),
+            deckmaste_semantics::UseLimit::OncePerGame.lower(),
             deckmaste_core::UseLimit::OncePerGame
         );
     }
@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn lowers_use_limit_loyalty_once_per_turn() {
         assert_matches!(
-            deckmaste_authoring::UseLimit::LoyaltyOncePerTurn.lower(),
+            deckmaste_semantics::UseLimit::LoyaltyOncePerTurn.lower(),
             deckmaste_core::UseLimit::LoyaltyOncePerTurn
         );
     }
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn lowers_triggered_ability() {
         assert_matches!(
-            deckmaste_authoring::TriggeredAbility {
+            deckmaste_semantics::TriggeredAbility {
                 ability_word: None,
                 event: minimal_event_filter(),
                 from: None,
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn lowers_choose_spec() {
         assert_matches!(
-            deckmaste_authoring::ChooseSpec {
+            deckmaste_semantics::ChooseSpec {
                 count: minimal_quantity(),
                 up_to: false,
                 repeats: false,
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn lowers_modal_cost_rider_entwine() {
         assert_matches!(
-            deckmaste_authoring::ModalCostRider::Entwine(minimal_cost()).lower(),
+            deckmaste_semantics::ModalCostRider::Entwine(minimal_cost()).lower(),
             deckmaste_core::ModalCostRider::Entwine(deckmaste_core::Cost(_))
         );
     }
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn lowers_modal_cost_rider_escalate() {
         assert_matches!(
-            deckmaste_authoring::ModalCostRider::Escalate(minimal_cost()).lower(),
+            deckmaste_semantics::ModalCostRider::Escalate(minimal_cost()).lower(),
             deckmaste_core::ModalCostRider::Escalate(deckmaste_core::Cost(_))
         );
     }
@@ -267,7 +267,7 @@ mod tests {
     #[test]
     fn lowers_mode() {
         assert_matches!(
-            deckmaste_authoring::Mode {
+            deckmaste_semantics::Mode {
                 effect: minimal_one_shot_effect(),
                 cost: None
             }
@@ -286,7 +286,7 @@ mod tests {
     #[test]
     fn lowers_ability_static() {
         assert_matches!(
-            deckmaste_authoring::Ability::Static(std::sync::Arc::new(minimal_static_effect()))
+            deckmaste_semantics::Ability::Static(std::sync::Arc::new(minimal_static_effect()))
                 .lower(),
             deckmaste_core::Ability::Static(_)
         );
@@ -295,7 +295,7 @@ mod tests {
     #[test]
     fn lowers_ability_activated() {
         assert_matches!(
-            deckmaste_authoring::Ability::Activated(std::sync::Arc::new(
+            deckmaste_semantics::Ability::Activated(std::sync::Arc::new(
                 minimal_activated_ability()
             ))
             .lower(),
@@ -306,7 +306,7 @@ mod tests {
     #[test]
     fn lowers_ability_triggered() {
         assert_matches!(
-            deckmaste_authoring::Ability::Triggered(std::sync::Arc::new(
+            deckmaste_semantics::Ability::Triggered(std::sync::Arc::new(
                 minimal_triggered_ability()
             ))
             .lower(),
@@ -317,7 +317,7 @@ mod tests {
     #[test]
     fn lowers_ability_spell() {
         assert_matches!(
-            deckmaste_authoring::Ability::Spell(std::sync::Arc::new(minimal_spell_ability()))
+            deckmaste_semantics::Ability::Spell(std::sync::Arc::new(minimal_spell_ability()))
                 .lower(),
             deckmaste_core::Ability::Spell(_)
         );
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn lowers_ability_keyword() {
         assert_matches!(
-            deckmaste_authoring::Ability::Keyword(minimal_keyword_ability()).lower(),
+            deckmaste_semantics::Ability::Keyword(minimal_keyword_ability()).lower(),
             deckmaste_core::Ability::Keyword(deckmaste_core::KeywordAbility::FirstStrike)
         );
     }
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn lowers_ability_innate() {
         assert_matches!(
-            deckmaste_authoring::Ability::Innate(std::sync::Arc::new(minimal_ability())).lower(),
+            deckmaste_semantics::Ability::Innate(std::sync::Arc::new(minimal_ability())).lower(),
             deckmaste_core::Ability::Innate(_)
         );
     }
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn lowers_ability_expanded() {
         assert_matches!(
-            deckmaste_authoring::Ability::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Ability::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,

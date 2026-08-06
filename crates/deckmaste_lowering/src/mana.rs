@@ -1,10 +1,10 @@
-//! `mana` — authored grammar to engine AST.
+//! `mana` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::PlanarFace {
+impl Lower for deckmaste_semantics::PlanarFace {
     type Target = deckmaste_core::PlanarFace;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -15,7 +15,7 @@ impl Lower for deckmaste_authoring::PlanarFace {
     }
 }
 
-impl Lower for deckmaste_authoring::ManaSpec {
+impl Lower for deckmaste_semantics::ManaSpec {
     type Target = deckmaste_core::ManaSpec;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -29,7 +29,7 @@ impl Lower for deckmaste_authoring::ManaSpec {
     }
 }
 
-impl Lower for deckmaste_authoring::SimpleManaSymbol {
+impl Lower for deckmaste_semantics::SimpleManaSymbol {
     type Target = deckmaste_core::SimpleManaSymbol;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -39,7 +39,7 @@ impl Lower for deckmaste_authoring::SimpleManaSymbol {
     }
 }
 
-impl Lower for deckmaste_authoring::ManaSymbol {
+impl Lower for deckmaste_semantics::ManaSymbol {
     type Target = deckmaste_core::ManaSymbol;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -54,7 +54,7 @@ impl Lower for deckmaste_authoring::ManaSymbol {
     }
 }
 
-impl Lower for deckmaste_authoring::SymbolPred {
+impl Lower for deckmaste_semantics::SymbolPred {
     type Target = deckmaste_core::SymbolPred;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -69,7 +69,7 @@ impl Lower for deckmaste_authoring::SymbolPred {
     }
 }
 
-impl Lower for deckmaste_authoring::ManaRider {
+impl Lower for deckmaste_semantics::ManaRider {
     type Target = deckmaste_core::ManaRider;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -79,8 +79,8 @@ impl Lower for deckmaste_authoring::ManaRider {
             Self::Persistent(f0) => deckmaste_core::ManaRider::Persistent(f0.lower()),
             Self::Snow => deckmaste_core::ManaRider::Snow,
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -88,7 +88,7 @@ impl Lower for deckmaste_authoring::ManaRider {
     }
 }
 
-impl Lower for deckmaste_authoring::ManaProduction {
+impl Lower for deckmaste_semantics::ManaProduction {
     type Target = deckmaste_core::ManaProduction;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -103,7 +103,7 @@ impl Lower for deckmaste_authoring::ManaProduction {
 
 /// HAND-WRITTEN, not scaffolded.
 ///
-/// `ManaCost` is a newtype over a PRIVATE `Arc<[ManaSymbol]>` (authoring's
+/// `ManaCost` is a newtype over a PRIVATE `Arc<[ManaSymbol]>` (semantics'
 /// `mana.rs`), so `self.0` is not reachable from this crate and the scaffold
 /// generator correctly refused to emit an arm for it. This is still an identity
 /// mapping — it just travels through the public `From` conversions on either
@@ -111,10 +111,10 @@ impl Lower for deckmaste_authoring::ManaProduction {
 ///
 /// `ParseManaError` gets no arm at all: it is the `FromStr` error type, not
 /// grammar, and is unreachable from any container.
-impl Lower for deckmaste_authoring::ManaCost {
+impl Lower for deckmaste_semantics::ManaCost {
     type Target = deckmaste_core::ManaCost;
     fn lower(self) -> <Self as Lower>::Target {
-        let symbols: std::sync::Arc<[deckmaste_authoring::ManaSymbol]> = self.into();
+        let symbols: std::sync::Arc<[deckmaste_semantics::ManaSymbol]> = self.into();
         symbols.lower().into()
     }
 }
@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn lowers_planar_face_blank() {
         assert_matches!(
-            deckmaste_authoring::PlanarFace::Blank.lower(),
+            deckmaste_semantics::PlanarFace::Blank.lower(),
             deckmaste_core::PlanarFace::Blank
         );
     }
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn lowers_planar_face_chaos() {
         assert_matches!(
-            deckmaste_authoring::PlanarFace::Chaos.lower(),
+            deckmaste_semantics::PlanarFace::Chaos.lower(),
             deckmaste_core::PlanarFace::Chaos
         );
     }
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn lowers_planar_face_planeswalker() {
         assert_matches!(
-            deckmaste_authoring::PlanarFace::Planeswalker.lower(),
+            deckmaste_semantics::PlanarFace::Planeswalker.lower(),
             deckmaste_core::PlanarFace::Planeswalker
         );
     }
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn lowers_mana_spec_any_color() {
         assert_matches!(
-            deckmaste_authoring::ManaSpec::AnyColor.lower(),
+            deckmaste_semantics::ManaSpec::AnyColor.lower(),
             deckmaste_core::ManaSpec::AnyColor
         );
     }
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn lowers_mana_spec_one_of() {
         assert_matches!(
-            deckmaste_authoring::ManaSpec::OneOf([].into()).lower(),
+            deckmaste_semantics::ManaSpec::OneOf([].into()).lower(),
             deckmaste_core::ManaSpec::OneOf(_)
         );
     }
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn lowers_mana_spec_one_of_runs() {
         assert_matches!(
-            deckmaste_authoring::ManaSpec::OneOfRuns([].into()).lower(),
+            deckmaste_semantics::ManaSpec::OneOfRuns([].into()).lower(),
             deckmaste_core::ManaSpec::OneOfRuns(_)
         );
     }
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn lowers_mana_spec_among_colors_of() {
         assert_matches!(
-            deckmaste_authoring::ManaSpec::AmongColorsOf(minimal_reference()).lower(),
+            deckmaste_semantics::ManaSpec::AmongColorsOf(minimal_reference()).lower(),
             deckmaste_core::ManaSpec::AmongColorsOf(deckmaste_core::Reference::This)
         );
     }
@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn lowers_mana_spec_produced_by_event() {
         assert_matches!(
-            deckmaste_authoring::ManaSpec::ProducedByEvent.lower(),
+            deckmaste_semantics::ManaSpec::ProducedByEvent.lower(),
             deckmaste_core::ManaSpec::ProducedByEvent
         );
     }
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn lowers_mana_spec_specific() {
         assert_matches!(
-            deckmaste_authoring::ManaSpec::Specific(minimal_color_or_colorless()).lower(),
+            deckmaste_semantics::ManaSpec::Specific(minimal_color_or_colorless()).lower(),
             deckmaste_core::ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless)
         );
     }
@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn lowers_simple_mana_symbol_generic() {
         assert_matches!(
-            deckmaste_authoring::SimpleManaSymbol::Generic(0).lower(),
+            deckmaste_semantics::SimpleManaSymbol::Generic(0).lower(),
             deckmaste_core::SimpleManaSymbol::Generic(0)
         );
     }
@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn lowers_simple_mana_symbol_specific() {
         assert_matches!(
-            deckmaste_authoring::SimpleManaSymbol::Specific(minimal_color_or_colorless()).lower(),
+            deckmaste_semantics::SimpleManaSymbol::Specific(minimal_color_or_colorless()).lower(),
             deckmaste_core::SimpleManaSymbol::Specific(deckmaste_core::ColorOrColorless::Colorless)
         );
     }
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn lowers_mana_symbol_variable() {
         assert_matches!(
-            deckmaste_authoring::ManaSymbol::Variable.lower(),
+            deckmaste_semantics::ManaSymbol::Variable.lower(),
             deckmaste_core::ManaSymbol::Variable
         );
     }
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn lowers_mana_symbol_snow() {
         assert_matches!(
-            deckmaste_authoring::ManaSymbol::Snow.lower(),
+            deckmaste_semantics::ManaSymbol::Snow.lower(),
             deckmaste_core::ManaSymbol::Snow
         );
     }
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn lowers_mana_symbol_hybrid() {
         assert_matches!(
-            deckmaste_authoring::ManaSymbol::Hybrid(minimal_simple_mana_symbol(), minimal_color())
+            deckmaste_semantics::ManaSymbol::Hybrid(minimal_simple_mana_symbol(), minimal_color())
                 .lower(),
             deckmaste_core::ManaSymbol::Hybrid(
                 deckmaste_core::SimpleManaSymbol::Generic(0),
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn lowers_mana_symbol_phyrexian() {
         assert_matches!(
-            deckmaste_authoring::ManaSymbol::Phyrexian(minimal_color(), None).lower(),
+            deckmaste_semantics::ManaSymbol::Phyrexian(minimal_color(), None).lower(),
             deckmaste_core::ManaSymbol::Phyrexian(deckmaste_core::Color::White, None)
         );
     }
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn lowers_mana_symbol_simple() {
         assert_matches!(
-            deckmaste_authoring::ManaSymbol::Simple(minimal_simple_mana_symbol()).lower(),
+            deckmaste_semantics::ManaSymbol::Simple(minimal_simple_mana_symbol()).lower(),
             deckmaste_core::ManaSymbol::Simple(deckmaste_core::SimpleManaSymbol::Generic(0))
         );
     }
@@ -267,7 +267,7 @@ mod tests {
     #[test]
     fn lowers_symbol_pred_any_color() {
         assert_matches!(
-            deckmaste_authoring::SymbolPred::AnyColor.lower(),
+            deckmaste_semantics::SymbolPred::AnyColor.lower(),
             deckmaste_core::SymbolPred::AnyColor
         );
     }
@@ -275,7 +275,7 @@ mod tests {
     #[test]
     fn lowers_symbol_pred_any_type() {
         assert_matches!(
-            deckmaste_authoring::SymbolPred::AnyType.lower(),
+            deckmaste_semantics::SymbolPred::AnyType.lower(),
             deckmaste_core::SymbolPred::AnyType
         );
     }
@@ -283,7 +283,7 @@ mod tests {
     #[test]
     fn lowers_symbol_pred_counts_as() {
         assert_matches!(
-            deckmaste_authoring::SymbolPred::CountsAs(minimal_color()).lower(),
+            deckmaste_semantics::SymbolPred::CountsAs(minimal_color()).lower(),
             deckmaste_core::SymbolPred::CountsAs(deckmaste_core::Color::White)
         );
     }
@@ -291,7 +291,7 @@ mod tests {
     #[test]
     fn lowers_symbol_pred_is_generic() {
         assert_matches!(
-            deckmaste_authoring::SymbolPred::IsGeneric.lower(),
+            deckmaste_semantics::SymbolPred::IsGeneric.lower(),
             deckmaste_core::SymbolPred::IsGeneric
         );
     }
@@ -299,7 +299,7 @@ mod tests {
     #[test]
     fn lowers_symbol_pred_and() {
         assert_matches!(
-            deckmaste_authoring::SymbolPred::And([].into()).lower(),
+            deckmaste_semantics::SymbolPred::And([].into()).lower(),
             deckmaste_core::SymbolPred::And(_)
         );
     }
@@ -307,7 +307,7 @@ mod tests {
     #[test]
     fn lowers_symbol_pred_or() {
         assert_matches!(
-            deckmaste_authoring::SymbolPred::Or([].into()).lower(),
+            deckmaste_semantics::SymbolPred::Or([].into()).lower(),
             deckmaste_core::SymbolPred::Or(_)
         );
     }
@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn lowers_symbol_pred_not() {
         assert_matches!(
-            deckmaste_authoring::SymbolPred::Not(std::sync::Arc::new(minimal_symbol_pred()))
+            deckmaste_semantics::SymbolPred::Not(std::sync::Arc::new(minimal_symbol_pred()))
                 .lower(),
             deckmaste_core::SymbolPred::Not(_)
         );
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn lowers_mana_rider_spend_only() {
         assert_matches!(
-            deckmaste_authoring::ManaRider::SpendOnly(minimal_predicate()).lower(),
+            deckmaste_semantics::ManaRider::SpendOnly(minimal_predicate()).lower(),
             deckmaste_core::ManaRider::SpendOnly(deckmaste_core::Predicate::Kind(
                 deckmaste_core::ObjectKind::Ability
             ))
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn lowers_mana_rider_grant_on_spend() {
         assert_matches!(
-            deckmaste_authoring::ManaRider::GrantOnSpend(std::sync::Arc::new(
+            deckmaste_semantics::ManaRider::GrantOnSpend(std::sync::Arc::new(
                 minimal_one_shot_effect()
             ))
             .lower(),
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn lowers_mana_rider_trigger_on_spend() {
         assert_matches!(
-            deckmaste_authoring::ManaRider::TriggerOnSpend(std::sync::Arc::new(
+            deckmaste_semantics::ManaRider::TriggerOnSpend(std::sync::Arc::new(
                 minimal_one_shot_effect()
             ))
             .lower(),
@@ -356,7 +356,7 @@ mod tests {
     #[test]
     fn lowers_mana_rider_persistent() {
         assert_matches!(
-            deckmaste_authoring::ManaRider::Persistent(minimal_turn_marker()).lower(),
+            deckmaste_semantics::ManaRider::Persistent(minimal_turn_marker()).lower(),
             deckmaste_core::ManaRider::Persistent(deckmaste_core::TurnMarker::EndOfTurn)
         );
     }
@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn lowers_mana_rider_snow() {
         assert_matches!(
-            deckmaste_authoring::ManaRider::Snow.lower(),
+            deckmaste_semantics::ManaRider::Snow.lower(),
             deckmaste_core::ManaRider::Snow
         );
     }
@@ -372,7 +372,7 @@ mod tests {
     #[test]
     fn lowers_mana_rider_expanded() {
         assert_matches!(
-            deckmaste_authoring::ManaRider::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::ManaRider::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn lowers_mana_production_with_riders() {
         assert_matches!(
-            deckmaste_authoring::ManaProduction::WithRiders {
+            deckmaste_semantics::ManaProduction::WithRiders {
                 mana: minimal_mana_spec(),
                 riders: [].into()
             }
@@ -403,15 +403,15 @@ mod tests {
     #[test]
     fn lowers_mana_production_bare() {
         assert_matches!(
-            deckmaste_authoring::ManaProduction::Bare(minimal_mana_spec()).lower(),
+            deckmaste_semantics::ManaProduction::Bare(minimal_mana_spec()).lower(),
             deckmaste_core::ManaProduction::Bare(deckmaste_core::ManaSpec::AnyColor)
         );
     }
 
     #[test]
     fn lowers_mana_cost() {
-        assert_lowers(deckmaste_authoring::ManaCost::from(std::sync::Arc::<
-            [deckmaste_authoring::ManaSymbol],
+        assert_lowers(deckmaste_semantics::ManaCost::from(std::sync::Arc::<
+            [deckmaste_semantics::ManaSymbol],
         >::from([])));
     }
 }

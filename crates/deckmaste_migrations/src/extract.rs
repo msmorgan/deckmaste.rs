@@ -2,17 +2,17 @@
 //! (a `TodoCard`) whose abilities are `Unparsed` oracle lines. Owns the oracle
 //! normalization helpers (`strip_reminder_text`, `expand_keyword_lines`,
 //! `expand_repeated_from_lines`, `self_ref_to_tilde`) and mtgjson field
-//! accessors. Covers the `normal` and `modal_dfc` layouts (the two authored
-//! `Card` variants); other layouts are skipped until the authored `Card` grows
+//! accessors. Covers the `normal` and `modal_dfc` layouts (the two semantic
+//! `Card` variants); other layouts are skipped until the semantic `Card` grows
 //! variants for them.
 
 use std::path::Path;
 use std::sync::LazyLock;
 
 use anyhow::Context;
-use deckmaste_authoring::Color;
-use deckmaste_authoring::StatValue;
 use deckmaste_core::plugin::card_file;
+use deckmaste_semantics::Color;
+use deckmaste_semantics::StatValue;
 use rayon::prelude::*;
 use regex::Regex;
 
@@ -209,11 +209,11 @@ fn ident(name: &str) -> RawIdent {
     RawIdent(to_rust_ident(name))
 }
 
-/// mtgjson stat string → authored `StatValue`: integers (incl. negative) are
+/// mtgjson stat string → semantic `StatValue`: integers (incl. negative) are
 /// `Number`; `X` is `Variable`; anything else (`*`, `1+*`) is
 /// `DefinedByAbility`.
 fn stat_value(text: &str) -> StatValue {
-    if let Ok(n) = text.parse::<deckmaste_authoring::Int>() {
+    if let Ok(n) = text.parse::<deckmaste_semantics::Int>() {
         StatValue::Number(n)
     } else if text == "X" {
         // `X` is loyalty defined by the casting cost (the only place `X` stats
@@ -287,7 +287,7 @@ fn todo_card(
     Ok(match (layout, faces) {
         ("normal", [f]) => Some(TodoCard::Normal(face(f, keyword_abilities)?)),
         ("modal_dfc", [front, back]) => Some(TodoCard::TwoFaced {
-            layout: deckmaste_authoring::FaceLayout::ModalDfc,
+            layout: deckmaste_semantics::FaceLayout::ModalDfc,
             front: face(front, keyword_abilities)?,
             back: face(back, keyword_abilities)?,
         }),

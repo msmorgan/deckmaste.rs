@@ -3,8 +3,8 @@ needs: [core-demacro]
 design: true
 ---
 **Design-gated: a shared characteristics-atoms crate below both grammars,
-so authoring and core stop mirroring the value vocabulary.** Context:
-`docs/decisions/authoring-spelling-lowering.md` (§1, the card bullet).
+so semantics and core stop mirroring the value vocabulary.** Context:
+`docs/decisions/semantics-spelling-lowering.md` (§1, the card bullet).
 Deliberately NOT part of the fork program's Stage 1 — this is a purely
 additive deduplication for after both grammars exist and the dust settles.
 
@@ -12,7 +12,7 @@ additive deduplication for after both grammars exist and the dust settles.
 
 `Color`, `Supertype`, the closed `Type` enum, stat-value atoms (exact
 inventory is design question 1) defined ONCE in a crate below
-`deckmaste_authoring` and `deckmaste_core`: no fork copies, no identity
+`deckmaste_semantics` and `deckmaste_core`: no fork copies, no identity
 mapping arms for atoms, no drift surface. Natural secondary home for the
 engine's `BaseCharacteristics` trait if pulling it below the engine ever
 pays.
@@ -29,22 +29,22 @@ pays.
    `Self::Target(self.0.lower())` does not compile from a third crate, and
    it needed a hand-written arm routing through its public `From`
    conversions — pure ceremony around an atom with no
-   authored-vs-engine distinction at all. `ManaSymbol`,
+   semantic-vs-engine distinction at all. `ManaSymbol`,
    `SimpleManaSymbol`, `ColorOrColorless` and `SymbolPred` ride the same
    argument. A private-field newtype is a general signal here: it means
    the type has an API rather than a shape, which is what an atom looks
    like and what a grammar node does not.
-2. **The derive problem**: authoring needs `SupportsMacros` on the atoms
+2. **The derive problem**: semantics needs `SupportsMacros` on the atoms
    (straggler registration: `Green` as a def with frames), the derive must
    sit with the type (orphan rule), so the shared crate needs an optional
    `macros` feature — and cargo feature unification switches it on for
-   every consumer in any build that includes authoring, core included.
+   every consumer in any build that includes semantics, core included.
    The `core-demacro` purity gate must then be re-phrased ("core's
    sources and API are macro-free") rather than "no macro_ron anywhere in
    core's tree". Decide whether that weakening is acceptable, or find a
-   sharper mechanism (newtype wrappers authoring-side were considered and
+   sharper mechanism (newtype wrappers semantics-side were considered and
    disliked: registration/serde noise).
-3. **Idris**: the authoring mirror models atoms wherever they live;
+3. **Idris**: the semantics mirror models atoms wherever they live;
    confirm the emitter is indifferent to the crate boundary.
 
 ## Gates

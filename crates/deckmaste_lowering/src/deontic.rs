@@ -1,10 +1,10 @@
-//! `deontic` — authored grammar to engine AST.
+//! `deontic` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::AlternativeCost {
+impl Lower for deckmaste_semantics::AlternativeCost {
     type Target = deckmaste_core::AlternativeCost;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -14,7 +14,7 @@ impl Lower for deckmaste_authoring::AlternativeCost {
     }
 }
 
-impl Lower for deckmaste_authoring::CostPredicate {
+impl Lower for deckmaste_semantics::CostPredicate {
     type Target = deckmaste_core::CostPredicate;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -23,7 +23,7 @@ impl Lower for deckmaste_authoring::CostPredicate {
     }
 }
 
-impl Lower for deckmaste_authoring::AsThough {
+impl Lower for deckmaste_semantics::AsThough {
     type Target = deckmaste_core::AsThough;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -32,8 +32,8 @@ impl Lower for deckmaste_authoring::AsThough {
                 then: then.lower(),
             },
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -41,7 +41,7 @@ impl Lower for deckmaste_authoring::AsThough {
     }
 }
 
-impl Lower for deckmaste_authoring::CountBound {
+impl Lower for deckmaste_semantics::CountBound {
     type Target = deckmaste_core::CountBound;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -54,7 +54,7 @@ impl Lower for deckmaste_authoring::CountBound {
     }
 }
 
-impl Lower for deckmaste_authoring::DeedAgent {
+impl Lower for deckmaste_semantics::DeedAgent {
     type Target = deckmaste_core::DeedAgent;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::DeedAgent {
@@ -64,7 +64,7 @@ impl Lower for deckmaste_authoring::DeedAgent {
     }
 }
 
-impl Lower for deckmaste_authoring::DeonticAction {
+impl Lower for deckmaste_semantics::DeonticAction {
     type Target = deckmaste_core::DeonticAction;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -120,8 +120,8 @@ impl Lower for deckmaste_authoring::DeonticAction {
             },
             Self::Untap { what } => deckmaste_core::DeonticAction::Untap { what: what.lower() },
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -129,7 +129,7 @@ impl Lower for deckmaste_authoring::DeonticAction {
     }
 }
 
-impl Lower for deckmaste_authoring::Deontic {
+impl Lower for deckmaste_semantics::Deontic {
     type Target = deckmaste_core::Deontic;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -138,8 +138,8 @@ impl Lower for deckmaste_authoring::Deontic {
             Self::Must(f0) => deckmaste_core::Deontic::Must(f0.lower()),
             Self::Gate(f0, f1) => deckmaste_core::Deontic::Gate(f0.lower(), f1.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn lowers_alternative_cost_free() {
         assert_matches!(
-            deckmaste_authoring::AlternativeCost::Free.lower(),
+            deckmaste_semantics::AlternativeCost::Free.lower(),
             deckmaste_core::AlternativeCost::Free
         );
     }
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn lowers_alternative_cost_components() {
         assert_matches!(
-            deckmaste_authoring::AlternativeCost::Components([].into()).lower(),
+            deckmaste_semantics::AlternativeCost::Components([].into()).lower(),
             deckmaste_core::AlternativeCost::Components(_)
         );
     }
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn lowers_cost_predicate_includes_tap_symbol() {
         assert_matches!(
-            deckmaste_authoring::CostPredicate::IncludesTapSymbol.lower(),
+            deckmaste_semantics::CostPredicate::IncludesTapSymbol.lower(),
             deckmaste_core::CostPredicate::IncludesTapSymbol
         );
     }
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn lowers_as_though_counterfactual() {
         assert_matches!(
-            deckmaste_authoring::AsThough::Counterfactual {
+            deckmaste_semantics::AsThough::Counterfactual {
                 premise: minimal_predicate(),
                 then: std::sync::Arc::new(minimal_deontic())
             }
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn lowers_as_though_expanded() {
         assert_matches!(
-            deckmaste_authoring::AsThough::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::AsThough::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,
@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn lowers_count_bound_eq() {
         assert_matches!(
-            deckmaste_authoring::CountBound::Eq(minimal_count()).lower(),
+            deckmaste_semantics::CountBound::Eq(minimal_count()).lower(),
             deckmaste_core::CountBound::Eq(deckmaste_core::Count::X)
         );
     }
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn lowers_count_bound_at_least() {
         assert_matches!(
-            deckmaste_authoring::CountBound::AtLeast(minimal_count()).lower(),
+            deckmaste_semantics::CountBound::AtLeast(minimal_count()).lower(),
             deckmaste_core::CountBound::AtLeast(deckmaste_core::Count::X)
         );
     }
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn lowers_count_bound_at_most() {
         assert_matches!(
-            deckmaste_authoring::CountBound::AtMost(minimal_count()).lower(),
+            deckmaste_semantics::CountBound::AtMost(minimal_count()).lower(),
             deckmaste_core::CountBound::AtMost(deckmaste_core::Count::X)
         );
     }
@@ -243,7 +243,7 @@ mod tests {
     #[test]
     fn lowers_count_bound_greater() {
         assert_matches!(
-            deckmaste_authoring::CountBound::Greater(minimal_count()).lower(),
+            deckmaste_semantics::CountBound::Greater(minimal_count()).lower(),
             deckmaste_core::CountBound::Greater(deckmaste_core::Count::X)
         );
     }
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn lowers_count_bound_less() {
         assert_matches!(
-            deckmaste_authoring::CountBound::Less(minimal_count()).lower(),
+            deckmaste_semantics::CountBound::Less(minimal_count()).lower(),
             deckmaste_core::CountBound::Less(deckmaste_core::Count::X)
         );
     }
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn lowers_deed_agent() {
         assert_matches!(
-            deckmaste_authoring::DeedAgent {
+            deckmaste_semantics::DeedAgent {
                 stack_object: None,
                 source: None
             }
@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_attack() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Attack {
+            deckmaste_semantics::DeonticAction::Attack {
                 by: minimal_predicate(),
                 on: minimal_predicate()
             }
@@ -289,7 +289,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_block() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Block {
+            deckmaste_semantics::DeonticAction::Block {
                 by: minimal_predicate(),
                 on: minimal_predicate(),
                 count: None
@@ -306,7 +306,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_target() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Target {
+            deckmaste_semantics::DeonticAction::Target {
                 by: minimal_deed_agent(),
                 on: minimal_predicate()
             }
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_attach() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Attach {
+            deckmaste_semantics::DeonticAction::Attach {
                 what: minimal_predicate(),
                 to: minimal_predicate()
             }
@@ -339,7 +339,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_cast() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Cast {
+            deckmaste_semantics::DeonticAction::Cast {
                 what: minimal_predicate(),
                 by: minimal_predicate(),
                 from: None,
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_play() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Play {
+            deckmaste_semantics::DeonticAction::Play {
                 what: minimal_predicate(),
                 by: minimal_predicate(),
                 from: None
@@ -379,7 +379,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_activate() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Activate {
+            deckmaste_semantics::DeonticAction::Activate {
                 what: minimal_predicate(),
                 by: minimal_predicate(),
                 cost: None
@@ -396,7 +396,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_regenerate() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Regenerate {
+            deckmaste_semantics::DeonticAction::Regenerate {
                 by: minimal_predicate(),
                 on: minimal_predicate()
             }
@@ -411,7 +411,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_counter() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Counter {
+            deckmaste_semantics::DeonticAction::Counter {
                 by: minimal_predicate(),
                 on: minimal_predicate()
             }
@@ -426,7 +426,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_untap() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Untap {
+            deckmaste_semantics::DeonticAction::Untap {
                 what: minimal_predicate()
             }
             .lower(),
@@ -439,7 +439,7 @@ mod tests {
     #[test]
     fn lowers_deontic_action_expanded() {
         assert_matches!(
-            deckmaste_authoring::DeonticAction::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::DeonticAction::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,
@@ -456,7 +456,7 @@ mod tests {
     #[test]
     fn lowers_deontic_may() {
         assert_matches!(
-            deckmaste_authoring::Deontic::May(minimal_deontic_action()).lower(),
+            deckmaste_semantics::Deontic::May(minimal_deontic_action()).lower(),
             deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Attack {
                 by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
@@ -467,7 +467,7 @@ mod tests {
     #[test]
     fn lowers_deontic_cant() {
         assert_matches!(
-            deckmaste_authoring::Deontic::Cant(minimal_deontic_action()).lower(),
+            deckmaste_semantics::Deontic::Cant(minimal_deontic_action()).lower(),
             deckmaste_core::Deontic::Cant(deckmaste_core::DeonticAction::Attack {
                 by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
@@ -478,7 +478,7 @@ mod tests {
     #[test]
     fn lowers_deontic_must() {
         assert_matches!(
-            deckmaste_authoring::Deontic::Must(minimal_deontic_action()).lower(),
+            deckmaste_semantics::Deontic::Must(minimal_deontic_action()).lower(),
             deckmaste_core::Deontic::Must(deckmaste_core::DeonticAction::Attack {
                 by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
@@ -489,7 +489,7 @@ mod tests {
     #[test]
     fn lowers_deontic_gate() {
         assert_matches!(
-            deckmaste_authoring::Deontic::Gate(minimal_deontic_action(), [].into()).lower(),
+            deckmaste_semantics::Deontic::Gate(minimal_deontic_action(), [].into()).lower(),
             deckmaste_core::Deontic::Gate(
                 deckmaste_core::DeonticAction::Attack {
                     by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn lowers_deontic_expanded() {
         assert_matches!(
-            deckmaste_authoring::Deontic::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Deontic::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,

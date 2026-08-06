@@ -57,7 +57,7 @@ impl StrategyEvaluator {
         Self { strategy, seat }
     }
 
-    /// Build a seat from an authored RON strategy (raw — no macro vocabulary;
+    /// Build a seat from a semantic RON strategy (raw — no macro vocabulary;
     /// the macro-aware loader rides the plugin crate's `MacroSet`).
     ///
     /// # Errors

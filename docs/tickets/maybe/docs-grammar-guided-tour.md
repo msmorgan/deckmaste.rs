@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-**Write a guided tour of the card-grammar / authoring surface.** A single
+**Write a guided tour of the card-grammar / semantics surface.** A single
 walkthrough doc that takes a reader from a printed card to its RON encoding to
 the core effect tree to the Idris north-star check — the orientation that is
 currently spread across ticket bodies and code comments.

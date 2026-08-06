@@ -1,4 +1,4 @@
-//! The card-domain macro configuration: which authoring types are macroable,
+//! The card-domain macro configuration: which semantics types are macroable,
 //! and with what reader policy, glued onto [`macro_ron`]. Definitions live in
 //! `plugins/*/macros/**/*.ron` (paths and file names are organizational
 //! only) and are invoked by name where a value of one of their kinds is
@@ -11,11 +11,11 @@
 //! `template` the printed name carried in the value.
 
 // The kind registry, param-type registry, and default macro set are
-// `deckmaste_authoring`'s — see `deckmaste_authoring::macros` for the
+// `deckmaste_semantics`'s — see `deckmaste_semantics::macros` for the
 // definitions and their docs.
-pub use deckmaste_authoring::macros::kinds;
-pub use deckmaste_authoring::macros::macro_set;
-pub use deckmaste_authoring::macros::param_types;
+pub use deckmaste_semantics::macros::kinds;
+pub use deckmaste_semantics::macros::macro_set;
+pub use deckmaste_semantics::macros::param_types;
 pub use macro_ron::InsertError;
 pub use macro_ron::MacroDef;
 pub use macro_ron::MacroSet;
@@ -72,15 +72,15 @@ mod tests {
         deckmaste_core::ron::options().from_str(source).unwrap()
     }
 
-    /// The authoring grammar owns the kind registry
-    /// (`deckmaste_authoring::macros::kinds`); this pins its name roster. The
+    /// The semantics grammar owns the kind registry
+    /// (`deckmaste_semantics::macros::kinds`); this pins its name roster. The
     /// derived `kind()`s self-name from the Rust ident, so they track renames
     /// by construction; the tie this pins is the hand-registered struct kinds
     /// (`CardFace`, `Subtype`, `TypeDef`, `Macro`), which a Rust rename would
     /// strand without a compile error — plus the policy list's completeness
     /// (the length check).
     #[test]
-    fn kind_names_track_the_authoring_types() {
+    fn kind_names_track_the_semantics_types() {
         fn name_of<T>() -> &'static str {
             std::any::type_name::<T>().rsplit("::").next().unwrap()
         }
@@ -125,7 +125,7 @@ mod tests {
             // erasing like `TypeDef`), collected into the plugin's verb table.
             "KeywordAction",
         ];
-        let kinds = deckmaste_authoring::macros::kinds();
+        let kinds = deckmaste_semantics::macros::kinds();
         for name in names {
             assert!(kinds.contains(name), "`{name}` is not a registered kind");
         }

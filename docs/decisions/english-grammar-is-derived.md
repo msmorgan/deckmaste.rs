@@ -107,7 +107,7 @@ than a weakening of the build guarantee.
 The guarantee is byte-exact replay of normalized, name-bearing Oracle text
 and of fragment entry points explicitly declared exact. Byte-exactness
 belongs to this layer; canonical wording belongs to the spelling relation
-([Authoring, spelling, lowering](authoring-spelling-lowering.md) §3).
+([Semantics, spelling, lowering](semantics-spelling-lowering.md) §3).
 Canonicalizing helpers are a separate API and may not masquerade as exact
 parsers.
 
@@ -157,7 +157,7 @@ default-overriding inheritance is admitted only after a documented case
 where monotonic sharing fails, and no general reentrant HPSG/DAG engine is
 introduced.
 
-The constructicon describes English syntax; authored meanings and `frames:`
+The constructicon describes English syntax; semantic meanings and `frames:`
 on defs remain spelling-owned. Typed AST substitution replaces render-time
 textual splice-and-reparse for each migrated hole class; a substituted
 subtree carries its inherent features so agreement computes compositionally.
@@ -165,7 +165,7 @@ Occurrence selection, discourse linking, role keys, and multi-sentence frame
 scope remain spelling-engine concerns; no binder or discourse resolution
 grows into the construction matcher.
 
-Corpus attestation lints the authored guard and role inventory and may
+Corpus attestation lints the semantic guard and role inventory and may
 annotate omissions by null-instantiation class; the corpus is evidence for a
 declared rule, never a probabilistic authority. Direct AST assertions and
 `inspect` are the semantic authorities; bracket output is diagnostic.
@@ -180,7 +180,7 @@ match this grammar.
 ## Non-goals
 
 - A GF toolchain or runtime dependency — a second defining authority whose
-  value decays ([Authoring, spelling, lowering](authoring-spelling-lowering.md)
+  value decays ([Semantics, spelling, lowering](semantics-spelling-lowering.md)
   §9).
 - A second grammar authority or third semantic IR (§14).
 - Probabilistic or learned parse-time ranking.
@@ -229,5 +229,5 @@ match this grammar.
 - [English clauses are structural](english-clauses-are-structural.md)
 - [English productions ship their inverse](english-productions-ship-their-inverse.md)
 - [Macro templates are bidirectional](macro-templates-are-bidirectional.md)
-- [Authoring, spelling, lowering](authoring-spelling-lowering.md)
+- [Semantics, spelling, lowering](semantics-spelling-lowering.md)
 - [Oracle text style guide](../oracle-style-guide.md)

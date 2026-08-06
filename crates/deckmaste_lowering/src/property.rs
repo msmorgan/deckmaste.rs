@@ -1,10 +1,10 @@
-//! `property` — authored grammar to engine AST.
+//! `property` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Property {
+impl Lower for deckmaste_semantics::Property {
     type Target = deckmaste_core::Property;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -40,7 +40,7 @@ mod tests {
     #[test]
     fn lowers_property_ability() {
         assert_matches!(
-            deckmaste_authoring::Property::Ability(std::sync::Arc::new(minimal_ability())).lower(),
+            deckmaste_semantics::Property::Ability(std::sync::Arc::new(minimal_ability())).lower(),
             deckmaste_core::Property::Ability(_)
         );
     }
@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn lowers_property_continuous() {
         assert_matches!(
-            deckmaste_authoring::Property::Continuous(minimal_reference(), minimal_modification())
+            deckmaste_semantics::Property::Continuous(minimal_reference(), minimal_modification())
                 .lower(),
             deckmaste_core::Property::Continuous(
                 deckmaste_core::Reference::This,
@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn lowers_property_state_based() {
         assert_matches!(
-            deckmaste_authoring::Property::StateBased {
+            deckmaste_semantics::Property::StateBased {
                 condition: std::sync::Arc::new(minimal_condition()),
                 effect: std::sync::Arc::new(minimal_one_shot_effect())
             }
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn lowers_property_turn_based() {
         assert_matches!(
-            deckmaste_authoring::Property::TurnBased {
+            deckmaste_semantics::Property::TurnBased {
                 at: minimal_phase_step(),
                 effect: std::sync::Arc::new(minimal_one_shot_effect())
             }

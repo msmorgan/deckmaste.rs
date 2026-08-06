@@ -1319,7 +1319,7 @@ fn emit_selection(s: &Selection) -> R {
         // the eval fizzle, not here). Idris's `Pick` is pinned to `Projection
         // b AnObject` ([CR#107.1] — a player-`Pick` has no consumer and no
         // Idris counterpart), so a `Players`-sourced `proj` here is an
-        // authoring mistake, not a representable card — reported as a gap
+        // semantic-input error, not a representable card — reported as a gap
         // rather than emitted as ill-typed Idris.
         Selection::Pick { op, proj } => {
             if matches!(proj.of, Countable::Players(_)) {
@@ -3907,8 +3907,8 @@ pub fn load_all_cards(
             continue;
         }
         // The pair, not just `.core`: the Idris mirror emits the engine image,
-        // but the expansion that precedes it runs on the authored half.
-        // Repointing the emitter itself at the authored term is
+        // but the expansion that precedes it runs on the semantic half.
+        // Repointing the emitter itself at the semantic term is
         // `runtime-prose-link`, which lands the provenance index it would need.
         let card = plugin
             .card_from_str(&source)

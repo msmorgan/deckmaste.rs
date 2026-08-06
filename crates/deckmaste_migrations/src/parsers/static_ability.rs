@@ -310,7 +310,7 @@ fn parse_requirement(subj: &str, pred: &str) -> Option<String> {
 }
 
 /// "<adjective> spell(s) [you cast] cost {N} less/more to cast" → a
-/// [`CostModifier`](deckmaste_authoring::StaticEffect) static
+/// [`CostModifier`](deckmaste_semantics::StaticEffect) static
 /// ([CR#118.7,601.2f]): "less" is a `Reduce`, "more" an `Increase`, of {N}
 /// generic mana, whose `of` filter is the spell-subject predicate (Goblin
 /// Warchief = "Goblin spells you cast"). This is the PARSE half — the engine's

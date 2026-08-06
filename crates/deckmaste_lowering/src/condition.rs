@@ -1,10 +1,10 @@
-//! `condition` — authored grammar to engine AST.
+//! `condition` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Cmp {
+impl Lower for deckmaste_semantics::Cmp {
     type Target = deckmaste_core::Cmp;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -17,7 +17,7 @@ impl Lower for deckmaste_authoring::Cmp {
     }
 }
 
-impl Lower for deckmaste_authoring::Condition {
+impl Lower for deckmaste_semantics::Condition {
     type Target = deckmaste_core::Condition;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -44,8 +44,8 @@ impl Lower for deckmaste_authoring::Condition {
             Self::Or(f0) => deckmaste_core::Condition::Or(f0.lower()),
             Self::Not(f0) => deckmaste_core::Condition::Not(f0.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn lowers_cmp_eq() {
         assert_matches!(
-            deckmaste_authoring::Cmp::Eq.lower(),
+            deckmaste_semantics::Cmp::Eq.lower(),
             deckmaste_core::Cmp::Eq
         );
     }
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn lowers_cmp_at_least() {
         assert_matches!(
-            deckmaste_authoring::Cmp::AtLeast.lower(),
+            deckmaste_semantics::Cmp::AtLeast.lower(),
             deckmaste_core::Cmp::AtLeast
         );
     }
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn lowers_cmp_at_most() {
         assert_matches!(
-            deckmaste_authoring::Cmp::AtMost.lower(),
+            deckmaste_semantics::Cmp::AtMost.lower(),
             deckmaste_core::Cmp::AtMost
         );
     }
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn lowers_cmp_greater() {
         assert_matches!(
-            deckmaste_authoring::Cmp::Greater.lower(),
+            deckmaste_semantics::Cmp::Greater.lower(),
             deckmaste_core::Cmp::Greater
         );
     }
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn lowers_cmp_less() {
         assert_matches!(
-            deckmaste_authoring::Cmp::Less.lower(),
+            deckmaste_semantics::Cmp::Less.lower(),
             deckmaste_core::Cmp::Less
         );
     }
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn lowers_condition_compare() {
         assert_matches!(
-            deckmaste_authoring::Condition::Compare(
+            deckmaste_semantics::Condition::Compare(
                 minimal_count(),
                 minimal_cmp(),
                 minimal_count()
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn lowers_condition_exists() {
         assert_matches!(
-            deckmaste_authoring::Condition::Exists(minimal_predicate()).lower(),
+            deckmaste_semantics::Condition::Exists(minimal_predicate()).lower(),
             deckmaste_core::Condition::Exists(deckmaste_core::Predicate::Kind(
                 deckmaste_core::ObjectKind::Ability
             ))
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn lowers_condition_matches() {
         assert_matches!(
-            deckmaste_authoring::Condition::Matches(minimal_reference(), minimal_predicate())
+            deckmaste_semantics::Condition::Matches(minimal_reference(), minimal_predicate())
                 .lower(),
             deckmaste_core::Condition::Matches(
                 deckmaste_core::Reference::This,
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn lowers_condition_legally_attached() {
         assert_matches!(
-            deckmaste_authoring::Condition::LegallyAttached(minimal_reference()).lower(),
+            deckmaste_semantics::Condition::LegallyAttached(minimal_reference()).lower(),
             deckmaste_core::Condition::LegallyAttached(deckmaste_core::Reference::This)
         );
     }
@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn lowers_condition_happened() {
         assert_matches!(
-            deckmaste_authoring::Condition::Happened {
+            deckmaste_semantics::Condition::Happened {
                 event: std::sync::Arc::new(minimal_event_filter()),
                 within: minimal_lookback()
             }
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn lowers_condition_crossed() {
         assert_matches!(
-            deckmaste_authoring::Condition::Crossed {
+            deckmaste_semantics::Condition::Crossed {
                 value: minimal_count(),
                 thresholds: [].into()
             }
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn lowers_condition_paid_cost() {
         assert_matches!(
-            deckmaste_authoring::Condition::PaidCost(minimal_cost_tag()).lower(),
+            deckmaste_semantics::Condition::PaidCost(minimal_cost_tag()).lower(),
             deckmaste_core::Condition::PaidCost(deckmaste_core::CostTag(_))
         );
     }
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn lowers_condition_cast_with() {
         assert_matches!(
-            deckmaste_authoring::Condition::CastWith(minimal_cost_tag()).lower(),
+            deckmaste_semantics::Condition::CastWith(minimal_cost_tag()).lower(),
             deckmaste_core::Condition::CastWith(deckmaste_core::CostTag(_))
         );
     }
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn lowers_condition_your_turn() {
         assert_matches!(
-            deckmaste_authoring::Condition::YourTurn.lower(),
+            deckmaste_semantics::Condition::YourTurn.lower(),
             deckmaste_core::Condition::YourTurn
         );
     }
@@ -210,7 +210,7 @@ mod tests {
     #[test]
     fn lowers_condition_turn_of() {
         assert_matches!(
-            deckmaste_authoring::Condition::TurnOf(minimal_predicate()).lower(),
+            deckmaste_semantics::Condition::TurnOf(minimal_predicate()).lower(),
             deckmaste_core::Condition::TurnOf(deckmaste_core::Predicate::Kind(
                 deckmaste_core::ObjectKind::Ability
             ))
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn lowers_condition_during_phase() {
         assert_matches!(
-            deckmaste_authoring::Condition::DuringPhase(minimal_phase_step()).lower(),
+            deckmaste_semantics::Condition::DuringPhase(minimal_phase_step()).lower(),
             deckmaste_core::Condition::DuringPhase(deckmaste_core::PhaseStep::Beginning(
                 deckmaste_core::BeginningStep::Untap
             ))
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn lowers_condition_and() {
         assert_matches!(
-            deckmaste_authoring::Condition::And([].into()).lower(),
+            deckmaste_semantics::Condition::And([].into()).lower(),
             deckmaste_core::Condition::And(_)
         );
     }
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn lowers_condition_or() {
         assert_matches!(
-            deckmaste_authoring::Condition::Or([].into()).lower(),
+            deckmaste_semantics::Condition::Or([].into()).lower(),
             deckmaste_core::Condition::Or(_)
         );
     }
@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn lowers_condition_not() {
         assert_matches!(
-            deckmaste_authoring::Condition::Not(std::sync::Arc::new(minimal_condition())).lower(),
+            deckmaste_semantics::Condition::Not(std::sync::Arc::new(minimal_condition())).lower(),
             deckmaste_core::Condition::Not(_)
         );
     }
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn lowers_condition_expanded() {
         assert_matches!(
-            deckmaste_authoring::Condition::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Condition::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,

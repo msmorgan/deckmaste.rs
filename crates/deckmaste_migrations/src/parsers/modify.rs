@@ -49,7 +49,7 @@ pub(super) fn subject_to_filter(subj: &str) -> Option<String> {
 /// subject), spliced directly into `Modify(<ref>, <change>)`; or a class
 /// filter, which has no single-object form and must be distributed via
 /// `Each(SelectAll(<filter>), Modify(It, <change>))` — the ONLY way a static
-/// reaches many objects (`StaticEffect::Each` in `deckmaste_authoring`).
+/// reaches many objects (`StaticEffect::Each` in `deckmaste_semantics`).
 pub(super) enum Target {
     /// A bare `Reference` string (`This`, `AttachHostOf(This)`, `It`, …).
     Ref(String),

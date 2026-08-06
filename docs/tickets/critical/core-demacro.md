@@ -1,9 +1,9 @@
 ---
-needs: [plugin-repoint, idris-mirror-authoring, runtime-prose-link]
+needs: [plugin-repoint, idris-mirror-semantics, runtime-prose-link]
 ---
 **Strip the macro machinery from `deckmaste_core`: pure engine AST, plain
 serde, no author-surface knowledge.** Design:
-`docs/decisions/authoring-spelling-lowering.md`
+`docs/decisions/semantics-spelling-lowering.md`
 (§1, §11-12). The priced big-boring item lives here: the test-fixture
 sweep.
 
@@ -11,7 +11,7 @@ sweep.
 `Expanded` variants would compile-break the legacy renderer + fidelity
 (~30+ match sites outside both this ticket's sweep and the ~97
 `deckmaste_engine` sites). `runtime-prose-link` lands first and moves that
-code to `deckmaste_legacy_render` matching on AUTHORED `Expanded`, which no
+code to `deckmaste_legacy_render` matching on SEMANTIC `Expanded`, which no
 ticket deletes — so by the time this ticket runs the renderer is off its
 path entirely, and the `deckmaste_engine` sites are already gone with the
 erasure that made them dead. What remains here is core's own machinery and
@@ -25,7 +25,7 @@ the fixture sweep.
 - **Fixture sweep** (spec §12): every `#[cfg(test)]` site that spells core
   values through the macro-aware reader (engine resolve/trigger test
   modules, core mana/filter tests, the plugin-crate fixture helpers,
-  integration suites) either repoints to authoring + `lower` or re-spells
+  integration suites) either repoints to semantics + `lower` or re-spells
   in plain serde RON. Script the mechanical bulk; hand-review the
   remainder.
 - After this lands, a bare authored spelling cannot reach core except

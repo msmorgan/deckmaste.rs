@@ -120,13 +120,13 @@ Oracle text
     ⇅ parse / render
 deckmaste_english
     ⇅ deckmaste_spelling: recover / spell
-deckmaste_authoring ── deckmaste_lowering: lower ──► deckmaste_core
+deckmaste_semantics ── deckmaste_lowering: lower ──► deckmaste_core
   canonical typed IR                                      engine AST
   persisted as RON
 ```
 
 This split is recent (settled August 2026, and still completing — see the
-roadmap). Before it, one type family was simultaneously the authoring surface,
+roadmap). Before it, one type family was simultaneously the semantics surface,
 the English-facing render/parse target, and the engine's input. Separating the
 roles lets each layer be what its job requires: the intermediate grammar carries
 the macro system and normalization, the English grammar carries genuine syntax,
@@ -137,7 +137,7 @@ launches the client:
 
 **The card grammar and its projections**
 
-- **`deckmaste_authoring`** — the typed intermediate rules grammar: the
+- **`deckmaste_semantics`** — the typed intermediate rules grammar: the
   canonical normalized hub recovered from Oracle text and persisted as RON in
   today's card, token, and rules-table containers, plus its macro layer (sugar
   desugars at load; the explicit form is always the meaning).
@@ -221,7 +221,7 @@ The load-bearing rules for the split are:
   justification written in place, and every variant carries a mapping test
   naming the engine shape it expects.
 
-The crate split has landed: `deckmaste_authoring` and `deckmaste_lowering`
+The crate split has landed: `deckmaste_semantics` and `deckmaste_lowering`
 exist, and loaders lower cached intermediate terms to core at load. The curated
 canon cache is still written and verified by hand, while the broader production
 cache comes from the regex-era pipeline. Structural English recovery is
@@ -317,7 +317,7 @@ grammar continues to cover the remaining mechanics (`docs/rules-taxonomy.md`
 records that plan). The near-term work runs in three strands:
 
 1. **Completing the grammar split.** Landed: the crate splits and renames, the
-   authoring fork, the lowering crate, and the loader repoint. Remaining, in
+   semantics fork, the lowering crate, and the loader repoint. Remaining, in
    rough order: moving prose rendering onto the spelling layer and retiring the
    legacy renderer; stripping the macro machinery out of core;
    the intermediate vocabulary (bare engine variants stop being recoverable

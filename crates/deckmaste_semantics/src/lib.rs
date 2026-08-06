@@ -1,13 +1,13 @@
-//! The authored rules grammar: the single source of truth every card-content
+//! The semantics rules grammar: the single source of truth every card-content
 //! container is written in — card files, token files, and the `rules/` engine
 //! tables.
 //!
 //! Forked from `deckmaste_core` as an exact mirror; see the fork commit for
 //! provenance. Must never depend on `deckmaste_core`
-//! (`docs/decisions/authoring-spelling-lowering.md` §1).
+//! (`docs/decisions/semantics-spelling-lowering.md` §1).
 //!
 //! `plugin` (path conventions) and `strategy` (play policy, outside the
-//! authoring program per §3) deliberately stay core-side.
+//! semantics program per §3) deliberately stay core-side.
 
 use std::sync::Arc;
 
@@ -53,7 +53,7 @@ pub use action::fight_body_fighters;
 mod binder;
 pub use binder::Binder;
 
-// The authored container types; `deckmaste_card`'s are the engine's (§1).
+// The semantic container types; `deckmaste_card`'s are the engine's (§1).
 mod card;
 pub use card::Card;
 pub use card::CardFace;

@@ -1,5 +1,5 @@
 //! The central RON configuration and helpers shared by everything that reads
-//! or writes the authored grammar.
+//! or writes the semantics grammar.
 
 use std::sync::LazyLock;
 

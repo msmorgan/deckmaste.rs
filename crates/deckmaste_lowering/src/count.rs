@@ -1,10 +1,10 @@
-//! `count` — authored grammar to engine AST.
+//! `count` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Stat {
+impl Lower for deckmaste_semantics::Stat {
     type Target = deckmaste_core::Stat;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -17,7 +17,7 @@ impl Lower for deckmaste_authoring::Stat {
     }
 }
 
-impl Lower for deckmaste_authoring::RoundMode {
+impl Lower for deckmaste_semantics::RoundMode {
     type Target = deckmaste_core::RoundMode;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -27,7 +27,7 @@ impl Lower for deckmaste_authoring::RoundMode {
     }
 }
 
-impl Lower for deckmaste_authoring::Characteristic {
+impl Lower for deckmaste_semantics::Characteristic {
     type Target = deckmaste_core::Characteristic;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -45,7 +45,7 @@ impl Lower for deckmaste_authoring::Characteristic {
     }
 }
 
-impl Lower for deckmaste_authoring::Countable {
+impl Lower for deckmaste_semantics::Countable {
     type Target = deckmaste_core::Countable;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -62,7 +62,7 @@ impl Lower for deckmaste_authoring::Countable {
     }
 }
 
-impl Lower for deckmaste_authoring::AggregateOp {
+impl Lower for deckmaste_semantics::AggregateOp {
     type Target = deckmaste_core::AggregateOp;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -74,7 +74,7 @@ impl Lower for deckmaste_authoring::AggregateOp {
     }
 }
 
-impl Lower for deckmaste_authoring::Projection {
+impl Lower for deckmaste_semantics::Projection {
     type Target = deckmaste_core::Projection;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::Projection {
@@ -84,7 +84,7 @@ impl Lower for deckmaste_authoring::Projection {
     }
 }
 
-impl Lower for deckmaste_authoring::Count {
+impl Lower for deckmaste_semantics::Count {
     type Target = deckmaste_core::Count;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -124,8 +124,8 @@ impl Lower for deckmaste_authoring::Count {
             Self::ManaAvailable(f0) => deckmaste_core::Count::ManaAvailable(f0.lower()),
             Self::Aggregate(f0, f1) => deckmaste_core::Count::Aggregate(f0.lower(), f1.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn lowers_stat_power() {
         assert_matches!(
-            deckmaste_authoring::Stat::Power.lower(),
+            deckmaste_semantics::Stat::Power.lower(),
             deckmaste_core::Stat::Power
         );
     }
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn lowers_stat_toughness() {
         assert_matches!(
-            deckmaste_authoring::Stat::Toughness.lower(),
+            deckmaste_semantics::Stat::Toughness.lower(),
             deckmaste_core::Stat::Toughness
         );
     }
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn lowers_stat_mana_value() {
         assert_matches!(
-            deckmaste_authoring::Stat::ManaValue.lower(),
+            deckmaste_semantics::Stat::ManaValue.lower(),
             deckmaste_core::Stat::ManaValue
         );
     }
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn lowers_stat_loyalty() {
         assert_matches!(
-            deckmaste_authoring::Stat::Loyalty.lower(),
+            deckmaste_semantics::Stat::Loyalty.lower(),
             deckmaste_core::Stat::Loyalty
         );
     }
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn lowers_stat_defense() {
         assert_matches!(
-            deckmaste_authoring::Stat::Defense.lower(),
+            deckmaste_semantics::Stat::Defense.lower(),
             deckmaste_core::Stat::Defense
         );
     }
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn lowers_round_mode_round_up() {
         assert_matches!(
-            deckmaste_authoring::RoundMode::RoundUp.lower(),
+            deckmaste_semantics::RoundMode::RoundUp.lower(),
             deckmaste_core::RoundMode::RoundUp
         );
     }
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn lowers_round_mode_round_down() {
         assert_matches!(
-            deckmaste_authoring::RoundMode::RoundDown.lower(),
+            deckmaste_semantics::RoundMode::RoundDown.lower(),
             deckmaste_core::RoundMode::RoundDown
         );
     }
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_colors() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::Colors.lower(),
+            deckmaste_semantics::Characteristic::Colors.lower(),
             deckmaste_core::Characteristic::Colors
         );
     }
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_types() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::Types.lower(),
+            deckmaste_semantics::Characteristic::Types.lower(),
             deckmaste_core::Characteristic::Types
         );
     }
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_subtypes() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::Subtypes.lower(),
+            deckmaste_semantics::Characteristic::Subtypes.lower(),
             deckmaste_core::Characteristic::Subtypes
         );
     }
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_basic_land_types() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::BasicLandTypes.lower(),
+            deckmaste_semantics::Characteristic::BasicLandTypes.lower(),
             deckmaste_core::Characteristic::BasicLandTypes
         );
     }
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_supertypes() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::Supertypes.lower(),
+            deckmaste_semantics::Characteristic::Supertypes.lower(),
             deckmaste_core::Characteristic::Supertypes
         );
     }
@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_power() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::Power.lower(),
+            deckmaste_semantics::Characteristic::Power.lower(),
             deckmaste_core::Characteristic::Power
         );
     }
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_toughness() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::Toughness.lower(),
+            deckmaste_semantics::Characteristic::Toughness.lower(),
             deckmaste_core::Characteristic::Toughness
         );
     }
@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_defense() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::Defense.lower(),
+            deckmaste_semantics::Characteristic::Defense.lower(),
             deckmaste_core::Characteristic::Defense
         );
     }
@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_mana_cost() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::ManaCost.lower(),
+            deckmaste_semantics::Characteristic::ManaCost.lower(),
             deckmaste_core::Characteristic::ManaCost
         );
     }
@@ -278,7 +278,7 @@ mod tests {
     #[test]
     fn lowers_characteristic_name() {
         assert_matches!(
-            deckmaste_authoring::Characteristic::Name.lower(),
+            deckmaste_semantics::Characteristic::Name.lower(),
             deckmaste_core::Characteristic::Name
         );
     }
@@ -286,7 +286,7 @@ mod tests {
     #[test]
     fn lowers_countable_objects() {
         assert_matches!(
-            deckmaste_authoring::Countable::Objects(std::sync::Arc::new(minimal_predicate()))
+            deckmaste_semantics::Countable::Objects(std::sync::Arc::new(minimal_predicate()))
                 .lower(),
             deckmaste_core::Countable::Objects(_)
         );
@@ -295,7 +295,7 @@ mod tests {
     #[test]
     fn lowers_countable_players() {
         assert_matches!(
-            deckmaste_authoring::Countable::Players(std::sync::Arc::new(minimal_predicate()))
+            deckmaste_semantics::Countable::Players(std::sync::Arc::new(minimal_predicate()))
                 .lower(),
             deckmaste_core::Countable::Players(_)
         );
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn lowers_countable_mana_symbols() {
         assert_matches!(
-            deckmaste_authoring::Countable::ManaSymbols(
+            deckmaste_semantics::Countable::ManaSymbols(
                 std::sync::Arc::new(minimal_reference()),
                 minimal_symbol_pred()
             )
@@ -316,7 +316,7 @@ mod tests {
     #[test]
     fn lowers_countable_singleton() {
         assert_matches!(
-            deckmaste_authoring::Countable::Singleton(std::sync::Arc::new(minimal_reference()))
+            deckmaste_semantics::Countable::Singleton(std::sync::Arc::new(minimal_reference()))
                 .lower(),
             deckmaste_core::Countable::Singleton(_)
         );
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn lowers_countable_mana_spent_matching() {
         assert_matches!(
-            deckmaste_authoring::Countable::ManaSpentMatching(
+            deckmaste_semantics::Countable::ManaSpentMatching(
                 std::sync::Arc::new(minimal_reference()),
                 minimal_symbol_pred()
             )
@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn lowers_aggregate_op_sum_of() {
         assert_matches!(
-            deckmaste_authoring::AggregateOp::SumOf.lower(),
+            deckmaste_semantics::AggregateOp::SumOf.lower(),
             deckmaste_core::AggregateOp::SumOf
         );
     }
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn lowers_aggregate_op_min_of() {
         assert_matches!(
-            deckmaste_authoring::AggregateOp::MinOf.lower(),
+            deckmaste_semantics::AggregateOp::MinOf.lower(),
             deckmaste_core::AggregateOp::MinOf
         );
     }
@@ -353,7 +353,7 @@ mod tests {
     #[test]
     fn lowers_aggregate_op_max_of() {
         assert_matches!(
-            deckmaste_authoring::AggregateOp::MaxOf.lower(),
+            deckmaste_semantics::AggregateOp::MaxOf.lower(),
             deckmaste_core::AggregateOp::MaxOf
         );
     }
@@ -361,7 +361,7 @@ mod tests {
     #[test]
     fn lowers_aggregate_op_average_of() {
         assert_matches!(
-            deckmaste_authoring::AggregateOp::AverageOf(minimal_round_mode()).lower(),
+            deckmaste_semantics::AggregateOp::AverageOf(minimal_round_mode()).lower(),
             deckmaste_core::AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp)
         );
     }
@@ -369,7 +369,7 @@ mod tests {
     #[test]
     fn lowers_projection() {
         assert_matches!(
-            deckmaste_authoring::Projection {
+            deckmaste_semantics::Projection {
                 of: minimal_countable(),
                 by: std::sync::Arc::new(minimal_count())
             }
@@ -384,7 +384,7 @@ mod tests {
     #[test]
     fn lowers_count_x() {
         assert_matches!(
-            deckmaste_authoring::Count::X.lower(),
+            deckmaste_semantics::Count::X.lower(),
             deckmaste_core::Count::X
         );
     }
@@ -392,7 +392,7 @@ mod tests {
     #[test]
     fn lowers_count_count_of() {
         assert_matches!(
-            deckmaste_authoring::Count::CountOf(minimal_countable()).lower(),
+            deckmaste_semantics::Count::CountOf(minimal_countable()).lower(),
             deckmaste_core::Count::CountOf(deckmaste_core::Countable::Objects(_))
         );
     }
@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn lowers_count_count_distinct() {
         assert_matches!(
-            deckmaste_authoring::Count::CountDistinct(
+            deckmaste_semantics::Count::CountDistinct(
                 minimal_characteristic(),
                 minimal_countable()
             )
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn lowers_count_stat_of() {
         assert_matches!(
-            deckmaste_authoring::Count::StatOf(minimal_reference(), minimal_stat()).lower(),
+            deckmaste_semantics::Count::StatOf(minimal_reference(), minimal_stat()).lower(),
             deckmaste_core::Count::StatOf(
                 deckmaste_core::Reference::This,
                 deckmaste_core::Stat::Power
@@ -426,7 +426,7 @@ mod tests {
     #[test]
     fn lowers_count_player_stat_of() {
         assert_matches!(
-            deckmaste_authoring::Count::PlayerStatOf(minimal_reference(), minimal_player_attr())
+            deckmaste_semantics::Count::PlayerStatOf(minimal_reference(), minimal_player_attr())
                 .lower(),
             deckmaste_core::Count::PlayerStatOf(
                 deckmaste_core::Reference::This,
@@ -438,7 +438,7 @@ mod tests {
     #[test]
     fn lowers_count_opponents() {
         assert_matches!(
-            deckmaste_authoring::Count::Opponents(minimal_reference()).lower(),
+            deckmaste_semantics::Count::Opponents(minimal_reference()).lower(),
             deckmaste_core::Count::Opponents(deckmaste_core::Reference::This)
         );
     }
@@ -446,7 +446,7 @@ mod tests {
     #[test]
     fn lowers_count_counter_count() {
         assert_matches!(
-            deckmaste_authoring::Count::CounterCount(
+            deckmaste_semantics::Count::CounterCount(
                 std::sync::Arc::new(minimal_reference()),
                 minimal_counter_ref()
             )
@@ -458,7 +458,7 @@ mod tests {
     #[test]
     fn lowers_count_min() {
         assert_matches!(
-            deckmaste_authoring::Count::Min(
+            deckmaste_semantics::Count::Min(
                 std::sync::Arc::new(minimal_count()),
                 std::sync::Arc::new(minimal_count())
             )
@@ -470,7 +470,7 @@ mod tests {
     #[test]
     fn lowers_count_max() {
         assert_matches!(
-            deckmaste_authoring::Count::Max(
+            deckmaste_semantics::Count::Max(
                 std::sync::Arc::new(minimal_count()),
                 std::sync::Arc::new(minimal_count())
             )
@@ -482,7 +482,7 @@ mod tests {
     #[test]
     fn lowers_count_plus() {
         assert_matches!(
-            deckmaste_authoring::Count::Plus(
+            deckmaste_semantics::Count::Plus(
                 std::sync::Arc::new(minimal_count()),
                 std::sync::Arc::new(minimal_count())
             )
@@ -494,7 +494,7 @@ mod tests {
     #[test]
     fn lowers_count_minus() {
         assert_matches!(
-            deckmaste_authoring::Count::Minus(
+            deckmaste_semantics::Count::Minus(
                 std::sync::Arc::new(minimal_count()),
                 std::sync::Arc::new(minimal_count())
             )
@@ -506,7 +506,7 @@ mod tests {
     #[test]
     fn lowers_count_times() {
         assert_matches!(
-            deckmaste_authoring::Count::Times(
+            deckmaste_semantics::Count::Times(
                 std::sync::Arc::new(minimal_count()),
                 std::sync::Arc::new(minimal_count())
             )
@@ -518,7 +518,7 @@ mod tests {
     #[test]
     fn lowers_count_half() {
         assert_matches!(
-            deckmaste_authoring::Count::Half(
+            deckmaste_semantics::Count::Half(
                 minimal_round_mode(),
                 std::sync::Arc::new(minimal_count())
             )
@@ -530,7 +530,7 @@ mod tests {
     #[test]
     fn lowers_count_divide() {
         assert_matches!(
-            deckmaste_authoring::Count::Divide(
+            deckmaste_semantics::Count::Divide(
                 minimal_round_mode(),
                 std::sync::Arc::new(minimal_count()),
                 std::sync::Arc::new(minimal_count())
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn lowers_count_mod() {
         assert_matches!(
-            deckmaste_authoring::Count::Mod(
+            deckmaste_semantics::Count::Mod(
                 std::sync::Arc::new(minimal_count()),
                 std::sync::Arc::new(minimal_count())
             )
@@ -555,7 +555,7 @@ mod tests {
     #[test]
     fn lowers_count_pow() {
         assert_matches!(
-            deckmaste_authoring::Count::Pow(
+            deckmaste_semantics::Count::Pow(
                 std::sync::Arc::new(minimal_count()),
                 std::sync::Arc::new(minimal_count())
             )
@@ -567,7 +567,7 @@ mod tests {
     #[test]
     fn lowers_count_targets_of() {
         assert_matches!(
-            deckmaste_authoring::Count::TargetsOf(minimal_reference()).lower(),
+            deckmaste_semantics::Count::TargetsOf(minimal_reference()).lower(),
             deckmaste_core::Count::TargetsOf(deckmaste_core::Reference::This)
         );
     }
@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn lowers_count_that_many() {
         assert_matches!(
-            deckmaste_authoring::Count::ThatMany.lower(),
+            deckmaste_semantics::Count::ThatMany.lower(),
             deckmaste_core::Count::ThatMany
         );
     }
@@ -583,7 +583,7 @@ mod tests {
     #[test]
     fn lowers_count_that_much() {
         assert_matches!(
-            deckmaste_authoring::Count::ThatMuch.lower(),
+            deckmaste_semantics::Count::ThatMuch.lower(),
             deckmaste_core::Count::ThatMuch
         );
     }
@@ -591,7 +591,7 @@ mod tests {
     #[test]
     fn lowers_count_allotment() {
         assert_matches!(
-            deckmaste_authoring::Count::Allotment.lower(),
+            deckmaste_semantics::Count::Allotment.lower(),
             deckmaste_core::Count::Allotment
         );
     }
@@ -599,7 +599,7 @@ mod tests {
     #[test]
     fn lowers_count_event_count() {
         assert_matches!(
-            deckmaste_authoring::Count::EventCount(
+            deckmaste_semantics::Count::EventCount(
                 std::sync::Arc::new(minimal_event_filter()),
                 minimal_lookback()
             )
@@ -611,7 +611,7 @@ mod tests {
     #[test]
     fn lowers_count_event_sum() {
         assert_matches!(
-            deckmaste_authoring::Count::EventSum(
+            deckmaste_semantics::Count::EventSum(
                 std::sync::Arc::new(minimal_event_filter()),
                 minimal_lookback()
             )
@@ -623,7 +623,7 @@ mod tests {
     #[test]
     fn lowers_count_noted() {
         assert_matches!(
-            deckmaste_authoring::Count::Noted("X".into()).lower(),
+            deckmaste_semantics::Count::Noted("X".into()).lower(),
             deckmaste_core::Count::Noted(_)
         );
     }
@@ -631,7 +631,7 @@ mod tests {
     #[test]
     fn lowers_count_times_paid() {
         assert_matches!(
-            deckmaste_authoring::Count::TimesPaid(minimal_cost_tag()).lower(),
+            deckmaste_semantics::Count::TimesPaid(minimal_cost_tag()).lower(),
             deckmaste_core::Count::TimesPaid(deckmaste_core::CostTag(_))
         );
     }
@@ -639,7 +639,7 @@ mod tests {
     #[test]
     fn lowers_count_damage() {
         assert_matches!(
-            deckmaste_authoring::Count::Damage(minimal_reference()).lower(),
+            deckmaste_semantics::Count::Damage(minimal_reference()).lower(),
             deckmaste_core::Count::Damage(deckmaste_core::Reference::This)
         );
     }
@@ -647,7 +647,7 @@ mod tests {
     #[test]
     fn lowers_count_mana_available() {
         assert_matches!(
-            deckmaste_authoring::Count::ManaAvailable(minimal_reference()).lower(),
+            deckmaste_semantics::Count::ManaAvailable(minimal_reference()).lower(),
             deckmaste_core::Count::ManaAvailable(deckmaste_core::Reference::This)
         );
     }
@@ -655,7 +655,7 @@ mod tests {
     #[test]
     fn lowers_count_aggregate() {
         assert_matches!(
-            deckmaste_authoring::Count::Aggregate(minimal_aggregate_op(), minimal_projection())
+            deckmaste_semantics::Count::Aggregate(minimal_aggregate_op(), minimal_projection())
                 .lower(),
             deckmaste_core::Count::Aggregate(
                 deckmaste_core::AggregateOp::SumOf,
@@ -670,7 +670,7 @@ mod tests {
     #[test]
     fn lowers_count_expanded() {
         assert_matches!(
-            deckmaste_authoring::Count::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Count::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,
@@ -684,7 +684,7 @@ mod tests {
     #[test]
     fn lowers_count_literal() {
         assert_matches!(
-            deckmaste_authoring::Count::Literal(0).lower(),
+            deckmaste_semantics::Count::Literal(0).lower(),
             deckmaste_core::Count::Literal(0)
         );
     }

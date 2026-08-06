@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-**Rename `deckmaste_authoring` → `deckmaste_semantics` and sweep the
+**Rename `deckmaste_semantics` → `deckmaste_semantics` and sweep the
 "authoring" crate name project-wide.** Settled 2026-08-05: "authoring" names a
 provenance that is false for most of the crate's content — the bulk is compiled
 from Oracle text by recovery; only the rules tables, macros, and builtins are
@@ -17,17 +17,17 @@ records stay as written):
 - **Crate:** directory, `[package] name`, every dependent `Cargo.toml` and
   `use`/path reference (10 dependent crates incl. xtask); `Cargo.lock` follows
   from a build.
-- **Terminology naming the form:** "authoring grammar" → "semantics grammar",
-  "authored term" → "semantic term", "authored normal form" → "semantic
+- **Terminology naming the form:** "semantics grammar" → "semantics grammar",
+  "semantic term" → "semantic term", "semantic normal form" → "semantic
   normal form", in code identifiers, comments, and docs alike.
 - **The two-sense rule** for every other hit: a phrase naming the crate,
   grammar, or canonical form renames; the plain activity sense — hand-writing
   content — stays (e.g. the "keyword authoring" priority tier,
   `cards-untap-skip-authoring`, `docs/memory/authoring/`). Judgment sites get
-  a read, not a mechanical replace; `docs/decisions/invalid-authoring-fizzles.md`
+  a read, not a mechanical replace; `docs/decisions/invalid-semantic-input-fizzles.md`
   is a known one (it is about malformed content in the form, whatever its
   provenance — retitle only if the reworded doc still reads true).
-- **Docs:** `docs/decisions/authoring-spelling-lowering.md` renames to
+- **Docs:** `docs/decisions/semantics-spelling-lowering.md` renames to
   `semantics-spelling-lowering.md`; update every citer (crate doc comments,
   `CLAUDE.md`, decisions README, other decisions/tickets) and add a dated note
   in the ADR recording this rename decision. Update `docs/memory/` notes that

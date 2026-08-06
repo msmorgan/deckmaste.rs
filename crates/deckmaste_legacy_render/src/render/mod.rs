@@ -15,14 +15,14 @@ mod template;
 
 use std::cell::Cell;
 
-use deckmaste_authoring::Ability;
-use deckmaste_authoring::CardFace;
-use deckmaste_authoring::ManaCost;
-use deckmaste_authoring::StatValue;
-use deckmaste_authoring::Subtype;
-use deckmaste_authoring::Supertype;
-use deckmaste_authoring::TargetSpec;
-use deckmaste_authoring::TypeDef;
+use deckmaste_semantics::Ability;
+use deckmaste_semantics::CardFace;
+use deckmaste_semantics::ManaCost;
+use deckmaste_semantics::StatValue;
+use deckmaste_semantics::Subtype;
+use deckmaste_semantics::Supertype;
+use deckmaste_semantics::TargetSpec;
+use deckmaste_semantics::TypeDef;
 
 /// The rendered, layout-ready pieces of one card/object. All fields are plain
 /// text.
@@ -35,7 +35,7 @@ pub struct RenderedCard {
     pub pt: Option<String>,
 }
 
-/// Borrowed view over AUTHORED terms — the single input the renderer
+/// Borrowed view over SEMANTIC terms — the single input the renderer
 /// understands. A printed `CardFace` reduces to it directly; a derived live
 /// object reduces to it by raising each characteristic back through the
 /// provenance index (`deckmaste_tui::ui::detail`).
@@ -343,13 +343,13 @@ fn chapter_line(ability: &Ability, view: &CardView) -> Option<String> {
     let Ability::Triggered(t) = exp.value.as_ref() else {
         return None;
     };
-    let Some(deckmaste_authoring::Condition::Crossed { thresholds, .. }) = &t.condition else {
+    let Some(deckmaste_semantics::Condition::Crossed { thresholds, .. }) = &t.condition else {
         return None;
     };
     let markers = thresholds
         .iter()
         .map(|c| match c {
-            deckmaste_authoring::Count::Literal(n) => Some(roman(*n)),
+            deckmaste_semantics::Count::Literal(n) => Some(roman(*n)),
             _ => None,
         })
         .collect::<Option<Vec<_>>>()?
@@ -365,7 +365,7 @@ fn chapter_line(ability: &Ability, view: &CardView) -> Option<String> {
 
 /// Prefix a rendered ability line with its printed ability word
 /// ([CR#207.2c] — italic render metadata, no rules meaning): "Domain — …".
-fn with_ability_word(word: Option<&deckmaste_authoring::Ident>, line: String) -> String {
+fn with_ability_word(word: Option<&deckmaste_semantics::Ident>, line: String) -> String {
     match word {
         Some(w) => format!("{} — {line}", w.as_str()),
         None => line,

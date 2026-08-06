@@ -4,7 +4,7 @@ needs: []
 **Delete the engine's legacy unbound-`It` → lone-announced-target fallback
 — it violates the documented targets-are-never-anaphors invariant.**
 Design context:
-`docs/decisions/authoring-spelling-lowering.md`
+`docs/decisions/semantics-spelling-lowering.md`
 (§7, verification obligation 2). Reported by the 2026-08-02 codex
 consultation: the evaluator falls back from an unbound `It` to a lone
 announced target, and that compatibility path even chases post-move
@@ -17,7 +17,7 @@ Idris mirror both say `It` NEVER names an announced target.
   `resolve/query.rs`, not the fallback arm itself): pin the exact arm and
   its move-chasing behavior before deleting.
 - Delete the fallback; unbound `It` degrades to the null id like every
-  other unbound read (per the invalid-authoring-fizzles decision), and the
+  other unbound read (per the invalid-semantic-input-fizzles decision), and the
   Rust-side load lint for bare target-body anaphors is
   `validate-unbound-anaphor-lint` — coordinate, don't duplicate.
 - Sweep canon/wizards for terms that silently depended on the fallback

@@ -1,10 +1,10 @@
-//! `event` — authored grammar to engine AST.
+//! `event` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::PhaseKind {
+impl Lower for deckmaste_semantics::PhaseKind {
     type Target = deckmaste_core::PhaseKind;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -17,7 +17,7 @@ impl Lower for deckmaste_authoring::PhaseKind {
     }
 }
 
-impl Lower for deckmaste_authoring::PhaseStep {
+impl Lower for deckmaste_semantics::PhaseStep {
     type Target = deckmaste_core::PhaseStep;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -30,7 +30,7 @@ impl Lower for deckmaste_authoring::PhaseStep {
     }
 }
 
-impl Lower for deckmaste_authoring::BeginningStep {
+impl Lower for deckmaste_semantics::BeginningStep {
     type Target = deckmaste_core::BeginningStep;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -41,7 +41,7 @@ impl Lower for deckmaste_authoring::BeginningStep {
     }
 }
 
-impl Lower for deckmaste_authoring::CombatStep {
+impl Lower for deckmaste_semantics::CombatStep {
     type Target = deckmaste_core::CombatStep;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -55,7 +55,7 @@ impl Lower for deckmaste_authoring::CombatStep {
     }
 }
 
-impl Lower for deckmaste_authoring::EndingStep {
+impl Lower for deckmaste_semantics::EndingStep {
     type Target = deckmaste_core::EndingStep;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -65,7 +65,7 @@ impl Lower for deckmaste_authoring::EndingStep {
     }
 }
 
-impl Lower for deckmaste_authoring::WhoseTurn {
+impl Lower for deckmaste_semantics::WhoseTurn {
     type Target = deckmaste_core::WhoseTurn;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -76,7 +76,7 @@ impl Lower for deckmaste_authoring::WhoseTurn {
     }
 }
 
-impl Lower for deckmaste_authoring::StateChange {
+impl Lower for deckmaste_semantics::StateChange {
     type Target = deckmaste_core::StateChange;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -89,7 +89,7 @@ impl Lower for deckmaste_authoring::StateChange {
     }
 }
 
-impl Lower for deckmaste_authoring::Agency {
+impl Lower for deckmaste_semantics::Agency {
     type Target = deckmaste_core::Agency;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -104,14 +104,14 @@ impl Lower for deckmaste_authoring::Agency {
     }
 }
 
-impl Lower for deckmaste_authoring::VerbName {
+impl Lower for deckmaste_semantics::VerbName {
     type Target = deckmaste_core::VerbName;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::VerbName(self.0.lower())
     }
 }
 
-impl Lower for deckmaste_authoring::CausePattern {
+impl Lower for deckmaste_semantics::CausePattern {
     type Target = deckmaste_core::CausePattern;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::CausePattern {
@@ -122,7 +122,7 @@ impl Lower for deckmaste_authoring::CausePattern {
     }
 }
 
-impl Lower for deckmaste_authoring::Cause {
+impl Lower for deckmaste_semantics::Cause {
     type Target = deckmaste_core::Cause;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -131,7 +131,7 @@ impl Lower for deckmaste_authoring::Cause {
     }
 }
 
-impl Lower for deckmaste_authoring::EventFilter {
+impl Lower for deckmaste_semantics::EventFilter {
     type Target = deckmaste_core::EventFilter;
     #[allow(
         clippy::too_many_lines,
@@ -294,8 +294,8 @@ impl Lower for deckmaste_authoring::EventFilter {
             Self::Within(f0, f1) => deckmaste_core::EventFilter::Within(f0.lower(), f1.lower()),
             Self::Before(f0) => deckmaste_core::EventFilter::Before(f0.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -319,7 +319,7 @@ mod tests {
     #[test]
     fn lowers_phase_kind_beginning() {
         assert_matches!(
-            deckmaste_authoring::PhaseKind::Beginning.lower(),
+            deckmaste_semantics::PhaseKind::Beginning.lower(),
             deckmaste_core::PhaseKind::Beginning
         );
     }
@@ -327,7 +327,7 @@ mod tests {
     #[test]
     fn lowers_phase_kind_precombat_main() {
         assert_matches!(
-            deckmaste_authoring::PhaseKind::PrecombatMain.lower(),
+            deckmaste_semantics::PhaseKind::PrecombatMain.lower(),
             deckmaste_core::PhaseKind::PrecombatMain
         );
     }
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn lowers_phase_kind_combat() {
         assert_matches!(
-            deckmaste_authoring::PhaseKind::Combat.lower(),
+            deckmaste_semantics::PhaseKind::Combat.lower(),
             deckmaste_core::PhaseKind::Combat
         );
     }
@@ -343,7 +343,7 @@ mod tests {
     #[test]
     fn lowers_phase_kind_postcombat_main() {
         assert_matches!(
-            deckmaste_authoring::PhaseKind::PostcombatMain.lower(),
+            deckmaste_semantics::PhaseKind::PostcombatMain.lower(),
             deckmaste_core::PhaseKind::PostcombatMain
         );
     }
@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn lowers_phase_kind_ending() {
         assert_matches!(
-            deckmaste_authoring::PhaseKind::Ending.lower(),
+            deckmaste_semantics::PhaseKind::Ending.lower(),
             deckmaste_core::PhaseKind::Ending
         );
     }
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn lowers_phase_step_beginning() {
         assert_matches!(
-            deckmaste_authoring::PhaseStep::Beginning(minimal_beginning_step()).lower(),
+            deckmaste_semantics::PhaseStep::Beginning(minimal_beginning_step()).lower(),
             deckmaste_core::PhaseStep::Beginning(deckmaste_core::BeginningStep::Untap)
         );
     }
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn lowers_phase_step_precombat_main() {
         assert_matches!(
-            deckmaste_authoring::PhaseStep::PrecombatMain.lower(),
+            deckmaste_semantics::PhaseStep::PrecombatMain.lower(),
             deckmaste_core::PhaseStep::PrecombatMain
         );
     }
@@ -375,7 +375,7 @@ mod tests {
     #[test]
     fn lowers_phase_step_combat() {
         assert_matches!(
-            deckmaste_authoring::PhaseStep::Combat(minimal_combat_step()).lower(),
+            deckmaste_semantics::PhaseStep::Combat(minimal_combat_step()).lower(),
             deckmaste_core::PhaseStep::Combat(deckmaste_core::CombatStep::BeginningOfCombat)
         );
     }
@@ -383,7 +383,7 @@ mod tests {
     #[test]
     fn lowers_phase_step_postcombat_main() {
         assert_matches!(
-            deckmaste_authoring::PhaseStep::PostcombatMain.lower(),
+            deckmaste_semantics::PhaseStep::PostcombatMain.lower(),
             deckmaste_core::PhaseStep::PostcombatMain
         );
     }
@@ -391,7 +391,7 @@ mod tests {
     #[test]
     fn lowers_phase_step_ending() {
         assert_matches!(
-            deckmaste_authoring::PhaseStep::Ending(minimal_ending_step()).lower(),
+            deckmaste_semantics::PhaseStep::Ending(minimal_ending_step()).lower(),
             deckmaste_core::PhaseStep::Ending(deckmaste_core::EndingStep::End)
         );
     }
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn lowers_beginning_step_untap() {
         assert_matches!(
-            deckmaste_authoring::BeginningStep::Untap.lower(),
+            deckmaste_semantics::BeginningStep::Untap.lower(),
             deckmaste_core::BeginningStep::Untap
         );
     }
@@ -407,7 +407,7 @@ mod tests {
     #[test]
     fn lowers_beginning_step_upkeep() {
         assert_matches!(
-            deckmaste_authoring::BeginningStep::Upkeep.lower(),
+            deckmaste_semantics::BeginningStep::Upkeep.lower(),
             deckmaste_core::BeginningStep::Upkeep
         );
     }
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn lowers_beginning_step_draw() {
         assert_matches!(
-            deckmaste_authoring::BeginningStep::Draw.lower(),
+            deckmaste_semantics::BeginningStep::Draw.lower(),
             deckmaste_core::BeginningStep::Draw
         );
     }
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn lowers_combat_step_beginning_of_combat() {
         assert_matches!(
-            deckmaste_authoring::CombatStep::BeginningOfCombat.lower(),
+            deckmaste_semantics::CombatStep::BeginningOfCombat.lower(),
             deckmaste_core::CombatStep::BeginningOfCombat
         );
     }
@@ -431,7 +431,7 @@ mod tests {
     #[test]
     fn lowers_combat_step_declare_attackers() {
         assert_matches!(
-            deckmaste_authoring::CombatStep::DeclareAttackers.lower(),
+            deckmaste_semantics::CombatStep::DeclareAttackers.lower(),
             deckmaste_core::CombatStep::DeclareAttackers
         );
     }
@@ -439,7 +439,7 @@ mod tests {
     #[test]
     fn lowers_combat_step_declare_blockers() {
         assert_matches!(
-            deckmaste_authoring::CombatStep::DeclareBlockers.lower(),
+            deckmaste_semantics::CombatStep::DeclareBlockers.lower(),
             deckmaste_core::CombatStep::DeclareBlockers
         );
     }
@@ -447,7 +447,7 @@ mod tests {
     #[test]
     fn lowers_combat_step_first_combat_damage() {
         assert_matches!(
-            deckmaste_authoring::CombatStep::FirstCombatDamage.lower(),
+            deckmaste_semantics::CombatStep::FirstCombatDamage.lower(),
             deckmaste_core::CombatStep::FirstCombatDamage
         );
     }
@@ -455,7 +455,7 @@ mod tests {
     #[test]
     fn lowers_combat_step_combat_damage() {
         assert_matches!(
-            deckmaste_authoring::CombatStep::CombatDamage.lower(),
+            deckmaste_semantics::CombatStep::CombatDamage.lower(),
             deckmaste_core::CombatStep::CombatDamage
         );
     }
@@ -463,7 +463,7 @@ mod tests {
     #[test]
     fn lowers_combat_step_end_of_combat() {
         assert_matches!(
-            deckmaste_authoring::CombatStep::EndOfCombat.lower(),
+            deckmaste_semantics::CombatStep::EndOfCombat.lower(),
             deckmaste_core::CombatStep::EndOfCombat
         );
     }
@@ -471,7 +471,7 @@ mod tests {
     #[test]
     fn lowers_ending_step_end() {
         assert_matches!(
-            deckmaste_authoring::EndingStep::End.lower(),
+            deckmaste_semantics::EndingStep::End.lower(),
             deckmaste_core::EndingStep::End
         );
     }
@@ -479,7 +479,7 @@ mod tests {
     #[test]
     fn lowers_ending_step_cleanup() {
         assert_matches!(
-            deckmaste_authoring::EndingStep::Cleanup.lower(),
+            deckmaste_semantics::EndingStep::Cleanup.lower(),
             deckmaste_core::EndingStep::Cleanup
         );
     }
@@ -487,7 +487,7 @@ mod tests {
     #[test]
     fn lowers_whose_turn_your() {
         assert_matches!(
-            deckmaste_authoring::WhoseTurn::Your.lower(),
+            deckmaste_semantics::WhoseTurn::Your.lower(),
             deckmaste_core::WhoseTurn::Your
         );
     }
@@ -495,7 +495,7 @@ mod tests {
     #[test]
     fn lowers_whose_turn_each_players() {
         assert_matches!(
-            deckmaste_authoring::WhoseTurn::EachPlayers.lower(),
+            deckmaste_semantics::WhoseTurn::EachPlayers.lower(),
             deckmaste_core::WhoseTurn::EachPlayers
         );
     }
@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn lowers_whose_turn_an_opponents() {
         assert_matches!(
-            deckmaste_authoring::WhoseTurn::AnOpponents.lower(),
+            deckmaste_semantics::WhoseTurn::AnOpponents.lower(),
             deckmaste_core::WhoseTurn::AnOpponents
         );
     }
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn lowers_state_change_tapped() {
         assert_matches!(
-            deckmaste_authoring::StateChange::Tapped.lower(),
+            deckmaste_semantics::StateChange::Tapped.lower(),
             deckmaste_core::StateChange::Tapped
         );
     }
@@ -519,7 +519,7 @@ mod tests {
     #[test]
     fn lowers_state_change_untapped() {
         assert_matches!(
-            deckmaste_authoring::StateChange::Untapped.lower(),
+            deckmaste_semantics::StateChange::Untapped.lower(),
             deckmaste_core::StateChange::Untapped
         );
     }
@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn lowers_state_change_phased() {
         assert_matches!(
-            deckmaste_authoring::StateChange::Phased(minimal_phasing()).lower(),
+            deckmaste_semantics::StateChange::Phased(minimal_phasing()).lower(),
             deckmaste_core::StateChange::Phased(deckmaste_core::Phasing::In)
         );
     }
@@ -535,7 +535,7 @@ mod tests {
     #[test]
     fn lowers_state_change_turned_face() {
         assert_matches!(
-            deckmaste_authoring::StateChange::TurnedFace(minimal_face()).lower(),
+            deckmaste_semantics::StateChange::TurnedFace(minimal_face()).lower(),
             deckmaste_core::StateChange::TurnedFace(deckmaste_core::Face::Up)
         );
     }
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn lowers_state_change_transformed() {
         assert_matches!(
-            deckmaste_authoring::StateChange::Transformed.lower(),
+            deckmaste_semantics::StateChange::Transformed.lower(),
             deckmaste_core::StateChange::Transformed
         );
     }
@@ -551,7 +551,7 @@ mod tests {
     #[test]
     fn lowers_agency_cost_payment() {
         assert_matches!(
-            deckmaste_authoring::Agency::CostPayment.lower(),
+            deckmaste_semantics::Agency::CostPayment.lower(),
             deckmaste_core::Agency::CostPayment
         );
     }
@@ -559,7 +559,7 @@ mod tests {
     #[test]
     fn lowers_agency_attack_declaration() {
         assert_matches!(
-            deckmaste_authoring::Agency::AttackDeclaration.lower(),
+            deckmaste_semantics::Agency::AttackDeclaration.lower(),
             deckmaste_core::Agency::AttackDeclaration
         );
     }
@@ -567,7 +567,7 @@ mod tests {
     #[test]
     fn lowers_agency_effect_instruction() {
         assert_matches!(
-            deckmaste_authoring::Agency::EffectInstruction.lower(),
+            deckmaste_semantics::Agency::EffectInstruction.lower(),
             deckmaste_core::Agency::EffectInstruction
         );
     }
@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn lowers_agency_turn_based_action() {
         assert_matches!(
-            deckmaste_authoring::Agency::TurnBasedAction.lower(),
+            deckmaste_semantics::Agency::TurnBasedAction.lower(),
             deckmaste_core::Agency::TurnBasedAction
         );
     }
@@ -583,7 +583,7 @@ mod tests {
     #[test]
     fn lowers_agency_state_based_action() {
         assert_matches!(
-            deckmaste_authoring::Agency::StateBasedAction.lower(),
+            deckmaste_semantics::Agency::StateBasedAction.lower(),
             deckmaste_core::Agency::StateBasedAction
         );
     }
@@ -591,7 +591,7 @@ mod tests {
     #[test]
     fn lowers_agency_mana_ability_resolution() {
         assert_matches!(
-            deckmaste_authoring::Agency::ManaAbilityResolution.lower(),
+            deckmaste_semantics::Agency::ManaAbilityResolution.lower(),
             deckmaste_core::Agency::ManaAbilityResolution
         );
     }
@@ -599,7 +599,7 @@ mod tests {
     #[test]
     fn lowers_agency_special_action() {
         assert_matches!(
-            deckmaste_authoring::Agency::SpecialAction.lower(),
+            deckmaste_semantics::Agency::SpecialAction.lower(),
             deckmaste_core::Agency::SpecialAction
         );
     }
@@ -607,7 +607,7 @@ mod tests {
     #[test]
     fn lowers_verb_name() {
         assert_matches!(
-            deckmaste_authoring::VerbName("X".into()).lower(),
+            deckmaste_semantics::VerbName("X".into()).lower(),
             deckmaste_core::VerbName(_)
         );
     }
@@ -615,7 +615,7 @@ mod tests {
     #[test]
     fn lowers_cause_pattern() {
         assert_matches!(
-            deckmaste_authoring::CausePattern {
+            deckmaste_semantics::CausePattern {
                 verb: None,
                 agency: None,
                 agent: None
@@ -632,7 +632,7 @@ mod tests {
     #[test]
     fn lowers_cause_cause() {
         assert_matches!(
-            deckmaste_authoring::Cause::Cause(minimal_cause_pattern()).lower(),
+            deckmaste_semantics::Cause::Cause(minimal_cause_pattern()).lower(),
             deckmaste_core::Cause::Cause(deckmaste_core::CausePattern {
                 verb: None,
                 agency: None,
@@ -644,7 +644,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_zone_change() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::ZoneChange {
+            deckmaste_semantics::EventFilter::ZoneChange {
                 what: minimal_predicate(),
                 from: None,
                 to: None,
@@ -663,7 +663,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_damage() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Damage {
+            deckmaste_semantics::EventFilter::Damage {
                 source: minimal_predicate(),
                 to: minimal_predicate(),
                 combat: None,
@@ -682,7 +682,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_life_gained() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::LifeGained {
+            deckmaste_semantics::EventFilter::LifeGained {
                 who: minimal_predicate(),
                 amount: None
             }
@@ -697,7 +697,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_life_lost() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::LifeLost {
+            deckmaste_semantics::EventFilter::LifeLost {
                 who: minimal_predicate(),
                 amount: None
             }
@@ -712,7 +712,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_drawn() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Drawn {
+            deckmaste_semantics::EventFilter::Drawn {
                 who: minimal_predicate(),
                 amount: None
             }
@@ -727,7 +727,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_act() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Act {
+            deckmaste_semantics::EventFilter::Act {
                 verb: minimal_verb_name(),
                 who: minimal_predicate(),
                 on: minimal_predicate(),
@@ -746,7 +746,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_counter_placed() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::CounterPlaced {
+            deckmaste_semantics::EventFilter::CounterPlaced {
                 kind: None,
                 on: minimal_predicate(),
                 amount: None,
@@ -765,7 +765,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_counter_removed() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::CounterRemoved {
+            deckmaste_semantics::EventFilter::CounterRemoved {
                 kind: None,
                 on: minimal_predicate(),
                 amount: None,
@@ -784,7 +784,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_cast() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Cast {
+            deckmaste_semantics::EventFilter::Cast {
                 who: minimal_predicate(),
                 what: minimal_predicate()
             }
@@ -799,7 +799,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_copied() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Copied {
+            deckmaste_semantics::EventFilter::Copied {
                 who: minimal_predicate(),
                 what: minimal_predicate()
             }
@@ -814,7 +814,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_played() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Played {
+            deckmaste_semantics::EventFilter::Played {
                 who: minimal_predicate(),
                 what: minimal_predicate()
             }
@@ -829,7 +829,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_activated_ab() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::ActivatedAb {
+            deckmaste_semantics::EventFilter::ActivatedAb {
                 who: minimal_predicate(),
                 what: minimal_predicate()
             }
@@ -844,7 +844,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_attack_declared() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::AttackDeclared {
+            deckmaste_semantics::EventFilter::AttackDeclared {
                 by: minimal_predicate(),
                 against: minimal_predicate()
             }
@@ -859,7 +859,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_block_declared() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::BlockDeclared {
+            deckmaste_semantics::EventFilter::BlockDeclared {
                 by: minimal_predicate(),
                 of: minimal_predicate()
             }
@@ -874,7 +874,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_attached() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Attached {
+            deckmaste_semantics::EventFilter::Attached {
                 what: minimal_predicate(),
                 to: minimal_predicate()
             }
@@ -889,7 +889,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_state_became() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::StateBecame {
+            deckmaste_semantics::EventFilter::StateBecame {
                 of: minimal_predicate(),
                 becomes: minimal_state_change(),
                 cause: None
@@ -906,7 +906,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_becomes_target() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::BecomesTarget {
+            deckmaste_semantics::EventFilter::BecomesTarget {
                 what: minimal_predicate(),
                 by: minimal_predicate(),
                 source: None
@@ -923,7 +923,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_step_begins() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::StepBegins {
+            deckmaste_semantics::EventFilter::StepBegins {
                 at: minimal_phase_step(),
                 whose: minimal_whose_turn()
             }
@@ -938,7 +938,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_control_changed() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::ControlChanged {
+            deckmaste_semantics::EventFilter::ControlChanged {
                 of: minimal_predicate(),
                 to: minimal_predicate()
             }
@@ -953,7 +953,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_designation_changed() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::DesignationChanged {
+            deckmaste_semantics::EventFilter::DesignationChanged {
                 name: "X".into(),
                 of: minimal_predicate(),
                 to: Some("Y".into()),
@@ -970,7 +970,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_token_created() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::TokenCreated {
+            deckmaste_semantics::EventFilter::TokenCreated {
                 what: minimal_predicate(),
                 by: minimal_predicate()
             }
@@ -985,7 +985,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_shuffled() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Shuffled {
+            deckmaste_semantics::EventFilter::Shuffled {
                 by: minimal_predicate()
             }
             .lower(),
@@ -998,7 +998,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_revealed() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Revealed {
+            deckmaste_semantics::EventFilter::Revealed {
                 what: minimal_predicate()
             }
             .lower(),
@@ -1011,7 +1011,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_used() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Used {
+            deckmaste_semantics::EventFilter::Used {
                 of: minimal_reference()
             }
             .lower(),
@@ -1024,7 +1024,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_coin_flipped() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::CoinFlipped {
+            deckmaste_semantics::EventFilter::CoinFlipped {
                 by: minimal_predicate(),
                 won: None
             }
@@ -1039,7 +1039,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_dice_rolled() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::DiceRolled {
+            deckmaste_semantics::EventFilter::DiceRolled {
                 by: minimal_predicate()
             }
             .lower(),
@@ -1052,7 +1052,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_tap_for_mana() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::TapForMana {
+            deckmaste_semantics::EventFilter::TapForMana {
                 what: minimal_predicate(),
                 by: minimal_predicate()
             }
@@ -1067,7 +1067,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_roll_planar_die() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::RollPlanarDie {
+            deckmaste_semantics::EventFilter::RollPlanarDie {
                 by: minimal_predicate(),
                 face: None
             }
@@ -1082,7 +1082,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_all_of() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::AllOf([].into()).lower(),
+            deckmaste_semantics::EventFilter::AllOf([].into()).lower(),
             deckmaste_core::EventFilter::AllOf(_)
         );
     }
@@ -1090,7 +1090,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_one_of() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::OneOf([].into()).lower(),
+            deckmaste_semantics::EventFilter::OneOf([].into()).lower(),
             deckmaste_core::EventFilter::OneOf(_)
         );
     }
@@ -1098,7 +1098,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_not() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Not(std::sync::Arc::new(minimal_event_filter()))
+            deckmaste_semantics::EventFilter::Not(std::sync::Arc::new(minimal_event_filter()))
                 .lower(),
             deckmaste_core::EventFilter::Not(_)
         );
@@ -1107,7 +1107,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_one_or_more() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::OneOrMore(
+            deckmaste_semantics::EventFilter::OneOrMore(
                 std::sync::Arc::new(minimal_event_filter())
             )
             .lower(),
@@ -1118,7 +1118,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_nth() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Nth {
+            deckmaste_semantics::EventFilter::Nth {
                 n: 0,
                 of: std::sync::Arc::new(minimal_event_filter()),
                 within: minimal_lookback()
@@ -1135,7 +1135,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_when() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::When(
+            deckmaste_semantics::EventFilter::When(
                 std::sync::Arc::new(minimal_event_filter()),
                 std::sync::Arc::new(minimal_condition())
             )
@@ -1147,7 +1147,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_within() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Within(
+            deckmaste_semantics::EventFilter::Within(
                 std::sync::Arc::new(minimal_event_filter()),
                 minimal_lookback()
             )
@@ -1159,7 +1159,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_before() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Before(minimal_reference()).lower(),
+            deckmaste_semantics::EventFilter::Before(minimal_reference()).lower(),
             deckmaste_core::EventFilter::Before(deckmaste_core::Reference::This)
         );
     }
@@ -1167,7 +1167,7 @@ mod tests {
     #[test]
     fn lowers_event_filter_expanded() {
         assert_matches!(
-            deckmaste_authoring::EventFilter::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::EventFilter::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,

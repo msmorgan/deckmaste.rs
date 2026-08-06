@@ -15,7 +15,7 @@ The needs list covers three claims the capstone must be able to defend:
   ignored files, or maintainer-machine commands.
 - **Known failure modes are deliberate:** engine-interpreted verbs are not
   typo-prone string dispatch, and every remaining engine abort is classified
-  as malformed authoring, unsupported mechanics, or an internal invariant.
+  as malformed semantic input, unsupported mechanics, or an internal invariant.
 
 Final pass:
 

@@ -46,12 +46,12 @@ fn testing_mocks_are_valid() {
     assert_testing_card_name(&testing, "Animate enchantments");
 }
 
-/// The loader hands back BOTH projections on a real card: the authored term the
+/// The loader hands back BOTH projections on a real card: the semantic term the
 /// spelling side needs and the engine value the engine needs, from one call.
 ///
 /// The equality below is a TAUTOLOGY inside this crate:
-/// `Plugin::card_from_str` builds `core` by lowering `authored`. What it pins
-/// is the pair's shape and that the API returns it — `authored` is a `Lower`
+/// `Plugin::card_from_str` builds `core` by lowering `semantic`. What it pins
+/// is the pair's shape and that the API returns it — `semantic` is a `Lower`
 /// whose `Target` is the type of `core`. The informative comparison, the engine
 /// image against an independent core-kinded reader, is
 /// `tests/corpus_identity.rs`.
@@ -60,8 +60,8 @@ fn card_load_yields_both_projections_of_one_parse() {
     let plugin = Plugin::load_with_sibling_prelude(testing_path()).unwrap();
     let loaded = plugin.card("Exalted Creature").expect("testing card loads");
     assert_eq!(
-        loaded.authored.clone().lower(),
+        loaded.semantic.clone().lower(),
         loaded.core,
-        "the core half must be exactly the lowering of the authored half"
+        "the core half must be exactly the lowering of the semantic half"
     );
 }

@@ -1,10 +1,10 @@
-//! `color` — authored grammar to engine AST.
+//! `color` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Color {
+impl Lower for deckmaste_semantics::Color {
     type Target = deckmaste_core::Color;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -17,7 +17,7 @@ impl Lower for deckmaste_authoring::Color {
     }
 }
 
-impl Lower for deckmaste_authoring::ColorOrColorless {
+impl Lower for deckmaste_semantics::ColorOrColorless {
     type Target = deckmaste_core::ColorOrColorless;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -43,7 +43,7 @@ mod tests {
     #[test]
     fn lowers_color_white() {
         assert_matches!(
-            deckmaste_authoring::Color::White.lower(),
+            deckmaste_semantics::Color::White.lower(),
             deckmaste_core::Color::White
         );
     }
@@ -51,7 +51,7 @@ mod tests {
     #[test]
     fn lowers_color_blue() {
         assert_matches!(
-            deckmaste_authoring::Color::Blue.lower(),
+            deckmaste_semantics::Color::Blue.lower(),
             deckmaste_core::Color::Blue
         );
     }
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn lowers_color_black() {
         assert_matches!(
-            deckmaste_authoring::Color::Black.lower(),
+            deckmaste_semantics::Color::Black.lower(),
             deckmaste_core::Color::Black
         );
     }
@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn lowers_color_red() {
         assert_matches!(
-            deckmaste_authoring::Color::Red.lower(),
+            deckmaste_semantics::Color::Red.lower(),
             deckmaste_core::Color::Red
         );
     }
@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn lowers_color_green() {
         assert_matches!(
-            deckmaste_authoring::Color::Green.lower(),
+            deckmaste_semantics::Color::Green.lower(),
             deckmaste_core::Color::Green
         );
     }
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn lowers_color_or_colorless_colorless() {
         assert_matches!(
-            deckmaste_authoring::ColorOrColorless::Colorless.lower(),
+            deckmaste_semantics::ColorOrColorless::Colorless.lower(),
             deckmaste_core::ColorOrColorless::Colorless
         );
     }
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn lowers_color_or_colorless_color() {
         assert_matches!(
-            deckmaste_authoring::ColorOrColorless::Color(minimal_color()).lower(),
+            deckmaste_semantics::ColorOrColorless::Color(minimal_color()).lower(),
             deckmaste_core::ColorOrColorless::Color(deckmaste_core::Color::White)
         );
     }

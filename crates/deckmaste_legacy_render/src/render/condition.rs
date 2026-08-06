@@ -3,21 +3,21 @@
 
 use std::sync::Arc;
 
-use deckmaste_authoring::AggregateOp;
-use deckmaste_authoring::CharacteristicPredicate;
-use deckmaste_authoring::Cmp;
-use deckmaste_authoring::Condition;
-use deckmaste_authoring::Count;
-use deckmaste_authoring::Countable;
-use deckmaste_authoring::PlayerAttr;
-use deckmaste_authoring::Predicate;
-use deckmaste_authoring::Reference;
-use deckmaste_authoring::RelationPredicate;
-use deckmaste_authoring::Stat;
-use deckmaste_authoring::StatePredicate;
-use deckmaste_authoring::Status;
-use deckmaste_authoring::Supertype;
-use deckmaste_authoring::Zone;
+use deckmaste_semantics::AggregateOp;
+use deckmaste_semantics::CharacteristicPredicate;
+use deckmaste_semantics::Cmp;
+use deckmaste_semantics::Condition;
+use deckmaste_semantics::Count;
+use deckmaste_semantics::Countable;
+use deckmaste_semantics::PlayerAttr;
+use deckmaste_semantics::Predicate;
+use deckmaste_semantics::Reference;
+use deckmaste_semantics::RelationPredicate;
+use deckmaste_semantics::Stat;
+use deckmaste_semantics::StatePredicate;
+use deckmaste_semantics::Status;
+use deckmaste_semantics::Supertype;
+use deckmaste_semantics::Zone;
 
 use super::Ctx;
 use super::fragment::strip_expanded;
@@ -85,7 +85,7 @@ pub(super) fn condition(c: &Condition, ctx: &Ctx) -> String {
             Count::CountOf(Countable::Objects(f)),
             Cmp::AtLeast,
             Count::Literal(3),
-        ) if f.as_ref() == &permanents_you_control(deckmaste_authoring::Type::Artifact.name()) => {
+        ) if f.as_ref() == &permanents_you_control(deckmaste_semantics::Type::Artifact.name()) => {
             "you control three or more artifacts".to_string()
         }
         // "you have no cards in hand" ([`YouHaveNoCardsInHand`]).
@@ -142,17 +142,17 @@ fn graveyard_cards_you_own() -> Predicate {
 }
 
 fn creatures_you_control() -> Predicate {
-    permanents_you_control(deckmaste_authoring::Type::Creature.name())
+    permanents_you_control(deckmaste_semantics::Type::Creature.name())
 }
 
 /// `And([InZone(Battlefield), Type(ty), ControlledBy(Ref(You))])` — the
 /// battlefield-census filter for a single card type, controlled by you.
-fn permanents_you_control(ty: deckmaste_authoring::Ident) -> Predicate {
+fn permanents_you_control(ty: deckmaste_semantics::Ident) -> Predicate {
     Predicate::And(
         vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Characteristic(deckmaste_authoring::CharacteristicPredicate::Type(
-                deckmaste_authoring::TypeRef::named(ty),
+            Predicate::Characteristic(deckmaste_semantics::CharacteristicPredicate::Type(
+                deckmaste_semantics::TypeRef::named(ty),
             )),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You,
@@ -170,7 +170,7 @@ fn basic_land_you_control(f: &Predicate) -> Option<&'static str> {
     let Predicate::And(parts) = f else { return None };
     let [
         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-        Predicate::Characteristic(deckmaste_authoring::CharacteristicPredicate::Subtype(name)),
+        Predicate::Characteristic(deckmaste_semantics::CharacteristicPredicate::Subtype(name)),
         Predicate::Relation(RelationPredicate::ControlledBy(controller)),
     ] = parts.as_ref()
     else {
@@ -297,7 +297,7 @@ fn state_predicate_phrase(pred: &Predicate) -> Option<String> {
 /// dropped/garbled English.
 fn object_phrase(pred: &Predicate) -> Option<String> {
     let mut other = false;
-    let mut color: Option<deckmaste_authoring::Color> = None;
+    let mut color: Option<deckmaste_semantics::Color> = None;
     let mut multicolored = false;
     let mut colorless = false;
     let mut subtype: Option<String> = None;
@@ -440,7 +440,7 @@ mod tests {
                 &Condition::Compare(
                     Count::Aggregate(
                         AggregateOp::SumOf,
-                        deckmaste_authoring::Projection {
+                        deckmaste_semantics::Projection {
                             of: Countable::Objects(Arc::new(creatures_you_control())),
                             by: Arc::new(Count::StatOf(Reference::It, Stat::Power)),
                         },
@@ -456,7 +456,7 @@ mod tests {
             condition(
                 &Condition::Compare(
                     Count::CountOf(Countable::Objects(Arc::new(permanents_you_control(
-                        deckmaste_authoring::Type::Artifact.name()
+                        deckmaste_semantics::Type::Artifact.name()
                     )))),
                     Cmp::AtLeast,
                     Count::Literal(3),
@@ -487,8 +487,8 @@ mod tests {
                 vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Characteristic(
-                        deckmaste_authoring::CharacteristicPredicate::Subtype(
-                            deckmaste_authoring::SubtypeRef::named(subtype.into()),
+                        deckmaste_semantics::CharacteristicPredicate::Subtype(
+                            deckmaste_semantics::SubtypeRef::named(subtype.into()),
                         ),
                     ),
                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
@@ -519,7 +519,7 @@ mod tests {
     /// opponent controls X", the object's own indefinite noun phrase.
     #[test]
     fn renders_exists_you_control_and_opponent_controls() {
-        let artifact = Predicate::r#type(deckmaste_authoring::Type::Artifact);
+        let artifact = Predicate::r#type(deckmaste_semantics::Type::Artifact);
         assert_eq!(
             condition(
                 &Condition::Exists(Predicate::And(
@@ -539,19 +539,19 @@ mod tests {
         // `Permanent` scope atom — a macro-provenance `Expanded` value, the
         // exact shape `deckmaste_migrations::parsers::filter::parse_phrase` emits —
         // which must NOT print as "a Human permanent".
-        let permanent = Predicate::Expanded(deckmaste_authoring::Expansion {
-            name: deckmaste_authoring::Ident::from("Permanent"),
-            args: deckmaste_authoring::ExpansionArgs::none(),
+        let permanent = Predicate::Expanded(deckmaste_semantics::Expansion {
+            name: deckmaste_semantics::Ident::from("Permanent"),
+            args: deckmaste_semantics::ExpansionArgs::none(),
             template: Some("permanent".to_string()),
             value: Box::new(Predicate::State(StatePredicate::InZone(
-                deckmaste_authoring::Zone::Battlefield,
+                deckmaste_semantics::Zone::Battlefield,
             ))),
         });
         let human = Predicate::And(
             vec![
                 permanent,
                 Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                    deckmaste_authoring::SubtypeRef::named(deckmaste_authoring::Ident::from(
+                    deckmaste_semantics::SubtypeRef::named(deckmaste_semantics::Ident::from(
                         "Human",
                     )),
                 )),
@@ -582,7 +582,7 @@ mod tests {
             vec![
                 Predicate::creature(),
                 Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                    deckmaste_authoring::SubtypeRef::named(deckmaste_authoring::Ident::from(
+                    deckmaste_semantics::SubtypeRef::named(deckmaste_semantics::Ident::from(
                         "Griffin",
                     )),
                 )),
@@ -610,12 +610,12 @@ mod tests {
         // "a Human" case above, where `Permanent` is only the implicit scope
         // atom the subtype itself stands in for).
         let permanent_noun = || {
-            Predicate::Expanded(deckmaste_authoring::Expansion {
-                name: deckmaste_authoring::Ident::from("Permanent"),
-                args: deckmaste_authoring::ExpansionArgs::none(),
+            Predicate::Expanded(deckmaste_semantics::Expansion {
+                name: deckmaste_semantics::Ident::from("Permanent"),
+                args: deckmaste_semantics::ExpansionArgs::none(),
                 template: Some("permanent".to_string()),
                 value: Box::new(Predicate::State(StatePredicate::InZone(
-                    deckmaste_authoring::Zone::Battlefield,
+                    deckmaste_semantics::Zone::Battlefield,
                 ))),
             })
         };
@@ -646,7 +646,7 @@ mod tests {
             vec![
                 permanent_noun(),
                 Predicate::Characteristic(CharacteristicPredicate::ColorIs(
-                    deckmaste_authoring::Color::Red,
+                    deckmaste_semantics::Color::Red,
                 )),
             ]
             .into(),
@@ -687,7 +687,7 @@ mod tests {
                 &Condition::Matches(
                     Reference::AttachHostOf(Arc::new(Reference::This)),
                     Predicate::Characteristic(CharacteristicPredicate::ColorIs(
-                        deckmaste_authoring::Color::Black
+                        deckmaste_semantics::Color::Black
                     )),
                 ),
                 &ctx()

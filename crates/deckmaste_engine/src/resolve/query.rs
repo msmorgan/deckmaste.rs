@@ -65,7 +65,7 @@ impl GameState {
     /// `Count` reads
     /// ([`Count::PlayerStatOf`](deckmaste_core::Count::PlayerStatOf)
     /// / [`Count::Opponents`](deckmaste_core::Count::Opponents)), where a
-    /// non-player reference is an authoring mistake that fizzles to 0.
+    /// non-player reference is a semantic-input error that fizzles to 0.
     pub(crate) fn eval_player_ref(
         &self,
         reference: &Reference,
@@ -185,10 +185,10 @@ impl GameState {
                     }
                     // Idris's `Pick` is pinned to `Projection b AnObject`
                     // ([CR#107.1] — no player-`Pick` consumer exists), so a
-                    // `Players`-sourced `proj` here is authoring-invalid, like
+                    // `Players`-sourced `proj` here is semantics-invalid, like
                     // the non-`Projectable` `ManaSymbols`/`Singleton`/
                     // `ManaSpentMatching` sources — fizzle to the empty group
-                    // (never-crash on an authoring mistake).
+                    // (never-crash on a semantic-input error).
                     Countable::Players(..)
                     | Countable::ManaSymbols(..)
                     | Countable::Singleton(..)
@@ -211,7 +211,7 @@ impl GameState {
                 let extremum = match op {
                     AggregateOp::MaxOf => scored.iter().map(|(_, v)| *v).max(),
                     AggregateOp::MinOf => scored.iter().map(|(_, v)| *v).min(),
-                    // A non-extremal op on Pick is malformed authoring —
+                    // A non-extremal op on Pick is malformed semantic input —
                     // fizzle to the empty group (never-crash).
                     AggregateOp::SumOf | AggregateOp::AverageOf(_) => None,
                 };
@@ -290,7 +290,7 @@ impl GameState {
                 let Some(that) = frame.anaphora.that.as_ref() else {
                     // An unbound plural read — a bare `They` in a targeted body
                     // (the pre-positional spelling of `Targets(n)`), or the
-                    // unbuilt product-sited read. An authoring mistake fizzles
+                    // unbuilt product-sited read. A semantic-input error fizzles
                     // to the empty group; the Idris gate is what REFUSES the
                     // shape (`tBadTheyReadsNoTarget`), and nothing here crashes
                     // on a bad card.
@@ -359,7 +359,7 @@ impl GameState {
             // of `TopOfLibrary`, and shuffle's own object ([CR#701.24a]).
             // Like `TopOfGraveyard` below (and unlike the panicking slice
             // family), a `whose` that fails to resolve to a player proxy
-            // fizzles to the empty group: an authoring mistake must never
+            // fizzles to the empty group: a semantic-input error must never
             // crash the engine.
             Selection::LibraryOf(whose) => {
                 let proxy = self.eval_reference(whose, frame);
@@ -378,7 +378,7 @@ impl GameState {
             // END, reversed. Unlike `TopOfLibrary`/`BottomOfLibrary`
             // (which panic on a non-player `of` — an established baseline
             // this arm does not repeat), an `of` that fails to resolve to a
-            // player proxy fizzles to the empty group: a card-authoring
+            // player proxy fizzles to the empty group: a card-semantics
             // mistake must never crash the engine.
             Selection::TopOfGraveyard { count, of } => {
                 let proxy = self.eval_reference(of, frame);
@@ -431,7 +431,7 @@ impl GameState {
                     // still-live group. If nothing bound them — a constrained
                     // AmongNoted evaluated OUTSIDE a binder, or the group emptied
                     // between surface and re-run — the read is the empty group
-                    // (fizzle), never a panic (authoring mistakes never crash).
+                    // (fizzle), never a panic (semantic-input errors never crash).
                     frame
                         .anaphora
                         .chosen
@@ -642,7 +642,7 @@ impl GameState {
             // the variant does; `core-demacro` deletes both.
             Reference::Expanded(_) => unreachable!("provenance erased at lower"),
             // engine-resolve-selections follow-ups: these need stores that do
-            // not exist yet — an authored read fizzles until then.
+            // not exist yet — a semantic read fizzles until then.
             Reference::Bound(_) => {
                 Self::unbound_ref(reference, "Bound(...) named-role binding store not wired")
             }
@@ -671,10 +671,10 @@ impl GameState {
         }
     }
 
-    /// Card-authoring mistakes must never crash the engine (the Invalid
-    /// authoring fizzles decision,
-    /// `docs/decisions/invalid-authoring-fizzles.md`): an unresolvable
-    /// authored reference degrades to the null [`ObjectId`] — a slotmap key
+    /// Semantic-input errors in card data must never crash the engine (the
+    /// Invalid semantic input fizzles decision,
+    /// `docs/decisions/invalid-semantic-input-fizzles.md`): an unresolvable
+    /// semantic reference degrades to the null [`ObjectId`] — a slotmap key
     /// that never maps to a live object, so the effect fizzles exactly as a
     /// reference to a departed/zone-changed object does — leaving an
     /// `eprintln!` breadcrumb. Soundness (a well-formed card's references
@@ -689,8 +689,8 @@ impl GameState {
     }
 
     /// The group twin of [`Self::unbound_ref`]: a selection that names nothing
-    /// resolvable fizzles to the EMPTY group, so its verb no-ops. An authoring
-    /// mistake never crashes the engine — the Idris re-emit gate is what
+    /// resolvable fizzles to the EMPTY group, so its verb no-ops. A semantic-
+    /// input error never crashes the engine — the Idris re-emit gate is what
     /// refuses the shape.
     fn unbound_group(selection: &Selection, why: &str) -> Vec<ObjectId> {
         eprintln!(
@@ -724,9 +724,10 @@ mod tests {
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
 
-    /// Card-authoring mistakes never crash the engine (the Invalid authoring
-    /// fizzles decision, `docs/decisions/invalid-authoring-fizzles.md`): an
-    /// unresolvable authored reference degrades to the null object id (the
+    /// Semantic-input errors in card data never crash the engine (the Invalid
+    /// semantic input fizzles decision,
+    /// `docs/decisions/invalid-semantic-input-fizzles.md`): an unresolvable
+    /// semantic reference degrades to the null object id (the
     /// effect fizzles) rather than panicking. Soundness — that a
     /// well-formed card's references always resolve — is the Idris re-emit
     /// gate's job, not a runtime panic.
@@ -1235,7 +1236,7 @@ mod tests {
 
         // A `whose` that is not a player proxy fizzles to the empty group
         // rather than panicking — the `TopOfGraveyard` convention, not the
-        // slice family's panic (authoring mistakes never crash the engine).
+        // slice family's panic (semantic-input errors never crash the engine).
         assert!(
             state
                 .eval_selection_set(&Selection::LibraryOf(Reference::It), &frame)

@@ -1,10 +1,10 @@
-//! `reference` — authored grammar to engine AST.
+//! `reference` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Reference {
+impl Lower for deckmaste_semantics::Reference {
     type Target = deckmaste_core::Reference;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -27,8 +27,8 @@ impl Lower for deckmaste_authoring::Reference {
             Self::AttachHostOf(f0) => deckmaste_core::Reference::AttachHostOf(f0.lower()),
             Self::Source => deckmaste_core::Reference::Source,
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn lowers_reference_this() {
         assert_matches!(
-            deckmaste_authoring::Reference::This.lower(),
+            deckmaste_semantics::Reference::This.lower(),
             deckmaste_core::Reference::This
         );
     }
@@ -60,7 +60,7 @@ mod tests {
     #[test]
     fn lowers_reference_single() {
         assert_matches!(
-            deckmaste_authoring::Reference::Single(std::sync::Arc::new(minimal_selection()))
+            deckmaste_semantics::Reference::Single(std::sync::Arc::new(minimal_selection()))
                 .lower(),
             deckmaste_core::Reference::Single(_)
         );
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn lowers_reference_you() {
         assert_matches!(
-            deckmaste_authoring::Reference::You.lower(),
+            deckmaste_semantics::Reference::You.lower(),
             deckmaste_core::Reference::You
         );
     }
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn lowers_reference_opponent() {
         assert_matches!(
-            deckmaste_authoring::Reference::Opponent.lower(),
+            deckmaste_semantics::Reference::Opponent.lower(),
             deckmaste_core::Reference::Opponent
         );
     }
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn lowers_reference_it() {
         assert_matches!(
-            deckmaste_authoring::Reference::It.lower(),
+            deckmaste_semantics::Reference::It.lower(),
             deckmaste_core::Reference::It
         );
     }
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn lowers_reference_target() {
         assert_matches!(
-            deckmaste_authoring::Reference::Target(0).lower(),
+            deckmaste_semantics::Reference::Target(0).lower(),
             deckmaste_core::Reference::Target(0)
         );
     }
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn lowers_reference_event_object() {
         assert_matches!(
-            deckmaste_authoring::Reference::EventObject.lower(),
+            deckmaste_semantics::Reference::EventObject.lower(),
             deckmaste_core::Reference::EventObject
         );
     }
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn lowers_reference_event_patient() {
         assert_matches!(
-            deckmaste_authoring::Reference::EventPatient.lower(),
+            deckmaste_semantics::Reference::EventPatient.lower(),
             deckmaste_core::Reference::EventPatient
         );
     }
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn lowers_reference_event_actor() {
         assert_matches!(
-            deckmaste_authoring::Reference::EventActor.lower(),
+            deckmaste_semantics::Reference::EventActor.lower(),
             deckmaste_core::Reference::EventActor
         );
     }
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn lowers_reference_defending_player() {
         assert_matches!(
-            deckmaste_authoring::Reference::DefendingPlayer.lower(),
+            deckmaste_semantics::Reference::DefendingPlayer.lower(),
             deckmaste_core::Reference::DefendingPlayer
         );
     }
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn lowers_reference_that() {
         assert_matches!(
-            deckmaste_authoring::Reference::That(minimal_sort()).lower(),
+            deckmaste_semantics::Reference::That(minimal_sort()).lower(),
             deckmaste_core::Reference::That(deckmaste_core::Sort::Player)
         );
     }
@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn lowers_reference_bound() {
         assert_matches!(
-            deckmaste_authoring::Reference::Bound("X".into()).lower(),
+            deckmaste_semantics::Reference::Bound("X".into()).lower(),
             deckmaste_core::Reference::Bound(_)
         );
     }
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn lowers_reference_linked() {
         assert_matches!(
-            deckmaste_authoring::Reference::Linked("X".into()).lower(),
+            deckmaste_semantics::Reference::Linked("X".into()).lower(),
             deckmaste_core::Reference::Linked(_)
         );
     }
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn lowers_reference_controller_of() {
         assert_matches!(
-            deckmaste_authoring::Reference::ControllerOf(std::sync::Arc::new(minimal_reference()))
+            deckmaste_semantics::Reference::ControllerOf(std::sync::Arc::new(minimal_reference()))
                 .lower(),
             deckmaste_core::Reference::ControllerOf(_)
         );
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn lowers_reference_coalesce() {
         assert_matches!(
-            deckmaste_authoring::Reference::Coalesce([].into()).lower(),
+            deckmaste_semantics::Reference::Coalesce([].into()).lower(),
             deckmaste_core::Reference::Coalesce(_)
         );
     }
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn lowers_reference_owner_of() {
         assert_matches!(
-            deckmaste_authoring::Reference::OwnerOf(std::sync::Arc::new(minimal_reference()))
+            deckmaste_semantics::Reference::OwnerOf(std::sync::Arc::new(minimal_reference()))
                 .lower(),
             deckmaste_core::Reference::OwnerOf(_)
         );
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn lowers_reference_attach_host_of() {
         assert_matches!(
-            deckmaste_authoring::Reference::AttachHostOf(std::sync::Arc::new(minimal_reference()))
+            deckmaste_semantics::Reference::AttachHostOf(std::sync::Arc::new(minimal_reference()))
                 .lower(),
             deckmaste_core::Reference::AttachHostOf(_)
         );
@@ -192,7 +192,7 @@ mod tests {
     #[test]
     fn lowers_reference_source() {
         assert_matches!(
-            deckmaste_authoring::Reference::Source.lower(),
+            deckmaste_semantics::Reference::Source.lower(),
             deckmaste_core::Reference::Source
         );
     }
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn lowers_reference_expanded() {
         assert_matches!(
-            deckmaste_authoring::Reference::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Reference::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,

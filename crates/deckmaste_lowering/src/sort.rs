@@ -1,10 +1,10 @@
-//! `sort` — authored grammar to engine AST.
+//! `sort` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Sort {
+impl Lower for deckmaste_semantics::Sort {
     type Target = deckmaste_core::Sort;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -37,7 +37,7 @@ mod tests {
     #[test]
     fn lowers_sort_player() {
         assert_matches!(
-            deckmaste_authoring::Sort::Player.lower(),
+            deckmaste_semantics::Sort::Player.lower(),
             deckmaste_core::Sort::Player
         );
     }
@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn lowers_sort_card() {
         assert_matches!(
-            deckmaste_authoring::Sort::Card.lower(),
+            deckmaste_semantics::Sort::Card.lower(),
             deckmaste_core::Sort::Card
         );
     }
@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn lowers_sort_token() {
         assert_matches!(
-            deckmaste_authoring::Sort::Token.lower(),
+            deckmaste_semantics::Sort::Token.lower(),
             deckmaste_core::Sort::Token
         );
     }
@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn lowers_sort_spell() {
         assert_matches!(
-            deckmaste_authoring::Sort::Spell.lower(),
+            deckmaste_semantics::Sort::Spell.lower(),
             deckmaste_core::Sort::Spell
         );
     }
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn lowers_sort_stack_object() {
         assert_matches!(
-            deckmaste_authoring::Sort::StackObject.lower(),
+            deckmaste_semantics::Sort::StackObject.lower(),
             deckmaste_core::Sort::StackObject
         );
     }
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn lowers_sort_permanent() {
         assert_matches!(
-            deckmaste_authoring::Sort::Permanent.lower(),
+            deckmaste_semantics::Sort::Permanent.lower(),
             deckmaste_core::Sort::Permanent
         );
     }
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn lowers_sort_of_type() {
         assert_matches!(
-            deckmaste_authoring::Sort::OfType(minimal_type()).lower(),
+            deckmaste_semantics::Sort::OfType(minimal_type()).lower(),
             deckmaste_core::Sort::OfType(deckmaste_core::Type::Artifact)
         );
     }
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn lowers_sort_amount() {
         assert_matches!(
-            deckmaste_authoring::Sort::Amount.lower(),
+            deckmaste_semantics::Sort::Amount.lower(),
             deckmaste_core::Sort::Amount
         );
     }
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn lowers_sort_pile() {
         assert_matches!(
-            deckmaste_authoring::Sort::Pile.lower(),
+            deckmaste_semantics::Sort::Pile.lower(),
             deckmaste_core::Sort::Pile
         );
     }

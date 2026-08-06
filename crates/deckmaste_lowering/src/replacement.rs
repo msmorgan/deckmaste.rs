@@ -1,10 +1,10 @@
-//! `replacement` — authored grammar to engine AST.
+//! `replacement` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Replacement {
+impl Lower for deckmaste_semantics::Replacement {
     type Target = deckmaste_core::Replacement;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -18,8 +18,8 @@ impl Lower for deckmaste_authoring::Replacement {
                 also: also.lower(),
             },
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -27,7 +27,7 @@ impl Lower for deckmaste_authoring::Replacement {
     }
 }
 
-impl Lower for deckmaste_authoring::Prevention {
+impl Lower for deckmaste_semantics::Prevention {
     type Target = deckmaste_core::Prevention;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn lowers_replacement_instead() {
         assert_matches!(
-            deckmaste_authoring::Replacement::Instead {
+            deckmaste_semantics::Replacement::Instead {
                 would: minimal_event_filter(),
                 instead: minimal_one_shot_effect()
             }
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn lowers_replacement_skip() {
         assert_matches!(
-            deckmaste_authoring::Replacement::Skip {
+            deckmaste_semantics::Replacement::Skip {
                 what: minimal_phase_step()
             }
             .lower(),
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn lowers_replacement_also() {
         assert_matches!(
-            deckmaste_authoring::Replacement::Also {
+            deckmaste_semantics::Replacement::Also {
                 would: minimal_event_filter(),
                 also: minimal_one_shot_effect()
             }
@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn lowers_replacement_expanded() {
         assert_matches!(
-            deckmaste_authoring::Replacement::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::Replacement::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn lowers_prevention_prevent_next() {
         assert_matches!(
-            deckmaste_authoring::Prevention::PreventNext {
+            deckmaste_semantics::Prevention::PreventNext {
                 n: minimal_count(),
                 from: minimal_predicate(),
                 to: minimal_predicate(),
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn lowers_prevention_prevent_next_instance() {
         assert_matches!(
-            deckmaste_authoring::Prevention::PreventNextInstance {
+            deckmaste_semantics::Prevention::PreventNextInstance {
                 from: minimal_predicate(),
                 to: minimal_predicate()
             }
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn lowers_prevention_prevent_all() {
         assert_matches!(
-            deckmaste_authoring::Prevention::PreventAll {
+            deckmaste_semantics::Prevention::PreventAll {
                 from: minimal_predicate(),
                 to: minimal_predicate(),
                 duration: None

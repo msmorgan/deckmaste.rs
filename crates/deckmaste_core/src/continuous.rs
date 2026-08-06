@@ -147,7 +147,7 @@ pub enum Modification {
     /// Subtypes by name (the class is derivable from the values — each card
     /// type has its own closed subtype set, [CR#205.3b]); layer 4. The element
     /// is a [`SubtypeRef`] (a resolved-def ref that SERIALIZES bare and reads
-    /// via the subtype-macro channel), so an authored `Subtypes(Add(Zombie))`
+    /// via the subtype-macro channel), so semantic `Subtypes(Add(Zombie))`
     /// validates the name against the declared subtypes; the engine keys the
     /// layer-4 op off `SubtypeRef::name`.
     Subtypes(CollectionOp<crate::SubtypeRef>),
@@ -447,10 +447,11 @@ pub enum StaticEffect {
     /// only, never the planar die, [CR#901.9d]) is Idris-ONLY, same as the
     /// `EventCaps` proofs `EventFilter::TapForMana`/`ManaSpec::
     /// ProducedByEvent` document: Rust holds no compile-time gate, so an
-    /// authoring mistake that reaches for `ReplaceRoll` over a non-randomness
-    /// query simply fails to typecheck on the Idris side (`idris-check`), the
-    /// intended soundness gate. Held unboxed like its `TriggerMultiplier`
-    /// sibling (same `EventFilter` + `Count` shape, already unboxed).
+    /// semantic-input error that reaches for `ReplaceRoll` over a
+    /// non-randomness query simply fails to typecheck on the Idris side
+    /// (`idris-check`), the intended soundness gate. Held unboxed like its
+    /// `TriggerMultiplier` sibling (same `EventFilter` + `Count` shape,
+    /// already unboxed).
     ReplaceRoll {
         query: EventFilter,
         extra: Count,

@@ -149,7 +149,7 @@ impl GameState {
             // (mirrors `Counter`'s ability-vanish arm above), though today
             // only the copy-cease SBA (`sba.rs`) reaches it, resolving
             // `This` to a stranded stack-copy entry. A reference that isn't
-            // on the stack (bad authoring, state drift) fizzles silently —
+            // on the stack (invalid semantic input, state drift) fizzles silently —
             // never a panic.
             Action::Cease(sel) => {
                 let events: Vec<GameEvent> = self
@@ -342,7 +342,7 @@ impl GameState {
                 // A group member with no zone to leave — a player proxy
                 // (`zone: None`, which `Predicate::Any` matches) — is skipped,
                 // never moved; an all-zoneless selection then fizzles via the
-                // empty guard below (the engine-never-crashes-on-authoring
+                // empty guard below (the engine-never-crashes-on-invalid-semantics
                 // -mistakes ruling). Each surviving member carries its `from`
                 // zone alongside its id, so the zone read can't panic.
                 let objects: Vec<(ObjectId, Zone)> = self
@@ -479,8 +479,8 @@ impl GameState {
             }
             // A resolved member with no zone to leave — a player proxy
             // (`zone: None`, which `Predicate::Any` matches) — is skipped, never
-            // moved (the Invalid authoring fizzles decision,
-            // `docs/decisions/invalid-authoring-fizzles.md`).
+            // moved (the Invalid semantic input fizzles decision,
+            // `docs/decisions/invalid-semantic-input-fizzles.md`).
             let Some(from) = self.objects.obj(object).zone else {
                 continue;
             };
@@ -646,8 +646,8 @@ impl GameState {
         // performer/patient references off the stored `body` (the same body
         // facets the renderer and Idris emitter read), so no typed atom is
         // needed. An unknown/mistyped verb name fizzles to no window — never a
-        // panic (the Invalid authoring fizzles decision,
-        // `docs/decisions/invalid-authoring-fizzles.md`).
+        // panic (the Invalid semantic input fizzles decision,
+        // `docs/decisions/invalid-semantic-input-fizzles.md`).
         match name.as_str() {
             // ── Destroy: single Battlefield → Graveyard move ([CR#701.8a]) ──
             "Destroy" => {
@@ -3120,7 +3120,7 @@ mod tests {
     // data loaded from the canon plugin.
 
     /// [CR#616.1,702.35a]: STACKED madness applies once — the Falkenrath Gorger
-    /// choose-one ruling with zero authored guard. A Vampire discarded from
+    /// choose-one ruling with zero semantic guard. A Vampire discarded from
     /// hand that BOTH prints madness AND is granted madness by Gorger's static
     /// (via the [CR#613] layer view, folded into the derived-ability scan) has
     /// two applicable `Instead` self-replacements; only ONE applies (an
@@ -3322,7 +3322,7 @@ mod tests {
     /// hand, then draw three cards" — discards every card in hand as its own
     /// `Act(Discard)` (a madness card among them opens its [CR#702.35a] window
     /// and exiles; a plain card reaches the graveyard) and then Batch-draws
-    /// three ([CR#121.2]). Driven off the card's OWN authored trigger effect
+    /// three ([CR#121.2]). Driven off the card's OWN semantic trigger effect
     /// (the attack declaration that fires it is the `ThisAttacks` event macro,
     /// exercised with the trigger family).
     #[test]
@@ -4339,7 +4339,7 @@ mod tests {
     /// already in the graveyard is NOT in hand, so `Move(<it>, from: Hand,
     /// to: Graveyard)` fizzles for it — no `ZoneChange` event (either form),
     /// the object keeps its id (never reminted), and stepping the
-    /// engine afterward doesn't panic (authoring/state-drift mismatches
+    /// engine afterward doesn't panic (semantic/state drift mismatches
     /// never crash it).
     #[test]
     fn move_from_guard_fizzles_on_zone_mismatch() {
@@ -4390,8 +4390,8 @@ mod tests {
     /// A `MoveGroup` whose `SelectAll(Any)` selection sweeps in a zoneless
     /// member — a player proxy (`zone: None`, which `Predicate::Any` matches) —
     /// skips that member instead of panicking on its absent zone (the
-    /// Invalid authoring fizzles decision,
-    /// `docs/decisions/invalid-authoring-fizzles.md`). The zoned members
+    /// Invalid semantic input fizzles decision,
+    /// `docs/decisions/invalid-semantic-input-fizzles.md`). The zoned members
     /// still move.
     #[test]
     fn move_group_skips_zoneless_members() {

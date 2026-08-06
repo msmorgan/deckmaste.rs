@@ -202,16 +202,16 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
             // A malformed `.ron.todo` aborts the run (via `?`): it means a bug in
             // the step that wrote it, which the engineer should fix before resolving.
             let source = std::fs::read_to_string(path)?;
-            // Read through the literal-aware AUTHORING facade: a bare `power: 2`
+            // Read through the literal-aware SEMANTICS facade: a bare `power: 2`
             // is a `StatValue::Number` `#[macro_ron(literal)]`, spliced by the
             // literal reader — raw `ron` sees `StatValue` as an enum and rejects
             // the bare numeral ("invalid std identifier"). That splice is all it
-            // adds: `deckmaste_authoring::ron::options()` registers NO macros,
+            // adds: `deckmaste_semantics::ron::options()` registers NO macros,
             // unlike graduation's `Plugin::card_from_str`, and that is what this
             // layer wants — `RawIdent` and `TodoAbility::Parsed` capture their
             // text verbatim, so expanding it here would destroy what resolve
             // must write back unchanged.
-            let mut card: TodoCard = deckmaste_authoring::ron::options()
+            let mut card: TodoCard = deckmaste_semantics::ron::options()
                 .from_str(&source)
                 .with_context(|| format!("parsing {}", path.display()))?;
             if resolve_card(&mut card, &index)? {
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn resolve_replaces_known_lines_only() {
-        use deckmaste_authoring::ManaCost;
+        use deckmaste_semantics::ManaCost;
         let mut card = TodoCard::Normal(TodoCardFace {
             name: "X".into(),
             mana_cost: ManaCost::default(),
@@ -393,7 +393,7 @@ mod tests {
     #[test]
     fn resolve_modal_dfc_resolves_both_faces() {
         let mut card = TodoCard::TwoFaced {
-            layout: deckmaste_authoring::FaceLayout::ModalDfc,
+            layout: deckmaste_semantics::FaceLayout::ModalDfc,
             front: TodoCardFace {
                 abilities: vec![TodoAbility::Unparsed("Flying".into())],
                 ..Default::default()
@@ -422,7 +422,7 @@ mod tests {
         // line-resolved. `<E>` = `ChangeLife(You, Up(1))` — a BARE-PARSEABLE effect:
         // this is route (a) from the task. The migrations spell parser may emit
         // macro-flavored atoms (e.g. `Draws(2)`), but the round-trip assertion
-        // below uses the BARE `deckmaste_authoring::ron::options()` reader —
+        // below uses the BARE `deckmaste_semantics::ron::options()` reader —
         // macro-free, unlike the `Plugin::card_from_str` path graduation takes —
         // so the fixture must be one the bare reader accepts. A bare one-token
         // player verb (`ChangeLife(You, Up(1))`) is exactly such a form; draw/mill are
@@ -471,9 +471,9 @@ mod tests {
             spell.contains("ChangeLife(You, Up(1))"),
             "original effect preserved: {spell}"
         );
-        // The wrapped Spell string re-parses into a typed authored Ability (no
+        // The wrapped Spell string re-parses into a typed semantic Ability (no
         // garbage) — the grammar the file it is written into is read at.
-        let _: deckmaste_authoring::Ability = deckmaste_authoring::ron::options()
+        let _: deckmaste_semantics::Ability = deckmaste_semantics::ron::options()
             .from_str(&spell)
             .expect("wrapped Spell re-parses");
     }
@@ -515,11 +515,11 @@ mod tests {
         use deckmaste_core::Zone;
         use deckmaste_lowering::Lower as _;
 
-        // `ASCEND_GATE` is spliced into card RON, so it is AUTHORED text: read it
-        // through the literal-aware AUTHORING reader (the bare `10` literal needs
+        // `ASCEND_GATE` is spliced into card RON, so it is SEMANTIC text: read it
+        // through the literal-aware SEMANTICS reader (the bare `10` literal needs
         // the `literal` macro layer; the raw reader would reject it), then lower
         // — the claim is about the condition the ENGINE ends up with.
-        let parsed: deckmaste_authoring::Condition = deckmaste_authoring::ron::options()
+        let parsed: deckmaste_semantics::Condition = deckmaste_semantics::ron::options()
             .from_str(ASCEND_GATE)
             .expect("ASCEND_GATE parses as a Condition");
         let parsed: Condition = parsed.lower();

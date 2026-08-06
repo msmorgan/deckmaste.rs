@@ -77,7 +77,7 @@ use crate::view::TreePath;
 /// positional arguments, a leaf spelling, or an unrecovered subtree. An
 /// invocation's `args` are in **declared param order** and its length is the
 /// entry's arity, so `Recovered` can be printed as RON, read back and
-/// compared structurally against a card's authored invocation — which is
+/// compared structurally against a card's semantic invocation — which is
 /// exactly what the round's ground-truth recovery gate does.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Recovered {
@@ -165,7 +165,7 @@ impl Recovered {
     /// captured [`View`], which has no RON spelling at all. That refusal is
     /// the honest answer rather than a gap — a recovery containing one is
     /// *provably incomplete*, so it cannot be asserted equal to a fully
-    /// concrete authored value — and the error says **where**, because
+    /// concrete semantic value — and the error says **where**, because
     /// otherwise every incomplete recovery reports identically and one
     /// lexicon gap is indistinguishable from another.
     ///
@@ -548,7 +548,7 @@ fn recover_argument(
         };
     }
     if let Some(guard) = entry.frame.guards.iter().find(|guard| guard.param == param) {
-        // The AUTHORED spelling, not the expanded canonical form: the two are
+        // The SEMANTIC spelling, not the expanded canonical form: the two are
         // equal as values (that is what `guard_holds` compares), and the
         // authored one is what the catalog reads like.
         return Recovered::Literal(guard.source.clone());
@@ -756,9 +756,9 @@ pub(crate) fn frame_reassembles(
 /// domains disjoint rather than merely declared so: a targeted recipient is
 /// always announced [CR#601.2c], so no sentence is both.
 ///
-/// The rule is decided **authored-blind** — matching never sees the card's
+/// The rule is decided **semantic-blind** — matching never sees the card's
 /// RON, only its English — which is what lets it run during ingestion of text
-/// that has no authored side at all.
+/// that has no semantic side at all.
 ///
 /// # What counts as an announcement is catalog data
 ///
@@ -1374,7 +1374,7 @@ mod tests {
     /// The end-to-end case the review addendum was minted for, in the shape a
     /// ground-truth comparison actually needs: the argument the card's own
     /// subject fills recovers as a **structure**, `This`, comparable against
-    /// the authored RON — not as a residual the comparison cannot read.
+    /// the semantic RON — not as a residual the comparison cannot read.
     ///
     /// Asserted on the whole `Recovered` rather than on the entry name, so it
     /// pins the nullary shape and the absence of a spurious self-ambiguity
@@ -1397,7 +1397,7 @@ mod tests {
                 ambiguities: Vec::new(),
                 body: None,
             },
-            "two registrations of one authored frame are one reading, not a tie"
+            "two registrations of one semantic frame are one reading, not a tie"
         );
 
         // The same constant, recovered from the other self-reference surface.
@@ -1810,8 +1810,8 @@ mod tests {
     #[test]
     #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn guard_holds_compares_expanded_canonical_forms() {
-        use deckmaste_authoring::Count;
-        use deckmaste_authoring::Quantity;
+        use deckmaste_semantics::Count;
+        use deckmaste_semantics::Quantity;
 
         let entry = fixture()
             .lexicon
@@ -1820,7 +1820,7 @@ mod tests {
             .find(|entry| entry.name == "Target")
             .expect("the seeded catalog guards `Target`");
         let guard = &entry.frame.guards[0];
-        assert_eq!(guard.source, "Exactly(1)", "the authored spelling is kept");
+        assert_eq!(guard.source, "Exactly(1)", "the semantic spelling is kept");
 
         assert!(guard_holds(guard, Quantity::one()));
         assert!(guard_holds(
@@ -2033,7 +2033,7 @@ mod tests {
         assert_eq!(
             recovered_value(&recovered, "OneShotEffect"),
             value_of("OneShotEffect", "ChangeLife(You, Up(3))"),
-            "the emission and the authored spelling are one value — and now, \
+            "the emission and the semantic spelling are one value — and now, \
              with no defaulted role slot, also one string"
         );
     }

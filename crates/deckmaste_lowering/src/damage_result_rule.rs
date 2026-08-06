@@ -1,10 +1,10 @@
-//! `damage_result_rule` — authored grammar to engine AST.
+//! `damage_result_rule` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::DamageResultRule {
+impl Lower for deckmaste_semantics::DamageResultRule {
     type Target = deckmaste_core::DamageResultRule;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::DamageResultRule {
@@ -30,7 +30,7 @@ mod tests {
     #[test]
     fn lowers_damage_result_rule() {
         assert_matches!(
-            deckmaste_authoring::DamageResultRule {
+            deckmaste_semantics::DamageResultRule {
                 recipient: minimal_predicate(),
                 remove: minimal_counter_ref()
             }

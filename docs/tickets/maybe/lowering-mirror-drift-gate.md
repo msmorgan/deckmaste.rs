@@ -1,15 +1,15 @@
 ---
 needs: []
 ---
-**[design] Reconsider machine-enforced authoring↔core mirror drift.** Today
+**[design] Reconsider machine-enforced semantics↔core mirror drift.** Today
 33 of the 35 shared source files in `deckmaste_core/src` and
-`deckmaste_authoring/src` are byte-identical; only `lib.rs` and `ron.rs`
+`deckmaste_semantics/src` are byte-identical; only `lib.rs` and `ron.rs`
 differ, alongside the intentional one-sided `card.rs`, `macros.rs`, and
 `plugin.rs`. A correction applied to only one mirrored helper or derive can
 therefore drift silently.
 
 This proposal reopens an owner-settled tradeoff. Section 9 and downside 3 of
-`docs/decisions/authoring-spelling-lowering.md` deliberately make the
+`docs/decisions/semantics-spelling-lowering.md` deliberately make the
 lowering crate's per-variant mapping tests plus in-place justifications the
 divergence ledger, accepting prose/review governance instead of a second
 machine-maintained mirror. Do not implement a gate until that decision is
@@ -27,11 +27,11 @@ Design questions:
 3. How does the check coexist with the existing one-mapping-test-per-variant
    obligation without creating a third defining schema?
 4. Should core-only variants be classified as engine-internal or
-   authoring-unreachable? That reverse-reachability question is semantic and
+   semantics-unreachable? That reverse-reachability question is semantic and
    cannot be answered by a source-file diff.
 
 If approved, record the amended governance in the decision, choose one
 machine-readable representation, add positive and negative fixtures, and
 then add this ticket as a graph dependency of any not-yet-landed ticket that
 intentionally creates the first governed divergence. Until then it must not
-block `portfolio-polish` or the authoring program.
+block `portfolio-polish` or the semantics program.

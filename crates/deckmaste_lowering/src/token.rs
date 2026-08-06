@@ -1,10 +1,10 @@
-//! `token` — authored grammar to engine AST.
+//! `token` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::TokenSpec {
+impl Lower for deckmaste_semantics::TokenSpec {
     type Target = deckmaste_core::TokenSpec;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -15,14 +15,14 @@ impl Lower for deckmaste_authoring::TokenSpec {
     }
 }
 
-impl Lower for deckmaste_authoring::TokenName {
+impl Lower for deckmaste_semantics::TokenName {
     type Target = deckmaste_core::TokenName;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::TokenName(self.0.lower())
     }
 }
 
-impl Lower for deckmaste_authoring::PredefinedToken {
+impl Lower for deckmaste_semantics::PredefinedToken {
     type Target = deckmaste_core::PredefinedToken;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -36,7 +36,7 @@ impl Lower for deckmaste_authoring::PredefinedToken {
     }
 }
 
-impl Lower for deckmaste_authoring::Token {
+impl Lower for deckmaste_semantics::Token {
     type Target = deckmaste_core::Token;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::Token {
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn lowers_token_spec_token() {
         assert_matches!(
-            deckmaste_authoring::TokenSpec::Token(std::sync::Arc::new(minimal_token())).lower(),
+            deckmaste_semantics::TokenSpec::Token(std::sync::Arc::new(minimal_token())).lower(),
             deckmaste_core::TokenSpec::Token(_)
         );
     }
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn lowers_token_spec_named() {
         assert_matches!(
-            deckmaste_authoring::TokenSpec::Named(minimal_token_name()).lower(),
+            deckmaste_semantics::TokenSpec::Named(minimal_token_name()).lower(),
             deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName(_))
         );
     }
@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn lowers_token_spec_copy() {
         assert_matches!(
-            deckmaste_authoring::TokenSpec::Copy(std::sync::Arc::new(minimal_copy_spec())).lower(),
+            deckmaste_semantics::TokenSpec::Copy(std::sync::Arc::new(minimal_copy_spec())).lower(),
             deckmaste_core::TokenSpec::Copy(_)
         );
     }
@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn lowers_token_name() {
         assert_matches!(
-            deckmaste_authoring::TokenName("X".into()).lower(),
+            deckmaste_semantics::TokenName("X".into()).lower(),
             deckmaste_core::TokenName(_)
         );
     }
@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn lowers_predefined_token_treasure() {
         assert_matches!(
-            deckmaste_authoring::PredefinedToken::Treasure.lower(),
+            deckmaste_semantics::PredefinedToken::Treasure.lower(),
             deckmaste_core::PredefinedToken::Treasure
         );
     }
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn lowers_predefined_token_food() {
         assert_matches!(
-            deckmaste_authoring::PredefinedToken::Food.lower(),
+            deckmaste_semantics::PredefinedToken::Food.lower(),
             deckmaste_core::PredefinedToken::Food
         );
     }
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn lowers_predefined_token_gold() {
         assert_matches!(
-            deckmaste_authoring::PredefinedToken::Gold.lower(),
+            deckmaste_semantics::PredefinedToken::Gold.lower(),
             deckmaste_core::PredefinedToken::Gold
         );
     }
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn lowers_predefined_token_clue() {
         assert_matches!(
-            deckmaste_authoring::PredefinedToken::Clue.lower(),
+            deckmaste_semantics::PredefinedToken::Clue.lower(),
             deckmaste_core::PredefinedToken::Clue
         );
     }
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn lowers_predefined_token_blood() {
         assert_matches!(
-            deckmaste_authoring::PredefinedToken::Blood.lower(),
+            deckmaste_semantics::PredefinedToken::Blood.lower(),
             deckmaste_core::PredefinedToken::Blood
         );
     }
@@ -140,7 +140,7 @@ mod tests {
     #[test]
     fn lowers_predefined_token_vibranium() {
         assert_matches!(
-            deckmaste_authoring::PredefinedToken::Vibranium.lower(),
+            deckmaste_semantics::PredefinedToken::Vibranium.lower(),
             deckmaste_core::PredefinedToken::Vibranium
         );
     }
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn lowers_token() {
         assert_matches!(
-            deckmaste_authoring::Token {
+            deckmaste_semantics::Token {
                 name: None,
                 color_indicator: [].into(),
                 supertypes: [].into(),

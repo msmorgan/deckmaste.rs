@@ -47,7 +47,7 @@ use crate::compile;
 pub enum Origin {
     /// A `MacroDef`'s own `frames:` list.
     Macro,
-    /// A `ConstructorFrames` catalog entry — a raw `deckmaste_authoring`
+    /// A `ConstructorFrames` catalog entry — a raw `deckmaste_semantics`
     /// constructor with no macro definition behind it.
     Constructor,
 }
@@ -491,7 +491,7 @@ fn framed_definitions(defs: &MacroSet) -> anyhow::Result<Vec<&MacroDef>> {
         if let Some((_, other_kinds)) = seen.iter().find(|(name, _)| *name == identity.0) {
             anyhow::bail!(
                 "two different framed macro definitions are both named `{}` (kinds {:?} and \
-                 {:?}); an entry's authored identity is `(name, frame_index, origin)`, which \
+                 {:?}); an entry's semantic identity is `(name, frame_index, origin)`, which \
                  both the match and the render direction rely on being unique — see \
                  `Lexicon::assemble`'s own doc. Rename one, or drop its `frames:` list.",
                 identity.0,
@@ -517,7 +517,7 @@ fn constructor_names_are_unique(constructors: &[ConstructorFrames]) -> anyhow::R
     for entry in constructors {
         anyhow::ensure!(
             !seen.contains(&entry.constructor.as_str()),
-            "two constructor catalog entries are both named `{}`; an entry's authored identity \
+            "two constructor catalog entries are both named `{}`; an entry's semantic identity \
              is `(name, frame_index, origin)`, which both the match and the render direction \
              rely on being unique — see `Lexicon::assemble`'s own doc. Merge their `frames:` \
              lists into one entry.",
@@ -774,8 +774,8 @@ fn describe(
 /// A `body:` entry's body must hole **every** param the entry declares, and
 /// none it does not.
 ///
-/// Both halves catch a real authoring mistake rather than a hypothetical one.
-/// A param the body never holes is an argument the match recovers and then
+/// Both halves catch a real semantic-input error rather than a hypothetical
+/// one. A param the body never holes is an argument the match recovers and then
 /// silently drops — the recovery would look complete while carrying less than
 /// the English said. A `Param(i)` past the declared arity has no argument to
 /// fill it, which would fail at emission time, once, on whichever card
@@ -812,7 +812,7 @@ fn body_covers_declared_params(
             holed.contains(&param),
             "constructor entry `{}` declares param {param} (`{}`) but its body `{body}` never \
              holes it, so a recovered argument would be dropped; hole every declared param, or \
-             drop the param. (A `body:` is authored as a bare term — `body: By(Param(0), …)` — \
+             drop the param. (A `body:` is semantic as a bare term — `body: By(Param(0), …)` — \
              never as a quoted string, which holes nothing at all.)",
             entry.constructor,
             entry.params[param],
@@ -850,7 +850,7 @@ mod tests {
 
     /// A `MacroSet` holding exactly the two definitions below, both framed.
     /// `guard::core_reader` supplies the registered kind space (`Predicate`
-    /// and `Selection` are both real `deckmaste_authoring` macro kinds) with no
+    /// and `Selection` are both real `deckmaste_semantics` macro kinds) with no
     /// macros in it, so nothing but the fixture is in scope.
     fn two_framed_defs_named(name: &str) -> MacroSet {
         let mut macros = crate::guard::core_reader().clone();

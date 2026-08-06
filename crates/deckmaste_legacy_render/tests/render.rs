@@ -2,18 +2,18 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use deckmaste_authoring::Ability;
-use deckmaste_authoring::Card;
-use deckmaste_authoring::CardFace;
-use deckmaste_authoring::KeywordAbility;
-use deckmaste_authoring::StatValue;
-use deckmaste_authoring::Subtype;
-use deckmaste_authoring::Type;
 use deckmaste_legacy_render::render::CardView;
 use deckmaste_legacy_render::render::RenderedCard;
 use deckmaste_legacy_render::render::render;
 use deckmaste_legacy_render::render::render_card_face;
 use deckmaste_plugin::plugin::Plugin;
+use deckmaste_semantics::Ability;
+use deckmaste_semantics::Card;
+use deckmaste_semantics::CardFace;
+use deckmaste_semantics::KeywordAbility;
+use deckmaste_semantics::StatValue;
+use deckmaste_semantics::Subtype;
+use deckmaste_semantics::Type;
 
 fn canon_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon")
@@ -29,7 +29,7 @@ fn testing_path() -> PathBuf {
 
 fn testing_face(name: &str) -> CardFace {
     let plugin = Plugin::load_with_sibling_prelude(testing_path()).unwrap();
-    match plugin.card(name).unwrap().authored {
+    match plugin.card(name).unwrap().semantic {
         Card::Normal(f) => f,
         other @ Card::TwoFaced { .. } => panic!("expected a normal card, got {other:?}"),
     }
@@ -37,7 +37,7 @@ fn testing_face(name: &str) -> CardFace {
 
 fn face(name: &str) -> CardFace {
     let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
-    match plugin.card(name).unwrap().authored {
+    match plugin.card(name).unwrap().semantic {
         Card::Normal(f) => f,
         other @ Card::TwoFaced { .. } => panic!("expected a normal card, got {other:?}"),
     }
@@ -369,7 +369,7 @@ fn renders_every_canon_card_without_panicking() {
     let mut total = 0usize;
     for name in canon_card_names().iter() {
         let Ok(loaded) = plugin.card(name) else { continue };
-        let faces: Arc<[CardFace]> = match loaded.authored {
+        let faces: Arc<[CardFace]> = match loaded.semantic {
             Card::Normal(f) => vec![f].into(),
             Card::TwoFaced { front, back, .. } => vec![front, back].into(),
         };
@@ -449,18 +449,18 @@ fn renders_damage_to_each_player_flame_rift() {
 
 #[test]
 fn renders_synthesized_lose_life_and_destroy() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::Action;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::LifeOp;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Predicate;
-    use deckmaste_authoring::Quantity;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::TargetSpec;
-    use deckmaste_authoring::Type;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::Action;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::LifeOp;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Predicate;
+    use deckmaste_semantics::Quantity;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::TargetSpec;
+    use deckmaste_semantics::Type;
     // "Lose 3 life." spell
     let lose = CardFace {
         name: "Test Drain".into(),
@@ -489,7 +489,7 @@ fn renders_synthesized_lose_life_and_destroy() {
         types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Targeted(deckmaste_authoring::Targeted::new(
+            effect: OneShotEffect::Targeted(deckmaste_semantics::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
                 destroy_verb,
             )),
@@ -506,17 +506,17 @@ fn renders_synthesized_lose_life_and_destroy() {
 /// bidirectional truth the `create a <Name> token` parser routes back to.
 #[test]
 fn renders_named_predefined_token() {
-    use deckmaste_authoring::Action;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::TokenName;
-    use deckmaste_authoring::TokenSpec;
+    use deckmaste_semantics::Action;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::TokenName;
+    use deckmaste_semantics::TokenSpec;
 
     let treasure = CardFace {
         name: "Test Hoard".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::spell(deckmaste_authoring::SpellAbility {
+        abilities: vec![Ability::spell(deckmaste_semantics::SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::Create {
                 agent: Reference::You,
@@ -535,7 +535,7 @@ fn renders_named_predefined_token() {
     let two_food = CardFace {
         name: "Test Feast".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::spell(deckmaste_authoring::SpellAbility {
+        abilities: vec![Ability::spell(deckmaste_semantics::SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::Create {
                 agent: Reference::You,
@@ -632,12 +632,12 @@ fn renders_humility() {
 
 #[test]
 fn renders_scope_of_singular() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::Modification;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::StaticEffect;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::Modification;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::StaticEffect;
     let face = CardFace {
         name: "Test Aura".into(),
         types: vec![Type::Enchantment.def()],
@@ -645,8 +645,8 @@ fn renders_scope_of_singular() {
             Reference::This,
             Modification::Several(
                 vec![
-                    Modification::Power(deckmaste_authoring::NumericOp::Up(Count::Literal(1))),
-                    Modification::Toughness(deckmaste_authoring::NumericOp::Up(Count::Literal(1))),
+                    Modification::Power(deckmaste_semantics::NumericOp::Up(Count::Literal(1))),
+                    Modification::Toughness(deckmaste_semantics::NumericOp::Up(Count::Literal(1))),
                 ]
                 .into(),
             ),
@@ -663,12 +663,12 @@ fn renders_scope_of_singular() {
 /// → "Enchanted creature gets +2/+2."
 #[test]
 fn renders_aura_host_pump() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::Modification;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::StaticEffect;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::Modification;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::StaticEffect;
     let face = CardFace {
         name: "Test Buff Aura".into(),
         types: vec![Type::Enchantment.def()],
@@ -676,8 +676,8 @@ fn renders_aura_host_pump() {
             Reference::AttachHostOf(Arc::new(Reference::This)),
             Modification::Several(
                 vec![
-                    Modification::Power(deckmaste_authoring::NumericOp::Up(Count::Literal(2))),
-                    Modification::Toughness(deckmaste_authoring::NumericOp::Up(Count::Literal(2))),
+                    Modification::Power(deckmaste_semantics::NumericOp::Up(Count::Literal(2))),
+                    Modification::Toughness(deckmaste_semantics::NumericOp::Up(Count::Literal(2))),
                 ]
                 .into(),
             ),
@@ -698,37 +698,37 @@ fn renders_aura_host_pump() {
 /// `duration_suffix(FixedUntil(EndOfTurn))`.
 #[test]
 fn renders_continuously_pump_until_eot() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Continuously;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::Duration;
-    use deckmaste_authoring::Modification;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Predicate;
-    use deckmaste_authoring::Quantity;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::StaticEffect;
-    use deckmaste_authoring::TargetSpec;
-    use deckmaste_authoring::TurnMarker;
-    use deckmaste_authoring::Type;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Continuously;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::Duration;
+    use deckmaste_semantics::Modification;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Predicate;
+    use deckmaste_semantics::Quantity;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::StaticEffect;
+    use deckmaste_semantics::TargetSpec;
+    use deckmaste_semantics::TurnMarker;
+    use deckmaste_semantics::Type;
     let face = CardFace {
         name: "Test Pump".into(),
         types: vec![Type::Instant.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Targeted(deckmaste_authoring::Targeted::new(
+            effect: OneShotEffect::Targeted(deckmaste_semantics::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
                 OneShotEffect::Continuously(Continuously {
                     effect: Arc::new(StaticEffect::Modify(
                         Reference::Target(0),
                         Modification::Several(
                             vec![
-                                Modification::Power(deckmaste_authoring::NumericOp::Up(
+                                Modification::Power(deckmaste_semantics::NumericOp::Up(
                                     Count::Literal(3),
                                 )),
-                                Modification::Toughness(deckmaste_authoring::NumericOp::Up(
+                                Modification::Toughness(deckmaste_semantics::NumericOp::Up(
                                     Count::Literal(3),
                                 )),
                             ]
@@ -754,27 +754,27 @@ fn renders_continuously_pump_until_eot() {
 /// the announced target's phrase.
 #[test]
 fn renders_continuously_cant_block_eot() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Continuously;
-    use deckmaste_authoring::Deontic;
-    use deckmaste_authoring::DeonticAction;
-    use deckmaste_authoring::Duration;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Predicate;
-    use deckmaste_authoring::Quantity;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::StaticEffect;
-    use deckmaste_authoring::TargetSpec;
-    use deckmaste_authoring::TurnMarker;
-    use deckmaste_authoring::Type;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Continuously;
+    use deckmaste_semantics::Deontic;
+    use deckmaste_semantics::DeonticAction;
+    use deckmaste_semantics::Duration;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Predicate;
+    use deckmaste_semantics::Quantity;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::StaticEffect;
+    use deckmaste_semantics::TargetSpec;
+    use deckmaste_semantics::TurnMarker;
+    use deckmaste_semantics::Type;
     let face = CardFace {
         name: "Test Block Restriction".into(),
         types: vec![Type::Instant.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Targeted(deckmaste_authoring::Targeted::new(
+            effect: OneShotEffect::Targeted(deckmaste_semantics::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
                 OneShotEffect::Continuously(Continuously {
                     effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
@@ -799,27 +799,27 @@ fn renders_continuously_cant_block_eot() {
 /// ([CR#509.1b]).
 #[test]
 fn renders_continuously_cant_be_blocked_eot() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Continuously;
-    use deckmaste_authoring::Deontic;
-    use deckmaste_authoring::DeonticAction;
-    use deckmaste_authoring::Duration;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Predicate;
-    use deckmaste_authoring::Quantity;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::StaticEffect;
-    use deckmaste_authoring::TargetSpec;
-    use deckmaste_authoring::TurnMarker;
-    use deckmaste_authoring::Type;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Continuously;
+    use deckmaste_semantics::Deontic;
+    use deckmaste_semantics::DeonticAction;
+    use deckmaste_semantics::Duration;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Predicate;
+    use deckmaste_semantics::Quantity;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::StaticEffect;
+    use deckmaste_semantics::TargetSpec;
+    use deckmaste_semantics::TurnMarker;
+    use deckmaste_semantics::Type;
     let face = CardFace {
         name: "Test Unblockable".into(),
         types: vec![Type::Instant.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Targeted(deckmaste_authoring::Targeted::new(
+            effect: OneShotEffect::Targeted(deckmaste_semantics::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
                 OneShotEffect::Continuously(Continuously {
                     effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
@@ -846,20 +846,20 @@ fn renders_continuously_cant_be_blocked_eot() {
 /// "[unrendered: That(Creature)] can't block this turn.".
 #[test]
 fn renders_that_creature_cant_block_eot() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Continuously;
-    use deckmaste_authoring::Deontic;
-    use deckmaste_authoring::DeonticAction;
-    use deckmaste_authoring::Duration;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Predicate;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::Sort;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::StaticEffect;
-    use deckmaste_authoring::TurnMarker;
-    use deckmaste_authoring::Type;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Continuously;
+    use deckmaste_semantics::Deontic;
+    use deckmaste_semantics::DeonticAction;
+    use deckmaste_semantics::Duration;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Predicate;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::Sort;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::StaticEffect;
+    use deckmaste_semantics::TurnMarker;
+    use deckmaste_semantics::Type;
     let face = CardFace {
         name: "Test That Restriction".into(),
         types: vec![Type::Instant.def()],
@@ -884,15 +884,15 @@ fn renders_that_creature_cant_block_eot() {
 
 #[test]
 fn renders_create_one_token() {
-    use deckmaste_authoring::Action;
-    use deckmaste_authoring::Color;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::StatValue;
-    use deckmaste_authoring::Token;
-    use deckmaste_authoring::TokenSpec;
+    use deckmaste_semantics::Action;
+    use deckmaste_semantics::Color;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::StatValue;
+    use deckmaste_semantics::Token;
+    use deckmaste_semantics::TokenSpec;
     let token = Token {
         name: None,
         color_indicator: vec![Color::Red].into(),
@@ -930,15 +930,15 @@ fn renders_create_one_token() {
 
 #[test]
 fn renders_create_two_tokens() {
-    use deckmaste_authoring::Action;
-    use deckmaste_authoring::Color;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::StatValue;
-    use deckmaste_authoring::Token;
-    use deckmaste_authoring::TokenSpec;
+    use deckmaste_semantics::Action;
+    use deckmaste_semantics::Color;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::StatValue;
+    use deckmaste_semantics::Token;
+    use deckmaste_semantics::TokenSpec;
     let token = Token {
         name: None,
         color_indicator: vec![Color::White].into(),
@@ -1005,14 +1005,14 @@ fn renders_kabira_crossroads() {
 
 #[test]
 fn renders_get_designation() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::Action;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Ident;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::Type;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::Action;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Ident;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::Type;
     let face = CardFace {
         name: "Test Ascend".into(),
         types: vec![Type::Sorcery.def()],
@@ -1035,13 +1035,13 @@ fn renders_get_designation() {
 /// render through the same rules walk a card face uses, quoted as its text.
 #[test]
 fn renders_get_emblem() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::Action;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::SpellAbility;
-    use deckmaste_authoring::Type;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::Action;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::SpellAbility;
+    use deckmaste_semantics::Type;
 
     // The Glorious-Anthem static, parsed under the canon macro scope.
     let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
@@ -1077,18 +1077,18 @@ fn renders_get_emblem() {
 /// shape).
 #[test]
 fn renders_graveyard_static_from_zone() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Condition;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::Modification;
-    use deckmaste_authoring::Predicate;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::RelationPredicate;
-    use deckmaste_authoring::Selection;
-    use deckmaste_authoring::StatePredicate;
-    use deckmaste_authoring::StaticEffect;
-    use deckmaste_authoring::Zone;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Condition;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::Modification;
+    use deckmaste_semantics::Predicate;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::RelationPredicate;
+    use deckmaste_semantics::Selection;
+    use deckmaste_semantics::StatePredicate;
+    use deckmaste_semantics::StaticEffect;
+    use deckmaste_semantics::Zone;
     let face = CardFace {
         name: "Test Incarnation".into(),
         types: vec![Type::Creature.def()],
@@ -1111,10 +1111,10 @@ fn renders_graveyard_static_from_zone() {
                     Reference::It,
                     Modification::Several(
                         vec![
-                            Modification::Power(deckmaste_authoring::NumericOp::Up(
+                            Modification::Power(deckmaste_semantics::NumericOp::Up(
                                 Count::Literal(1),
                             )),
-                            Modification::Toughness(deckmaste_authoring::NumericOp::Up(
+                            Modification::Toughness(deckmaste_semantics::NumericOp::Up(
                                 Count::Literal(1),
                             )),
                         ]
@@ -1138,16 +1138,16 @@ fn renders_graveyard_static_from_zone() {
 /// "if it's …'s turn," clause between event and effect.
 #[test]
 fn renders_trigger_with_turnof_intervening_if() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Condition;
-    use deckmaste_authoring::EventFilter;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Predicate;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::RelationPredicate;
-    use deckmaste_authoring::TriggeredAbility;
-    use deckmaste_authoring::Zone;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Condition;
+    use deckmaste_semantics::EventFilter;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Predicate;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::RelationPredicate;
+    use deckmaste_semantics::TriggeredAbility;
+    use deckmaste_semantics::Zone;
     // `Draw(1)` is a verb macro (`Batch(1, Act(By(You, DrawCard)))` — [CR#121] is
     // a game action, so no `Composite`) that renders via its template — build it
     // through the real plugin so it carries that `Expanded` provenance rather
@@ -1193,10 +1193,10 @@ fn renders_trigger_with_turnof_intervening_if() {
 /// fallback.
 #[test]
 fn renders_enters_with_counters_p1p1_singular_and_plural() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Type;
     use deckmaste_plugin::plugin::Plugin;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Type;
 
     let plugin = Plugin::load(builtin_path()).unwrap();
 
@@ -1236,10 +1236,10 @@ fn renders_enters_with_counters_p1p1_singular_and_plural() {
 /// (`ShieldCounter` -> "shield") as the pip kinds above.
 #[test]
 fn renders_enters_with_counters_named_kind() {
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::CardFace;
-    use deckmaste_authoring::Type;
     use deckmaste_plugin::plugin::Plugin;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::Type;
 
     let plugin = Plugin::load(builtin_path()).unwrap();
 

@@ -1,14 +1,14 @@
-//! The write-back identity oracle, on the real loader: every authored file in
+//! The write-back identity oracle, on the real loader: every semantic file in
 //! the tree loads through [`Plugin`] and the restricted read API, the two
-//! writers agree on what it stores — the authoring writer's rendering of the
-//! EXPANDED authored half is byte-identical to the core writer's rendering of
+//! writers agree on what it stores — the semantics writer's rendering of the
+//! EXPANDED semantic half is byte-identical to the core writer's rendering of
 //! its engine image — and that image is structurally equal to what the
 //! pre-fork CORE-kinded reader produces from the same source, likewise
 //! expanded: "zero behaviour change"
-//! (`docs/decisions/authoring-spelling-lowering.md` §5). Both sides compare
+//! (`docs/decisions/semantics-spelling-lowering.md` §5). Both sides compare
 //! EXPANDED forms because `lower` erases invocation provenance (spec §12,
 //! `runtime-prose-link`) — the core grammar is a compiled artifact and never
-//! carries it, so an unexpanded authored rendering would disagree with the core
+//! carries it, so an unexpanded semantic rendering would disagree with the core
 //! rendering on principle, not by accident.
 //!
 //! The byte comparison is between the two WRITERS, not against the file on
@@ -22,8 +22,8 @@
 //! points the other way now (plugin depends on lowering), so the test moved
 //! rather than the dependency being added.
 //!
-//! Inside this crate `lower(loaded.authored) == loaded.core` is a TAUTOLOGY:
-//! [`Plugin::card_from_str`] builds `core` by lowering `authored`. The
+//! Inside this crate `lower(loaded.semantic) == loaded.core` is a TAUTOLOGY:
+//! [`Plugin::card_from_str`] builds `core` by lowering `semantic`. The
 //! assertion that still carries information is `loaded.core ==
 //! core_reader.read_str(&source).expand_all()` — the core-kinded reader is
 //! the one the loader used before the repoint, so agreeing with it (once
@@ -83,7 +83,7 @@ fn ron_files(dir: &Path) -> Vec<PathBuf> {
 
 /// The param types core-kinded macro definitions are checked against, and that
 /// macro-invocation arguments read through them are parsed as. The core-typed
-/// twin of [`deckmaste_authoring::macros::param_types`] — a fork of the
+/// twin of [`deckmaste_semantics::macros::param_types`] — a fork of the
 /// pre-repoint production registry, kept here only as long as the oracle it
 /// feeds (see the module docs).
 fn core_param_types() -> ParamTypeSet {
@@ -122,7 +122,7 @@ fn core_param_types() -> ParamTypeSet {
 }
 
 /// The corpus macro namespace built at CORE kinds — the oracle side. The
-/// loader itself no longer has one of these (it reads at authoring kinds and
+/// loader itself no longer has one of these (it reads at semantics kinds and
 /// lowers), so this is the last hand-rolled definition walk in the tree; it
 /// dies with `core-demacro`.
 ///
@@ -175,24 +175,24 @@ struct Swept {
     first_error: Option<String>,
 }
 
-/// The stored form of an authored value: what a round-trip through the
-/// authoring writer produces, to be compared against the same value's engine
+/// The stored form of a semantic value: what a round-trip through the
+/// semantics writer produces, to be compared against the same value's engine
 /// image written by the core writer.
-fn authored_ron<T: Serialize>(value: &T) -> anyhow::Result<String> {
-    Ok(deckmaste_authoring::ron::options().to_string(value)?)
+fn semantic_ron<T: Serialize>(value: &T) -> anyhow::Result<String> {
+    Ok(deckmaste_semantics::ron::options().to_string(value)?)
 }
 
-/// One file through the real card API: the authored half re-serialized, and
+/// One file through the real card API: the semantic half re-serialized, and
 /// the engine image the loader produced from the SAME parse.
 fn load_card(plugin: &Plugin, source: &str) -> anyhow::Result<(String, deckmaste_card::Card)> {
     let loaded = plugin.card_from_str(source)?;
-    // `before` is the EXPANDED authored half, not the raw one: `loaded.core`
+    // `before` is the EXPANDED semantic half, not the raw one: `loaded.core`
     // (below) no longer carries invocation syntax post-erasure, so the
-    // authored side has to shed the same wrappers to stay comparable —
+    // semantic side has to shed the same wrappers to stay comparable —
     // otherwise this is comparing an invocation spelling against a body on
     // principle, not by accident.
     Ok((
-        authored_ron(&loaded.authored.clone().expand_all())?,
+        semantic_ron(&loaded.semantic.clone().expand_all())?,
         loaded.core,
     ))
 }
@@ -201,14 +201,14 @@ fn load_card(plugin: &Plugin, source: &str) -> anyhow::Result<(String, deckmaste
 fn load_token(plugin: &Plugin, source: &str) -> anyhow::Result<(String, deckmaste_core::Token)> {
     let loaded = plugin.token_from_str(source)?;
     Ok((
-        authored_ron(&loaded.authored.clone().expand_all())?,
+        semantic_ron(&loaded.semantic.clone().expand_all())?,
         loaded.core,
     ))
 }
 
 /// One rules-table file, read and lowered exactly as `Plugin`'s
 /// `load_sba_rules`/`load_conferral_rules`/`load_damage_result_rules` do it —
-/// through the plugin's own macro scope, at authoring kinds, lowering at the
+/// through the plugin's own macro scope, at semantics kinds, lowering at the
 /// boundary. Those loaders expose only the concatenated result, so a per-file
 /// sweep has to repeat their two lines; the tables the loader itself built are
 /// checked against this sweep's output in
@@ -217,14 +217,14 @@ fn load_rules<A>(macros: &MacroSet, source: &str) -> anyhow::Result<(String, A::
 where
     A: DeserializeOwned + Serialize + Lower + Expand + Clone,
 {
-    let authored: A = macros.read_str(source)?;
-    let before = authored_ron(&authored.clone().expand_all())?;
-    Ok((before, authored.lower()))
+    let semantic: A = macros.read_str(source)?;
+    let before = semantic_ron(&semantic.clone().expand_all())?;
+    Ok((before, semantic.lower()))
 }
 
 /// Reads every file in `dir` through `load` (the loader path under test) and
-/// asserts that its engine image both writes to the same bytes the authored
-/// half does through the authoring writer AND lands on the exact value the core
+/// asserts that its engine image both writes to the same bytes the semantic
+/// half does through the semantics writer AND lands on the exact value the core
 /// reader (`core_macros`) produces from the same source — structural equality,
 /// not just matching serialization (which `skip_serializing_if` can hide a
 /// difference behind).
@@ -270,7 +270,7 @@ where
         assert_eq!(
             before,
             after,
-            "the authoring and core writers disagree on the stored form of {}",
+            "the semantics and core writers disagree on the stored form of {}",
             path.display()
         );
         // Erasure is exactly `Expand`: `lower` drops each invocation wrapper
@@ -356,7 +356,7 @@ where
 }
 
 /// Each corpus is swept in the scope it is really loaded in, and the oracle is
-/// built over the SAME plugin list — a card must not be read at authoring
+/// built over the SAME plugin list — a card must not be read at semantics
 /// kinds under one namespace and at core kinds under a wider one, or a name
 /// canon overrides would be compared against builtin's definition of it.
 #[test]
@@ -399,7 +399,7 @@ fn builtin_tokens_lower_unchanged() {
     assert!(!tokens.is_empty(), "no tokens found to check");
 }
 
-/// The `rules/` tables are authored containers too (spec §4), and the loader
+/// The `rules/` tables are semantic containers too (spec §4), and the loader
 /// lowers them at load. Each table is swept per file, then the concatenation is
 /// checked against the table `Plugin` itself built — so this is a statement
 /// about the loader, not about a re-implementation of it.
@@ -413,19 +413,19 @@ fn builtin_rules_tables_lower_unchanged() {
     let sba = sweep_strict(
         &core_macros,
         &rules.join("sba"),
-        |source| load_rules::<Vec<deckmaste_authoring::SbaRule>>(&builtin.macros, source),
+        |source| load_rules::<Vec<deckmaste_semantics::SbaRule>>(&builtin.macros, source),
         |v: Vec<deckmaste_core::SbaRule>| v.expand_all(),
     );
     let grant = sweep_strict(
         &core_macros,
         &rules.join("grant"),
-        |source| load_rules::<Vec<deckmaste_authoring::ConferralRule>>(&builtin.macros, source),
+        |source| load_rules::<Vec<deckmaste_semantics::ConferralRule>>(&builtin.macros, source),
         |v: Vec<deckmaste_core::ConferralRule>| v.expand_all(),
     );
     let damage = sweep_strict(
         &core_macros,
         &rules.join("damage"),
-        |source| load_rules::<Vec<deckmaste_authoring::DamageResultRule>>(&builtin.macros, source),
+        |source| load_rules::<Vec<deckmaste_semantics::DamageResultRule>>(&builtin.macros, source),
         |v: Vec<deckmaste_core::DamageResultRule>| v.expand_all(),
     );
     assert!(
@@ -489,22 +489,22 @@ fn wizards_cards_lower_unchanged() {
     );
 }
 
-/// Every face of an authored card, front-to-back. `deckmaste_authoring::Card`
+/// Every face of a semantic card, front-to-back. `deckmaste_semantics::Card`
 /// has no public accessor for this (its two variants are the whole public
 /// surface), so — like the same-shaped private helpers in
 /// `deckmaste_legacy_render::fidelity` and `xtask::macros::pilot` — each
 /// caller that needs "every face" writes the two-arm match once.
-fn authored_faces(card: &deckmaste_authoring::Card) -> Vec<&deckmaste_authoring::CardFace> {
+fn semantic_faces(card: &deckmaste_semantics::Card) -> Vec<&deckmaste_semantics::CardFace> {
     match card {
-        deckmaste_authoring::Card::Normal(face) => vec![face],
-        deckmaste_authoring::Card::TwoFaced { front, back, .. } => vec![front, back],
+        deckmaste_semantics::Card::Normal(face) => vec![face],
+        deckmaste_semantics::Card::TwoFaced { front, back, .. } => vec![front, back],
     }
 }
 
 /// Every `Ability` reachable from `ability`, at ANY depth, in pre-order —
 /// `ability` itself plus the full transitive closure of
-/// [`nested_abilities`](deckmaste_authoring::Ability::nested_abilities).
-/// This is the authored-side walk
+/// [`nested_abilities`](deckmaste_semantics::Ability::nested_abilities).
+/// This is the semantic-side walk
 /// [`ProvenanceIndex::insert_ability_owned`](deckmaste_plugin::provenance::ProvenanceIndex)
 /// does when indexing (`crates/deckmaste_plugin/src/provenance.rs`) — an
 /// ability granting an ability that itself grants an ability is indexed at
@@ -512,20 +512,20 @@ fn authored_faces(card: &deckmaste_authoring::Card) -> Vec<&deckmaste_authoring:
 /// context-dependence bug two-or-more `Ability`-levels down would pass
 /// silently. Reuses `nested_abilities` (one level) recursively rather than
 /// re-implementing the walk.
-fn authored_ability_subterms(
-    ability: &deckmaste_authoring::Ability,
-) -> Vec<&deckmaste_authoring::Ability> {
+fn semantic_ability_subterms(
+    ability: &deckmaste_semantics::Ability,
+) -> Vec<&deckmaste_semantics::Ability> {
     let mut out = vec![ability];
     for child in ability.nested_abilities() {
-        out.extend(authored_ability_subterms(child));
+        out.extend(semantic_ability_subterms(child));
     }
     out
 }
 
-/// One authored source file, loaded through the real plugin API, keeping the
-/// authored/core pair intact — the pair [`load_card`] already reads, minus
+/// One semantic source file, loaded through the real plugin API, keeping the
+/// semantic/core pair intact — the pair [`load_card`] already reads, minus
 /// the write-back re-serialization
-/// [`every_authored_ability_subterm_appears_in_its_lowered_card`] does not
+/// [`every_semantic_ability_subterm_appears_in_its_lowered_card`] does not
 /// need.
 fn load_card_pair(plugin: &Plugin, path: &Path) -> anyhow::Result<deckmaste_plugin::LoadedCard> {
     let source = fs::read_to_string(path)?;
@@ -533,7 +533,7 @@ fn load_card_pair(plugin: &Plugin, path: &Path) -> anyhow::Result<deckmaste_plug
 }
 
 /// Every top-level [`deckmaste_core::Ability`] on a lowered card's faces —
-/// the core-side twin of [`authored_faces`], stopping at the face's own
+/// the core-side twin of [`semantic_faces`], stopping at the face's own
 /// `abilities` list. [`nested_in_any`] does the descent past that point.
 fn core_abilities(card: &deckmaste_card::Card) -> impl Iterator<Item = &deckmaste_core::Ability> {
     let faces: Vec<&deckmaste_card::CardFace> = match card {
@@ -543,12 +543,12 @@ fn core_abilities(card: &deckmaste_card::Card) -> impl Iterator<Item = &deckmast
     faces.into_iter().flat_map(|face| face.abilities.iter())
 }
 
-/// The core-side twin of [`deckmaste_authoring::AbilitySubterms`]: pushes
+/// The core-side twin of [`deckmaste_semantics::AbilitySubterms`]: pushes
 /// every `deckmaste_core::Ability` reachable from a value, stopping AT each
-/// one. Hand-written for the same reason the authoring trait is (no blanket
+/// one. Hand-written for the same reason the semantics trait is (no blanket
 /// `impl<T> Trait for T` on stable Rust) and covering the same ability-
 /// bearing positions, for the same reason: this test only means what it
-/// claims to mean if the two walkers — the one deciding which authored
+/// claims to mean if the two walkers — the one deciding which semantic
 /// subterms to check, and this one deciding where to look for their lowered
 /// images — agree on which grammar positions carry an `Ability`.
 trait CoreAbilitySubterms {
@@ -609,10 +609,10 @@ impl CoreAbilitySubterms for deckmaste_core::StaticEffect {
             Self::Modify(_, m) => m.push_abilities(out),
             Self::Each(_, e) | Self::Conditionally(_, e) => e.push_abilities(out),
             Self::Expanded(e) => e.value.push_abilities(out),
-            // A copy delivery site ([CR#707.4]); mirrors the authoring side.
+            // A copy delivery site ([CR#707.4]); mirrors the semantics side.
             Self::BecomesCopy(_, spec) => spec.push_abilities(out),
             // No other `StaticEffect` shape carries an `Ability` — same
-            // catch-all the authoring twin uses, for the same reason.
+            // catch-all the semantics twin uses, for the same reason.
             _ => {}
         }
     }
@@ -620,7 +620,7 @@ impl CoreAbilitySubterms for deckmaste_core::StaticEffect {
 
 impl CoreAbilitySubterms for deckmaste_core::Modification {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
-        // Exhaustive on purpose, mirroring the authoring side: this is THE
+        // Exhaustive on purpose, mirroring the semantics side: this is THE
         // layer-6 grant position ([CR#613.1f]).
         match self {
             Self::GainAbility(a) => a.push_abilities(out),
@@ -688,13 +688,13 @@ impl CoreAbilitySubterms for deckmaste_core::TokenSpec {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
             Self::Token(t) => t.abilities.push_abilities(out),
-            // Mirrors the authoring side: a predefined token's abilities are
+            // Mirrors the semantics side: a predefined token's abilities are
             // built on demand.
             Self::Named(_) => {}
             // A copy token's COPIABLE characteristics come from the copied
             // object, but a copy EXCEPTION can carry a `GainAbility` payload
             // ([CR#707.9a]) that lives only inside this `CopySpec`; mirrors
-            // the authoring side.
+            // the semantics side.
             Self::Copy(spec) => spec.push_abilities(out),
         }
     }
@@ -708,7 +708,7 @@ impl CoreAbilitySubterms for deckmaste_core::CopySpec {
 
 impl CoreAbilitySubterms for deckmaste_core::CopyException {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
-        // Exhaustive, mirroring the authoring side: `Modify` is the
+        // Exhaustive, mirroring the semantics side: `Modify` is the
         // [CR#707.9a] "except it has [ability]" clause.
         match self {
             Self::Modify(m) => m.push_abilities(out),
@@ -721,7 +721,7 @@ impl CoreAbilitySubterms for deckmaste_core::CopyException {
 impl CoreAbilitySubterms for deckmaste_core::EnterRider {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
-            // A copy delivery site ([CR#707.5]); mirrors the authoring side.
+            // A copy delivery site ([CR#707.5]); mirrors the semantics side.
             Self::AsCopy(spec) => spec.push_abilities(out),
             Self::Tapped
             | Self::FaceDown
@@ -738,22 +738,22 @@ impl CoreAbilitySubterms for deckmaste_core::Action {
         match self {
             Self::GetEmblem(_, abilities) => abilities.push_abilities(out),
             // `riders` can carry `EnterRider::AsCopy`, a copy delivery site;
-            // mirrors the authoring side.
+            // mirrors the semantics side.
             Self::Create { token, riders, .. } => {
                 token.push_abilities(out);
                 riders.push_abilities(out);
             }
-            // A copy delivery site ([CR#707.12]); mirrors the authoring side.
+            // A copy delivery site ([CR#707.12]); mirrors the semantics side.
             Self::CastCopy(_, spec) => spec.push_abilities(out),
             // As with `StaticEffect`: dozens of variants, few ability-
             // bearing, and the list churns; the catch-all mirrors the
-            // authoring side.
+            // semantics side.
             _ => {}
         }
     }
 }
 
-/// The core-side twin of [`deckmaste_authoring::Ability::nested_abilities`]:
+/// The core-side twin of [`deckmaste_semantics::Ability::nested_abilities`]:
 /// every `Ability` nested one level inside this one, in pre-order.
 fn core_nested_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmaste_core::Ability> {
     let mut out = Vec::new();
@@ -771,7 +771,7 @@ fn core_nested_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmaste_co
 
 /// Whether `image` appears anywhere below one of `lowered`'s members — the
 /// descent [`core_abilities`] deliberately stops short of (it only walks
-/// each face's own `abilities` list). Mirrors the authoring side's split
+/// each face's own `abilities` list). Mirrors the semantics side's split
 /// between `push_abilities` (stop at each `Ability`) and `nested_abilities`
 /// (one level; the caller recurses): this function is the recursing caller.
 fn nested_in_any(lowered: &[&deckmaste_core::Ability], image: &deckmaste_core::Ability) -> bool {
@@ -787,23 +787,23 @@ fn ability_contains(ability: &deckmaste_core::Ability, image: &deckmaste_core::A
 /// Lowering is context-free at `Ability` granularity: an ability's image does
 /// not depend on what surrounds it. Erasure is the crate's first non-identity
 /// arm family, so this is the property that says the erasure did not smuggle
-/// in a context dependence — every authored ability subterm's lowering, AT
+/// in a context dependence — every semantic ability subterm's lowering, AT
 /// ANY NESTING DEPTH (an ability granting an ability that itself grants an
 /// ability, and so on), appears verbatim in its lowered card.
 #[test]
-fn every_authored_ability_subterm_appears_in_its_lowered_card() {
+fn every_semantic_ability_subterm_appears_in_its_lowered_card() {
     let canon = Plugin::load_with_sibling_prelude(plugin_dir("canon", "")).unwrap();
     let mut checked = 0;
     for source in ron_files(&plugin_dir("canon", CARDS_DIR)) {
         let loaded = load_card_pair(&canon, &source).unwrap();
         let lowered: Vec<&deckmaste_core::Ability> = core_abilities(&loaded.core).collect();
-        for face in authored_faces(&loaded.authored) {
-            for authored in &face.abilities {
-                for subterm in authored_ability_subterms(authored) {
+        for face in semantic_faces(&loaded.semantic) {
+            for semantic in &face.abilities {
+                for subterm in semantic_ability_subterms(semantic) {
                     let image = subterm.clone().lower();
                     assert!(
                         lowered.iter().any(|a| **a == image) || nested_in_any(&lowered, &image),
-                        "{}: an authored ability subterm's lowering is absent from the \
+                        "{}: a semantic ability subterm's lowering is absent from the \
                          lowered card — lowering is context-dependent at Ability granularity",
                         source.display(),
                     );

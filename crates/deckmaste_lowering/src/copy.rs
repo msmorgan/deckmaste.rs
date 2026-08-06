@@ -1,10 +1,10 @@
-//! `copy` — authored grammar to engine AST.
+//! `copy` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::CopySpec {
+impl Lower for deckmaste_semantics::CopySpec {
     type Target = deckmaste_core::CopySpec;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::CopySpec {
@@ -14,7 +14,7 @@ impl Lower for deckmaste_authoring::CopySpec {
     }
 }
 
-impl Lower for deckmaste_authoring::CopySource {
+impl Lower for deckmaste_semantics::CopySource {
     type Target = deckmaste_core::CopySource;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -24,7 +24,7 @@ impl Lower for deckmaste_authoring::CopySource {
     }
 }
 
-impl Lower for deckmaste_authoring::CopyException {
+impl Lower for deckmaste_semantics::CopyException {
     type Target = deckmaste_core::CopyException;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -37,7 +37,7 @@ impl Lower for deckmaste_authoring::CopyException {
     }
 }
 
-impl Lower for deckmaste_authoring::CopiableValues {
+impl Lower for deckmaste_semantics::CopiableValues {
     type Target = deckmaste_core::CopiableValues;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::CopiableValues {
@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn lowers_copy_spec() {
         assert_matches!(
-            deckmaste_authoring::CopySpec {
+            deckmaste_semantics::CopySpec {
                 source: minimal_copy_source(),
                 exceptions: Vec::new()
             }
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn lowers_copy_source_object() {
         assert_matches!(
-            deckmaste_authoring::CopySource::Object(minimal_reference()).lower(),
+            deckmaste_semantics::CopySource::Object(minimal_reference()).lower(),
             deckmaste_core::CopySource::Object(deckmaste_core::Reference::This)
         );
     }
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn lowers_copy_source_self_card() {
         assert_matches!(
-            deckmaste_authoring::CopySource::SelfCard.lower(),
+            deckmaste_semantics::CopySource::SelfCard.lower(),
             deckmaste_core::CopySource::SelfCard
         );
     }
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn lowers_copy_exception_modify() {
         assert_matches!(
-            deckmaste_authoring::CopyException::Modify(minimal_modification()).lower(),
+            deckmaste_semantics::CopyException::Modify(minimal_modification()).lower(),
             deckmaste_core::CopyException::Modify(deckmaste_core::Modification::Power(
                 deckmaste_core::NumericOp::Set(deckmaste_core::StatValue::DefinedByAbility)
             ))
@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn lowers_copy_exception_retain() {
         assert_matches!(
-            deckmaste_authoring::CopyException::Retain(minimal_characteristic()).lower(),
+            deckmaste_semantics::CopyException::Retain(minimal_characteristic()).lower(),
             deckmaste_core::CopyException::Retain(deckmaste_core::Characteristic::Colors)
         );
     }
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn lowers_copy_exception_additional_effect() {
         assert_matches!(
-            deckmaste_authoring::CopyException::AdditionalEffect(minimal_enter_rider()).lower(),
+            deckmaste_semantics::CopyException::AdditionalEffect(minimal_enter_rider()).lower(),
             deckmaste_core::CopyException::AdditionalEffect(deckmaste_core::EnterRider::Tapped)
         );
     }
@@ -129,10 +129,10 @@ mod tests {
     #[test]
     fn lowers_copiable_values() {
         assert_matches!(
-            deckmaste_authoring::CopiableValues {
+            deckmaste_semantics::CopiableValues {
                 name: "x".into(),
-                mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
-                    [deckmaste_authoring::ManaSymbol],
+                mana_cost: deckmaste_semantics::ManaCost::from(std::sync::Arc::<
+                    [deckmaste_semantics::ManaSymbol],
                 >::from([])),
                 color_indicator: Vec::new(),
                 supertypes: Vec::new(),

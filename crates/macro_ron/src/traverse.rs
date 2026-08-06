@@ -93,7 +93,7 @@ impl<T: Expand> Expand for Box<T> {
     }
 }
 
-// Authored grammar constructs are shared via `Arc` (cheap clones on the
+// Semantics grammar constructs are shared via `Arc` (cheap clones on the
 // engine's hot path). Unlike `Box`, an `Arc` can't move its payload out when
 // shared, so this rebuild clones only when the node is aliased
 // (`unwrap_or_clone`); on the common uniquely-owned case it moves, matching the

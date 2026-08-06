@@ -1244,10 +1244,10 @@ thread_local! {
     /// `may/cant_attach_rows` → `for_each_static` →
     /// `condition_holds(LegallyAttached)` → `attachment_legal` → … . A permanent
     /// authored `Conditionally(LegallyAttached(This), <Attach deontic>)` (a
-    /// bootstrap-impossible aura — an authoring mistake; no canon or planned card
+    /// bootstrap-impossible aura — a semantic-input error; no canon or planned card
     /// authors this shape) would recurse without bound and stack-overflow,
-    /// violating the Invalid authoring fizzles decision
-    /// (`docs/decisions/invalid-authoring-fizzles.md`). This
+    /// violating the Invalid semantic input fizzles decision
+    /// (`docs/decisions/invalid-semantic-input-fizzles.md`). This
     /// counter bounds the recursion (see [`ATTACH_LEGAL_DEPTH_CAP`]).
     static ATTACH_LEGAL_DEPTH: Cell<u32> = const { Cell::new(0) };
 }
@@ -1290,13 +1290,13 @@ impl Drop for AttachLegalDepthGuard {
 /// (protection [CR#702.16d]) subtracts from any grant.
 #[must_use]
 pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: ObjectId) -> bool {
-    // Re-entrancy guard (the Invalid authoring fizzles decision,
-    // `docs/decisions/invalid-authoring-fizzles.md`): if the
+    // Re-entrancy guard (the Invalid semantic input fizzles decision,
+    // `docs/decisions/invalid-semantic-input-fizzles.md`): if the
     // deontic collector has already re-entered `attachment_legal` (only reachable
     // via a `Conditionally(LegallyAttached(…), …)` static — see
     // `ATTACH_LEGAL_DEPTH`), return the conservative default `false` ("not legally
     // attached") WITHOUT recursing or touching the counter. This bounds the
-    // otherwise-unbounded cycle so an authoring mistake fizzles instead of
+    // otherwise-unbounded cycle so a semantic-input error fizzles instead of
     // crashing. `false` is sound in both polarities, so this is a true no-op for
     // every non-pathological call: a `Conditionally(LegallyAttached(This),
     // May(Attach))` bootstrap drops its own grant (can't attach → never legally
@@ -1850,8 +1850,8 @@ mod tests {
         );
     }
 
-    /// The Invalid authoring fizzles decision
-    /// (`docs/decisions/invalid-authoring-fizzles.md`) / [CR#611.3a]: a
+    /// The Invalid semantic input fizzles decision
+    /// (`docs/decisions/invalid-semantic-input-fizzles.md`) / [CR#611.3a]: a
     /// permanent authored `Conditionally(LegallyAttached(This),
     /// May(Attach{Ref(This), Any}))` is a bootstrap-impossible aura. The
     /// deontic collector gates the grant on
@@ -2414,7 +2414,7 @@ mod tests {
     /// `from: Some(Graveyard)`) is therefore NOT evaluated by `cant_cast`,
     /// so the `guard_deontic_seam`'s Cast arm must keep tripping LOUDLY on
     /// it rather than silently treating it as an all-zones prohibition
-    /// (which would be an over-application, not the authored restriction).
+    /// (which would be an over-application, not the semantic restriction).
     #[test]
     #[should_panic(expected = "P0.W1")]
     fn cant_cast_guard_still_trips_on_a_slotted_cant_cast_row() {

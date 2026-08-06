@@ -849,7 +849,7 @@ impl GameState {
             // DIVERGENCE-only: it fails only when the event EXPOSES a content
             // coordinate that the verb fixes and it has moved OFF canonical
             // (stacked madness / Leyline-first: a discard's `to` is now Exile,
-            // not Graveyard) — the auto-guard, with zero authored clause. A
+            // not Graveyard) — the auto-guard, with zero semantic clause. A
             // coordinate the event doesn't expose (an aggregate `Batch`
             // window, a pre-choice cant-check — from/to `None`) is NOT a
             // divergence, so the would-lane matches on name there; likewise a

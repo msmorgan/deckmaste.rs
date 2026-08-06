@@ -1,10 +1,10 @@
-//! `zone` — authored grammar to engine AST.
+//! `zone` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Zone {
+impl Lower for deckmaste_semantics::Zone {
     type Target = deckmaste_core::Zone;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -35,7 +35,7 @@ mod tests {
     #[test]
     fn lowers_zone_battlefield() {
         assert_matches!(
-            deckmaste_authoring::Zone::Battlefield.lower(),
+            deckmaste_semantics::Zone::Battlefield.lower(),
             deckmaste_core::Zone::Battlefield
         );
     }
@@ -43,7 +43,7 @@ mod tests {
     #[test]
     fn lowers_zone_command() {
         assert_matches!(
-            deckmaste_authoring::Zone::Command.lower(),
+            deckmaste_semantics::Zone::Command.lower(),
             deckmaste_core::Zone::Command
         );
     }
@@ -51,7 +51,7 @@ mod tests {
     #[test]
     fn lowers_zone_exile() {
         assert_matches!(
-            deckmaste_authoring::Zone::Exile.lower(),
+            deckmaste_semantics::Zone::Exile.lower(),
             deckmaste_core::Zone::Exile
         );
     }
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn lowers_zone_graveyard() {
         assert_matches!(
-            deckmaste_authoring::Zone::Graveyard.lower(),
+            deckmaste_semantics::Zone::Graveyard.lower(),
             deckmaste_core::Zone::Graveyard
         );
     }
@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn lowers_zone_hand() {
         assert_matches!(
-            deckmaste_authoring::Zone::Hand.lower(),
+            deckmaste_semantics::Zone::Hand.lower(),
             deckmaste_core::Zone::Hand
         );
     }
@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn lowers_zone_library() {
         assert_matches!(
-            deckmaste_authoring::Zone::Library.lower(),
+            deckmaste_semantics::Zone::Library.lower(),
             deckmaste_core::Zone::Library
         );
     }
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn lowers_zone_stack() {
         assert_matches!(
-            deckmaste_authoring::Zone::Stack.lower(),
+            deckmaste_semantics::Zone::Stack.lower(),
             deckmaste_core::Zone::Stack
         );
     }

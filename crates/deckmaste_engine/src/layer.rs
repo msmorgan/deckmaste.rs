@@ -80,7 +80,7 @@ pub struct ContinuousEffect {
     pub rows: Vec<StaticEffect>,
     pub duration: Duration,
     /// The minting resolution frame, kept ONLY for the two durations whose
-    /// sweep must re-evaluate authored data anchored on the source/controller:
+    /// sweep must re-evaluate semantic data anchored on the source/controller:
     /// `UntilEvent`'s event filter and `ForAsLongAs`'s condition read
     /// `This`/`You` through it ([CR#603.10a]). `None` for every marker /
     /// `EndOfGame` duration, whose sweep needs no such context. Boxed so the

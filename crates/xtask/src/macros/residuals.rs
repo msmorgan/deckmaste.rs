@@ -100,7 +100,7 @@
 //! `<Param(i)>` — but only once the covering entry's own name is mapped to a
 //! *legal* `params:` type (`This`/`You` are lexicon identities, not entries
 //! in `deckmaste_plugin::macros::param_types()`; both denote a
-//! `deckmaste_authoring::Reference`, which is): a hole whose entry has no known
+//! `deckmaste_semantics::Reference`, which is): a hole whose entry has no known
 //! legal type is left uncut for the same reason a filler that cannot be
 //! found is — an illegal `params:` entry would be a second field, beside
 //! `body:`, a human would have to fix by hand.
@@ -121,8 +121,6 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Args;
-use deckmaste_authoring::Ability;
-use deckmaste_authoring::Supertype;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;
 use deckmaste_english::Catalogs;
@@ -132,6 +130,8 @@ use deckmaste_legacy_render::render::CardView;
 use deckmaste_legacy_render::render::render;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::plugin::read;
+use deckmaste_semantics::Ability;
+use deckmaste_semantics::Supertype;
 use deckmaste_spelling::Lexicon;
 use deckmaste_spelling::PathStep;
 use deckmaste_spelling::Recovered;
@@ -407,7 +407,7 @@ fn collect_lines(canon_dir: &Path, plugin: &Plugin) -> anyhow::Result<Swept> {
         let card = plugin
             .card_from_str(&source)
             .map_err(|error| anyhow::anyhow!("parsing {}: {error:#}", path.display()))?
-            .authored;
+            .semantic;
         for face in faces(&card) {
             let is_legendary = face.supertypes.contains(&Supertype::Legendary);
             for ability in &face.abilities {
@@ -813,7 +813,7 @@ impl Census {
             self.unparsed,
         );
         println!(
-            "  {} line(s) where more than one authored frame matched a constituent, in {} \
+            "  {} line(s) where more than one semantic frame matched a constituent, in {} \
              distinct pairing(s) — read the claims/guards below: a pairing one side dominates \
              is settled by the specificity order, and only an equal one is an ambiguity",
             self.ambiguous_lines,
@@ -1112,7 +1112,7 @@ fn base_text(exemplar: &Exemplar) -> Option<String> {
 /// `text` with every literal occurrence of the card's own name spelled `~`
 /// instead — the inverse of [`constant_filler`]'s own `~` resolution, and
 /// necessary for the same reason: legacy render already turned every `~` in
-/// the card's authored ability into the card's full printed name, so a
+/// the card's semantic ability into the card's full printed name, so a
 /// residual's own rendered text names one specific card everywhere a general
 /// frame would say `~`. Left undone, a draft built from it would only ever
 /// match the exemplar it came from.
@@ -1228,7 +1228,7 @@ fn filler_text(
 /// entry's own name, which is a lexicon identity (`This`, `You`) and not one
 /// of `deckmaste_plugin::macros::param_types()`'s legal names. Both of the
 /// pro-forms this census's top rows actually cover denote a
-/// `deckmaste_authoring::Reference`; anything not in this small, explicit table
+/// `deckmaste_semantics::Reference`; anything not in this small, explicit table
 /// returns `None`, and the caller leaves that hole uncut rather than emit a
 /// `params:` entry a human would have to correct by hand — the one field
 /// D11 promises stays untouched is `body:`, not this one too.

@@ -5,11 +5,11 @@
 //! doc-comment); it gets its own small renderer rather than folding into
 //! `deontic.rs`.
 
-use deckmaste_authoring::OutcomeGateKind;
-use deckmaste_authoring::Predicate;
-use deckmaste_authoring::Reference;
-use deckmaste_authoring::RelationPredicate;
-use deckmaste_authoring::StaticEffect;
+use deckmaste_semantics::OutcomeGateKind;
+use deckmaste_semantics::Predicate;
+use deckmaste_semantics::Reference;
+use deckmaste_semantics::RelationPredicate;
+use deckmaste_semantics::StaticEffect;
 
 use super::Ctx;
 use super::fragment;

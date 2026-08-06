@@ -1218,7 +1218,7 @@ mod tests {
     /// lane; once a first replacement has REDIRECTED the content (→ Exile) the
     /// same would no longer matches in the Replacement lane (the master form's
     /// canonical shape no longer holds — a second same-shaped replacement is
-    /// inapplicable, [CR#616.1f], with zero authored guard); yet the redirected
+    /// inapplicable, [CR#616.1f], with zero semantic guard); yet the redirected
     /// event STILL matches in the Trigger lane, which reads the finalized
     /// name-fact only ([CR#701.9c], "whenever you discard" fires on a discard
     /// gone to exile).

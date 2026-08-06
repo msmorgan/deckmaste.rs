@@ -33,10 +33,10 @@ pub enum Stop {
 /// Owns the game and the auto-decider used for non-interactive decisions.
 pub struct Driver {
     pub state: GameState,
-    /// The authored half of every deck card, by `CardId` — what the detail
+    /// The semantic half of every deck card, by `CardId` — what the detail
     /// pane renders through now that lowered core carries no provenance.
     pub cards: CardProvenance,
-    /// Authored terms by lowered value, for derived state that never appeared
+    /// Semantic terms by lowered value, for derived state that never appeared
     /// on a card as written (granted and conferred abilities).
     pub provenance: ProvenanceIndex,
     strategy: Box<dyn Strategy>,

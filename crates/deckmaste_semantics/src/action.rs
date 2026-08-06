@@ -166,7 +166,7 @@ pub enum Action {
     /// domain is battlefield objects only, `sba_rule.rs`'s doc), but the
     /// removal it emits now names its own verb rather than borrowing
     /// `Counter`'s. A reference that isn't on the stack is a no-op (bad
-    /// authoring/state drift fizzles, never panics).
+    /// semantic/state drift fizzles, never panics).
     Cease(Reference),
     /// Attach `what` to `to` ([CR#701.3a..701.3b]) — the one verb the whole
     /// attachment family shares (Equipment, Auras, Fortifications). The
@@ -203,7 +203,7 @@ pub enum Action {
     /// resolves, a card no longer in hand when the named-card discard
     /// resolves, [CR#701.8a,701.9a,701.17a]) — and a mismatch fizzles the
     /// move silently: no event, no fact, no trigger, never a panic
-    /// (authoring/state-drift never crashes the engine). Default `None`
+    /// (semantic/state drift never crashes the engine). Default `None`
     /// (unguarded, the common case) is omitted on write.
     Move(
         Reference,
@@ -252,8 +252,8 @@ pub enum Action {
     /// shields (regeneration, one-shot prevention). The protected permanent is
     /// the object bound as `That` by the enclosing `With` — the shield freezes
     /// that resolved binding at creation (an LKI snapshot of identity), so a
-    /// shield is authored `With(binder: TheRef(<subject>), body:
-    /// CreateReplacement(…))`; there is no authored `subject:` field.
+    /// shield has the semantic form `With(binder: TheRef(<subject>), body:
+    /// CreateReplacement(…))`; there is no semantic `subject:` field.
     /// `one_shot` consumes the shield on first use ([CR#614.3]).
     /// [CR#701.19a,614.8]
     CreateReplacement {
@@ -405,7 +405,7 @@ pub enum Action {
     /// <that card>, None)), if_not: <else> }` offers its "yes" branch only
     /// when a legal, payable cast exists ([CR#608.2g] — the offer is empty
     /// otherwise, so the `if_not` branch runs). A reference that resolves to
-    /// no castable object fizzles (authoring mistakes never crash the
+    /// no castable object fizzles (semantic-input errors never crash the
     /// engine).
     ///
     /// The trailing slot is an optional ALTERNATIVE COST ([CR#118.9,702.35a]):

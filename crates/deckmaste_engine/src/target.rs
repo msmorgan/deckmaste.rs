@@ -472,7 +472,7 @@ pub fn matches_with(
         // Death Spark's "directly above it" only ever needs `This`);
         // anything else, an unresolvable reference, a candidate/anchor
         // outside an ordered zone, or a cross-zone/cross-player pair,
-        // gracefully reads `false` — never a panic on an authoring mistake
+        // gracefully reads `false` — never a panic on a semantic-input error
         // or a not-yet-reachable reference shape.
         Predicate::Adjacent(dir, r) => resolve_watcher_reference(state, r, watcher)
             .and_then(|anchor| {
@@ -488,8 +488,8 @@ pub fn matches_with(
         // — "a player has 13 or less life". Matches only a PLAYER proxy (a
         // card object never satisfies it, even walked as a `Countable::Players`
         // source alongside proxies); a non-literal bound never matches —
-        // dynamic player-stat bounds are a vanishingly rare authored shape, and
-        // a silent no-match beats a panic on an authoring mistake.
+        // dynamic player-stat bounds are a vanishingly rare semantic shape, and
+        // a silent no-match beats a panic on a semantic-input error.
         Predicate::PlayerStatCmp(attr, cmp, bound) => match state.objects.obj(id).source {
             ObjectSource::Player(p) => bound
                 .literal_value()
@@ -887,17 +887,17 @@ mod tests {
 
     #[test]
     fn any_target_is_creatures_and_players_not_lands() {
-        // Parse `AnyTarget` through the AUTHORED macro registry, then lower —
-        // the path production now takes (`authoring::TargetSpec` → `lower()`),
+        // Parse `AnyTarget` through the SEMANTIC macro registry, then lower —
+        // the path production now takes (`semantics::TargetSpec` → `lower()`),
         // which erases the `Expanded` wrapper before the engine ever sees the
         // value. `resolve::target_spec_filter` is the engine's own
         // TargetSpec→Predicate extraction — the path real targeting funnels
         // through — so the test exercises it rather than hand-unwrapping the
         // expansion.
         use deckmaste_lowering::Lower;
-        let authored: deckmaste_authoring::TargetSpec =
+        let semantic: deckmaste_semantics::TargetSpec =
             builtin().macros.read_str("AnyTarget").unwrap();
-        let any_target: TargetSpec = authored.lower();
+        let any_target: TargetSpec = semantic.lower();
         let filter = crate::resolve::target_spec_filter(&any_target);
         let (state, bear) = game_with_a_bear_on_the_field();
         let targets = candidates(&state, filter);
@@ -909,8 +909,8 @@ mod tests {
         assert_eq!(targets.len(), 3);
     }
 
-    /// A filter-position macro (`kinds: [Predicate]`) survives AUTHORED
-    /// expansion as `authoring::Predicate::Expanded`, but `lower` (the path
+    /// A filter-position macro (`kinds: [Predicate]`) survives SEMANTIC
+    /// expansion as `semantics::Predicate::Expanded`, but `lower` (the path
     /// production now takes) erases the wrapper before the engine ever sees
     /// the value — so `matches`/`candidates` must still evaluate the lowered
     /// body correctly. Guards the corpus-value path against being mistaken
@@ -918,16 +918,16 @@ mod tests {
     #[test]
     fn matches_a_predicate_lowered_from_a_filter_macro() {
         use deckmaste_lowering::Lower;
-        // `CreatureOrPlayer` reads (authored) as
+        // `CreatureOrPlayer` reads (semantically) as
         // `Predicate::Expanded(.., value: Or([..]))`: the invocation survives
         // pre-lowering, wrapping its expanded body.
-        let authored: deckmaste_authoring::Predicate =
+        let semantic: deckmaste_semantics::Predicate =
             builtin().macros.read_str("CreatureOrPlayer").unwrap();
         assert!(
-            matches!(authored, deckmaste_authoring::Predicate::Expanded(_)),
-            "a filter macro should survive authored parse as Predicate::Expanded, got {authored:?}"
+            matches!(semantic, deckmaste_semantics::Predicate::Expanded(_)),
+            "a filter macro should survive semantic parse as Predicate::Expanded, got {semantic:?}"
         );
-        let filter: Predicate = authored.lower();
+        let filter: Predicate = semantic.lower();
         let (state, bear) = game_with_a_bear_on_the_field();
         // Evaluating the lowered macro body reaches the battlefield creature.
         assert!(candidates(&state, &filter).contains(&bear));
@@ -945,11 +945,11 @@ mod tests {
         use deckmaste_lowering::Lower;
 
         let (state, bear, _ghoul) = game_with_bear_and_ghoul();
-        // Parsed through the AUTHORED path (`authoring::Predicate` →
+        // Parsed through the SEMANTICS path (`semantics::Predicate` →
         // `lower()`), the path production now takes.
-        let authored: deckmaste_authoring::Predicate =
+        let semantic: deckmaste_semantics::Predicate =
             builtin().macros.read_str("InHand(You)").unwrap();
-        let filter: Predicate = authored.lower();
+        let filter: Predicate = semantic.lower();
         // Watched by the battlefield bear — still P0-controlled, so `You`
         // resolves to P0.
         let carrier = Some(state.objects.obj(bear).source);

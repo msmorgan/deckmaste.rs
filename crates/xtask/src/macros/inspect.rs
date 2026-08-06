@@ -106,7 +106,7 @@ pub(super) fn run(args: InspectArgs) -> anyhow::Result<()> {
         println!("text: {:?}", spec.text);
         println!("kind: {kind:?}");
         if !spec.when.is_empty() {
-            println!("when (authored, unexpanded): {:?}", spec.when);
+            println!("when (semantic, unexpanded): {:?}", spec.when);
         }
         if let Some(position) = spec.position {
             println!("position: {position:?}");
@@ -336,7 +336,7 @@ fn write_compiled(mut writer: impl io::Write, frame: &CompiledFrame) -> io::Resu
         for guard in &frame.guards {
             writeln!(
                 writer,
-                "  param {} ({}): authored {:?} -> canonical {:?}",
+                "  param {} ({}): semantic {:?} -> canonical {:?}",
                 guard.param, guard.param_type, guard.source, guard.value
             )?;
         }

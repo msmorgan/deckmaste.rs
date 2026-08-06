@@ -1,10 +1,10 @@
-//! `status` — authored grammar to engine AST.
+//! `status` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::Status {
+impl Lower for deckmaste_semantics::Status {
     type Target = deckmaste_core::Status;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -20,7 +20,7 @@ impl Lower for deckmaste_authoring::Status {
     }
 }
 
-impl Lower for deckmaste_authoring::Face {
+impl Lower for deckmaste_semantics::Face {
     type Target = deckmaste_core::Face;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -30,7 +30,7 @@ impl Lower for deckmaste_authoring::Face {
     }
 }
 
-impl Lower for deckmaste_authoring::Phasing {
+impl Lower for deckmaste_semantics::Phasing {
     type Target = deckmaste_core::Phasing;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -40,7 +40,7 @@ impl Lower for deckmaste_authoring::Phasing {
     }
 }
 
-impl Lower for deckmaste_authoring::FaceDownSpec {
+impl Lower for deckmaste_semantics::FaceDownSpec {
     type Target = deckmaste_core::FaceDownSpec;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -49,7 +49,7 @@ impl Lower for deckmaste_authoring::FaceDownSpec {
     }
 }
 
-impl Lower for deckmaste_authoring::FaceDownCharacteristics {
+impl Lower for deckmaste_semantics::FaceDownCharacteristics {
     type Target = deckmaste_core::FaceDownCharacteristics;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::FaceDownCharacteristics {
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn lowers_status_tapped() {
         assert_matches!(
-            deckmaste_authoring::Status::Tapped.lower(),
+            deckmaste_semantics::Status::Tapped.lower(),
             deckmaste_core::Status::Tapped
         );
     }
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn lowers_status_untapped() {
         assert_matches!(
-            deckmaste_authoring::Status::Untapped.lower(),
+            deckmaste_semantics::Status::Untapped.lower(),
             deckmaste_core::Status::Untapped
         );
     }
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn lowers_status_flipped() {
         assert_matches!(
-            deckmaste_authoring::Status::Flipped.lower(),
+            deckmaste_semantics::Status::Flipped.lower(),
             deckmaste_core::Status::Flipped
         );
     }
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn lowers_status_unflipped() {
         assert_matches!(
-            deckmaste_authoring::Status::Unflipped.lower(),
+            deckmaste_semantics::Status::Unflipped.lower(),
             deckmaste_core::Status::Unflipped
         );
     }
@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn lowers_status_face_down() {
         assert_matches!(
-            deckmaste_authoring::Status::FaceDown.lower(),
+            deckmaste_semantics::Status::FaceDown.lower(),
             deckmaste_core::Status::FaceDown
         );
     }
@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn lowers_status_face_up() {
         assert_matches!(
-            deckmaste_authoring::Status::FaceUp.lower(),
+            deckmaste_semantics::Status::FaceUp.lower(),
             deckmaste_core::Status::FaceUp
         );
     }
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn lowers_status_phased_out() {
         assert_matches!(
-            deckmaste_authoring::Status::PhasedOut.lower(),
+            deckmaste_semantics::Status::PhasedOut.lower(),
             deckmaste_core::Status::PhasedOut
         );
     }
@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn lowers_status_phased_in() {
         assert_matches!(
-            deckmaste_authoring::Status::PhasedIn.lower(),
+            deckmaste_semantics::Status::PhasedIn.lower(),
             deckmaste_core::Status::PhasedIn
         );
     }
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn lowers_face_up() {
         assert_matches!(
-            deckmaste_authoring::Face::Up.lower(),
+            deckmaste_semantics::Face::Up.lower(),
             deckmaste_core::Face::Up
         );
     }
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn lowers_face_down() {
         assert_matches!(
-            deckmaste_authoring::Face::Down.lower(),
+            deckmaste_semantics::Face::Down.lower(),
             deckmaste_core::Face::Down
         );
     }
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn lowers_phasing_in() {
         assert_matches!(
-            deckmaste_authoring::Phasing::In.lower(),
+            deckmaste_semantics::Phasing::In.lower(),
             deckmaste_core::Phasing::In
         );
     }
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn lowers_phasing_out() {
         assert_matches!(
-            deckmaste_authoring::Phasing::Out.lower(),
+            deckmaste_semantics::Phasing::Out.lower(),
             deckmaste_core::Phasing::Out
         );
     }
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn lowers_face_down_spec_listed() {
         assert_matches!(
-            deckmaste_authoring::FaceDownSpec::Listed(minimal_face_down_characteristics()).lower(),
+            deckmaste_semantics::FaceDownSpec::Listed(minimal_face_down_characteristics()).lower(),
             deckmaste_core::FaceDownSpec::Listed(deckmaste_core::FaceDownCharacteristics {
                 name: None,
                 types: _,
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn lowers_face_down_characteristics() {
         assert_matches!(
-            deckmaste_authoring::FaceDownCharacteristics {
+            deckmaste_semantics::FaceDownCharacteristics {
                 name: None,
                 types: Vec::new(),
                 subtypes: Vec::new(),

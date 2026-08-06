@@ -263,7 +263,7 @@ fn choose_targets_any(
 /// slot's MINIMUM count of first-legal candidates, greedily skipping any that
 /// would break within-slot distinctness or a `Distinct` constraint against an
 /// already-chosen sibling slot. Slots fill in order, so a `Distinct` slot sees
-/// its (earlier-indexed, per the authored convention) siblings' picks; the
+/// its (earlier-indexed, per the semantic convention) siblings' picks; the
 /// submission validator is the true enforcement regardless. Always valid when
 /// the specs are announce-satisfiable; a min-0 slot contributes an empty set.
 pub(crate) fn pick_target_set(specs: &[TargetSpec], legal: &[Vec<ObjectId>]) -> Vec<Vec<ObjectId>> {

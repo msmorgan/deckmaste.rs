@@ -1,6 +1,6 @@
 //! The matchup seats, as engine `Strategy` policies.
 //!
-//! Each seat is a data-driven [`StrategyEvaluator`] over an authored RON play
+//! Each seat is a data-driven [`StrategyEvaluator`] over a semantic RON play
 //! policy (`strategies/*.ron`), wrapped only to answer the one decision the
 //! engine's strategy fallback still `todo!()`s on and that this matchup
 //! surfaces: the legend rule. Everything else — develop, cast, target, float,

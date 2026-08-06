@@ -3,7 +3,7 @@ needs: [card-crate-split]
 ---
 **Mint the engine-owned base/computed characteristics seam: `trait
 BaseCharacteristics` and `CardRef<T>`.** Design:
-`docs/decisions/authoring-spelling-lowering.md` (§1). Deferred from
+`docs/decisions/semantics-spelling-lowering.md` (§1). Deferred from
 `card-crate-split`, which landed as a pure move and enforced only the
 NEGATIVE half of the contract — that `deckmaste_core` carries no
 characteristics abstraction. This ticket owns the positive half.

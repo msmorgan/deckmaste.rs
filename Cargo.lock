@@ -443,15 +443,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_authoring"
-version = "0.1.0"
-dependencies = [
- "macro_ron",
- "ron",
- "serde",
-]
-
-[[package]]
 name = "deckmaste_card"
 version = "0.1.0"
 dependencies = [
@@ -498,11 +489,11 @@ name = "deckmaste_engine"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "deckmaste_authoring",
  "deckmaste_card",
  "deckmaste_core",
  "deckmaste_lowering",
  "deckmaste_plugin",
+ "deckmaste_semantics",
  "rand 0.10.1",
  "rand_chacha 0.10.0",
  "rayon",
@@ -537,8 +528,8 @@ name = "deckmaste_legacy_render"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "deckmaste_authoring",
  "deckmaste_plugin",
+ "deckmaste_semantics",
  "macro_ron",
  "regex",
  "ron",
@@ -550,9 +541,9 @@ dependencies = [
 name = "deckmaste_lowering"
 version = "0.1.0"
 dependencies = [
- "deckmaste_authoring",
  "deckmaste_card",
  "deckmaste_core",
+ "deckmaste_semantics",
  "macro_ron",
  "serde",
 ]
@@ -562,11 +553,11 @@ name = "deckmaste_migrations"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "deckmaste_authoring",
  "deckmaste_core",
  "deckmaste_legacy_render",
  "deckmaste_lowering",
  "deckmaste_plugin",
+ "deckmaste_semantics",
  "rayon",
  "regex",
  "ron",
@@ -590,10 +581,10 @@ name = "deckmaste_plugin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "deckmaste_authoring",
  "deckmaste_card",
  "deckmaste_core",
  "deckmaste_lowering",
+ "deckmaste_semantics",
  "macro_ron",
  "regex",
  "ron",
@@ -605,13 +596,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_semantics"
+version = "0.1.0"
+dependencies = [
+ "macro_ron",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "deckmaste_spelling"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "deckmaste_authoring",
  "deckmaste_english",
  "deckmaste_plugin",
+ "deckmaste_semantics",
  "macro_ron",
  "ron",
  "serde",
@@ -623,12 +623,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "deckmaste_authoring",
  "deckmaste_card",
  "deckmaste_core",
  "deckmaste_engine",
  "deckmaste_legacy_render",
  "deckmaste_plugin",
+ "deckmaste_semantics",
  "ratatui",
 ]
 
@@ -2113,13 +2113,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "deckmaste_authoring",
  "deckmaste_card",
  "deckmaste_core",
  "deckmaste_english",
  "deckmaste_legacy_render",
  "deckmaste_migrations",
  "deckmaste_plugin",
+ "deckmaste_semantics",
  "deckmaste_spelling",
  "macro_ron",
  "proc-macro2",

@@ -167,14 +167,14 @@ pub(super) fn logged(state: &GameState, pred: impl Fn(&GameEvent) -> bool) -> bo
 }
 
 /// Expand a builtin keyword macro invocation to an `Ability::Keyword` — through
-/// the AUTHORED path (`authoring::KeywordAbility` → `lower()`), the path
+/// the SEMANTICS path (`semantics::KeywordAbility` → `lower()`), the path
 /// production now takes: lowering erases the `Expanded` wrapper before the
 /// engine ever sees the value.
 pub(super) fn keyword(invocation: &str) -> Ability {
     use deckmaste_lowering::Lower;
-    let authored: deckmaste_authoring::KeywordAbility =
+    let semantic: deckmaste_semantics::KeywordAbility =
         builtin().macros.read_str(invocation).unwrap();
-    Ability::Keyword(authored.lower())
+    Ability::Keyword(semantic.lower())
 }
 
 /// A canon subtype value (with its `confers:` list) by printed name.

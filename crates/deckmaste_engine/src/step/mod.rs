@@ -1747,8 +1747,8 @@ impl GameState {
     /// A no-op (no decision surfaced) when `entry` has already left the stack
     /// — it may vanish between this work item being scheduled and running
     /// (e.g. countered in response) — or when its ability has no targets.
-    /// Never crashes: an unresolvable retarget fizzles like any authoring
-    /// mistake.
+    /// Never crashes: an unresolvable retarget fizzles like any invalid
+    /// semantic input.
     fn open_choose_new_targets(&mut self, player: PlayerId, entry: ObjectId) -> Progress {
         let Some(found) = self.stack.iter().find(|e| e.id == entry) else {
             return Progress::NewTargetsOpened { specs: 0 };
@@ -3099,9 +3099,10 @@ mod tests {
     /// object store (a zone change removes an id from the store, [CR#400.7])
     /// must fizzle silently, never panic — `StackObject::Activated`'s source
     /// is carried by id only and is documented as "possibly gone, possibly
-    /// changed" (`stack.rs`). Card-authoring / timing situations that leave
-    /// a stale reference must never crash the engine (the Invalid authoring
-    /// fizzles decision, `docs/decisions/invalid-authoring-fizzles.md`); this
+    /// changed" (`stack.rs`). Card-semantics / timing situations that leave
+    /// a stale reference must never crash the engine (the Invalid semantic
+    /// input fizzles decision,
+    /// `docs/decisions/invalid-semantic-input-fizzles.md`); this
     /// pins the `Copied` apply arm's Activated-branch lookup against that
     /// invariant.
     #[test]

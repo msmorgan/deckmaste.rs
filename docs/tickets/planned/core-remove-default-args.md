@@ -1,5 +1,5 @@
 ---
-needs: [macro-author-surface, idris-mirror-authoring]
+needs: [macro-author-surface, idris-mirror-semantics]
 ---
 Strip the ~20 existing `default`-valued player/reference arguments from `idris/src/Core.idr`
 grammar constructors, making every call site pass the reference explicitly.
@@ -21,18 +21,18 @@ withdrawn: identity-macro scaffolds mirror existing constructor DEFAULTS
 (byte-identical canon re-parse is that program's invariant — decision §5),
 so the card-RON churn of spelling elided arguments explicitly does NOT
 happen as a side effect there. It returns to this ticket, priced here:
-default removal = authoring-mirror constructor changes + emitter + canon/
+default removal = semantics-mirror constructor changes + emitter + canon/
 builtin RON re-spelling + hand macro bodies that elide `This`/`[Library]`.
 Re-read every path below against post-rename crate names at claim time
-(the Idris mirror is the authoring mirror; the emitter lives in the
+(the Idris mirror is the semantics mirror; the emitter lives in the
 renamed plugin crate).
 
-**Third rescope (2026-08-02):** under the authoring/spelling/lowering
+**Third rescope (2026-08-02):** under the semantics/spelling/lowering
 program
-(`docs/decisions/authoring-spelling-lowering.md`),
-the RON-side defaults live in `deckmaste_authoring` and the Idris mirror
-attaches to the authoring kernel — so this ticket's constructor/emitter
-work targets the authoring mirror, not core. Sequencing unchanged (behind
+(`docs/decisions/semantics-spelling-lowering.md`),
+the RON-side defaults live in `deckmaste_semantics` and the Idris mirror
+attaches to the semantics kernel — so this ticket's constructor/emitter
+work targets the semantics mirror, not core. Sequencing unchanged (behind
 `macro-author-surface`).
 
 ## Why

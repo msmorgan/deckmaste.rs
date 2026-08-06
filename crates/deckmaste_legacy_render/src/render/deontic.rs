@@ -1,12 +1,12 @@
 //! Permissions/prohibitions/requirements as sentences.
 
-use deckmaste_authoring::CharacteristicPredicate;
-use deckmaste_authoring::Deontic;
-use deckmaste_authoring::DeonticAction;
-use deckmaste_authoring::Predicate;
-use deckmaste_authoring::Reference;
-use deckmaste_authoring::RelationPredicate;
-use deckmaste_authoring::StaticEffect;
+use deckmaste_semantics::CharacteristicPredicate;
+use deckmaste_semantics::Deontic;
+use deckmaste_semantics::DeonticAction;
+use deckmaste_semantics::Predicate;
+use deckmaste_semantics::Reference;
+use deckmaste_semantics::RelationPredicate;
+use deckmaste_semantics::StaticEffect;
 
 use super::Ctx;
 use super::fragment;

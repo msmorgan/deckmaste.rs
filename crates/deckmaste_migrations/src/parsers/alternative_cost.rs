@@ -59,14 +59,14 @@ mod tests {
         );
 
         // The emitted row is written into a card file, so it round-trips at the
-        // AUTHORING grammar — the one that file is read at.
+        // SEMANTICS grammar — the one that file is read at.
         let row = got.expect("Vine Dryad line resolves");
-        let ability: deckmaste_authoring::Ability =
-            deckmaste_authoring::ron::options().from_str(&row).unwrap();
-        let rendered = deckmaste_authoring::ron::options()
+        let ability: deckmaste_semantics::Ability =
+            deckmaste_semantics::ron::options().from_str(&row).unwrap();
+        let rendered = deckmaste_semantics::ron::options()
             .to_string(&ability)
             .unwrap();
-        let reread: deckmaste_authoring::Ability = deckmaste_authoring::ron::options()
+        let reread: deckmaste_semantics::Ability = deckmaste_semantics::ron::options()
             .from_str(&rendered)
             .unwrap();
         assert_eq!(reread, ability, "alternative cost survives RON round-trip");

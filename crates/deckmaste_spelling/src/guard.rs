@@ -7,7 +7,7 @@
 //! applies when param 0 is `You`". The stored string is a RON *spelling* of
 //! the constant, and RON spellings are not unique: `Exactly(1)` and
 //! `Range(Some(1), Some(1))` are the same
-//! [`Quantity`](deckmaste_authoring::Quantity), because `Exactly` is a macro
+//! [`Quantity`](deckmaste_semantics::Quantity), because `Exactly` is a macro
 //! whose expansion is the range. Comparing spellings would therefore miss
 //! silently.
 //!
@@ -65,7 +65,7 @@ pub fn normalized<T: Expand + Serialize>(value: T) -> View {
 ///
 /// `macros` decides which spellings parse: pass a [`MacroSet`] carrying the
 /// plugin macros to accept the readable sugar (`Exactly(1)`), or
-/// [`core_reader`] to accept only bare `deckmaste_authoring` constructors.
+/// [`core_reader`] to accept only bare `deckmaste_semantics` constructors.
 ///
 /// # Errors
 /// If `param_type` is not a known param type, if `source` does not parse at
@@ -125,7 +125,7 @@ pub fn ensure_ground(term: &View) -> anyhow::Result<()> {
         if node.type_name() == Some("Expansion") {
             anyhow::bail!(
                 "a guard constant must be fully expanded; found the unexpanded invocation \
-                 `{}` at {path} (this is a bug in `normalized`, not in the authored guard)",
+                 `{}` at {path} (this is a bug in `normalized`, not in the semantic guard)",
                 node.variant_name().unwrap_or("?"),
             );
         }
@@ -136,7 +136,7 @@ pub fn ensure_ground(term: &View) -> anyhow::Result<()> {
 /// A `MacroSet` that knows deckmaste's RON dialect and its bare-numeral
 /// literal positions, but **no plugin macros**.
 ///
-/// Enough for a guard spelled as a plain authoring constructor (`You`, `This`,
+/// Enough for a guard spelled as a plain semantic constructor (`You`, `This`,
 /// `Range(Some(1), Some(1))`), and nothing more: it cannot read the readable
 /// sugar the frame catalog prefers (`Exactly(1)` is a `Quantity` *macro*, and
 /// `Quantity` itself has only `Range` and `Expanded`). So this is a fixture
@@ -147,8 +147,8 @@ pub fn ensure_ground(term: &View) -> anyhow::Result<()> {
 #[must_use]
 pub fn core_reader() -> &'static MacroSet {
     static READER: LazyLock<MacroSet> = LazyLock::new(|| {
-        MacroSet::new(deckmaste_authoring::ron::kinds())
-            .with_options(deckmaste_authoring::ron::raw_options())
+        MacroSet::new(deckmaste_semantics::ron::kinds())
+            .with_options(deckmaste_semantics::ron::raw_options())
     });
     &READER
 }
@@ -174,7 +174,7 @@ fn read_normalized<T: DeserializeOwned + Expand + Serialize>(
 /// a name missing here surfaces as a clear "has no RON reader" error rather
 /// than as a wrong answer.
 fn reader(param_type: &str) -> Option<Reader> {
-    use deckmaste_authoring as dc;
+    use deckmaste_semantics as dc;
     macro_rules! table {
         ($($name:literal => $type:ty),* $(,)?) => {
             match param_type {
@@ -234,7 +234,7 @@ mod tests {
         let long = normalize_source(core, "Quantity", "Range(Some(1), Some(1))").unwrap();
         // `Quantity::one()` is the same value a card-side argument would
         // carry; it goes through `normalized`, the identical function.
-        let from_value = normalized(deckmaste_authoring::Quantity::one());
+        let from_value = normalized(deckmaste_semantics::Quantity::one());
         assert_eq!(long, from_value);
     }
 
@@ -243,8 +243,8 @@ mod tests {
     /// provenance cannot make an otherwise-equal argument miss its guard.
     #[test]
     fn remembered_provenance_does_not_survive_normalization() {
-        use deckmaste_authoring::Count;
-        use deckmaste_authoring::Quantity;
+        use deckmaste_semantics::Count;
+        use deckmaste_semantics::Quantity;
         let plain = Quantity::Range(Some(Count::Literal(1)), Some(Count::Literal(1)));
         let remembered = Quantity::Expanded(macro_ron::Expansion {
             name: "Exactly".into(),
@@ -296,19 +296,19 @@ mod tests {
             assert!(text.contains("must be ground"), "{text}");
         }
         // And a genuinely ground term passes.
-        ensure_ground(&normalized(deckmaste_authoring::Reference::You)).unwrap();
+        ensure_ground(&normalized(deckmaste_semantics::Reference::You)).unwrap();
     }
 
     /// The other half of the invariant: a value that was *not* run through
     /// `expand_all` is refused rather than stored as if it were canonical.
     #[test]
     fn ensure_ground_rejects_an_unexpanded_term() {
-        let unexpanded = view::of(&deckmaste_authoring::Quantity::Expanded(
+        let unexpanded = view::of(&deckmaste_semantics::Quantity::Expanded(
             macro_ron::Expansion {
                 name: "Exactly".into(),
                 args: macro_ron::ExpansionArgs::Positional(vec!["1".into()]),
                 template: None,
-                value: Box::new(deckmaste_authoring::Quantity::one()),
+                value: Box::new(deckmaste_semantics::Quantity::one()),
             },
         ));
         let error = ensure_ground(&unexpanded).unwrap_err();

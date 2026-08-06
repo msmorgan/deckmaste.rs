@@ -1,10 +1,10 @@
-//! `stat_value` — authored grammar to engine AST.
+//! `stat_value` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::StatValue {
+impl Lower for deckmaste_semantics::StatValue {
     type Target = deckmaste_core::StatValue;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -32,7 +32,7 @@ mod tests {
     #[test]
     fn lowers_stat_value_defined_by_ability() {
         assert_matches!(
-            deckmaste_authoring::StatValue::DefinedByAbility.lower(),
+            deckmaste_semantics::StatValue::DefinedByAbility.lower(),
             deckmaste_core::StatValue::DefinedByAbility
         );
     }
@@ -40,7 +40,7 @@ mod tests {
     #[test]
     fn lowers_stat_value_variable() {
         assert_matches!(
-            deckmaste_authoring::StatValue::Variable.lower(),
+            deckmaste_semantics::StatValue::Variable.lower(),
             deckmaste_core::StatValue::Variable
         );
     }
@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn lowers_stat_value_number() {
         assert_matches!(
-            deckmaste_authoring::StatValue::Number(0).lower(),
+            deckmaste_semantics::StatValue::Number(0).lower(),
             deckmaste_core::StatValue::Number(0)
         );
     }
@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn lowers_stat_value_count() {
         assert_matches!(
-            deckmaste_authoring::StatValue::Count(minimal_count()).lower(),
+            deckmaste_semantics::StatValue::Count(minimal_count()).lower(),
             deckmaste_core::StatValue::Count(deckmaste_core::Count::X)
         );
     }

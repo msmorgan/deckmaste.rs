@@ -9,11 +9,11 @@ workspace = true
 
 [dependencies]
 anyhow = { version = "1.0.102" }
-# The renderer reads AUTHORED terms: they keep their `Expanded` invocation
+# The renderer reads SEMANTIC terms: they keep their `Expanded` invocation
 # provenance, and so keep the rules-text templates that produce good prose.
 # Lowered core is a compiled artifact and carries none
-# (docs/decisions/authoring-spelling-lowering.md §12).
-deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
+# (docs/decisions/semantics-spelling-lowering.md §12).
+deckmaste_semantics = { version = "0.1.0", path = "../deckmaste_semantics" }
 # The fidelity harness walks a loaded corpus; it needs the loader, not a second
 # grammar. `deckmaste_core` arrives transitively through this and only through
 # this — there is deliberately no direct dependency on it.

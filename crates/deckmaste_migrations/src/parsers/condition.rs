@@ -59,7 +59,7 @@ pub(crate) const SUBJECT_WORDS: &[(&str, &str)] = &[
 /// object description ([`filter::parse_phrase`] — "an artifact", "a Human", "a
 /// black creature"), or, when there's no head noun, a bare adjective/state
 /// word this composition already has vocabulary for: a color, "legendary"
-/// ([`deckmaste_authoring::Supertype::Legendary`]), or the
+/// ([`deckmaste_semantics::Supertype::Legendary`]), or the
 /// "attacking"/"blocking"/"tapped"/"untapped" combat/tap-state words.
 fn slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
     match ty {

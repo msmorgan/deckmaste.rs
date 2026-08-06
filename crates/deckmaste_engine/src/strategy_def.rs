@@ -1,4 +1,4 @@
-//! Data-driven play strategies: an authored RON play policy expressed over
+//! Data-driven play strategies: a semantic RON play policy expressed over
 //! core's own expression vocabulary.
 //!
 //! A strategy is RON *data*, not a macro (the macro language has no control

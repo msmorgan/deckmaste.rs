@@ -4,14 +4,14 @@ needs: []
 **Idris `distinctOk` only proves `i < total`: thread the current slot
 position through and prove `i < current`, rejecting self-reference and
 enforcing the canonical later-slot direction.** Design context:
-`docs/decisions/authoring-spelling-lowering.md`
+`docs/decisions/semantics-spelling-lowering.md`
 (§7). Found by the 2026-08-02 codex consultation; the Rust engine already
 rejects self and out-of-range sibling references — the mirror lags it.
 
 ## Scope
 
-- `distinctOk` (or successor on the authoring mirror, once
-  `idris-mirror-authoring` lands) receives the slot's own position; prove
+- `distinctOk` (or successor on the semantics mirror, once
+  `idris-mirror-semantics` lands) receives the slot's own position; prove
   every sibling index strictly earlier.
 - **Generalization note (2026-08-02)**: the settled ultimate core encoding
   replaces the dedicated `Distinct` constructor with predicate-embedded

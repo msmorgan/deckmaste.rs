@@ -1,9 +1,9 @@
 ---
 needs: []
 ---
-**The spelling engine's requirement bundle from the authoring program —
+**The spelling engine's requirement bundle from the semantics program —
 the interface the english effort's rounds implement.** Design:
-`docs/decisions/authoring-spelling-lowering.md`
+`docs/decisions/semantics-spelling-lowering.md`
 (§8). Requirements, not implementation; the english effort owns the how
 and the round decomposition.
 

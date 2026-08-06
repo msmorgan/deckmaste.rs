@@ -12,7 +12,7 @@ amounts), `:930` (per-card draw), `:1483` (batch size), `:1486` (coin flips),
 `:1489` (dice). It is not frame state at all.
 
 Consequence: a card fixing two magnitudes ("you gain 2 life … deal X damage …
-prevent that much") reads whichever apply landed last, not the authored antecedent;
+prevent that much") reads whichever apply landed last, not the semantic antecedent;
 an `Each` over players followed by a "that much" read sees only the final element's
 amount.
 
@@ -25,5 +25,5 @@ trigger-seeded path (`TriggerBindings.that_much`) is already correctly channeled
 only the intra-resolution register is global. See
 [Effect atom independence](../../decisions/effect-atom-independence.md).
 
-Verify: engine tests; a two-magnitude fixture reads the authored antecedent, not
+Verify: engine tests; a two-magnitude fixture reads the semantic antecedent, not
 the last apply; an `Each`-over-players + "that much" reads the per-element amount.

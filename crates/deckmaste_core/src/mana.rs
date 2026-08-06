@@ -55,7 +55,7 @@ pub enum ManaSpec {
     /// still a single mana ability, not a [CR#700.2] modal choice.
     OneOfRuns(Arc<[Vec<ColorOrColorless>]>),
     /// One mana of any of a referenced object's colors ([CR#105.2]) — the
-    /// producer picks AMONG that object's colors, not a fixed authored set
+    /// producer picks AMONG that object's colors, not a fixed semantic set
     /// (distinct from [`OneOf`](ManaSpec::OneOf)): Chrome Mox's imprint,
     /// "add one mana of any of the exiled card's colors". Mirrors the Idris
     /// `ProducedMana.AmongColorsOf`.
@@ -67,7 +67,7 @@ pub enum ManaSpec {
     /// [`TapForMana`](crate::EventFilter::TapForMana)-triggered body, the
     /// `EventObject`/`EventAmount` pattern) via an ERASED auto-proof; Rust
     /// has no dependent types to carry that obligation, so this mirrors as
-    /// a plain nullary variant — an authoring mistake that reaches for it
+    /// a plain nullary variant — a semantic-input error that reaches for it
     /// outside a `TapForMana` body simply fails `idris-check` (the
     /// soundness gate), and the engine fizzles gracefully if ever evaluated
     /// without a live `TapForMana` context (see

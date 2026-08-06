@@ -4,7 +4,7 @@ needs: [macro-author-surface]
 **Registration-time collision diagnostic: a macro whose name equals a
 variant of any kind it registers under is an ERROR, killing the
 silent-dead-macro footgun.** Design:
-`docs/decisions/authoring-spelling-lowering.md`
+`docs/decisions/semantics-spelling-lowering.md`
 (§6). **Resequenced (2026-08-02):** the early-landing option is
 withdrawn — once the fork landed, the dispatch machinery this checks was
 moving underneath it (fork duplication, then the `macro-author-surface`
@@ -28,7 +28,7 @@ the settled Stage-2 surface.
   predicate).
 - Retire the comment-enforced naming rule on the `DrawCard` variant in
   `action.rs` (rewrite the comment to point at this diagnostic — in
-  whichever copies survive at claim time; the authoring fork is the live
+  whichever copies survive at claim time; the semantics fork is the live
   dispatch surface).
 - Explicit test for a flattened-name collision.
 

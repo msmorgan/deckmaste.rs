@@ -1,8 +1,8 @@
 //! Ability subterm enumeration.
 //!
 //! Provenance recovery is value-keyed: a core ability is looked up by its own
-//! value to find the authored term it compiled from. That only works if every
-//! authored ability the engine can put on an object was indexed, including the
+//! value to find the semantic term it compiled from. That only works if every
+//! semantic ability the engine can put on an object was indexed, including the
 //! ones buried inside other abilities — a layer-6 `GainAbility` payload
 //! ([CR#613.1f]) is pushed onto an object as a verbatim clone, so it must be a
 //! key in its own right.

@@ -1660,7 +1660,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
 ///   graveyard to the battlefield.` -> self-reanimation, no target (`Move(This,
 ///   Battlefield)`).
 ///
-/// No [`EnterRider`](deckmaste_authoring::EnterRider) is emitted: a "your
+/// No [`EnterRider`](deckmaste_semantics::EnterRider) is emitted: a "your
 /// graveyard" subject is already owned by the resolving player, and the
 /// engine derives battlefield-entry control from the object's stored
 /// `controller` field, which is forced to the owner while off the
@@ -1963,7 +1963,7 @@ fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
 /// Bounce-to-library productions (the library twin of
 /// [`parse_return_to_hand`]) — every arm emits the `Move(_, Library(anchor))`
 /// primitive with a MANDATORY anchor (a bare `Library` destination is
-/// rejected by the grammar; see [`deckmaste_authoring::Destination`]):
+/// rejected by the grammar; see [`deckmaste_semantics::Destination`]):
 /// - `Put ~ on top of its owner's library.` / `Put ~ on the bottom of its
 ///   owner's library.` -> a self-bounce (`Move(This, Library(FromTop(0)))` /
 ///   `Move(This, Library(FromBottom(0)))`), no target — the effect body of
@@ -2041,8 +2041,8 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
 }
 
 /// `Tap target <subject>.` / `Untap target <subject>.` -> the
-/// [`Tap`](deckmaste_authoring::Action::Tap) /
-/// [`Untap`](deckmaste_authoring::Action::Untap) verbs ([CR#701.26a..701.26b])
+/// [`Tap`](deckmaste_semantics::Action::Tap) /
+/// [`Untap`](deckmaste_semantics::Action::Untap) verbs ([CR#701.26a..701.26b])
 /// over a single target. The subject is parsed by [`object_target_filter`].
 /// Riders ("It doesn't untap …", "It gets …") leave trailing text past the
 /// period-terminated single sentence, so they decline cleanly here (each is a
@@ -2457,10 +2457,10 @@ fn parse_create_predefined_token(line: &str) -> Option<ParsedEffect> {
     // "<count-word> <Name>" — a literal count word then the predefined name.
     let (count_word, name) = descriptor.split_once(' ')?;
     let count = number_word(count_word)?;
-    // Only a name the authored `Named(...)` position admits may be emitted;
+    // Only a name the semantic `Named(...)` position admits may be emitted;
     // anything else (an unbuilt predefined token, a typo, a "tapped …" modifier
     // left in `name`) declines cleanly.
-    deckmaste_authoring::PredefinedToken::from_name(name)?;
+    deckmaste_semantics::PredefinedToken::from_name(name)?;
     Some(ParsedEffect {
         functional_zone: None,
         targets: Vec::new(),
@@ -3153,7 +3153,7 @@ mod tests {
     }
 
     /// The emitted invocations READ back through the builtin macros, at the
-    /// AUTHORING grammar the emitted card file is read at: the
+    /// SEMANTICS grammar the emitted card file is read at: the
     /// declarative-subject keyword-action macros expand to their
     /// `Composite` (`Mills(It, 2)` → `Composite(Mill(It, 2), …)`), remembered
     /// with their template so the render side prints the verb phrase back — the
@@ -3164,8 +3164,8 @@ mod tests {
     fn declarative_subject_emissions_read_back() {
         use std::path::Path;
 
-        use deckmaste_authoring::Action;
-        use deckmaste_authoring::OneShotEffect;
+        use deckmaste_semantics::Action;
+        use deckmaste_semantics::OneShotEffect;
 
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let plugin = deckmaste_plugin::plugin::Plugin::load(plugins.join("builtin")).unwrap();

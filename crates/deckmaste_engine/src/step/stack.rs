@@ -29,7 +29,7 @@ impl EventApply for Copied {
         let controller = self.controller;
         let Some(entry) = g.stack.iter().find(|e| e.id == original).cloned() else {
             // The original vanished before this applied — fizzle
-            // (authoring mistakes never crash the engine).
+            // (semantic-input errors never crash the engine).
             return None;
         };
         let source = match &entry.object {
@@ -43,9 +43,9 @@ impl EventApply for Copied {
                 // only and may be "possibly gone, possibly changed"
                 // (`StackObject::Activated` doc) — a zone change
                 // removes it from the store ([CR#400.7]). A stale id
-                // here is an authoring-adjacent runtime state, not a
-                // reason to crash: fizzle (the Invalid authoring fizzles
-                // decision, `docs/decisions/invalid-authoring-fizzles.md`).
+                // here is a semantic-input-adjacent runtime state, not a
+                // reason to crash: fizzle (the Invalid semantic input fizzles
+                // decision, `docs/decisions/invalid-semantic-input-fizzles.md`).
                 g.objects.get(*source)?.source
             }
         };

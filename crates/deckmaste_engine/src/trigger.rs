@@ -2186,13 +2186,13 @@ mod tests {
     fn destroyed_matches_destroy_caused_death() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        // Parsed through the AUTHORED path (`authoring::EventFilter` →
+        // Parsed through the SEMANTICS path (`semantics::EventFilter` →
         // `lower()`), the path production now takes.
-        let authored: deckmaste_authoring::EventFilter = canon()
+        let semantic: deckmaste_semantics::EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
-        let pattern: EventFilter = deckmaste_lowering::Lower::lower(authored);
+        let pattern: EventFilter = deckmaste_lowering::Lower::lower(semantic);
         let event = zone_changed_with_cause(
             &state,
             bear,
@@ -2212,13 +2212,13 @@ mod tests {
     fn destroyed_does_not_match_uncaused_death() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        // Parsed through the AUTHORED path (`authoring::EventFilter` →
+        // Parsed through the SEMANTICS path (`semantics::EventFilter` →
         // `lower()`), the path production now takes.
-        let authored: deckmaste_authoring::EventFilter = canon()
+        let semantic: deckmaste_semantics::EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
-        let pattern: EventFilter = deckmaste_lowering::Lower::lower(authored);
+        let pattern: EventFilter = deckmaste_lowering::Lower::lower(semantic);
         let event = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
         assert!(
             !state.event_matches(&pattern, &event, watcher_source),
@@ -2232,13 +2232,13 @@ mod tests {
     fn destroyed_does_not_match_sacrifice() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        // Parsed through the AUTHORED path (`authoring::EventFilter` →
+        // Parsed through the SEMANTICS path (`semantics::EventFilter` →
         // `lower()`), the path production now takes.
-        let authored: deckmaste_authoring::EventFilter = canon()
+        let semantic: deckmaste_semantics::EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
-        let pattern: EventFilter = deckmaste_lowering::Lower::lower(authored);
+        let pattern: EventFilter = deckmaste_lowering::Lower::lower(semantic);
         let event = zone_changed_with_cause(
             &state,
             bear,

@@ -316,10 +316,10 @@ impl GameState {
                 if self.objects.get(object).is_none() {
                     vec![]
                 } else {
-                    // Fail CLOSED: an authored subset-look (`to: Some(..)`)
+                    // Fail CLOSED: a semantic subset-look (`to: Some(..)`)
                     // whose player doesn't resolve fizzles the reveal — it
                     // must NOT widen into the `to: None` "revealed to all
-                    // players" form (bad authoring fizzles; a private look
+                    // players" form (invalid semantic input fizzles; a private look
                     // never silently goes public).
                     let to = match to {
                         None => None,
@@ -369,7 +369,7 @@ impl GameState {
             }
             // [CR#707.10]: put a copy of `spec` onto the stack — the APPLY
             // mints it (needs &mut). A reference that doesn't resolve to a
-            // live stack entry fizzles (authoring mistakes never crash).
+            // live stack entry fizzles (semantic-input errors never crash).
             // `retarget`/`CopySource::SelfCard` semantics are unwired this
             // task (T7) — only the `AsIs` + `CopySource::Object` shape that
             // was previously spellable is live; anything else fizzles as a
@@ -421,7 +421,7 @@ impl GameState {
             // reaches this arm was already gated on `can_cast_as_effect` (the
             // effect grants the permission, [CR#608.2g]), so a live castable
             // referent is expected; a reference that no longer resolves to a
-            // castable object fizzles (authoring mistakes never crash).
+            // castable object fizzles (semantic-input errors never crash).
             Action::Cast(agent, what, for_cost) => {
                 let actor = self.acting_player(agent, frame);
                 let object = self.eval_reference(what, frame);
@@ -443,7 +443,7 @@ impl GameState {
             // re-checks `of` is still on the stack — it may leave between
             // this resolving and the work item running). This arm only
             // resolves the two references; an unresolvable `by` (not a
-            // player) fizzles — authoring mistakes never crash the engine.
+            // player) fizzles — semantic-input errors never crash the engine.
             //
             // `mode` is the [CR#115.7a..115.7c] three-way discriminant PLUS
             // `ChooseNew` ([CR#115.7d]), distinguished by PRINTED WORDING
@@ -552,7 +552,7 @@ impl GameState {
                         GameEvent::CounterPlaced(CounterPlaced {
                             object,
                             // The event carries the resolved Ident name (engine
-                            // state is Ident-keyed); the authored ref is a `CounterRef`.
+                            // state is Ident-keyed); the semantic ref is a `CounterRef`.
                             kind: kind.0,
                             amount: n,
                             // Apply-computed totals ([CR#714.2b]).
@@ -684,7 +684,7 @@ impl GameState {
                         // object has no colors to choose among — never a
                         // panic, never a fabricated fallback color: no
                         // production at all ([CR#105.2] presupposes ≥1
-                        // color; an authoring/zone-changed mismatch fizzles
+                        // color; a semantic/zone-changed mismatch fizzles
                         // like any other stale reference).
                         if options.is_empty() {
                             vec![]
@@ -720,7 +720,7 @@ impl GameState {
                 // `crate::copy::has_unbuilt_enter_rider`. (The dedicated
                 // token-copy spelling is `TokenSpec::Copy` below, already
                 // fully wired; an `AsCopy` rider alongside it would be a
-                // redundant, never-crash-safe authoring.)
+                // redundant, never-crash-safe semantic input.)
                 if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
                         "core-action-riders-cost-modes seam: token enter riders \
@@ -1861,12 +1861,12 @@ mod tests {
             .find(|&&id| id != src)
             .expect("the creature token to populate");
 
-        // Drive the ACTUAL macro expansion, through the AUTHORED path
-        // (`authoring::OneShotEffect` → `lower()`), the path production now
+        // Drive the ACTUAL macro expansion, through the SEMANTICS path
+        // (`semantics::OneShotEffect` → `lower()`), the path production now
         // takes.
-        let authored: deckmaste_authoring::OneShotEffect =
+        let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Populate").unwrap();
-        let populate: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
+        let populate: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
         state.run_effect(populate, &frame_src(src));
 
         // The `With(ChooseOne(...))` surfaces the pick.
@@ -1961,12 +1961,12 @@ mod tests {
         );
 
         // Drive the ACTUAL macro expansion: amass Zombies 2 (the subtype is a
-        // declared `Subtype` param, spelled bare) — through the AUTHORED path
-        // (`authoring::OneShotEffect` → `lower()`), the path production now
+        // declared `Subtype` param, spelled bare) — through the SEMANTICS path
+        // (`semantics::OneShotEffect` → `lower()`), the path production now
         // takes.
-        let authored: deckmaste_authoring::OneShotEffect =
+        let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Amass(Zombie, 2)").unwrap();
-        let amass: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
+        let amass: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
         state.run_effect(amass, &frame_src(src));
 
         // Step 1's guard (`Not(Exists(Army creature you control))`) is FALSE —

@@ -1,10 +1,10 @@
-//! `conferral_rule` — authored grammar to engine AST.
+//! `conferral_rule` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::ConferralRule {
+impl Lower for deckmaste_semantics::ConferralRule {
     type Target = deckmaste_core::ConferralRule;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::ConferralRule {
@@ -30,7 +30,7 @@ mod tests {
     #[test]
     fn lowers_conferral_rule() {
         assert_matches!(
-            deckmaste_authoring::ConferralRule {
+            deckmaste_semantics::ConferralRule {
                 scope: minimal_predicate(),
                 confer: minimal_property()
             }

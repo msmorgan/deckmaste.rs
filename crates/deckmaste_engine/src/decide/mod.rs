@@ -633,7 +633,7 @@ impl GameState {
     /// records none. (The keyword-action discard's per-card events now come
     /// from the SAME bound single-move construction the macro-driven
     /// `With`+`Choose`/`Random` lane recurses into — this helper is
-    /// cleanup's own, [CR#514.1], not authored card data.)
+    /// cleanup's own, [CR#514.1], not semantic card data.)
     pub(crate) fn schedule_discard_acts(&mut self, player: PlayerId, objects: Vec<ObjectId>) {
         if objects.is_empty() {
             return;

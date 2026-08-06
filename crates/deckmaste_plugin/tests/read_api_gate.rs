@@ -1,6 +1,6 @@
 //! Spec §4: ONE restricted read API. A typed card or token may be read only
 //! through `Plugin::card`/`token`/`card_from_str`/`token_from_str`, because
-//! that is where the authored term is retained and where `lower` is called —
+//! that is where the semantic term is retained and where `lower` is called —
 //! the single point at which provenance will later be erased.
 //!
 //! MECHANICAL, like `no_dead_grammar.rs`: it PARSES the workspace source with
@@ -83,7 +83,7 @@ const ALLOWED: &[&str] = &[
 ];
 
 /// The container types whose reads are restricted. Matched on the LAST path
-/// segment, so `deckmaste_card::Card`, `deckmaste_authoring::Card`, and a bare
+/// segment, so `deckmaste_card::Card`, `deckmaste_semantics::Card`, and a bare
 /// `Card` all count.
 const RESTRICTED: &[&str] = &["Card", "CardFace", "Token"];
 

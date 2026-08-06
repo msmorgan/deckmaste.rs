@@ -1,10 +1,10 @@
-//! `card` — authored grammar to engine AST.
+//! `card` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::CardFace {
+impl Lower for deckmaste_semantics::CardFace {
     type Target = deckmaste_card::CardFace;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_card::CardFace {
@@ -23,7 +23,7 @@ impl Lower for deckmaste_authoring::CardFace {
     }
 }
 
-impl Lower for deckmaste_authoring::FaceLayout {
+impl Lower for deckmaste_semantics::FaceLayout {
     type Target = deckmaste_card::FaceLayout;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -36,7 +36,7 @@ impl Lower for deckmaste_authoring::FaceLayout {
     }
 }
 
-impl Lower for deckmaste_authoring::Card {
+impl Lower for deckmaste_semantics::Card {
     type Target = deckmaste_card::Card;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -70,10 +70,10 @@ mod tests {
     #[test]
     fn lowers_card_face() {
         assert_matches!(
-            deckmaste_authoring::CardFace {
+            deckmaste_semantics::CardFace {
                 name: "x".into(),
-                mana_cost: deckmaste_authoring::ManaCost::from(std::sync::Arc::<
-                    [deckmaste_authoring::ManaSymbol],
+                mana_cost: deckmaste_semantics::ManaCost::from(std::sync::Arc::<
+                    [deckmaste_semantics::ManaSymbol],
                 >::from([])),
                 color_indicator: Vec::new(),
                 supertypes: Vec::new(),
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn lowers_face_layout_transforming() {
         assert_matches!(
-            deckmaste_authoring::FaceLayout::Transforming.lower(),
+            deckmaste_semantics::FaceLayout::Transforming.lower(),
             deckmaste_card::FaceLayout::Transforming
         );
     }
@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn lowers_face_layout_modal_dfc() {
         assert_matches!(
-            deckmaste_authoring::FaceLayout::ModalDfc.lower(),
+            deckmaste_semantics::FaceLayout::ModalDfc.lower(),
             deckmaste_card::FaceLayout::ModalDfc
         );
     }
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn lowers_face_layout_split() {
         assert_matches!(
-            deckmaste_authoring::FaceLayout::Split.lower(),
+            deckmaste_semantics::FaceLayout::Split.lower(),
             deckmaste_card::FaceLayout::Split
         );
     }
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn lowers_face_layout_adventure() {
         assert_matches!(
-            deckmaste_authoring::FaceLayout::Adventure.lower(),
+            deckmaste_semantics::FaceLayout::Adventure.lower(),
             deckmaste_card::FaceLayout::Adventure
         );
     }
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn lowers_face_layout_flip() {
         assert_matches!(
-            deckmaste_authoring::FaceLayout::Flip.lower(),
+            deckmaste_semantics::FaceLayout::Flip.lower(),
             deckmaste_card::FaceLayout::Flip
         );
     }
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn lowers_card_normal() {
         assert_matches!(
-            deckmaste_authoring::Card::Normal(minimal_card_face()).lower(),
+            deckmaste_semantics::Card::Normal(minimal_card_face()).lower(),
             deckmaste_card::Card::Normal(deckmaste_card::CardFace {
                 name: _,
                 mana_cost: _,
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn lowers_card_two_faced() {
         assert_matches!(
-            deckmaste_authoring::Card::TwoFaced {
+            deckmaste_semantics::Card::TwoFaced {
                 layout: minimal_face_layout(),
                 front: minimal_card_face(),
                 back: minimal_card_face()

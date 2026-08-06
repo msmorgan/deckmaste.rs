@@ -3,10 +3,10 @@ needs: [plugin-repoint]
 ---
 **Make the macro layer the only author-facing vocabulary in card/token
 containers: the parse-position ban, identity macros, and straggler
-registration — Stage 2 of the authoring program.** Design (the settled
+registration — Stage 2 of the semantics program.** Design (the settled
 record; supersedes this ticket's pre-program draft):
-`docs/decisions/authoring-spelling-lowering.md`
-(§4-§5). Lands entirely in `deckmaste_authoring`.
+`docs/decisions/semantics-spelling-lowering.md`
+(§4-§5). Lands entirely in `deckmaste_semantics`.
 
 ## Scope
 
@@ -18,7 +18,7 @@ record; supersedes this ticket's pre-program draft):
   provenance (recorded at argument capture, restored on re-read); body
   re-reads are exempt however reached. Restriction is per container:
   cards/tokens restricted; `rules/` tables and macro bodies free.
-- **Identity macros**: one def per authoring-reachable variant under the
+- **Identity macros**: one def per semantics-reachable variant under the
   variant's own name (mirror-by-default — canon re-parses byte-
   identically). Reachable = variants of registry kinds reachable from the
   restricted-container root types via fields/flatten/embed, excluding

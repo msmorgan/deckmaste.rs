@@ -9,6 +9,6 @@ workspace = true
 
 [dependencies]
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
-# No `macro_ron`: cards are read as authored terms by `deckmaste_authoring` and
+# No `macro_ron`: cards are read as semantic terms by `deckmaste_semantics` and
 # lowered here, so nothing reads THIS `Card` through a macro set any more.
 serde = { version = "1.0.228", features = ["derive", "rc"] }

@@ -1,16 +1,16 @@
 ---
 needs: [plugin-repoint]
 ---
-**Reattach the Idris mirror to the authoring kernel: the gate certifies
-what authors wrote, not the compiler's output.** Design:
-`docs/decisions/authoring-spelling-lowering.md` (§10). The mirror's real
-obligations are author-mistake proofs — unbound-anaphor soundness (the
+**Reattach the Idris mirror to the semantics kernel: the gate certifies
+semantic input, not the compiler's output.** Design:
+`docs/decisions/semantics-spelling-lowering.md` (§10). The mirror's real
+obligations are semantic-input proofs — unbound-anaphor soundness (the
 R1/R2 gates), target-read range and cardinality, `Distinct` range
 checking — so the mirror follows its purpose.
 
 ## Scope
 
-- The mirror models the authoring kernel (spec §10): the post-expansion,
+- The mirror models the semantics kernel (spec §10): the post-expansion,
   post-desugar normal-form value universe of the emitted families —
   containers + grammar as emitted today; strategy, MacroDef machinery,
   and frames data excluded. The reattachment is CONTENT-preserving, not
@@ -19,14 +19,14 @@ checking — so the mirror follows its purpose.
   emitter-bridged arity differences — `idris-mirror-enum-gaps`'s
   inventory) is untouched, neither fixed nor worsened. Rename the Idris
   module per the naming principle and repoint the emitter to walk
-  authored terms (the emitter drops its dependency on lowering —
-  normalization is authoring-side, spec §9).
+  semantic terms (the emitter drops its dependency on lowering —
+  normalization is semantics-side, spec §9).
 - **Phantom obligation, resolve one way or the other**: the
   riders-battlefield-only rule exists ONLY as prose on `EnterRider` in
   `action.rs` ("rejected by the Idris re-emit gate" — verified false: no
   such proof exists, and the emitter passes rider shapes through or gaps
   on them without destination checks). Either mint the real destination
-  proof on the authored mirror, or correct the prose to say the rule is
+  proof on the semantic mirror, or correct the prose to say the rule is
   unenforced — do not leave the false claim standing.
 - `deckmaste_core` carries no Idris obligations afterward (thin-mirror
   escape hatch recorded in the spec if an engine-side dependent invariant

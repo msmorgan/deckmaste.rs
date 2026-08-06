@@ -1,27 +1,27 @@
 //! Shared noun-phrase / count fragment renderers.
 
-use deckmaste_authoring::AggregateOp;
-use deckmaste_authoring::Anchor;
-use deckmaste_authoring::Characteristic;
-use deckmaste_authoring::CharacteristicPredicate;
-use deckmaste_authoring::Color;
-use deckmaste_authoring::Count;
-use deckmaste_authoring::Countable;
-use deckmaste_authoring::ObjectKind;
-use deckmaste_authoring::PlayerAttr;
-use deckmaste_authoring::Predicate;
-use deckmaste_authoring::Projection;
-use deckmaste_authoring::Quantity;
-use deckmaste_authoring::Reference;
-use deckmaste_authoring::RelationPredicate;
-use deckmaste_authoring::RoundMode;
-use deckmaste_authoring::Selection;
-use deckmaste_authoring::Stat;
-use deckmaste_authoring::StatePredicate;
-use deckmaste_authoring::Status;
-use deckmaste_authoring::SymbolPred;
-use deckmaste_authoring::TargetSpec;
-use deckmaste_authoring::Zone;
+use deckmaste_semantics::AggregateOp;
+use deckmaste_semantics::Anchor;
+use deckmaste_semantics::Characteristic;
+use deckmaste_semantics::CharacteristicPredicate;
+use deckmaste_semantics::Color;
+use deckmaste_semantics::Count;
+use deckmaste_semantics::Countable;
+use deckmaste_semantics::ObjectKind;
+use deckmaste_semantics::PlayerAttr;
+use deckmaste_semantics::Predicate;
+use deckmaste_semantics::Projection;
+use deckmaste_semantics::Quantity;
+use deckmaste_semantics::Reference;
+use deckmaste_semantics::RelationPredicate;
+use deckmaste_semantics::RoundMode;
+use deckmaste_semantics::Selection;
+use deckmaste_semantics::Stat;
+use deckmaste_semantics::StatePredicate;
+use deckmaste_semantics::Status;
+use deckmaste_semantics::SymbolPred;
+use deckmaste_semantics::TargetSpec;
+use deckmaste_semantics::Zone;
 
 use super::Ctx;
 
@@ -328,7 +328,7 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
         }
         // [CR#107.1] the extremal element: "the creature with the greatest
         // power". The projection's axis is named when it is a simple stat
-        // read. A non-extremal `op` is malformed authoring (fizzles at
+        // read. A non-extremal `op` is malformed semantic input (fizzles at
         // resolution) and falls through to the generic `[unrendered: …]`; a
         // `ManaSymbols`-sourced `of` has no forced card yet.
         Selection::Pick { op, proj } => {
@@ -472,7 +472,7 @@ fn target_rementioned(i: usize, ctx: &Ctx) -> String {
 /// (`None`) — the caller falls back to structural rendering, never a wrong
 /// pronoun.
 pub(super) fn reference_pronoun(raw: &str, ctx: &Ctx) -> Option<String> {
-    let opts = deckmaste_authoring::ron::options();
+    let opts = deckmaste_semantics::ron::options();
     if let Ok(r) = opts.from_str::<Reference>(raw) {
         return reference_object_pronoun(&r, ctx);
     }
@@ -1078,7 +1078,7 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
 /// Recursively search a stripped filter for a `Characteristic(Type(t))`.
 /// Used to find the type name inside a macro-expanded Creature/Land/etc.
 /// filter.
-pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_authoring::Ident> {
+pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_semantics::Ident> {
     match strip_expanded(f) {
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => Some(t.name()),
         Predicate::And(vs) => vs.iter().find_map(find_card_type),
@@ -1433,8 +1433,8 @@ mod tests {
     /// initial casing is the filler's job.
     #[test]
     fn reference_pronoun_is_number_aware() {
-        use deckmaste_authoring::Quantity;
-        use deckmaste_authoring::TargetSpec;
+        use deckmaste_semantics::Quantity;
+        use deckmaste_semantics::TargetSpec;
 
         let creature = [TargetSpec::Target(Quantity::one(), Predicate::creature())];
         let c = Ctx {
@@ -1517,7 +1517,7 @@ mod tests {
         let goblin_piledriver = Predicate::And(
             vec![
                 Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                    deckmaste_authoring::SubtypeRef::named("Goblin".into()),
+                    deckmaste_semantics::SubtypeRef::named("Goblin".into()),
                 )),
                 Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
                 Predicate::State(StatePredicate::Attacking),
@@ -1671,7 +1671,7 @@ mod tests {
     fn filter_subject_renders_teammate_controller_phrase() {
         let f = Predicate::And(
             vec![
-                Predicate::r#type(deckmaste_authoring::Type::Creature),
+                Predicate::r#type(deckmaste_semantics::Type::Creature),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
                     Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
                         Reference::You,
@@ -1752,7 +1752,7 @@ mod tests {
                 of: Countable::Objects(Arc::new(Predicate::And(
                     vec![
                         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                        Predicate::r#type(deckmaste_authoring::Type::Creature),
+                        Predicate::r#type(deckmaste_semantics::Type::Creature),
                     ]
                     .into(),
                 ))),
@@ -1774,7 +1774,7 @@ mod tests {
     /// total among all players" — Arbiter of Knollridge's own shape.
     #[test]
     fn count_renders_highest_life_total_among_all_players() {
-        use deckmaste_authoring::PlayerAttr;
+        use deckmaste_semantics::PlayerAttr;
 
         let highest_life = Count::Aggregate(
             AggregateOp::MaxOf,

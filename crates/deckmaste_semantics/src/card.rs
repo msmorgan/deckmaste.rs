@@ -72,7 +72,7 @@ pub enum FaceLayout {
 // `TwoFaced` (two full `CardFace`s) is inherently larger than `Normal` (one).
 // Boxing a face would push `Box::new` into every construction/read site and
 // complicate the RON derive for no runtime gain — a `Card` is a rarely-copied
-// authoring value, not a hot enum.
+// semantic value, not a hot enum.
 #[expect(
     clippy::large_enum_variant,
     reason = "leaf card model; boxing a face buys nothing"

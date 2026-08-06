@@ -51,7 +51,7 @@ Design questions for the dialogue:
   layers system (gather already restricts static abilities to the battlefield
   at `layer.rs` ~:315 — `[CR#611.3b]`; this proposal would move that decision
   into the data).
-- Migration of existing authored statics.
+- Migration of existing semantic statics.
 
 Needs a design dialogue before implementation (design-pause boundary).
 
@@ -71,7 +71,7 @@ static — it needs the machinery this ticket designs, plus one more primitive:
    has add-type / `AllCreatureTypes` ops but no "stop being a creature" op. Small
    addition, do it alongside.
 
-Once both exist, Reconfigure's suppression is just an authored conditional static on
+Once both exist, Reconfigure's suppression is just a semantic conditional static on
 the keyword macro: `Static(condition: Matches(Ref(This), AttachedTo(Creature)),
 effects: [Modify(of: Of(Ref(This)), changes: [RemoveCardType(Creature)])])`. The
 `#[ignore]`'d `reconfigure_suppresses_creature` test in engine-attach pins the

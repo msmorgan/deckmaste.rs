@@ -1,4 +1,4 @@
-//! The macro layer over the authored grammar: which types are macroable, and
+//! The macro layer over the semantics grammar: which types are macroable, and
 //! with what reader policy, glued onto [`macro_ron`]. Definitions live in
 //! `plugins/*/macros/**/*.ron` (paths and file names are organizational only)
 //! and are invoked by name where a value of one of their kinds is expected.
@@ -24,7 +24,7 @@ pub use macro_ron::Params;
 /// macros; and `Macro` is the loader-only position for `MacroDef` itself.
 // When adding a new macroable type, add its `T::kind()` to the shared registry
 // in [`crate::ron::kinds`] AND its name in the roster test
-// `kind_names_track_the_authoring_types` (`deckmaste_plugin::macros`), which
+// `kind_names_track_the_semantics_types` (`deckmaste_plugin::macros`), which
 // fails with no explanation of its own.
 #[must_use]
 pub fn kinds() -> KindSet {
@@ -105,7 +105,7 @@ pub fn param_types() -> ParamTypeSet {
     // call site).
     param_types.add_typed::<da::TypeDef>("TypeDef");
     param_types.add_typed::<da::Zone>("Zone");
-    // No `Preference` row: strategy RON is outside the authoring program
+    // No `Preference` row: strategy RON is outside the semantics program
     // (§3/§4), and no plugin definition declares that param.
     // A plain non-negative literal number (`PayEnergy(2)`) — distinct from the
     // `Count` enum: a fixed count with no "for each …" reading. Read as `Uint`,
@@ -114,7 +114,7 @@ pub fn param_types() -> ParamTypeSet {
     param_types
 }
 
-/// An empty [`MacroSet`] over the authoring kinds, reading deckmaste's RON
+/// An empty [`MacroSet`] over the semantics kinds, reading deckmaste's RON
 /// dialect.
 #[must_use]
 pub fn macro_set() -> MacroSet {

@@ -2,7 +2,7 @@
 needs: []
 ---
 A stat read on an object without that printed stat can panic the engine — e.g.
-a `Creature`-typed authored card with `toughness: None` hits the
+a `Creature`-typed semantic card with `toughness: None` hits the
 `StatOf(Toughness)` `.expect` in the toughness-0 SBA sweep.
 
 Ruling (2026-07-12): this violates the engine-robustness principle (authoring
@@ -12,5 +12,5 @@ condition/effect (or read a defined default — decide in design, consistent wit
 how unresolvable references no-op), never panic.
 
 While there, audit other `.expect`/`unwrap` sites on printed characteristics
-reachable from authored RON (loyalty, power, mana cost) for the same class of
+reachable from semantic RON (loyalty, power, mana cost) for the same class of
 crash.

@@ -89,7 +89,7 @@ impl GameState {
     /// slot(s) now read `Ref(It)`, so a consumer interprets `It` as the
     /// locked scope members. A subject that is not a bare object reference
     /// (a static filter like "creatures you control") locks nothing and is
-    /// left as authored — the row still exists, evaluated against live
+    /// left unchanged — the row still exists, evaluated against live
     /// objects by its (still-LOUD) reader.
     fn lock_deontic_subject(&self, deontic: &Deontic, frame: &Frame) -> (Vec<ObjectId>, Deontic) {
         let mut locked = deontic.clone();
@@ -428,7 +428,7 @@ impl GameState {
                 for child in children.iter().cloned() {
                     if let Some(parts) = for_this_event_rider(&child) {
                         let no_regen = self.resolve_no_regen_riders(parts, frame);
-                        // A rider with no preceding sibling is an authoring
+                        // A rider with no preceding sibling is a semantic-input
                         // mistake ([CR#611.2a] scopes it to a host event that
                         // isn't there): FIZZLE — drop it, never mint or panic.
                         if let Some(pos) = items
@@ -505,7 +505,7 @@ impl GameState {
                 // `Sequentially` lowering and never a standalone instance.
                 // Reaching this mint with `ForThisEvent` means a rider with no
                 // host instruction (e.g. a top-level `Until(ForThisEvent, …)`):
-                // an authoring mistake — FIZZLE (drop it), never mint a
+                // a semantic-input error — FIZZLE (drop it), never mint a
                 // forever-lasting instance or panic.
                 if !crate::state::duration_sweepable(&e.duration) {
                     return;
@@ -1603,7 +1603,7 @@ impl GameState {
     /// `that` before running its body, [CR#608.2]), so `eval_reference`
     /// reads a real value, not the unbound-`That` panic path. Only a
     /// genuinely unbound `That` (no enclosing `With` at all — malformed
-    /// authoring) is still skipped, matching the historical `None` return.
+    /// semantic input) is still skipped, matching the historical `None` return.
     pub(crate) fn cost_paid_object(
         &self,
         cost: &[deckmaste_core::CostComponent],
@@ -3178,13 +3178,13 @@ mod tests {
         // Re-home `other` to player 1 so the exchange crosses seats.
         state.objects.obj_mut(other).controller = PlayerId(1);
 
-        // Parsed through the AUTHORED path (`authoring::OneShotEffect` →
+        // Parsed through the SEMANTICS path (`semantics::OneShotEffect` →
         // `lower()`), the path production now takes.
-        let authored: deckmaste_authoring::OneShotEffect = builtin()
+        let semantic: deckmaste_semantics::OneShotEffect = builtin()
             .macros
             .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
-        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
+        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
         let frame = frame_src_targets(mine, vec![mine, other]);
         state.run_effect(effect, &frame);
 
@@ -3225,13 +3225,13 @@ mod tests {
     #[test]
     fn same_controller_exchange_does_nothing() {
         let (mut state, mine, other) = two_permanents_on_field();
-        // Parsed through the AUTHORED path (`authoring::OneShotEffect` →
+        // Parsed through the SEMANTICS path (`semantics::OneShotEffect` →
         // `lower()`), the path production now takes.
-        let authored: deckmaste_authoring::OneShotEffect = builtin()
+        let semantic: deckmaste_semantics::OneShotEffect = builtin()
             .macros
             .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
-        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
+        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
         let frame = frame_src_targets(mine, vec![mine, other]);
         state.run_effect(effect, &frame);
         assert!(
@@ -3817,7 +3817,7 @@ mod tests {
     }
 
     /// [CR#611.2a]: a `ForThisEvent` rider with NO preceding sibling is an
-    /// authoring mistake — it fizzles (dropped), never mints or panics.
+    /// semantic-input error — it fizzles (dropped), never mints or panics.
     #[test]
     fn for_this_event_rider_without_preceding_sibling_fizzles() {
         use deckmaste_core::Deontic;
@@ -5541,11 +5541,11 @@ mod tests {
         let source = explorer_on_field(&mut state);
         let land = mint_library_top(&mut state, p0, "Forest", Type::Land);
 
-        // Parsed through the AUTHORED path (`authoring::OneShotEffect` →
+        // Parsed through the SEMANTICS path (`semantics::OneShotEffect` →
         // `lower()`), the path production now takes.
-        let authored: deckmaste_authoring::OneShotEffect =
+        let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Explore").unwrap();
-        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
+        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
         state.run_effect(effect, &frame_src(source));
         let _ = drain_progress(&mut state, 80);
 
@@ -5585,11 +5585,11 @@ mod tests {
         let source = explorer_on_field(&mut state);
         let spell = mint_library_top(&mut state, p0, "Shock", Type::Instant);
 
-        // Parsed through the AUTHORED path (`authoring::OneShotEffect` →
+        // Parsed through the SEMANTICS path (`semantics::OneShotEffect` →
         // `lower()`), the path production now takes.
-        let authored: deckmaste_authoring::OneShotEffect =
+        let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Explore").unwrap();
-        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(authored);
+        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
         state.run_effect(effect, &frame_src(source));
         // Drains through the reveal + counter and STOPS at the may-to-graveyard
         // decision ([CR#701.44a]).

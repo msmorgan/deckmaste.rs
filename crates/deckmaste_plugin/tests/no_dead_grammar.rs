@@ -647,7 +647,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("EventFilter", "Shuffled"),
             "DEFERRED: no covered shuffle-triggered real card (Psychic \
-            Surgery) authored yet — the T5 exposure-row master form + FactView atom exist and \
+            Surgery) semantic yet — the T5 exposure-row master form + FactView atom exist and \
             are exercised by engine unit tests; authoring the card is optional per that round's \
             scope.",
         ),
@@ -729,7 +729,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("AggregateOp", "MinOf"),
             "DEFERRED: Count::Aggregate + SumOf + Countable::ManaSymbols are now \
-            covered by the Devotion Creature fixture, but no authored card yet spells an EXTREMAL \
+            covered by the Devotion Creature fixture, but no semantic card yet spells an EXTREMAL \
             fold or an extremal-AggregateOp Pick — MinOf/MaxOf stay deferred until one does.",
         ),
         (

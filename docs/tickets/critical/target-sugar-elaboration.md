@@ -3,16 +3,16 @@ needs: [macro-author-surface]
 ---
 **Inline target sugar and scope elaboration: the explicit indexed binder
 stays the semantic normal form; sugar is accepted input.** Design:
-`docs/decisions/authoring-spelling-lowering.md` (§7, §9). Normalization
-(desugar + elaboration, authored → authored normal form) lives in
-`deckmaste_authoring`; `deckmaste_lowering` invokes it. The elaborator is
+`docs/decisions/semantics-spelling-lowering.md` (§7, §9). Normalization
+(desugar + elaboration, semantics → semantic normal form) lives in
+`deckmaste_semantics`; `deckmaste_lowering` invokes it. The elaborator is
 the ONLY scope introducer; idiom bodies stay scope-free.
 
 ## Scope
 
 - `Target(spec)` sugar at exactly-one Reference positions; `Targets(spec)`
   at Selection positions; no type-directed overloading. Recognized by the
-  authoring reader/elaborator BEFORE ordinary macro expansion (variant-
+  semantics reader/elaborator BEFORE ordinary macro expansion (variant-
   first dispatch would otherwise consume the ident as an index read).
 - **Discriminator** (spec §7): at a Reference/Selection position,
   `Target(<numeral>)`/`Targets(<numeral>)` is an index read; any other
@@ -20,7 +20,7 @@ the ONLY scope introducer; idiom bodies stay scope-free.
   provenance text — a macro body may FORWARD sugar through a `Param` hole
   but may never introduce it.
 - **Occurrence rule** (spec §7 — no primary/secondary distinction): every
-  authored `Target(n)`/`Targets(n)` site counts, including characteristic
+  semantic `Target(n)`/`Targets(n)` site counts, including characteristic
   reads; a sugared slot is unreferenceable by construction, so the
   one-site rule is enforced syntactically. Counting is defined over the
   PRE-EXPANSION invocation AST: one caller site is one occurrence no
@@ -46,7 +46,7 @@ the ONLY scope introducer; idiom bodies stay scope-free.
   explicit-prefix edges, plus an "other"-flavored form
   (distinct-from-all-earlier announcements, oracle's "any OTHER
   target") for the fully-inline case; explicit indexed `Distinct` stays
-  the general mechanism at the authored surface — and the ULTIMATE core
+  the general mechanism at the semantic surface — and the ULTIMATE core
   encoding (owner-settled 2026-08-02) is predicate-embedded slot
   references: slot i's criteria may reference strictly-earlier slots,
   e.g. `[Target(Creature), Target(And([Not(Ref(Target(0))), Creature]))]`
@@ -73,8 +73,8 @@ the ONLY scope introducer; idiom bodies stay scope-free.
   instances, same object legal per instance); a divided-damage card
   (one plural slot, recipients forced-distinct).
 - Mixed scopes via the explicit-prefix rule (explicit slots own `0..E`;
-  inline sites append in textual order; authored indices `< E`; validator
-  rejects an authored index landing on a generated slot).
+  inline sites append in textual order; semantic indices `< E`; validator
+  rejects a semantic index landing on a generated slot).
 - Normalize to the engine's single top-level `Targeted`; hoisting stops at
   genuine announcement boundaries (modal modes, delayed triggers)
   [CR#601.2c].
@@ -90,5 +90,5 @@ Standard constraints apply. For every sugared fixture,
 list (Bolt, Terminate, Seeds of Strength, Arc Trail, Do or Die, Rabid
 Bite — including Rabid Bite's worked verdict: slot 0 explicit, slot 1 may
 inline) lands as fixtures; negative fixtures for each eligibility
-violation, for a body attempting to introduce sugar, and for an authored
+violation, for a body attempting to introduce sugar, and for a semantic
 index colliding with a generated slot.

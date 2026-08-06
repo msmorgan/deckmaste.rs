@@ -1,10 +1,10 @@
-//! `designation` — authored grammar to engine AST.
+//! `designation` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::DesignationScope {
+impl Lower for deckmaste_semantics::DesignationScope {
     type Target = deckmaste_core::DesignationScope;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -15,7 +15,7 @@ impl Lower for deckmaste_authoring::DesignationScope {
     }
 }
 
-impl Lower for deckmaste_authoring::DesignationShape {
+impl Lower for deckmaste_semantics::DesignationShape {
     type Target = deckmaste_core::DesignationShape;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -27,7 +27,7 @@ impl Lower for deckmaste_authoring::DesignationShape {
     }
 }
 
-impl Lower for deckmaste_authoring::DesignationUniqueness {
+impl Lower for deckmaste_semantics::DesignationUniqueness {
     type Target = deckmaste_core::DesignationUniqueness;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -38,7 +38,7 @@ impl Lower for deckmaste_authoring::DesignationUniqueness {
     }
 }
 
-impl Lower for deckmaste_authoring::DesignationPersistence {
+impl Lower for deckmaste_semantics::DesignationPersistence {
     type Target = deckmaste_core::DesignationPersistence;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -50,7 +50,7 @@ impl Lower for deckmaste_authoring::DesignationPersistence {
     }
 }
 
-impl Lower for deckmaste_authoring::DesignationDef {
+impl Lower for deckmaste_semantics::DesignationDef {
     type Target = deckmaste_core::DesignationDef;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -73,7 +73,7 @@ impl Lower for deckmaste_authoring::DesignationDef {
     }
 }
 
-impl Lower for deckmaste_authoring::DesignationDecl {
+impl Lower for deckmaste_semantics::DesignationDecl {
     type Target = deckmaste_core::DesignationDecl;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::DesignationDecl {
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn lowers_designation_scope_object() {
         assert_matches!(
-            deckmaste_authoring::DesignationScope::Object.lower(),
+            deckmaste_semantics::DesignationScope::Object.lower(),
             deckmaste_core::DesignationScope::Object
         );
     }
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn lowers_designation_scope_player() {
         assert_matches!(
-            deckmaste_authoring::DesignationScope::Player.lower(),
+            deckmaste_semantics::DesignationScope::Player.lower(),
             deckmaste_core::DesignationScope::Player
         );
     }
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn lowers_designation_scope_game() {
         assert_matches!(
-            deckmaste_authoring::DesignationScope::Game.lower(),
+            deckmaste_semantics::DesignationScope::Game.lower(),
             deckmaste_core::DesignationScope::Game
         );
     }
@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn lowers_designation_shape_flag() {
         assert_matches!(
-            deckmaste_authoring::DesignationShape::Flag.lower(),
+            deckmaste_semantics::DesignationShape::Flag.lower(),
             deckmaste_core::DesignationShape::Flag
         );
     }
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn lowers_designation_shape_number() {
         assert_matches!(
-            deckmaste_authoring::DesignationShape::Number.lower(),
+            deckmaste_semantics::DesignationShape::Number.lower(),
             deckmaste_core::DesignationShape::Number
         );
     }
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn lowers_designation_shape_enum() {
         assert_matches!(
-            deckmaste_authoring::DesignationShape::Enum([].into()).lower(),
+            deckmaste_semantics::DesignationShape::Enum([].into()).lower(),
             deckmaste_core::DesignationShape::Enum(_)
         );
     }
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn lowers_designation_shape_relation() {
         assert_matches!(
-            deckmaste_authoring::DesignationShape::Relation.lower(),
+            deckmaste_semantics::DesignationShape::Relation.lower(),
             deckmaste_core::DesignationShape::Relation
         );
     }
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn lowers_designation_uniqueness_none() {
         assert_matches!(
-            deckmaste_authoring::DesignationUniqueness::None.lower(),
+            deckmaste_semantics::DesignationUniqueness::None.lower(),
             deckmaste_core::DesignationUniqueness::None
         );
     }
@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn lowers_designation_uniqueness_per_player() {
         assert_matches!(
-            deckmaste_authoring::DesignationUniqueness::PerPlayer.lower(),
+            deckmaste_semantics::DesignationUniqueness::PerPlayer.lower(),
             deckmaste_core::DesignationUniqueness::PerPlayer
         );
     }
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn lowers_designation_uniqueness_per_game() {
         assert_matches!(
-            deckmaste_authoring::DesignationUniqueness::PerGame.lower(),
+            deckmaste_semantics::DesignationUniqueness::PerGame.lower(),
             deckmaste_core::DesignationUniqueness::PerGame
         );
     }
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn lowers_designation_persistence_object_lifetime() {
         assert_matches!(
-            deckmaste_authoring::DesignationPersistence::ObjectLifetime.lower(),
+            deckmaste_semantics::DesignationPersistence::ObjectLifetime.lower(),
             deckmaste_core::DesignationPersistence::ObjectLifetime
         );
     }
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn lowers_designation_persistence_until_end_of_turn() {
         assert_matches!(
-            deckmaste_authoring::DesignationPersistence::UntilEndOfTurn.lower(),
+            deckmaste_semantics::DesignationPersistence::UntilEndOfTurn.lower(),
             deckmaste_core::DesignationPersistence::UntilEndOfTurn
         );
     }
@@ -195,7 +195,7 @@ mod tests {
     #[test]
     fn lowers_designation_persistence_effect_supplied() {
         assert_matches!(
-            deckmaste_authoring::DesignationPersistence::EffectSupplied.lower(),
+            deckmaste_semantics::DesignationPersistence::EffectSupplied.lower(),
             deckmaste_core::DesignationPersistence::EffectSupplied
         );
     }
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn lowers_designation_persistence_permanently() {
         assert_matches!(
-            deckmaste_authoring::DesignationPersistence::Permanently.lower(),
+            deckmaste_semantics::DesignationPersistence::Permanently.lower(),
             deckmaste_core::DesignationPersistence::Permanently
         );
     }
@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn lowers_designation_def_stored() {
         assert_matches!(
-            deckmaste_authoring::DesignationDef::Stored {
+            deckmaste_semantics::DesignationDef::Stored {
                 scope: minimal_designation_scope(),
                 shape: minimal_designation_shape(),
                 uniqueness: minimal_designation_uniqueness(),
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn lowers_designation_def_derived() {
         assert_matches!(
-            deckmaste_authoring::DesignationDef::Derived(minimal_predicate()).lower(),
+            deckmaste_semantics::DesignationDef::Derived(minimal_predicate()).lower(),
             deckmaste_core::DesignationDef::Derived(deckmaste_core::Predicate::Kind(
                 deckmaste_core::ObjectKind::Ability
             ))
@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn lowers_designation_def_derived_if() {
         assert_matches!(
-            deckmaste_authoring::DesignationDef::DerivedIf(
+            deckmaste_semantics::DesignationDef::DerivedIf(
                 std::sync::Arc::new(minimal_condition())
             )
             .lower(),
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn lowers_designation_decl() {
         assert_matches!(
-            deckmaste_authoring::DesignationDecl {
+            deckmaste_semantics::DesignationDecl {
                 name: "X".into(),
                 definition: minimal_designation_def()
             }

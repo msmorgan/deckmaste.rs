@@ -21,7 +21,7 @@
 //     discard intent away entirely, so a SECOND madness (Falkenrath Gorger's
 //     granted "choose one") can never also fire on the same discard — exactly
 //     one Instead applies per intent ([CR#616.1]), the stacked-madness "applies
-//     once" outcome with ZERO authored guard clause.
+//     once" outcome with ZERO semantic guard clause.
 //
 //     The discard NAME-fact still stands: the keyword-action discard window's
 //     `FinalizeAct` watches THIS card and commits its `Act(Discard)` name-fact

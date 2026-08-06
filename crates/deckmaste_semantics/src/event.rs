@@ -370,8 +370,9 @@ pub enum EventFilter {
     /// content facets to still match the verb's canonical zone shape, so a
     /// content already modified away from canonical stops matching
     /// automatically (stacked madness / Leyline-first — the auto-guard, no
-    /// authored conjunction). Distinct from the RESULT-side `ZoneChange`/
-    /// `Drawn` filters "destroyed"/"drawn" triggers key on ([CR#700.4]).
+    /// explicit semantic conjunction). Distinct from the RESULT-side
+    /// `ZoneChange`/ `Drawn` filters "destroyed"/"drawn" triggers key on
+    /// ([CR#700.4]).
     Act {
         verb: VerbName,
         #[serde(default = "Predicate::any")]
@@ -570,7 +571,7 @@ pub enum EventFilter {
     /// has no compile-time gate mirroring Idris's `producesMana` auto-proof
     /// (the soundness check is re-emit + `idris-check`, per this repo's
     /// established "sound data SHAPE, not soundness to Rust" policy) — an
-    /// authoring mistake that reaches for `ProducedByEvent` outside a
+    /// semantic-input error that reaches for `ProducedByEvent` outside a
     /// `TapForMana` body simply fails to typecheck on the Idris side.
     TapForMana {
         #[serde(default = "Predicate::any")]

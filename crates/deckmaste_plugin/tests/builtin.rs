@@ -225,7 +225,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     assert_eq!(ex.name.as_str(), "Regenerate");
     // The subject is bound by an enclosing `With(TheRef(Param(0)))` as the
     // singular `That` (the shield freezes it at creation); `CreateReplacement`
-    // no longer carries an authored `subject:` field.
+    // no longer carries a semantic `subject:` field.
     let OneShotEffect::With(deckmaste_core::With { binder, body }) = (*ex.value).clone() else {
         panic!(
             "Regenerate(This) must expand to With(TheRef, CreateReplacement), got {:?}",
@@ -710,7 +710,7 @@ fn amass_decomposes_into_core_primitives() {
     // The token's `Creature` type carries the combat-capability confers
     // ([CR#508.1a,509.1a]) — the `Creature` cardtype macro expands to the full
     // conferring `TypeDef`, not the empty-confer `Type::Creature.def()`. Read
-    // the SAME expansion the token's authored `types: [Creature]` produced.
+    // the SAME expansion the token's semantic `types: [Creature]` produced.
     let creature_type: deckmaste_core::TypeDef = plugin.macros.read_str("Creature").unwrap();
     assert_eq!(tok.types, vec![creature_type].into());
     let names: Arc<[&str]> = tok.subtypes.iter().map(|s| s.name.as_str()).collect();
@@ -779,10 +779,10 @@ fn amass_decomposes_into_core_primitives() {
     assert_eq!(added.as_str(), "Zombie", "becomes a Zombie in addition");
 }
 
-/// The rules tables are authored containers too (ticket scope): they parse at
-/// authoring kinds and reach the engine only through `lower`.
+/// The rules tables are semantic containers too (ticket scope): they parse at
+/// semantics kinds and reach the engine only through `lower`.
 #[test]
-fn rules_tables_load_through_the_authored_grammar() {
+fn rules_tables_load_through_the_semantics_grammar() {
     let plugin = Plugin::load(builtin_path()).unwrap();
     assert!(
         !plugin.sba_rules.is_empty(),

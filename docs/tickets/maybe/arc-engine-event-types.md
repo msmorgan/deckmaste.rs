@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-Lean the engine's runtime **event** types onto `Arc` the way the authored
+Lean the engine's runtime **event** types onto `Arc` the way the semantics
 grammar now leans on `Arc<[T]>` — so the large runtime enums stop tripping
 `clippy::large_enum_variant` on their own merits instead of via `#[expect]`.
 

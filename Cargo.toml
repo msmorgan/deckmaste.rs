@@ -1,7 +1,7 @@
 [workspace]
 members = [
     ".",
-    "crates/deckmaste_authoring",
+    "crates/deckmaste_semantics",
     "crates/deckmaste_card",
     "crates/deckmaste_core",
     "crates/deckmaste_engine",

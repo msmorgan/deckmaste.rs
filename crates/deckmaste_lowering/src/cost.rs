@@ -1,10 +1,10 @@
-//! `cost` — authored grammar to engine AST.
+//! `cost` — semantics grammar to engine AST.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
 use crate::Lower;
 
-impl Lower for deckmaste_authoring::CostComponent {
+impl Lower for deckmaste_semantics::CostComponent {
     type Target = deckmaste_core::CostComponent;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
@@ -30,8 +30,8 @@ impl Lower for deckmaste_authoring::CostComponent {
                 body: body.lower(),
             },
             // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the authored
-            // spelling (spec §12). Prose recovers the authored term through the
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
             // provenance index instead. This is the divergence ledger's first
             // non-identity arm family.
             Self::Expanded(f0) => *f0.value.lower(),
@@ -39,21 +39,21 @@ impl Lower for deckmaste_authoring::CostComponent {
     }
 }
 
-impl Lower for deckmaste_authoring::Cost {
+impl Lower for deckmaste_semantics::Cost {
     type Target = deckmaste_core::Cost;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::Cost(self.0.lower())
     }
 }
 
-impl Lower for deckmaste_authoring::CostTag {
+impl Lower for deckmaste_semantics::CostTag {
     type Target = deckmaste_core::CostTag;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::CostTag(self.0.lower())
     }
 }
 
-impl Lower for deckmaste_authoring::OptionalCost {
+impl Lower for deckmaste_semantics::OptionalCost {
     type Target = deckmaste_core::OptionalCost;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::OptionalCost {
@@ -64,7 +64,7 @@ impl Lower for deckmaste_authoring::OptionalCost {
     }
 }
 
-impl Lower for deckmaste_authoring::TotalCost {
+impl Lower for deckmaste_semantics::TotalCost {
     type Target = deckmaste_core::TotalCost;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::TotalCost {
@@ -91,8 +91,8 @@ mod tests {
     #[test]
     fn lowers_cost_component_mana() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::Mana(deckmaste_authoring::ManaCost::from(
-                std::sync::Arc::<[deckmaste_authoring::ManaSymbol]>::from([])
+            deckmaste_semantics::CostComponent::Mana(deckmaste_semantics::ManaCost::from(
+                std::sync::Arc::<[deckmaste_semantics::ManaSymbol]>::from([])
             ))
             .lower(),
             deckmaste_core::CostComponent::Mana(_)
@@ -102,7 +102,7 @@ mod tests {
     #[test]
     fn lowers_cost_component_mana_cost_of() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::ManaCostOf(minimal_reference()).lower(),
+            deckmaste_semantics::CostComponent::ManaCostOf(minimal_reference()).lower(),
             deckmaste_core::CostComponent::ManaCostOf(deckmaste_core::Reference::This)
         );
     }
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn lowers_cost_component_tap() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::Tap.lower(),
+            deckmaste_semantics::CostComponent::Tap.lower(),
             deckmaste_core::CostComponent::Tap
         );
     }
@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn lowers_cost_component_untap() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::Untap.lower(),
+            deckmaste_semantics::CostComponent::Untap.lower(),
             deckmaste_core::CostComponent::Untap
         );
     }
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn lowers_cost_component_do() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::Do(std::sync::Arc::new(minimal_action())).lower(),
+            deckmaste_semantics::CostComponent::Do(std::sync::Arc::new(minimal_action())).lower(),
             deckmaste_core::CostComponent::Do(_)
         );
     }
@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn lowers_cost_component_cost() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::Cost(minimal_cost()).lower(),
+            deckmaste_semantics::CostComponent::Cost(minimal_cost()).lower(),
             deckmaste_core::CostComponent::Cost(deckmaste_core::Cost(_))
         );
     }
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn lowers_cost_component_tap_total() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::TapTotal {
+            deckmaste_semantics::CostComponent::TapTotal {
                 stat: minimal_stat(),
                 cmp: minimal_cmp(),
                 count: minimal_count(),
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn lowers_cost_component_with() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::With {
+            deckmaste_semantics::CostComponent::With {
                 binder: std::sync::Arc::new(minimal_binder()),
                 body: minimal_cost()
             }
@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn lowers_cost_component_expanded() {
         assert_matches!(
-            deckmaste_authoring::CostComponent::Expanded(macro_ron::Expansion {
+            deckmaste_semantics::CostComponent::Expanded(macro_ron::Expansion {
                 name: "X".into(),
                 args: macro_ron::ExpansionArgs::none(),
                 template: None,
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn lowers_cost() {
         assert_matches!(
-            deckmaste_authoring::Cost([].into()).lower(),
+            deckmaste_semantics::Cost([].into()).lower(),
             deckmaste_core::Cost(_)
         );
     }
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn lowers_cost_tag() {
         assert_matches!(
-            deckmaste_authoring::CostTag("X".into()).lower(),
+            deckmaste_semantics::CostTag("X".into()).lower(),
             deckmaste_core::CostTag(_)
         );
     }
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn lowers_optional_cost() {
         assert_matches!(
-            deckmaste_authoring::OptionalCost {
+            deckmaste_semantics::OptionalCost {
                 components: [].into(),
                 tag: minimal_cost_tag(),
                 repeatable: false
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn lowers_total_cost() {
         assert_matches!(
-            deckmaste_authoring::TotalCost {
+            deckmaste_semantics::TotalCost {
                 base: [].into(),
                 trace: [].into(),
                 locked: false

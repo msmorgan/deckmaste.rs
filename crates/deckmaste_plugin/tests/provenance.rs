@@ -1,6 +1,6 @@
 //! The provenance index and the walker it rides on.
 //!
-//! The walker (`deckmaste_authoring::AbilitySubterms`) is hand-written and so
+//! The walker (`deckmaste_semantics::AbilitySubterms`) is hand-written and so
 //! incomplete by construction — a grammar position nobody taught it about is
 //! silently not traversed, and the only symptom in production is prose quietly
 //! degrading to `[unrendered]`. These tests are the compensating control: they
@@ -10,13 +10,13 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_authoring::AbilitySubterms as _;
 use deckmaste_lowering::Lower as _;
 use deckmaste_plugin::layout::CARDS_DIR;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_plugin::plugin::read;
 use deckmaste_plugin::plugin::ron_files_recursive;
 use deckmaste_plugin::provenance::ProvenanceIndex;
+use deckmaste_semantics::AbilitySubterms as _;
 
 fn workspace_plugin(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -33,11 +33,11 @@ fn builtin() -> Plugin {
 }
 
 /// Every ability the walker reaches from `card`, transitively.
-fn all_abilities(card: &deckmaste_authoring::Card) -> Vec<deckmaste_authoring::Ability> {
+fn all_abilities(card: &deckmaste_semantics::Card) -> Vec<deckmaste_semantics::Ability> {
     let mut top = Vec::new();
     card.push_abilities(&mut top);
-    let mut out: Vec<deckmaste_authoring::Ability> = Vec::new();
-    let mut queue: Vec<deckmaste_authoring::Ability> = top.into_iter().cloned().collect();
+    let mut out: Vec<deckmaste_semantics::Ability> = Vec::new();
+    let mut queue: Vec<deckmaste_semantics::Ability> = top.into_iter().cloned().collect();
     while let Some(a) = queue.pop() {
         queue.extend(a.nested_abilities().into_iter().cloned());
         out.push(a);
@@ -97,8 +97,8 @@ fn walker_reaches_every_gain_ability_in_the_canon_corpus() {
     let mut grants = 0usize;
     for (path, source) in card_sources(&workspace_plugin("canon")) {
         let Ok(loaded) = plugin.card_from_str(&source) else { continue };
-        let debug = format!("{:?}", loaded.authored);
-        let mut reached: Vec<String> = all_abilities(&loaded.authored)
+        let debug = format!("{:?}", loaded.semantic);
+        let mut reached: Vec<String> = all_abilities(&loaded.semantic)
             .iter()
             .map(|a| format!("{a:?}"))
             .collect();
@@ -124,7 +124,7 @@ fn walker_reaches_every_gain_ability_in_the_canon_corpus() {
 }
 
 /// The property the renderer depends on: it holds a core ability and needs the
-/// authored term back.
+/// semantic term back.
 #[test]
 fn indexes_every_canon_ability_by_its_lowered_value() {
     let plugin = canon();
@@ -132,9 +132,9 @@ fn indexes_every_canon_ability_by_its_lowered_value() {
     for (path, source) in card_sources(&workspace_plugin("canon")) {
         let Ok(loaded) = plugin.card_from_str(&source) else { continue };
         let mut index = ProvenanceIndex::default();
-        index.insert_card(&loaded.authored);
-        for authored in all_abilities(&loaded.authored) {
-            let core = authored.clone().lower();
+        index.insert_card(&loaded.semantic);
+        for semantic in all_abilities(&loaded.semantic) {
+            let core = semantic.clone().lower();
             assert!(
                 index.ability(&core).is_some(),
                 "{}: an ability's lowering has no provenance entry",
@@ -155,14 +155,14 @@ fn a_granted_ability_resolves_through_the_index() {
     let source = read(&plugin.card_path("Collective Resistance")).expect("read card");
     let loaded = plugin.card_from_str(&source).expect("load card");
     let mut index = ProvenanceIndex::default();
-    index.insert_card(&loaded.authored);
+    index.insert_card(&loaded.semantic);
 
     // Named explicitly so this test cannot pass on the card's OWN keywords.
     // The card grants hexproof and indestructible through
     // `Until(_, [Modify(_, Several([GainAbility(..), GainAbility(..)]))])` —
     // four grammar levels below the ability, which is exactly the depth the
     // walker has to survive.
-    let nested = all_abilities(&loaded.authored);
+    let nested = all_abilities(&loaded.semantic);
     for want in ["Hexproof", "Indestructible"] {
         let found = nested
             .iter()
@@ -187,19 +187,19 @@ fn keeps_the_outermost_spelling_when_two_forms_collide() {
     let source = read(&plugin.card_path("Serra's Blessing")).expect("read card");
     let loaded = plugin.card_from_str(&source).expect("load card");
     let mut index = ProvenanceIndex::default();
-    index.insert_card(&loaded.authored);
+    index.insert_card(&loaded.semantic);
 
     let mut top = Vec::new();
-    loaded.authored.push_abilities(&mut top);
-    for authored in top {
-        if !matches!(authored, deckmaste_authoring::Ability::Expanded(_)) {
+    loaded.semantic.push_abilities(&mut top);
+    for semantic in top {
+        if !matches!(semantic, deckmaste_semantics::Ability::Expanded(_)) {
             continue;
         }
         let recovered = index
-            .ability(&authored.clone().lower())
+            .ability(&semantic.clone().lower())
             .expect("indexed ability");
         assert!(
-            matches!(recovered, deckmaste_authoring::Ability::Expanded(_)),
+            matches!(recovered, deckmaste_semantics::Ability::Expanded(_)),
             "the index kept a bare form; the template-carrying wrapper was overwritten",
         );
     }
@@ -261,7 +261,7 @@ fn counter_conferral_is_indexed_as_the_bare_grant_payload() {
 }
 
 /// A token's abilities are indexed. `Cards::push_token` mints a `CardId` past
-/// the end of the card companion table, so a token permanent has no authored
+/// the end of the card companion table, so a token permanent has no semantic
 /// card to fall back on and this index is its only prose channel.
 ///
 /// Both sources: the plugin's own `tokens/` files, and the predefined tokens
@@ -283,7 +283,7 @@ fn token_abilities_are_indexed() {
     }
 
     let mut checked = 0usize;
-    for predefined in deckmaste_authoring::PredefinedToken::ALL {
+    for predefined in deckmaste_semantics::PredefinedToken::ALL {
         for ability in predefined.token().abilities.iter() {
             let core = ability.clone().lower();
             assert!(
@@ -319,9 +319,9 @@ fn indexes_an_inline_created_tokens_abilities() {
     )"#;
     let loaded = plugin.card_from_str(source).expect("load the fixture card");
     let mut index = ProvenanceIndex::default();
-    index.insert_card(&loaded.authored);
+    index.insert_card(&loaded.semantic);
 
-    let reached = all_abilities(&loaded.authored);
+    let reached = all_abilities(&loaded.semantic);
     let flying = reached
         .iter()
         .find(|a| format!("{a:?}").contains("Flying"))
@@ -352,20 +352,20 @@ fn indexes_an_inline_created_tokens_abilities() {
 fn indexes_a_copy_exceptions_granted_ability() {
     use std::sync::Arc;
 
-    use deckmaste_authoring::Ability;
-    use deckmaste_authoring::Action;
-    use deckmaste_authoring::ActivatedAbility;
-    use deckmaste_authoring::CopyException;
-    use deckmaste_authoring::CopySource;
-    use deckmaste_authoring::CopySpec;
-    use deckmaste_authoring::Cost;
-    use deckmaste_authoring::Count;
-    use deckmaste_authoring::KeywordAbility;
-    use deckmaste_authoring::Modification;
-    use deckmaste_authoring::OneShotEffect;
-    use deckmaste_authoring::Reference;
-    use deckmaste_authoring::Token;
-    use deckmaste_authoring::TokenSpec;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::Action;
+    use deckmaste_semantics::ActivatedAbility;
+    use deckmaste_semantics::CopyException;
+    use deckmaste_semantics::CopySource;
+    use deckmaste_semantics::CopySpec;
+    use deckmaste_semantics::Cost;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::KeywordAbility;
+    use deckmaste_semantics::Modification;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::Token;
+    use deckmaste_semantics::TokenSpec;
 
     let granted = Ability::Keyword(KeywordAbility::Trample);
     let spec = CopySpec {

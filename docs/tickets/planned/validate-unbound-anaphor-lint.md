@@ -6,7 +6,7 @@ needs: []
 loads fine, and fizzles at resolution: `eval_reference` degrades to the null id
 (`resolve/query.rs` `unbound_ref`) and `eval_selection_set` to the empty group
 (`unbound_group`). Both are deliberate — the engine never crashes on an
-authoring mistake ([Invalid authoring fizzles](../../decisions/invalid-authoring-fizzles.md)) — but a
+semantic-input error ([Invalid semantic input fizzles](../../decisions/invalid-semantic-input-fizzles.md)) — but a
 silent no-op is a poor way to learn you wrote a broken card.
 
 Carved out of [[parse-positional-target-reads]], which established that a target
@@ -22,7 +22,7 @@ it entirely, and the ~7k `plugins/wizards` corpus is never gated at all.
 ## Why it isn't a small lint
 
 `validate.rs` has the right seam (`Validation::lint_failures` — "shapes that
-read fine but are always authoring mistakes", already home to the
+read fine but are always semantic-input errors", already home to the
 cost-eligibility and subtype-provenance lints), but the check itself is not
 local: deciding whether an `It` is bound requires the antecedent-scope walk —
 which binders enclose it (`Each`/`Distribute`/`With`/`Where`/`Pick`), which

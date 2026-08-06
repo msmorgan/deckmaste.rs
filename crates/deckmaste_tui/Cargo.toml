@@ -10,7 +10,7 @@ workspace = true
 [dependencies]
 deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
-deckmaste_authoring = { version = "0.1.0", path = "../deckmaste_authoring" }
+deckmaste_semantics = { version = "0.1.0", path = "../deckmaste_semantics" }
 deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }
 deckmaste_legacy_render = { version = "0.1.0", path = "../deckmaste_legacy_render" }
 deckmaste_engine = { version = "0.1.0", path = "../deckmaste_engine" }
