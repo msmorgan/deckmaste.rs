@@ -534,6 +534,20 @@ mod tests {
     }
 
     #[test]
+    fn generic_coordination_allows_one_recipient_passive_theme() {
+        let source = "the damage dealt or the result";
+        let parsed = parse(source);
+        let Some(NounPhrase::Coordinated(coordination)) = parsed.noun_phrase() else {
+            panic!(
+                "expected complete noun-phrase coordination: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        assert_eq!(coordination.rest().len(), 1);
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
     fn modified_options_share_the_determiner_when_no_common_head_parse_exists() {
         for (source, determiner) in [
             (

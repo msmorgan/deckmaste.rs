@@ -8,6 +8,7 @@ use super::BareNominalAdjunct;
 use super::BoundedQuantityKind;
 use super::CatalogSlot;
 use super::CatalogValue;
+use super::CoordinationDomain;
 use super::CopulaAgreement;
 use super::Demonstrative;
 use super::Determiner;
@@ -548,6 +549,7 @@ impl EnglishGrammar<'_, '_> {
                     person: Person::Third,
                     number: demonstrative.number(),
                 }),
+                coordination_domain: Some(CoordinationDomain::Entity),
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
@@ -856,10 +858,12 @@ pub(super) fn lexical_word_matches(
                 return Vec::new();
             };
             let adjunct = noun_adjunct_kind(&noun);
+            let coordination_domain = noun_coordination_domain(&noun);
             vec![LexicalMatch {
                 end,
                 features: Features::Noun {
                     identity: noun_coordination_head(&noun),
+                    coordination_domain,
                     form,
                     initial_sound,
                     adjunct,
@@ -1001,6 +1005,48 @@ fn noun_coordination_head(noun: &NounInstance) -> Option<crate::catalog::Catalog
     }
 }
 
+fn noun_coordination_domain(noun: &NounInstance) -> Option<CoordinationDomain> {
+    let noun = match noun {
+        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
+            noun
+        }
+    };
+    match noun {
+        Noun::Catalog(atom) => match atom.kind {
+            crate::catalog::CatalogKind::ArtifactType
+            | crate::catalog::CatalogKind::BattleType
+            | crate::catalog::CatalogKind::CreatureType
+            | crate::catalog::CatalogKind::EnchantmentType
+            | crate::catalog::CatalogKind::LandType
+            | crate::catalog::CatalogKind::PlaneswalkerType
+            | crate::catalog::CatalogKind::SpellType
+            | crate::catalog::CatalogKind::Supertype
+            | crate::catalog::CatalogKind::CardType => Some(CoordinationDomain::Entity),
+            crate::catalog::CatalogKind::KeywordAbility => Some(CoordinationDomain::NonEntity),
+            crate::catalog::CatalogKind::KeywordAction
+            | crate::catalog::CatalogKind::AbilityWord
+            | crate::catalog::CatalogKind::RulesBundle
+            | crate::catalog::CatalogKind::FlavorWord => None,
+        },
+        Noun::Word(
+            Vocab::Card
+            | Vocab::Opponent
+            | Vocab::Permanent
+            | Vocab::Player
+            | Vocab::Spell
+            | Vocab::Token
+            | Vocab::Ability,
+        ) => Some(CoordinationDomain::Entity),
+        Noun::Word(Vocab::Counter) => Some(CoordinationDomain::NonEntity),
+        Noun::Word(Vocab::Damage) => Some(CoordinationDomain::Damage),
+        Noun::Word(Vocab::Power) => Some(CoordinationDomain::Power),
+        Noun::Word(Vocab::Toughness) => Some(CoordinationDomain::Toughness),
+        Noun::Word(_) | Noun::Agentive(_) | Noun::Gerund(_) | Noun::Die(_) | Noun::Opaque(_) => {
+            None
+        }
+    }
+}
+
 pub(super) fn quantity_match(end: usize, quantity: Quantity) -> LexicalMatch<Features, MeaningKey> {
     LexicalMatch {
         end,
@@ -1065,6 +1111,7 @@ pub(super) fn this_card_matches(
                     person: Person::Third,
                     number,
                 }),
+                coordination_domain: Some(CoordinationDomain::Entity),
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
@@ -1127,6 +1174,7 @@ pub(super) fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) 
     };
     Features::NounPhrase {
         agreement,
+        coordination_domain: Some(CoordinationDomain::Entity),
         pronoun_case: case,
         adjunct: None,
         set_exception: SetExceptionState::Ineligible,

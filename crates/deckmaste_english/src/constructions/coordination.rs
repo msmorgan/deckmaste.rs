@@ -76,6 +76,11 @@ deckmaste_constructions_macro::constructions! {
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();
         require rest.last.conjunction in [And, Or, AndOr];
+        recognize require all(
+            complements.first.variant in [Relative],
+            complements.nonfinal.variant in [Relative],
+            complements.last.variant in [Relative]
+        );
         derive first = noun_phrase_coordination(determiner, first, rest);
         form shared @ 0 = determiner first rest complements;
     }

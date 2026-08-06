@@ -157,6 +157,10 @@ impl Eq for FieldPath {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Constraint {
     Require(Spanned<Predicate>),
+    /// A predicate enforced by parse recognition but not by the typed AST
+    /// builder. This keeps contextual surface admission from narrowing the
+    /// construction's representable value domain.
+    Recognize(Spanned<Predicate>),
     DeriveFeature {
         target: FieldPath,
         combinator: Spanned<String>,

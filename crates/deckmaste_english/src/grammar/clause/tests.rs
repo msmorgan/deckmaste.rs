@@ -6754,17 +6754,6 @@ fn and_or_clause_coordination_preserves_opaque_named_card_search() {
 }
 
 #[test]
-fn generated_coordination_preserves_postpositive_proper_name_casing() {
-    for source in [
-        "Search your graveyard, hand, and library for a card named The Animus.",
-        "Search your graveyard, hand, and/or library for a card named God-Pharaoh's Gift.",
-    ] {
-        let parsed = parse(source);
-        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    }
-}
-
-#[test]
 fn uniform_clause_and_predicate_runs_remain_flat() {
     let clauses = "You draw a card and you discard a card and you gain 1 life.";
     let parsed = parse(clauses);

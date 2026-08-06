@@ -494,7 +494,7 @@ fn own_construction(
             Constraint::Require(predicate) => {
                 Some(require_check(id, group, fields, &predicate.value))
             }
-            Constraint::DeriveFeature { .. } => None, // feature derivation is chart/render-side
+            Constraint::Recognize(_) | Constraint::DeriveFeature { .. } => None,
         })
         .collect();
     let field_names: Vec<proc_macro2::Ident> = fields
@@ -559,7 +559,7 @@ fn bind_construction(
             Constraint::Require(predicate) => {
                 Some(require_check(id, group, fields, &predicate.value))
             }
-            Constraint::DeriveFeature { .. } => None, // feature derivation is chart/render-side
+            Constraint::Recognize(_) | Constraint::DeriveFeature { .. } => None,
         })
         .collect();
     let field_names: Vec<proc_macro2::Ident> = fields
@@ -1074,14 +1074,19 @@ fn predicate_tokens(
                 [seq, selector, elem_field] => {
                     let seq_field = quote::format_ident!("{}", seq.value);
                     let element = element_of_sequence_field(group, fields, &seq.value);
-                    let field_ident = quote::format_ident!("{}", elem_field.value);
-                    let inner = single_field_check(
-                        &quote! { member.#field_ident },
-                        &element.fields,
-                        &elem_field.value,
-                        predicate,
-                    );
+                    let inner = if elem_field.value == "variant" {
+                        bound_variant_check(element, predicate)
+                    } else {
+                        let field_ident = quote::format_ident!("{}", elem_field.value);
+                        single_field_check(
+                            &quote! { member.#field_ident },
+                            &element.fields,
+                            &elem_field.value,
+                            predicate,
+                        )
+                    };
                     match selector.value.as_str() {
+                        "first" => quote! { #seq_field.first().is_none_or(|member| #inner) },
                         // Vacuous on an empty sequence; when the element field
                         // itself is optional-scalar, `single_field_check` nests
                         // Task 1's `None | Some(...)` reading INSIDE this
@@ -1097,7 +1102,7 @@ fn predicate_tokens(
                                 .all(|member| #inner)
                         },
                         _ => unreachable!(
-                            "validated: EC032 admits only last/nonfinal sequence selectors"
+                            "validated: EC032 admits only first/last/nonfinal sequence selectors"
                         ),
                     }
                 }
@@ -1121,6 +1126,24 @@ fn predicate_tokens(
             quote! { (#(#parts)||*) }
         }
     }
+}
+
+fn bound_variant_check(element: &ElementDeclaration, predicate: &Predicate) -> TokenStream {
+    let Predicate::In { allowed, .. } = predicate else {
+        unreachable!("validated: a variant discriminant is constrained only by `in [...]`")
+    };
+    let target = parse_type(
+        &element
+            .bind_path
+            .as_ref()
+            .expect("validated: enum variants require a bind target")
+            .value,
+    );
+    let variants = allowed.iter().map(|variant| {
+        let variant = quote::format_ident!("{}", variant);
+        quote! { #target::#variant(..) }
+    });
+    quote! { matches!(member, #(#variants)|*) }
 }
 
 /// The single-field check body shared between a direct field access
@@ -1459,6 +1482,40 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             })
         })
         .collect();
+    let requirements: Vec<TokenStream> = construction
+        .constraints
+        .iter()
+        .filter_map(|constraint| {
+            let Constraint::Require(requirement) = constraint else {
+                return None;
+            };
+            let description = render_predicate(&requirement.value);
+            let predicate = predicate_row(&requirement.value);
+            Some(quote! {
+                ::deckmaste_construction_compiler::runtime::RequirementData {
+                    description: #description,
+                    predicate: #predicate,
+                }
+            })
+        })
+        .collect();
+    let recognition_requirements: Vec<TokenStream> = construction
+        .constraints
+        .iter()
+        .filter_map(|constraint| {
+            let Constraint::Recognize(requirement) = constraint else {
+                return None;
+            };
+            let description = render_predicate(&requirement.value);
+            let predicate = predicate_row(&requirement.value);
+            Some(quote! {
+                ::deckmaste_construction_compiler::runtime::RequirementData {
+                    description: #description,
+                    predicate: #predicate,
+                }
+            })
+        })
+        .collect();
     let erased_builder = quote::format_ident!("__erased_build_{}", construction.id.value);
     quote! {
         ::deckmaste_construction_compiler::runtime::ConstructionData {
@@ -1473,8 +1530,43 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             selection_unique: #selection_unique,
             dominates: &[#(#dominates),*],
             forms: &[#(#forms),*],
+            requirements: &[#(#requirements),*],
+            recognition_requirements: &[#(#recognition_requirements),*],
             feature_combinators: &[#(#feature_combinators),*],
             erased_builder: Some(#erased_builder),
+        }
+    }
+}
+
+fn predicate_row(predicate: &Predicate) -> TokenStream {
+    match predicate {
+        Predicate::LenAtLeast { path, min } => {
+            let path = path.dotted();
+            quote! { ::deckmaste_construction_compiler::runtime::PredicateData::LenAtLeast { path: #path, min: #min } }
+        }
+        Predicate::LenIs { path, len } => {
+            let path = path.dotted();
+            quote! { ::deckmaste_construction_compiler::runtime::PredicateData::LenIs { path: #path, len: #len } }
+        }
+        Predicate::In { path, allowed } => {
+            let path = path.dotted();
+            quote! { ::deckmaste_construction_compiler::runtime::PredicateData::In { path: #path, allowed: &[#(#allowed),*] } }
+        }
+        Predicate::IsSome { path } => {
+            let path = path.dotted();
+            quote! { ::deckmaste_construction_compiler::runtime::PredicateData::IsSome { path: #path } }
+        }
+        Predicate::IsNone { path } => {
+            let path = path.dotted();
+            quote! { ::deckmaste_construction_compiler::runtime::PredicateData::IsNone { path: #path } }
+        }
+        Predicate::All(children) => {
+            let children = children.iter().map(predicate_row);
+            quote! { ::deckmaste_construction_compiler::runtime::PredicateData::All(&[#(#children),*]) }
+        }
+        Predicate::Any(children) => {
+            let children = children.iter().map(predicate_row);
+            quote! { ::deckmaste_construction_compiler::runtime::PredicateData::Any(&[#(#children),*]) }
         }
     }
 }

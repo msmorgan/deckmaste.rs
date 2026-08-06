@@ -284,8 +284,40 @@ pub struct ConstructionData {
     pub selection_unique: bool,
     pub dominates: &'static [&'static str],
     pub forms: &'static [FormData],
+    pub requirements: &'static [RequirementData],
+    pub recognition_requirements: &'static [RequirementData],
     pub feature_combinators: &'static [FeatureCombinatorData],
     pub erased_builder: Option<ErasedBuilder>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RequirementData {
+    pub description: &'static str,
+    pub predicate: PredicateData,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PredicateData {
+    LenAtLeast {
+        path: &'static str,
+        min: u32,
+    },
+    LenIs {
+        path: &'static str,
+        len: u32,
+    },
+    In {
+        path: &'static str,
+        allowed: &'static [&'static str],
+    },
+    IsSome {
+        path: &'static str,
+    },
+    IsNone {
+        path: &'static str,
+    },
+    All(&'static [PredicateData]),
+    Any(&'static [PredicateData]),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

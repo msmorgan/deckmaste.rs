@@ -39,6 +39,7 @@ pub(super) fn scan_opaque(
         end: start + 1,
         features: Features::Noun {
             identity: None,
+            coordination_domain: None,
             form,
             initial_sound,
             adjunct: None,

@@ -317,6 +317,8 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                requirements: &[],
+                recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
             }];
@@ -344,6 +346,8 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                requirements: &[],
+                recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
             }];
@@ -371,6 +375,8 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                requirements: &[],
+                recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
             }];
@@ -387,6 +393,8 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                requirements: &[],
+                recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
             }];
@@ -425,6 +433,8 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                requirements: &[],
+                recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: None,
             }];

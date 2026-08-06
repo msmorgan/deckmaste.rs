@@ -95,6 +95,15 @@ deckmaste_constructions_macro::constructions! {
         require tag in [And, Or];
         form only @ 0 = phrase lex(tag);
     }
+
+    construction fixture_variant_sequence: FixturePair {
+        own FixtureVariantSequenceNode {
+            members: seq bound_variant,
+        }
+        require members.len() >= 1;
+        recognize require members.first.variant in [Phrase];
+        form only @ 0 = members;
+    }
 }
 
 #[test]
@@ -164,6 +173,18 @@ fn optional_in_is_vacuously_true_when_absent() {
 }
 
 #[test]
+fn recognition_only_requirement_does_not_narrow_the_typed_builder() {
+    let admitted = FixtureVariantSequenceNode::try_new(vec![BoundVariant::Phrase(FixturePhrase)])
+        .expect("the declared first variant is admitted");
+    assert_eq!(admitted.members().len(), 1);
+
+    let admitted =
+        FixtureVariantSequenceNode::try_new(vec![BoundVariant::Boxed(Box::new(FixturePhrase))])
+            .expect("recognition-only requirements do not reject valid typed AST values");
+    assert_eq!(admitted.members().len(), 1);
+}
+
+#[test]
 fn deserialize_routes_through_the_validator() {
     // Round trip: a valid payload deserializes through the real, generated
     // `Deserialize` impl (in-body `Raw` mirror -> `try_new`), not a bypassed
@@ -192,6 +213,7 @@ fn deserialize_routes_through_the_validator() {
 fn declaration_data_traces_to_the_one_declaration() {
     use deckmaste_construction_compiler::runtime::AtomData;
     use deckmaste_construction_compiler::runtime::FieldKindData;
+    use deckmaste_construction_compiler::runtime::PredicateData;
     use deckmaste_construction_compiler::runtime::WitnessClassData;
     let data = &FIXTURE_COORDINATION_DECLARATION;
     assert_eq!(data.name, "fixture_coordination");
@@ -282,7 +304,15 @@ fn declaration_data_traces_to_the_one_declaration() {
     assert!(data.element_data[3].fields.is_empty());
     assert!(data.element_data[3].variants.is_empty());
     let ids: Vec<&str> = data.constructions.iter().map(|c| c.id).collect();
-    assert_eq!(ids, vec!["fixture_pair", "fixture_solo", "fixture_tagged"]);
+    assert_eq!(
+        ids,
+        vec![
+            "fixture_pair",
+            "fixture_solo",
+            "fixture_tagged",
+            "fixture_variant_sequence"
+        ]
+    );
     let pair = &data.constructions[0];
     assert_eq!(pair.own_type, Some("FixturePairNode"));
     assert_eq!(pair.dominates, &["fixture_solo"]);
@@ -298,6 +328,20 @@ fn declaration_data_traces_to_the_one_declaration() {
         ]
     );
     assert_eq!(pair.fields.len(), 2);
+    let variant_sequence = &data.constructions[3];
+    assert_eq!(variant_sequence.requirements.len(), 1);
+    assert_eq!(variant_sequence.recognition_requirements.len(), 1);
+    assert_eq!(
+        variant_sequence.recognition_requirements[0].description,
+        "members.first.variant in [Phrase]"
+    );
+    assert_eq!(
+        variant_sequence.recognition_requirements[0].predicate,
+        PredicateData::In {
+            path: "members.first.variant",
+            allowed: &["Phrase"],
+        }
+    );
     assert_eq!(pair.fields[0].name, "members");
     assert_eq!(
         pair.fields[0].kind,

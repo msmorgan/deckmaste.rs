@@ -378,7 +378,6 @@ fn project_generated_category(
                         take_trailing_group_complements(earlier_has_relative, &mut last.phrase);
                 }
             }
-            open_postpositive_name_interior(&mut complements);
             let coordinated = crate::syntax::CoordinatedNominalPhrase::try_new(
                 value.determiner().clone(),
                 first,
@@ -1020,69 +1019,6 @@ pub(super) fn open_name_interior(nominal: &mut NominalPhrase) {
             detach_keyword_noun(noun);
         }
     }
-}
-
-/// Re-labels a generated postpositive `named <proper name>` complement tail.
-///
-/// Generated shared-determiner coordination lowers its trailing complements as
-/// an independent sequence, so the ordinary prenominal `named` path above
-/// cannot open the name interior while the name words are being built. The
-/// generated sequence represents those words as bare predicated keyword
-/// arguments following the `named` adjective. Preserve catalog spelling there,
-/// and turn title-initial `The` into an opaque modifier: inside a proper name
-/// it is a name token rather than a functional determiner.
-fn open_postpositive_name_interior(complements: &mut [NominalComplement]) {
-    let mut inside_name = false;
-    for complement in complements {
-        match complement {
-            NominalComplement::Adjective(adjective) if introduces_proper_name(adjective) => {
-                inside_name = true;
-            }
-            NominalComplement::KeywordArgument(argument) if inside_name => {
-                open_name_argument(argument);
-            }
-            _ if inside_name => break,
-            _ => {}
-        }
-    }
-}
-
-fn open_name_argument(argument: &mut KeywordArgument) {
-    match argument {
-        KeywordArgument::Predicated(argument) => {
-            for quality in &mut argument.qualities {
-                open_name_phrase(&mut quality.quality);
-            }
-        }
-        KeywordArgument::Qualified(phrase) => open_name_phrase(phrase),
-        KeywordArgument::RestrictedCost { restriction, .. } => {
-            open_name_noun_phrase(restriction);
-        }
-        _ => {}
-    }
-}
-
-fn open_name_phrase(phrase: &mut Phrase) {
-    if let Phrase::NounPhrase(noun_phrase) = phrase {
-        open_name_noun_phrase(noun_phrase);
-    }
-}
-
-fn open_name_noun_phrase(noun_phrase: &mut NounPhrase) {
-    let NounPhrase::Nominal(nominal) = noun_phrase else {
-        return;
-    };
-    if nominal.determiner == Some(Determiner::The) {
-        nominal.determiner = None;
-        nominal.modifiers.insert(
-            0,
-            NominalModifier::Noun {
-                polarity: Polarity::Positive,
-                noun: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("The"))),
-            },
-        );
-    }
-    open_name_interior(nominal);
 }
 
 pub(super) fn detach_keyword_noun(noun: &mut NounInstance) {

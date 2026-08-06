@@ -1079,6 +1079,19 @@ pub(crate) enum NounPhraseCoordinationState {
     Shared,
 }
 
+/// Coarse selectional class retained only while deciding whether complete
+/// noun phrases can coordinate. Unknown nouns remain unconstrained; known
+/// game entities do not coordinate with known qualities or measurements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum CoordinationDomain {
+    Entity,
+    NonEntity,
+    Damage,
+    Power,
+    Toughness,
+    PowerToughness,
+}
+
 /// Chart identity facts restricted to inherent realization and grammatical
 /// selection; exact surface witnesses live outside this bundle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1161,6 +1174,7 @@ pub(crate) enum Features {
         /// that repeats its following semantic head. Ordinary lexical nouns
         /// stay packed by grammatical features.
         identity: Option<CatalogAtom>,
+        coordination_domain: Option<CoordinationDomain>,
         form: NounForm,
         initial_sound: InitialSound,
         adjunct: Option<BareNominalAdjunct>,
@@ -1173,6 +1187,7 @@ pub(crate) enum Features {
     },
     Nominal {
         head: Option<CatalogAtom>,
+        coordination_domain: Option<CoordinationDomain>,
         form: NounForm,
         initial_sound: InitialSound,
         determined: bool,
@@ -1209,6 +1224,7 @@ pub(crate) enum Features {
     },
     NounPhrase {
         agreement: Option<Agreement>,
+        coordination_domain: Option<CoordinationDomain>,
         pronoun_case: Option<PronounCase>,
         adjunct: Option<BareNominalAdjunct>,
         set_exception: SetExceptionState,
@@ -2659,6 +2675,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     end: start + 1,
                     features: Features::Noun {
                         identity: Some(atom.clone()),
+                        coordination_domain: Some(CoordinationDomain::NonEntity),
                         form: NounForm::Singular,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
@@ -2676,6 +2693,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     end,
                     features: Features::Noun {
                         identity: None,
+                        coordination_domain: None,
                         form: NounForm::Plural,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
@@ -2693,6 +2711,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     end,
                     features: Features::Noun {
                         identity: None,
+                        coordination_domain: Some(CoordinationDomain::NonEntity),
                         form: NounForm::Singular,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,

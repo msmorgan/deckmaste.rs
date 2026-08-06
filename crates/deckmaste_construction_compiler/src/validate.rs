@@ -522,6 +522,13 @@ fn has_direct_zero_length_requirement(
     })
 }
 
+fn recognition_predicate(constraint: &Constraint) -> Option<&crate::model::Spanned<Predicate>> {
+    match constraint {
+        Constraint::Require(predicate) | Constraint::Recognize(predicate) => Some(predicate),
+        Constraint::DeriveFeature { .. } => None,
+    }
+}
+
 fn record_generated_name(
     seen: &mut std::collections::HashMap<String, (proc_macro2::Span, &'static str, String)>,
     diags: &mut Vec<Diagnostic>,
@@ -629,6 +636,10 @@ enum Resolved<'g> {
         reason = "field read only by #[cfg(test)] matches so far; Task 8's emitter adds the first production reader"
     )]
     Element(&'g ElementDeclaration),
+    /// The synthetic discriminant of a bound enum sequence element. It is
+    /// addressable only as `<sequence>.(first|last|nonfinal).variant` and is
+    /// compared by `in [...]` against the variants declared for that element.
+    Variant,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -641,9 +652,9 @@ struct BadSegment {
 
 /// Resolves a path against a construction's ast fields and, through
 /// Sequence fields, the group's element declarations. `last` addresses one
-/// final element and `nonfinal` quantifies the all-but-last prefix; both enter
-/// the sequence element declaration and consume that context. `Optional` is
-/// terminal: no segment may follow it.
+/// first/last address one endpoint and `nonfinal` quantifies the all-but-last
+/// prefix; all three enter the sequence element declaration and consume that
+/// context. `Optional` is terminal: no segment may follow it.
 fn resolve_path<'g>(
     group: &'g GroupDeclaration,
     construction: &'g ConstructionDeclaration,
@@ -654,20 +665,26 @@ fn resolve_path<'g>(
     let mut element_in_hand: Option<&'g ElementDeclaration> = None;
     for (index, segment) in path.segments.iter().enumerate() {
         let bad = BadSegment { index };
-        if matches!(segment.value.as_str(), "last" | "nonfinal") {
-            let Some(Resolved::Kind(FieldKind::Sequence { element })) = resolved else {
+        if matches!(segment.value.as_str(), "first" | "last" | "nonfinal") {
+            if let Some(Resolved::Kind(FieldKind::Sequence { element })) = resolved {
+                let declared = group
+                    .elements
+                    .iter()
+                    .find(|e| e.name.value == element.value)
+                    .ok_or(bad)?;
+                resolved = Some(Resolved::Element(declared));
+                element_in_hand = Some(declared);
+                continue;
+            }
+            if resolved.is_some() {
                 return Err(bad);
-            };
-            let declared = group
-                .elements
-                .iter()
-                .find(|e| e.name.value == element.value)
-                .ok_or(bad)?;
-            resolved = Some(Resolved::Element(declared));
-            element_in_hand = Some(declared);
-            continue;
+            }
         }
         if let Some(element) = element_in_hand.take() {
+            if segment.value == "variant" && !element.variants.is_empty() {
+                resolved = Some(Resolved::Variant);
+                continue;
+            }
             fields = &element.fields;
         } else if resolved.is_some() {
             // A named segment can only follow the construction root or an
@@ -776,7 +793,9 @@ fn check_construction_paths(
     // `WitnessClass::Derived`'s args are deliberately NOT walked here;
     // both are recorded deferrals for a later milestone.
     for constraint in &construction.constraints {
-        let Constraint::Require(predicate) = constraint else { continue };
+        let Some(predicate) = recognition_predicate(constraint) else {
+            continue;
+        };
         let mut paths: Vec<&FieldPath> = Vec::new();
         collect_all_paths(&predicate.value, &mut paths);
         for path in paths {
@@ -923,7 +942,7 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         // predicate the construction holds: require clauses and form guards.
         let mut presence_paths: Vec<&FieldPath> = Vec::new();
         for constraint in &construction.constraints {
-            if let Constraint::Require(predicate) = constraint {
+            if let Some(predicate) = recognition_predicate(constraint) {
                 collect_presence_paths(&predicate.value, &mut presence_paths);
             }
         }
@@ -956,7 +975,7 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         let mut in_paths: Vec<&FieldPath> = Vec::new();
         let mut len_paths: Vec<&FieldPath> = Vec::new();
         for constraint in &construction.constraints {
-            if let Constraint::Require(predicate) = constraint {
+            if let Some(predicate) = recognition_predicate(constraint) {
                 collect_in_paths(&predicate.value, &mut in_paths);
                 collect_len_paths(&predicate.value, &mut len_paths);
             }
@@ -1013,7 +1032,9 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         // (`len()` through `last` onto a scalar) is left to EC011/EC015,
         // which already resolve deep paths via `resolve_path` themselves.
         for constraint in &construction.constraints {
-            let Constraint::Require(predicate) = constraint else { continue };
+            let Some(predicate) = recognition_predicate(constraint) else {
+                continue;
+            };
             let mut deep: Vec<&FieldPath> = Vec::new();
             collect_all_paths(&predicate.value, &mut deep);
             for path in deep {
@@ -1068,6 +1089,7 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
             | FieldKind::SurfaceScalar { .. },
         )
         | Resolved::Element(_) => false,
+        Resolved::Variant => true,
     }
 }
 
@@ -1114,6 +1136,7 @@ fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
                 "is not a scalar; `in [...]` compares a scalar codec against its variants",
             );
         }
+        Resolved::Variant => return None,
     };
     if codec.value.contains('<') {
         Some("has a generic codec; generic codecs are not supported in `in [...]` predicates")
@@ -1490,7 +1513,9 @@ fn required_facts(
     let mut origin: std::collections::HashMap<(String, Facet), proc_macro2::Span> =
         std::collections::HashMap::new();
     for constraint in &construction.constraints {
-        let Constraint::Require(predicate) = constraint else { continue };
+        let Some(predicate) = recognition_predicate(constraint) else {
+            continue;
+        };
         let clause = abstract_predicate(group, construction, &predicate.value);
         for key in clause.allowed.keys() {
             origin.entry(key.clone()).or_insert(predicate.span);
@@ -1619,7 +1644,7 @@ fn check_constraints(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             .iter()
             .filter_map(|constraint| match constraint {
                 Constraint::DeriveFeature { combinator, .. } => Some(combinator),
-                Constraint::Require(_) => None,
+                Constraint::Require(_) | Constraint::Recognize(_) => None,
             })
             .chain(
                 construction

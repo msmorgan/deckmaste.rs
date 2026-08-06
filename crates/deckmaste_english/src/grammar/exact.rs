@@ -377,6 +377,7 @@ fn parse_generated_noun_phrase_as(
 #[cfg(test)]
 mod tests {
     use deckmaste_construction_compiler::runtime::FieldKindData;
+    use deckmaste_construction_compiler::runtime::PredicateData;
     use proptest::prelude::*;
 
     use super::super::generated::GeneratedActivation;
@@ -533,22 +534,41 @@ mod tests {
         }
     }
 
-    fn sentence_readings(
+    fn parse_fixture_sentence(
         source: &str,
         catalogs: &Catalogs,
         self_reference: SelfReference,
-    ) -> Vec<crate::syntax::Sentence> {
-        fixture_enumeration(
+    ) -> crate::syntax::Sentence {
+        let surface = lex(source);
+        let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+        let grammar = EnglishGrammar::with_opacity_mode(
             source,
             catalogs,
             Nonterminal::Sentence,
+            OpacityMode::Exact,
             self_reference,
-            |lowered| match lowered {
-                Lowered::Sentence(reading) => Some(reading),
-                _ => None,
-            },
-        )
-        .0
+        );
+        let chart = parse_chart(&grammar, &tokens)
+            .unwrap_or_else(|error| panic!("chart failed for {source:?}: {error:?}"));
+        let mut parsed = None;
+        chart
+            .forest
+            .best_root_matching(
+                chart.roots.iter().copied(),
+                super::super::construction::registry(),
+                |root, best| {
+                    let Some(Lowered::Sentence(sentence)) =
+                        lower(&grammar, &chart.forest, root, best)
+                    else {
+                        return false;
+                    };
+                    parsed = Some(sentence);
+                    true
+                },
+            )
+            .unwrap_or_else(|error| panic!("best-root search failed for {source:?}: {error:?}"))
+            .unwrap_or_else(|| panic!("no exact sentence root for {source:?}"));
+        parsed.unwrap_or_else(|| panic!("best exact root did not lower for {source:?}"))
     }
 
     fn parse_fixture_noun_phrase(source: &str) -> NounPhrase {
@@ -837,38 +857,85 @@ mod tests {
     }
 
     #[test]
+    fn arbitrary_group_complement_does_not_turn_a_recovered_clause_exact() {
+        let source = "Create X tokens that are copies of target artifact or creature you control.";
+        let (readings, _, _) = fixture_enumeration(
+            source,
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+            SelfReference::default(),
+            |lowered| match lowered {
+                Lowered::Sentence(sentence) => Some(sentence),
+                _ => None,
+            },
+        );
+        assert!(
+            readings.is_empty(),
+            "unexpected exact readings: {readings:#?}"
+        );
+    }
+
+    #[test]
+    fn coordination_features_do_not_legalize_the_radiant_kavu_outer_split() {
+        let source =
+            "Prevent all combat damage blue creatures and black creatures would deal this turn.";
+        assert!(
+            super::super::parse_support::parse_nonterminal_with_activation(
+                source,
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+                GeneratedActivation::Inactive,
+            )
+            .is_err(),
+            "the handwritten control must retain the baseline recovery",
+        );
+        let (readings, _, _) = fixture_enumeration(
+            source,
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+            SelfReference::default(),
+            |lowered| match lowered {
+                Lowered::Sentence(sentence) => Some(sentence),
+                _ => None,
+            },
+        );
+        assert!(
+            readings.is_empty(),
+            "unexpected exact readings: {readings:#?}"
+        );
+    }
+
+    #[test]
     fn base_power_change_keeps_both_local_power_toughness_groups() {
         let source = concat!(
             "At the beginning of your upkeep, change Halfdane's base power and toughness ",
             "to the power and toughness of target creature other than Halfdane until the ",
             "end of your next upkeep."
         );
-        let readings = sentence_readings(
+        let sentence = parse_fixture_sentence(
             source,
             &fixture_catalogs(),
             SelfReference::new("Halfdane", true),
         );
-        let matching = readings.iter().find(|sentence| {
-            let Some(object) = main_transitive_object(sentence) else {
-                return false;
-            };
-            let mut groups = Vec::new();
-            collect_noun_coordinations(object, &mut groups);
-            groups.len() == 2
-                && groups
-                    .iter()
-                    .any(|group| is_local_power_toughness_group(group, true, false))
-                && groups.iter().any(|group| {
-                    is_local_power_toughness_group(group, false, false)
-                        && !matches!(
-                            group.first().as_ref(),
-                            NounPhrase::Nominal(power) if has_base_modifier(power)
-                        )
-                })
-        });
+        let Some(object) = main_transitive_object(&sentence) else {
+            panic!("selected strict reading has no transitive object: {sentence:#?}");
+        };
+        let mut groups = Vec::new();
+        collect_noun_coordinations(object, &mut groups);
+        let selected_matches = groups.len() == 2
+            && groups
+                .iter()
+                .any(|group| is_local_power_toughness_group(group, true, false))
+            && groups.iter().any(|group| {
+                is_local_power_toughness_group(group, false, false)
+                    && !matches!(
+                        group.first().as_ref(),
+                        NounPhrase::Nominal(power) if has_base_modifier(power)
+                    )
+            });
         assert!(
-            matching.is_some(),
-            "no strict full-sentence reading kept both local groups: {readings:#?}",
+            selected_matches,
+            "selected strict reading did not keep both local groups: {sentence:#?}",
         );
     }
 
@@ -878,24 +945,22 @@ mod tests {
             "If Frodo is a Citizen, it becomes a Halfling Scout with base power and ",
             "toughness 2/3 and lifelink."
         );
-        let readings = sentence_readings(
+        let sentence = parse_fixture_sentence(
             source,
             &fixture_catalogs(),
             SelfReference::new("Frodo, Sauron's Bane", true),
         );
-        let matching = readings.iter().find(|sentence| {
-            let Some(object) = main_transitive_object(sentence) else {
-                return false;
-            };
-            let mut groups = Vec::new();
-            collect_noun_coordinations(object, &mut groups);
-            groups
-                .iter()
-                .any(|group| local_power_toughness_precedes_keyword(group, "Lifelink"))
-        });
+        let Some(object) = main_transitive_object(&sentence) else {
+            panic!("selected strict reading has no transitive object: {sentence:#?}");
+        };
+        let mut groups = Vec::new();
+        collect_noun_coordinations(object, &mut groups);
+        let selected_matches = groups
+            .iter()
+            .any(|group| local_power_toughness_precedes_keyword(group, "Lifelink"));
         assert!(
-            matching.is_some(),
-            "no strict full-sentence reading closes the P/T group before lifelink: {readings:#?}",
+            selected_matches,
+            "selected strict reading does not close the P/T group before lifelink: {sentence:#?}",
         );
     }
 
@@ -905,20 +970,19 @@ mod tests {
             "If this creature is a Soldier, it becomes a Kithkin Avatar with base power ",
             "and toughness 7/8 and protection from each of your opponents."
         );
-        let readings = sentence_readings(source, &fixture_catalogs(), SelfReference::default());
-        let matching = readings.iter().find(|sentence| {
-            let Some(object) = main_transitive_object(sentence) else {
-                return false;
-            };
-            let mut groups = Vec::new();
-            collect_noun_coordinations(object, &mut groups);
-            groups
-                .iter()
-                .any(|group| local_power_toughness_precedes_keyword(group, "Protection"))
-        });
+        let sentence =
+            parse_fixture_sentence(source, &fixture_catalogs(), SelfReference::default());
+        let Some(object) = main_transitive_object(&sentence) else {
+            panic!("selected strict reading has no transitive object: {sentence:#?}");
+        };
+        let mut groups = Vec::new();
+        collect_noun_coordinations(object, &mut groups);
+        let selected_matches = groups
+            .iter()
+            .any(|group| local_power_toughness_precedes_keyword(group, "Protection"));
         assert!(
-            matching.is_some(),
-            "no strict full-sentence reading closes the P/T group before protection: {readings:#?}",
+            selected_matches,
+            "selected strict reading does not close the P/T group before protection: {sentence:#?}",
         );
     }
 
@@ -973,13 +1037,13 @@ mod tests {
             "Put a +1/+1 counter and a lifelink counter on that creature and a +1/+1 ",
             "counter and a lifelink counter on Arwen."
         );
-        let readings = sentence_readings(
+        let sentence = parse_fixture_sentence(
             source,
             &fixture_catalogs(),
             SelfReference::new("Arwen, Mortal Queen", true),
         );
-        let matching = readings.iter().find(|sentence| {
-            let Some(NounPhrase::Coordinated(outer)) = main_transitive_object(sentence) else {
+        let selected_matches = (|| {
+            let Some(NounPhrase::Coordinated(outer)) = main_transitive_object(&sentence) else {
                 return false;
             };
             let (NounPhrase::Coordinated(first), [second]) =
@@ -1003,10 +1067,10 @@ mod tests {
                 && counter_pair_has_destination(&second.phrase, |destination| {
                     matches!(destination, NounPhrase::ThisCard(_))
                 })
-        });
+        })();
         assert!(
-            matching.is_some(),
-            "no strict reading closes both counter pairs locally: {readings:#?}",
+            selected_matches,
+            "selected strict reading does not close both counter pairs locally: {sentence:#?}",
         );
     }
 
@@ -1016,12 +1080,12 @@ mod tests {
             "Shadow the Hedgehog or another creature you control with flash or haste ",
             "dies."
         );
-        let readings = sentence_readings(
+        let sentence = parse_fixture_sentence(
             source,
             &fixture_catalogs(),
             SelfReference::new("Shadow the Hedgehog", true),
         );
-        let matching = readings.iter().find(|sentence| {
+        let selected_matches = (|| {
             let crate::syntax::SentenceBody::Independent(
                 crate::syntax::IndependentClause::Intransitive(
                     crate::syntax::Subject(NounPhrase::Coordinated(subject)),
@@ -1068,10 +1132,10 @@ mod tests {
                             if nominal_head_spelling(haste) == "Haste"
                     )
             })
-        });
+        })();
         assert!(
-            matching.is_some(),
-            "no strict reading keeps flash or haste inside with: {readings:#?}",
+            selected_matches,
+            "selected strict reading does not keep flash or haste inside with: {sentence:#?}",
         );
     }
 
@@ -1265,6 +1329,37 @@ mod tests {
         );
         assert_eq!(shared.feature_combinators.len(), 1);
         assert_eq!(
+            shared
+                .requirements
+                .iter()
+                .map(|requirement| requirement.description)
+                .collect::<Vec<_>>(),
+            [
+                "rest.len() >= 1",
+                "rest.nonfinal.conjunction.is_none()",
+                "rest.last.conjunction.is_some()",
+                "rest.last.conjunction in [And, Or, AndOr]",
+            ],
+        );
+        assert_eq!(shared.recognition_requirements.len(), 1);
+        assert_eq!(
+            shared.recognition_requirements[0].predicate,
+            PredicateData::All(&[
+                PredicateData::In {
+                    path: "complements.first.variant",
+                    allowed: &["Relative"],
+                },
+                PredicateData::In {
+                    path: "complements.nonfinal.variant",
+                    allowed: &["Relative"],
+                },
+                PredicateData::In {
+                    path: "complements.last.variant",
+                    allowed: &["Relative"],
+                },
+            ]),
+        );
+        assert_eq!(
             (
                 shared.feature_combinators[0].target,
                 shared.feature_combinators[0].combinator,
@@ -1432,12 +1527,12 @@ mod tests {
             }],
             vec![NominalComplement::Quantity(Quantity::Both)],
         )
-        .expect("typed nominal complements are declared construction fields");
+        .expect("recognition constraints do not narrow the typed AST domain");
         let (_, _, _, complements) = coordination::parts_shared_determiner_nominal(&complemented);
         assert_eq!(complements, &[NominalComplement::Quantity(Quantity::Both)]);
         assert_eq!(
             nominal_coordination_verdict(&complemented),
-            CoordinationVerdict::Admitted
+            CoordinationVerdict::Admitted,
         );
     }
 

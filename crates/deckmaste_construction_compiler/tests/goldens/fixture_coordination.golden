@@ -793,6 +793,30 @@ mod __constructions_fixture_coordination {
                         ],
                     },
                 ],
+                requirements: &[
+                    ::deckmaste_construction_compiler::runtime::RequirementData {
+                        description: "members.len() >= 2",
+                        predicate: ::deckmaste_construction_compiler::runtime::PredicateData::LenAtLeast {
+                            path: "members",
+                            min: 2u32,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::RequirementData {
+                        description: "conjunction in [And, Or]",
+                        predicate: ::deckmaste_construction_compiler::runtime::PredicateData::In {
+                            path: "conjunction",
+                            allowed: &["And", "Or"],
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::RequirementData {
+                        description: "members.last.comma in [Present]",
+                        predicate: ::deckmaste_construction_compiler::runtime::PredicateData::In {
+                            path: "members.last.comma",
+                            allowed: &["Present"],
+                        },
+                    },
+                ],
+                recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: Some(__erased_build_fixture_pair),
             },
@@ -846,6 +870,15 @@ mod __constructions_fixture_coordination {
                         ],
                     },
                 ],
+                requirements: &[
+                    ::deckmaste_construction_compiler::runtime::RequirementData {
+                        description: "alt.is_none()",
+                        predicate: ::deckmaste_construction_compiler::runtime::PredicateData::IsNone {
+                            path: "alt",
+                        },
+                    },
+                ],
+                recognition_requirements: &[],
                 feature_combinators: &[],
                 erased_builder: Some(__erased_build_fixture_solo),
             },

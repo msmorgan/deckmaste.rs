@@ -33,6 +33,7 @@ mod kw {
     syn::custom_keyword!(bind);
     syn::custom_keyword!(own);
     syn::custom_keyword!(require);
+    syn::custom_keyword!(recognize);
     syn::custom_keyword!(derive);
     syn::custom_keyword!(witness);
     syn::custom_keyword!(stored);
@@ -288,7 +289,16 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     let mut selection = SelectionPromise::Packed;
     let mut deserialize = false;
     while !content.is_empty() {
-        if content.peek(kw::require) {
+        if content.peek(kw::recognize) {
+            content.parse::<kw::recognize>()?;
+            let keyword = content.parse::<kw::require>()?;
+            let predicate = parse_pred(&content)?;
+            content.parse::<syn::Token![;]>()?;
+            constraints.push(Constraint::Recognize(Spanned {
+                value: predicate,
+                span: keyword.span,
+            }));
+        } else if content.peek(kw::require) {
             let keyword = content.parse::<kw::require>()?;
             let predicate = parse_pred(&content)?;
             content.parse::<syn::Token![;]>()?;
@@ -346,7 +356,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
             deserialize = true;
         } else {
             return Err(content.error(
-                "expected require / derive / witness / form / dominates / selection / deserialize",
+                "expected recognize require / require / derive / witness / form / dominates / selection / deserialize",
             ));
         }
     }
@@ -854,14 +864,18 @@ mod tests {
                 Predicate::All(children) => children,
                 other => panic!("expected All(...), got {other:?}"),
             },
-            other @ Constraint::DeriveFeature { .. } => panic!("expected Require, got {other:?}"),
+            other @ (Constraint::Recognize(_) | Constraint::DeriveFeature { .. }) => {
+                panic!("expected Require, got {other:?}")
+            }
         };
         let any_children = match &construction.constraints[1] {
             Constraint::Require(pred) => match &pred.value {
                 Predicate::Any(children) => children,
                 other => panic!("expected Any(...), got {other:?}"),
             },
-            other @ Constraint::DeriveFeature { .. } => panic!("expected Require, got {other:?}"),
+            other @ (Constraint::Recognize(_) | Constraint::DeriveFeature { .. }) => {
+                panic!("expected Require, got {other:?}")
+            }
         };
         for children in [all_children, any_children] {
             assert_eq!(children.len(), 2);
@@ -934,7 +948,9 @@ mod tests {
                 assert_eq!(args.len(), 1);
                 assert_eq!(args[0].segments[0].value, "f");
             }
-            other @ Constraint::Require(_) => panic!("expected DeriveFeature, got {other:?}"),
+            other @ (Constraint::Require(_) | Constraint::Recognize(_)) => {
+                panic!("expected DeriveFeature, got {other:?}")
+            }
         }
     }
 }
