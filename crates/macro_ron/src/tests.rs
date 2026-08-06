@@ -3186,3 +3186,397 @@ fn unregistered_kinds_keep_their_native_variants() {
         .unwrap();
     assert!(matches!(value, Filter::Expanded(_)), "{value:?}");
 }
+
+// ---------------------------------------------------------------------------
+// Optional-parameter elision (`Elidable(Type)`)
+//
+// The two fixture shapes the capability exists for: a struct variant whose
+// fields carry serde defaults (`EventFilter::Cast`), and a tuple variant with
+// a trailing default (`Action::Cast`). Both are spelled BOTH ways in the card
+// corpus — long, supplying the value the default would have filled, and
+// short, omitting it — so one identity macro has to read both.
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+enum Who {
+    #[default]
+    Anyone,
+    You,
+}
+
+/// A struct variant with serde-defaulted fields, like `EventFilter::Cast`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+enum Event {
+    Cast {
+        #[serde(default)]
+        who: Who,
+        what: String,
+        #[serde(default)]
+        cause: Who,
+    },
+    /// Every field defaulted, so a call can omit them ALL — the shape most
+    /// of `EventFilter`'s event variants actually have.
+    Idle {
+        #[serde(default)]
+        who: Who,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+enum Loudness {
+    #[default]
+    Normal,
+    Loud,
+}
+
+/// A tuple variant with a trailing default: hand-written because serde's
+/// derive has no per-field default for tuple variants, while the
+/// `SupportsMacros` derive generates exactly this shape for
+/// `#[macro_ron(default = …)]` (`Action::Cast`'s trailing argument).
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Shout {
+    Say(String, Loudness),
+}
+
+impl<'de> Deserialize<'de> for Shout {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use std::fmt;
+
+        use serde::de::SeqAccess;
+        use serde::de::Visitor;
+
+        struct ShoutVisitor;
+        impl<'de> Visitor<'de> for ShoutVisitor {
+            type Value = Shout;
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("a Shout value")
+            }
+            fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+                use serde::de::Error;
+                let (ident, variant) = data.variant_seed(IdentSeed)?;
+                if ident != "Say" {
+                    return Err(A::Error::custom(format_args!("`{ident}` is not a Shout")));
+                }
+                variant.tuple_variant(2, SayArgs)
+            }
+        }
+
+        struct SayArgs;
+        impl<'de> Visitor<'de> for SayArgs {
+            type Value = Shout;
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("Say(word, loudness?)")
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                use serde::de::Error;
+                let word: String = seq
+                    .next_element()?
+                    .ok_or_else(|| A::Error::custom("Say needs a word"))?;
+                let loudness = seq.next_element()?.unwrap_or_default();
+                Ok(Shout::Say(word, loudness))
+            }
+        }
+
+        deserializer.deserialize_enum("Shout", &["Say"], ShoutVisitor)
+    }
+}
+
+/// `Event`'s own variant names: an identity macro is only reachable when the
+/// kind knows which idents are native (the cycle check, and the restricted
+/// read's candidacy suppression, both consult this).
+const EVENT_VARIANTS: &[&str] = &["Cast", "Idle"];
+const SHOUT_VARIANTS: &[&str] = &["Say"];
+
+/// The named identity macro under test: `who` and `cause` are elidable, `what`
+/// is required — `EventFilter::Cast`'s real shape.
+fn cast_event_macro() -> MacroDef {
+    def(r#"(
+        name: "Cast",
+        kinds: [Event],
+        params: { "who": Elidable(Any), "what": Any, "cause": Elidable(Any) },
+        body: Cast(who: Param(who), what: Param(what), cause: Param(cause)),
+    )"#)
+}
+
+/// A non-identity macro over the same shape, so elision is exercised on the
+/// ordinary (unrestricted) path too, where an identity macro's name would be
+/// shadowed by the native variant.
+fn ignite_macro() -> MacroDef {
+    def(r#"(
+        name: "Ignite",
+        kinds: [Event],
+        params: { "who": Elidable(Any), "what": Any },
+        body: Cast(who: Param(who), what: Param(what)),
+    )"#)
+}
+
+/// The positional identity macro under test: a trailing elidable argument,
+/// `Action::Cast`'s real shape.
+fn say_shout_macro() -> MacroDef {
+    def(r#"(
+        name: "Say",
+        kinds: [Shout],
+        params: [Any, Elidable(Any)],
+        body: Say(Param(0), Param(1)),
+    )"#)
+}
+
+fn elision_set() -> MacroSet {
+    let mut kinds = kinds();
+    kinds.add(Kind::new("Event").with_variants(EVENT_VARIANTS));
+    kinds.add(Kind::new("Shout").with_variants(SHOUT_VARIANTS));
+    let mut macros = MacroSet::new(kinds).with_options(options());
+    macros.insert(&cast_event_macro()).unwrap();
+    macros.insert(&ignite_macro()).unwrap();
+    macros.insert(&say_shout_macro()).unwrap();
+    macros
+}
+
+/// A parameter the caller supplied is forwarded into the body.
+#[test]
+fn an_elided_param_is_forwarded_when_supplied() {
+    let value: Event = elision_set()
+        .read_str_restricted(r#"Cast(who: You, what: "bolt", cause: You)"#)
+        .unwrap();
+    assert_eq!(
+        value,
+        Event::Cast {
+            who: Who::You,
+            what: "bolt".into(),
+            cause: Who::You,
+        }
+    );
+}
+
+/// The same parameter, omitted, leaves the body key out entirely — so the host
+/// type's own serde default applies, exactly as it does when a card file omits
+/// the field.
+#[test]
+fn an_elided_param_is_omitted_from_the_body_when_absent() {
+    let short = r#"Cast(what: "bolt")"#;
+    let value: Event = elision_set().read_str_restricted(short).unwrap();
+    let native: Event = options().from_str(short).unwrap();
+    assert_eq!(value, native);
+    assert_eq!(
+        value,
+        Event::Cast {
+            who: Who::Anyone,
+            what: "bolt".into(),
+            cause: Who::Anyone,
+        }
+    );
+}
+
+/// Only the omitted parameters vanish: a partially-supplied call keeps the
+/// ones it gave.
+#[test]
+fn an_elided_param_omission_is_per_argument() {
+    let source = r#"Cast(what: "bolt", cause: You)"#;
+    let value: Event = elision_set().read_str_restricted(source).unwrap();
+    let native: Event = options().from_str(source).unwrap();
+    assert_eq!(value, native);
+    assert_eq!(
+        value,
+        Event::Cast {
+            who: Who::Anyone,
+            what: "bolt".into(),
+            cause: Who::You,
+        }
+    );
+}
+
+/// The same two spellings through a macro whose name isn't the variant's, so
+/// the elision runs on the unrestricted path.
+#[test]
+fn an_elided_param_reads_both_spellings_unrestricted() {
+    let long: Event = elision_set()
+        .read_str(r#"Ignite(who: You, what: "bolt")"#)
+        .unwrap();
+    assert_eq!(
+        long,
+        Event::Cast {
+            who: Who::You,
+            what: "bolt".into(),
+            cause: Who::Anyone,
+        }
+    );
+
+    let short: Event = elision_set().read_str(r#"Ignite(what: "bolt")"#).unwrap();
+    assert_eq!(
+        short,
+        Event::Cast {
+            who: Who::Anyone,
+            what: "bolt".into(),
+            cause: Who::Anyone,
+        }
+    );
+}
+
+/// The positional form, both spellings: a trailing elidable argument may be
+/// supplied or dropped, and dropping it drops the body's tuple element.
+#[test]
+fn an_elided_positional_param_reads_both_arities() {
+    let long: Shout = elision_set()
+        .read_str_restricted(r#"Say("hi", Loud)"#)
+        .unwrap();
+    assert_eq!(long, Shout::Say("hi".into(), Loudness::Loud));
+
+    let short_src = r#"Say("hi")"#;
+    let short: Shout = elision_set().read_str_restricted(short_src).unwrap();
+    let native: Shout = options().from_str(short_src).unwrap();
+    assert_eq!(short, native);
+    assert_eq!(short, Shout::Say("hi".into(), Loudness::Normal));
+}
+
+/// An omitted elidable param whose hole doesn't stand at a droppable entry
+/// can't be elided — there is nothing to remove. That's a definition error,
+/// reported as one rather than read as something else.
+#[test]
+fn an_elided_param_used_where_it_cannot_be_dropped_errors() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Whole",
+            kinds: [Subtype],
+            params: { "a": Elidable(Any) },
+            body: Param(a),
+        )"#))
+        .unwrap();
+    let error = macros
+        .read_str::<Subtype>("Whole()")
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("can't be elided"), "{error}");
+}
+
+/// Dropping a body's LAST entry takes the trailing comma that followed it,
+/// so a container emptied by elision doesn't end up holding a bare comma.
+#[test]
+fn eliding_every_body_entry_takes_the_trailing_comma() {
+    let mut macros = elision_set();
+    macros
+        .insert(&def(r#"(
+            name: "Idle",
+            kinds: [Event],
+            params: { "who": Elidable(Any) },
+            body: Idle(
+                who: Param(who),
+            ),
+        )"#))
+        .unwrap();
+    let short = "Idle()";
+    let value: Event = macros.read_str_restricted(short).unwrap();
+    let native: Event = options().from_str(short).unwrap();
+    assert_eq!(value, native);
+    assert_eq!(value, Event::Idle { who: Who::Anyone });
+
+    let long: Event = macros.read_str_restricted("Idle(who: You)").unwrap();
+    assert_eq!(long, Event::Idle { who: Who::You });
+}
+
+/// Elidable positional params must be the trailing ones — a call supplies a
+/// prefix, so an earlier one could never be omitted.
+#[test]
+fn an_elidable_positional_param_must_be_trailing() {
+    let error = empty()
+        .insert(&def(r#"(
+            name: "Backwards",
+            kinds: [Subtype],
+            params: [Elidable(Any), Any],
+            body: Subtype(name: Param(0), types: [Land]),
+        )"#))
+        .unwrap_err();
+    assert_eq!(
+        error,
+        InsertError::ElidableNotTrailing {
+            name: "Backwards".into()
+        }
+    );
+}
+
+/// A positional signature's ONE param may not be elidable: a one-param call
+/// reads through the newtype channel, which has no zero-argument spelling, so
+/// the short form the marker promises could never be invoked. Refused at load
+/// rather than left to silently mean nothing.
+#[test]
+fn a_lone_elidable_positional_param_is_rejected() {
+    let error = empty()
+        .insert(&def(r#"(
+            name: "Solo",
+            kinds: [Subtype],
+            params: [Elidable(Any)],
+            body: Subtype(name: Param(0), types: [Land]),
+        )"#))
+        .unwrap_err();
+    assert_eq!(
+        error,
+        InsertError::LoneElidablePositional {
+            name: "Solo".into()
+        }
+    );
+}
+
+/// Two or more positional params DO read through the tuple channel, which
+/// admits `M()`, so an all-elidable signature is legal from there up and every
+/// arity in `[0, len]` reads.
+#[test]
+fn an_all_elidable_positional_signature_reads_every_arity() {
+    let mut macros = elision_set();
+    macros
+        .insert(&def(r#"(
+            name: "Pair",
+            kinds: [Event],
+            params: [Elidable(Any), Elidable(Any)],
+            body: Cast(who: Param(0), what: "bolt", cause: Param(1)),
+        )"#))
+        .unwrap();
+    let cast = |who, cause| Event::Cast {
+        who,
+        what: "bolt".into(),
+        cause,
+    };
+    assert_eq!(
+        macros.read_str::<Event>("Pair()").unwrap(),
+        cast(Who::Anyone, Who::Anyone)
+    );
+    assert_eq!(
+        macros.read_str::<Event>("Pair(You)").unwrap(),
+        cast(Who::You, Who::Anyone)
+    );
+    assert_eq!(
+        macros.read_str::<Event>("Pair(You, You)").unwrap(),
+        cast(Who::You, Who::You)
+    );
+}
+
+/// `Elidable` and `Default` are alternatives, not a combination.
+#[test]
+fn elidable_and_default_do_not_combine() {
+    let error = options()
+        .from_str::<MacroDef>(
+            r#"(
+            name: "Both",
+            kinds: [Subtype],
+            params: { "a": Elidable(Default(Any, 1)) },
+            body: Subtype(name: Param(a), types: [Land]),
+        )"#,
+        )
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("not both"), "{error}");
+}
+
+/// A default expression may not reference an elidable param: it might not be
+/// there to reference.
+#[test]
+fn a_default_may_not_reference_an_elidable_param() {
+    let error = empty()
+        .insert(&def(r#"(
+            name: "Leaning",
+            kinds: [Subtype],
+            params: { "a": Elidable(Any), "b": Default(Any, Param(a)) },
+            body: Subtype(name: Param(b), types: [Land]),
+        )"#))
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("omittable param `a`"), "{error}");
+}

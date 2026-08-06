@@ -7,7 +7,10 @@
 //! literal); domain types like `Color` are injected by the embedding crate,
 //! the same way kinds are. A named param may wrap its type as
 //! `Default(String, <expr>)` to declare a default expression, filled when an
-//! invocation omits the argument.
+//! invocation omits the argument, and any param may wrap its type as
+//! `Elidable(String)` to declare that an omitted argument is filled with
+//! *nothing* — the body entry holding its hole is removed before the body is
+//! read, so the destination type's own serde default applies.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -27,18 +30,25 @@ use crate::IdentSeed;
 use crate::set::MacroSet;
 
 /// The declared type of one macro parameter: a type *name*, resolved against
-/// the [`ParamTypeSet`] in scope, an optional default expression, and an
-/// optional binder contract. Written in definition files as a bare identifier
-/// (`params: [String, Color]`), a `Default(String, <expr>)` (named
-/// signatures only), or a binder contract `Effect(binds: [It])` — `Default`
-/// is thereby reserved as a spelling; a registered param type by that name
-/// would be unreachable.
+/// the [`ParamTypeSet`] in scope, an optional default expression, an
+/// elidability flag, and an optional binder contract. Written in definition
+/// files as a bare identifier (`params: [String, Color]`), a
+/// `Default(String, <expr>)` (named signatures only), an
+/// `Elidable(String)`, or a binder contract `Effect(binds: [It])` —
+/// `Default` and `Elidable` are thereby reserved as spellings; a registered
+/// param type by either name would be unreachable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParamType {
     pub name: Ident,
     /// Raw RON source filled in for an omitted argument; its `Param(...)`
     /// holes may reference non-defaulted siblings (checked at insert).
     pub default: Option<Box<str>>,
+    /// ELIDABLE: an omitted argument is filled with nothing at all. The body
+    /// entry whose value is this param's hole — a struct/map `key: Param(p)`
+    /// entry, or a trailing tuple element — is removed from the body text
+    /// before the body is read, so the destination type never sees the key
+    /// and applies its own serde default. Mutually exclusive with `default`.
+    pub elidable: bool,
     /// The BINDER CONTRACT ([typed-holes delta 2]): the anaphora the macro's
     /// body wraps around this hole. `Effect(binds: [It])` = "the body
     /// introduces an It-binder over this hole", so an argument reading `It` is
@@ -55,6 +65,7 @@ impl ParamType {
         ParamType {
             name: name.into(),
             default: None,
+            elidable: false,
             binds: Vec::new(),
         }
     }
@@ -65,16 +76,28 @@ impl ParamType {
         ParamType {
             name: name.into(),
             default: None,
+            elidable: false,
             binds,
+        }
+    }
+
+    /// An elidable param type (`Elidable(Any)`): see [`ParamType::elidable`].
+    #[must_use]
+    pub fn elidable(name: impl Into<Ident>) -> Self {
+        ParamType {
+            name: name.into(),
+            default: None,
+            elidable: true,
+            binds: Vec::new(),
         }
     }
 }
 
-/// The three `ParamType` spellings don't fit one serde variant shape — a bare
-/// ident (unit variant), `Default(T, expr)` (tuple variant), and `T(binds:
-/// […])` (struct variant) all read after the same tag, and serde can't peek
-/// which. So capture the source and route by structural shape, then re-parse
-/// the pieces with ron.
+/// The `ParamType` spellings don't fit one serde variant shape — a bare
+/// ident (unit variant), `Default(T, expr)` (tuple variant), `Elidable(T)`
+/// (newtype variant), and `T(binds: […])` (struct variant) all read after the
+/// same tag, and serde can't peek which. So capture the source and route by
+/// structural shape, then re-parse the pieces with ron.
 impl<'de> Deserialize<'de> for ParamType {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         use serde::de::Error;
@@ -85,7 +108,11 @@ impl<'de> Deserialize<'de> for ParamType {
             return Ok(ParamType::plain(src));
         };
         let head = src[..open].trim();
-        let shape = if head == "Default" { Shape::Default } else { Shape::BinderContract };
+        let shape = match head {
+            "Default" => Shape::Default,
+            "Elidable" => Shape::Elidable,
+            _ => Shape::BinderContract,
+        };
         let mut de = ron::de::Deserializer::from_str(src).map_err(D::Error::custom)?;
         let value = de
             .deserialize_enum("", &[], ParamTypeVisitor { shape })
@@ -97,6 +124,7 @@ impl<'de> Deserialize<'de> for ParamType {
 /// Which of the argument-bearing `ParamType` spellings the captured source is.
 enum Shape {
     Default,
+    Elidable,
     BinderContract,
 }
 
@@ -107,17 +135,38 @@ struct ParamTypeVisitor {
 impl<'de> Visitor<'de> for ParamTypeVisitor {
     type Value = ParamType;
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Default(type, expression) or Type(binds: [It, …])")
+        f.write_str("Default(type, expression), Elidable(type), or Type(binds: [It, …])")
     }
     fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+        use serde::de::Error;
         let (ident, variant) = data.variant_seed(IdentSeed)?;
         match self.shape {
             Shape::Default => variant.tuple_variant(2, DefaultArgs),
+            Shape::Elidable => {
+                let inner: ParamType = variant.newtype_variant()?;
+                if inner.default.is_some() {
+                    return Err(A::Error::custom(
+                        "a param is either Elidable(...) or Default(..., expr), not both",
+                    ));
+                }
+                if inner.elidable {
+                    return Err(A::Error::custom("Elidable(...) does not nest"));
+                }
+                Ok(ParamType {
+                    name: inner.name,
+                    default: None,
+                    elidable: true,
+                    // An elidable param may still carry a binder contract
+                    // (`Elidable(Effect(binds: [It]))`).
+                    binds: inner.binds,
+                })
+            }
             Shape::BinderContract => {
                 let binds = variant.struct_variant(&["binds"], BinderContractArgs)?;
                 Ok(ParamType {
                     name: ident,
                     default: None,
+                    elidable: false,
                     binds,
                 })
             }
@@ -139,12 +188,18 @@ impl<'de> Visitor<'de> for DefaultArgs {
         if inner.default.is_some() {
             return Err(A::Error::custom("Default(...) does not nest"));
         }
+        if inner.elidable {
+            return Err(A::Error::custom(
+                "a param is either Elidable(...) or Default(..., expr), not both",
+            ));
+        }
         let expr: Box<RawValue> = seq
             .next_element()?
             .ok_or_else(|| A::Error::custom("Default(type, expression) needs an expression"))?;
         Ok(ParamType {
             name: inner.name,
             default: Some(expr.get_ron().trim().into()),
+            elidable: false,
             // A defaulted param may still carry a binder contract
             // (`Default(Effect(binds: [It]), …)`).
             binds: inner.binds,

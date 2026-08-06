@@ -112,6 +112,12 @@ struct Frame<'de> {
     /// The macro's name, for error messages.
     name: Ident,
     args: FrameArgs<'de>,
+    /// The `Elidable(...)` params this invocation omitted. They have no
+    /// argument text at all: [`elide_body`] removes the body entries their
+    /// holes stand in, so the destination type never sees those keys and
+    /// applies its own defaults. Empty for every non-elidable signature, which
+    /// is what keeps expansion byte-identical for defs predating the form.
+    elided: Vec<ParamKey>,
     /// Whether the invocation's argument text was captured from restricted
     /// (author-facing) source. Recorded here because restriction follows the
     /// text's provenance, not the frame it is substituted into: a card-written
@@ -186,7 +192,19 @@ impl<'de> Ctx<'de, '_> {
                 .map(|(_, v, defaulted)| (*v, frame.restricted && !defaulted)),
             _ => None,
         };
-        arg.ok_or_else(|| format!("macro `{}` has no Param({key})", frame.name))
+        arg.ok_or_else(|| {
+            if frame.elided.contains(&key) {
+                // The hole survived `elide_body`: it doesn't stand at a
+                // droppable body entry, so there is nothing to fall back to.
+                format!(
+                    "macro `{}` omitted elidable param `{key}`, but its body uses \
+                     it somewhere that can't be elided",
+                    frame.name,
+                )
+            } else {
+                format!("macro `{}` has no Param({key})", frame.name)
+            }
+        })
     }
 
     /// Whether an identifier naming a variant of `position` may be taken as
@@ -335,6 +353,13 @@ fn reread<'de, 'f, T, E: serde::de::Error>(
     Ok(value)
 }
 
+/// What an invocation's argument list read as: the arguments themselves, and
+/// the `Elidable(...)` params the call omitted.
+struct Invoked<'de> {
+    args: FrameArgs<'de>,
+    elided: Vec<ParamKey>,
+}
+
 /// What a captured fragment resolved to, when it isn't an ordinary value.
 enum Invocation<'de> {
     /// A `Param(...)` hole addressing the current frame.
@@ -343,7 +368,7 @@ enum Invocation<'de> {
     Macro {
         name: Ident,
         def: &'de MacroDef,
-        args: FrameArgs<'de>,
+        invoked: Invoked<'de>,
     },
 }
 
@@ -395,11 +420,11 @@ impl<'de> Visitor<'de> for Probe<'_, 'de, '_> {
         else {
             return Ok(None);
         };
-        let args = read_args(ident, variant, &def.params, self.ctx)?;
+        let invoked = read_args(ident, variant, &def.params, self.ctx)?;
         Ok(Some(Invocation::Macro {
             name: ident,
             def,
-            args,
+            invoked,
         }))
     }
 }
@@ -853,6 +878,278 @@ fn substitute_params<'de>(
     Ok(std::borrow::Cow::Owned(out))
 }
 
+/// How a value's immediate children sit in its source, which decides whether
+/// one of them can be dropped and how much text goes with it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Layout {
+    /// Keyed entries — `Head(k: v, …)`, `(k: v, …)`, `{k: v, …}`. Any entry
+    /// may be dropped: the survivors still name themselves.
+    Keyed,
+    /// Ordered entries — `Head(a, b, …)`, `[a, b, …]`. Only a trailing run
+    /// may be dropped: dropping an earlier one would shift the rest.
+    Ordered,
+    /// Neither — a scalar, an `Option`/newtype wrapper, a reserved form. Its
+    /// children are positions in their own right, not droppable entries.
+    Opaque,
+}
+
+macro_rules! opaque_visits {
+    ($($method:ident$(($ty:ty))?),* $(,)?) => {
+        $(fn $method<E: serde::de::Error>(self $(, _: $ty)?) -> Result<Self::Value, E> {
+            Ok(Layout::Opaque)
+        })*
+    };
+}
+
+/// The identifier-led half of [`entry_layout`]: a struct-shaped variant body
+/// is [`Layout::Keyed`], and anything reserved (or `Option`-shaped) is
+/// [`Layout::Opaque`] — dropping a child out of `Some(...)` would change what
+/// the value IS, not just which of its entries are present.
+struct LayoutSeed<'a>(&'a Cell<bool>);
+
+impl<'de> DeserializeSeed<'de> for LayoutSeed<'_> {
+    type Value = Layout;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_enum("", &[], self)
+    }
+}
+
+impl<'de> Visitor<'de> for LayoutSeed<'_> {
+    type Value = Layout;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("an identifier-led value")
+    }
+
+    fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+        let (ident, variant) = data.variant_seed(IdentSeed)?;
+        self.0.set(true);
+        if matches!(ident.as_str(), "Param" | QUOTE | SPLICE | "Some" | "None") {
+            // The variant body is left unread; the fragment is never
+            // re-read from this deserializer.
+            return Ok(Layout::Opaque);
+        }
+        variant.struct_variant(&[], Children)?;
+        Ok(Layout::Keyed)
+    }
+}
+
+/// The non-identifier-led half of [`entry_layout`].
+struct BareLayout;
+
+impl<'de> DeserializeSeed<'de> for BareLayout {
+    type Value = Layout;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_any(self)
+    }
+}
+
+impl<'de> Visitor<'de> for BareLayout {
+    type Value = Layout;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a value")
+    }
+
+    opaque_visits! {
+        visit_bool(bool),
+        visit_i8(i8), visit_i16(i16), visit_i32(i32), visit_i64(i64), visit_i128(i128),
+        visit_u8(u8), visit_u16(u16), visit_u32(u32), visit_u64(u64), visit_u128(u128),
+        visit_f32(f32), visit_f64(f64),
+        visit_char(char),
+        visit_str(&str), visit_borrowed_str(&'de str), visit_string(String),
+        visit_bytes(&[u8]), visit_borrowed_bytes(&'de [u8]), visit_byte_buf(Vec<u8>),
+        visit_none, visit_unit,
+    }
+
+    fn visit_some<D: Deserializer<'de>>(self, _: D) -> Result<Self::Value, D::Error> {
+        Ok(Layout::Opaque)
+    }
+
+    fn visit_newtype_struct<D: Deserializer<'de>>(self, _: D) -> Result<Self::Value, D::Error> {
+        Ok(Layout::Opaque)
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        while seq.next_element::<IgnoredAny>()?.is_some() {}
+        Ok(Layout::Ordered)
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+        while map.next_entry::<IgnoredAny, IgnoredAny>()?.is_some() {}
+        Ok(Layout::Keyed)
+    }
+}
+
+/// How `fragment`'s immediate children — the ones [`decompose`] hands back —
+/// sit in its source. Mirrors [`decompose`]'s own tuple-then-struct probing,
+/// keeping the answer it discards.
+fn entry_layout(fragment: &str, options: &ron::Options) -> Layout {
+    let entered = Cell::new(false);
+    match read_fragment(fragment, options, LayoutSeed(&entered)) {
+        Ok(layout) => layout,
+        // Identifier-led but not struct-shaped: a tuple variant.
+        Err(_) if entered.get() => Layout::Ordered,
+        Err(_) => read_fragment(fragment, options, BareLayout).unwrap_or(Layout::Opaque),
+    }
+}
+
+/// A raw child's byte range within `root`, trimmed of the surrounding
+/// whitespace a raw subslice can carry — the cut arithmetic needs the value's
+/// own extent, not the gap around it.
+fn span_in(root: &str, fragment: &str) -> Range<usize> {
+    let base = fragment.as_ptr() as usize - root.as_ptr() as usize;
+    let lead = fragment.len() - fragment.trim_start().len();
+    let trail = fragment.len() - fragment.trim_end().len();
+    (base + lead)..(base + fragment.len() - trail)
+}
+
+/// The byte index in `root` just past `fragment`'s opening delimiter — where
+/// its first entry's text begins. The head identifier can't contain one, so
+/// the first `(`/`[`/`{` is always the opener.
+fn container_content_start(root: &str, fragment: &str) -> Result<usize, String> {
+    let base = fragment.as_ptr() as usize - root.as_ptr() as usize;
+    fragment
+        .find(['(', '[', '{'])
+        .map(|i| base + i + 1)
+        .ok_or_else(|| format!("`{}` has no entries to elide from", fragment.trim()))
+}
+
+/// The byte index in `root` where the next entry's own text starts, scanning
+/// from just past the container's opener or the previous entry's end: at most
+/// one separating comma and any whitespace lie in between. A comment there is
+/// refused rather than guessed past.
+fn entry_start(root: &str, from: usize) -> Result<usize, String> {
+    let bytes = root.as_bytes();
+    let mut i = from;
+    let mut comma = false;
+    while i < bytes.len() {
+        match bytes[i] {
+            b',' if !comma => {
+                comma = true;
+                i += 1;
+            }
+            c if c.is_ascii_whitespace() => i += 1,
+            b'/' => {
+                return Err(
+                    "a comment between a macro body's entries makes an elidable \
+                     param's entry impossible to locate"
+                        .to_owned(),
+                );
+            }
+            _ => return Ok(i),
+        }
+    }
+    Ok(i)
+}
+
+/// Records the byte ranges of `fragment`'s entries whose value is one of
+/// `elided`'s holes, recursing into the ones that stay. Cuts are disjoint by
+/// construction: an entry with a surviving predecessor takes the separator
+/// BEFORE it, and one in the leading run takes the separator after it
+/// instead, so the container's opener is never left facing a comma.
+fn collect_elisions(
+    root: &str,
+    fragment: &str,
+    elided: &[ParamKey],
+    options: &ron::Options,
+    cuts: &mut Vec<Range<usize>>,
+) -> Result<(), String> {
+    let children = match decompose(fragment, options)? {
+        Node::Hole(_) | Node::Quote(_) => return Ok(()),
+        Node::Branch(children) => children,
+    };
+    if children.is_empty() {
+        return Ok(());
+    }
+    let absent: Vec<bool> = children
+        .iter()
+        .map(|child| {
+            matches!(
+                decompose(child.get_ron(), options),
+                Ok(Node::Hole(key)) if elided.contains(&key)
+            )
+        })
+        .collect();
+    let droppable: Vec<bool> = match entry_layout(fragment, options) {
+        Layout::Keyed => absent.clone(),
+        Layout::Ordered => {
+            // A call supplies a PREFIX of a positional list, so only the
+            // trailing run is genuinely absent; an earlier hole is left for
+            // `Ctx::param` to report.
+            let from = absent.iter().rposition(|dead| !dead).map_or(0, |i| i + 1);
+            (0..absent.len()).map(|i| i >= from && absent[i]).collect()
+        }
+        Layout::Opaque => vec![false; absent.len()],
+    };
+    if droppable.iter().all(|drop| !drop) {
+        for child in children {
+            collect_elisions(root, child.get_ron(), elided, options, cuts)?;
+        }
+        return Ok(());
+    }
+    let spans: Vec<Range<usize>> = children
+        .iter()
+        .map(|child| span_in(root, child.get_ron()))
+        .collect();
+    for i in 0..spans.len() {
+        if !droppable[i] {
+            collect_elisions(root, children[i].get_ron(), elided, options, cuts)?;
+            continue;
+        }
+        if i > 0 && (0..i).any(|j| !droppable[j]) {
+            cuts.push(spans[i - 1].end..spans[i].end);
+            continue;
+        }
+        let from = if i == 0 { container_content_start(root, fragment)? } else { spans[i - 1].end };
+        // The separator AFTER this entry goes with it. For the last entry
+        // that scan lands on the closing delimiter, taking a trailing comma
+        // with it — `(a: Param(a),)` must not become `(,)`.
+        cuts.push(entry_start(root, from)?..entry_start(root, spans[i].end)?);
+    }
+    Ok(())
+}
+
+/// The body text to re-read for an expansion whose invocation omitted an
+/// `Elidable(...)` param: the definition's body, minus every entry whose value
+/// is one of those params' holes.
+///
+/// This is the body-side half of elision, and it is a TEXT edit made before
+/// the body is parsed at all — a body is spliced and re-read as source, so
+/// "the destination never sees this key" can only mean "the key isn't in the
+/// source the destination reads". Entries are located by ron's own value
+/// spans, so a `Param` inside a string literal is never mistaken for one.
+///
+/// Returns `body` itself when the invocation omitted nothing — which is every
+/// invocation of every signature without an `Elidable(...)` param, so no
+/// existing definition's expansion text changes by a byte.
+fn elide_body<'de>(
+    body: &'de str,
+    frame: &Frame<'de>,
+    read: &'de ReadCtx<'de>,
+) -> Result<&'de str, String> {
+    if frame.elided.is_empty() {
+        return Ok(body);
+    }
+    let mut cuts = Vec::new();
+    collect_elisions(body, body, &frame.elided, read.macros.options(), &mut cuts)
+        .map_err(|reason| format!("macro `{}`: {reason}", frame.name))?;
+    if cuts.is_empty() {
+        return Ok(body);
+    }
+    cuts.sort_by_key(|cut| cut.start);
+    let mut out = String::new();
+    let mut copied = 0;
+    for cut in cuts {
+        out.push_str(&body[copied..cut.start.max(copied)]);
+        copied = cut.end.max(copied);
+    }
+    out.push_str(&body[copied..]);
+    Ok(read.splice(out))
+}
+
 /// Fills `body`'s `Param(i)` holes from `args`, positionally, outside any
 /// real read.
 ///
@@ -880,6 +1177,7 @@ pub(crate) fn fill_positional_params(
     let frame = Frame {
         name: owner,
         args: FrameArgs::Positional(args.to_vec()),
+        elided: Vec::new(),
         restricted: false,
     };
     let ctx = Ctx {
@@ -1054,14 +1352,17 @@ impl<'de, D: Deserializer<'de>> MacroAware<'de, '_, D> {
                 let (arg, restricted) = self.ctx.param(key).map_err(D::Error::custom)?;
                 reread(arg, self.ctx.frameless(restricted), Intercept::Full, f)
             }
-            Some(Invocation::Macro { name, def, args }) => {
+            Some(Invocation::Macro { name, def, invoked }) => {
                 let frame = Frame {
                     name,
-                    args,
+                    args: invoked.args,
+                    elided: invoked.elided,
                     restricted: self.ctx.restricted,
                 };
                 let ctx = self.ctx.expansion(&frame).map_err(D::Error::custom)?;
-                reread(def.body(), ctx, Intercept::Full, f).map_err(|e| in_expansion_of(name, e))
+                let body =
+                    elide_body(def.body(), &frame, self.ctx.read).map_err(D::Error::custom)?;
+                reread(body, ctx, Intercept::Full, f).map_err(|e| in_expansion_of(name, e))
             }
             None => reread(source, self.ctx, Intercept::Skip, f),
         }
@@ -1404,6 +1705,7 @@ fn fill_defaults<'de>(
     let supplied = Frame {
         name,
         args: FrameArgs::Named(args.clone()),
+        elided: Vec::new(),
         restricted: false,
     };
     let fill_ctx = Ctx {
@@ -1463,7 +1765,7 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
     variant: A,
     params: &'de Params,
     ctx: Ctx<'de, 'f>,
-) -> Result<FrameArgs<'de>, A::Error> {
+) -> Result<Invoked<'de>, A::Error> {
     use serde::de::Error;
 
     struct RawArgs;
@@ -1511,23 +1813,39 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 1 => vec![variant.newtype_variant::<&RawValue>()?.get_ron()],
                 arity => variant.tuple_variant(arity, RawArgs)?,
             };
-            if args.len() != types.len() {
-                return Err(A::Error::custom(format_args!(
-                    "expected {} macro arguments, got {}",
-                    types.len(),
-                    args.len(),
-                )));
+            // Trailing `Elidable(...)` params may go unsupplied; without any,
+            // `required` equals `types.len()` and this is the exact-arity
+            // check it has always been.
+            let required = Params::required_positional(types);
+            if args.len() < required || args.len() > types.len() {
+                return Err(A::Error::custom(if required == types.len() {
+                    format!(
+                        "expected {} macro arguments, got {}",
+                        types.len(),
+                        args.len(),
+                    )
+                } else {
+                    format!(
+                        "expected {required} to {} macro arguments, got {}",
+                        types.len(),
+                        args.len(),
+                    )
+                }));
             }
             let args: Vec<&'de str> = args
                 .into_iter()
                 .map(|raw| forward_arg(raw, ctx))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(A::Error::custom)?;
-            for (i, ty) in types.iter().enumerate() {
+            for (i, ty) in types.iter().take(args.len()).enumerate() {
                 validate_arg(name, i + 1, ty, args[i], ctx.read.macros)
                     .map_err(A::Error::custom)?;
             }
-            Ok(FrameArgs::Positional(args))
+            let elided = (args.len()..types.len()).map(ParamKey::Index).collect();
+            Ok(Invoked {
+                args: FrameArgs::Positional(args),
+                elided,
+            })
         }
         Params::Named(signature) => {
             let args = variant.struct_variant(&[], NamedArgs)?;
@@ -1553,6 +1871,15 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 .filter(|key| !args.iter().any(|(k, _)| k == *key))
                 .collect();
             missing.sort_unstable_by_key(|key| key.as_str());
+            // An omitted elidable param is filled with nothing: it leaves
+            // `missing` here (so `fill_defaults` never sees it) and is
+            // recorded on the frame for `elide_body` instead.
+            let elided: Vec<ParamKey> = missing
+                .iter()
+                .filter(|key| signature[**key].elidable)
+                .map(|key| ParamKey::Name(**key))
+                .collect();
+            missing.retain(|key| !signature[*key].elidable);
             if let Some(key) = missing
                 .iter()
                 .find(|key| signature[**key].default.is_none())
@@ -1569,7 +1896,10 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 args.into_iter().map(|(k, v)| (k, v, false)).collect();
             fill_defaults(name, signature, missing, &mut args, ctx.read)
                 .map_err(A::Error::custom)?;
-            Ok(FrameArgs::Named(args))
+            Ok(Invoked {
+                args: FrameArgs::Named(args),
+                elided,
+            })
         }
     }
 }
@@ -1642,13 +1972,15 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
                 self.name,
             ))
         })?;
-        let args = read_args(ident, variant, &def.params, self.ctx)?;
+        let invoked = read_args(ident, variant, &def.params, self.ctx)?;
         let frame = Frame {
             name: ident,
-            args,
+            args: invoked.args,
+            elided: invoked.elided,
             restricted: self.ctx.restricted,
         };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
+        let body = elide_body(def.body(), &frame, self.ctx.read).map_err(A::Error::custom)?;
 
         // When the position's kind remembers its invocation, re-read a
         // synthesized `Expanded(name: …, value: <body>)` wrapper instead of
@@ -1658,10 +1990,10 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         // resolve exactly as they would against the body itself.
         let remembers = self.ctx.read.macros.remembers_expansion(self.name);
         let source = if remembers {
-            let synthesized = synthesize_expanded(ident, &frame.args, def.template(), def.body());
+            let synthesized = synthesize_expanded(ident, &frame.args, def.template(), body);
             self.ctx.read.splice(synthesized)
         } else {
-            def.body()
+            body
         };
         reread(source, ctx, Intercept::Full, |de| {
             de.deserialize_enum(self.name, self.variants, self.visitor)

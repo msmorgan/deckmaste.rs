@@ -21,8 +21,12 @@
 //! named `params: {"cost": String}` is invoked `Boast(cost: "{1}")` with
 //! `Param(cost)` holes. A named param may carry a default —
 //! `{"template": Default(String, Param(name))}` — filled (and validated)
-//! when the invocation omits it; defaults may reference only non-defaulted
-//! params of the same signature.
+//! when the invocation omits it; defaults may reference only always-supplied
+//! params of the same signature. Either shape of param may instead be
+//! declared `Elidable(String)`: an omitted argument is then filled with
+//! nothing, and the body entry holding its hole is dropped before the body is
+//! read, so the destination's own serde default applies. Elidable positional
+//! params must be the trailing ones, since a call supplies a prefix.
 //!
 //! Bodies are raw RON source, read in place of the invocation with the
 //! invocation's arguments in scope — see [`MacroSet::read_str`] and the
@@ -70,11 +74,23 @@ impl Params {
     /// Only named signatures qualify: positional defaults are never filled
     /// (their arity is required), so a bare positional name reads as the
     /// already-supported zero-arg unit form, not a defaulted call.
+    ///
+    /// An all-`Elidable(...)` signature deliberately does NOT qualify: the
+    /// native struct-variant grammar these mirror has no bare spelling
+    /// either (`Drawn` is a parse error where `Drawn()` reads), so granting
+    /// one would invent an author form nothing round-trips back into.
     pub(crate) fn all_defaulted(&self) -> bool {
         match self {
             Params::Named(signature) => signature.values().all(|ty| ty.default.is_some()),
             Params::Positional(_) => false,
         }
+    }
+
+    /// How many leading positional params must be supplied: elidable ones
+    /// form a trailing run (checked at insert), so a call's arity may be
+    /// anything from this up to the full list length.
+    pub(crate) fn required_positional(types: &[ParamType]) -> usize {
+        types.iter().take_while(|ty| !ty.elidable).count()
     }
 }
 
@@ -264,6 +280,15 @@ pub enum InsertError {
     /// A positional signature declared a `Default(...)` param; defaults are
     /// named-only (trailing-default arity is out of scope).
     PositionalDefault { name: Ident },
+    /// A positional signature's `Elidable(...)` params don't form a trailing
+    /// run: a call supplies a prefix of the list, so an elidable param before
+    /// a required one could never actually be omitted.
+    ElidableNotTrailing { name: Ident },
+    /// A positional signature's ONE param is `Elidable(...)`. A one-param
+    /// call reads through the newtype channel, which has no zero-argument
+    /// spelling, so the short form the marker promises could never be
+    /// invoked — the declaration would silently mean nothing.
+    LoneElidablePositional { name: Ident },
     /// A named param's default expression is unusable: unparseable, or it
     /// references a param that is missing, defaulted, or index-addressed.
     BadDefault {
@@ -311,6 +336,22 @@ impl fmt::Display for InsertError {
                     f,
                     "macro `{name}` declares a positional param with a default; \
                      defaults are named-only"
+                )
+            }
+            InsertError::ElidableNotTrailing { name } => {
+                write!(
+                    f,
+                    "macro `{name}` declares an `Elidable(...)` positional param \
+                     before a required one; elidable positional params must be \
+                     the trailing ones"
+                )
+            }
+            InsertError::LoneElidablePositional { name } => {
+                write!(
+                    f,
+                    "macro `{name}`'s only positional param is `Elidable(...)`, \
+                     but a one-param call has no zero-argument spelling; make it \
+                     required, or give the signature a required param first"
                 )
             }
             InsertError::BadDefault {
@@ -525,6 +566,25 @@ impl MacroSet {
                 if types.iter().any(|t| t.default.is_some()) {
                     return Err(InsertError::PositionalDefault { name: def.name });
                 }
+                // Elidable positional params must be a contiguous suffix,
+                // mirroring the derive's own trailing-default rule for the
+                // native tuple variants these signatures shadow.
+                if types[Params::required_positional(types)..]
+                    .iter()
+                    .any(|t| !t.elidable)
+                {
+                    return Err(InsertError::ElidableNotTrailing { name: def.name });
+                }
+                // A ONE-param positional call reads through the newtype
+                // channel (`read_args`), which has no zero-argument spelling,
+                // so an elidable marker there promises a short form nothing
+                // could ever invoke. Refused at load rather than left to
+                // silently mean nothing. Two or more params read through the
+                // tuple channel, which does admit `M()`, so an all-elidable
+                // signature is fine from there up.
+                if matches!(types.as_slice(), [only] if only.elidable) {
+                    return Err(InsertError::LoneElidablePositional { name: def.name });
+                }
                 return Ok(());
             }
             Params::Named(signature) => signature,
@@ -550,9 +610,9 @@ impl MacroSet {
                     None => {
                         return Err(bad(format!("references unknown param `{referenced}`")));
                     }
-                    Some(t) if t.default.is_some() => {
+                    Some(t) if t.default.is_some() || t.elidable => {
                         return Err(bad(format!(
-                            "references defaulted param `{referenced}`; defaults may \
+                            "references omittable param `{referenced}`; defaults may \
                              only reference required params"
                         )));
                     }

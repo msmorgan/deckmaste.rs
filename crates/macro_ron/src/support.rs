@@ -107,13 +107,11 @@ pub enum ParamDefault {
     /// No default — the argument must be supplied.
     Required,
     /// A default exists but has no RON rendering (`#[serde(default)]`,
-    /// `#[serde(default = "path")]`). Omitting the parameter and letting
-    /// serde fill it is only safe for the SHORT spelling that never supplies
-    /// it; there is no macro-def form yet for "forward this argument if
-    /// given, omit it if not" (`docs/tickets/planned/
-    /// macro-ron-optional-param-elision.md`), so a scaffolding consumer that
-    /// needs to keep BOTH spellings round-tripping must exclude a variant
-    /// carrying this shape rather than dropping the parameter.
+    /// `#[serde(default = "path")]`). Dropping the parameter from a scaffold
+    /// would break the LONG spelling that supplies it, and requiring it would
+    /// break the SHORT one that doesn't; a scaffolding consumer that needs
+    /// both to round-trip declares the param `Elidable(...)`, which forwards
+    /// a supplied argument and drops the body entry when there isn't one.
     Implicit,
     /// RON-renderable source text, from `#[macro_ron(default = ...)]`.
     Expr(&'static str),
