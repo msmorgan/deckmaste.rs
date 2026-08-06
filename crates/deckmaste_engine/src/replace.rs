@@ -26,8 +26,9 @@ impl GameState {
     /// replacements (`Also(would: Enters(This), also: …)`) impose. Recognises
     /// `Also(would: Enters(This), also: Tap(This))` → enters tapped, and
     /// `Also(would: Enters(This), also: Attach(This, to))` → enters attached
-    /// ([CR#303.4], §4) — the host resolved from `to`; other `also` effects are
-    /// a `todo!` seam.
+    /// ([CR#303.4], §4) — the host resolved from `to`; a `Sequentially`/
+    /// `Simultaneously` `also` composes several such folds (e.g. enters
+    /// tapped WITH counters); other `also` effects are a `todo!` seam.
     pub(crate) fn as_enters_status(
         &self,
         source: ObjectSource,
@@ -90,7 +91,9 @@ impl GameState {
 
     /// Fold one `also` effect into the entering status. `Tap(This)` → tapped;
     /// `Attach(This, to)` → enters attached, the host resolved from the `to`
-    /// selection (§4). Counters/face-down are Stage-4 seams.
+    /// selection (§4); `PutCounters(This, kind, n)` → counters; `If` folds
+    /// the taken branch; `Sequentially`/`Simultaneously` recurses over every
+    /// child, folding each into the same status. Face-down is a Stage-4 seam.
     fn apply_as_enters(
         &self,
         effect: &OneShotEffect,
@@ -138,11 +141,20 @@ impl GameState {
                     self.apply_as_enters(otherwise, entering, status);
                 }
             }
+            // [CR#614.1c]: composing two self-augment folds — "enters tapped
+            // WITH counters" is `Sequentially`/`Simultaneously([Tap(This),
+            // PutCounters(This, kind, n)])`. Tap, attach, and counters touch
+            // disjoint `EnterStatus` fields, so both variants fold every
+            // child into the same `status` in turn; order doesn't matter.
+            OneShotEffect::Sequentially(effects) | OneShotEffect::Simultaneously(effects) => {
+                for child in effects.iter() {
+                    self.apply_as_enters(child, entering, status);
+                }
+            }
             other => todo!(
                 "engine seam: stage 3 does not interpret enters-replacement effect {other:?} \
-                 ([CR#614.1c]) — a Sequentially/Simultaneously of two self-augment folds \
-                 (enters tapped WITH counters) has no composing arm; \
-                 owner: engine-enters-replacement-compose"
+                 ([CR#614.1c]) — no fold for this `also` shape; \
+                 owner: engine-as-enters-fold-breadth"
             ),
         }
     }
@@ -492,6 +504,137 @@ mod tests {
                 .copied(),
             Some(2),
             "enters with two P1P1Counter counters"
+        );
+    }
+
+    /// Build a permanent whose sole ability is `AsEnters(compose([Tap(This),
+    /// PutCounters(This, SlumberCounter, 5)]))` — the composed self-augment
+    /// shape this ticket adds folding for, modeled on the real corpus card
+    /// Arixmethes, Slumbering Isle ("~ enters tapped with five slumber
+    /// counters on it"; still an `Unparsed`/`.ron.todo` placeholder in the
+    /// wizards corpus pending the authoring pipeline, so this fixture
+    /// exercises the same shape synthetically). `compose` is
+    /// `OneShotEffect::Sequentially` or `OneShotEffect::Simultaneously`.
+    fn tapped_with_counters_card(
+        compose: fn(std::sync::Arc<[OneShotEffect]>) -> OneShotEffect,
+    ) -> Card {
+        use deckmaste_core::Count;
+
+        Card::Normal(CardFace {
+            name: "Test Slumbering Isle".into(),
+            types: vec![Type::Creature.def()],
+            abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+                Replacement::Also {
+                    would: EventFilter::ZoneChange {
+                        what: Predicate::Ref(Reference::This),
+                        from: None,
+                        to: Some(Zone::Battlefield),
+                        cause: None,
+                    },
+                    also: compose(
+                        vec![
+                            OneShotEffect::Act(Action::Tap(Reference::This)),
+                            OneShotEffect::Act(Action::PutCounters(
+                                Reference::This,
+                                "SlumberCounter".into(),
+                                Count::Literal(5),
+                            )),
+                        ]
+                        .into(),
+                    ),
+                },
+            )))],
+            ..CardFace::default()
+        })
+    }
+
+    /// Run `card` from hand to battlefield, stopping as soon as it appears
+    /// there (a further `step()` would advance into the untap step and clear
+    /// the tapped status a caller reads, [CR#502.3]). Returns its reminted
+    /// battlefield id.
+    fn enter_from_hand_stop_on_arrival(state: &mut GameState, card: Arc<Card>) -> ObjectId {
+        let card_id = state.cards.push(card, PlayerId(0));
+        let hand_id =
+            state
+                .objects
+                .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
+        state.zones.hands[PlayerId(0).index()].push(hand_id);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneChange(ZoneChange {
+                snapshot: None,
+                object: hand_id,
+                from: Some(Zone::Hand),
+                to: Zone::Battlefield,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            }),
+        ))]);
+        for _ in 0..10 {
+            if let Some(&id) = state
+                .zones
+                .battlefield
+                .iter()
+                .find(|&&o| state.objects.obj(o).card_id() == Some(card_id))
+            {
+                return id;
+            }
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+        panic!("the permanent never entered the battlefield");
+    }
+
+    /// [CR#614.1c,122.6a]: a permanent whose enters-replacement composes two
+    /// self-augment folds with `Sequentially` — "enters tapped WITH
+    /// counters" — enters both tapped AND carrying the counters in one
+    /// resolution. Pins the ticket's acceptance gate for the `Sequentially`
+    /// arm, modeled on Arixmethes, Slumbering Isle's real oracle text.
+    #[test]
+    fn enters_tapped_with_counters_sequentially() {
+        let mut state = game();
+        let card = Arc::new(tapped_with_counters_card(OneShotEffect::Sequentially));
+        let entered = enter_from_hand_stop_on_arrival(&mut state, card);
+        assert!(
+            state.objects.obj(entered).tapped,
+            "the Sequentially-composed fold entered the permanent tapped"
+        );
+        assert_eq!(
+            state
+                .objects
+                .obj(entered)
+                .counters
+                .get(&deckmaste_core::Ident::from("SlumberCounter"))
+                .copied(),
+            Some(5),
+            "the Sequentially-composed fold entered the permanent with 5 SlumberCounters"
+        );
+    }
+
+    /// As [`enters_tapped_with_counters_sequentially`], but composed with
+    /// `Simultaneously` — pins that both composing variants share the same
+    /// fold loop, per the ticket ("order is irrelevant here — tap, attach,
+    /// and counters touch disjoint fields").
+    #[test]
+    fn enters_tapped_with_counters_simultaneously() {
+        let mut state = game();
+        let card = Arc::new(tapped_with_counters_card(OneShotEffect::Simultaneously));
+        let entered = enter_from_hand_stop_on_arrival(&mut state, card);
+        assert!(
+            state.objects.obj(entered).tapped,
+            "the Simultaneously-composed fold entered the permanent tapped"
+        );
+        assert_eq!(
+            state
+                .objects
+                .obj(entered)
+                .counters
+                .get(&deckmaste_core::Ident::from("SlumberCounter"))
+                .copied(),
+            Some(5),
+            "the Simultaneously-composed fold entered the permanent with 5 SlumberCounters"
         );
     }
 

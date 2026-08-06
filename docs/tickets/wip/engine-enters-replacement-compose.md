@@ -32,3 +32,25 @@ Done when a card authored with the composed shape enters both tapped and with
 counters in one resolution, pinned by a semantic test.
 
 Effort: **S**.
+
+## Done
+
+Added `Sequentially`/`Simultaneously` arms to `apply_as_enters`
+(`crates/deckmaste_engine/src/replace.rs`) that fold every child `also`
+effect into the same `EnterStatus` in turn. Pinned by two semantic tests
+modeled on Arixmethes, Slumbering Isle's real text (enters tapped with 5
+counters), one per composing variant.
+
+Corpus check: `grep -rlEi "enters (the battlefield )?tapped with.*counter"
+plugins/wizards/cards/*.ron*` matches exactly 18 files — the ticket's number
+is accurate as a text-match count. But all 18 are still `.ron.todo`
+(`Unparsed` placeholders), 0 are structured `.ron`. None of them carry the
+`Also(would: Enters(This), also: Sequentially(…))` shape yet, so this fix
+unblocks the fold once each is authored — it does not make any of the 18
+work today. Authoring them into structured RON is a separate, unclaimed
+piece of work.
+
+Left out: broadened the catch-all's `todo!` owner tag into a new scoping
+ticket, `engine-as-enters-fold-breadth`, rather than naming one ticket for
+the whole residual (a single catch-all can't honestly own choices,
+face-down, and everything else at once).
