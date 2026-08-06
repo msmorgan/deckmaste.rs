@@ -1939,8 +1939,9 @@ pub(super) fn reduce_generated_aux(
             present_fields,
         } => {
             let element = group.element_data.get(element)?;
-            if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
-                && present_fields.trailing_zeros() >= 2
+            if let Some((comma, conjunction)) =
+                super::generated::coordination_delimiter_fields(group, element)
+                && present_fields & (1_u64 << comma | 1_u64 << conjunction) == 0
             {
                 // Every admitted coordination member contributes either its
                 // comma or its conjunction. Reject the delimiter-free shape
@@ -2007,9 +2008,10 @@ pub(super) fn reduce_generated_aux(
                 return None;
             };
             let element = group.element_data.get(element)?;
-            if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
-                && !(tail.element.present_fields & 0b01 != 0
-                    && tail.element.present_fields & 0b10 == 0)
+            if let Some((comma, conjunction)) =
+                super::generated::coordination_delimiter_fields(group, element)
+                && !(tail.element.present_fields & (1_u64 << comma) != 0
+                    && tail.element.present_fields & (1_u64 << conjunction) == 0)
             {
                 // Once another member follows, the previous one is known
                 // to be nonfinal: it must carry a comma and must not
@@ -2143,6 +2145,8 @@ pub(super) fn reduce_generated(
         (super::rules::GeneratedRuleContext::Value, None) => noun_phrase_features,
         (super::rules::GeneratedRuleContext::SharedPreposition, Some(preposition)) => {
             generated_prepositional_coordination_features(
+                rule,
+                construction,
                 GeneratedFeatureCombinator::from_construction(construction)?,
                 preposition,
                 &fields,
@@ -2358,8 +2362,17 @@ fn generated_relative_complement_count(
     rule: super::rules::GeneratedRuleRef,
     fields: &[Option<&Features>],
 ) -> u32 {
+    let Some(construction) = rule.group.constructions.get(rule.construction) else {
+        return 0;
+    };
+    let Some(combinator) = GeneratedFeatureCombinator::from_construction(construction) else {
+        return 0;
+    };
+    let Some(first_field) = combinator.first_member_field_index(construction) else {
+        return 0;
+    };
     if matches!(
-        fields.get(1).copied().flatten(),
+        fields.get(first_field).copied().flatten(),
         Some(Features::Nominal {
             attachment: NominalAttachmentPhase::Relative
                 | NominalAttachmentPhase::RulesObjectRelative
@@ -2372,14 +2385,28 @@ fn generated_relative_complement_count(
         // completed group in that shape.
         return 0;
     }
-    let Some(Features::GeneratedSequence { tail }) = fields.get(3).copied().flatten() else {
+    let Some(complements_field) = combinator.complements_field_index(construction) else {
+        return 0;
+    };
+    let Some(Features::GeneratedSequence { tail }) =
+        fields.get(complements_field).copied().flatten()
+    else {
+        return 0;
+    };
+    let Some(deckmaste_construction_compiler::runtime::FieldKindData::Sequence {
+        element: complement_element,
+    }) = construction
+        .fields
+        .get(complements_field)
+        .map(|field| field.kind)
+    else {
         return 0;
     };
     let Some(element_declaration) = rule
         .group
         .element_data
         .iter()
-        .find(|element| element.name == "nominal_complement")
+        .find(|element| element.name == complement_element)
     else {
         return 0;
     };
@@ -2398,21 +2425,25 @@ fn generated_relative_complement_count(
 }
 
 fn generated_prepositional_coordination_features(
+    rule: super::rules::GeneratedRuleRef,
+    construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     combinator: GeneratedFeatureCombinator,
     preposition: Preposition,
     fields: &[Option<&Features>],
 ) -> Option<Features> {
     match combinator {
         GeneratedFeatureCombinator::CompleteNounPhraseCoordination => {
-            let Features::GeneratedSequence { tail } = fields.get(1)?.as_ref()? else {
+            let rest_field = combinator.rest_field_index(construction)?;
+            let Features::GeneratedSequence { tail } = fields.get(rest_field)?.as_ref()? else {
                 return None;
             };
             let last = &tail.element;
+            let value_field = combinator.member_value_field_index(rule.group, construction)?;
             let Features::NounPhrase {
                 set_exception,
                 rules_object_followup,
                 ..
-            } = last.fields.get(2)?
+            } = last.fields.get(value_field)?
             else {
                 return None;
             };
@@ -2489,14 +2520,34 @@ fn generated_complements_include_keyword_argument(
     rule: super::rules::GeneratedRuleRef,
     fields: &[Option<&Features>],
 ) -> bool {
-    let Some(Features::GeneratedSequence { tail }) = fields.get(3).copied().flatten() else {
+    let Some(construction) = rule.group.constructions.get(rule.construction) else {
+        return false;
+    };
+    let Some(combinator) = GeneratedFeatureCombinator::from_construction(construction) else {
+        return false;
+    };
+    let Some(complements_field) = combinator.complements_field_index(construction) else {
+        return false;
+    };
+    let Some(Features::GeneratedSequence { tail }) =
+        fields.get(complements_field).copied().flatten()
+    else {
+        return false;
+    };
+    let Some(deckmaste_construction_compiler::runtime::FieldKindData::Sequence {
+        element: complement_element,
+    }) = construction
+        .fields
+        .get(complements_field)
+        .map(|field| field.kind)
+    else {
         return false;
     };
     let Some(element) = rule
         .group
         .element_data
         .iter()
-        .find(|element| element.name == "nominal_complement")
+        .find(|element| element.name == complement_element)
     else {
         return false;
     };
@@ -2526,16 +2577,17 @@ fn generated_construction_features(
                 .fields
                 .iter()
                 .position(|field| field.name == *arg)?;
-            fields.get(index).copied().flatten()
+            fields.get(index).copied()
         })
         .collect::<Option<Vec<_>>>()?;
     match (combinator, args.as_slice()) {
-        (GeneratedFeatureCombinator::CompleteNounPhraseCoordination, [first, rest]) => {
+        (GeneratedFeatureCombinator::CompleteNounPhraseCoordination, [Some(first), Some(rest)]) => {
             complete_noun_phrase_coordination_features(first, rest)
         }
-        (GeneratedFeatureCombinator::SharedDeterminerCoordination, [determiner, first, rest]) => {
-            shared_determiner_coordination_features(determiner, first, rest)
-        }
+        (
+            GeneratedFeatureCombinator::SharedDeterminerCoordination,
+            [Some(determiner), Some(first), Some(rest), _complements],
+        ) => shared_determiner_coordination_features(determiner, first, rest),
         _ => None,
     }
 }

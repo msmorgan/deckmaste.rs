@@ -62,6 +62,134 @@ impl GeneratedFeatureCombinator {
             Self::SharedDeterminerCoordination => super::ParseCost::default(),
         }
     }
+
+    const fn first_member_argument(self) -> usize {
+        match self {
+            Self::CompleteNounPhraseCoordination => 0,
+            Self::SharedDeterminerCoordination => 1,
+        }
+    }
+
+    const fn rest_argument(self) -> usize {
+        match self {
+            Self::CompleteNounPhraseCoordination => 1,
+            Self::SharedDeterminerCoordination => 2,
+        }
+    }
+
+    const fn complements_argument(self) -> Option<usize> {
+        match self {
+            Self::CompleteNounPhraseCoordination => None,
+            Self::SharedDeterminerCoordination => Some(3),
+        }
+    }
+
+    pub(super) fn argument_field_index(
+        self,
+        construction: &ConstructionData,
+        argument: usize,
+    ) -> Option<usize> {
+        let [feature] = construction.feature_combinators else {
+            return None;
+        };
+        let name = feature.args.get(argument)?;
+        construction
+            .fields
+            .iter()
+            .position(|field| field.name == *name)
+    }
+
+    pub(super) fn first_member_field_index(self, construction: &ConstructionData) -> Option<usize> {
+        self.argument_field_index(construction, self.first_member_argument())
+    }
+
+    pub(super) fn rest_field_index(self, construction: &ConstructionData) -> Option<usize> {
+        self.argument_field_index(construction, self.rest_argument())
+    }
+
+    pub(super) fn complements_field_index(self, construction: &ConstructionData) -> Option<usize> {
+        self.argument_field_index(construction, self.complements_argument()?)
+    }
+
+    pub(super) fn sequence_argument_element(
+        self,
+        construction: &ConstructionData,
+        argument: usize,
+    ) -> Option<&'static str> {
+        let field = construction
+            .fields
+            .get(self.argument_field_index(construction, argument)?)?;
+        let FieldKindData::Sequence { element } = field.kind else {
+            return None;
+        };
+        Some(element)
+    }
+
+    pub(super) fn member_element(self, construction: &ConstructionData) -> Option<&'static str> {
+        self.sequence_argument_element(construction, self.rest_argument())
+    }
+
+    pub(super) fn member_value_field_index(
+        self,
+        group: &GroupData,
+        construction: &ConstructionData,
+    ) -> Option<usize> {
+        let first = construction
+            .fields
+            .get(self.first_member_field_index(construction)?)?;
+        let FieldKindData::Subtree {
+            category: member_category,
+            ..
+        } = first.kind
+        else {
+            return None;
+        };
+        let member_element = self.member_element(construction)?;
+        let element = group
+            .element_data
+            .iter()
+            .find(|element| element.name == member_element)?;
+        element.fields.iter().position(|field| {
+            matches!(
+                field.kind,
+                FieldKindData::Subtree { category, .. } if category == member_category
+            )
+        })
+    }
+}
+
+pub(super) fn coordination_member_role<'a>(
+    group: &'a GroupData,
+    element: &str,
+) -> Option<(GeneratedFeatureCombinator, &'a ConstructionData)> {
+    group.constructions.iter().find_map(|construction| {
+        let combinator = GeneratedFeatureCombinator::from_construction(construction)?;
+        (combinator.member_element(construction)? == element).then_some((combinator, construction))
+    })
+}
+
+pub(super) fn coordination_delimiter_fields(
+    group: &GroupData,
+    element: &ElementData,
+) -> Option<(usize, usize)> {
+    coordination_member_role(group, element.name)?;
+    let codec = |kind| match kind {
+        FieldKindData::Scalar { codec } | FieldKindData::SurfaceScalar { codec } => Some(codec),
+        FieldKindData::Optional { inner } => match *inner {
+            FieldKindData::Scalar { codec } | FieldKindData::SurfaceScalar { codec } => Some(codec),
+            _ => None,
+        },
+        _ => None,
+    };
+    let comma = element
+        .fields
+        .iter()
+        .position(|field| codec(field.kind) == Some("Comma"))?;
+    let conjunction = element
+        .fields
+        .iter()
+        .position(|field| codec(field.kind) == Some("Conjunction"))?;
+    Some((comma, conjunction))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -561,22 +689,25 @@ fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
 }
 
 fn rules_object_member_rhs(
+    group: &GroupData,
     element: &ElementData,
+    present_fields: u64,
     rhs: &[Expected<Nonterminal, EnglishLexicalSlot>],
 ) -> Option<Vec<Expected<Nonterminal, EnglishLexicalSlot>>> {
-    if element.name != "noun_phrase_member"
-        || !matches!(
-            element.fields.last().map(|field| field.kind),
-            Some(FieldKindData::Subtree {
-                category: "NounPhrase",
-                ..
-            })
-        )
-    {
+    let (combinator, construction) = coordination_member_role(group, element.name)?;
+    if combinator != GeneratedFeatureCombinator::CompleteNounPhraseCoordination {
         return None;
     }
+    let value_field = combinator.member_value_field_index(group, construction)?;
+    if present_fields & (1_u64 << value_field) == 0 {
+        return None;
+    }
+    let rhs_field = (0..=value_field)
+        .filter(|index| present_fields & (1_u64 << index) != 0)
+        .count()
+        .checked_sub(1)?;
     let mut alternate = rhs.to_vec();
-    *alternate.last_mut()? = Expected::Nonterminal(Nonterminal::RulesObjectNounPhrase);
+    *alternate.get_mut(rhs_field)? = Expected::Nonterminal(Nonterminal::RulesObjectNounPhrase);
     Some(alternate)
 }
 
@@ -638,15 +769,15 @@ fn register_element(
                 present_fields |= 1_u64 << field_index;
                 rhs.push(field_expected(cats, representative, field.kind)?);
             }
-            if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
-                && present_fields.trailing_zeros() >= 2
+            if let Some((comma, conjunction)) = coordination_delimiter_fields(group, element)
+                && present_fields & (1_u64 << comma | 1_u64 << conjunction) == 0
             {
                 // Neither delimiter can participate in an admitted member;
                 // omitting this rule avoids a delimiter-free recursive NP
                 // sequence in the chart.
                 continue;
             }
-            let rules_object_rhs = rules_object_member_rhs(element, &rhs);
+            let rules_object_rhs = rules_object_member_rhs(group, element, present_fields, &rhs);
             builder.add_generated(
                 RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementStruct {
                     group,

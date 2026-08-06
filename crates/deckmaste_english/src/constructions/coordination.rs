@@ -83,7 +83,7 @@ deckmaste_constructions_macro::constructions! {
             complements.nonfinal.variant in [Relative],
             complements.last.variant in [Relative]
         );
-        derive first = shared_determiner_coordination(determiner, first, rest);
+        derive first = shared_determiner_coordination(determiner, first, rest, complements);
         form shared @ 0 = determiner first rest complements;
     }
 }

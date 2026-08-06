@@ -1372,7 +1372,7 @@ mod tests {
             (
                 "first",
                 "shared_determiner_coordination",
-                &["determiner", "first", "rest"][..]
+                &["determiner", "first", "rest", "complements"][..]
             )
         );
         assert!(shared.witnesses.is_empty());
