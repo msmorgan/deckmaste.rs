@@ -6,7 +6,10 @@ containers: the parse-position ban, identity macros, and straggler
 registration — Stage 2 of the semantics program.** Design (the settled
 record; supersedes this ticket's pre-program draft):
 `docs/decisions/semantics-spelling-lowering.md`
-(§4-§5). Lands entirely in `deckmaste_semantics`.
+(§4-§5). Lands in `macro_ron` (the ban mechanism: both native-candidacy
+consults and the restriction bit live in `expand.rs`) and
+`deckmaste_semantics` (identity macros, the compiled registry, straggler
+registration).
 
 ## Scope
 
@@ -47,6 +50,31 @@ record; supersedes this ticket's pre-program draft):
   names already conform.
 - Negative fixtures: a bare-primitive card fails with a useful error; the
   per-container restriction matrix gets a fixture per container kind.
+
+## Prerequisite found while landing the ban
+
+`check_cycles` rejected identity macros outright. It resolves a body's leading
+invoked name and flags `name == def.name` as a self-cycle, but `Kind` carried
+no variant list, so it could not tell a real self-invocation from an identity
+macro whose body spells its own native variant (`Any` at kind `Filter`, body
+`Any`) — the whole of §5's shape. `Kind` now carries the dispatch set, supplied
+by the derive from `SupportsMacros::ALL_VARIANTS`, and a body ident naming a
+native variant at one of the def's kinds is no longer an edge. §6's collision
+diagnostic wants that same data.
+
+## Open, to settle before restriction is switched on
+
+- **Argument validation bypasses restriction.** `validate_arg` reads captured
+  args through `MacroSet` with no `Ctx`, so a banned spelling passes validation
+  and fails later at the `param` re-read. The ban still fires; the error is
+  just worse-placed.
+- **Embed pre-scan route.** §4 says suppression must cover the untagged-embed
+  consult. Implemented as written, which makes a banned host variant fall
+  through to the embedded type — that finds an identity macro registered at the
+  embedded kind, but yields an embed-side error when no macro exists anywhere.
+  Leaving `variants.contains` unsuppressed would instead keep it at the host,
+  where the "not author vocabulary" error is produced. Unobservable until the
+  entry flips; no fixture pins it yet, deliberately.
 
 ## Gates
 

@@ -299,7 +299,10 @@ fn concat_lists(ty: &Ident, tails: &[&Type], excludes: &[String]) -> TokenStream
 /// `embeds_untagged` ⇔ an `embed` variant, `literal_wrapper` ⇔ a `literal`
 /// variant.
 fn gen_kind(input: &Input, ty_name: &str) -> TokenStream {
-    let mut kind = quote!(::macro_ron::Kind::new(#ty_name));
+    let mut kind = quote!(
+        ::macro_ron::Kind::new(#ty_name)
+            .variants(<Self as ::macro_ron::SupportsMacros>::ALL_VARIANTS)
+    );
     if input.expanded().is_some() {
         kind = quote!(#kind.remembers_expansion());
     }

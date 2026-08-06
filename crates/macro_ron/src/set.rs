@@ -457,6 +457,15 @@ impl MacroSet {
         self.kinds.get(position).is_some_and(|kind| kind.embeds)
     }
 
+    /// Whether `position` is a registered macroable kind. Restricted reads
+    /// suppress native variant candidacy at these positions only (spec §4):
+    /// closed atoms deliberately outside the macro system — `Cmp`, the
+    /// phase/step enums, `FaceLayout` — are unregistered and keep parsing
+    /// natively.
+    pub(crate) fn is_kind(&self, position: &str) -> bool {
+        self.kinds.contains(position)
+    }
+
     /// Whether some macro expands to the struct named `name`, i.e. whether
     /// that parse position needs macro interception.
     pub(crate) fn expands_to_struct(&self, name: &str) -> bool {
@@ -582,6 +591,18 @@ impl MacroSet {
             let Some(name) = crate::expand::leading_invoked_name(cur.body(), &self.options) else {
                 return Ok(());
             };
+            // A body ident naming a native variant at one of `def`'s kinds is
+            // not an invocation at all: a definition body is free vocabulary,
+            // so an identity macro whose body spells its own variant (`Any`
+            // at kind `Filter` with body `Any`) is not a self-cycle. Without
+            // this, the identity macros spec §5 requires are unregistrable.
+            if def.kinds.iter().any(|kind| {
+                self.kinds
+                    .get(kind)
+                    .is_some_and(|k| k.variants.contains(&name.as_str()))
+            }) {
+                return Ok(());
+            }
             let target = if name == def.name {
                 def
             } else {
@@ -710,10 +731,42 @@ impl MacroSet {
     /// the position's kind, malformed invocations, unresolvable `Param(...)`
     /// holes, and expansion cycles.
     pub fn read_str<T: DeserializeOwned>(&self, source: &str) -> ron::error::SpannedResult<T> {
+        self.read_str_with(source, false)
+    }
+
+    /// Reads a RON document as **restricted author vocabulary** (spec §4): at
+    /// every registered kind, the kind's own variant identifiers lose native
+    /// candidacy and must route through a macro of the same name. Macro
+    /// definition text reached by expansion stays free, and an argument keeps
+    /// the restriction of the text it was written in.
+    ///
+    /// This is the entry the card/token containers read through; the ~230
+    /// other [`read_str`](Self::read_str) callers are unaffected, because
+    /// restriction is opt-in at the entry and never a global default.
+    ///
+    /// # Errors
+    /// As [`read_str`](Self::read_str), plus identifiers that name a variant
+    /// of a registered kind with no macro of that name.
+    pub fn read_str_restricted<T: DeserializeOwned>(
+        &self,
+        source: &str,
+    ) -> ron::error::SpannedResult<T> {
+        self.read_str_with(source, true)
+    }
+
+    fn read_str_with<T: DeserializeOwned>(
+        &self,
+        source: &str,
+        restricted: bool,
+    ) -> ron::error::SpannedResult<T> {
         let read = crate::expand::ReadCtx::new(self);
         let mut deserializer = ron::de::Deserializer::from_str_with_options(source, &self.options)?;
-        let value = T::deserialize(crate::expand::MacroAware::new(&mut deserializer, &read))
-            .map_err(|e| deserializer.span_error(e))?;
+        let macro_aware = if restricted {
+            crate::expand::MacroAware::new_restricted(&mut deserializer, &read)
+        } else {
+            crate::expand::MacroAware::new(&mut deserializer, &read)
+        };
+        let value = T::deserialize(macro_aware).map_err(|e| deserializer.span_error(e))?;
         deserializer.end().map_err(|e| deserializer.span_error(e))?;
         Ok(value)
     }

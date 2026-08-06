@@ -14,6 +14,10 @@ pub struct Kind {
     pub(crate) remembers: bool,
     pub(crate) literal: Option<&'static str>,
     pub(crate) embeds: bool,
+    /// The kind's dispatch set (`SupportsMacros::ALL_VARIANTS`), supplied by
+    /// the derive. Empty for a hand-built `Kind`, which only costs the checks
+    /// that consult it their precision.
+    pub(crate) variants: &'static [&'static str],
 }
 
 impl Kind {
@@ -26,7 +30,18 @@ impl Kind {
             remembers: false,
             literal: None,
             embeds: false,
+            variants: &[],
         }
+    }
+
+    /// The kind's dispatch set. The derive passes
+    /// [`SupportsMacros::ALL_VARIANTS`](crate::SupportsMacros::ALL_VARIANTS);
+    /// checks that must distinguish a native variant from a macro name — the
+    /// cycle check, and the restricted-read ban — consult it.
+    #[must_use]
+    pub fn variants(mut self, variants: &'static [&'static str]) -> Self {
+        self.variants = variants;
+        self
     }
 
     /// Expanding a macro at a position of this kind remembers the invocation

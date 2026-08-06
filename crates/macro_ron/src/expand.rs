@@ -112,6 +112,12 @@ struct Frame<'de> {
     /// The macro's name, for error messages.
     name: Ident,
     args: FrameArgs<'de>,
+    /// Whether the invocation's argument text was captured from restricted
+    /// (author-facing) source. Recorded here because restriction follows the
+    /// text's provenance, not the frame it is substituted into: a card-written
+    /// argument stays restricted inside a free macro body. Filled-in defaults
+    /// are exempt — they come from the definition, not the author's text.
+    restricted: bool,
 }
 
 /// Invocation arguments, as raw source each, shaped like the signature.
@@ -149,6 +155,11 @@ struct Ctx<'de, 'f> {
     frame: Option<&'f Frame<'de>>,
     /// How many expansions deep this position is; bounded by [`MAX_DEPTH`].
     depth: usize,
+    /// Whether the text being read here is restricted author vocabulary, in
+    /// which case a registered kind's own variant idents are suppressed as
+    /// native candidates and must route through identity macros instead
+    /// (spec §4). Default `false`: restriction is opt-in at the entry point.
+    restricted: bool,
 }
 
 /// Macros aren't a programming language: there is no recursion, so any chain
@@ -157,29 +168,51 @@ struct Ctx<'de, 'f> {
 const MAX_DEPTH: usize = 64;
 
 impl<'de> Ctx<'de, '_> {
-    /// Resolves a `Param(...)` hole against the current frame.
-    fn param(&self, key: ParamKey) -> Result<&'de str, String> {
+    /// Resolves a `Param(...)` hole against the current frame, with the
+    /// restriction its text was captured under. A filled-in default is the
+    /// definition's own text, so it is never restricted however the
+    /// invocation was written.
+    fn param(&self, key: ParamKey) -> Result<(&'de str, bool), String> {
         let frame = self
             .frame
             .ok_or_else(|| format!("Param({key}) outside any macro expansion"))?;
         let arg = match (&frame.args, key) {
-            (FrameArgs::Positional(args), ParamKey::Index(index)) => args.get(index).copied(),
-            (FrameArgs::Named(args), ParamKey::Name(name)) => {
-                args.iter().find(|(k, _, _)| *k == name).map(|(_, v, _)| *v)
+            (FrameArgs::Positional(args), ParamKey::Index(index)) => {
+                args.get(index).map(|arg| (*arg, frame.restricted))
             }
+            (FrameArgs::Named(args), ParamKey::Name(name)) => args
+                .iter()
+                .find(|(k, _, _)| *k == name)
+                .map(|(_, v, defaulted)| (*v, frame.restricted && !defaulted)),
             _ => None,
         };
         arg.ok_or_else(|| format!("macro `{}` has no Param({key})", frame.name))
     }
 
+    /// Whether an identifier naming a variant of `position` may be taken as
+    /// that native variant here. Under restriction a registered kind's own
+    /// variants lose native candidacy (spec §4), so the ident routes to its
+    /// identity macro instead. This is candidacy suppression, not
+    /// match-then-reject: no value tree is ever built for a banned spelling.
+    ///
+    /// Suppression applies at registered kinds only — closed atoms outside the
+    /// macro system (`Cmp`, the phase/step enums, `FaceLayout`) are
+    /// unregistered and keep parsing natively.
+    fn native_variant_ok(&self, position: &str) -> bool {
+        !self.restricted || !self.read.macros.is_kind(position)
+    }
+
     /// The context for reading an argument or expansion that isn't a body:
     /// no frame, so a stray `Param` errors instead of resolving against the
-    /// wrong macro.
-    fn frameless(&self) -> Ctx<'de, 'de> {
+    /// wrong macro. `restricted` is the argument text's own provenance (from
+    /// [`Ctx::param`]), NOT this context's — that is what keeps a card-written
+    /// argument restricted after it is substituted into a free macro body.
+    fn frameless(&self, restricted: bool) -> Ctx<'de, 'de> {
         Ctx {
             read: self.read,
             frame: None,
             depth: self.depth,
+            restricted,
         }
     }
 
@@ -196,6 +229,11 @@ impl<'de> Ctx<'de, '_> {
             read: self.read,
             frame: Some(frame),
             depth: self.depth + 1,
+            // A macro body is definition text, which is free vocabulary
+            // however the invocation was written (spec §4 container table).
+            // Arguments substituted into it carry their own restriction back
+            // through `param`.
+            restricted: false,
         })
     }
 }
@@ -228,12 +266,24 @@ pub struct MacroAware<'de, 'f, D> {
 
 impl<'de, D> MacroAware<'de, 'de, D> {
     pub(crate) fn new(de: D, read: &'de ReadCtx<'de>) -> Self {
+        Self::with_restriction(de, read, false)
+    }
+
+    /// The restricted-container entry (spec §4): the document's own text is
+    /// author vocabulary, so a registered kind's variant idents are suppressed
+    /// as native candidates and must route through identity macros.
+    pub(crate) fn new_restricted(de: D, read: &'de ReadCtx<'de>) -> Self {
+        Self::with_restriction(de, read, true)
+    }
+
+    fn with_restriction(de: D, read: &'de ReadCtx<'de>, restricted: bool) -> Self {
         Self {
             de,
             ctx: Ctx {
                 read,
                 frame: None,
                 depth: 0,
+                restricted,
             },
             intercept: Intercept::Full,
         }
@@ -607,7 +657,9 @@ fn collect_holes<'de>(
 ) -> Result<(), String> {
     match decompose(fragment, ctx.read.macros.options())? {
         Node::Hole(key) => match (ctx.param(key), mode) {
-            (Ok(arg), _) => {
+            // Text-level splicing: the filled text is re-read at whatever
+            // position it lands in, which is where restriction applies.
+            (Ok((arg, _)), _) => {
                 let start = fragment.as_ptr() as usize - root.as_ptr() as usize;
                 edits.push((start..start + fragment.len(), arg));
             }
@@ -828,11 +880,13 @@ pub(crate) fn fill_positional_params(
     let frame = Frame {
         name: owner,
         args: FrameArgs::Positional(args.to_vec()),
+        restricted: false,
     };
     let ctx = Ctx {
         read: &read,
         frame: Some(&frame),
         depth: 0,
+        restricted: false,
     };
     substitute_params(body, &ctx, HoleMode::Strict).map(std::borrow::Cow::into_owned)
 }
@@ -997,11 +1051,15 @@ impl<'de, D: Deserializer<'de>> MacroAware<'de, '_, D> {
         let source = <&RawValue>::deserialize(self.de)?.get_ron();
         match probe::<D::Error>(source, position, self.ctx)? {
             Some(Invocation::Param(key)) => {
-                let arg = self.ctx.param(key).map_err(D::Error::custom)?;
-                reread(arg, self.ctx.frameless(), Intercept::Full, f)
+                let (arg, restricted) = self.ctx.param(key).map_err(D::Error::custom)?;
+                reread(arg, self.ctx.frameless(restricted), Intercept::Full, f)
             }
             Some(Invocation::Macro { name, def, args }) => {
-                let frame = Frame { name, args };
+                let frame = Frame {
+                    name,
+                    args,
+                    restricted: self.ctx.restricted,
+                };
                 let ctx = self.ctx.expansion(&frame).map_err(D::Error::custom)?;
                 reread(def.body(), ctx, Intercept::Full, f).map_err(|e| in_expansion_of(name, e))
             }
@@ -1041,8 +1099,8 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         let source = <&RawValue>::deserialize(self.de)?.get_ron();
         // A whole-value hole (`changes: Param(0)`) resolves against the frame.
         if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)? {
-            let arg = self.ctx.param(key).map_err(Self::Error::custom)?;
-            return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
+            let (arg, restricted) = self.ctx.param(key).map_err(Self::Error::custom)?;
+            return reread(arg, self.ctx.frameless(restricted), Intercept::Full, |de| {
                 de.deserialize_seq(visitor)
             });
         }
@@ -1078,9 +1136,9 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             // A whole-value hole (`body: Param(b)`) resolves if the frame
             // owns it; otherwise it passes through like any other.
             if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)?
-                && let Ok(arg) = self.ctx.param(key)
+                && let Ok((arg, restricted)) = self.ctx.param(key)
             {
-                return reread(arg, self.ctx.frameless(), Intercept::Skip, |de| {
+                return reread(arg, self.ctx.frameless(restricted), Intercept::Skip, |de| {
                     de.deserialize_newtype_struct(name, visitor)
                 });
             }
@@ -1116,8 +1174,8 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
 
         let source = <&RawValue>::deserialize(self.de)?.get_ron();
         if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)? {
-            let arg = self.ctx.param(key).map_err(Self::Error::custom)?;
-            return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
+            let (arg, restricted) = self.ctx.param(key).map_err(Self::Error::custom)?;
+            return reread(arg, self.ctx.frameless(restricted), Intercept::Full, |de| {
                 de.deserialize_any(visitor)
             });
         }
@@ -1221,7 +1279,11 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             let source = <&RawValue>::deserialize(self.de)?.get_ron();
             let native = match leading_ident::<Self::Error>(source, self.ctx)? {
                 Some(ident) => {
-                    variants.contains(&ident.as_str())
+                    // The second native-candidacy consult (spec §4): it runs
+                    // before `EnumIntercept`, so restriction must suppress
+                    // here too or a banned ident at an embed-hosting kind
+                    // falls through to the embedded type instead of erroring.
+                    (self.ctx.native_variant_ok(name) && variants.contains(&ident.as_str()))
                         || ident == "Param"
                         || self.ctx.read.macros.get(name, &ident).is_some()
                 }
@@ -1336,14 +1398,19 @@ fn fill_defaults<'de>(
     args: &mut Vec<(Ident, &'de str, bool)>,
     read: &'de ReadCtx<'de>,
 ) -> Result<(), String> {
+    // Default expressions are definition text: free vocabulary, and the args
+    // they splice against are only used to fill them, never re-read as author
+    // input here.
     let supplied = Frame {
         name,
         args: FrameArgs::Named(args.clone()),
+        restricted: false,
     };
     let fill_ctx = Ctx {
         read,
         frame: Some(&supplied),
         depth: 0,
+        restricted: false,
     };
     for key in missing {
         let ty = &signature[key];
@@ -1527,8 +1594,8 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         let (ident, variant) = data.variant_seed(IdentSeed)?;
         if ident == "Param" {
             let key = variant.newtype_variant::<ParamKey>()?;
-            let arg = self.ctx.param(key).map_err(A::Error::custom)?;
-            return reread(arg, self.ctx.frameless(), Intercept::Full, |de| {
+            let (arg, restricted) = self.ctx.param(key).map_err(A::Error::custom)?;
+            return reread(arg, self.ctx.frameless(restricted), Intercept::Full, |de| {
                 de.deserialize_enum(self.name, self.variants, self.visitor)
             });
         }
@@ -1548,7 +1615,9 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         // (`kind_names`, `ParamType` — derived enums always pass their real
         // list): forward the ident to the visitor instead of treating it as
         // a macro name.
-        if self.variants.is_empty() || self.variants.contains(&ident.as_str()) {
+        if self.variants.is_empty()
+            || (self.ctx.native_variant_ok(self.name) && self.variants.contains(&ident.as_str()))
+        {
             return self.visitor.visit_enum(Known {
                 ident,
                 variant,
@@ -1558,13 +1627,27 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
 
         // if not_a_real_variant(next_ident) { expand_macro(next_ident); try_again(); }
         let def = self.ctx.read.macros.get(self.name, &ident).ok_or_else(|| {
+            // A suppressed variant with no identity macro is the restricted
+            // case: the spelling exists in the grammar but is not author
+            // vocabulary, which is a different mistake from a typo.
+            if self.variants.contains(&ident.as_str()) {
+                return A::Error::custom(format_args!(
+                    "`{ident}` is not author vocabulary at `{0}`; it names a \
+                     `{0}` variant with no macro of that name",
+                    self.name,
+                ));
+            }
             A::Error::custom(format_args!(
                 "`{ident}` is neither a variant of `{0}` nor a known `{0}` macro",
                 self.name,
             ))
         })?;
         let args = read_args(ident, variant, &def.params, self.ctx)?;
-        let frame = Frame { name: ident, args };
+        let frame = Frame {
+            name: ident,
+            args,
+            restricted: self.ctx.restricted,
+        };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
 
         // When the position's kind remembers its invocation, re-read a

@@ -41,7 +41,11 @@ fn kinds() -> KindSet {
     kinds.add(Kind::new("Macro"));
     kinds.add(Kind::new("Ability").remembers_expansion());
     kinds.add(Kind::new("Effect").remembers_expansion());
-    kinds.add(Kind::new("Filter").remembers_expansion());
+    kinds.add(
+        Kind::new("Filter")
+            .remembers_expansion()
+            .variants(FILTER_VARIANTS),
+    );
     kinds.add(
         Kind::new("Quantity")
             .remembers_expansion()
@@ -52,7 +56,8 @@ fn kinds() -> KindSet {
     kinds.add(
         Kind::new("EmbedHost")
             .remembers_expansion()
-            .embeds_untagged(),
+            .embeds_untagged()
+            .variants(EMBED_HOST_VARIANTS),
     );
     kinds.add(Kind::new("EmbedRef").remembers_expansion());
     // A non-remembering position kind (no `Expanded` variant), like
@@ -86,6 +91,13 @@ enum Type {
     Land,
     Creature,
 }
+
+/// `Filter`'s dispatch set. Hand-written because the fixture types carry
+/// hand-written `Deserialize` impls rather than the derive that would supply
+/// `ALL_VARIANTS`.
+const FILTER_VARIANTS: &[&str] = &[
+    "Any", "Type", "Named", "OneOf", "AllOf", "Power", "Expanded",
+];
 
 /// A name-erasing struct kind, like deckmaste's `Subtype`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -2883,4 +2895,92 @@ mod support_runtime {
             (1, String::from("a"))
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// Restricted author vocabulary (spec §4)
+//
+// `Filter` is a registered kind, so its variant idents lose native candidacy
+// under restriction. `Type` (Land/Creature) is a plain enum outside the
+// registry, standing in for the closed atoms the spec keeps native — `Cmp`,
+// the phase/step enums, `FaceLayout`.
+
+/// The ban is candidacy suppression at a registered kind, and a variant with
+/// no macro of its name says so in those terms — a different mistake from a
+/// misspelling, so a different message.
+#[test]
+fn restricted_read_rejects_a_variant_with_no_identity_macro() {
+    let err = empty().read_str_restricted::<Filter>("Any").unwrap_err();
+    assert!(err.to_string().contains("not author vocabulary"), "{err}");
+}
+
+/// Restriction is opt-in at the entry: the ordinary reader is untouched, which
+/// is what keeps the other ~230 `read_str` callers out of this program.
+#[test]
+fn unrestricted_reads_are_unaffected_by_the_ban() {
+    assert_eq!(empty().read_str::<Filter>("Any").unwrap(), Filter::Any);
+}
+
+/// An identity macro restores the spelling — invocation syntax equals variant
+/// syntax, which is what makes the ban near-zero-churn for canon. At a
+/// remembering kind the value arrives wrapped in invocation provenance (§5),
+/// and the macro's own body spells the native variant freely because a
+/// definition body is free vocabulary.
+#[test]
+fn an_identity_macro_covers_its_variant_and_its_body_stays_free() {
+    let mut macros = empty();
+    macros
+        .insert(&def(
+            r#"(name: "Any", kinds: [Filter], params: [], body: Any)"#,
+        ))
+        .unwrap();
+    let value = macros.read_str_restricted::<Filter>("Any").unwrap();
+    assert!(matches!(value, Filter::Expanded(_)), "{value:?}");
+}
+
+/// The crux of "provenance, not frame": an argument written in restricted
+/// source stays restricted after substitution into a free body, so the body
+/// cannot launder a banned spelling on the author's behalf.
+#[test]
+fn an_argument_keeps_its_restriction_inside_a_free_body() {
+    let mut macros = empty();
+    macros
+        .insert(&def(
+            r#"(name: "Wrap", kinds: [Filter], params: [Any], body: OneOf([Param(0)]))"#,
+        ))
+        .unwrap();
+    let err = macros
+        .read_str_restricted::<Filter>("Wrap(Any)")
+        .unwrap_err();
+    assert!(err.to_string().contains("not author vocabulary"), "{err}");
+    macros.read_str::<Filter>("Wrap(Any)").unwrap();
+}
+
+/// The other half of provenance: a filled-in default is the definition's own
+/// text, so it is free however the invocation was written.
+#[test]
+fn a_filled_in_default_is_free_vocabulary() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(name: "Defaulted", kinds: [Filter],
+                params: { "f": Default(Any, Any) }, body: Param(f))"#))
+        .unwrap();
+    let value = macros.read_str_restricted::<Filter>("Defaulted()").unwrap();
+    assert!(matches!(value, Filter::Expanded(_)), "{value:?}");
+}
+
+/// Suppression applies at registered kinds only: `Type` is outside the
+/// registry, so `Creature` parses natively even as restricted argument text.
+#[test]
+fn unregistered_kinds_keep_their_native_variants() {
+    let mut macros = empty();
+    macros
+        .insert(&def(
+            r#"(name: "Type", kinds: [Filter], params: [Any], body: Type(Param(0)))"#,
+        ))
+        .unwrap();
+    let value = macros
+        .read_str_restricted::<Filter>("Type(Creature)")
+        .unwrap();
+    assert!(matches!(value, Filter::Expanded(_)), "{value:?}");
 }
