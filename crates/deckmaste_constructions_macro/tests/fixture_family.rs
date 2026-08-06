@@ -355,6 +355,58 @@ fn bound_enum_mapping_builds_and_destructures_every_declared_variant() {
     ));
 }
 
+#[test]
+fn declaration_metadata_builders_restore_typed_elements_and_constructions() {
+    use deckmaste_construction_compiler::runtime::ErasedBuildError;
+
+    let data = &FIXTURE_COORDINATION_DECLARATION;
+    let member_builder = data.element_data[0].erased_builders[0];
+    let member = member_builder(vec![Box::new(None::<Comma>), Box::new(FixturePhrase)])
+        .expect("the emitted element builder accepts declaration-order fields")
+        .downcast::<FixtureMember>()
+        .expect("the erased element has its generated concrete type");
+    assert_eq!(member.comma, None);
+
+    let variant_builder = data.element_data[2].erased_builders[1];
+    let variant = variant_builder(vec![Box::new(Box::new(FixturePhrase))])
+        .expect("the emitted enum builder accepts its declared payload")
+        .downcast::<BoundVariant>()
+        .expect("the erased enum has its bound concrete type");
+    assert!(matches!(*variant, BoundVariant::Boxed(_)));
+
+    let pair_builder = data.constructions[0]
+        .erased_builder
+        .expect("own-mode constructions always expose an erased builder");
+    let pair = pair_builder(vec![
+        Box::new(vec![
+            FixtureMember {
+                comma: None,
+                phrase: FixturePhrase,
+            },
+            FixtureMember {
+                comma: None,
+                phrase: FixturePhrase,
+            },
+        ]),
+        Box::new(Conjunction::And),
+    ])
+    .expect("the erased door routes through try_new")
+    .downcast::<FixturePairNode>()
+    .expect("the erased construction has its generated concrete type");
+    assert_eq!(pair.members().len(), 2);
+
+    let error = pair_builder(vec![Box::new(FixturePhrase), Box::new(Conjunction::And)])
+        .expect_err("a wrong erased field type is diagnosed at its declaration slot");
+    assert!(matches!(
+        error,
+        ErasedBuildError::WrongFieldType {
+            owner: "fixture_pair",
+            field: "members",
+            ..
+        }
+    ));
+}
+
 #[derive(Default)]
 struct RecordingLinearizer {
     events: Vec<String>,

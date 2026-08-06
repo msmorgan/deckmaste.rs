@@ -99,6 +99,52 @@ pub trait LinearizationVisitor {
     }
 }
 
+/// One type-erased field value supplied to a declaration-emitted builder.
+/// Values remain owned so generated lowering can move boxed subtrees and
+/// sequences into the final construction without cloning them.
+pub type ErasedValue = Box<dyn std::any::Any>;
+
+pub type ErasedBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ErasedBuildError {
+    MissingField {
+        owner: &'static str,
+        field: &'static str,
+    },
+    WrongFieldType {
+        owner: &'static str,
+        field: &'static str,
+        expected: &'static str,
+    },
+    ExtraFields {
+        owner: &'static str,
+    },
+    Declaration(DeclarationViolation),
+}
+
+/// Consumes the next positional erased field and restores its declared type.
+/// Emitted builders call this in declaration order, which keeps all
+/// downcasts in compiler-generated code and out of language adapters.
+pub fn take_erased<T: std::any::Any>(
+    values: &mut impl Iterator<Item = ErasedValue>,
+    owner: &'static str,
+    field: &'static str,
+    expected: &'static str,
+) -> Result<T, ErasedBuildError> {
+    let value = values
+        .next()
+        .ok_or(ErasedBuildError::MissingField { owner, field })?;
+    value
+        .downcast::<T>()
+        .map(|value| *value)
+        .map_err(|_| ErasedBuildError::WrongFieldType {
+            owner,
+            field,
+            expected,
+        })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GroupData {
     pub name: &'static str,
@@ -107,12 +153,19 @@ pub struct GroupData {
     pub constructions: &'static [ConstructionData],
 }
 
+#[allow(
+    unpredictable_function_pointer_comparisons,
+    reason = "metadata equality is used for fixture structure; builders are never selected by address"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ElementData {
     pub name: &'static str,
     pub bind_path: Option<&'static str>,
     pub fields: &'static [FieldData],
     pub variants: &'static [ElementVariantData],
+    /// One entry for a struct-shaped element, or one per enum variant in
+    /// declaration order.
+    pub erased_builders: &'static [ErasedBuilder],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,6 +174,10 @@ pub struct ElementVariantData {
     pub payload: FieldKindData,
 }
 
+#[allow(
+    unpredictable_function_pointer_comparisons,
+    reason = "metadata equality is used for fixture structure; builders are never selected by address"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConstructionData {
     pub id: &'static str,
@@ -138,6 +195,7 @@ pub struct ConstructionData {
     pub selection_unique: bool,
     pub dominates: &'static [&'static str],
     pub forms: &'static [FormData],
+    pub erased_builder: Option<ErasedBuilder>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

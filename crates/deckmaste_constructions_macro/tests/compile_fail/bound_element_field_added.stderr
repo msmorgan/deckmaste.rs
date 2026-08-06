@@ -14,3 +14,16 @@ help: ignore the inaccessible and unused fields
    |
 17 | }, ..
    |  ++++
+
+error[E0063]: missing field `added` in initializer of `BoundMember`
+  --> tests/compile_fail/bound_element_field_added.rs:11:1
+   |
+11 | / deckmaste_constructions_macro::constructions! {
+12 | |     group added;
+13 | |     element fixture_member bind BoundMember {
+14 | |         comma: lex Comma,
+...  |
+17 | | }
+   | |_^ missing `added`
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)

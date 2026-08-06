@@ -351,6 +351,164 @@ mod __constructions_fixture_coordination {
             _ => unreachable!("selected form ordinal came from this declaration"),
         }
     }
+    fn __erased_build_fixture_member(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let comma: Option<Comma> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_member",
+            "comma",
+            stringify!(Option < Comma >),
+        )?;
+        let phrase: FixturePhrase = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_member",
+            "phrase",
+            stringify!(FixturePhrase),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "fixture_member",
+            });
+        }
+        Ok(Box::new(FixtureMember { comma, phrase }))
+    }
+    fn __erased_build_bound_fixture_member(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let comma: Comma = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "bound_fixture_member",
+            "comma",
+            stringify!(Comma),
+        )?;
+        let phrase: FixturePhrase = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "bound_fixture_member",
+            "phrase",
+            stringify!(FixturePhrase),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "bound_fixture_member",
+            });
+        }
+        Ok(Box::new(BoundMember { comma, phrase }))
+    }
+    fn __erased_build_bound_variant_phrase(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let payload: FixturePhrase = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "bound_variant",
+            "payload",
+            stringify!(FixturePhrase),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "bound_variant",
+            });
+        }
+        Ok(Box::new(BoundVariant::Phrase(payload)))
+    }
+    fn __erased_build_bound_variant_boxed(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let payload: Box<FixturePhrase> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "bound_variant",
+            "payload",
+            stringify!(Box < FixturePhrase >),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "bound_variant",
+            });
+        }
+        Ok(Box::new(BoundVariant::Boxed(payload)))
+    }
+    fn __erased_build_fixture_pair(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let members: Vec<FixtureMember> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_pair",
+            "members",
+            stringify!(Vec < FixtureMember >),
+        )?;
+        let conjunction: Conjunction = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_pair",
+            "conjunction",
+            stringify!(Conjunction),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "fixture_pair",
+            });
+        }
+        FixturePairNode::try_new(members, conjunction)
+            .map(|value| {
+                Box::new(value)
+                    as ::deckmaste_construction_compiler::runtime::ErasedValue
+            })
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration,
+            )
+    }
+    fn __erased_build_fixture_solo(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let phrase: FixturePhrase = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_solo",
+            "phrase",
+            stringify!(FixturePhrase),
+        )?;
+        let alt: Option<FixturePhrase> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_solo",
+            "alt",
+            stringify!(Option < FixturePhrase >),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "fixture_solo",
+            });
+        }
+        FixtureSoloNode::try_new(phrase, alt)
+            .map(|value| {
+                Box::new(value)
+                    as ::deckmaste_construction_compiler::runtime::ErasedValue
+            })
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration,
+            )
+    }
     #[allow(
         dead_code,
         reason = "the trait bound on assert_payload is the check; nothing calls this"
@@ -408,6 +566,7 @@ mod __constructions_fixture_coordination {
                     },
                 ],
                 variants: &[],
+                erased_builders: &[__erased_build_fixture_member],
             },
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "bound_fixture_member",
@@ -428,6 +587,7 @@ mod __constructions_fixture_coordination {
                     },
                 ],
                 variants: &[],
+                erased_builders: &[__erased_build_bound_fixture_member],
             },
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "bound_variant",
@@ -449,12 +609,17 @@ mod __constructions_fixture_coordination {
                         },
                     },
                 ],
+                erased_builders: &[
+                    __erased_build_bound_variant_phrase,
+                    __erased_build_bound_variant_boxed,
+                ],
             },
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "empty_payload",
                 bind_path: Some("BoundPayload"),
                 fields: &[],
                 variants: &[],
+                erased_builders: &[],
             },
         ],
         constructions: &[
@@ -520,6 +685,7 @@ mod __constructions_fixture_coordination {
                         ],
                     },
                 ],
+                erased_builder: Some(__erased_build_fixture_pair),
             },
             ::deckmaste_construction_compiler::runtime::ConstructionData {
                 id: "fixture_solo",
@@ -571,6 +737,7 @@ mod __constructions_fixture_coordination {
                         ],
                     },
                 ],
+                erased_builder: Some(__erased_build_fixture_solo),
             },
         ],
     };

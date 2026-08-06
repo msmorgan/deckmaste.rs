@@ -7,12 +7,8 @@ use deckmaste_construction_compiler::runtime::GroupData;
 
 use crate::features::Conjunction;
 
-/// The holed internal category's own-mode type (never constructed at
-/// runtime — generated reductions are Milestone-3 feature stubs).
-#[expect(
-    dead_code,
-    reason = "exists only so the emitted sealed hole type compiles; generated reductions are Features::None stubs that never construct LawItem"
-)]
+/// The holed internal category's own-mode type. Declaration metadata now
+/// references it through an erased builder; chart lowering is still staged.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct LawItem;
 

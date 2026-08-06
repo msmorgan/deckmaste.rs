@@ -291,6 +291,7 @@ mod tests {
             fields,
             witnesses: &[],
             forms,
+            erased_builder: None,
         }
     }
 
@@ -534,6 +535,7 @@ mod tests {
             fields: &[],
             witnesses: &[],
             forms: &[],
+            erased_builder: None,
         }];
         const GROUP: GroupData = GroupData {
             name: "g",

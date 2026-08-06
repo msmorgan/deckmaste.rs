@@ -275,6 +275,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                erased_builder: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);
@@ -302,6 +303,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                erased_builder: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);
@@ -327,6 +329,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                erased_builder: None,
             }];
         const B_CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
             &[deckmaste_construction_compiler::runtime::ConstructionData {
@@ -341,6 +344,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                erased_builder: None,
             }];
         const GROUP_A: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("a", A_CONSTRUCTIONS);
@@ -377,6 +381,7 @@ mod tests {
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
+                erased_builder: None,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);

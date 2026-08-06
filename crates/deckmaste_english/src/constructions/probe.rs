@@ -8,19 +8,11 @@ use deckmaste_construction_compiler::runtime::GroupData;
 use crate::features::Comma;
 use crate::features::Conjunction;
 
-/// Internal chart categories double as the own-mode hole types (never
-/// constructed at runtime in this milestone — generated reductions are
-/// feature stubs; the structs exist so the sealed types compile).
-#[expect(
-    dead_code,
-    reason = "exists only so the emitted sealed hole type compiles; Milestone-3 generated reductions are Features::None stubs that never construct ProbeItem"
-)]
+/// Internal chart categories double as the own-mode hole types. Declaration
+/// metadata references them through erased builders; chart lowering is still
+/// staged.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ProbeItem;
-#[expect(
-    dead_code,
-    reason = "exists only so the emitted sealed hole type compiles; Milestone-3 generated reductions are Features::None stubs that never construct ProbeRoot"
-)]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ProbeRoot;
 

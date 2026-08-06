@@ -44,6 +44,16 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .map(|construction| linearizer(group, construction))
         .collect();
+    let erased_element_builders: Vec<TokenStream> = group
+        .elements
+        .iter()
+        .map(|element| erased_element_builders(group, element))
+        .collect();
+    let erased_construction_builders: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .map(|construction| erased_construction_builder(group, construction))
+        .collect();
     let deserialize_impls: Vec<TokenStream> = group
         .constructions
         .iter()
@@ -94,6 +104,8 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #(#constructions)*
             #(#bind_constructions)*
             #(#linearizers)*
+            #(#erased_element_builders)*
+            #(#erased_construction_builders)*
             #witness_assertions
             #(#deserialize_impls)*
             #declaration
@@ -265,6 +277,144 @@ fn owned_element_struct(
         #serde_derive
         pub struct #name {
             #(#fields)*
+        }
+    }
+}
+
+fn erased_field_reads(
+    owner: &str,
+    fields: &[FieldBinding],
+    group: &GroupDeclaration,
+) -> Vec<TokenStream> {
+    fields
+        .iter()
+        .map(|binding| {
+            let field = quote::format_ident!("{}", binding.field.value);
+            let field_name = binding.field.value.as_str();
+            let ty = field_type(group, &binding.kind);
+            quote! {
+                let #field: #ty =
+                    ::deckmaste_construction_compiler::runtime::take_erased(
+                        &mut values,
+                        #owner,
+                        #field_name,
+                        stringify!(#ty),
+                    )?;
+            }
+        })
+        .collect()
+}
+
+fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaration) -> TokenStream {
+    if element.bind_path.is_some() && element.fields.is_empty() && element.variants.is_empty() {
+        return quote! {};
+    }
+    let owner = element.name.value.as_str();
+    let target = element.bind_path.as_ref().map_or_else(
+        || {
+            let owned = pascal_ident(&element.name.value);
+            quote! { #owned }
+        },
+        |path| parse_type(&path.value),
+    );
+    if !element.variants.is_empty() {
+        let builders = element.variants.iter().map(|variant| {
+            let suffix = crate::model::snake_case(&variant.name.value);
+            let function = quote::format_ident!("__erased_build_{}_{}", owner, suffix);
+            let variant_name = quote::format_ident!("{}", variant.name.value);
+            let payload = field_type(group, &variant.payload);
+            quote! {
+                fn #function(
+                    values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+                ) -> Result<
+                    ::deckmaste_construction_compiler::runtime::ErasedValue,
+                    ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+                > {
+                    let mut values = values.into_iter();
+                    let payload: #payload =
+                        ::deckmaste_construction_compiler::runtime::take_erased(
+                            &mut values,
+                            #owner,
+                            "payload",
+                            stringify!(#payload),
+                        )?;
+                    if values.next().is_some() {
+                        return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                            owner: #owner,
+                        });
+                    }
+                    Ok(Box::new(#target::#variant_name(payload)))
+                }
+            }
+        });
+        return quote! { #(#builders)* };
+    }
+
+    let function = quote::format_ident!("__erased_build_{}", owner);
+    let reads = erased_field_reads(owner, &element.fields, group);
+    let fields: Vec<proc_macro2::Ident> = element
+        .fields
+        .iter()
+        .map(|binding| quote::format_ident!("{}", binding.field.value))
+        .collect();
+    quote! {
+        fn #function(
+            values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+        ) -> Result<
+            ::deckmaste_construction_compiler::runtime::ErasedValue,
+            ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+        > {
+            let mut values = values.into_iter();
+            #(#reads)*
+            if values.next().is_some() {
+                return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                    owner: #owner,
+                });
+            }
+            Ok(Box::new(#target { #(#fields),* }))
+        }
+    }
+}
+
+fn erased_construction_builder(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+) -> TokenStream {
+    let owner = construction.id.value.as_str();
+    let function = quote::format_ident!("__erased_build_{}", construction.id.value);
+    let fields = construction.ast.fields();
+    let reads = erased_field_reads(owner, fields, group);
+    let field_names: Vec<proc_macro2::Ident> = fields
+        .iter()
+        .map(|binding| quote::format_ident!("{}", binding.field.value))
+        .collect();
+    let build = match &construction.ast {
+        AstShape::Own { name, .. } => {
+            let target = quote::format_ident!("{}", name.value);
+            quote! { #target::try_new(#(#field_names),*) }
+        }
+        AstShape::Bind { .. } => {
+            let builder = quote::format_ident!("build_{}", construction.id.value);
+            quote! { #builder(#(#field_names),*) }
+        }
+    };
+    quote! {
+        fn #function(
+            values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+        ) -> Result<
+            ::deckmaste_construction_compiler::runtime::ErasedValue,
+            ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+        > {
+            let mut values = values.into_iter();
+            #(#reads)*
+            if values.next().is_some() {
+                return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                    owner: #owner,
+                });
+            }
+            #build
+                .map(|value| Box::new(value) as ::deckmaste_construction_compiler::runtime::ErasedValue)
+                .map_err(::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration)
         }
     }
 }
@@ -1090,12 +1240,33 @@ fn element_row(element: &ElementDeclaration) -> TokenStream {
             }
         })
         .collect();
+    let erased_builders: Vec<TokenStream> = if element.bind_path.is_some()
+        && element.fields.is_empty()
+        && element.variants.is_empty()
+    {
+        Vec::new()
+    } else if element.variants.is_empty() {
+        let function = quote::format_ident!("__erased_build_{}", element.name.value);
+        vec![quote! { #function }]
+    } else {
+        element
+            .variants
+            .iter()
+            .map(|variant| {
+                let suffix = crate::model::snake_case(&variant.name.value);
+                let function =
+                    quote::format_ident!("__erased_build_{}_{}", element.name.value, suffix);
+                quote! { #function }
+            })
+            .collect()
+    };
     quote! {
         ::deckmaste_construction_compiler::runtime::ElementData {
             name: #name,
             bind_path: #bind_path,
             fields: &[#(#fields),*],
             variants: &[#(#variants),*],
+            erased_builders: &[#(#erased_builders),*],
         }
     }
 }
@@ -1192,6 +1363,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             }
         })
         .collect();
+    let erased_builder = quote::format_ident!("__erased_build_{}", construction.id.value);
     quote! {
         ::deckmaste_construction_compiler::runtime::ConstructionData {
             id: #id,
@@ -1205,6 +1377,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             selection_unique: #selection_unique,
             dominates: &[#(#dominates),*],
             forms: &[#(#forms),*],
+            erased_builder: Some(#erased_builder),
         }
     }
 }

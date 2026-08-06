@@ -10,3 +10,17 @@ error[E0026]: struct `BoundMember` does not have a field named `comma`
    | |_^ struct `BoundMember` does not have this field
    |
    = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0560]: struct `BoundMember` has no field named `comma`
+  --> tests/compile_fail/bound_element_field_removed.rs:9:1
+   |
+ 9 | / deckmaste_constructions_macro::constructions! {
+10 | |     group removed;
+11 | |     element fixture_member bind BoundMember {
+12 | |         comma: lex Comma,
+...  |
+15 | | }
+   | |_^ `BoundMember` does not have this field
+   |
+   = note: all struct fields are already assigned
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
