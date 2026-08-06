@@ -338,6 +338,34 @@ fn project_generated_category(
 ) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
     #[cfg(test)]
     match _construction.id {
+        "noun_phrase_coordination" => {
+            let value = value
+                .downcast::<crate::constructions::coordination::DerivedCoordinatedNounPhrase>()
+                .ok()?;
+            return Some(Box::new(NounPhrase::Coordinated(
+                crate::syntax::CoordinatedNounPhrase {
+                    first: value.first().clone(),
+                    rest: value.rest().clone(),
+                },
+            )));
+        }
+        "shared_determiner_nominal" => {
+            let value = value
+                .downcast::<crate::constructions::coordination::DerivedCoordinatedNominalPhrase>()
+                .ok()?;
+            return Some(Box::new(NounPhrase::CoordinatedNominal(
+                crate::syntax::CoordinatedNominalPhrase {
+                    determiner: value.determiner().clone(),
+                    first: value.first().clone(),
+                    rest: value.rest().clone(),
+                    complements: value.complements().clone(),
+                },
+            )));
+        }
+        _ => {}
+    }
+    #[cfg(test)]
+    match _construction.id {
         "probe_word" => {
             value
                 .downcast::<crate::constructions::probe::ProbeWordNode>()

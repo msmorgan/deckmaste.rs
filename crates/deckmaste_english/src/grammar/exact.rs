@@ -318,8 +318,13 @@ pub(crate) fn linearize_coordinated_noun_phrase(
     );
 
     let mut visitor = CoordinationLinearizer::default();
+    let value = crate::constructions::coordination::DerivedCoordinatedNounPhrase::try_new(
+        value.first.clone(),
+        value.rest.clone(),
+    )
+    .expect("the verdict admitted this value");
     let result = crate::constructions::coordination::linearize_noun_phrase_coordination_with(
-        value,
+        &value,
         &mut visitor,
     );
     finish_coordination_linearization(result, visitor)
@@ -335,8 +340,15 @@ pub(crate) fn linearize_coordinated_nominal_phrase(
     );
 
     let mut visitor = CoordinationLinearizer::default();
+    let value = crate::constructions::coordination::DerivedCoordinatedNominalPhrase::try_new(
+        value.determiner.clone(),
+        value.first.clone(),
+        value.rest.clone(),
+        value.complements.clone(),
+    )
+    .expect("the verdict admitted this value");
     let result = crate::constructions::coordination::linearize_shared_determiner_nominal_with(
-        value,
+        &value,
         &mut visitor,
     );
     finish_coordination_linearization(result, visitor)
@@ -1081,7 +1093,7 @@ mod tests {
         clippy::too_many_lines,
         reason = "one exhaustive provenance check keeps the generated declaration's metadata together"
     )]
-    fn coordination_bind_corpus_provenance_is_complete() {
+    fn coordination_declaration_provenance_is_complete() {
         assert_eq!(coordination::GROUPS.len(), 1);
         let group = coordination::GROUPS[0];
         assert_eq!(group.name, "noun_coordination");
@@ -1109,13 +1121,24 @@ mod tests {
             group
                 .constructions
                 .iter()
-                .map(|construction| (construction.id, construction.bind_path))
+                .map(|construction| {
+                    (
+                        construction.id,
+                        construction.own_type,
+                        construction.bind_path,
+                    )
+                })
                 .collect::<Vec<_>>(),
             [
-                ("noun_phrase_coordination", Some("CoordinatedNounPhrase")),
+                (
+                    "noun_phrase_coordination",
+                    Some("DerivedCoordinatedNounPhrase"),
+                    None
+                ),
                 (
                     "shared_determiner_nominal",
-                    Some("CoordinatedNominalPhrase")
+                    Some("DerivedCoordinatedNominalPhrase"),
+                    None
                 ),
             ],
         );

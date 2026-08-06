@@ -866,4 +866,24 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn real_coordination_group_assembles_as_generated() {
+        let groups = crate::constructions::coordination::GROUPS;
+        let cats = internal_categories(groups);
+        let mut builder = RuleBuilder::default();
+        register_generated(&mut builder, groups, &cats)
+            .expect("every real coordination category and sequence must assemble");
+        let book = builder.finish(RegistrationOrder::Normal);
+        assert!(
+            book.rules.iter().any(|rule| {
+                rule.production.construction.as_str() == "noun_phrase_coordination"
+            })
+        );
+        assert!(
+            book.rules.iter().any(|rule| {
+                rule.production.construction.as_str() == "shared_determiner_nominal"
+            })
+        );
+    }
 }

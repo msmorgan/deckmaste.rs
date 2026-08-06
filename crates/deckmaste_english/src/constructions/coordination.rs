@@ -55,7 +55,7 @@ deckmaste_constructions_macro::constructions! {
     }
 
     construction noun_phrase_coordination: NounPhrase {
-        bind CoordinatedNounPhrase {
+        own DerivedCoordinatedNounPhrase {
             first: hole box NounPhrase,
             rest: seq noun_phrase_member,
         }
@@ -70,7 +70,7 @@ deckmaste_constructions_macro::constructions! {
     }
 
     construction shared_determiner_nominal: NounPhrase {
-        bind CoordinatedNominalPhrase {
+        own DerivedCoordinatedNominalPhrase {
             determiner: hole Determiner,
             first: hole box NominalPhrase,
             rest: seq nominal_phrase_member,
@@ -94,3 +94,54 @@ deckmaste_constructions_macro::constructions! {
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&NOUN_COORDINATION_DECLARATION];
+
+pub(crate) fn build_noun_phrase_coordination(
+    first: Box<NounPhrase>,
+    rest: Vec<NounPhraseCoordination>,
+) -> Result<CoordinatedNounPhrase, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    DerivedCoordinatedNounPhrase::try_new(first.clone(), rest.clone())?;
+    Ok(CoordinatedNounPhrase { first, rest })
+}
+
+pub(crate) fn parts_noun_phrase_coordination(
+    value: &CoordinatedNounPhrase,
+) -> (&Box<NounPhrase>, &Vec<NounPhraseCoordination>) {
+    (&value.first, &value.rest)
+}
+
+pub(crate) fn build_shared_determiner_nominal(
+    determiner: Determiner,
+    first: Box<NominalPhrase>,
+    rest: Vec<NominalPhraseCoordination>,
+    complements: Vec<NominalComplement>,
+) -> Result<CoordinatedNominalPhrase, deckmaste_construction_compiler::runtime::DeclarationViolation>
+{
+    DerivedCoordinatedNominalPhrase::try_new(
+        determiner.clone(),
+        first.clone(),
+        rest.clone(),
+        complements.clone(),
+    )?;
+    Ok(CoordinatedNominalPhrase {
+        determiner,
+        first,
+        rest,
+        complements,
+    })
+}
+
+pub(crate) fn parts_shared_determiner_nominal(
+    value: &CoordinatedNominalPhrase,
+) -> (
+    &Determiner,
+    &Box<NominalPhrase>,
+    &Vec<NominalPhraseCoordination>,
+    &Vec<NominalComplement>,
+) {
+    (
+        &value.determiner,
+        &value.first,
+        &value.rest,
+        &value.complements,
+    )
+}
