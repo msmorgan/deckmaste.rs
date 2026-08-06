@@ -43,8 +43,11 @@ pub fn kinds() -> KindSet {
     // The mana-symbol leaves embed their inner value untagged too, so a bare
     // `White`/`Generic(2)` reads at a symbol slot: `ColorOrColorless` embeds
     // `Color`, `SimpleManaSymbol` embeds `ColorOrColorless`, `ManaSymbol` embeds
-    // `SimpleManaSymbol`. `Color` itself is the terminal payload (no embed), so
-    // it needs no registration.
+    // `SimpleManaSymbol`. `Color` is the terminal payload (no embed), and is
+    // registered so a macro of kind `Color` is definable — mirrors
+    // `deckmaste_semantics::ron::kinds`, which registers it for the same
+    // reason (macro-author-surface's identity scaffolds for the five colors).
+    kinds.add(crate::Color::kind());
     kinds.add(crate::ColorOrColorless::kind());
     kinds.add(crate::SimpleManaSymbol::kind());
     kinds.add(crate::ManaSymbol::kind());
@@ -61,6 +64,11 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::Selection::kind());
     kinds.add(crate::StaticEffect::kind());
     kinds.add(crate::TargetSpec::kind());
+    // The supertype vocabulary cards spell directly (`Legendary`, `Snow`, …) —
+    // registered so a macro of kind `Supertype` is definable; mirrors
+    // `deckmaste_semantics::ron::kinds`, which registers it for the same
+    // reason (macro-author-surface's identity scaffolds).
+    kinds.add(crate::Supertype::kind());
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
     // Type-kind macros (the ten builtin `Artifact`..`Sorcery` defs) expand to

@@ -28,7 +28,7 @@ pub enum Type {
 }
 
 // [CR#205.4a]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, macro_ron::SupportsMacros)]
 pub enum Supertype {
     Basic,
     Legendary,
