@@ -574,6 +574,40 @@ mod tests {
         parsed.unwrap_or_else(|| panic!("best exact root did not lower for {source:?}"))
     }
 
+    fn parse_fixture_clause(source: &str) -> crate::syntax::Clause {
+        let catalogs = fixture_catalogs();
+        let self_reference = SelfReference::default();
+        let surface = lex(source);
+        let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+        let grammar = EnglishGrammar::with_opacity_mode(
+            source,
+            &catalogs,
+            Nonterminal::Clause,
+            OpacityMode::Exact,
+            self_reference,
+        );
+        let chart = parse_chart(&grammar, &tokens)
+            .unwrap_or_else(|error| panic!("chart failed for {source:?}: {error:?}"));
+        let mut parsed = None;
+        chart
+            .forest
+            .best_root_matching(
+                chart.roots.iter().copied(),
+                super::super::construction::registry(),
+                |root, best| {
+                    let Some(Lowered::Clause(clause)) = lower(&grammar, &chart.forest, root, best)
+                    else {
+                        return false;
+                    };
+                    parsed = Some(clause);
+                    true
+                },
+            )
+            .unwrap_or_else(|error| panic!("best-root search failed for {source:?}: {error:?}"))
+            .unwrap_or_else(|| panic!("no exact clause root for {source:?}"));
+        parsed.unwrap_or_else(|| panic!("best exact root did not lower for {source:?}"))
+    }
+
     fn parse_fixture_noun_phrase(source: &str) -> NounPhrase {
         let catalogs = fixture_catalogs();
         let self_reference = SelfReference::default();
@@ -1394,55 +1428,33 @@ mod tests {
             "you may cast target instant or sorcery card from a graveyard, and ",
             "mana of any type can be spent to cast that spell"
         );
-        let readings = fixture_enumeration(
-            source,
-            &fixture_catalogs(),
-            Nonterminal::Clause,
-            SelfReference::default(),
-            |lowered| match lowered {
-                Lowered::Clause(reading) => Some(reading),
-                _ => None,
-            },
-        )
-        .0;
-        let matching = readings.iter().find(|reading| {
-            let crate::syntax::Clause::Independent(crate::syntax::IndependentClause::Coordinated(
-                coordination,
-            )) = reading
-            else {
-                return false;
-            };
-            let [continuation] = coordination.rest.as_slice() else {
-                return false;
-            };
-            if continuation.comma != Comma::Present
-                || continuation.conjunction != Some(Conjunction::And)
-            {
-                return false;
-            }
-            let crate::syntax::IndependentClause::Deontic(
-                _,
-                _,
-                Some(crate::syntax::Predicate::Transitive(first_predicate)),
-            ) = coordination.first.as_ref()
-            else {
-                return false;
-            };
-            let crate::syntax::PredicateObject::NounPhrase(object) = &first_predicate.object else {
-                return false;
-            };
-            let mut noun_coordinations = Vec::new();
-            collect_noun_coordinations(object, &mut noun_coordinations);
-            noun_coordinations.len() == 1
-                && noun_coordinations.iter().all(|noun_coordination| {
-                    noun_coordination.rest().len() == 1
-                        && coordination_verdict(noun_coordination) == CoordinationVerdict::Admitted
-                })
-        });
-        assert!(
-            matching.is_some(),
-            "no strict reading preserved the outer clause comma: {readings:#?}",
-        );
+        let reading = parse_fixture_clause(source);
+        let crate::syntax::Clause::Independent(crate::syntax::IndependentClause::Coordinated(
+            coordination,
+        )) = &reading
+        else {
+            panic!("selected reading did not preserve the outer clause boundary: {reading:#?}");
+        };
+        let [continuation] = coordination.rest.as_slice() else {
+            panic!("selected reading did not produce two clauses: {reading:#?}");
+        };
+        assert_eq!(continuation.comma, Comma::Present);
+        assert_eq!(continuation.conjunction, Some(Conjunction::And));
+        let crate::syntax::IndependentClause::Deontic(
+            _,
+            _,
+            Some(crate::syntax::Predicate::Transitive(first_predicate)),
+        ) = coordination.first.as_ref()
+        else {
+            panic!("selected first clause lost its deontic predicate: {reading:#?}");
+        };
+        let crate::syntax::PredicateObject::NounPhrase(object) = &first_predicate.object else {
+            panic!("selected first clause lost its noun-phrase object: {reading:#?}");
+        };
+        assert!(matches!(object, NounPhrase::Nominal(_)), "{reading:#?}");
+        let mut noun_coordinations = Vec::new();
+        collect_noun_coordinations(object, &mut noun_coordinations);
+        assert!(noun_coordinations.is_empty(), "{reading:#?}");
     }
 
     #[test]
