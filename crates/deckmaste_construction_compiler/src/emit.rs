@@ -99,6 +99,18 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
                 reason = "try_new's error conditions are the declaration's `require` \
                           clauses, which the author wrote and can read"
             )]
+            #![allow(
+                clippy::borrowed_box,
+                reason = "bound-element destructurers preserve the declaration's exact payload type"
+            )]
+            #![allow(
+                clippy::too_many_lines,
+                reason = "a total generated linearizer grows with the number and size of declared forms"
+            )]
+            #![allow(
+                clippy::needless_borrow,
+                reason = "uniform generated field access composes direct, optional, and sequence-member references"
+            )]
             use super::*;
             #(#elements)*
             #(#constructions)*
@@ -317,8 +329,8 @@ fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaratio
     let owner = element.name.value.as_str();
     let target = element.bind_path.as_ref().map_or_else(
         || {
-            let owned = pascal_ident(&element.name.value);
-            quote! { #owned }
+            let element_type = pascal_ident(&element.name.value);
+            quote! { #element_type }
         },
         |path| parse_type(&path.value),
     );
@@ -980,11 +992,7 @@ fn field_type(group: &GroupDeclaration, kind: &FieldKind) -> TokenStream {
                 quote! { #ty }
             }
         }
-        FieldKind::Scalar { codec } => {
-            let ty = parse_type(&codec.value);
-            quote! { #ty }
-        }
-        FieldKind::SurfaceScalar { codec } => {
+        FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => {
             let ty = parse_type(&codec.value);
             quote! { #ty }
         }

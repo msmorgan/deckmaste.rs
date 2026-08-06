@@ -85,43 +85,7 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 );
             }
         }
-        let mut seen_variants: std::collections::HashMap<&str, proc_macro2::Span> =
-            std::collections::HashMap::new();
-        for variant in &element.variants {
-            match seen_variants.entry(variant.name.value.as_str()) {
-                std::collections::hash_map::Entry::Vacant(slot) => {
-                    slot.insert(variant.name.span);
-                }
-                std::collections::hash_map::Entry::Occupied(first) => {
-                    diags.push(
-                        Diagnostic::group(
-                            DiagCode::DuplicateName,
-                            format!(
-                                "variant name `{}` is declared more than once in element `{}`",
-                                variant.name.value, element.name.value
-                            ),
-                        )
-                        .with_span(variant.name.span)
-                        .with_note("first declared here", *first.get()),
-                    );
-                }
-            }
-        }
-        for field in &element.fields {
-            if matches!(field.kind, FieldKind::SurfaceScalar { .. }) && element.bind_path.is_none()
-            {
-                diags.push(
-                    Diagnostic::group(
-                        DiagCode::InvalidElementShape,
-                        format!(
-                            "surface-only field `{}.{}` requires a bound semantic element",
-                            element.name.value, field.field.value,
-                        ),
-                    )
-                    .with_span(field.field.span),
-                );
-            }
-        }
+        check_element_identity(element, diags);
     }
 
     let mut seen_ids: std::collections::HashMap<&str, proc_macro2::Span> =
@@ -144,86 +108,130 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 );
             }
         }
-        let mut seen_ordinals: std::collections::HashSet<u16> = std::collections::HashSet::new();
-        for form in &construction.forms {
-            if !seen_ordinals.insert(form.ordinal.value) {
+        check_construction_identity(construction, diags);
+    }
+}
+
+fn check_element_identity(element: &ElementDeclaration, diags: &mut Vec<Diagnostic>) {
+    let mut seen_variants: std::collections::HashMap<&str, proc_macro2::Span> =
+        std::collections::HashMap::new();
+    for variant in &element.variants {
+        match seen_variants.entry(variant.name.value.as_str()) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(variant.name.span);
+            }
+            std::collections::hash_map::Entry::Occupied(first) => {
                 diags.push(
-                    Diagnostic::new(
-                        DiagCode::DuplicateOrdinal,
-                        id,
+                    Diagnostic::group(
+                        DiagCode::DuplicateName,
                         format!(
-                            "production ordinal {} is used by more than one form",
-                            form.ordinal.value
+                            "variant name `{}` is declared more than once in element `{}`",
+                            variant.name.value, element.name.value
                         ),
                     )
-                    .with_span(form.ordinal.span),
+                    .with_span(variant.name.span)
+                    .with_note("first declared here", *first.get()),
                 );
             }
         }
-        let mut seen_form_names: std::collections::HashMap<&str, proc_macro2::Span> =
-            std::collections::HashMap::new();
-        for form in &construction.forms {
-            match seen_form_names.entry(form.name.value.as_str()) {
-                std::collections::hash_map::Entry::Vacant(slot) => {
-                    slot.insert(form.name.span);
-                }
-                std::collections::hash_map::Entry::Occupied(first) => {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::DuplicateName,
-                            id,
-                            format!("form name `{}` is declared more than once", form.name.value),
-                        )
-                        .with_span(form.name.span)
-                        .with_note("first declared here", *first.get()),
-                    );
-                }
-            }
-        }
-        let mut seen_witness_names: std::collections::HashMap<&str, proc_macro2::Span> =
-            std::collections::HashMap::new();
-        for witness in &construction.witnesses {
-            match seen_witness_names.entry(witness.name.value.as_str()) {
-                std::collections::hash_map::Entry::Vacant(slot) => {
-                    slot.insert(witness.name.span);
-                }
-                std::collections::hash_map::Entry::Occupied(first) => {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::DuplicateName,
-                            id,
-                            format!(
-                                "witness name `{}` is declared more than once",
-                                witness.name.value
-                            ),
-                        )
-                        .with_span(witness.name.span)
-                        .with_note("first declared here", *first.get()),
-                    );
-                }
-            }
-        }
-        if construction.deserialize
-            && let crate::model::AstShape::Bind { .. } = &construction.ast
-        {
+    }
+    for field in &element.fields {
+        if matches!(field.kind, FieldKind::SurfaceScalar { .. }) && element.bind_path.is_none() {
             diags.push(
-                Diagnostic::new(
-                    DiagCode::DeserializeRequiresOwn,
-                    id,
-                    "`deserialize` requires own mode; a bind construction has no generated type to deserialize into",
+                Diagnostic::group(
+                    DiagCode::InvalidElementShape,
+                    format!(
+                        "surface-only field `{}.{}` requires a bound semantic element",
+                        element.name.value, field.field.value,
+                    ),
                 )
-                .with_span(construction.id.span),
+                .with_span(field.field.span),
             );
         }
-        for edge in &construction.dominance {
-            if edge.winner.value == edge.loser.value {
+    }
+}
+
+fn check_construction_identity(
+    construction: &ConstructionDeclaration,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let id = construction.id.value.as_str();
+    let mut seen_ordinals: std::collections::HashSet<u16> = std::collections::HashSet::new();
+    for form in &construction.forms {
+        if !seen_ordinals.insert(form.ordinal.value) {
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::DuplicateOrdinal,
+                    id,
+                    format!(
+                        "production ordinal {} is used by more than one form",
+                        form.ordinal.value
+                    ),
+                )
+                .with_span(form.ordinal.span),
+            );
+        }
+    }
+    check_named_construction_items(
+        construction,
+        construction.forms.iter().map(|form| &form.name),
+        "form",
+        diags,
+    );
+    check_named_construction_items(
+        construction,
+        construction.witnesses.iter().map(|witness| &witness.name),
+        "witness",
+        diags,
+    );
+    if construction.deserialize
+        && let crate::model::AstShape::Bind { .. } = &construction.ast
+    {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::DeserializeRequiresOwn,
+                id,
+                "`deserialize` requires own mode; a bind construction has no generated type to deserialize into",
+            )
+            .with_span(construction.id.span),
+        );
+    }
+    for edge in &construction.dominance {
+        if edge.winner.value == edge.loser.value {
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::SelfDominance,
+                    id,
+                    format!("`{}` cannot dominate itself", edge.winner.value),
+                )
+                .with_span(edge.winner.span),
+            );
+        }
+    }
+}
+
+fn check_named_construction_items<'a>(
+    construction: &ConstructionDeclaration,
+    names: impl Iterator<Item = &'a crate::model::Spanned<String>>,
+    kind: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let mut seen: std::collections::HashMap<&str, proc_macro2::Span> =
+        std::collections::HashMap::new();
+    for name in names {
+        match seen.entry(name.value.as_str()) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(name.span);
+            }
+            std::collections::hash_map::Entry::Occupied(first) => {
                 diags.push(
                     Diagnostic::new(
-                        DiagCode::SelfDominance,
-                        id,
-                        format!("`{}` cannot dominate itself", edge.winner.value),
+                        DiagCode::DuplicateName,
+                        construction.id.value.as_str(),
+                        format!("{kind} name `{}` is declared more than once", name.value),
                     )
-                    .with_span(edge.winner.span),
+                    .with_span(name.span)
+                    .with_note("first declared here", *first.get()),
                 );
             }
         }
@@ -678,171 +686,188 @@ fn resolve_path<'g>(
 
 fn check_paths(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     for construction in &group.constructions {
-        let id = construction.id.value.as_str();
-        let field_names: std::collections::HashSet<&str> = construction
-            .ast
-            .fields()
-            .iter()
-            .map(|b| b.field.value.as_str())
-            .collect();
+        check_construction_paths(group, construction, diags);
+    }
+}
 
-        for binding in construction.ast.fields() {
-            if let FieldKind::Sequence { element } = &binding.kind
-                && !group.elements.iter().any(|e| e.name.value == element.value)
+fn check_construction_paths(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let id = construction.id.value.as_str();
+    let field_names: std::collections::HashSet<&str> = construction
+        .ast
+        .fields()
+        .iter()
+        .map(|b| b.field.value.as_str())
+        .collect();
+
+    for binding in construction.ast.fields() {
+        if let FieldKind::Sequence { element } = &binding.kind
+            && !group.elements.iter().any(|e| e.name.value == element.value)
+        {
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::UnknownElement,
+                    id,
+                    format!(
+                        "sequence field `{}` names undeclared element `{}`",
+                        binding.field.value, element.value
+                    ),
+                )
+                .with_span(element.span),
+            );
+        }
+    }
+    check_form_paths(group, construction, diags);
+    for witness in &construction.witnesses {
+        if field_names.contains(witness.name.value.as_str()) {
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::WitnessFieldCollision,
+                    id,
+                    format!(
+                        "witness `{}` collides with an ast field of the same name",
+                        witness.name.value
+                    ),
+                )
+                .with_span(witness.name.span),
+            );
+        }
+        if let WitnessClass::Stored { path } = &witness.class {
+            if let Some(segment) = path
+                .segments
+                .iter()
+                .find(|segment| segment.value == "nonfinal")
             {
                 diags.push(
                     Diagnostic::new(
-                        DiagCode::UnknownElement,
+                        DiagCode::UnknownFieldPath,
                         id,
                         format!(
-                            "sequence field `{}` names undeclared element `{}`",
-                            binding.field.value, element.value
+                            "stored witness `{}` names `{}`: `nonfinal` is predicate-only",
+                            witness.name.value,
+                            path.dotted(),
                         ),
                     )
-                    .with_span(element.span),
+                    .with_span(segment.span),
                 );
-            }
-        }
-        for form in &construction.forms {
-            for atom in &form.surface {
-                let path = match atom {
-                    SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
-                    SurfaceAtom::Literal(_) => continue,
-                };
-                if let Some(segment) = path
-                    .segments
-                    .iter()
-                    .find(|segment| segment.value == "nonfinal")
-                {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::UnknownFieldPath,
-                            id,
-                            format!(
-                                "form `{}` references `{}`: `nonfinal` is predicate-only",
-                                form.name.value,
-                                path.dotted(),
-                            ),
-                        )
-                        .with_span(segment.span),
-                    );
-                    continue;
-                }
-                if let Err(bad) = resolve_path(group, construction, path) {
-                    let segment = &path.segments[bad.index];
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::UnknownFieldPath,
-                            id,
-                            format!(
-                                "form `{}` references `{}`: `{}` does not resolve",
-                                form.name.value,
-                                path.dotted(),
-                                segment.value
-                            ),
-                        )
-                        .with_span(segment.span),
-                    );
-                }
-            }
-        }
-        for witness in &construction.witnesses {
-            if field_names.contains(witness.name.value.as_str()) {
+            } else if let Err(bad) = resolve_path(group, construction, path) {
+                let segment = &path.segments[bad.index];
                 diags.push(
                     Diagnostic::new(
-                        DiagCode::WitnessFieldCollision,
+                        DiagCode::StoredWitnessPathUnknown,
                         id,
                         format!(
-                            "witness `{}` collides with an ast field of the same name",
-                            witness.name.value
+                            "stored witness `{}` names `{}`: `{}` does not resolve",
+                            witness.name.value,
+                            path.dotted(),
+                            segment.value
                         ),
                     )
-                    .with_span(witness.name.span),
+                    .with_span(segment.span),
                 );
             }
-            if let WitnessClass::Stored { path } = &witness.class {
-                if let Some(segment) = path
-                    .segments
-                    .iter()
-                    .find(|segment| segment.value == "nonfinal")
-                {
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::UnknownFieldPath,
-                            id,
-                            format!(
-                                "stored witness `{}` names `{}`: `nonfinal` is predicate-only",
-                                witness.name.value,
-                                path.dotted(),
-                            ),
-                        )
-                        .with_span(segment.span),
-                    );
-                } else if let Err(bad) = resolve_path(group, construction, path) {
-                    let segment = &path.segments[bad.index];
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::StoredWitnessPathUnknown,
-                            id,
-                            format!(
-                                "stored witness `{}` names `{}`: `{}` does not resolve",
-                                witness.name.value,
-                                path.dotted(),
-                                segment.value
-                            ),
-                        )
-                        .with_span(segment.span),
-                    );
-                }
+        }
+    }
+    // Require-clause and form-guard predicate paths are as unresolvable
+    // as any surface/witness path — `DeriveFeature`'s target/args and
+    // `WitnessClass::Derived`'s args are deliberately NOT walked here;
+    // both are recorded deferrals for a later milestone.
+    for constraint in &construction.constraints {
+        let Constraint::Require(predicate) = constraint else { continue };
+        let mut paths: Vec<&FieldPath> = Vec::new();
+        collect_all_paths(&predicate.value, &mut paths);
+        for path in paths {
+            if let Err(bad) = resolve_path(group, construction, path) {
+                let segment = &path.segments[bad.index];
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnknownFieldPath,
+                        id,
+                        format!(
+                            "require clause references `{}`: `{}` does not resolve",
+                            path.dotted(),
+                            segment.value
+                        ),
+                    )
+                    .with_span(segment.span),
+                );
             }
         }
-        // Require-clause and form-guard predicate paths are as unresolvable
-        // as any surface/witness path — `DeriveFeature`'s target/args and
-        // `WitnessClass::Derived`'s args are deliberately NOT walked here;
-        // both are recorded deferrals for a later milestone.
-        for constraint in &construction.constraints {
-            let Constraint::Require(predicate) = constraint else { continue };
-            let mut paths: Vec<&FieldPath> = Vec::new();
-            collect_all_paths(&predicate.value, &mut paths);
-            for path in paths {
-                if let Err(bad) = resolve_path(group, construction, path) {
-                    let segment = &path.segments[bad.index];
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::UnknownFieldPath,
-                            id,
-                            format!(
-                                "require clause references `{}`: `{}` does not resolve",
-                                path.dotted(),
-                                segment.value
-                            ),
-                        )
-                        .with_span(segment.span),
-                    );
-                }
+    }
+    for form in &construction.forms {
+        let Some(guard) = &form.guard else { continue };
+        let mut paths: Vec<&FieldPath> = Vec::new();
+        collect_all_paths(&guard.value, &mut paths);
+        for path in paths {
+            if let Err(bad) = resolve_path(group, construction, path) {
+                let segment = &path.segments[bad.index];
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnknownFieldPath,
+                        id,
+                        format!(
+                            "form `{}` guard references `{}`: `{}` does not resolve",
+                            form.name.value,
+                            path.dotted(),
+                            segment.value
+                        ),
+                    )
+                    .with_span(segment.span),
+                );
             }
         }
-        for form in &construction.forms {
-            let Some(guard) = &form.guard else { continue };
-            let mut paths: Vec<&FieldPath> = Vec::new();
-            collect_all_paths(&guard.value, &mut paths);
-            for path in paths {
-                if let Err(bad) = resolve_path(group, construction, path) {
-                    let segment = &path.segments[bad.index];
-                    diags.push(
-                        Diagnostic::new(
-                            DiagCode::UnknownFieldPath,
-                            id,
-                            format!(
-                                "form `{}` guard references `{}`: `{}` does not resolve",
-                                form.name.value,
-                                path.dotted(),
-                                segment.value
-                            ),
-                        )
-                        .with_span(segment.span),
-                    );
-                }
+    }
+}
+
+fn check_form_paths(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let id = construction.id.value.as_str();
+    for form in &construction.forms {
+        for atom in &form.surface {
+            let path = match atom {
+                SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
+                SurfaceAtom::Literal(_) => continue,
+            };
+            if let Some(segment) = path
+                .segments
+                .iter()
+                .find(|segment| segment.value == "nonfinal")
+            {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnknownFieldPath,
+                        id,
+                        format!(
+                            "form `{}` references `{}`: `nonfinal` is predicate-only",
+                            form.name.value,
+                            path.dotted(),
+                        ),
+                    )
+                    .with_span(segment.span),
+                );
+                continue;
+            }
+            if let Err(bad) = resolve_path(group, construction, path) {
+                let segment = &path.segments[bad.index];
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnknownFieldPath,
+                        id,
+                        format!(
+                            "form `{}` references `{}`: `{}` does not resolve",
+                            form.name.value,
+                            path.dotted(),
+                            segment.value
+                        ),
+                    )
+                    .with_span(segment.span),
+                );
             }
         }
     }

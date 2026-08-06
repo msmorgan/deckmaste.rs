@@ -649,12 +649,17 @@ pub(super) fn reduce_nominal(
             // `Renderer::modifier_initial_sound`'s spelling-derived quantity arm
             // is known, unreachable on the supported corpus, and left as ticketed
             // residue.
+            // A quantity-modified nominal cannot be the continuation of a
+            // singular demonstrative shared across coordination: `this
+            // creature and up to one other ...` starts a second, independently
+            // determined noun phrase. Other determiner classes are checked by
+            // their ordinary cardinality gate.
             nominal_with_prefix(
                 children.get(1)?,
                 InitialSound::Consonant,
                 false,
                 AdjectiveComparisonState::NotComparative,
-                true,
+                false,
             )
         }
         RuleTag::NominalPowerToughnessModifier => {
@@ -1853,7 +1858,7 @@ pub(super) fn reduce_generated_aux(
         } => {
             let element = group.element_data.get(element)?;
             if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
-                && present_fields & 0b11 == 0
+                && present_fields.trailing_zeros() >= 2
             {
                 // Every admitted coordination member contributes either its
                 // comma or its conjunction. Reject the delimiter-free shape
@@ -1875,16 +1880,27 @@ pub(super) fn reduce_generated_aux(
                 return None;
             }
             Features::GeneratedElement {
-                fields,
+                fields: fields.into(),
                 present_fields,
                 variant: None,
             }
         }
-        R::ElementVariant { variant, .. } => Features::GeneratedElement {
-            fields: vec![children.first()?.features.clone()],
-            present_fields: 1,
-            variant: Some(variant),
-        },
+        R::ElementVariant {
+            group,
+            element,
+            variant,
+        } => {
+            let declaration = group.element_data.get(element)?.variants.get(variant)?;
+            let payload = children.first()?.features;
+            if !generated_payload_matches(declaration.payload, payload) {
+                return None;
+            }
+            Features::GeneratedElement {
+                fields: std::sync::Arc::from([payload.clone()]),
+                present_fields: 1,
+                variant: Some(variant),
+            }
+        }
         R::SequenceSeed { .. } => {
             let Features::GeneratedElement {
                 fields,
@@ -1908,11 +1924,9 @@ pub(super) fn reduce_generated_aux(
                     .last()
                     .is_some_and(|(_, present, _)| present & 0b01 != 0 && present & 0b10 == 0)
             {
-                // Once another member follows, the previous one is known to
-                // be nonfinal: it must carry a comma and must not already
-                // carry the closing conjunction. Pruning at the extension
-                // boundary prevents invalid list permutations from reaching
-                // every surrounding NounPhrase prediction.
+                // Once another member follows, the previous one is known
+                // to be nonfinal: it must carry a comma and must not
+                // already carry the closing conjunction.
                 return None;
             }
             let Features::GeneratedElement {
@@ -1932,6 +1946,54 @@ pub(super) fn reduce_generated_aux(
         features,
         local_cost: super::ParseCost::default(),
     })
+}
+
+fn generated_payload_matches(
+    kind: deckmaste_construction_compiler::runtime::FieldKindData,
+    payload: &Features,
+) -> bool {
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+
+    match kind {
+        // These declaration categories project through broader chart
+        // nonterminals. Preserve the declared Rust subtype before packing so
+        // selection cannot choose a branch that only fails during lowering.
+        FieldKindData::Subtree {
+            category: "IndependentClause",
+            ..
+        } => matches!(
+            payload,
+            Features::Clause {
+                standalone: true,
+                ..
+            }
+        ),
+        FieldKindData::Subtree {
+            category: "CoordinatedAdjectivePhrase",
+            ..
+        } => matches!(
+            payload,
+            Features::CoordinatedModifier {
+                all_adjectives: true,
+                ..
+            }
+        ),
+        FieldKindData::Subtree {
+            category: "TransitivePredicate",
+            ..
+        } => matches!(
+            payload,
+            Features::VerbPhrase {
+                form: PredicateForm::PastParticiple,
+                passive: false,
+                object,
+                indirect_object: false,
+                frame,
+                ..
+            } if frame.is_recipient_passive() && object.has_direct_object()
+        ),
+        _ => true,
+    }
 }
 
 pub(super) fn reduce_generated(
@@ -2006,7 +2068,7 @@ pub(super) fn reduce_generated(
         if generated_complements_include_keyword_argument(rule, &fields) {
             local_cost.precedence = 1;
         }
-    };
+    }
     Some(Reduction {
         features,
         local_cost,
@@ -2217,7 +2279,7 @@ fn noun_phrase_coordination_features(
             }
             let conjunction = final_generated_conjunction(elements)?;
             Some(Features::NounPhrase {
-                agreement: coordination_agreement(conjunction, *first_agreement, last_agreement)?,
+                agreement: coordination_agreement(conjunction, *first_agreement, last_agreement),
                 pronoun_case: None,
                 adjunct: common_adjunct,
                 set_exception: *set_exception,
@@ -2299,7 +2361,7 @@ fn noun_phrase_coordination_features(
                             NounForm::Singular | NounForm::Mass => Number::Singular,
                         },
                     }),
-                )?,
+                ),
                 pronoun_case: None,
                 adjunct: common_adjunct,
                 set_exception: if *set_exception_host {
@@ -2317,7 +2379,7 @@ fn noun_phrase_coordination_features(
 }
 
 fn generated_coordination_sequence_is_valid(
-    elements: &[(Vec<Features>, u64, Option<usize>)],
+    elements: &[(std::sync::Arc<[Features]>, u64, Option<usize>)],
 ) -> Option<()> {
     let (last, nonfinal) = elements.split_last()?;
     for (_, present, _) in nonfinal {
@@ -2335,7 +2397,7 @@ fn generated_coordination_sequence_is_valid(
 }
 
 fn final_generated_conjunction(
-    elements: &[(Vec<Features>, u64, Option<usize>)],
+    elements: &[(std::sync::Arc<[Features]>, u64, Option<usize>)],
 ) -> Option<Conjunction> {
     let (fields, present, _) = elements.last()?;
     if present & (1 << 1) == 0 {
@@ -2355,16 +2417,16 @@ fn coordination_agreement(
     conjunction: Conjunction,
     first: Option<Agreement>,
     last: Option<Agreement>,
-) -> Option<Option<Agreement>> {
-    Some(match conjunction {
+) -> Option<Agreement> {
+    match conjunction {
         Conjunction::And => Some(Agreement {
             person: Person::Third,
             number: Number::Plural,
         }),
         Conjunction::Or | Conjunction::AndOr => last,
         Conjunction::Plus => first,
-        Conjunction::Then => return None,
-    })
+        Conjunction::Then => None,
+    }
 }
 
 struct NominalCoordinationMember {
@@ -2566,11 +2628,11 @@ mod generated_tests {
     fn sequence(conjunction: Conjunction, number: Number) -> Features {
         Features::GeneratedSequence {
             elements: vec![(
-                vec![
+                std::sync::Arc::from([
                     Features::None,
                     Features::Conjunction(conjunction),
                     noun_phrase(number),
-                ],
+                ]),
                 1 << 1 | 1 << 2,
                 None,
             )],

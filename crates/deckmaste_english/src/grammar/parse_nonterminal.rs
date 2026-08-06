@@ -583,7 +583,6 @@ fn collect_lowered_coordination_spans(
                 determiner_spans,
             );
         }
-        return;
     }
 }
 

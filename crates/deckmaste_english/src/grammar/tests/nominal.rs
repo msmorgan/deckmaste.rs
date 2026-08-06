@@ -2943,6 +2943,43 @@ mod tests {
         );
     }
 
+    #[test]
+    fn ballroom_brawlers_coordination_stays_bounded() {
+        let catalogs = fixture_catalogs();
+        let effect = "this creature and up to one other target creature you control both gain your choice of first strike or lifelink until end of turn";
+        let parsed = parse_nonterminal(effect, &catalogs, Nonterminal::SimpleClause)
+            .unwrap_or_else(|error| panic!("{effect}: {error:?}"));
+        let Some(crate::syntax::Subject(NounPhrase::Coordinated(subject))) = parsed
+            .simple_clause()
+            .and_then(|clause| clause.subject.as_ref())
+        else {
+            panic!(
+                "the repeated determiner must form complete coordinated noun phrases: {:#?}",
+                parsed.simple_clause()
+            );
+        };
+        let [second] = subject.rest().as_slice() else {
+            panic!("expected one second subject member: {subject:#?}");
+        };
+        assert!(matches!(
+            &second.phrase,
+            NounPhrase::Nominal(NominalPhrase {
+                determiner: Some(Determiner::Quantity(crate::syntax::Quantity::UpTo(_))),
+                ..
+            })
+        ));
+        assert!(
+            parsed.chart_stats().unique_items() < 50_000,
+            "Ballroom Brawlers chart grew to {:?}",
+            parsed.chart_stats()
+        );
+        assert!(
+            parsed.chart_stats().max_column_width() < 12_000,
+            "Ballroom Brawlers chart grew to {:?}",
+            parsed.chart_stats()
+        );
+    }
+
     fn render_fragment(noun_phrase: &NounPhrase) -> String {
         render_fragment_as(noun_phrase, "Test Card", false)
     }

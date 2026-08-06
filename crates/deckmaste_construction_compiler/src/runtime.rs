@@ -38,6 +38,12 @@ pub enum LinearizationError<E> {
 pub trait LinearizationVisitor {
     type Error;
 
+    /// Starts one selected declaration form.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the event cannot
+    /// be accepted.
     fn begin_form(
         &mut self,
         _construction: &'static str,
@@ -47,24 +53,54 @@ pub trait LinearizationVisitor {
         Ok(())
     }
 
+    /// Ends the selected declaration form.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the event cannot
+    /// be accepted.
     fn end_form(&mut self, _construction: &'static str) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    /// Visits a literal surface token.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the token cannot
+    /// be accepted.
     fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error>;
 
+    /// Visits a typed subtree field.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the subtree
+    /// cannot be accepted.
     fn subtree<T: std::any::Any>(
         &mut self,
         category: &'static str,
         value: &T,
     ) -> Result<(), Self::Error>;
 
+    /// Visits a typed scalar field.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the scalar cannot
+    /// be accepted.
     fn scalar<T: std::any::Any>(
         &mut self,
         codec: &'static str,
         value: &T,
     ) -> Result<(), Self::Error>;
 
+    /// Visits a sequence scalar derived from member position and count.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the derived value
+    /// cannot be accepted.
     fn derived_sequence_scalar(
         &mut self,
         _field: &'static str,
@@ -75,22 +111,52 @@ pub trait LinearizationVisitor {
         Ok(())
     }
 
+    /// Starts a sequence field.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the sequence
+    /// cannot be accepted.
     fn begin_sequence(&mut self, _field: &'static str, _len: usize) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    /// Starts one member of the current sequence field.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the member cannot
+    /// be accepted.
     fn sequence_member(&mut self, _field: &'static str, _index: usize) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    /// Ends the current sequence field.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the event cannot
+    /// be accepted.
     fn end_sequence(&mut self, _field: &'static str) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    /// Visits the presence state of an optional field.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the state cannot
+    /// be accepted.
     fn optional(&mut self, _field: &'static str, _present: bool) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    /// Visits a value supplied by a bound element declaration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the value cannot
+    /// be accepted.
     fn bound_value<T: std::any::Any>(
         &mut self,
         _element: &'static str,
@@ -99,6 +165,12 @@ pub trait LinearizationVisitor {
         Ok(())
     }
 
+    /// Visits a stored form witness.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the witness cannot
+    /// be accepted.
     fn stored_witness<T: std::any::Any>(
         &mut self,
         _name: &'static str,
@@ -137,6 +209,11 @@ pub enum ErasedBuildError {
 /// Consumes the next positional erased field and restores its declared type.
 /// Emitted builders call this in declaration order, which keeps all
 /// downcasts in compiler-generated code and out of language adapters.
+///
+/// # Errors
+///
+/// Returns [`ErasedBuildError::MissingField`] when there is no next value, or
+/// [`ErasedBuildError::WrongFieldType`] when it cannot be downcast to `T`.
 pub fn take_erased<T: std::any::Any>(
     values: &mut impl Iterator<Item = ErasedValue>,
     owner: &'static str,

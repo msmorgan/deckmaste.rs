@@ -36,6 +36,10 @@ pub(super) enum GeneratedActivation {
 }
 
 impl GeneratedActivation {
+    #[allow(
+        clippy::unnecessary_wraps,
+        reason = "the test-only Inactive variant returns None; production builds see only the Some arm"
+    )]
     pub(super) fn groups(self) -> Option<&'static [&'static GroupData]> {
         match self {
             Self::Production => Some(crate::constructions::coordination::GROUPS),
@@ -293,18 +297,14 @@ fn field_expected(
             construction,
             category,
         )?)),
-        FieldKindData::Scalar { codec } => codec_slot(codec).map(Expected::Lexical).ok_or(
-            GeneratedAssemblyError::UnknownLexemeCodec {
-                construction: construction.id,
-                codec,
-            },
-        ),
-        FieldKindData::SurfaceScalar { codec } => codec_slot(codec).map(Expected::Lexical).ok_or(
-            GeneratedAssemblyError::UnknownLexemeCodec {
-                construction: construction.id,
-                codec,
-            },
-        ),
+        FieldKindData::Scalar { codec } | FieldKindData::SurfaceScalar { codec } => {
+            codec_slot(codec).map(Expected::Lexical).ok_or(
+                GeneratedAssemblyError::UnknownLexemeCodec {
+                    construction: construction.id,
+                    codec,
+                },
+            )
+        }
         FieldKindData::Optional { inner } => field_expected(cats, construction, *inner),
         FieldKindData::Sequence { .. } => Err(GeneratedAssemblyError::UnsupportedAtomKind {
             construction: construction.id,
@@ -315,6 +315,10 @@ fn field_expected(
 
 /// Registers every form of every construction of every active group, in
 /// declaration order, with EXPLICIT ordinals from the declaration data.
+#[allow(
+    clippy::too_many_lines,
+    reason = "registration follows the declaration's group, construction, form, and sequence nesting"
+)]
 pub(super) fn register_generated(
     builder: &mut RuleBuilder,
     groups: &[&'static GroupData],
@@ -487,6 +491,26 @@ fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
     }
 }
 
+fn rules_object_member_rhs(
+    element: &ElementData,
+    rhs: &[Expected<Nonterminal, EnglishLexicalSlot>],
+) -> Option<Vec<Expected<Nonterminal, EnglishLexicalSlot>>> {
+    if element.name != "noun_phrase_member"
+        || !matches!(
+            element.fields.last().map(|field| field.kind),
+            Some(FieldKindData::Subtree {
+                category: "NounPhrase",
+                ..
+            })
+        )
+    {
+        return None;
+    }
+    let mut alternate = rhs.to_vec();
+    *alternate.last_mut()? = Expected::Nonterminal(Nonterminal::RulesObjectNounPhrase);
+    Some(alternate)
+}
+
 fn register_element(
     builder: &mut RuleBuilder,
     group: &'static GroupData,
@@ -537,38 +561,23 @@ fn register_element(
             let mut rhs = Vec::new();
             let mut present_fields = 0_u64;
             for (field_index, field) in element.fields.iter().enumerate() {
-                if let Some(position) = optional.iter().position(|&i| i == field_index) {
-                    if subset & (1_u64 << position) == 0 {
-                        continue;
-                    }
+                if let Some(position) = optional.iter().position(|&i| i == field_index)
+                    && subset & (1_u64 << position) == 0
+                {
+                    continue;
                 }
                 present_fields |= 1_u64 << field_index;
                 rhs.push(field_expected(cats, representative, field.kind)?);
             }
             if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
-                && present_fields & 0b11 == 0
+                && present_fields.trailing_zeros() >= 2
             {
                 // Neither delimiter can participate in an admitted member;
                 // omitting this rule avoids a delimiter-free recursive NP
                 // sequence in the chart.
                 continue;
             }
-            let rules_object_rhs = if element.name == "noun_phrase_member"
-                && matches!(
-                    element.fields.last().map(|field| field.kind),
-                    Some(FieldKindData::Subtree {
-                        category: "NounPhrase",
-                        ..
-                    })
-                ) {
-                let mut alternate = rhs.clone();
-                alternate.last_mut().map(|expected| {
-                    *expected = Expected::Nonterminal(Nonterminal::RulesObjectNounPhrase);
-                });
-                Some(alternate)
-            } else {
-                None
-            };
+            let rules_object_rhs = rules_object_member_rhs(element, &rhs);
             builder.add_generated(
                 RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementStruct {
                     group,

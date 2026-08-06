@@ -15,6 +15,18 @@ mod __constructions_fixture_coordination {
         reason = "try_new's error conditions are the declaration's `require` \
                           clauses, which the author wrote and can read"
     )]
+    #![allow(
+        clippy::borrowed_box,
+        reason = "bound-element destructurers preserve the declaration's exact payload type"
+    )]
+    #![allow(
+        clippy::too_many_lines,
+        reason = "a total generated linearizer grows with the number and size of declared forms"
+    )]
+    #![allow(
+        clippy::needless_borrow,
+        reason = "uniform generated field access composes direct, optional, and sequence-member references"
+    )]
     use super::*;
     #[derive(Debug, PartialEq, Eq)]
     pub struct FixtureMember {

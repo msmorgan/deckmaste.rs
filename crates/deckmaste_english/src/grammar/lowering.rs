@@ -350,10 +350,10 @@ fn lower_generated_construction(
 }
 
 fn project_generated_category(
-    _construction: &deckmaste_construction_compiler::runtime::ConstructionData,
+    construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     value: deckmaste_construction_compiler::runtime::ErasedValue,
 ) -> Option<Lowered> {
-    match _construction.id {
+    match construction.id {
         "noun_phrase_coordination" => {
             let value = value
                 .downcast::<crate::constructions::coordination::CoordinatedNounPhrase>()
@@ -378,6 +378,7 @@ fn project_generated_category(
                         take_trailing_group_complements(earlier_has_relative, &mut last.phrase);
                 }
             }
+            open_postpositive_name_interior(&mut complements);
             let coordinated = crate::syntax::CoordinatedNominalPhrase::try_new(
                 value.determiner().clone(),
                 first,
@@ -392,7 +393,7 @@ fn project_generated_category(
         _ => {}
     }
     #[cfg(test)]
-    match _construction.id {
+    match construction.id {
         "probe_word" => {
             value
                 .downcast::<crate::constructions::probe::ProbeWordNode>()
@@ -445,9 +446,10 @@ fn erased_field(
             };
             Some(Box::new(value))
         }
-        K::Scalar { codec: "Comma" } => Some(Box::new(crate::features::Comma::Present)),
-        K::SurfaceScalar { codec: "Comma" } => Some(Box::new(crate::features::Comma::Present)),
-        K::Optional { inner } => erased_optional(*inner, value),
+        K::Scalar { codec: "Comma" } | K::SurfaceScalar { codec: "Comma" } => {
+            Some(Box::new(crate::features::Comma::Present))
+        }
+        K::Optional { inner } => erased_optional(*inner, &value),
         K::Scalar { .. } | K::SurfaceScalar { .. } | K::Sequence { .. } => None,
     }
 }
@@ -457,8 +459,9 @@ fn erased_absent(
 ) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
     use deckmaste_construction_compiler::runtime::FieldKindData as K;
     match kind {
-        K::Scalar { codec: "Comma" } => Some(Box::new(crate::features::Comma::Absent)),
-        K::SurfaceScalar { codec: "Comma" } => Some(Box::new(crate::features::Comma::Absent)),
+        K::Scalar { codec: "Comma" } | K::SurfaceScalar { codec: "Comma" } => {
+            Some(Box::new(crate::features::Comma::Absent))
+        }
         K::Optional { inner } => erased_optional_absent(*inner),
         K::Subtree { .. } | K::Scalar { .. } | K::SurfaceScalar { .. } | K::Sequence { .. } => None,
     }
@@ -526,7 +529,7 @@ fn erased_subtree(
 
 fn erased_optional(
     inner: deckmaste_construction_compiler::runtime::FieldKindData,
-    value: Lowered,
+    value: &Lowered,
 ) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
     use deckmaste_construction_compiler::runtime::FieldKindData as K;
     match inner {
@@ -536,7 +539,7 @@ fn erased_optional(
             let Lowered::Conjunction(value) = value else {
                 return None;
             };
-            Some(Box::new(Some(value)))
+            Some(Box::new(Some(*value)))
         }
         K::Scalar { codec: "Comma" } => Some(Box::new(Some(crate::features::Comma::Present))),
         _ => None,
@@ -1017,6 +1020,69 @@ pub(super) fn open_name_interior(nominal: &mut NominalPhrase) {
             detach_keyword_noun(noun);
         }
     }
+}
+
+/// Re-labels a generated postpositive `named <proper name>` complement tail.
+///
+/// Generated shared-determiner coordination lowers its trailing complements as
+/// an independent sequence, so the ordinary prenominal `named` path above
+/// cannot open the name interior while the name words are being built. The
+/// generated sequence represents those words as bare predicated keyword
+/// arguments following the `named` adjective. Preserve catalog spelling there,
+/// and turn title-initial `The` into an opaque modifier: inside a proper name
+/// it is a name token rather than a functional determiner.
+fn open_postpositive_name_interior(complements: &mut [NominalComplement]) {
+    let mut inside_name = false;
+    for complement in complements {
+        match complement {
+            NominalComplement::Adjective(adjective) if introduces_proper_name(adjective) => {
+                inside_name = true;
+            }
+            NominalComplement::KeywordArgument(argument) if inside_name => {
+                open_name_argument(argument);
+            }
+            _ if inside_name => break,
+            _ => {}
+        }
+    }
+}
+
+fn open_name_argument(argument: &mut KeywordArgument) {
+    match argument {
+        KeywordArgument::Predicated(argument) => {
+            for quality in &mut argument.qualities {
+                open_name_phrase(&mut quality.quality);
+            }
+        }
+        KeywordArgument::Qualified(phrase) => open_name_phrase(phrase),
+        KeywordArgument::RestrictedCost { restriction, .. } => {
+            open_name_noun_phrase(restriction);
+        }
+        _ => {}
+    }
+}
+
+fn open_name_phrase(phrase: &mut Phrase) {
+    if let Phrase::NounPhrase(noun_phrase) = phrase {
+        open_name_noun_phrase(noun_phrase);
+    }
+}
+
+fn open_name_noun_phrase(noun_phrase: &mut NounPhrase) {
+    let NounPhrase::Nominal(nominal) = noun_phrase else {
+        return;
+    };
+    if nominal.determiner == Some(Determiner::The) {
+        nominal.determiner = None;
+        nominal.modifiers.insert(
+            0,
+            NominalModifier::Noun {
+                polarity: Polarity::Positive,
+                noun: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("The"))),
+            },
+        );
+    }
+    open_name_interior(nominal);
 }
 
 pub(super) fn detach_keyword_noun(noun: &mut NounInstance) {

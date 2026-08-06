@@ -94,8 +94,8 @@ pub(crate) fn build_noun_phrase_coordination(
 #[cfg(test)]
 pub(crate) fn parts_noun_phrase_coordination(
     value: &CoordinatedNounPhrase,
-) -> (&Box<NounPhrase>, &Vec<NounPhraseCoordination>) {
-    (value.first(), value.rest())
+) -> (&NounPhrase, &Vec<NounPhraseCoordination>) {
+    (value.first().as_ref(), value.rest())
 }
 
 #[cfg(test)]
@@ -114,13 +114,13 @@ pub(crate) fn parts_shared_determiner_nominal(
     value: &CoordinatedNominalPhrase,
 ) -> (
     &Determiner,
-    &Box<NominalPhrase>,
+    &NominalPhrase,
     &Vec<NominalPhraseCoordination>,
     &Vec<NominalComplement>,
 ) {
     (
         value.determiner(),
-        value.first(),
+        value.first().as_ref(),
         value.rest(),
         value.complements(),
     )

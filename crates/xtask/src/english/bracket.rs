@@ -404,11 +404,13 @@ mod tests {
             .bracketed;
 
         assert!(
-            damage.contains("<to <target <<player> or <planeswalker>>> and <<each> <<creature>"),
+            damage
+                .contains("<to <<target> <<player> <or <planeswalker>>>> <and <<each> <<creature>"),
             "unexpected Bonfire bracket tree: {damage}"
         );
         assert!(
-            !damage.contains("<<<target> <player>> or <planeswalker>>"),
+            !damage.contains("<<<target> <player>> <or <planeswalker>>>")
+                && !damage.contains("<<<target> <player>> or <planeswalker>>"),
             "the first target head must not carry the shared determiner: {damage}"
         );
     }
@@ -438,7 +440,8 @@ mod tests {
             &catalogs,
         );
         assert!(
-            damage.contains("<target <<player> or <planeswalker>>>")
+            damage.contains("<to <target> <player> <or <planeswalker>>>>")
+                && !damage.contains("<<<target> <player>> <or <planeswalker>>>")
                 && !damage.contains("<<<target> <player>> or <planeswalker>>"),
             "unexpected shared target scope: {damage}"
         );
@@ -448,9 +451,9 @@ mod tests {
             &catalogs,
         );
         assert!(
-            exile.contains("<target <<artifact>, <creature>, or <planeswalker>>>")
-                && exile.contains("<target <<land> or <battle>>>")
-                && !exile.contains("<artifact>, <creature>, or <planeswalker> and <target"),
+            exile.contains("<<target> <<artifact><<, <creature>><, or <planeswalker>>>>>")
+                && exile.contains("<<target> <<land> <or <battle>>>>")
+                && !exile.contains("<artifact><<, <creature>><, or <planeswalker>><and <target"),
             "the two target groups must remain distinct: {exile}"
         );
 

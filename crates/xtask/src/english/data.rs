@@ -35,6 +35,11 @@ const CATALOG_FILES: [(CatalogKind, &str); 13] = [
     (CatalogKind::FlavorWord, "flavor-words"),
 ];
 
+/// Parsing one face can briefly own a large chart and packed forest. Keep the
+/// corpus tools parallel without multiplying a pathological face by every
+/// hardware thread on the machine.
+const MAX_SUPPORTED_FACE_JOBS: usize = 4;
+
 #[derive(Debug, Default, Args)]
 pub(super) struct OracleDataArgs {
     /// Override the derived card-data snapshot.
@@ -96,10 +101,26 @@ pub(super) fn map_supported_faces<T: Send>(
         .enumerate()
         .filter(|(_, card)| card.supported)
         .collect();
-    supported
-        .par_iter()
-        .map(|&(index, card)| map(index, card))
-        .collect()
+    if supported.is_empty() {
+        return Vec::new();
+    }
+    let available = std::thread::available_parallelism().map_or(1, usize::from);
+    let jobs = supported_face_jobs(available, supported.len());
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(jobs)
+        .thread_name(|index| format!("english-corpus-{index}"))
+        .build()
+        .expect("bounded English corpus pool must build")
+        .install(|| {
+            supported
+                .par_iter()
+                .map(|&(index, card)| map(index, card))
+                .collect()
+        })
+}
+
+fn supported_face_jobs(available: usize, supported: usize) -> usize {
+    available.min(MAX_SUPPORTED_FACE_JOBS).min(supported).max(1)
 }
 
 #[derive(Debug, Deserialize)]
@@ -281,6 +302,13 @@ mod tests {
         });
 
         assert_eq!(results, ["0:released", "2:second"]);
+    }
+
+    #[test]
+    fn supported_face_map_caps_parser_concurrency() {
+        assert_eq!(supported_face_jobs(64, 100), MAX_SUPPORTED_FACE_JOBS);
+        assert_eq!(supported_face_jobs(2, 100), 2);
+        assert_eq!(supported_face_jobs(64, 3), 3);
     }
 
     #[test]

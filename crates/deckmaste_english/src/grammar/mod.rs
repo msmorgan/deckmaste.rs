@@ -1315,12 +1315,17 @@ pub(crate) enum Features {
         noun_heads: Vec<CatalogAtom>,
     },
     GeneratedElement {
-        fields: Vec<Features>,
+        fields: std::sync::Arc<[Features]>,
         present_fields: u64,
         variant: Option<usize>,
     },
     GeneratedSequence {
-        elements: Vec<(Vec<Features>, u64, Option<usize>)>,
+        /// Share immutable element features across every sequence prefix.
+        /// Deep-cloning payload trees here makes each prefix retain another
+        /// copy, while dropping them from the key incorrectly packs distinct
+        /// lowered syntax. `Arc` preserves exact chart identity at constant
+        /// payload storage per element parse.
+        elements: Vec<(std::sync::Arc<[Features]>, u64, Option<usize>)>,
     },
 }
 

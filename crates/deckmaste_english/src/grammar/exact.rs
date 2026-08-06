@@ -119,7 +119,6 @@ fn scalar_value(forest: &EnglishForest, node: NodeId) -> Option<GeneratedScalar>
         MeaningKey::Punctuation(crate::surface::Punctuation::Comma) => {
             Some(GeneratedScalar::Comma(crate::features::Comma::Present))
         }
-        MeaningKey::Punctuation(_) => None,
         _ => None,
     }
 }
@@ -611,7 +610,7 @@ mod tests {
         match noun_phrase {
             NounPhrase::Nominal(nominal) => collect_nominal_coordinations(nominal, found),
             NounPhrase::CoordinatedNominal(coordination) => {
-                collect_nominal_coordinations(&coordination.first(), found);
+                collect_nominal_coordinations(coordination.first(), found);
                 for member in coordination.rest() {
                     collect_nominal_coordinations(&member.phrase, found);
                 }
@@ -621,7 +620,7 @@ mod tests {
             }
             NounPhrase::Coordinated(coordination) => {
                 found.push(coordination);
-                collect_noun_coordinations(&coordination.first(), found);
+                collect_noun_coordinations(coordination.first(), found);
                 for member in coordination.rest() {
                     collect_noun_coordinations(&member.phrase, found);
                 }
@@ -819,7 +818,7 @@ mod tests {
         let (determiner, first, rest, complements) =
             coordination::parts_shared_determiner_nominal(&coordination);
         assert_eq!(determiner, &Determiner::Target(None));
-        assert_eq!(nominal_head_spelling(first.as_ref()), "Artifact");
+        assert_eq!(nominal_head_spelling(first), "Artifact");
         let [second] = rest.as_slice() else {
             panic!("expected exactly two nominal members: {coordination:#?}");
         };
@@ -1187,7 +1186,7 @@ mod tests {
         )
         .expect("a binary noun coordination without an Oxford comma is admitted");
         let (first, rest) = coordination::parts_noun_phrase_coordination(&built);
-        assert_eq!(first.as_ref(), &NounPhrase::Quantity(Quantity::Both));
+        assert_eq!(first, &NounPhrase::Quantity(Quantity::Both));
         assert_eq!(rest.len(), 1);
         assert_eq!(rest[0].conjunction, Some(Conjunction::And));
         assert_eq!(rest[0].phrase, NounPhrase::Quantity(Quantity::X));
@@ -1266,7 +1265,7 @@ mod tests {
         let (determiner, first, rest, complements) =
             coordination::parts_shared_determiner_nominal(&built);
         assert_eq!(determiner, &Determiner::Any);
-        assert_eq!(first.as_ref(), &nominal(Vocab::Card));
+        assert_eq!(first, &nominal(Vocab::Card));
         assert_eq!(rest.len(), 1);
         assert_eq!(rest[0].conjunction, Some(Conjunction::Or));
         assert_eq!(rest[0].phrase, nominal(Vocab::Spell));
