@@ -7,12 +7,14 @@ use std::collections::BTreeMap;
 
 use deckmaste_construction_compiler::runtime::AtomData;
 use deckmaste_construction_compiler::runtime::ConstructionData;
+use deckmaste_construction_compiler::runtime::ElementData;
 use deckmaste_construction_compiler::runtime::FieldKindData;
 use deckmaste_construction_compiler::runtime::GroupData;
 
 use super::EnglishLexicalSlot;
 use super::Expected;
 use super::Nonterminal;
+use super::rules::GeneratedAuxRuleRef;
 use super::rules::GeneratedRuleRef;
 use super::rules::RuleBuilder;
 use super::rules::RuleImpl;
@@ -41,13 +43,12 @@ impl GeneratedActivation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum GeneratedAssemblyError {
-    /// A non-internal category with no engine mapping (the table grows with
-    /// the pilot; today every generated category must be `internal`).
+    /// A non-internal category with no explicit English engine mapping.
     UnknownCategory {
         construction: &'static str,
         category: &'static str,
     },
-    /// The M3 literal table admits `","` only.
+    /// The generated literal table currently admits `","` only.
     UnsupportedLiteral {
         construction: &'static str,
         literal: &'static str,
@@ -67,9 +68,8 @@ pub(super) enum GeneratedAssemblyError {
         construction: &'static str,
         field: &'static str,
     },
-    /// A `Hole` atom on a field shape other than `Subtree` (sequence holes
-    /// are the pilot's seed/extend design work; optional and scalar holes
-    /// have no production meaning at all), OR a `Lexeme` atom on a field
+    /// A `Hole` atom on a field shape other than `Subtree` or `Sequence`, OR
+    /// a `Lexeme` atom on a field
     /// shape other than `Scalar` — including `Optional { Scalar }`, e.g.
     /// `lex(opt field)`, which `validate.rs`'s `resolved_is_scalar` admits
     /// as a legal, renderable EC014 declaration but which has no production
@@ -83,15 +83,23 @@ pub(super) enum GeneratedAssemblyError {
     /// `bind` is legal only while the family's owner row is Handwritten;
     /// activation as a generated group is the Generated owner state.
     ///
-    /// Raised per-CONSTRUCTION, but `register_generated` returns on the
-    /// first one it finds — it does not keep scanning to register the
-    /// group's other constructions. Authoring consequence: a single `bind`
+    /// `register_generated` preflights this before registering any rule.
+    /// Authoring consequence: a single `bind`
     /// construction anywhere in an active group makes the WHOLE group
     /// permanently unactivatable as generated, including that group's own
     /// own-mode (non-`bind`) siblings. There is no partial activation; the
     /// fix is to remove or relocate the `bind` construction, not to work
     /// around it per-construction.
-    BindWhileGenerated { construction: &'static str },
+    BindWhileGenerated {
+        construction: &'static str,
+    },
+    UnknownElement {
+        construction: &'static str,
+        element: &'static str,
+    },
+    TooManyOptionalAtoms {
+        owner: &'static str,
+    },
 }
 
 /// Deterministic internal-category ids: the sorted set of `internal`
@@ -113,11 +121,49 @@ pub(super) fn internal_categories(groups: &[&'static GroupData]) -> BTreeMap<&'s
     names
 }
 
-/// Non-internal categories name engine nonterminals. Empty until the pilot
-/// declarations land; the check that consults it is live now.
+/// Non-internal declaration categories map explicitly onto English chart
+/// categories. Payload-specific conversion remains a lowering concern.
 fn engine_category(name: &str) -> Option<Nonterminal> {
-    let _ = name;
-    None
+    Some(match name {
+        "NounPhrase" => Nonterminal::NounPhrase,
+        "NominalPhrase" => Nonterminal::Nominal,
+        "Determiner" => Nonterminal::Determiner,
+        "AdjectivePhrase" => Nonterminal::AdjectivePhrase,
+        "CoordinatedAdjectivePhrase" => Nonterminal::CoordinatedModifier,
+        "PrepositionalPhrase" => Nonterminal::PrepositionalPhrase,
+        "InfinitiveClause" => Nonterminal::InfinitiveClause,
+        "RelativeClause" => Nonterminal::RelativeClause,
+        "TransitivePredicate" => Nonterminal::ReducedRecipientPassive,
+        "Quantity" => Nonterminal::Quantity,
+        "DevotionColors" => Nonterminal::DevotionColors,
+        "PowerToughness" => Nonterminal::PowerToughness,
+        "IndependentClause" => Nonterminal::Clause,
+        "KeywordArgument" => Nonterminal::PredicatedArgumentBare,
+        _ => return None,
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+enum AuxCategoryKind {
+    Element,
+    Sequence,
+}
+
+type AuxCategories = BTreeMap<(&'static str, &'static str, AuxCategoryKind), u16>;
+
+fn auxiliary_categories(groups: &[&'static GroupData], internal_count: usize) -> AuxCategories {
+    let mut result = BTreeMap::new();
+    for group in groups {
+        for element in group.element_data {
+            for kind in [AuxCategoryKind::Element, AuxCategoryKind::Sequence] {
+                result.insert((group.name, element.name, kind), 0);
+            }
+        }
+    }
+    for (offset, id) in result.values_mut().enumerate() {
+        *id = u16::try_from(internal_count + offset).expect("generated categories exceed u16::MAX");
+    }
+    result
 }
 
 /// Resolves a category referenced from a `Hole` atom's `Subtree` field. Such
@@ -170,6 +216,8 @@ fn codec_slot(codec: &'static str) -> Option<EnglishLexicalSlot> {
 
 fn atom_expected(
     cats: &BTreeMap<&'static str, u16>,
+    aux: &AuxCategories,
+    group: &'static GroupData,
     construction: &'static ConstructionData,
     atom: AtomData,
 ) -> Result<Expected<Nonterminal, EnglishLexicalSlot>, GeneratedAssemblyError> {
@@ -200,6 +248,15 @@ fn atom_expected(
                 (AtomData::Hole(_), FieldKindData::Subtree { category, .. }) => Ok(
                     Expected::Nonterminal(category_nonterminal(cats, construction, category)?),
                 ),
+                (AtomData::Hole(_), FieldKindData::Sequence { element }) => aux
+                    .get(&(group.name, element, AuxCategoryKind::Sequence))
+                    .copied()
+                    .map(Nonterminal::Generated)
+                    .map(Expected::Nonterminal)
+                    .ok_or(GeneratedAssemblyError::UnknownElement {
+                        construction: construction.id,
+                        element,
+                    }),
                 (AtomData::Lexeme(_), FieldKindData::Scalar { codec }) => codec_slot(codec)
                     .map(Expected::Lexical)
                     .ok_or(GeneratedAssemblyError::UnknownLexemeCodec {
@@ -215,6 +272,31 @@ fn atom_expected(
     }
 }
 
+fn field_expected(
+    cats: &BTreeMap<&'static str, u16>,
+    construction: &'static ConstructionData,
+    kind: FieldKindData,
+) -> Result<Expected<Nonterminal, EnglishLexicalSlot>, GeneratedAssemblyError> {
+    match kind {
+        FieldKindData::Subtree { category, .. } => Ok(Expected::Nonterminal(category_nonterminal(
+            cats,
+            construction,
+            category,
+        )?)),
+        FieldKindData::Scalar { codec } => codec_slot(codec).map(Expected::Lexical).ok_or(
+            GeneratedAssemblyError::UnknownLexemeCodec {
+                construction: construction.id,
+                codec,
+            },
+        ),
+        FieldKindData::Optional { inner } => field_expected(cats, construction, *inner),
+        FieldKindData::Sequence { .. } => Err(GeneratedAssemblyError::UnsupportedAtomKind {
+            construction: construction.id,
+            field: "nested sequence element",
+        }),
+    }
+}
+
 /// Registers every form of every construction of every active group, in
 /// declaration order, with EXPLICIT ordinals from the declaration data.
 pub(super) fn register_generated(
@@ -222,35 +304,205 @@ pub(super) fn register_generated(
     groups: &[&'static GroupData],
     cats: &BTreeMap<&'static str, u16>,
 ) -> Result<(), GeneratedAssemblyError> {
+    if let Some(construction) = groups
+        .iter()
+        .flat_map(|group| group.constructions)
+        .find(|construction| construction.bind_path.is_some())
+    {
+        return Err(GeneratedAssemblyError::BindWhileGenerated {
+            construction: construction.id,
+        });
+    }
+    let aux = auxiliary_categories(groups, cats.len());
     for group in groups {
+        for (element_index, element) in group.element_data.iter().enumerate() {
+            register_element(builder, group, element_index, element, cats, &aux)?;
+        }
         for (construction_index, construction) in group.constructions.iter().enumerate() {
-            if construction.bind_path.is_some() {
-                return Err(GeneratedAssemblyError::BindWhileGenerated {
-                    construction: construction.id,
-                });
-            }
             let lhs = lhs_category_nonterminal(cats, construction)?;
             for (form_index, form) in construction.forms.iter().enumerate() {
-                let mut rhs = Vec::with_capacity(form.atoms.len());
-                for atom in form.atoms {
-                    rhs.push(atom_expected(cats, construction, *atom)?);
+                let sequence_atoms = form
+                    .atoms
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, atom)| match atom {
+                        AtomData::Hole(path) => construction
+                            .fields
+                            .iter()
+                            .find(|field| field.name == *path)
+                            .and_then(|field| {
+                                matches!(field.kind, FieldKindData::Sequence { .. })
+                                    .then_some(index)
+                            }),
+                        AtomData::Literal(_) | AtomData::Lexeme(_) => None,
+                    })
+                    .collect::<Vec<_>>();
+                if sequence_atoms.len() > 15
+                    || sequence_atoms
+                        .iter()
+                        .any(|&index| index >= u64::BITS as usize)
+                {
+                    return Err(GeneratedAssemblyError::TooManyOptionalAtoms {
+                        owner: construction.id,
+                    });
                 }
-                builder.add_generated(
-                    RuleImpl::Generated(GeneratedRuleRef {
-                        group,
-                        construction: construction_index,
-                        form: form_index,
-                    }),
-                    ProductionId {
-                        construction: ConstructionId::new(construction.id),
-                        ordinal: form.ordinal,
-                    },
-                    lhs,
-                    rhs,
-                );
+                for subset in 0..(1_u64 << sequence_atoms.len()) {
+                    let mut rhs = Vec::with_capacity(form.atoms.len());
+                    let mut present = 0_u64;
+                    for (atom_index, atom) in form.atoms.iter().enumerate() {
+                        let sequence_position =
+                            sequence_atoms.iter().position(|&i| i == atom_index);
+                        if let Some(position) = sequence_position {
+                            if subset & (1_u64 << position) == 0 {
+                                continue;
+                            }
+                            present |= 1_u64 << atom_index;
+                        }
+                        rhs.push(atom_expected(cats, &aux, group, construction, *atom)?);
+                    }
+                    if rhs.is_empty() {
+                        continue;
+                    }
+                    builder.add_generated(
+                        RuleImpl::Generated(GeneratedRuleRef {
+                            group,
+                            construction: construction_index,
+                            form: form_index,
+                            sequence_atoms: present,
+                        }),
+                        ProductionId {
+                            construction: ConstructionId::new(construction.id),
+                            ordinal: form.ordinal,
+                        },
+                        lhs,
+                        rhs,
+                    );
+                }
             }
         }
     }
+    Ok(())
+}
+
+fn register_element(
+    builder: &mut RuleBuilder,
+    group: &'static GroupData,
+    element_index: usize,
+    element: &'static ElementData,
+    cats: &BTreeMap<&'static str, u16>,
+    aux: &AuxCategories,
+) -> Result<(), GeneratedAssemblyError> {
+    let element_nt =
+        Nonterminal::Generated(aux[&(group.name, element.name, AuxCategoryKind::Element)]);
+    let sequence_nt =
+        Nonterminal::Generated(aux[&(group.name, element.name, AuxCategoryKind::Sequence)]);
+    let representative = group
+        .constructions
+        .first()
+        .expect("validated generated groups contain a construction");
+    let mut ordinal = 0_u16;
+
+    if element.variants.is_empty() && !element.fields.is_empty() {
+        let optional = element
+            .fields
+            .iter()
+            .enumerate()
+            .filter_map(|(index, field)| {
+                matches!(field.kind, FieldKindData::Optional { .. })
+                    .then_some(index)
+                    .or_else(|| {
+                        matches!(field.kind, FieldKindData::Scalar { codec: "Comma" })
+                            .then_some(index)
+                    })
+            })
+            .collect::<Vec<_>>();
+        if optional.len() > 15 {
+            return Err(GeneratedAssemblyError::TooManyOptionalAtoms {
+                owner: element.name,
+            });
+        }
+        for subset in 0..(1_u64 << optional.len()) {
+            let mut rhs = Vec::new();
+            let mut present_fields = 0_u64;
+            for (field_index, field) in element.fields.iter().enumerate() {
+                if let Some(position) = optional.iter().position(|&i| i == field_index) {
+                    if subset & (1_u64 << position) == 0 {
+                        continue;
+                    }
+                    present_fields |= 1_u64 << field_index;
+                }
+                rhs.push(field_expected(cats, representative, field.kind)?);
+            }
+            builder.add_generated(
+                RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementStruct {
+                    group,
+                    element: element_index,
+                    present_fields,
+                }),
+                ProductionId {
+                    construction: ConstructionId::new(element.name),
+                    ordinal,
+                },
+                element_nt,
+                rhs,
+            );
+            ordinal = ordinal
+                .checked_add(1)
+                .expect("element rule ordinal overflow");
+        }
+    } else {
+        for (variant_index, variant) in element.variants.iter().enumerate() {
+            builder.add_generated(
+                RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementVariant {
+                    group,
+                    element: element_index,
+                    variant: variant_index,
+                }),
+                ProductionId {
+                    construction: ConstructionId::new(element.name),
+                    ordinal,
+                },
+                element_nt,
+                [field_expected(cats, representative, variant.payload)?],
+            );
+            ordinal = ordinal
+                .checked_add(1)
+                .expect("element rule ordinal overflow");
+        }
+    }
+
+    if ordinal == 0 {
+        return Ok(());
+    }
+    builder.add_generated(
+        RuleImpl::GeneratedAux(GeneratedAuxRuleRef::SequenceSeed {
+            group,
+            element: element_index,
+        }),
+        ProductionId {
+            construction: ConstructionId::new(element.name),
+            ordinal,
+        },
+        sequence_nt,
+        [Expected::Nonterminal(element_nt)],
+    );
+    builder.add_generated(
+        RuleImpl::GeneratedAux(GeneratedAuxRuleRef::SequenceExtend {
+            group,
+            element: element_index,
+        }),
+        ProductionId {
+            construction: ConstructionId::new(element.name),
+            ordinal: ordinal
+                .checked_add(1)
+                .expect("element rule ordinal overflow"),
+        },
+        sequence_nt,
+        [
+            Expected::Nonterminal(sequence_nt),
+            Expected::Nonterminal(element_nt),
+        ],
+    );
     Ok(())
 }
 
@@ -258,6 +510,7 @@ pub(super) fn register_generated(
 mod tests {
     use deckmaste_construction_compiler::runtime::AtomData;
     use deckmaste_construction_compiler::runtime::ConstructionData;
+    use deckmaste_construction_compiler::runtime::ElementData;
     use deckmaste_construction_compiler::runtime::FieldData;
     use deckmaste_construction_compiler::runtime::FieldKindData;
     use deckmaste_construction_compiler::runtime::FormData;
@@ -312,7 +565,7 @@ mod tests {
     fn unknown_category_is_refused() {
         const CONSTRUCTIONS: &[ConstructionData] = &[construction(
             "np_only",
-            "NounPhrase",
+            "DefinitelyUnknown",
             false,
             WORD_FIELDS,
             WORD_FORM,
@@ -330,7 +583,7 @@ mod tests {
             error,
             GeneratedAssemblyError::UnknownCategory {
                 construction: "np_only",
-                category: "NounPhrase",
+                category: "DefinitelyUnknown",
             }
         );
     }
@@ -462,7 +715,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_hole_is_a_deferred_error() {
+    fn sequence_hole_registers_element_seed_and_extension_rules() {
         const FIELDS: &[FieldData] = &[FieldData {
             name: "items",
             kind: FieldKindData::Sequence { element: "Foo" },
@@ -475,21 +728,50 @@ mod tests {
         }];
         const CONSTRUCTIONS: &[ConstructionData] =
             &[construction("seq_test", "Internal", true, FIELDS, FORM)];
+        const ELEMENTS: &[ElementData] = &[ElementData {
+            name: "Foo",
+            bind_path: None,
+            fields: &[FieldData {
+                name: "phrase",
+                kind: FieldKindData::Subtree {
+                    category: "NounPhrase",
+                    boxed: false,
+                },
+            }],
+            variants: &[],
+            erased_builders: &[],
+        }];
         const GROUP: GroupData = GroupData {
             name: "g",
-            elements: &[],
-            element_data: &[],
+            elements: &["Foo"],
+            element_data: ELEMENTS,
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
         let mut builder = RuleBuilder::default();
-        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        register_generated(&mut builder, &[&GROUP], &cats)
+            .expect("declared sequence elements assemble");
+        let book = builder.finish(RegistrationOrder::Normal);
+        assert_eq!(book.rules.len(), 4);
+        assert_eq!(book.rules[0].lhs, super::super::Nonterminal::Generated(1));
         assert_eq!(
-            error,
-            GeneratedAssemblyError::UnsupportedAtomKind {
-                construction: "seq_test",
-                field: "items",
-            }
+            book.rules[1].rhs,
+            vec![Expected::Nonterminal(super::super::Nonterminal::Generated(
+                1
+            ))]
+        );
+        assert_eq!(
+            book.rules[2].rhs,
+            vec![
+                Expected::Nonterminal(super::super::Nonterminal::Generated(2)),
+                Expected::Nonterminal(super::super::Nonterminal::Generated(1)),
+            ]
+        );
+        assert_eq!(
+            book.rules[3].rhs,
+            vec![Expected::Nonterminal(super::super::Nonterminal::Generated(
+                2
+            ))]
         );
     }
 

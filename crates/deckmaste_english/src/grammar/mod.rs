@@ -427,6 +427,8 @@ const SUBJECT_AUXILIARY_FORMS: &[(usize, ContractedSubjectKey, &[Auxiliary])] = 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Nonterminal {
     Quantity,
+    /// Generated complement payload category backed by the closed P/T lexer.
+    PowerToughness,
     Determiner,
     Adjective,
     AdjectivePhrase,
@@ -2966,7 +2968,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
             // Milestone-3 stub: generated reductions carry no features yet.
             // The chart packs generated alternatives on Features::None;
             // real feature combinators land with the pilot declarations.
-            RuleImpl::Generated(_) => Some(Reduction {
+            RuleImpl::Generated(_) | RuleImpl::GeneratedAux(_) => Some(Reduction {
                 features: Features::None,
                 local_cost: ParseCost::default(),
             }),
@@ -3039,7 +3041,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     && accepts_set_exception_prefix(tag, completed_children, latest_child)
                     && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
             }
-            Some(RuleImpl::Generated(_)) => true,
+            Some(RuleImpl::Generated(_) | RuleImpl::GeneratedAux(_)) => true,
             None => false,
         }
     }

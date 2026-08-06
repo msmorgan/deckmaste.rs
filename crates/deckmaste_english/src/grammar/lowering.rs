@@ -158,7 +158,7 @@ pub(super) fn lower<S: AlternativeSelection>(
         RuleImpl::Handwritten(tag) => *tag,
         // Milestone-3 stub: generated subtrees lower to Ignored; real AST
         // building lands with the pilot declarations.
-        RuleImpl::Generated(_) => return Some(Lowered::Ignored),
+        RuleImpl::Generated(_) | RuleImpl::GeneratedAux(_) => return Some(Lowered::Ignored),
     };
     let [intermediate] = alternative.children.as_slice() else {
         return None;

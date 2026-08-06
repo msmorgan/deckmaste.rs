@@ -17,6 +17,10 @@ use super::construction::construction_id;
 use crate::construction::ConstructionId;
 use crate::construction::ProductionId;
 
+#[allow(
+    dead_code,
+    reason = "generated auxiliary payloads are consumed by the staged lowering slice"
+)]
 #[derive(Debug, Clone, Copy)]
 pub(super) enum RuleImpl {
     Handwritten(RuleTag),
@@ -27,6 +31,7 @@ pub(super) enum RuleImpl {
         )]
         GeneratedRuleRef,
     ),
+    GeneratedAux(GeneratedAuxRuleRef),
 }
 
 /// One generated production's home: the group's declaration data plus the
@@ -41,6 +46,35 @@ pub(super) struct GeneratedRuleRef {
     pub(super) group: &'static deckmaste_construction_compiler::runtime::GroupData,
     pub(super) construction: usize,
     pub(super) form: usize,
+    /// Bit `i` records that sequence-valued surface atom `i` used its
+    /// one-or-more helper. A clear bit means the field is the empty sequence.
+    pub(super) sequence_atoms: u64,
+}
+
+#[allow(
+    dead_code,
+    reason = "the assembly slice records every lowering input before lowering consumes it"
+)]
+#[derive(Debug, Clone, Copy)]
+pub(super) enum GeneratedAuxRuleRef {
+    ElementStruct {
+        group: &'static deckmaste_construction_compiler::runtime::GroupData,
+        element: usize,
+        present_fields: u64,
+    },
+    ElementVariant {
+        group: &'static deckmaste_construction_compiler::runtime::GroupData,
+        element: usize,
+        variant: usize,
+    },
+    SequenceSeed {
+        group: &'static deckmaste_construction_compiler::runtime::GroupData,
+        element: usize,
+    },
+    SequenceExtend {
+        group: &'static deckmaste_construction_compiler::runtime::GroupData,
+        element: usize,
+    },
 }
 
 #[derive(Default)]

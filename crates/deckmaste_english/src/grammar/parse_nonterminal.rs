@@ -649,7 +649,9 @@ fn selected_tag_and_children(
         super::rules::RuleImpl::Handwritten(tag) => *tag,
         // Handwritten-only consumers (coordination-span collection); a
         // generated node simply isn't one of theirs.
-        super::rules::RuleImpl::Generated(_) => return None,
+        super::rules::RuleImpl::Generated(_) | super::rules::RuleImpl::GeneratedAux(_) => {
+            return None;
+        }
     };
     let [intermediate] = alternative.children.as_slice() else {
         return None;
