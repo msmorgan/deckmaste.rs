@@ -1274,6 +1274,8 @@ mod tests {
             },
         );
         assert!(noun.witnesses.is_empty());
+        assert_eq!(noun.dominates, &["prepositional_phrase"]);
+        assert_eq!(noun.dominated_by, &["noun_phrase_nominal"]);
         assert_eq!(noun.feature_combinators.len(), 1);
         assert_eq!(
             (
@@ -1332,6 +1334,8 @@ mod tests {
             },
         );
         assert_eq!(shared.feature_combinators.len(), 1);
+        assert_eq!(shared.dominates, &["prepositional_phrase"]);
+        assert!(shared.dominated_by.is_empty());
         assert_eq!(
             shared
                 .requirements

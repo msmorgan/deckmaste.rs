@@ -79,6 +79,7 @@ deckmaste_constructions_macro::constructions! {
         form plain @ 0 when conjunction in [And] = members lex(conjunction);
         form fancy @ 1 when conjunction in [Or] = members "," lex(conjunction);
         dominates fixture_solo;
+        dominated by fixture_outer;
     }
 
     construction fixture_solo: FixturePair {
@@ -322,6 +323,7 @@ fn declaration_data_traces_to_the_one_declaration() {
     let pair = &data.constructions[0];
     assert_eq!(pair.own_type, Some("FixturePairNode"));
     assert_eq!(pair.dominates, &["fixture_solo"]);
+    assert_eq!(pair.dominated_by, &["fixture_outer"]);
     assert!(!pair.deserialize);
     let ordinals: Vec<u16> = pair.forms.iter().map(|f| f.ordinal).collect();
     assert_eq!(ordinals, vec![0, 1]);

@@ -64,6 +64,8 @@ deckmaste_constructions_macro::constructions! {
         require rest.last.conjunction in [And, Or, Plus, AndOr];
         derive first = complete_noun_phrase_coordination(first, rest);
         form flat @ 0 = first rest;
+        dominates prepositional_phrase;
+        dominated by noun_phrase_nominal;
     }
 
     construction shared_determiner_nominal: NounPhrase {
@@ -85,6 +87,7 @@ deckmaste_constructions_macro::constructions! {
         );
         derive first = shared_determiner_coordination(determiner, first, rest, complements);
         form shared @ 0 = determiner first rest complements;
+        dominates prepositional_phrase;
     }
 }
 

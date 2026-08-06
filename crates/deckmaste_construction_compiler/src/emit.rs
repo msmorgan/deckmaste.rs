@@ -1441,6 +1441,15 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             quote! { #loser }
         })
         .collect();
+    let dominated_by: Vec<TokenStream> = construction
+        .dominance
+        .iter()
+        .filter(|edge| edge.loser.value == construction.id.value)
+        .map(|edge| {
+            let winner = edge.winner.value.as_str();
+            quote! { #winner }
+        })
+        .collect();
     let fields: Vec<TokenStream> = construction.ast.fields().iter().map(field_row).collect();
     let witnesses: Vec<TokenStream> = construction
         .witnesses
@@ -1573,6 +1582,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             deserialize: #deserialize,
             selection_unique: #selection_unique,
             dominates: &[#(#dominates),*],
+            dominated_by: &[#(#dominated_by),*],
             forms: &[#(#forms),*],
             requirements: &[#(#requirements),*],
             recognition_requirements: &[#(#recognition_requirements),*],

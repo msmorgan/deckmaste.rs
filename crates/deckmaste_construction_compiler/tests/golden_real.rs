@@ -173,10 +173,16 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                         })),
                     },
                 ],
-                dominance: vec![DominanceEdge {
-                    winner: Spanned::call_site("fixture_pair".to_owned()),
-                    loser: Spanned::call_site("fixture_solo".to_owned()),
-                }],
+                dominance: vec![
+                    DominanceEdge {
+                        winner: Spanned::call_site("fixture_pair".to_owned()),
+                        loser: Spanned::call_site("fixture_solo".to_owned()),
+                    },
+                    DominanceEdge {
+                        winner: Spanned::call_site("fixture_outer".to_owned()),
+                        loser: Spanned::call_site("fixture_pair".to_owned()),
+                    },
+                ],
                 selection: SelectionPromise::Packed,
                 deserialize: false,
             },
@@ -271,6 +277,7 @@ fn fixture_dsl() -> proc_macro2::TokenStream {
             form plain @ 0 when conjunction in [And] = members lex(conjunction);
             form fancy @ 1 when conjunction in [Or] = members "," lex(conjunction);
             dominates fixture_solo;
+            dominated by fixture_outer;
         }
 
         construction fixture_solo: FixturePair {

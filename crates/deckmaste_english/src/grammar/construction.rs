@@ -119,43 +119,26 @@ pub(super) fn merged_registry(
         .flat_map(|group| group.constructions.iter().map(generated_family));
     let generated_edges = groups.iter().flat_map(|group| {
         group.constructions.iter().flat_map(|construction| {
-            construction.dominates.iter().map(|loser| {
-                DominanceEdge::new(
-                    ConstructionId::new(construction.id),
-                    ConstructionId::new(loser),
-                )
-            })
+            construction
+                .dominates
+                .iter()
+                .map(|loser| {
+                    DominanceEdge::new(
+                        ConstructionId::new(construction.id),
+                        ConstructionId::new(loser),
+                    )
+                })
+                .chain(construction.dominated_by.iter().map(|winner| {
+                    DominanceEdge::new(
+                        ConstructionId::new(winner),
+                        ConstructionId::new(construction.id),
+                    )
+                }))
         })
     });
-    let generated_bridge_edges = groups
-        .iter()
-        .flat_map(|group| group.constructions)
-        .flat_map(|construction| {
-            let prepositional = construction_id(RuleTag::PrepositionalPhrase);
-            match construction.id {
-                "noun_phrase_coordination" => vec![
-                    DominanceEdge::new(
-                        construction_id(RuleTag::NounPhraseNominal),
-                        ConstructionId::new("noun_phrase_coordination"),
-                    ),
-                    DominanceEdge::new(
-                        ConstructionId::new("noun_phrase_coordination"),
-                        prepositional,
-                    ),
-                ],
-                "shared_determiner_nominal" => vec![DominanceEdge::new(
-                    ConstructionId::new("shared_determiner_nominal"),
-                    prepositional,
-                )],
-                _ => Vec::new(),
-            }
-        });
     ConstructionRegistry::new(
         RuleTag::iter().map(family).chain(generated_families),
-        dominance_edges()
-            .into_iter()
-            .chain(generated_bridge_edges)
-            .chain(generated_edges),
+        dominance_edges().into_iter().chain(generated_edges),
     )
 }
 
@@ -315,6 +298,7 @@ mod tests {
                 deserialize: false,
                 selection_unique: false,
                 dominates: &[],
+                dominated_by: &[],
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
@@ -346,6 +330,7 @@ mod tests {
                 deserialize: false,
                 selection_unique: false,
                 dominates: &["missing"],
+                dominated_by: &[],
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
@@ -377,6 +362,7 @@ mod tests {
                 deserialize: false,
                 selection_unique: false,
                 dominates: &["gen_b"],
+                dominated_by: &[],
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
@@ -397,6 +383,7 @@ mod tests {
                 deserialize: false,
                 selection_unique: false,
                 dominates: &["gen_a"],
+                dominated_by: &[],
                 fields: &[],
                 witnesses: &[],
                 forms: &[],
@@ -439,6 +426,7 @@ mod tests {
                 deserialize: false,
                 selection_unique: false,
                 dominates: &[],
+                dominated_by: &[],
                 fields: &[],
                 witnesses: &[],
                 forms: &[],

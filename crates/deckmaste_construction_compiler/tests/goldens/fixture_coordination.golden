@@ -780,6 +780,7 @@ mod __constructions_fixture_coordination {
                 deserialize: false,
                 selection_unique: false,
                 dominates: &["fixture_solo"],
+                dominated_by: &["fixture_outer"],
                 forms: &[
                     ::deckmaste_construction_compiler::runtime::FormData {
                         name: "plain",
@@ -875,6 +876,7 @@ mod __constructions_fixture_coordination {
                 deserialize: true,
                 selection_unique: true,
                 dominates: &[],
+                dominated_by: &[],
                 forms: &[
                     ::deckmaste_construction_compiler::runtime::FormData {
                         name: "only",

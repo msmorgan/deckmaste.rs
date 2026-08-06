@@ -285,6 +285,7 @@ pub struct ConstructionData {
     pub deserialize: bool,
     pub selection_unique: bool,
     pub dominates: &'static [&'static str],
+    pub dominated_by: &'static [&'static str],
     pub forms: &'static [FormData],
     pub requirements: &'static [RequirementData],
     pub recognition_requirements: &'static [RequirementData],

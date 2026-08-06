@@ -43,6 +43,8 @@ mod kw {
     syn::custom_keyword!(form);
     syn::custom_keyword!(when);
     syn::custom_keyword!(dominates);
+    syn::custom_keyword!(dominated);
+    syn::custom_keyword!(by);
     syn::custom_keyword!(selection);
     syn::custom_keyword!(packed);
     syn::custom_keyword!(unique);
@@ -353,6 +355,18 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
                 },
                 loser,
             });
+        } else if content.peek(kw::dominated) {
+            let keyword = content.parse::<kw::dominated>()?;
+            content.parse::<kw::by>()?;
+            let winner = spanned_ident(&content)?;
+            content.parse::<syn::Token![;]>()?;
+            dominance.push(DominanceEdge {
+                winner,
+                loser: Spanned {
+                    value: id.value.clone(),
+                    span: keyword.span,
+                },
+            });
         } else if content.peek(kw::selection) {
             content.parse::<kw::selection>()?;
             if content.peek(kw::unique) {
@@ -369,7 +383,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
             deserialize = true;
         } else {
             return Err(content.error(
-                "expected project / recognize require / require / derive / witness / form / dominates / selection / deserialize",
+                "expected project / recognize require / require / derive / witness / form / dominates / dominated by / selection / deserialize",
             ));
         }
     }
@@ -600,6 +614,7 @@ mod tests {
                 form plain @ 0 when conjunction in [And] = members lex(conjunction);
                 form fancy @ 1 when conjunction in [Or] = members "," lex(conjunction);
                 dominates fixture_solo;
+                dominated by fixture_outer;
             }
 
             construction fixture_solo: FixturePair {
