@@ -1,0 +1,6 @@
+(
+    name: "PayPips",
+    kinds: [StaticEffect],
+    params: [Any, Any],
+    body: PayPips(Param(0), Param(1)),
+)

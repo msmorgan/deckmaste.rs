@@ -1,0 +1,6 @@
+(
+    name: "Target",
+    kinds: [TargetSpec],
+    params: [Any, Any],
+    body: Target(Param(0), Param(1)),
+)

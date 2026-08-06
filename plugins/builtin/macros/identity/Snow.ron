@@ -1,0 +1,6 @@
+(
+    name: "Snow",
+    kinds: [ManaRider, ManaSymbol, Supertype],
+    params: [],
+    body: Snow,
+)

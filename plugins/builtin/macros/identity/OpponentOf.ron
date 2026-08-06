@@ -1,0 +1,6 @@
+(
+    name: "OpponentOf",
+    kinds: [Predicate],
+    params: [Any],
+    body: OpponentOf(Param(0)),
+)

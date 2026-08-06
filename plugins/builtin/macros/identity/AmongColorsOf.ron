@@ -1,0 +1,6 @@
+(
+    name: "AmongColorsOf",
+    kinds: [ManaSpec],
+    params: [Any],
+    body: AmongColorsOf(Param(0)),
+)

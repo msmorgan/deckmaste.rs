@@ -1,0 +1,6 @@
+(
+    name: "Adjacent",
+    kinds: [Predicate],
+    params: [Any, Any],
+    body: Adjacent(Param(0), Param(1)),
+)

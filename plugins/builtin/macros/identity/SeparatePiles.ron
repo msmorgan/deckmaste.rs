@@ -1,0 +1,6 @@
+(
+    name: "SeparatePiles",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: SeparatePiles(Param(0)),
+)

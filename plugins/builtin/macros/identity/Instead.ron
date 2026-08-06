@@ -1,0 +1,6 @@
+(
+    name: "Instead",
+    kinds: [Replacement],
+    params: { "would": Any, "instead": Any },
+    body: Instead(would: Param(would), instead: Param(instead)),
+)

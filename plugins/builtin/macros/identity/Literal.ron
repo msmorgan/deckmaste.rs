@@ -1,0 +1,6 @@
+(
+    name: "Literal",
+    kinds: [Count],
+    params: [Any],
+    body: Literal(Param(0)),
+)

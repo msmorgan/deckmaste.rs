@@ -1,0 +1,6 @@
+(
+    name: "AdditionalCost",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: AdditionalCost(Param(0)),
+)

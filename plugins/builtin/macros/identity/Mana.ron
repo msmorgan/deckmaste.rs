@@ -1,0 +1,6 @@
+(
+    name: "Mana",
+    kinds: [CostComponent],
+    params: [Any],
+    body: Mana(Param(0)),
+)

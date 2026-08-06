@@ -1,0 +1,6 @@
+(
+    name: "YourTurn",
+    kinds: [Condition],
+    params: [],
+    body: YourTurn,
+)

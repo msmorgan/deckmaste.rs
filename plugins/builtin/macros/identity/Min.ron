@@ -1,0 +1,6 @@
+(
+    name: "Min",
+    kinds: [Count],
+    params: [Any, Any],
+    body: Min(Param(0), Param(1)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "OneOrMore",
+    kinds: [EventFilter],
+    params: [Any],
+    body: OneOrMore(Param(0)),
+)

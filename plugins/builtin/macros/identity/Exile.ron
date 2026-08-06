@@ -1,0 +1,6 @@
+(
+    name: "Exile",
+    kinds: [Destination, Zone],
+    params: [],
+    body: Exile,
+)

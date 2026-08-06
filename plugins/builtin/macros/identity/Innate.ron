@@ -1,0 +1,6 @@
+(
+    name: "Innate",
+    kinds: [Ability],
+    params: [Any],
+    body: Innate(Param(0)),
+)

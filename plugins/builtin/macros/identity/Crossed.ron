@@ -1,0 +1,6 @@
+(
+    name: "Crossed",
+    kinds: [Condition],
+    params: { "value": Any, "thresholds": Any },
+    body: Crossed(value: Param(value), thresholds: Param(thresholds)),
+)

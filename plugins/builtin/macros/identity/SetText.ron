@@ -1,0 +1,6 @@
+(
+    name: "SetText",
+    kinds: [Modification],
+    params: [Any],
+    body: SetText(Param(0)),
+)

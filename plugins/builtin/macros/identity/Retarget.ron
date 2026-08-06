@@ -1,0 +1,6 @@
+(
+    name: "Retarget",
+    kinds: [Action, OneShotEffect],
+    params: { "mode": Any, "of": Any, "by": Any },
+    body: Retarget(mode: Param(mode), of: Param(of), by: Param(by)),
+)

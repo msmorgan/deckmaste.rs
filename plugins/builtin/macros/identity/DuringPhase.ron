@@ -1,0 +1,6 @@
+(
+    name: "DuringPhase",
+    kinds: [Condition],
+    params: [Any],
+    body: DuringPhase(Param(0)),
+)

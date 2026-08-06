@@ -1,0 +1,6 @@
+(
+    name: "TeammateOf",
+    kinds: [Predicate],
+    params: [Any],
+    body: TeammateOf(Param(0)),
+)

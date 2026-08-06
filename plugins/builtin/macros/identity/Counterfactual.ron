@@ -1,0 +1,6 @@
+(
+    name: "Counterfactual",
+    kinds: [AsThough],
+    params: { "premise": Any, "then": Any },
+    body: Counterfactual(premise: Param(premise), then: Param(then)),
+)

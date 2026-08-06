@@ -1,0 +1,6 @@
+(
+    name: "GainControl",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any],
+    body: GainControl(Param(0), Param(1)),
+)

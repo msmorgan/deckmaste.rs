@@ -1,0 +1,6 @@
+(
+    name: "Static",
+    kinds: [Ability],
+    params: [Any],
+    body: Static(Param(0)),
+)

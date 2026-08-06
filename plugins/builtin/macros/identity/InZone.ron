@@ -1,0 +1,6 @@
+(
+    name: "InZone",
+    kinds: [Predicate],
+    params: [Any],
+    body: InZone(Param(0)),
+)

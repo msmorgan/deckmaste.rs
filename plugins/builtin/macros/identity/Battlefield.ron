@@ -1,0 +1,6 @@
+(
+    name: "Battlefield",
+    kinds: [Destination, Zone],
+    params: [],
+    body: Battlefield,
+)

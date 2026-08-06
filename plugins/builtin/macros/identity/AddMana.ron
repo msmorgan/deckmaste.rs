@@ -1,0 +1,6 @@
+(
+    name: "AddMana",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Any],
+    body: AddMana(Param(0), Param(1), Param(2)),
+)

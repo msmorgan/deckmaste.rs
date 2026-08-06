@@ -1,0 +1,6 @@
+(
+    name: "Range",
+    kinds: [Quantity],
+    params: [Any, Any],
+    body: Range(Param(0), Param(1)),
+)

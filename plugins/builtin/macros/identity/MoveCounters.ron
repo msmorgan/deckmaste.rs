@@ -1,0 +1,6 @@
+(
+    name: "MoveCounters",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Any],
+    body: MoveCounters(Param(0), Param(1), Param(2)),
+)

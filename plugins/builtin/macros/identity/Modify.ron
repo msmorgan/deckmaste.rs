@@ -1,0 +1,6 @@
+(
+    name: "Modify",
+    kinds: [StaticEffect],
+    params: [Any, Any],
+    body: Modify(Param(0), Param(1)),
+)

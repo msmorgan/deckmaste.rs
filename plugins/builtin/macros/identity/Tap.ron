@@ -1,0 +1,6 @@
+(
+    name: "Tap",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: Tap(Param(0)),
+)

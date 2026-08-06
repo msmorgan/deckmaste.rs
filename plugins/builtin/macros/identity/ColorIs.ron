@@ -1,0 +1,6 @@
+(
+    name: "ColorIs",
+    kinds: [Predicate],
+    params: [Any],
+    body: ColorIs(Param(0)),
+)

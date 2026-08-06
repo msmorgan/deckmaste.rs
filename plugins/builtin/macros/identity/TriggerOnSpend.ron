@@ -1,0 +1,6 @@
+(
+    name: "TriggerOnSpend",
+    kinds: [ManaRider],
+    params: [Any],
+    body: TriggerOnSpend(Param(0)),
+)

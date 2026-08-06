@@ -1,0 +1,6 @@
+(
+    name: "BaseDefense",
+    kinds: [Modification],
+    params: [Any],
+    body: BaseDefense(Param(0)),
+)

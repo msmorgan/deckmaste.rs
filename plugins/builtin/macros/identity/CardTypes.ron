@@ -1,0 +1,6 @@
+(
+    name: "CardTypes",
+    kinds: [Modification],
+    params: [Any],
+    body: CardTypes(Param(0)),
+)

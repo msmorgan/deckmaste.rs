@@ -1,0 +1,6 @@
+(
+    name: "Happened",
+    kinds: [Condition],
+    params: { "event": Any, "within": Any },
+    body: Happened(event: Param(event), within: Param(within)),
+)

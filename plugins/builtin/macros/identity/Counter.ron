@@ -1,0 +1,6 @@
+(
+    name: "Counter",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: Counter(Param(0)),
+)

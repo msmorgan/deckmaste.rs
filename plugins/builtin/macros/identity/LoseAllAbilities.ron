@@ -1,0 +1,6 @@
+(
+    name: "LoseAllAbilities",
+    kinds: [Modification],
+    params: [],
+    body: LoseAllAbilities,
+)

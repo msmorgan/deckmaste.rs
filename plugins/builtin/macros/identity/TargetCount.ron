@@ -1,0 +1,6 @@
+(
+    name: "TargetCount",
+    kinds: [Predicate],
+    params: [Any],
+    body: TargetCount(Param(0)),
+)

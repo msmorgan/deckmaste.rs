@@ -1,0 +1,6 @@
+(
+    name: "GetDesignation",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any],
+    body: GetDesignation(Param(0), Param(1)),
+)

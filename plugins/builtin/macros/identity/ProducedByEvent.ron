@@ -1,0 +1,6 @@
+(
+    name: "ProducedByEvent",
+    kinds: [ManaSpec],
+    params: [],
+    body: ProducedByEvent,
+)

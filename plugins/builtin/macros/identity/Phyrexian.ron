@@ -1,0 +1,6 @@
+(
+    name: "Phyrexian",
+    kinds: [ManaSymbol],
+    params: [Any, Any],
+    body: Phyrexian(Param(0), Param(1)),
+)

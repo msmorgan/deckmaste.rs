@@ -1,0 +1,6 @@
+(
+    name: "Linked",
+    kinds: [Reference],
+    params: [Any],
+    body: Linked(Param(0)),
+)

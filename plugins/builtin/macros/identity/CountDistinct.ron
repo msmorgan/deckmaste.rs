@@ -1,0 +1,6 @@
+(
+    name: "CountDistinct",
+    kinds: [Count],
+    params: [Any, Any],
+    body: CountDistinct(Param(0), Param(1)),
+)

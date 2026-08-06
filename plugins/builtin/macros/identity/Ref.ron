@@ -1,0 +1,6 @@
+(
+    name: "Ref",
+    kinds: [Predicate],
+    params: [Any],
+    body: Ref(Param(0)),
+)

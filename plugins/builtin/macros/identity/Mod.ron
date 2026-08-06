@@ -1,0 +1,6 @@
+(
+    name: "Mod",
+    kinds: [Count],
+    params: [Any, Any],
+    body: Mod(Param(0), Param(1)),
+)

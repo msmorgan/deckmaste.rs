@@ -1,0 +1,6 @@
+(
+    name: "May",
+    kinds: [OneShotEffect, StaticEffect],
+    params: [Any],
+    body: May(Param(0)),
+)

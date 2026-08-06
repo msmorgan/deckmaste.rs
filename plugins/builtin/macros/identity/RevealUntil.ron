@@ -1,0 +1,6 @@
+(
+    name: "RevealUntil",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: RevealUntil(Param(0)),
+)

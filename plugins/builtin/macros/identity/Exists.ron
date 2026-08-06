@@ -1,0 +1,6 @@
+(
+    name: "Exists",
+    kinds: [Condition],
+    params: [Any],
+    body: Exists(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Owner",
+    kinds: [Predicate],
+    params: [Any],
+    body: Owner(Param(0)),
+)

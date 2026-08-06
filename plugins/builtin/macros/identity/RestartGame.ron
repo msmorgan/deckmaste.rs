@@ -1,0 +1,6 @@
+(
+    name: "RestartGame",
+    kinds: [Action, OneShotEffect],
+    params: [],
+    body: RestartGame,
+)

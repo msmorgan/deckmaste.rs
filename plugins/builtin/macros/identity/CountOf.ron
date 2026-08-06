@@ -1,0 +1,6 @@
+(
+    name: "CountOf",
+    kinds: [Count],
+    params: [Any],
+    body: CountOf(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Shuffle",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: Shuffle(Param(0)),
+)

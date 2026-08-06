@@ -1,0 +1,6 @@
+(
+    name: "Spell",
+    kinds: [Ability],
+    params: [Any],
+    body: Spell(Param(0)),
+)

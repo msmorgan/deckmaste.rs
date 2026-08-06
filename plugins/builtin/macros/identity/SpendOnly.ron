@@ -1,0 +1,6 @@
+(
+    name: "SpendOnly",
+    kinds: [ManaRider],
+    params: [Any],
+    body: SpendOnly(Param(0)),
+)

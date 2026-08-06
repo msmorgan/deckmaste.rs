@@ -1,0 +1,6 @@
+(
+    name: "Sacrifice",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any],
+    body: Sacrifice(Param(0), Param(1)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Matches",
+    kinds: [Condition],
+    params: [Any, Any],
+    body: Matches(Param(0), Param(1)),
+)

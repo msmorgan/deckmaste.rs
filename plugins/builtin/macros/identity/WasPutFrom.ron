@@ -1,0 +1,6 @@
+(
+    name: "WasPutFrom",
+    kinds: [Predicate],
+    params: [Any],
+    body: WasPutFrom(Param(0)),
+)

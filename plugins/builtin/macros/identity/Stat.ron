@@ -1,0 +1,6 @@
+(
+    name: "Stat",
+    kinds: [Predicate],
+    params: [Any, Any, Any],
+    body: Stat(Param(0), Param(1), Param(2)),
+)

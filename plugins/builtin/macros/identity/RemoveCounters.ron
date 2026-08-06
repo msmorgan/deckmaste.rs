@@ -1,0 +1,6 @@
+(
+    name: "RemoveCounters",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Any],
+    body: RemoveCounters(Param(0), Param(1), Param(2)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Label",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Label(Param(0)),
+)

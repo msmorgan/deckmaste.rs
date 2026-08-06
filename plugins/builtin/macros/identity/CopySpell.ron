@@ -1,0 +1,6 @@
+(
+    name: "CopySpell",
+    kinds: [Action, OneShotEffect],
+    params: { "controller": Any, "spec": Any, "retarget": Any },
+    body: CopySpell(controller: Param(controller), spec: Param(spec), retarget: Param(retarget)),
+)

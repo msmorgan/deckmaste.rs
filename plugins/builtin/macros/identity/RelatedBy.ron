@@ -1,0 +1,6 @@
+(
+    name: "RelatedBy",
+    kinds: [Predicate],
+    params: [Any, Any],
+    body: RelatedBy(Param(0), Param(1)),
+)

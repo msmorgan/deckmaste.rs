@@ -1,0 +1,6 @@
+(
+    name: "Damage",
+    kinds: [Count],
+    params: [Any],
+    body: Damage(Param(0)),
+)

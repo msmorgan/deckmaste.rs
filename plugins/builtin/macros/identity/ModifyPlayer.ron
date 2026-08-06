@@ -1,0 +1,6 @@
+(
+    name: "ModifyPlayer",
+    kinds: [StaticEffect],
+    params: [Any, Any],
+    body: ModifyPlayer(Param(0), Param(1)),
+)

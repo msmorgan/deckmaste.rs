@@ -1,0 +1,6 @@
+(
+    name: "With",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: With(Param(0)),
+)

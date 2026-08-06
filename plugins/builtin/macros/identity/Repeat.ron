@@ -1,0 +1,6 @@
+(
+    name: "Repeat",
+    kinds: [OneShotEffect],
+    params: [Any, Any],
+    body: Repeat(Param(0), Param(1)),
+)

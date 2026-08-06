@@ -1,0 +1,6 @@
+(
+    name: "WinGame",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: WinGame(Param(0)),
+)

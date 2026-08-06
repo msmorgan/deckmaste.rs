@@ -1,0 +1,6 @@
+(
+    name: "RemoveDamage",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: RemoveDamage(Param(0)),
+)

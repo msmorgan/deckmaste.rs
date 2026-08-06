@@ -1,0 +1,6 @@
+(
+    name: "Supertypes",
+    kinds: [Modification],
+    params: [Any],
+    body: Supertypes(Param(0)),
+)

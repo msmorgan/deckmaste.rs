@@ -1,0 +1,6 @@
+(
+    name: "Continuously",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Continuously(Param(0)),
+)

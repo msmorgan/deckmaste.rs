@@ -1,0 +1,6 @@
+(
+    name: "BecomeBasicLandType",
+    kinds: [Modification],
+    params: [Any],
+    body: BecomeBasicLandType(Param(0)),
+)

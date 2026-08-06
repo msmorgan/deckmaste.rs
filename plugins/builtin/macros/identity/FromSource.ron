@@ -1,0 +1,6 @@
+(
+    name: "FromSource",
+    kinds: [Predicate],
+    params: [Any],
+    body: FromSource(Param(0)),
+)

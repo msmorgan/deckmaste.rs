@@ -1,0 +1,6 @@
+(
+    name: "Random",
+    kinds: [Selection],
+    params: [Any, Any],
+    body: Random(Param(0), Param(1)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Colorless",
+    kinds: [ColorOrColorless, Predicate],
+    params: [],
+    body: Colorless,
+)

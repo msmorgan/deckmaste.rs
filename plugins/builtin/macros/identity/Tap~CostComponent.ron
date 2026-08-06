@@ -1,0 +1,6 @@
+(
+    name: "Tap",
+    kinds: [CostComponent],
+    params: [],
+    body: Tap,
+)

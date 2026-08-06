@@ -1,0 +1,6 @@
+(
+    name: "Before",
+    kinds: [EventFilter],
+    params: [Any],
+    body: Before(Param(0)),
+)

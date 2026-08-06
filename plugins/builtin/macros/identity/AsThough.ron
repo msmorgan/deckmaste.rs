@@ -1,0 +1,6 @@
+(
+    name: "AsThough",
+    kinds: [StaticEffect],
+    params: [Any],
+    body: AsThough(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Hand",
+    kinds: [Destination, Zone],
+    params: [],
+    body: Hand,
+)

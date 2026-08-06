@@ -1,0 +1,6 @@
+(
+    name: "Transform",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: Transform(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "SetController",
+    kinds: [Modification],
+    params: [Any],
+    body: SetController(Param(0)),
+)

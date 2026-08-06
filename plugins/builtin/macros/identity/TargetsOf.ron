@@ -1,0 +1,6 @@
+(
+    name: "TargetsOf",
+    kinds: [Count],
+    params: [Any],
+    body: TargetsOf(Param(0)),
+)

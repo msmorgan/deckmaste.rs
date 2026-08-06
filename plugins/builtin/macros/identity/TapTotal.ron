@@ -1,0 +1,6 @@
+(
+    name: "TapTotal",
+    kinds: [CostComponent],
+    params: { "stat": Any, "cmp": Any, "count": Any, "filter": Any },
+    body: TapTotal(stat: Param(stat), cmp: Param(cmp), count: Param(count), filter: Param(filter)),
+)

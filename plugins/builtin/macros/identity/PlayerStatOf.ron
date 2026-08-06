@@ -1,0 +1,6 @@
+(
+    name: "PlayerStatOf",
+    kinds: [Count],
+    params: [Any, Any],
+    body: PlayerStatOf(Param(0), Param(1)),
+)

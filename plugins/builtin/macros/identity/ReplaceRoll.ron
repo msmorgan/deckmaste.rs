@@ -1,0 +1,6 @@
+(
+    name: "ReplaceRoll",
+    kinds: [StaticEffect],
+    params: { "query": Any, "extra": Any, "ignore": Any },
+    body: ReplaceRoll(query: Param(query), extra: Param(extra), ignore: Param(ignore)),
+)

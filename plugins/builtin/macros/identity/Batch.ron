@@ -1,0 +1,6 @@
+(
+    name: "Batch",
+    kinds: [OneShotEffect],
+    params: [Any, Any],
+    body: Batch(Param(0), Param(1)),
+)

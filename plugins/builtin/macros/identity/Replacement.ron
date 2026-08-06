@@ -1,0 +1,6 @@
+(
+    name: "Replacement",
+    kinds: [StaticEffect],
+    params: [Any],
+    body: Replacement(Param(0)),
+)

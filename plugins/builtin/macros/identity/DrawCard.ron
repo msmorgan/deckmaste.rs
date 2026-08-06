@@ -1,0 +1,6 @@
+(
+    name: "DrawCard",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: DrawCard(Param(0)),
+)

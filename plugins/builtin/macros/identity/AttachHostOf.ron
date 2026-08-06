@@ -1,0 +1,6 @@
+(
+    name: "AttachHostOf",
+    kinds: [Reference],
+    params: [Any],
+    body: AttachHostOf(Param(0)),
+)

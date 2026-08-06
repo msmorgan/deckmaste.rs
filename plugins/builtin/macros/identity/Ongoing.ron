@@ -1,0 +1,6 @@
+(
+    name: "Ongoing",
+    kinds: [Supertype],
+    params: [],
+    body: Ongoing,
+)

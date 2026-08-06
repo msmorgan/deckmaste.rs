@@ -1,0 +1,6 @@
+(
+    name: "AllCreatureTypes",
+    kinds: [Modification],
+    params: [],
+    body: AllCreatureTypes,
+)

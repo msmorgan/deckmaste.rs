@@ -1,0 +1,6 @@
+(
+    name: "LoseAbility",
+    kinds: [Modification],
+    params: [Any],
+    body: LoseAbility(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "ChoosePile",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: ChoosePile(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Designated",
+    kinds: [Predicate],
+    params: [Any],
+    body: Designated(Param(0)),
+)

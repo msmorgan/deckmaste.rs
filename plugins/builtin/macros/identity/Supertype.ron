@@ -1,0 +1,6 @@
+(
+    name: "Supertype",
+    kinds: [Predicate],
+    params: [Any],
+    body: Supertype(Param(0)),
+)

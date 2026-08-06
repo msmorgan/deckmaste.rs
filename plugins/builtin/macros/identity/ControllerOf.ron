@@ -1,0 +1,6 @@
+(
+    name: "ControllerOf",
+    kinds: [Reference],
+    params: [Any],
+    body: ControllerOf(Param(0)),
+)

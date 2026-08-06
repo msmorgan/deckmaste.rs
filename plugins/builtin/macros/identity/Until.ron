@@ -1,0 +1,6 @@
+(
+    name: "Until",
+    kinds: [OneShotEffect],
+    params: [Any, Any],
+    body: Until(Param(0), Param(1)),
+)

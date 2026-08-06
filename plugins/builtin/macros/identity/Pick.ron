@@ -1,0 +1,6 @@
+(
+    name: "Pick",
+    kinds: [Selection],
+    params: { "op": Any, "proj": Any },
+    body: Pick(op: Param(op), proj: Param(proj)),
+)

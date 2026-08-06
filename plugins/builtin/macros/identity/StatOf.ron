@@ -1,0 +1,6 @@
+(
+    name: "StatOf",
+    kinds: [Count],
+    params: [Any, Any],
+    body: StatOf(Param(0), Param(1)),
+)

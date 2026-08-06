@@ -1,0 +1,6 @@
+(
+    name: "Cease",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: Cease(Param(0)),
+)

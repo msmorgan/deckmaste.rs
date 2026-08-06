@@ -1,0 +1,6 @@
+(
+    name: "Where",
+    kinds: [Predicate],
+    params: [Any],
+    body: Where(Param(0)),
+)

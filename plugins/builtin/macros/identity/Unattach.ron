@@ -1,0 +1,6 @@
+(
+    name: "Unattach",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: Unattach(Param(0)),
+)

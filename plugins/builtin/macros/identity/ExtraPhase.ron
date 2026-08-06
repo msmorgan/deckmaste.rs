@@ -1,0 +1,6 @@
+(
+    name: "ExtraPhase",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any],
+    body: ExtraPhase(Param(0), Param(1)),
+)

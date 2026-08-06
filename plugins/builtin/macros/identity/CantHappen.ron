@@ -1,0 +1,6 @@
+(
+    name: "CantHappen",
+    kinds: [StaticEffect],
+    params: [Any],
+    body: CantHappen(Param(0)),
+)

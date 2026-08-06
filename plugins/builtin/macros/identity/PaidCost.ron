@@ -1,0 +1,6 @@
+(
+    name: "PaidCost",
+    kinds: [Condition],
+    params: [Any],
+    body: PaidCost(Param(0)),
+)

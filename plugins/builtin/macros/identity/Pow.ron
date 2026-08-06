@@ -1,0 +1,6 @@
+(
+    name: "Pow",
+    kinds: [Count],
+    params: [Any, Any],
+    body: Pow(Param(0), Param(1)),
+)

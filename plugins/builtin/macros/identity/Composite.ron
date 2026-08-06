@@ -1,0 +1,6 @@
+(
+    name: "Composite",
+    kinds: [Action, OneShotEffect],
+    params: { "name": Any, "body": Any },
+    body: Composite(name: Param(name), body: Param(body)),
+)

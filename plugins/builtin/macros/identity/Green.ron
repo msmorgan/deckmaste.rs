@@ -1,0 +1,6 @@
+(
+    name: "Green",
+    kinds: [Color],
+    params: [],
+    body: Green,
+)

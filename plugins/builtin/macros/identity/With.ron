@@ -1,0 +1,6 @@
+(
+    name: "With",
+    kinds: [CostComponent],
+    params: { "binder": Any, "body": Any },
+    body: With(binder: Param(binder), body: Param(body)),
+)

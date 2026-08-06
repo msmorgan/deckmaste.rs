@@ -1,0 +1,6 @@
+(
+    name: "SelectAll",
+    kinds: [Selection],
+    params: [Any],
+    body: SelectAll(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "SpendAsThough",
+    kinds: [StaticEffect],
+    params: { "mana_from": Any, "as_": Any },
+    body: SpendAsThough(mana_from: Param(mana_from), as_: Param(as_)),
+)

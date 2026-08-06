@@ -1,0 +1,6 @@
+(
+    name: "Graveyard",
+    kinds: [Destination, Zone],
+    params: [],
+    body: Graveyard,
+)

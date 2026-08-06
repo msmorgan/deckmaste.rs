@@ -1,0 +1,6 @@
+(
+    name: "Delayed",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Delayed(Param(0)),
+)

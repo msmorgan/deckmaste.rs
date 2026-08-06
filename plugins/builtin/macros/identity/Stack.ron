@@ -1,0 +1,6 @@
+(
+    name: "Stack",
+    kinds: [Zone],
+    params: [],
+    body: Stack,
+)

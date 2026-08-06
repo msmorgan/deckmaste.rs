@@ -1,0 +1,6 @@
+(
+    name: "SetGameDesignation",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any],
+    body: SetGameDesignation(Param(0), Param(1)),
+)

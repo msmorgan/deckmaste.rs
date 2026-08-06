@@ -1,0 +1,6 @@
+(
+    name: "Each",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Each(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Used",
+    kinds: [EventFilter],
+    params: { "of": Any },
+    body: Used(of: Param(of)),
+)

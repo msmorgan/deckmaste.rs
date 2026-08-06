@@ -1,0 +1,6 @@
+(
+    name: "If",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: If(Param(0)),
+)

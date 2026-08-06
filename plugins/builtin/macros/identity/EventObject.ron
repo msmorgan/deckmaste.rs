@@ -1,0 +1,6 @@
+(
+    name: "EventObject",
+    kinds: [Reference],
+    params: [],
+    body: EventObject,
+)

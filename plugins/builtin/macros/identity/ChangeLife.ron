@@ -1,0 +1,6 @@
+(
+    name: "ChangeLife",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any],
+    body: ChangeLife(Param(0), Param(1)),
+)

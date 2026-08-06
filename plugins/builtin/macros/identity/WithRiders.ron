@@ -1,0 +1,6 @@
+(
+    name: "WithRiders",
+    kinds: [ManaProduction],
+    params: { "mana": Any, "riders": Any },
+    body: WithRiders(mana: Param(mana), riders: Param(riders)),
+)

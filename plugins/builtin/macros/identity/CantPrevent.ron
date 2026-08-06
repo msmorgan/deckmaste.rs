@@ -1,0 +1,6 @@
+(
+    name: "CantPrevent",
+    kinds: [StaticEffect],
+    params: { "from": Any, "to": Any },
+    body: CantPrevent(from: Param(from), to: Param(to)),
+)

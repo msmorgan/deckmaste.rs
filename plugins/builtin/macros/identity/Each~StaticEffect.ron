@@ -1,0 +1,6 @@
+(
+    name: "Each",
+    kinds: [StaticEffect],
+    params: [Any, Any],
+    body: Each(Param(0), Param(1)),
+)

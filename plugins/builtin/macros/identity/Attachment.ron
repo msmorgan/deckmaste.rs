@@ -1,0 +1,6 @@
+(
+    name: "Attachment",
+    kinds: [Predicate],
+    params: [Any],
+    body: Attachment(Param(0)),
+)

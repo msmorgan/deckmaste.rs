@@ -1,0 +1,6 @@
+(
+    name: "AnyColor",
+    kinds: [ManaSpec],
+    params: [],
+    body: AnyColor,
+)

@@ -1,0 +1,6 @@
+(
+    name: "CantHaveAbility",
+    kinds: [Modification],
+    params: [Any],
+    body: CantHaveAbility(Param(0)),
+)

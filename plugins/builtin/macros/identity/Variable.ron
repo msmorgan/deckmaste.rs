@@ -1,0 +1,6 @@
+(
+    name: "Variable",
+    kinds: [ManaSymbol, StatValue],
+    params: [],
+    body: Variable,
+)

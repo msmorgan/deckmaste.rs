@@ -1,0 +1,6 @@
+(
+    name: "Opponents",
+    kinds: [Count],
+    params: [Any],
+    body: Opponents(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "ThatMany",
+    kinds: [Count],
+    params: [],
+    body: ThatMany,
+)

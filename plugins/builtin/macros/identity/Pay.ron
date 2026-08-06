@@ -1,0 +1,6 @@
+(
+    name: "Pay",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: Pay(Param(0)),
+)

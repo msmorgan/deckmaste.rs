@@ -1,0 +1,6 @@
+(
+    name: "Reflexive",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Reflexive(Param(0)),
+)

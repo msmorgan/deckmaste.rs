@@ -1,0 +1,6 @@
+(
+    name: "Opponent",
+    kinds: [Reference],
+    params: [],
+    body: Opponent,
+)

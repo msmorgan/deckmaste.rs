@@ -1,0 +1,6 @@
+(
+    name: "CounterCount",
+    kinds: [Count],
+    params: [Any, Any],
+    body: CounterCount(Param(0), Param(1)),
+)

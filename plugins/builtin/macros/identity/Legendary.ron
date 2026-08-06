@@ -1,0 +1,6 @@
+(
+    name: "Legendary",
+    kinds: [Supertype],
+    params: [],
+    body: Legendary,
+)

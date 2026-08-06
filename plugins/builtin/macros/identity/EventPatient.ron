@@ -1,0 +1,6 @@
+(
+    name: "EventPatient",
+    kinds: [Reference],
+    params: [],
+    body: EventPatient,
+)

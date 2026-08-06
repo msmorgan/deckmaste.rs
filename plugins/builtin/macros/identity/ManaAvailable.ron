@@ -1,0 +1,6 @@
+(
+    name: "ManaAvailable",
+    kinds: [Count],
+    params: [Any],
+    body: ManaAvailable(Param(0)),
+)

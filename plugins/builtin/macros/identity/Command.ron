@@ -1,0 +1,6 @@
+(
+    name: "Command",
+    kinds: [Destination, Zone],
+    params: [],
+    body: Command,
+)

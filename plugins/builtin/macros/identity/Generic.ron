@@ -1,0 +1,6 @@
+(
+    name: "Generic",
+    kinds: [SimpleManaSymbol],
+    params: [Any],
+    body: Generic(Param(0)),
+)

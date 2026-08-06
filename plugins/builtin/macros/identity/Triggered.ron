@@ -1,0 +1,6 @@
+(
+    name: "Triggered",
+    kinds: [Ability],
+    params: [Any],
+    body: Triggered(Param(0)),
+)

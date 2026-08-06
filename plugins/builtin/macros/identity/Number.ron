@@ -1,0 +1,6 @@
+(
+    name: "Number",
+    kinds: [StatValue],
+    params: [Any],
+    body: Number(Param(0)),
+)

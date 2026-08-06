@@ -1,0 +1,6 @@
+(
+    name: "Library",
+    kinds: [Destination],
+    params: [Any],
+    body: Library(Param(0)),
+)

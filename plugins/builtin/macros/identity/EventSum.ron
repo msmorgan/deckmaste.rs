@@ -1,0 +1,6 @@
+(
+    name: "EventSum",
+    kinds: [Count],
+    params: [Any, Any],
+    body: EventSum(Param(0), Param(1)),
+)

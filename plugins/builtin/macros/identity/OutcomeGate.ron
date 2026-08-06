@@ -1,0 +1,6 @@
+(
+    name: "OutcomeGate",
+    kinds: [StaticEffect],
+    params: { "who": Any, "gate": Any },
+    body: OutcomeGate(who: Param(who), gate: Param(gate)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Sba",
+    kinds: [StaticEffect],
+    params: { "when": Any, "then": Any },
+    body: Sba(when: Param(when), then: Param(then)),
+)

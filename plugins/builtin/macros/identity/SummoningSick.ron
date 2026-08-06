@@ -1,0 +1,6 @@
+(
+    name: "SummoningSick",
+    kinds: [Predicate],
+    params: [],
+    body: SummoningSick,
+)

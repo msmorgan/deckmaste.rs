@@ -1,0 +1,6 @@
+(
+    name: "Compare",
+    kinds: [Condition],
+    params: [Any, Any, Any],
+    body: Compare(Param(0), Param(1), Param(2)),
+)

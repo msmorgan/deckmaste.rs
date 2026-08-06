@@ -1,0 +1,6 @@
+(
+    name: "OwnerOf",
+    kinds: [Reference],
+    params: [Any],
+    body: OwnerOf(Param(0)),
+)

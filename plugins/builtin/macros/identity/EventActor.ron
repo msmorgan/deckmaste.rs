@@ -1,0 +1,6 @@
+(
+    name: "EventActor",
+    kinds: [Reference],
+    params: [],
+    body: EventActor,
+)

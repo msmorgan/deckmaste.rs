@@ -1,0 +1,6 @@
+(
+    name: "Colors",
+    kinds: [Modification],
+    params: [Any],
+    body: Colors(Param(0)),
+)

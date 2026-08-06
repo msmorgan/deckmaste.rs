@@ -1,0 +1,6 @@
+(
+    name: "Noting",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Noting(Param(0)),
+)

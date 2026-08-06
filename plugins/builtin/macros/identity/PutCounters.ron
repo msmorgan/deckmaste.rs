@@ -1,0 +1,6 @@
+(
+    name: "PutCounters",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Any],
+    body: PutCounters(Param(0), Param(1), Param(2)),
+)

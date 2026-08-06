@@ -1,0 +1,6 @@
+(
+    name: "Union",
+    kinds: [Selection],
+    params: [Any],
+    body: Union(Param(0)),
+)

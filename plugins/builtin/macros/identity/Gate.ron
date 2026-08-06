@@ -1,0 +1,6 @@
+(
+    name: "Gate",
+    kinds: [StaticEffect],
+    params: [Any, Any],
+    body: Gate(Param(0), Param(1)),
+)

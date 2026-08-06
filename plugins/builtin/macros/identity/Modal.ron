@@ -1,0 +1,6 @@
+(
+    name: "Modal",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Modal(Param(0)),
+)

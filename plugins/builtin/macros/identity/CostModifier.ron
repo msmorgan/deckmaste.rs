@@ -1,0 +1,6 @@
+(
+    name: "CostModifier",
+    kinds: [StaticEffect],
+    params: { "of": Any, "change": Any },
+    body: CostModifier(of: Param(of), change: Param(change)),
+)

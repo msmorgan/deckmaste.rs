@@ -1,0 +1,6 @@
+(
+    name: "World",
+    kinds: [Supertype],
+    params: [],
+    body: World,
+)

@@ -1,0 +1,6 @@
+(
+    name: "Allotment",
+    kinds: [Count],
+    params: [],
+    body: Allotment,
+)

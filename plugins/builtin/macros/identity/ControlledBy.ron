@@ -1,0 +1,6 @@
+(
+    name: "ControlledBy",
+    kinds: [Predicate],
+    params: [Any],
+    body: ControlledBy(Param(0)),
+)

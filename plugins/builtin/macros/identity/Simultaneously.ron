@@ -1,0 +1,6 @@
+(
+    name: "Simultaneously",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Simultaneously(Param(0)),
+)

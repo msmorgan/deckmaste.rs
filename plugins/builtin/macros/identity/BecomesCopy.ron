@@ -1,0 +1,6 @@
+(
+    name: "BecomesCopy",
+    kinds: [StaticEffect],
+    params: [Any, Any],
+    body: BecomesCopy(Param(0), Param(1)),
+)

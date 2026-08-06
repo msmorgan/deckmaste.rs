@@ -1,0 +1,6 @@
+(
+    name: "Or",
+    kinds: [Condition, Predicate],
+    params: [Any],
+    body: Or(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Noted",
+    kinds: [Count],
+    params: [Any],
+    body: Noted(Param(0)),
+)

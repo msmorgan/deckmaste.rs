@@ -1,0 +1,6 @@
+(
+    name: "Sequentially",
+    kinds: [OneShotEffect],
+    params: [Any],
+    body: Sequentially(Param(0)),
+)

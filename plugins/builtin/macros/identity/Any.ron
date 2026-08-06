@@ -1,0 +1,6 @@
+(
+    name: "Any",
+    kinds: [Predicate],
+    params: [],
+    body: Any,
+)

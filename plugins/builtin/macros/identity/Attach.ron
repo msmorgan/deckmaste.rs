@@ -1,0 +1,6 @@
+(
+    name: "Attach",
+    kinds: [Action, OneShotEffect],
+    params: { "what": Any, "to": Any },
+    body: Attach(what: Param(what), to: Param(to)),
+)

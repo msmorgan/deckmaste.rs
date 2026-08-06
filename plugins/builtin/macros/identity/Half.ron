@@ -1,0 +1,6 @@
+(
+    name: "Half",
+    kinds: [Count],
+    params: [Any, Any],
+    body: Half(Param(0), Param(1)),
+)

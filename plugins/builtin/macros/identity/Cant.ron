@@ -1,0 +1,6 @@
+(
+    name: "Cant",
+    kinds: [StaticEffect],
+    params: [Any],
+    body: Cant(Param(0)),
+)

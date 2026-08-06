@@ -1,0 +1,6 @@
+(
+    name: "Activated",
+    kinds: [Ability],
+    params: [Any],
+    body: Activated(Param(0)),
+)

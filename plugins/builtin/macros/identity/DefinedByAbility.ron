@@ -1,0 +1,6 @@
+(
+    name: "DefinedByAbility",
+    kinds: [StatValue],
+    params: [],
+    body: DefinedByAbility,
+)

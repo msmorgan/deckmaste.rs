@@ -1,0 +1,6 @@
+(
+    name: "FlipCoins",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Any],
+    body: FlipCoins(Param(0), Param(1), Param(2)),
+)

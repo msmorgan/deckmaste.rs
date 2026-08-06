@@ -1,0 +1,6 @@
+(
+    name: "ValidTargetsFor",
+    kinds: [Selection],
+    params: [Any],
+    body: ValidTargetsFor(Param(0)),
+)

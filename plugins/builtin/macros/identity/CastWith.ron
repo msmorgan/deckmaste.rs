@@ -1,0 +1,6 @@
+(
+    name: "CastWith",
+    kinds: [Condition],
+    params: [Any],
+    body: CastWith(Param(0)),
+)

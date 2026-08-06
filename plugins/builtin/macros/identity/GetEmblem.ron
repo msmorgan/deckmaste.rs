@@ -1,0 +1,6 @@
+(
+    name: "GetEmblem",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any],
+    body: GetEmblem(Param(0), Param(1)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Nth",
+    kinds: [EventFilter],
+    params: { "n": Any, "of": Any, "within": Any },
+    body: Nth(n: Param(n), of: Param(of), within: Param(within)),
+)

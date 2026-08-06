@@ -1,0 +1,6 @@
+(
+    name: "BaseLoyalty",
+    kinds: [Modification],
+    params: [Any],
+    body: BaseLoyalty(Param(0)),
+)

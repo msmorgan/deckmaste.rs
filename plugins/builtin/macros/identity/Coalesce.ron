@@ -1,0 +1,6 @@
+(
+    name: "Coalesce",
+    kinds: [Reference],
+    params: [Any],
+    body: Coalesce(Param(0)),
+)

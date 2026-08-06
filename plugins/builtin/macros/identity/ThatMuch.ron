@@ -1,0 +1,6 @@
+(
+    name: "ThatMuch",
+    kinds: [Count],
+    params: [],
+    body: ThatMuch,
+)

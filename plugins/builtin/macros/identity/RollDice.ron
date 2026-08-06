@@ -1,0 +1,6 @@
+(
+    name: "RollDice",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Any],
+    body: RollDice(Param(0), Param(1), Param(2)),
+)

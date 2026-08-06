@@ -1,0 +1,6 @@
+(
+    name: "WasPaidWith",
+    kinds: [Predicate],
+    params: [Any],
+    body: WasPaidWith(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "DealDamage",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Any],
+    body: DealDamage(Param(0), Param(1), Param(2)),
+)

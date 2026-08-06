@@ -1,0 +1,6 @@
+(
+    name: "ManaCostOf",
+    kinds: [CostComponent],
+    params: [Any],
+    body: ManaCostOf(Param(0)),
+)

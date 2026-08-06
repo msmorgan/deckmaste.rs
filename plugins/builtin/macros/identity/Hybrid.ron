@@ -1,0 +1,6 @@
+(
+    name: "Hybrid",
+    kinds: [ManaSymbol],
+    params: [Any, Any],
+    body: Hybrid(Param(0), Param(1)),
+)

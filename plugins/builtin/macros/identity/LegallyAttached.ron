@@ -1,0 +1,6 @@
+(
+    name: "LegallyAttached",
+    kinds: [Condition],
+    params: [Any],
+    body: LegallyAttached(Param(0)),
+)

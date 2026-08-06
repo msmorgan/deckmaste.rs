@@ -1,0 +1,6 @@
+(
+    name: "Cost",
+    kinds: [CostComponent],
+    params: [Any],
+    body: Cost(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Subtype",
+    kinds: [Predicate],
+    params: [Any],
+    body: Subtype(Param(0)),
+)

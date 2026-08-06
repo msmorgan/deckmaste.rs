@@ -1,0 +1,6 @@
+(
+    name: "OneOf",
+    kinds: [EventFilter, ManaSpec],
+    params: [Any],
+    body: OneOf(Param(0)),
+)

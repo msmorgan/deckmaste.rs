@@ -1,0 +1,6 @@
+(
+    name: "Aggregate",
+    kinds: [Count],
+    params: [Any, Any],
+    body: Aggregate(Param(0), Param(1)),
+)

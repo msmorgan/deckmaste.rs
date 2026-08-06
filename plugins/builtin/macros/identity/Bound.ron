@@ -1,0 +1,6 @@
+(
+    name: "Bound",
+    kinds: [Reference],
+    params: [Any],
+    body: Bound(Param(0)),
+)

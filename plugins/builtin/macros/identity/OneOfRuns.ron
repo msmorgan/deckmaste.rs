@@ -1,0 +1,6 @@
+(
+    name: "OneOfRuns",
+    kinds: [ManaSpec],
+    params: [Any],
+    body: OneOfRuns(Param(0)),
+)

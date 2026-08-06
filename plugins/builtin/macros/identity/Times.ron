@@ -1,0 +1,6 @@
+(
+    name: "Times",
+    kinds: [Count],
+    params: [Any, Any],
+    body: Times(Param(0), Param(1)),
+)

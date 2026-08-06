@@ -1,0 +1,6 @@
+(
+    name: "WasCastWith",
+    kinds: [Predicate],
+    params: [Any],
+    body: WasCastWith(Param(0)),
+)

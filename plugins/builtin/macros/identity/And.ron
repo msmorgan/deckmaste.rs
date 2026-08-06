@@ -1,0 +1,6 @@
+(
+    name: "And",
+    kinds: [Condition, Predicate],
+    params: [Any],
+    body: And(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "SwitchPowerToughness",
+    kinds: [Modification],
+    params: [],
+    body: SwitchPowerToughness,
+)

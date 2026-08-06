@@ -1,0 +1,6 @@
+(
+    name: "Keyword",
+    kinds: [Ability],
+    params: [Any],
+    body: Keyword(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "GainAbility",
+    kinds: [Modification],
+    params: [Any],
+    body: GainAbility(Param(0)),
+)

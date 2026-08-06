@@ -1,0 +1,6 @@
+(
+    name: "Not",
+    kinds: [Condition, EventFilter, Predicate],
+    params: [Any],
+    body: Not(Param(0)),
+)

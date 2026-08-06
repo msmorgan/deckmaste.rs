@@ -1,0 +1,6 @@
+(
+    name: "DefendingPlayer",
+    kinds: [Reference],
+    params: [],
+    body: DefendingPlayer,
+)

@@ -1,0 +1,6 @@
+(
+    name: "CreateReplacement",
+    kinds: [Action, OneShotEffect],
+    params: { "replacement": Any, "duration": Any, "one_shot": Any },
+    body: CreateReplacement(replacement: Param(replacement), duration: Param(duration), one_shot: Param(one_shot)),
+)

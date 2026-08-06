@@ -1,0 +1,6 @@
+(
+    name: "Multicolored",
+    kinds: [Predicate],
+    params: [],
+    body: Multicolored,
+)

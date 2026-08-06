@@ -1,0 +1,6 @@
+(
+    name: "Conditionally",
+    kinds: [StaticEffect],
+    params: [Any, Any],
+    body: Conditionally(Param(0), Param(1)),
+)

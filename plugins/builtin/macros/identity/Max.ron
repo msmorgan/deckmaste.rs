@@ -1,0 +1,6 @@
+(
+    name: "Max",
+    kinds: [Count],
+    params: [Any, Any],
+    body: Max(Param(0), Param(1)),
+)

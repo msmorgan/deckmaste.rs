@@ -1,0 +1,6 @@
+(
+    name: "LibraryOf",
+    kinds: [Selection],
+    params: [Any],
+    body: LibraryOf(Param(0)),
+)

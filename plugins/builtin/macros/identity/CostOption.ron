@@ -1,0 +1,6 @@
+(
+    name: "CostOption",
+    kinds: [StaticEffect],
+    params: [Any],
+    body: CostOption(Param(0)),
+)

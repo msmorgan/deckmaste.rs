@@ -1,0 +1,6 @@
+(
+    name: "That",
+    kinds: [Reference],
+    params: [Any],
+    body: That(Param(0)),
+)

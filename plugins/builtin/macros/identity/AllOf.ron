@@ -1,0 +1,6 @@
+(
+    name: "AllOf",
+    kinds: [EventFilter],
+    params: [Any],
+    body: AllOf(Param(0)),
+)

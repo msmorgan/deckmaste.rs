@@ -1,0 +1,6 @@
+(
+    name: "ChooseValue",
+    kinds: [Action, OneShotEffect],
+    params: [Any, Any, Any],
+    body: ChooseValue(Param(0), Param(1), Param(2)),
+)

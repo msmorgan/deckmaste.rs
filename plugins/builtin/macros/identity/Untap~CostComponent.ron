@@ -1,0 +1,6 @@
+(
+    name: "Untap",
+    kinds: [CostComponent],
+    params: [],
+    body: Untap,
+)

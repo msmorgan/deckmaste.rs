@@ -1,0 +1,6 @@
+(
+    name: "Skip",
+    kinds: [Replacement],
+    params: { "what": Any },
+    body: Skip(what: Param(what)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "AttachedTo",
+    kinds: [Predicate],
+    params: [Any],
+    body: AttachedTo(Param(0)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Targets",
+    kinds: [Predicate],
+    params: [Any],
+    body: Targets(Param(0)),
+)

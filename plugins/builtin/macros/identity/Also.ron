@@ -1,0 +1,6 @@
+(
+    name: "Also",
+    kinds: [Replacement],
+    params: { "would": Any, "also": Any },
+    body: Also(would: Param(would), also: Param(also)),
+)

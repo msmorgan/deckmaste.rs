@@ -1,0 +1,6 @@
+(
+    name: "It",
+    kinds: [Reference],
+    params: [],
+    body: It,
+)

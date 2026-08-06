@@ -1,0 +1,6 @@
+(
+    name: "RollPlanarDie",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: RollPlanarDie(Param(0)),
+)

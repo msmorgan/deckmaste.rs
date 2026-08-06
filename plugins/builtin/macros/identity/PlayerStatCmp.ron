@@ -1,0 +1,6 @@
+(
+    name: "PlayerStatCmp",
+    kinds: [Predicate],
+    params: [Any, Any, Any],
+    body: PlayerStatCmp(Param(0), Param(1), Param(2)),
+)

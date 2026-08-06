@@ -1,0 +1,6 @@
+(
+    name: "Power",
+    kinds: [Modification],
+    params: [Any],
+    body: Power(Param(0)),
+)

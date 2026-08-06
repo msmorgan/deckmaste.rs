@@ -1,0 +1,6 @@
+(
+    name: "Status",
+    kinds: [Predicate],
+    params: [Any],
+    body: Status(Param(0)),
+)

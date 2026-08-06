@@ -1,0 +1,6 @@
+(
+    name: "Minus",
+    kinds: [Count],
+    params: [Any, Any],
+    body: Minus(Param(0), Param(1)),
+)

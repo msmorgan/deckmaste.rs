@@ -1,0 +1,6 @@
+(
+    name: "Must",
+    kinds: [StaticEffect],
+    params: [Any],
+    body: Must(Param(0)),
+)

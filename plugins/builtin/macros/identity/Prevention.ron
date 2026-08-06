@@ -1,0 +1,6 @@
+(
+    name: "Prevention",
+    kinds: [StaticEffect],
+    params: [Any],
+    body: Prevention(Param(0)),
+)

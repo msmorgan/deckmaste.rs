@@ -1,0 +1,6 @@
+(
+    name: "Controls",
+    kinds: [Predicate],
+    params: [Any],
+    body: Controls(Param(0)),
+)

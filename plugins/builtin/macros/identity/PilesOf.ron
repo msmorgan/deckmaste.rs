@@ -1,0 +1,6 @@
+(
+    name: "PilesOf",
+    kinds: [Selection],
+    params: { "note": Any, "of": Any },
+    body: PilesOf(note: Param(note), of: Param(of)),
+)

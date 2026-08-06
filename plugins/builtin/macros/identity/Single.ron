@@ -1,0 +1,6 @@
+(
+    name: "Single",
+    kinds: [Reference],
+    params: [Any],
+    body: Single(Param(0)),
+)

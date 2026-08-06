@@ -1,0 +1,6 @@
+(
+    name: "HasCounter",
+    kinds: [Predicate],
+    params: [Any],
+    body: HasCounter(Param(0)),
+)

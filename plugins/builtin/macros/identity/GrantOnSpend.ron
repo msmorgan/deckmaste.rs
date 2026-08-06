@@ -1,0 +1,6 @@
+(
+    name: "GrantOnSpend",
+    kinds: [ManaRider],
+    params: [Any],
+    body: GrantOnSpend(Param(0)),
+)

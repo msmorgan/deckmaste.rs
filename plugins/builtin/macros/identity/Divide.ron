@@ -1,0 +1,6 @@
+(
+    name: "Divide",
+    kinds: [Count],
+    params: [Any, Any, Any],
+    body: Divide(Param(0), Param(1), Param(2)),
+)

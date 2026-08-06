@@ -1,0 +1,6 @@
+(
+    name: "LoseGame",
+    kinds: [Action, OneShotEffect],
+    params: [Any],
+    body: LoseGame(Param(0)),
+)

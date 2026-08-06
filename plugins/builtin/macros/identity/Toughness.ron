@@ -1,0 +1,6 @@
+(
+    name: "Toughness",
+    kinds: [Modification],
+    params: [Any],
+    body: Toughness(Param(0)),
+)
