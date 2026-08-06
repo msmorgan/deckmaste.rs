@@ -958,6 +958,7 @@ pub(crate) enum NounForm {
 pub(crate) struct QuantityFeatures {
     cardinality: NounCardinality,
     standalone_number: Number,
+    is_one: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1094,6 +1095,12 @@ pub(crate) enum CoordinationDomain {
     Power,
     Toughness,
     PowerToughness,
+    /// A partitive selection (`one of those cards`) that can host following
+    /// elliptical `one` members in a flat coordination.
+    SelectionHost,
+    /// A bare elliptical `one` whose coordination needs a preceding semantic
+    /// host rather than an unrelated destination noun.
+    SelectionContinuation,
 }
 
 /// Chart identity facts restricted to inherent realization and grammatical
@@ -1523,6 +1530,7 @@ impl Quantity {
     const fn features(self) -> QuantityFeatures {
         QuantityFeatures {
             cardinality: self.noun_cardinality(),
+            is_one: matches!(self, Self::Exact(number) if number.value == 1),
             standalone_number: match self {
                 Self::Exact(number) if number.value == 1 => Number::Singular,
                 Self::UpTo(value) | Self::MoreThan(value) | Self::FewerThan(value)

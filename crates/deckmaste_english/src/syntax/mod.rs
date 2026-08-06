@@ -1187,12 +1187,18 @@ mod tests {
                     conjunction: Some(NounPhraseConjunction::Or),
                     phrase: known_nominal(Vocab::Spell),
                 }],
-                vec![NominalComplement::Prepositional(
-                    PrepositionalPhrase::simple(
-                        Preposition::With,
-                        Phrase::NounPhrase(Box::new(opaque)),
-                    ),
-                )],
+                vec![NominalComplement::Relative(RelativeClause {
+                    marker: RelativeMarker::That,
+                    gap: RelativeGap::Subject,
+                    body: RelativeBody::SubjectGap(Predicate::Transitive(TransitivePredicate {
+                        head: predicate_head(Vocab::Draw),
+                        kind: Transitive {
+                            pre_object_elements: vec![],
+                            object: PredicateObject::NounPhrase(opaque),
+                        },
+                        elements: vec![],
+                    })),
+                })],
             )
             .expect("the recovery fixture uses a declared shared-determiner shape"),
         );

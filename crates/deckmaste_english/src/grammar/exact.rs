@@ -773,26 +773,79 @@ mod tests {
                 && following.conjunction == Some(Conjunction::And)
                 && is_keyword_noun_phrase(&following.phrase, keyword);
         }
+        false
+    }
 
-        let (NounPhrase::Nominal(power), [toughness_member, following]) = (
-            coordination.first().as_ref(),
-            coordination.rest().as_slice(),
-        ) else {
-            return false;
+    fn noun_phrase_owns_preposition(
+        noun_phrase: &NounPhrase,
+        expected: crate::syntax::Preposition,
+    ) -> bool {
+        match noun_phrase {
+            NounPhrase::Nominal(nominal) => nominal.complements.iter().any(|complement| {
+                matches!(
+                    complement,
+                    NominalComplement::Prepositional(preposition)
+                        if preposition.head().preposition == expected
+                )
+            }),
+            NounPhrase::Partitive(partitive) => {
+                noun_phrase_owns_preposition(&partitive.whole, expected)
+            }
+            _ => false,
+        }
+    }
+
+    #[test]
+    fn destination_lists_close_each_noun_member_before_the_oxford_delimiter() {
+        for (source, middle_preposition) in [
+            (
+                concat!(
+                    "one of those cards into your hand, one into your graveyard, and ",
+                    "one on the bottom of your library"
+                ),
+                crate::syntax::Preposition::Into,
+            ),
+            (
+                concat!(
+                    "one of those cards into your hand, one on top of your library, and ",
+                    "one on the bottom of your library"
+                ),
+                crate::syntax::Preposition::On,
+            ),
+        ] {
+            let parsed = parse_fixture_noun_phrase(source);
+            let NounPhrase::Coordinated(coordination) = parsed else {
+                panic!("expected one outer Oxford object list for {source:?}: {parsed:#?}");
+            };
+            let [middle, last] = coordination.rest().as_slice() else {
+                panic!("expected three flat destination members: {coordination:#?}");
+            };
+            assert!(noun_phrase_owns_preposition(
+                coordination.first(),
+                crate::syntax::Preposition::Into,
+            ));
+            assert!(noun_phrase_owns_preposition(
+                &middle.phrase,
+                middle_preposition,
+            ));
+            assert!(noun_phrase_owns_preposition(
+                &last.phrase,
+                crate::syntax::Preposition::On,
+            ));
+            assert_eq!(last.conjunction, Some(Conjunction::And));
+        }
+    }
+
+    #[test]
+    fn partitive_whole_coordination_stays_inside_of() {
+        let source = "one of target artifact or creature";
+        let NounPhrase::Partitive(partitive) = parse_fixture_noun_phrase(source) else {
+            panic!("expected the coordination to remain the partitive whole for {source:?}");
         };
-        let NounPhrase::Nominal(toughness) = &toughness_member.phrase else {
-            return false;
-        };
-        nominal_head_spelling(power) == "power"
-            && has_base_modifier(power)
-            && nominal_head_spelling(toughness) == "toughness"
-            && matches!(
-                toughness.complements.as_slice(),
-                [NominalComplement::PowerToughness(_)]
-            )
-            && toughness_member.conjunction == Some(Conjunction::And)
-            && following.conjunction == Some(Conjunction::And)
-            && is_keyword_noun_phrase(&following.phrase, keyword)
+        assert!(matches!(
+            partitive.whole.as_ref(),
+            NounPhrase::CoordinatedNominal(_)
+        ));
     }
 
     #[test]
@@ -1347,11 +1400,12 @@ mod tests {
                 "rest.nonfinal.conjunction.is_none()",
                 "rest.last.conjunction.is_some()",
                 "rest.last.conjunction in [And, Or, AndOr]",
+                "all(complements.first.variant in [Relative], complements.nonfinal.variant in [Relative], complements.last.variant in [Relative])",
             ],
         );
-        assert_eq!(shared.recognition_requirements.len(), 1);
+        assert!(shared.recognition_requirements.is_empty());
         assert_eq!(
-            shared.recognition_requirements[0].predicate,
+            shared.requirements[4].predicate,
             PredicateData::All(&[
                 PredicateData::In {
                     path: "complements.first.variant",
@@ -1644,7 +1698,7 @@ mod tests {
         .expect_err("an interior conjunction violates the declaration");
         assert_eq!(violation.requirement, "rest.nonfinal.conjunction.is_none()",);
 
-        let nominal = crate::syntax::CoordinatedNominalPhrase::try_new(
+        let violation = crate::syntax::CoordinatedNominalPhrase::try_new(
             Determiner::Any,
             Box::new(nominal(Vocab::Card)),
             vec![NominalPhraseCoordination {
@@ -1653,10 +1707,10 @@ mod tests {
             }],
             vec![NominalComplement::Quantity(Quantity::Both)],
         )
-        .expect("the semantic member shape is admitted");
+        .expect_err("an unrecognized group complement violates the exact declaration");
         assert_eq!(
-            nominal_coordination_verdict(&nominal),
-            CoordinationVerdict::Admitted,
+            violation.requirement,
+            "all(complements.first.variant in [Relative], complements.nonfinal.variant in [Relative], complements.last.variant in [Relative])",
         );
     }
 

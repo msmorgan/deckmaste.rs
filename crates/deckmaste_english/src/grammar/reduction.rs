@@ -457,6 +457,7 @@ pub(super) const fn number_quantity_features(is_one: bool) -> QuantityFeatures {
     QuantityFeatures {
         cardinality: number_cardinality(is_one),
         standalone_number: if is_one { Number::Singular } else { Number::Plural },
+        is_one,
     }
 }
 
@@ -1605,7 +1606,9 @@ pub(super) fn reduce_phrase(
         RuleTag::NounPhraseReciprocal => noun_phrase_from_pronoun(children.first()?),
         RuleTag::NounPhraseQuantity => {
             let Features::Quantity(QuantityFeatures {
-                standalone_number, ..
+                standalone_number,
+                is_one,
+                ..
             }) = children.first()?.features
             else {
                 return None;
@@ -1615,7 +1618,11 @@ pub(super) fn reduce_phrase(
                     person: Person::Third,
                     number: *standalone_number,
                 }),
-                coordination_domain: Some(CoordinationDomain::NonEntity),
+                coordination_domain: Some(if *is_one {
+                    CoordinationDomain::SelectionContinuation
+                } else {
+                    CoordinationDomain::NonEntity
+                }),
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
@@ -1682,7 +1689,7 @@ pub(super) fn reduce_phrase(
                     person: Person::Third,
                     number: *standalone_number,
                 }),
-                coordination_domain: None,
+                coordination_domain: Some(CoordinationDomain::SelectionHost),
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
@@ -1702,7 +1709,7 @@ pub(super) fn reduce_phrase(
                     person: Person::Third,
                     number: Number::Singular,
                 }),
-                coordination_domain: None,
+                coordination_domain: Some(CoordinationDomain::SelectionHost),
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
@@ -1860,6 +1867,10 @@ fn combine_coordination_domains(
         (Some(CoordinationDomain::Power), Some(CoordinationDomain::Toughness)) => {
             Some(Some(CoordinationDomain::PowerToughness))
         }
+        (
+            Some(CoordinationDomain::SelectionHost),
+            Some(CoordinationDomain::SelectionContinuation),
+        ) => Some(Some(CoordinationDomain::SelectionHost)),
         (Some(CoordinationDomain::Entity), Some(CoordinationDomain::Entity)) => {
             Some(Some(CoordinationDomain::Entity))
         }
@@ -2591,7 +2602,7 @@ fn complete_noun_phrase_coordination_features(
     let mut last_agreement = *first_agreement;
     let mut last_coordination = NounPhraseCoordinationState::None;
     let mut all_themes = *first_theme;
-    for element in &elements {
+    for (index, element) in elements.iter().enumerate() {
         let Features::NounPhrase {
             agreement,
             coordination_domain: member_domain,
@@ -2603,6 +2614,13 @@ fn complete_noun_phrase_coordination_features(
         else {
             return None;
         };
+        if elements.len() >= 2
+            && index == 0
+            && first_domain.is_none()
+            && *member_domain == Some(CoordinationDomain::SelectionContinuation)
+        {
+            return None;
+        }
         if common_adjunct != *adjunct {
             common_adjunct = None;
         }
@@ -2670,10 +2688,18 @@ fn shared_determiner_coordination_features(
         return None;
     }
     let mut common_adjunct = first.adjunct;
+    let mut coordination_domain = first.coordination_domain;
     let mut last_form = first.form;
     let mut members = Vec::with_capacity(elements.len());
-    for element in &elements {
+    for (index, element) in elements.iter().enumerate() {
         let member = nominal_coordination_member(element.fields.get(member_value_field)?)?;
+        if elements.len() >= 2
+            && index == 0
+            && first.coordination_domain.is_none()
+            && member.coordination_domain == Some(CoordinationDomain::SelectionContinuation)
+        {
+            return None;
+        }
         if !generated_determiner_accepts(*cardinality, *article, member.form, member.initial_sound)
             || *demonstrative_this && !member.demonstrative_shared_determiner
         {
@@ -2682,6 +2708,8 @@ fn shared_determiner_coordination_features(
         if common_adjunct != member.adjunct {
             common_adjunct = None;
         }
+        coordination_domain =
+            combine_coordination_domains(coordination_domain, member.coordination_domain)?;
         last_form = member.form;
         members.push(member);
     }
@@ -2712,7 +2740,7 @@ fn shared_determiner_coordination_features(
                 },
             }),
         ),
-        coordination_domain: None,
+        coordination_domain,
         pronoun_case: None,
         adjunct: common_adjunct,
         set_exception: if *set_exception_host {
@@ -2760,6 +2788,7 @@ fn coordination_agreement(
 }
 
 struct NominalCoordinationMember {
+    coordination_domain: Option<CoordinationDomain>,
     form: NounForm,
     initial_sound: InitialSound,
     adjunct: Option<super::BareNominalAdjunct>,
@@ -2770,11 +2799,13 @@ struct NominalCoordinationMember {
 fn nominal_coordination_member(features: &Features) -> Option<NominalCoordinationMember> {
     match features {
         Features::Noun {
+            coordination_domain,
             form,
             initial_sound,
             adjunct,
             ..
         } => Some(NominalCoordinationMember {
+            coordination_domain: *coordination_domain,
             form: *form,
             initial_sound: *initial_sound,
             adjunct: *adjunct,
@@ -2782,6 +2813,7 @@ fn nominal_coordination_member(features: &Features) -> Option<NominalCoordinatio
             demonstrative_shared_determiner: true,
         }),
         Features::Nominal {
+            coordination_domain,
             form,
             initial_sound,
             determined: false,
@@ -2790,6 +2822,7 @@ fn nominal_coordination_member(features: &Features) -> Option<NominalCoordinatio
             demonstrative_shared_determiner,
             ..
         } => Some(NominalCoordinationMember {
+            coordination_domain: *coordination_domain,
             form: *form,
             initial_sound: *initial_sound,
             adjunct: *adjunct,

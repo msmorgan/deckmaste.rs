@@ -1040,6 +1040,7 @@ fn noun_coordination_domain(noun: &NounInstance) -> Option<CoordinationDomain> {
             | Vocab::Ability,
         ) => Some(CoordinationDomain::Entity),
         Noun::Word(Vocab::Counter) => Some(CoordinationDomain::NonEntity),
+        Noun::Word(Vocab::One) => Some(CoordinationDomain::SelectionContinuation),
         Noun::Word(Vocab::Damage) => Some(CoordinationDomain::Damage),
         Noun::Word(Vocab::Power) => Some(CoordinationDomain::Power),
         Noun::Word(Vocab::Toughness) => Some(CoordinationDomain::Toughness),
