@@ -449,10 +449,6 @@ pub(crate) enum Nonterminal {
     RulesObjectFollowupNominal,
     /// Noun-phrase promotion for either rules-object nominal category.
     RulesObjectNounPhrase,
-    /// Bare nominal heads coordinated inside one determiner's scope. Dedicated
-    /// consumers can inspect this constituent before its ordinary noun-phrase
-    /// promotion erases the grammar-only shape feature.
-    SharedDeterminerNominal,
     /// A single coordinable attributive modifier — an adjective phrase, a noun,
     /// or a `non-` negated modifier — the atom of a coordinated modifier list.
     ModifierConjunct,
@@ -465,11 +461,6 @@ pub(crate) enum Nonterminal {
     /// creature, and land`), consumed by the nominal prepend rule as one
     /// modifier slot.
     CoordinatedModifier,
-    /// An open, comma-separated run of noun phrases with no closing conjunction
-    /// yet (`artifact, enchantment`). Reached only by the list-extension and
-    /// Oxford-close rules, never as a standalone noun phrase, so a bare comma
-    /// run of noun phrases never coordinates on its own.
-    NounPhraseList,
     /// The comma run of a sibling prepositional coordination (`from Vampires,
     /// from Werewolves`). Reached only from the Oxford-close rule, so a bare
     /// comma run of prepositional phrases never coordinates on its own —
@@ -1103,6 +1094,9 @@ pub(crate) enum Features {
     Determiner {
         cardinality: NounCardinality,
         article: Option<IndefiniteArticle>,
+        /// `this` alone rejects the attached-role participles `equipped` and
+        /// `enchanted` as shared-scope nominal continuations.
+        demonstrative_this: bool,
         /// True only for the set-denoting `all`/`each` determiner class used
         /// by nominal set exceptions. In particular, an indefinite `a card`
         /// must not acquire the deferred draw-event `except the first one`
@@ -1113,6 +1107,9 @@ pub(crate) enum Features {
         initial_sound: InitialSound,
         comparison: AdjectiveComparisonState,
         card_orientation: bool,
+        /// Whether this modifier can remain inside a nominal coordinated under
+        /// the demonstrative determiner `this`.
+        demonstrative_shared_determiner: bool,
     },
     Noun {
         /// Catalog identity used only to reject a coordinated type modifier
@@ -1154,6 +1151,13 @@ pub(crate) enum Features {
         /// Preserves whether the nominal is headed by a set-denoting `all` or
         /// `each` determiner through modifiers and ordinary complements.
         set_exception_host: bool,
+        /// Whether this member can be followed by another nominal under one
+        /// determiner. PPs, infinitives, and complete plural relatives close
+        /// that scope before a following conjunction.
+        shared_determiner_open: bool,
+        /// Preserved from attributive modifiers so `this equipped creature or
+        /// artifact` cannot acquire a shared-determiner analysis.
+        demonstrative_shared_determiner: bool,
         /// Preserves the lexical `damage` theme flag through ordinary nominal
         /// modifiers while rejecting opaque or complemented lookalikes.
         recipient_passive_theme: bool,
@@ -1164,6 +1168,14 @@ pub(crate) enum Features {
         adjunct: Option<BareNominalAdjunct>,
         set_exception: SetExceptionState,
         coordination: NounPhraseCoordinationState,
+        /// Preserves the lexical damage-theme gate after a nominal becomes a
+        /// complete noun phrase, so generated coordination cannot mix a
+        /// recipient with a later damage theme inside the recipient's PP.
+        recipient_passive_theme: bool,
+        /// The noun phrase was completed through the selectionally constrained
+        /// rules-object followup category. Generated PP projections use this
+        /// to retain final-member relative attachment.
+        rules_object_followup: bool,
     },
     PossessiveThisCard {
         agreement: Agreement,
@@ -1673,28 +1685,11 @@ enum RuleTag {
     /// the ordinary formal-singular nominal path; see the registration site
     /// for the full rationale.
     NounPhraseAnyNumberOf,
-    /// Coordination of two independently quantified `damage` nominals, such
-    /// as `2 damage to A and 1 damage to B`.
-    NounPhraseDamageCoordination,
-    /// One target determiner scoping over two bare nominal heads, as in
-    /// `target player or planeswalker`.
-    SharedDeterminerNominal,
-    /// Promotes a shared-determiner nominal constituent to noun-phrase use.
-    NounPhraseSharedDeterminer,
-    NounPhraseCoordination,
     NounPhraseAdditiveCoordination,
     NounPhraseMinus,
     NounPhraseHalf,
     NounPhraseHalfRoundedUp,
     NounPhraseHalfRoundedDown,
-    /// A recipient/source preposition whose coordinated object closes with an
-    /// independently determined `each <nominal>` conjunct.
-    PrepositionalPhraseCoordinated,
-    /// A coordinated PP object whose final member is proven by its dedicated
-    /// nonterminal to contain a constrained object-gap relative.
-    PrepositionalPhraseRulesObjectCoordinated,
-    /// A preposition taking nominal material under one shared determiner.
-    PrepositionalPhraseSharedDeterminer,
     PrepositionalPhrase,
     PrepositionalObject,
     Verb,
@@ -1858,13 +1853,6 @@ enum RuleTag {
     CoordinatedModifierOxford,
     /// The nominal prepend of a coordinated modifier as one modifier slot.
     NominalCoordinatedModifier,
-    /// The single-phrase base of an open noun-phrase run.
-    NounPhraseListSingle,
-    /// An asyndetic comma continuation of a noun-phrase run (`artifact,
-    /// enchantment`) — the interior members of an Oxford head list.
-    NounPhraseListComma,
-    /// The final Oxford member closing a noun-phrase head list (`…, or land`).
-    NounPhraseCoordinationOxford,
     /// The two-member comma base of a sibling prepositional run. Requiring a
     /// pair keeps a comma out of two-member coordinations (see the rule).
     PrepositionalPhraseListPair,
@@ -1873,9 +1861,9 @@ enum RuleTag {
     PrepositionalPhraseListComma,
     /// Prepositional phrases coordinated as siblings, each repeating its own
     /// preposition (`from blue and from black`). Distinct from
-    /// [`Self::PrepositionalPhraseCoordinated`], which shares one preposition
-    /// across coordinated objects (`from artifacts, creatures, and
-    /// enchantments`).
+    /// generated noun coordination inside one prepositional object, which
+    /// shares one preposition across coordinated objects (`from artifacts,
+    /// creatures, and enchantments`).
     PrepositionalPhraseSiblingCoordinated,
     // --- Coordination-consumer rules (appended after `add_coordination_rules`)
     // ---
@@ -1988,7 +1976,6 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // objects; family order does not decide their selection.
         builder.add_rules_object_attachment_rules();
         if let Some(groups) = activation.groups() {
-            builder.remove_replaced_handwritten(groups);
             let cats = generated::internal_categories(groups);
             generated::register_generated(&mut builder, groups, &cats)
                 .expect("active generated groups must assemble");
@@ -2774,6 +2761,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     features: Features::Determiner {
                         cardinality: NounCardinality::SingularCount,
                         article: None,
+                        demonstrative_this: false,
                         set_exception_host: false,
                     },
                     meaning: MeaningKey::Literal(LiteralKey::Target),
@@ -2898,6 +2886,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     features: Features::Determiner {
                         cardinality: NounCardinality::SingularCount,
                         article: None,
+                        demonstrative_this: false,
                         set_exception_host: true,
                     },
                     meaning: MeaningKey::Determiner(Determiner::Each),
@@ -2912,6 +2901,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     features: Features::Determiner {
                         cardinality: NounCardinality::Unconstrained,
                         article: None,
+                        demonstrative_this: false,
                         set_exception_host: false,
                     },
                     meaning: MeaningKey::Determiner(Determiner::Any),

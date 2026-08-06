@@ -514,6 +514,7 @@ dependencies = [
  "proptest",
  "serde",
  "strum",
+ "trybuild",
 ]
 
 [[package]]

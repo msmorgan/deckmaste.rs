@@ -65,6 +65,16 @@ pub trait LinearizationVisitor {
         value: &T,
     ) -> Result<(), Self::Error>;
 
+    fn derived_sequence_scalar(
+        &mut self,
+        _field: &'static str,
+        _codec: &'static str,
+        _index: usize,
+        _len: usize,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
     fn begin_sequence(&mut self, _field: &'static str, _len: usize) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -221,6 +231,11 @@ pub enum FieldKindData {
         boxed: bool,
     },
     Scalar {
+        codec: &'static str,
+    },
+    /// Surface-only scalar omitted from a bound semantic element and derived
+    /// from sequence position during linearization.
+    SurfaceScalar {
         codec: &'static str,
     },
     Sequence {

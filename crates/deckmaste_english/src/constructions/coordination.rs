@@ -1,15 +1,12 @@
 //! Generated noun-phrase and shared-determiner nominal coordination.
 
 use deckmaste_construction_compiler::runtime::GroupData;
+use serde::ser::SerializeStruct;
 
 use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::CoordinatedAdjectivePhrase;
-#[cfg(test)]
-use crate::syntax::CoordinatedNominalPhrase;
-#[cfg(test)]
-use crate::syntax::CoordinatedNounPhrase;
 use crate::syntax::Determiner;
 use crate::syntax::DevotionColors;
 use crate::syntax::IndependentClause;
@@ -30,13 +27,13 @@ deckmaste_constructions_macro::constructions! {
     group noun_coordination;
 
     element noun_phrase_member bind NounPhraseCoordination {
-        comma: lex Comma,
+        comma: surface lex Comma,
         conjunction: opt lex Conjunction,
         phrase: hole NounPhrase,
     }
 
     element nominal_phrase_member bind NominalPhraseCoordination {
-        comma: lex Comma,
+        comma: surface lex Comma,
         conjunction: opt lex Conjunction,
         phrase: hole NominalPhrase,
     }
@@ -56,34 +53,30 @@ deckmaste_constructions_macro::constructions! {
     }
 
     construction noun_phrase_coordination: NounPhrase {
-        own DerivedCoordinatedNounPhrase {
+        own CoordinatedNounPhrase {
             first: hole box NounPhrase,
             rest: seq noun_phrase_member,
         }
         require rest.len() >= 1;
-        require rest.nonfinal.comma in [Present];
         require rest.nonfinal.conjunction.is_none();
-        require any(rest.len() >= 2, rest.last.comma in [Absent]);
         require rest.last.conjunction.is_some();
+        require rest.last.conjunction in [And, Or, Plus, AndOr];
         derive first = noun_phrase_coordination(first, rest);
-        witness oxford = stored rest.last.comma;
         form flat @ 0 = first rest;
     }
 
     construction shared_determiner_nominal: NounPhrase {
-        own DerivedCoordinatedNominalPhrase {
+        own CoordinatedNominalPhrase {
             determiner: hole Determiner,
             first: hole box NominalPhrase,
             rest: seq nominal_phrase_member,
             complements: seq nominal_complement,
         }
         require rest.len() >= 1;
-        require rest.nonfinal.comma in [Present];
         require rest.nonfinal.conjunction.is_none();
-        require any(rest.len() >= 2, rest.last.comma in [Absent]);
         require rest.last.conjunction.is_some();
+        require rest.last.conjunction in [And, Or, AndOr];
         derive first = noun_phrase_coordination(determiner, first, rest);
-        witness oxford = stored rest.last.comma;
         form shared @ 0 = determiner first rest complements;
     }
 }
@@ -95,15 +88,14 @@ pub(crate) fn build_noun_phrase_coordination(
     first: Box<NounPhrase>,
     rest: Vec<NounPhraseCoordination>,
 ) -> Result<CoordinatedNounPhrase, deckmaste_construction_compiler::runtime::DeclarationViolation> {
-    DerivedCoordinatedNounPhrase::try_new(first.clone(), rest.clone())?;
-    Ok(CoordinatedNounPhrase { first, rest })
+    CoordinatedNounPhrase::try_new(first, rest)
 }
 
 #[cfg(test)]
 pub(crate) fn parts_noun_phrase_coordination(
     value: &CoordinatedNounPhrase,
 ) -> (&Box<NounPhrase>, &Vec<NounPhraseCoordination>) {
-    (&value.first, &value.rest)
+    (value.first(), value.rest())
 }
 
 #[cfg(test)]
@@ -114,18 +106,7 @@ pub(crate) fn build_shared_determiner_nominal(
     complements: Vec<NominalComplement>,
 ) -> Result<CoordinatedNominalPhrase, deckmaste_construction_compiler::runtime::DeclarationViolation>
 {
-    DerivedCoordinatedNominalPhrase::try_new(
-        determiner.clone(),
-        first.clone(),
-        rest.clone(),
-        complements.clone(),
-    )?;
-    Ok(CoordinatedNominalPhrase {
-        determiner,
-        first,
-        rest,
-        complements,
-    })
+    CoordinatedNominalPhrase::try_new(determiner, first, rest, complements)
 }
 
 #[cfg(test)]
@@ -138,9 +119,48 @@ pub(crate) fn parts_shared_determiner_nominal(
     &Vec<NominalComplement>,
 ) {
     (
-        &value.determiner,
-        &value.first,
-        &value.rest,
-        &value.complements,
+        value.determiner(),
+        value.first(),
+        value.rest(),
+        value.complements(),
     )
+}
+
+impl Clone for CoordinatedNounPhrase {
+    fn clone(&self) -> Self {
+        Self::try_new(self.first().clone(), self.rest().clone())
+            .expect("an existing coordinated noun phrase satisfies its declaration")
+    }
+}
+
+impl serde::Serialize for CoordinatedNounPhrase {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("CoordinatedNounPhrase", 2)?;
+        state.serialize_field("first", self.first())?;
+        state.serialize_field("rest", self.rest())?;
+        state.end()
+    }
+}
+
+impl Clone for CoordinatedNominalPhrase {
+    fn clone(&self) -> Self {
+        Self::try_new(
+            self.determiner().clone(),
+            self.first().clone(),
+            self.rest().clone(),
+            self.complements().clone(),
+        )
+        .expect("an existing coordinated nominal phrase satisfies its declaration")
+    }
+}
+
+impl serde::Serialize for CoordinatedNominalPhrase {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("CoordinatedNominalPhrase", 4)?;
+        state.serialize_field("determiner", self.determiner())?;
+        state.serialize_field("first", self.first())?;
+        state.serialize_field("rest", self.rest())?;
+        state.serialize_field("complements", self.complements())?;
+        state.end()
+    }
 }

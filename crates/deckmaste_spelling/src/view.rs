@@ -819,7 +819,6 @@ mod tests {
 
         let nominal = of(&NounPhraseCoordination {
             conjunction: Some(Conjunction::Plus),
-            comma: Comma::Absent,
             phrase: NounPhrase::Demonstrative(Demonstrative::This),
         });
         assert_eq!(

@@ -245,15 +245,18 @@ pub(crate) fn render_fragment(
     }
 }
 
-/// Renders one nominal-complement value through the production renderer.
-/// Generated construction linearizers use this boundary while the payload
-/// remains a bound enum: the compiler owns traversal and the renderer owns
-/// each payload category's established English spelling.
 #[cfg(test)]
-pub(crate) fn render_nominal_complement(
-    complement: &NominalComplement,
+pub(crate) fn render_coordinated_noun_phrase(
+    value: &crate::syntax::CoordinatedNounPhrase,
 ) -> Result<String, RenderError> {
-    Renderer::new("", false).nominal_complement(complement)
+    Renderer::new("", false).coordinated_noun_phrase(value)
+}
+
+#[cfg(test)]
+pub(crate) fn render_coordinated_nominal_phrase(
+    value: &crate::syntax::CoordinatedNominalPhrase,
+) -> Result<String, RenderError> {
+    Renderer::new("", false).coordinated_nominal_phrase(value)
 }
 
 impl Determiner {
@@ -317,6 +320,156 @@ struct Renderer<'identity> {
     terminal_quote: Cell<Option<*const QuotedAbility>>,
 }
 
+struct GeneratedCoordinationRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+    pending_determiner: Option<Determiner>,
+    skip_payload_subtrees: usize,
+}
+
+impl<'renderer, 'identity> GeneratedCoordinationRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+            pending_determiner: None,
+            skip_payload_subtrees: 0,
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if part == "," {
+            self.rendered.push(',');
+        } else {
+            if !self.rendered.is_empty() {
+                self.rendered.push(' ');
+            }
+            self.rendered.push_str(part);
+        }
+    }
+
+    fn finish(self) -> String {
+        debug_assert!(self.pending_determiner.is_none());
+        debug_assert_eq!(self.skip_payload_subtrees, 0);
+        self.rendered
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedCoordinationRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        if self.skip_payload_subtrees > 0 {
+            self.skip_payload_subtrees -= 1;
+            return Ok(());
+        }
+        let value = value as &dyn std::any::Any;
+        match category {
+            "Determiner" => {
+                let determiner = value
+                    .downcast_ref::<Determiner>()
+                    .expect("the declaration's Determiner hole preserves its Rust type");
+                self.pending_determiner = Some(determiner.clone());
+            }
+            "NounPhrase" => {
+                let noun_phrase = value
+                    .downcast_ref::<NounPhrase>()
+                    .expect("the declaration's NounPhrase hole preserves its Rust type");
+                self.push(&self.renderer.noun_phrase(noun_phrase)?);
+            }
+            "NominalPhrase" => {
+                let mut nominal = value
+                    .downcast_ref::<NominalPhrase>()
+                    .expect("the declaration's NominalPhrase hole preserves its Rust type")
+                    .clone();
+                if let Some(determiner) = self.pending_determiner.take() {
+                    nominal.determiner = Some(determiner);
+                }
+                self.push(&self.renderer.nominal_phrase(&nominal)?);
+            }
+            other => panic!("unexpected coordination subtree category `{other}`"),
+        }
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        match codec {
+            "Conjunction" => {
+                let conjunction = value
+                    .downcast_ref::<Conjunction>()
+                    .expect("the declaration's Conjunction scalar preserves its Rust type");
+                self.push(render_nominal_conjunction(*conjunction)?);
+            }
+            other => panic!("unexpected coordination scalar codec `{other}`"),
+        }
+        Ok(())
+    }
+
+    fn derived_sequence_scalar(
+        &mut self,
+        _field: &'static str,
+        codec: &'static str,
+        _index: usize,
+        len: usize,
+    ) -> Result<(), Self::Error> {
+        match codec {
+            "Comma" if len >= 2 => self.push(","),
+            "Comma" => {}
+            other => panic!("unexpected derived coordination scalar codec `{other}`"),
+        }
+        Ok(())
+    }
+
+    fn bound_value<T: std::any::Any>(
+        &mut self,
+        element: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        if element == "nominal_complement" {
+            let complement = (value as &dyn std::any::Any)
+                .downcast_ref::<NominalComplement>()
+                .expect("the bound NominalComplement keeps its Rust enum type");
+            self.push(&self.renderer.nominal_complement(complement)?);
+            self.skip_payload_subtrees += 1;
+        }
+        Ok(())
+    }
+}
+
+fn finish_generated_coordination(
+    result: Result<(), deckmaste_construction_compiler::runtime::LinearizationError<RenderError>>,
+    visitor: GeneratedCoordinationRenderer<'_, '_>,
+) -> Result<String, RenderError> {
+    match result {
+        Ok(()) => Ok(visitor.finish()),
+        Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+            Err(error)
+        }
+        Err(error) => {
+            unreachable!("validated coordination must select one declared form: {error:?}")
+        }
+    }
+}
+
 impl<'identity> Renderer<'identity> {
     fn new(name: &'identity str, is_legendary: bool) -> Self {
         Self {
@@ -326,6 +479,30 @@ impl<'identity> Renderer<'identity> {
             nesting: Cell::new(0),
             terminal_quote: Cell::new(None),
         }
+    }
+
+    fn coordinated_noun_phrase(
+        &self,
+        value: &crate::syntax::CoordinatedNounPhrase,
+    ) -> Result<String, RenderError> {
+        let mut visitor = GeneratedCoordinationRenderer::new(self);
+        let result = crate::constructions::coordination::linearize_noun_phrase_coordination_with(
+            value,
+            &mut visitor,
+        );
+        finish_generated_coordination(result, visitor)
+    }
+
+    fn coordinated_nominal_phrase(
+        &self,
+        value: &crate::syntax::CoordinatedNominalPhrase,
+    ) -> Result<String, RenderError> {
+        let mut visitor = GeneratedCoordinationRenderer::new(self);
+        let result = crate::constructions::coordination::linearize_shared_determiner_nominal_with(
+            value,
+            &mut visitor,
+        );
+        finish_generated_coordination(result, visitor)
     }
 
     /// Renders an ability nested inside a quoted or embedded ability, tracking
@@ -1708,49 +1885,9 @@ impl<'identity> Renderer<'identity> {
                 self.noun_phrase(&partitive.whole)?
             )),
             NounPhrase::CoordinatedNominal(coordinated) => {
-                // The indefinite article's word is not stored: it is the
-                // initial sound of the first coordinated nominal (`an Elf,
-                // Orc, or Equipment`). See `Determiner::Indefinite`.
-                let mut rendered = if coordinated.determiner == Determiner::Indefinite {
-                    let sound = self.nominal_initial_sound(&coordinated.first)?;
-                    indefinite_article_for(sound).to_owned()
-                } else {
-                    self.determiner(&coordinated.determiner)?
-                };
-                rendered.push(' ');
-                rendered.push_str(&self.nominal_phrase(&coordinated.first)?);
-                for coordination in &coordinated.rest {
-                    if coordination.comma.is_present() {
-                        rendered.push(',');
-                    }
-                    rendered.push(' ');
-                    if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_nominal_conjunction(conjunction)?);
-                        rendered.push(' ');
-                    }
-                    rendered.push_str(&self.nominal_phrase(&coordination.phrase)?);
-                }
-                for complement in &coordinated.complements {
-                    rendered.push(' ');
-                    rendered.push_str(&self.nominal_complement(complement)?);
-                }
-                Ok(rendered)
+                self.coordinated_nominal_phrase(coordinated)
             }
-            NounPhrase::Coordinated(coordinated) => {
-                let mut rendered = self.noun_phrase(&coordinated.first)?;
-                for coordination in &coordinated.rest {
-                    if coordination.comma.is_present() {
-                        rendered.push(',');
-                    }
-                    rendered.push(' ');
-                    if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_nominal_conjunction(conjunction)?);
-                        rendered.push(' ');
-                    }
-                    rendered.push_str(&self.noun_phrase(&coordination.phrase)?);
-                }
-                Ok(rendered)
-            }
+            NounPhrase::Coordinated(coordinated) => self.coordinated_noun_phrase(coordinated),
             NounPhrase::SetException(exception) => {
                 let mut rendered = self.noun_phrase(&exception.included)?;
                 if exception.comma.is_present() {
@@ -2885,6 +3022,7 @@ fn join_words(parts: Vec<String>) -> String {
 #[cfg(test)]
 mod tests {
     use super::Renderer;
+    use super::render_nominal_conjunction;
     use crate::Numeral;
     use crate::RenderError;
     use crate::catalog::CatalogKind;
@@ -4017,26 +4155,9 @@ mod tests {
     }
 
     #[test]
-    fn nominal_carrier_rejects_predicate_only_conjunction_without_unwinding() {
-        let object = NounPhrase::Coordinated(CoordinatedNounPhrase {
-            first: Box::new(NounPhrase::Demonstrative(Demonstrative::This)),
-            rest: vec![NounPhraseCoordination {
-                conjunction: Some(Conjunction::Then),
-                comma: crate::features::Comma::Absent,
-                phrase: NounPhrase::Demonstrative(Demonstrative::That),
-            }],
-        });
-        let ast = paragraph_ability(simple(
-            None,
-            verb_phrase(
-                Vocab::Draw,
-                VerbSlot::Imperative,
-                vec![VerbDependent::DirectObject(object)],
-            ),
-        ));
-
+    fn nominal_conjunction_renderer_rejects_predicate_only_conjunction() {
         assert_eq!(
-            ast.render("Test Card", false),
+            render_nominal_conjunction(Conjunction::Then),
             Err(RenderError::InvalidNominalConjunction(Conjunction::Then))
         );
     }

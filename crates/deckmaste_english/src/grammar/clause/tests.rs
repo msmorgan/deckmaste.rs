@@ -1372,13 +1372,13 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
     let NounPhrase::Coordinated(recipient) = recipient.as_ref() else {
         panic!("expected full recipient coordination: {recipient:#?}");
     };
-    let NounPhrase::CoordinatedNominal(targets) = recipient.first.as_ref() else {
+    let NounPhrase::CoordinatedNominal(targets) = recipient.first().as_ref() else {
         panic!("expected one shared-target first member: {recipient:#?}");
     };
-    assert_eq!(targets.determiner, Determiner::Target(None));
-    assert!(targets.first.determiner.is_none());
+    assert_eq!(*targets.determiner(), Determiner::Target(None));
+    assert!(targets.first().determiner.is_none());
     assert!(matches!(
-        targets.rest.as_slice(),
+        targets.rest().as_slice(),
         [crate::syntax::NominalPhraseCoordination {
             conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
             phrase: NominalPhrase {
@@ -1388,7 +1388,7 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
             ..
         }]
     ));
-    let [creatures] = recipient.rest.as_slice() else {
+    let [creatures] = recipient.rest().as_slice() else {
         panic!("expected one outer coordination member: {recipient:#?}");
     };
     assert_eq!(
@@ -1422,7 +1422,7 @@ fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() 
     let PredicateObject::NounPhrase(NounPhrase::Coordinated(damage)) = &deals.object else {
         panic!("expected two independently quantified damage nominals: {deals:#?}");
     };
-    let NounPhrase::Nominal(first_damage) = damage.first.as_ref() else {
+    let NounPhrase::Nominal(first_damage) = damage.first().as_ref() else {
         panic!("expected the first damage nominal: {damage:#?}");
     };
     let [NominalComplement::Prepositional(first_recipient)] = first_damage.complements.as_slice()
@@ -1435,10 +1435,10 @@ fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() 
     assert!(matches!(
         first_recipient.as_ref(),
         NounPhrase::CoordinatedNominal(targets)
-            if targets.determiner == Determiner::Target(None) && targets.rest.len() == 1
+            if *targets.determiner() == Determiner::Target(None) && targets.rest().len() == 1
     ));
 
-    let [second_damage] = damage.rest.as_slice() else {
+    let [second_damage] = damage.rest().as_slice() else {
         panic!("expected exactly one later damage nominal: {damage:#?}");
     };
     assert_eq!(
@@ -1650,13 +1650,13 @@ fn rules_object_gap_keeps_coordinated_members_inside_the_preposition() {
         panic!("expected recipient coordination inside `to`: {recipient:#?}");
     };
     assert!(matches!(
-        recipient.first.as_ref(),
+        recipient.first().as_ref(),
         NounPhrase::Pronoun {
             pronoun: crate::word::Pronoun::You,
             ..
         }
     ));
-    let [creatures] = recipient.rest.as_slice() else {
+    let [creatures] = recipient.rest().as_slice() else {
         panic!("expected one coordinated creature member: {recipient:#?}");
     };
     let NounPhrase::Nominal(creatures) = &creatures.phrase else {
@@ -1690,11 +1690,11 @@ fn rules_object_gap_prefers_the_nearest_preposition_without_stealing_its_subject
     let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
         panic!("expected shared-determiner coordination inside `of`: {objects:#?}");
     };
-    let [creatures] = objects.rest.as_slice() else {
+    let [creatures] = objects.rest().as_slice() else {
         panic!("expected one creature member: {objects:#?}");
     };
     assert!(creatures.phrase.complements.is_empty());
-    let [NominalComplement::Relative(relative)] = objects.complements.as_slice() else {
+    let [NominalComplement::Relative(relative)] = objects.complements().as_slice() else {
         panic!("the coordinated objects must host the relative: {objects:#?}");
     };
     let RelativeBody::ObjectGap {
@@ -1728,7 +1728,7 @@ fn coordinated_member_consumes_following_modifiers_before_the_pp_closes() {
     let NounPhrase::Coordinated(objects) = objects.as_ref() else {
         panic!("expected coordination inside `of`: {objects:#?}");
     };
-    let [second] = objects.rest.as_slice() else {
+    let [second] = objects.rest().as_slice() else {
         panic!("expected one second permanent: {objects:#?}");
     };
     let NounPhrase::Nominal(second) = &second.phrase else {
@@ -1791,12 +1791,12 @@ fn coordinated_member_refuses_unrelated_following_pps() {
     let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
         panic!("expected shared-determiner coordination inside `of`: {objects:#?}");
     };
-    let [last] = objects.rest.as_slice() else {
+    let [last] = objects.rest().as_slice() else {
         panic!("expected one final creature member: {objects:#?}");
     };
     assert!(last.phrase.complements.is_empty());
     assert!(matches!(
-        objects.complements.as_slice(),
+        objects.complements().as_slice(),
         [NominalComplement::Relative(RelativeClause {
             gap: RelativeGap::Object,
             ..
@@ -1901,7 +1901,7 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
     let NounPhrase::CoordinatedNominal(objects) = objects.as_ref() else {
         panic!("expected shared-determiner counter recipients: {objects:#?}");
     };
-    let [last] = objects.rest.as_slice() else {
+    let [last] = objects.rest().as_slice() else {
         panic!("expected one final permanent member: {objects:#?}");
     };
     assert!(last.phrase.complements.is_empty());
@@ -1915,7 +1915,7 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
             body: RelativeBody::SubjectGap(Predicate::Transitive(entered)),
             ..
         }),
-    ] = objects.complements.as_slice()
+    ] = objects.complements().as_slice()
     else {
         panic!("the coordinated recipients must retain both relatives: {objects:#?}");
     };
@@ -1942,13 +1942,13 @@ fn repeated_damage_themes_coordinate_as_complete_noun_phrases() {
         );
     };
     assert!(matches!(
-        objects.first.as_ref(),
+        objects.first().as_ref(),
         NounPhrase::Nominal(first)
             if matches!(first.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
                 && matches!(first.complements.as_slice(), [NominalComplement::Prepositional(_)])
     ));
     assert!(matches!(
-        objects.rest.as_slice(),
+        objects.rest().as_slice(),
         [crate::syntax::NounPhraseCoordination {
             conjunction: Some(crate::syntax::NounPhraseConjunction::And),
             phrase: NounPhrase::Nominal(second),
@@ -3600,7 +3600,7 @@ fn plus_coordinates_additive_noun_phrases() {
         panic!("expected an additive noun phrase: {:#?}", predicate.object);
     };
     assert!(matches!(
-        object.rest.as_slice(),
+        object.rest().as_slice(),
         [crate::syntax::NounPhraseCoordination {
             conjunction: Some(crate::syntax::NounPhraseConjunction::Plus),
             ..
@@ -5002,11 +5002,11 @@ fn keyword_grant_symbol_cost_coordinated_with_bare_keyword() {
     else {
         panic!("expected a coordinated object, got {:?}", predicate.object);
     };
-    let NounPhrase::Nominal(flying) = coordinated.first.as_ref() else {
+    let NounPhrase::Nominal(flying) = coordinated.first().as_ref() else {
         panic!("expected the first conjunct to be a bare nominal");
     };
     assert!(flying.complements.is_empty(), "flying must stay bare");
-    let [second] = coordinated.rest.as_slice() else {
+    let [second] = coordinated.rest().as_slice() else {
         panic!("expected exactly one coordinated conjunct");
     };
     let NounPhrase::Nominal(ward) = &second.phrase else {
@@ -5080,7 +5080,7 @@ fn keyword_grant_annihilator_quantity_control_unchanged() {
     else {
         panic!("expected a coordinated object");
     };
-    let [second] = coordinated.rest.as_slice() else {
+    let [second] = coordinated.rest().as_slice() else {
         panic!("expected exactly one coordinated conjunct");
     };
     let NounPhrase::Nominal(annihilator) = &second.phrase else {

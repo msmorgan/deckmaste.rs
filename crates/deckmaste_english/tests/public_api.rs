@@ -238,25 +238,25 @@ impl ser::Serializer for UnitVariantSerializer {
     }
 
     unsupported_unit_variant_serialization!(
-        serialize_bool(_value: bool),
-        serialize_i8(_value: i8),
-        serialize_i16(_value: i16),
-        serialize_i32(_value: i32),
-        serialize_i64(_value: i64),
-        serialize_i128(_value: i128),
-        serialize_u8(_value: u8),
-        serialize_u16(_value: u16),
-        serialize_u32(_value: u32),
-        serialize_u64(_value: u64),
-        serialize_u128(_value: u128),
-        serialize_f32(_value: f32),
-        serialize_f64(_value: f64),
-        serialize_char(_value: char),
-        serialize_str(_value: &str),
-        serialize_bytes(_value: &[u8]),
+        serialize_bool(bool),
+        serialize_i8(i8),
+        serialize_i16(i16),
+        serialize_i32(i32),
+        serialize_i64(i64),
+        serialize_i128(i128),
+        serialize_u8(u8),
+        serialize_u16(u16),
+        serialize_u32(u32),
+        serialize_u64(u64),
+        serialize_u128(u128),
+        serialize_f32(f32),
+        serialize_f64(f64),
+        serialize_char(char),
+        serialize_str(&str),
+        serialize_bytes(&[u8]),
         serialize_none(),
         serialize_unit(),
-        serialize_unit_struct(_name: &'static str),
+        serialize_unit_struct(&'static str),
     );
 
     fn serialize_some<T: ?Sized + Serialize>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
@@ -947,18 +947,18 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 self.noun_phrase(&partitive.whole);
             }
             NounPhrase::CoordinatedNominal(coordinated) => {
-                self.determiner(&coordinated.determiner);
-                self.nominal_phrase(&coordinated.first);
-                for coordination in &coordinated.rest {
+                self.determiner(coordinated.determiner());
+                self.nominal_phrase(coordinated.first());
+                for coordination in coordinated.rest() {
                     self.nominal_phrase(&coordination.phrase);
                 }
-                for complement in &coordinated.complements {
+                for complement in coordinated.complements() {
                     self.nominal_complement(complement);
                 }
             }
             NounPhrase::Coordinated(coordinated) => {
-                self.noun_phrase(&coordinated.first);
-                for coordination in &coordinated.rest {
+                self.noun_phrase(coordinated.first());
+                for coordination in coordinated.rest() {
                     self.noun_phrase(&coordination.phrase);
                 }
             }
@@ -1997,7 +1997,7 @@ fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
     };
     assert!(
         matches!(
-            coordination.first.as_ref(),
+            coordination.first().as_ref(),
             NounPhrase::Nominal(NominalPhrase {
                 modifiers,
                 head: NounInstance::Singular(Noun::Word(Vocab::Power)),
@@ -2012,10 +2012,9 @@ fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
                     }] if vocab.spelling() == "base"
                 )
         ) && matches!(
-            coordination.rest.as_slice(),
+            coordination.rest().as_slice(),
             [NounPhraseCoordination {
                 conjunction: Some(NounPhraseConjunction::And),
-                comma: deckmaste_english::features::Comma::Absent,
                 phrase: NounPhrase::Nominal(NominalPhrase {
                     head: NounInstance::Mass(Noun::Word(Vocab::Toughness)),
                     complements,
@@ -2054,7 +2053,7 @@ fn base_power_or_toughness_quantity_bound_rides_the_existing_quantity_complement
     };
     assert!(
         matches!(
-            coordination.rest.as_slice(),
+            coordination.rest().as_slice(),
             [NounPhraseCoordination {
                 conjunction: Some(NounPhraseConjunction::Or),
                 phrase: NounPhrase::Nominal(NominalPhrase {
@@ -2167,10 +2166,10 @@ fn cost_noun_phrases_coordinate_with_and_or() {
                     },
                     ..
                 })) if matches!(
-                    coordinated.determiner,
+                    coordinated.determiner(),
                     Determiner::Quantity(Quantity::Exact(NumberLiteral { value: 2, .. }))
                 ) && matches!(
-                    coordinated.rest.as_slice(),
+                    coordinated.rest().as_slice(),
                     [NominalPhraseCoordination {
                         conjunction: Some(NounPhraseConjunction::AndOr),
                         ..
@@ -3438,9 +3437,9 @@ fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
     assert!(
         matches!(
             clause_subject(only_independent_clause(&ast)),
-            Some(NounPhrase::Coordinated(CoordinatedNounPhrase { first, .. }))
+            Some(NounPhrase::Coordinated(coordinated))
                 if matches!(
-                    first.as_ref(),
+                    coordinated.first().as_ref(),
                     NounPhrase::Nominal(NominalPhrase {
                         head: NounInstance::Singular(Noun::Word(Vocab::One)),
                         ..

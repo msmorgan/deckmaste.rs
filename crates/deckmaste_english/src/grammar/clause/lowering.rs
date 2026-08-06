@@ -508,9 +508,8 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
     Some(Lowered::VerbPhrase(predicate))
 }
 
-/// Lower the six `ManaAmount*` rules. Mirrors the noun-phrase list lowering
-/// (`mod.rs`, `NounPhraseListSingle` / `NounPhraseListComma` /
-/// `NounPhraseCoordinationOxford`) but stays typed to
+/// Lower the six `ManaAmount*` rules. This is the symbol-typed analogue of
+/// generated noun coordination, but stays typed to
 /// [`PredicateObject`] so no symbol is ever wrapped as a `NounPhrase`.
 pub(super) fn lower_mana_amount(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     fn member(lowered: Lowered) -> Option<PredicateObject> {
@@ -590,9 +589,8 @@ pub(super) fn lower_mana_amount(tag: RuleTag, children: &mut [Lowered]) -> Optio
     }
 }
 
-/// Mirrors `push_noun_phrase_coordination` (`mod.rs`): fold a new coordination
-/// member onto an already-coordinated first object, or start a fresh
-/// coordinated run.
+/// Fold a new mana coordination member onto an already-coordinated first
+/// object, or start a fresh coordinated run.
 pub(super) fn push_mana_coordination(
     first: PredicateObject,
     coordination: PredicateObjectCoordination,

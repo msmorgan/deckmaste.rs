@@ -48,6 +48,7 @@ mod kw {
     syn::custom_keyword!(opt);
     syn::custom_keyword!(hole);
     syn::custom_keyword!(lex);
+    syn::custom_keyword!(surface);
     syn::custom_keyword!(seq);
     syn::custom_keyword!(all);
     syn::custom_keyword!(any);
@@ -158,6 +159,12 @@ fn parse_fields(input: ParseStream<'_>) -> syn::Result<Vec<FieldBinding>> {
 }
 
 fn parse_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
+    if input.peek(kw::surface) {
+        input.parse::<kw::surface>()?;
+        input.parse::<kw::lex>()?;
+        let codec = spanned_type_path(input)?;
+        return Ok(FieldKind::SurfaceScalar { codec });
+    }
     if input.peek(kw::opt) {
         let opt = input.parse::<kw::opt>()?;
         if input.peek(kw::opt) {
@@ -190,7 +197,7 @@ fn parse_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
         let element = spanned_ident(input)?;
         return Ok(FieldKind::Sequence { element });
     }
-    Err(input.error("expected a field kind: opt / hole / lex / seq"))
+    Err(input.error("expected a field kind: opt / hole / lex / surface lex / seq"))
 }
 
 fn spanned_type_path(input: ParseStream<'_>) -> syn::Result<Spanned<String>> {
@@ -631,6 +638,24 @@ mod tests {
         assert_eq!(
             allowed.iter().map(String::as_str).collect::<Vec<_>>(),
             ["Present"],
+        );
+    }
+
+    #[test]
+    fn surface_scalar_parses_as_a_nonsemantic_element_field() {
+        let parsed = parse_group(quote::quote! {
+            group surface_fields;
+            element member bind Member {
+                comma: surface lex Comma,
+                phrase: hole Phrase,
+            }
+        })
+        .expect("surface-only scalar syntax parses");
+        assert_eq!(
+            parsed.elements[0].fields[0].kind,
+            FieldKind::SurfaceScalar {
+                codec: Spanned::call_site("Comma".to_owned()),
+            },
         );
     }
 

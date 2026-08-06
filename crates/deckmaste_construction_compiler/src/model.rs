@@ -87,6 +87,12 @@ pub enum FieldKind {
     Scalar {
         codec: Spanned<String>,
     },
+    /// A scalar observed on the surface but omitted from the bound semantic
+    /// element. Sequence linearization asks the visitor to derive it from the
+    /// member index and sequence length.
+    SurfaceScalar {
+        codec: Spanned<String>,
+    },
     Sequence {
         element: Spanned<String>,
     },

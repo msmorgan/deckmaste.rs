@@ -12,6 +12,8 @@ use super::clause::RelativeClause;
 use super::clause::TransitivePredicate;
 use crate::Numeral;
 use crate::catalog::CatalogAtom;
+use crate::constructions::coordination::CoordinatedNominalPhrase;
+use crate::constructions::coordination::CoordinatedNounPhrase;
 use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::word::Adjective;
@@ -642,29 +644,9 @@ pub enum PartitiveHead {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct CoordinatedNounPhrase {
-    pub first: Box<NounPhrase>,
-    pub rest: Vec<NounPhraseCoordination>,
-}
-
-/// Nominal material coordinated under one shared determiner. Every member's
-/// own [`NominalPhrase::determiner`] is `None`; the sole determiner lives here
-/// so no conjunct is privileged as its accidental carrier.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct CoordinatedNominalPhrase {
-    pub determiner: Determiner,
-    pub first: Box<NominalPhrase>,
-    pub rest: Vec<NominalPhraseCoordination>,
-    /// Postmodifiers whose semantic host is the completed coordination rather
-    /// than its final member (`an Elf or Orc you control`).
-    pub complements: Vec<NominalComplement>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhraseCoordination {
     #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
     pub conjunction: Option<Conjunction>,
-    pub comma: Comma,
     pub phrase: NominalPhrase,
 }
 
@@ -676,7 +658,6 @@ pub struct NounPhraseCoordination {
     /// member and on the final Oxford member.
     #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
     pub conjunction: Option<Conjunction>,
-    pub comma: Comma,
     pub phrase: NounPhrase,
 }
 

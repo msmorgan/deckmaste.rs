@@ -107,6 +107,21 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                 }
             }
         }
+        for field in &element.fields {
+            if matches!(field.kind, FieldKind::SurfaceScalar { .. }) && element.bind_path.is_none()
+            {
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::InvalidElementShape,
+                        format!(
+                            "surface-only field `{}.{}` requires a bound semantic element",
+                            element.name.value, field.field.value,
+                        ),
+                    )
+                    .with_span(field.field.span),
+                );
+            }
+        }
     }
 
     let mut seen_ids: std::collections::HashMap<&str, proc_macro2::Span> =
@@ -253,6 +268,23 @@ fn check_element_shapes(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                         ),
                     )
                     .with_span(variant.name.span),
+                );
+            }
+        }
+    }
+    for construction in &group.constructions {
+        for field in construction.ast.fields() {
+            if matches!(field.kind, FieldKind::SurfaceScalar { .. }) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::InvalidElementShape,
+                        &construction.id.value,
+                        format!(
+                            "surface-only field `{}` is valid only inside a bound element",
+                            field.field.value,
+                        ),
+                    )
+                    .with_span(field.field.span),
                 );
             }
         }
@@ -456,7 +488,7 @@ fn collect_sequence_references<'a>(
     match kind {
         FieldKind::Sequence { element } => into.push((element, is_direct)),
         FieldKind::Optional { inner } => collect_sequence_references(inner, false, into),
-        FieldKind::Subtree { .. } | FieldKind::Scalar { .. } => {}
+        FieldKind::Subtree { .. } | FieldKind::Scalar { .. } | FieldKind::SurfaceScalar { .. } => {}
     }
 }
 
@@ -1005,7 +1037,11 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
         Resolved::Kind(FieldKind::Optional { inner }) => {
             matches!(**inner, FieldKind::Scalar { .. })
         }
-        Resolved::Kind(FieldKind::Subtree { .. } | FieldKind::Sequence { .. })
+        Resolved::Kind(
+            FieldKind::Subtree { .. }
+            | FieldKind::Sequence { .. }
+            | FieldKind::SurfaceScalar { .. },
+        )
         | Resolved::Element(_) => false,
     }
 }
@@ -1034,13 +1070,20 @@ fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
         Resolved::Kind(FieldKind::Scalar { codec }) => codec,
         Resolved::Kind(FieldKind::Optional { inner }) => match &**inner {
             FieldKind::Scalar { codec } => codec,
-            FieldKind::Optional { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
+            FieldKind::Optional { .. }
+            | FieldKind::Subtree { .. }
+            | FieldKind::Sequence { .. }
+            | FieldKind::SurfaceScalar { .. } => {
                 return Some(
                     "is not a scalar; `in [...]` compares a scalar codec against its variants",
                 );
             }
         },
-        Resolved::Kind(FieldKind::Subtree { .. } | FieldKind::Sequence { .. })
+        Resolved::Kind(
+            FieldKind::Subtree { .. }
+            | FieldKind::Sequence { .. }
+            | FieldKind::SurfaceScalar { .. },
+        )
         | Resolved::Element(_) => {
             return Some(
                 "is not a scalar; `in [...]` compares a scalar codec against its variants",
@@ -1637,7 +1680,7 @@ fn check_strata(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 
 fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
     let codec = match kind {
-        FieldKind::Scalar { codec } => codec,
+        FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => codec,
         FieldKind::Optional { inner } => return codec_site(id, inner, diags),
         FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
     };
@@ -1658,7 +1701,7 @@ fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
 
 fn element_codec_site(kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
     let codec = match kind {
-        FieldKind::Scalar { codec } => codec,
+        FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => codec,
         FieldKind::Optional { inner } => return element_codec_site(inner, diags),
         FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
     };
@@ -1757,6 +1800,41 @@ mod tests {
         let group = minimal_group();
         let validated = validate(&group).expect("minimal group is valid");
         assert_eq!(validated.group().constructions.len(), 1);
+    }
+
+    #[test]
+    fn surface_scalar_requires_a_bound_semantic_element() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group invalid_surface_field;
+            element member {
+                comma: surface lex Comma,
+            }
+        })
+        .expect("surface-only scalar syntax parses before semantic validation");
+        let err = validate(&group).expect_err("owned elements cannot erase declared fields");
+        assert_eq!(codes(&err), vec!["EC008"]);
+        assert_eq!(
+            message_for(&err, "EC008"),
+            "surface-only field `member.comma` requires a bound semantic element",
+        );
+    }
+
+    #[test]
+    fn surface_scalar_is_rejected_on_a_construction_field() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group invalid_surface_field;
+            construction c: Phrase {
+                own Node { comma: surface lex Comma, }
+                form only @ 0 = lex(comma);
+            }
+        })
+        .expect("surface-only scalar syntax parses before semantic validation");
+        let err = validate(&group).expect_err("surface derivation needs sequence position");
+        assert!(codes(&err).contains(&"EC008"));
+        assert_eq!(
+            message_for(&err, "EC008"),
+            "surface-only field `comma` is valid only inside a bound element",
+        );
     }
 
     fn codes(err: &[crate::diag::Diagnostic]) -> Vec<&'static str> {

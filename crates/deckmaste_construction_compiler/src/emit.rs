@@ -147,7 +147,7 @@ fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
     match kind {
         FieldKind::Sequence { element } => queue.push(element.value.as_str()),
         FieldKind::Optional { inner } => enqueue_sequences(inner, queue),
-        FieldKind::Subtree { .. } | FieldKind::Scalar { .. } => {}
+        FieldKind::Subtree { .. } | FieldKind::Scalar { .. } | FieldKind::SurfaceScalar { .. } => {}
     }
 }
 
@@ -169,13 +169,16 @@ fn element_item(
         };
     }
     let parts = quote::format_ident!("__parts_{}", element.name.value);
-    let field_names: Vec<proc_macro2::Ident> = element
+    let semantic_fields = element
         .fields
+        .iter()
+        .filter(|binding| !matches!(binding.kind, FieldKind::SurfaceScalar { .. }))
+        .collect::<Vec<_>>();
+    let field_names: Vec<proc_macro2::Ident> = semantic_fields
         .iter()
         .map(|binding| quote::format_ident!("{}", binding.field.value))
         .collect();
-    let field_types: Vec<TokenStream> = element
-        .fields
+    let field_types: Vec<TokenStream> = semantic_fields
         .iter()
         .map(|binding| field_type(group, &binding.kind))
         .collect();
@@ -257,6 +260,7 @@ fn owned_element_struct(
     let fields: Vec<TokenStream> = element
         .fields
         .iter()
+        .filter(|binding| !matches!(binding.kind, FieldKind::SurfaceScalar { .. }))
         .map(|binding| {
             let field = quote::format_ident!("{}", binding.field.value);
             let ty = field_type(group, &binding.kind);
@@ -289,7 +293,11 @@ fn erased_field_reads(
     fields
         .iter()
         .map(|binding| {
-            let field = quote::format_ident!("{}", binding.field.value);
+            let field = if matches!(binding.kind, FieldKind::SurfaceScalar { .. }) {
+                quote::format_ident!("_{}", binding.field.value)
+            } else {
+                quote::format_ident!("{}", binding.field.value)
+            };
             let field_name = binding.field.value.as_str();
             let ty = field_type(group, &binding.kind);
             quote! {
@@ -376,6 +384,7 @@ fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaratio
     let fields: Vec<proc_macro2::Ident> = element
         .fields
         .iter()
+        .filter(|binding| !matches!(binding.kind, FieldKind::SurfaceScalar { .. }))
         .map(|binding| quote::format_ident!("{}", binding.field.value))
         .collect();
     quote! {
@@ -757,13 +766,22 @@ fn visit_kind(
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
+        FieldKind::SurfaceScalar { .. } => {
+            unreachable!("surface-only scalars are emitted with sequence position context")
+        }
         FieldKind::Sequence { element } => {
             let element_declaration = group
                 .elements
                 .iter()
                 .find(|candidate| candidate.name.value == element.value)
                 .expect("validated: EC003 rejects a sequence naming an undeclared element");
-            let member = visit_element(group, element_declaration, &quote! { member });
+            let member = visit_element(
+                group,
+                element_declaration,
+                &quote! { member },
+                &quote! { index },
+                &quote! { (#accessor).len() },
+            );
             quote! {
                 visitor
                     .begin_sequence(#label, (#accessor).len())
@@ -797,6 +815,8 @@ fn visit_element(
     group: &GroupDeclaration,
     element: &ElementDeclaration,
     accessor: &TokenStream,
+    sequence_index: &TokenStream,
+    sequence_len: &TokenStream,
 ) -> TokenStream {
     let element_name = element.name.value.as_str();
     let structural_visit = if element.variants.is_empty() {
@@ -804,9 +824,23 @@ fn visit_element(
             .fields
             .iter()
             .map(|binding| {
-                let field = quote::format_ident!("{}", binding.field.value);
                 let label = format!("{}.{}", element.name.value, binding.field.value);
-                visit_kind(group, &quote! { &#accessor.#field }, &label, &binding.kind)
+                if let FieldKind::SurfaceScalar { codec } = &binding.kind {
+                    let codec = codec.value.as_str();
+                    quote! {
+                        visitor
+                            .derived_sequence_scalar(
+                                #label,
+                                #codec,
+                                #sequence_index,
+                                #sequence_len,
+                            )
+                            .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                    }
+                } else {
+                    let field = quote::format_ident!("{}", binding.field.value);
+                    visit_kind(group, &quote! { &#accessor.#field }, &label, &binding.kind)
+                }
             })
             .collect();
         quote! { #(#fields)* }
@@ -947,6 +981,10 @@ fn field_type(group: &GroupDeclaration, kind: &FieldKind) -> TokenStream {
             }
         }
         FieldKind::Scalar { codec } => {
+            let ty = parse_type(&codec.value);
+            quote! { #ty }
+        }
+        FieldKind::SurfaceScalar { codec } => {
             let ty = parse_type(&codec.value);
             quote! { #ty }
         }
@@ -1180,7 +1218,9 @@ fn codec_of(fields: &[FieldBinding], field_name: &str) -> TokenStream {
                 "validated: EC015 guarantees an In-predicate path resolves to a scalar kind"
             ),
         },
-        FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
+        FieldKind::Subtree { .. }
+        | FieldKind::Sequence { .. }
+        | FieldKind::SurfaceScalar { .. } => {
             unreachable!(
                 "validated: EC015 guarantees an In-predicate path resolves to a scalar kind"
             )
@@ -1449,6 +1489,10 @@ fn field_kind_row(kind: &FieldKind) -> TokenStream {
             let codec = codec.value.as_str();
             quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar { codec: #codec } }
         }
+        FieldKind::SurfaceScalar { codec } => {
+            let codec = codec.value.as_str();
+            quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::SurfaceScalar { codec: #codec } }
+        }
         FieldKind::Sequence { element } => {
             let element = element.value.as_str();
             quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Sequence { element: #element } }
@@ -1531,6 +1575,10 @@ mod tests {
         assert!(
             !rendered.contains("pub conjunction"),
             "construction fields stay private"
+        );
+        assert!(
+            !rendered.contains("_mut(&mut self)"),
+            "validated values have no mutation bypass"
         );
     }
 
@@ -1738,6 +1786,50 @@ mod tests {
                 && rendered.contains("ElementVariantData")
                 && rendered.contains("name: \"EventClause\""),
             "runtime declaration metadata carries ordered variant rows: {rendered}",
+        );
+    }
+
+    #[test]
+    fn bound_element_surface_scalar_is_consumed_but_not_stored() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group surface_fields;
+            element member bind Member {
+                comma: surface lex Comma,
+                phrase: hole Phrase,
+            }
+            construction list: Phrase {
+                own List {
+                    first: hole box Phrase,
+                    rest: seq member,
+                }
+                require rest.len() >= 1;
+                form only @ 0 = first rest;
+            }
+        })
+        .expect("surface-only scalar fixture parses");
+        let validated = validate(&group).expect("surface-only scalar fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        let compact = rendered
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>();
+        assert!(
+            compact.contains("letMember{phrase}=value;"),
+            "the exhaustive semantic destructurer omits the surface field: {rendered}",
+        );
+        assert!(
+            compact.contains("let_comma:Comma=")
+                && compact.contains("Ok(Box::new(Member{phrase}))"),
+            "the erased builder consumes comma but excludes it from the semantic struct: {rendered}",
+        );
+        assert!(
+            compact.contains("derived_sequence_scalar(")
+                && compact.contains("\"member.comma\",\"Comma\",index,(rest).len(),"),
+            "linearization derives the surface scalar from sequence position: {rendered}",
+        );
+        assert!(
+            compact.contains("FieldKindData::SurfaceScalar{codec:\"Comma\","),
+            "runtime metadata retains the surface codec: {rendered}",
         );
     }
 

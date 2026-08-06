@@ -3260,17 +3260,17 @@ mod tests {
                 imperative: Predicate::Transitive(TransitivePredicate {
                     kind: Transitive {
                         object: PredicateObject::NounPhrase(NounPhrase::Coordinated(
-                            CoordinatedNounPhrase { first, rest }
+                            coordinated
                         )),
                         ..
                     },
                     ..
                 }),
             }) if matches!(
-                first.as_ref(),
+                coordinated.first().as_ref(),
                 NounPhrase::Quantity(Quantity::Exact(number)) if number.value == 1
             ) && matches!(
-                rest.as_slice(),
+                coordinated.rest().as_slice(),
                 [NounPhraseCoordination {
                     phrase: NounPhrase::Quantity(Quantity::Both),
                     ..

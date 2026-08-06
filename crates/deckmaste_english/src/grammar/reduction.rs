@@ -107,9 +107,6 @@ pub(super) fn reduce(
         | RuleTag::NominalCoordinatedModifier => reduce_nominal(tag, children)?,
         RuleTag::NounPhraseNominal
         | RuleTag::RulesObjectNounPhrase
-        | RuleTag::NounPhraseDamageCoordination
-        | RuleTag::SharedDeterminerNominal
-        | RuleTag::NounPhraseSharedDeterminer
         | RuleTag::NounPhraseSetExceptionBare
         | RuleTag::NounPhraseSetExceptionFor
         | RuleTag::ReducedRecipientPassiveTheme
@@ -124,18 +121,11 @@ pub(super) fn reduce(
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseAnyNumberOf
-        | RuleTag::NounPhraseCoordination
         | RuleTag::NounPhraseAdditiveCoordination
-        | RuleTag::NounPhraseListSingle
-        | RuleTag::NounPhraseListComma
-        | RuleTag::NounPhraseCoordinationOxford
         | RuleTag::NounPhraseMinus
         | RuleTag::NounPhraseHalf
         | RuleTag::NounPhraseHalfRoundedUp
         | RuleTag::NounPhraseHalfRoundedDown
-        | RuleTag::PrepositionalPhraseCoordinated
-        | RuleTag::PrepositionalPhraseRulesObjectCoordinated
-        | RuleTag::PrepositionalPhraseSharedDeterminer
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalPhraseListPair
         | RuleTag::PrepositionalPhraseListComma
@@ -304,6 +294,7 @@ pub(super) fn reduce_possessive_noun_phrase(
         RuleTag::DeterminerPossessiveNoun => Some(Features::Determiner {
             cardinality: NounCardinality::Unconstrained,
             article: None,
+            demonstrative_this: false,
             set_exception_host: false,
         }),
         RuleTag::PossessiveNounAdjective => {
@@ -314,6 +305,7 @@ pub(super) fn reduce_possessive_noun_phrase(
                     | AdjectiveComparisonState::Pending(_)
                     | AdjectiveComparisonState::Complete,
                 card_orientation: false,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -372,6 +364,7 @@ pub(super) fn reduce_quantity_or_determiner(
             let Features::Determiner {
                 cardinality,
                 article,
+                demonstrative_this,
                 set_exception_host,
             } = children.first()?.features
             else {
@@ -380,12 +373,14 @@ pub(super) fn reduce_quantity_or_determiner(
             Some(Features::Determiner {
                 cardinality: *cardinality,
                 article: *article,
+                demonstrative_this: *demonstrative_this,
                 set_exception_host: *set_exception_host,
             })
         }
         RuleTag::DeterminerTarget => Some(Features::Determiner {
             cardinality: NounCardinality::SingularCount,
             article: None,
+            demonstrative_this: false,
             set_exception_host: false,
         }),
         RuleTag::DeterminerQuantifiedTarget => {
@@ -397,6 +392,7 @@ pub(super) fn reduce_quantity_or_determiner(
             Some(Features::Determiner {
                 cardinality: target_cardinality(*cardinality),
                 article: None,
+                demonstrative_this: false,
                 set_exception_host: false,
             })
         }
@@ -409,6 +405,7 @@ pub(super) fn reduce_quantity_or_determiner(
             Some(Features::Determiner {
                 cardinality: *cardinality,
                 article: None,
+                demonstrative_this: false,
                 set_exception_host: false,
             })
         }
@@ -419,6 +416,7 @@ pub(super) fn reduce_quantity_or_determiner(
             Some(Features::Determiner {
                 cardinality: NounCardinality::Unconstrained,
                 article: None,
+                demonstrative_this: false,
                 set_exception_host: false,
             })
         }
@@ -438,6 +436,8 @@ pub(super) const fn arithmetic_value_features() -> Features {
         adjunct: None,
         set_exception: SetExceptionState::Ineligible,
         coordination: NounPhraseCoordinationState::None,
+        recipient_passive_theme: false,
+        rules_object_followup: false,
     }
 }
 
@@ -479,6 +479,7 @@ pub(super) fn reduce_nominal(
                 initial_sound: InitialSound::Consonant,
                 comparison: AdjectiveComparisonState::NotComparative,
                 card_orientation: true,
+                demonstrative_shared_determiner: true,
             })
         }
         RuleTag::AdjectivePhrase => {
@@ -492,6 +493,7 @@ pub(super) fn reduce_nominal(
                 initial_sound,
                 comparison: AdjectiveComparisonState::Pending(_),
                 card_orientation,
+                demonstrative_shared_determiner,
             } = children.first()?.features
             else {
                 return None;
@@ -500,6 +502,7 @@ pub(super) fn reduce_nominal(
                 initial_sound: *initial_sound,
                 comparison: AdjectiveComparisonState::Complete,
                 card_orientation: *card_orientation,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
             })
         }
         RuleTag::AdjectivePhraseDegreeMeasure => {
@@ -514,6 +517,7 @@ pub(super) fn reduce_nominal(
                 comparison:
                     AdjectiveComparisonState::Pending(AdjectiveComparisonClass::OrComparative),
                 card_orientation: false,
+                demonstrative_shared_determiner,
             } = children.get(1)?.features
             else {
                 return None;
@@ -525,6 +529,7 @@ pub(super) fn reduce_nominal(
                 initial_sound: *initial_sound,
                 comparison: AdjectiveComparisonState::Measured,
                 card_orientation: false,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
             })
         }
         RuleTag::ComparisonStandard
@@ -555,6 +560,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque,
                 set_exception_host: false,
+                shared_determiner_open: true,
+                demonstrative_shared_determiner: true,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -563,11 +570,18 @@ pub(super) fn reduce_nominal(
                 initial_sound,
                 comparison,
                 card_orientation: false,
+                demonstrative_shared_determiner,
             } = children.first()?.features
             else {
                 return None;
             };
-            nominal_with_prefix(children.get(1)?, *initial_sound, false, *comparison)
+            nominal_with_prefix(
+                children.get(1)?,
+                *initial_sound,
+                false,
+                *comparison,
+                *demonstrative_shared_determiner,
+            )
         }
         RuleTag::NominalCombatStepName => {
             // Mirrors `NominalNoun`'s Noun→Nominal base case (this rule
@@ -596,6 +610,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: false,
                 set_exception_host: false,
+                shared_determiner_open: true,
+                demonstrative_shared_determiner: true,
                 recipient_passive_theme: false,
             })
         }
@@ -619,6 +635,7 @@ pub(super) fn reduce_nominal(
                 *initial_sound,
                 false,
                 AdjectiveComparisonState::NotComparative,
+                true,
             )
         }
         RuleTag::NominalQuantityModifier => {
@@ -637,6 +654,7 @@ pub(super) fn reduce_nominal(
                 InitialSound::Consonant,
                 false,
                 AdjectiveComparisonState::NotComparative,
+                true,
             )
         }
         RuleTag::NominalPowerToughnessModifier => {
@@ -648,6 +666,7 @@ pub(super) fn reduce_nominal(
                 *initial_sound,
                 false,
                 AdjectiveComparisonState::NotComparative,
+                true,
             )
         }
         RuleTag::NominalNegatedModifier => {
@@ -658,6 +677,7 @@ pub(super) fn reduce_nominal(
                 InitialSound::Consonant,
                 false,
                 AdjectiveComparisonState::NotComparative,
+                true,
             )
         }
         RuleTag::NominalDeterminer => {
@@ -665,6 +685,7 @@ pub(super) fn reduce_nominal(
                 cardinality,
                 article,
                 set_exception_host,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -679,6 +700,8 @@ pub(super) fn reduce_nominal(
                 comparison,
                 adjunct,
                 opaque_head,
+                shared_determiner_open,
+                demonstrative_shared_determiner,
                 recipient_passive_theme,
                 ..
             } = children.get(1)?.features
@@ -703,6 +726,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
+                shared_determiner_open: *shared_determiner_open,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -719,6 +744,8 @@ pub(super) fn reduce_nominal(
                 adjunct,
                 opaque_head,
                 set_exception_host,
+                shared_determiner_open: _,
+                demonstrative_shared_determiner,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -754,6 +781,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
+                shared_determiner_open: false,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -770,6 +799,8 @@ pub(super) fn reduce_nominal(
                 adjunct,
                 opaque_head,
                 set_exception_host,
+                shared_determiner_open: _,
+                demonstrative_shared_determiner,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -800,6 +831,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
+                shared_determiner_open: false,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -832,6 +865,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: false,
                 set_exception_host: false,
+                shared_determiner_open: true,
+                demonstrative_shared_determiner: true,
                 recipient_passive_theme: false,
             })
         }
@@ -889,6 +924,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: false,
                 set_exception_host: false,
+                shared_determiner_open: true,
+                demonstrative_shared_determiner: true,
                 recipient_passive_theme: false,
             })
         }
@@ -919,6 +956,8 @@ pub(super) fn reduce_nominal(
                 adjunct,
                 opaque_head,
                 set_exception_host,
+                shared_determiner_open,
+                demonstrative_shared_determiner,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -1012,6 +1051,9 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
+                shared_determiner_open: *shared_determiner_open
+                    && !(is_relative && *form != NounForm::Singular),
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -1028,6 +1070,8 @@ pub(super) fn reduce_nominal(
                 adjunct,
                 opaque_head,
                 set_exception_host,
+                shared_determiner_open,
+                demonstrative_shared_determiner,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -1053,6 +1097,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
+                shared_determiner_open: *shared_determiner_open,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -1082,6 +1128,8 @@ pub(super) fn reduce_nominal(
                 adjunct,
                 opaque_head,
                 set_exception_host,
+                shared_determiner_open,
+                demonstrative_shared_determiner,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -1099,6 +1147,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
+                shared_determiner_open: *shared_determiner_open,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -1144,6 +1194,8 @@ pub(super) fn reduce_nominal(
                 adjunct,
                 opaque_head,
                 set_exception_host,
+                shared_determiner_open,
+                demonstrative_shared_determiner,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -1161,6 +1213,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
+                shared_determiner_open: *shared_determiner_open,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -1178,6 +1232,8 @@ pub(super) fn reduce_nominal(
                 adjunct,
                 opaque_head,
                 set_exception_host,
+                shared_determiner_open,
+                demonstrative_shared_determiner,
                 recipient_passive_theme,
             } = children.first()?.features
             else {
@@ -1195,6 +1251,8 @@ pub(super) fn reduce_nominal(
                 adjunct: *adjunct,
                 opaque_head: *opaque_head,
                 set_exception_host: *set_exception_host,
+                shared_determiner_open: *shared_determiner_open,
+                demonstrative_shared_determiner: *demonstrative_shared_determiner,
                 recipient_passive_theme: *recipient_passive_theme,
             })
         }
@@ -1230,6 +1288,8 @@ pub(super) fn reduce_nominal(
                 adjunct: None,
                 opaque_head: false,
                 set_exception_host: false,
+                shared_determiner_open: false,
+                demonstrative_shared_determiner: true,
                 recipient_passive_theme: false,
             })
         }
@@ -1254,6 +1314,8 @@ pub(super) fn reduce_nominal(
                 adjunct: None,
                 opaque_head: false,
                 set_exception_host: false,
+                shared_determiner_open: false,
+                demonstrative_shared_determiner: true,
                 recipient_passive_theme: false,
             })
         }
@@ -1265,6 +1327,7 @@ pub(super) fn reduce_nominal(
                 initial_sound,
                 comparison: AdjectiveComparisonState::NotComparative,
                 card_orientation: false,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -1393,6 +1456,7 @@ pub(super) fn reduce_nominal(
                 *initial_sound,
                 false,
                 AdjectiveComparisonState::NotComparative,
+                true,
             )
         }
         _ => None,
@@ -1408,143 +1472,6 @@ pub(super) fn reduce_phrase(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::NounPhraseDamageCoordination => {
-            let Features::Nominal {
-                adjunct: first_adjunct,
-                recipient_passive_theme: true,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::Conjunction(conjunction) = children.get(1)?.features else {
-                return None;
-            };
-            let Features::Nominal {
-                form: next_form,
-                adjunct: next_adjunct,
-                recipient_passive_theme: true,
-                ..
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            let agreement = match conjunction {
-                Conjunction::And => Some(Agreement {
-                    person: Person::Third,
-                    number: Number::Plural,
-                }),
-                Conjunction::Or | Conjunction::AndOr => Some(Agreement {
-                    person: Person::Third,
-                    number: match next_form {
-                        NounForm::Plural => Number::Plural,
-                        NounForm::Singular | NounForm::Mass => Number::Singular,
-                    },
-                }),
-                Conjunction::Then | Conjunction::Plus => return None,
-            };
-            Some(Features::NounPhrase {
-                agreement,
-                pronoun_case: None,
-                adjunct: (*first_adjunct == *next_adjunct)
-                    .then_some(*first_adjunct)
-                    .flatten(),
-                set_exception: SetExceptionState::Ineligible,
-                coordination: NounPhraseCoordinationState::Binary(*conjunction),
-            })
-        }
-        RuleTag::SharedDeterminerNominal => {
-            let Features::Determiner {
-                cardinality,
-                article,
-                set_exception_host,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let (first_form, first_initial_sound, first_adjunct, first_modified) =
-                match children.get(1)?.features {
-                    Features::Noun {
-                        form,
-                        initial_sound,
-                        adjunct,
-                        ..
-                    } => (*form, *initial_sound, *adjunct, false),
-                    Features::Nominal {
-                        form,
-                        initial_sound,
-                        determined: false,
-                        modified: true,
-                        adjunct,
-                        ..
-                    } => (*form, *initial_sound, *adjunct, true),
-                    _ => return None,
-                };
-            let Features::Conjunction(conjunction) = children.get(2)?.features else {
-                return None;
-            };
-            let (next_form, next_initial_sound, next_adjunct, next_modified) =
-                match children.get(3)?.features {
-                    Features::Noun {
-                        form,
-                        initial_sound,
-                        adjunct,
-                        ..
-                    } => (*form, *initial_sound, *adjunct, false),
-                    Features::Nominal {
-                        form,
-                        initial_sound,
-                        determined: false,
-                        modified: true,
-                        adjunct,
-                        ..
-                    } => (*form, *initial_sound, *adjunct, true),
-                    _ => return None,
-                };
-            if first_modified != next_modified {
-                return None;
-            }
-            if !cardinality_accepts(*cardinality, first_form)
-                || !cardinality_accepts(*cardinality, next_form)
-                || !article_accepts(*article, first_initial_sound)
-                || !article_accepts(*article, next_initial_sound)
-            {
-                return None;
-            }
-            let agreement = match conjunction {
-                Conjunction::And => Some(Agreement {
-                    person: Person::Third,
-                    number: Number::Plural,
-                }),
-                Conjunction::Or | Conjunction::AndOr => Some(Agreement {
-                    person: Person::Third,
-                    number: match next_form {
-                        NounForm::Plural => Number::Plural,
-                        NounForm::Singular | NounForm::Mass => Number::Singular,
-                    },
-                }),
-                Conjunction::Then | Conjunction::Plus => return None,
-            };
-            Some(Features::NounPhrase {
-                agreement,
-                pronoun_case: None,
-                adjunct: (first_adjunct == next_adjunct)
-                    .then_some(first_adjunct)
-                    .flatten(),
-                set_exception: if *set_exception_host {
-                    SetExceptionState::Host
-                } else {
-                    SetExceptionState::Ineligible
-                },
-                coordination: NounPhraseCoordinationState::Shared,
-            })
-        }
-        RuleTag::NounPhraseSharedDeterminer => {
-            let Features::NounPhrase { .. } = children.first()?.features else {
-                return None;
-            };
-            Some(propagate(children.first()?))
-        }
         RuleTag::NounPhraseSetExceptionBare | RuleTag::NounPhraseSetExceptionFor => {
             let host = children.first()?;
             if !noun_phrase_accepts_set_exception(host.features)
@@ -1567,6 +1494,8 @@ pub(super) fn reduce_phrase(
                 adjunct: *adjunct,
                 set_exception: SetExceptionState::Closed,
                 coordination: NounPhraseCoordinationState::None,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             })
         }
         RuleTag::NounPhraseNominal
@@ -1613,6 +1542,8 @@ pub(super) fn reduce_phrase(
                     SetExceptionState::Ineligible
                 },
                 coordination: NounPhraseCoordinationState::None,
+                recipient_passive_theme: *recipient_passive_theme,
+                rules_object_followup: tag == RuleTag::RulesObjectNounPhrase,
             })
         }
         RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
@@ -1635,6 +1566,8 @@ pub(super) fn reduce_phrase(
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
                 coordination: NounPhraseCoordinationState::None,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             })
         }
         RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
@@ -1644,6 +1577,8 @@ pub(super) fn reduce_phrase(
                 adjunct,
                 set_exception,
                 coordination,
+                recipient_passive_theme,
+                rules_object_followup,
             } = children.first()?.features
             else {
                 return None;
@@ -1654,6 +1589,8 @@ pub(super) fn reduce_phrase(
                 adjunct: *adjunct,
                 set_exception: *set_exception,
                 coordination: *coordination,
+                recipient_passive_theme: *recipient_passive_theme,
+                rules_object_followup: *rules_object_followup,
             })
         }
         RuleTag::NounPhrasePossessiveThisCard => {
@@ -1666,6 +1603,8 @@ pub(super) fn reduce_phrase(
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
                 coordination: NounPhraseCoordinationState::None,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             })
         }
         RuleTag::NounPhraseDemonstrative => {
@@ -1690,6 +1629,8 @@ pub(super) fn reduce_phrase(
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
                 coordination: NounPhraseCoordinationState::None,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             })
         }
         RuleTag::NounPhraseEachPartitive => {
@@ -1707,6 +1648,8 @@ pub(super) fn reduce_phrase(
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
                 coordination: NounPhraseCoordinationState::None,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             })
         }
         RuleTag::NounPhraseAnyNumberOf => {
@@ -1749,11 +1692,13 @@ pub(super) fn reduce_phrase(
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
                 coordination: NounPhraseCoordinationState::None,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             })
         }
-        RuleTag::NounPhraseCoordination
-        | RuleTag::NounPhraseAdditiveCoordination
-        | RuleTag::NounPhraseCoordinationOxford => reduce_noun_phrase_coordination(tag, children),
+        RuleTag::NounPhraseAdditiveCoordination => {
+            reduce_noun_phrase_additive_coordination(children)
+        }
         RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma => {
             let Features::PrepositionalPhrase { .. } = children.first()?.features else {
                 return None;
@@ -1798,23 +1743,6 @@ pub(super) fn reduce_phrase(
                 nearer_relative_host: *nearer_relative_host,
             })
         }
-        RuleTag::NounPhraseListSingle => {
-            let Features::NounPhrase { .. } = children.first()?.features else {
-                return None;
-            };
-            Some(children.first()?.features.clone())
-        }
-        RuleTag::NounPhraseListComma => {
-            // The run keeps its first member's agreement; the closing rule
-            // recomputes the coordinated agreement from the final conjunction.
-            let Features::NounPhrase { .. } = children.first()?.features else {
-                return None;
-            };
-            let Features::NounPhrase { .. } = children.get(2)?.features else {
-                return None;
-            };
-            Some(children.first()?.features.clone())
-        }
         RuleTag::NounPhraseMinus => {
             // Both operands must be noun-phrase values; the result is a
             // singular numeric value.
@@ -1833,24 +1761,6 @@ pub(super) fn reduce_phrase(
                 return None;
             };
             Some(arithmetic_value_features())
-        }
-        RuleTag::PrepositionalPhraseCoordinated
-        | RuleTag::PrepositionalPhraseRulesObjectCoordinated => {
-            reduce_coordinated_prepositional_phrase(tag, children)
-        }
-        RuleTag::PrepositionalPhraseSharedDeterminer => {
-            let Features::Preposition(preposition) = children.first()?.features else {
-                return None;
-            };
-            let Features::NounPhrase { .. } = children.get(1)?.features else {
-                return None;
-            };
-            Some(Features::PrepositionalPhrase {
-                preposition: *preposition,
-                nominal_attachment: true,
-                shared_determiner_object: true,
-                nearer_relative_host: false,
-            })
         }
         RuleTag::PrepositionalPhrase => {
             let Features::Preposition(preposition) = children.first()?.features else {
@@ -1884,77 +1794,26 @@ pub(super) fn reduce_phrase(
     }
 }
 
-fn reduce_coordinated_prepositional_phrase(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    let (conjunction_index, next_index) = if children.len() == 5 { (3, 4) } else { (2, 3) };
-    let Features::Preposition(preposition) = children.first()?.features else {
-        return None;
-    };
-    let Features::NounPhrase { .. } = children.get(1)?.features else {
-        return None;
-    };
-    let Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::AndOr) =
-        children.get(conjunction_index)?.features
-    else {
-        return None;
-    };
-    let Features::NounPhrase { set_exception, .. } = children.get(next_index)?.features else {
-        return None;
-    };
-    if tag == RuleTag::PrepositionalPhraseCoordinated {
-        let binary_set_object = children.len() == 4
-            && matches!(preposition, Preposition::To | Preposition::From)
-            && *set_exception == SetExceptionState::Host;
-        let among_option_list = children.len() == 5 && *preposition == Preposition::Among;
-        if !binary_set_object && !among_option_list {
-            return None;
-        }
-    }
-    Some(Features::PrepositionalPhrase {
-        preposition: *preposition,
-        nominal_attachment: true,
-        shared_determiner_object: false,
-        nearer_relative_host: *preposition == Preposition::To,
-    })
-}
-
-pub(super) fn reduce_noun_phrase_coordination(
-    tag: RuleTag,
+fn reduce_noun_phrase_additive_coordination(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     let Features::NounPhrase {
         agreement: first_agreement,
         adjunct: first_adjunct,
         set_exception,
+        recipient_passive_theme: first_theme,
         ..
     } = children.first()?.features
     else {
         return None;
     };
-    // The Oxford close reads its conjunction after the comma (`, or`), so its
-    // conjunction and next member sit one slot later than the binary rule.
-    let (conjunction_index, next_index) =
-        if tag == RuleTag::NounPhraseCoordinationOxford { (2, 3) } else { (1, 2) };
-    let conjunction = if tag == RuleTag::NounPhraseAdditiveCoordination {
-        Conjunction::Plus
-    } else {
-        let Features::Conjunction(conjunction) = children.get(conjunction_index)?.features else {
-            return None;
-        };
-        match conjunction {
-            Conjunction::And | Conjunction::Or | Conjunction::AndOr => *conjunction,
-            // `then` and lexical `plus` never enter ordinary noun-phrase
-            // coordination; additive productions introduce `Plus` directly.
-            Conjunction::Then | Conjunction::Plus => return None,
-        }
-    };
+    let conjunction = Conjunction::Plus;
     let Features::NounPhrase {
         agreement: next_agreement,
         adjunct: next_adjunct,
+        recipient_passive_theme: next_theme,
         ..
-    } = children.get(next_index)?.features
+    } = children.get(2)?.features
     else {
         return None;
     };
@@ -1974,11 +1833,9 @@ pub(super) fn reduce_noun_phrase_coordination(
             .then_some(*first_adjunct)
             .flatten(),
         set_exception: *set_exception,
-        coordination: if tag == RuleTag::NounPhraseCoordinationOxford {
-            NounPhraseCoordinationState::Oxford(conjunction)
-        } else {
-            NounPhraseCoordinationState::Binary(conjunction)
-        },
+        coordination: NounPhraseCoordinationState::Binary(conjunction),
+        recipient_passive_theme: *first_theme && *next_theme,
+        rules_object_followup: false,
     })
 }
 
@@ -2085,7 +1942,15 @@ pub(super) fn reduce_generated(
 
     let construction = rule.group.constructions.get(rule.construction)?;
     let form = construction.forms.get(rule.form)?;
-    let mut child_index = 0_usize;
+    let (preposition, mut child_index) = match rule.context {
+        super::rules::GeneratedRuleContext::Value => (None, 0_usize),
+        super::rules::GeneratedRuleContext::SharedPreposition => {
+            let Features::Preposition(preposition) = children.first()?.features else {
+                return None;
+            };
+            (Some(*preposition), 1_usize)
+        }
+    };
     let mut fields = vec![None; construction.fields.len()];
     for (atom_index, atom) in form.atoms.iter().enumerate() {
         if matches!(atom, AtomData::Literal(_)) {
@@ -2113,27 +1978,169 @@ pub(super) fn reduce_generated(
     if child_index != children.len() {
         return None;
     }
-    let features = match construction.feature_combinators {
+    if !generated_surface_sequence_scalars_match(rule, &fields) {
+        return None;
+    }
+    let noun_phrase_features = match construction.feature_combinators {
         [] => Features::None,
         [feature] if feature.combinator == "noun_phrase_coordination" => {
             noun_phrase_coordination_features(construction.id, &fields)?
         }
         _ => return None,
     };
-    let local_cost = if construction.id == "shared_determiner_nominal"
-        && generated_complements_include_keyword_argument(rule, &fields)
-    {
-        super::ParseCost {
-            precedence: 1,
-            ..super::ParseCost::default()
+    let features = match (rule.context, preposition) {
+        (super::rules::GeneratedRuleContext::Value, None) => noun_phrase_features,
+        (super::rules::GeneratedRuleContext::SharedPreposition, Some(preposition)) => {
+            generated_prepositional_coordination_features(construction.id, preposition, &fields)?
         }
-    } else {
-        super::ParseCost::default()
+        _ => return None,
+    };
+    let mut local_cost = super::ParseCost::default();
+    if rule.context == super::rules::GeneratedRuleContext::SharedPreposition {
+        local_cost.attachment_count = 1;
+    }
+    if construction.id == "shared_determiner_nominal" {
+        local_cost.attachment_count = local_cost
+            .attachment_count
+            .saturating_add(generated_relative_complement_count(rule, &fields));
+        if generated_complements_include_keyword_argument(rule, &fields) {
+            local_cost.precedence = 1;
+        }
     };
     Some(Reduction {
         features,
         local_cost,
     })
+}
+
+fn generated_relative_complement_count(
+    rule: super::rules::GeneratedRuleRef,
+    fields: &[Option<&Features>],
+) -> u32 {
+    if matches!(
+        fields.get(1).copied().flatten(),
+        Some(Features::Nominal {
+            attachment: NominalAttachmentPhase::Relative
+                | NominalAttachmentPhase::RulesObjectRelative
+                | NominalAttachmentPhase::RelativeBareCopula,
+            ..
+        })
+    ) {
+        // A relative before the conjunction establishes parallel member
+        // scope. Do not reward moving the closing member's relative onto the
+        // completed group in that shape.
+        return 0;
+    }
+    let Some(Features::GeneratedSequence { elements }) = fields.get(3).copied().flatten() else {
+        return 0;
+    };
+    let Some(element) = rule
+        .group
+        .element_data
+        .iter()
+        .find(|element| element.name == "nominal_complement")
+    else {
+        return 0;
+    };
+    u32::try_from(
+        elements
+            .iter()
+            .filter(|(features, _, variant)| {
+                variant
+                    .and_then(|variant| element.variants.get(variant))
+                    .is_some_and(|variant| variant.name == "Relative")
+                    && matches!(features.first(), Some(Features::RelativeClause { .. }))
+            })
+            .count(),
+    )
+    .unwrap_or(u32::MAX)
+}
+
+fn generated_prepositional_coordination_features(
+    construction: &str,
+    preposition: Preposition,
+    fields: &[Option<&Features>],
+) -> Option<Features> {
+    match construction {
+        "noun_phrase_coordination" => {
+            let Features::GeneratedSequence { elements } = fields.get(1)?.as_ref()? else {
+                return None;
+            };
+            let (last, _) = elements.split_last()?;
+            let Features::NounPhrase {
+                set_exception,
+                rules_object_followup,
+                ..
+            } = last.0.get(2)?
+            else {
+                return None;
+            };
+            let licensed_set_object = elements.len() == 1
+                && matches!(preposition, Preposition::To | Preposition::From)
+                && *set_exception == SetExceptionState::Host;
+            let licensed_among_list = elements.len() >= 2 && preposition == Preposition::Among;
+            if !*rules_object_followup && !licensed_set_object && !licensed_among_list {
+                return None;
+            }
+            Some(Features::PrepositionalPhrase {
+                preposition,
+                nominal_attachment: true,
+                shared_determiner_object: false,
+                nearer_relative_host: preposition == Preposition::To,
+            })
+        }
+        "shared_determiner_nominal" => Some(Features::PrepositionalPhrase {
+            preposition,
+            nominal_attachment: true,
+            shared_determiner_object: true,
+            nearer_relative_host: false,
+        }),
+        _ => None,
+    }
+}
+
+fn generated_surface_sequence_scalars_match(
+    rule: super::rules::GeneratedRuleRef,
+    fields: &[Option<&Features>],
+) -> bool {
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+
+    let Some(construction) = rule.group.constructions.get(rule.construction) else {
+        return false;
+    };
+    construction
+        .fields
+        .iter()
+        .enumerate()
+        .filter_map(|(field_index, field)| {
+            let FieldKindData::Sequence { element } = field.kind else {
+                return None;
+            };
+            let element = rule
+                .group
+                .element_data
+                .iter()
+                .find(|candidate| candidate.name == element)?;
+            element
+                .fields
+                .iter()
+                .enumerate()
+                .find_map(|(surface_index, field)| {
+                    matches!(field.kind, FieldKindData::SurfaceScalar { codec: "Comma" })
+                        .then_some((field_index, surface_index))
+                })
+        })
+        .all(|(field_index, comma_index)| {
+            let Some(Features::GeneratedSequence { elements }) =
+                fields.get(field_index).copied().flatten()
+            else {
+                return false;
+            };
+            let expected = elements.len() >= 2;
+            elements
+                .iter()
+                .all(|(_, present, _)| (*present & (1_u64 << comma_index) != 0) == expected)
+        })
 }
 
 fn generated_complements_include_keyword_argument(
@@ -2169,6 +2176,7 @@ fn noun_phrase_coordination_features(
                 adjunct: first_adjunct,
                 set_exception,
                 coordination: first_coordination,
+                recipient_passive_theme: first_theme,
                 ..
             } = fields.first()?.as_ref()?
             else {
@@ -2185,9 +2193,14 @@ fn noun_phrase_coordination_features(
             }
             let mut common_adjunct = *first_adjunct;
             let mut last_agreement = *first_agreement;
+            let mut all_themes = *first_theme;
+            let mut any_theme = *first_theme;
             for (element, _, _) in elements {
                 let Features::NounPhrase {
-                    agreement, adjunct, ..
+                    agreement,
+                    adjunct,
+                    recipient_passive_theme,
+                    ..
                 } = element.get(2)?
                 else {
                     return None;
@@ -2196,6 +2209,11 @@ fn noun_phrase_coordination_features(
                     common_adjunct = None;
                 }
                 last_agreement = *agreement;
+                all_themes &= *recipient_passive_theme;
+                any_theme |= *recipient_passive_theme;
+            }
+            if any_theme && !all_themes {
+                return None;
             }
             let conjunction = final_generated_conjunction(elements)?;
             Some(Features::NounPhrase {
@@ -2208,12 +2226,15 @@ fn noun_phrase_coordination_features(
                 } else {
                     NounPhraseCoordinationState::Binary(conjunction)
                 },
+                recipient_passive_theme: all_themes,
+                rules_object_followup: false,
             })
         }
         "shared_determiner_nominal" => {
             let Features::Determiner {
                 cardinality,
                 article,
+                demonstrative_this,
                 set_exception_host,
             } = fields.first()?.as_ref()?
             else {
@@ -2224,19 +2245,40 @@ fn noun_phrase_coordination_features(
                 return None;
             };
             generated_coordination_sequence_is_valid(elements)?;
-            let mut common_adjunct = first.2;
-            let mut last_form = first.0;
+            if !first.shared_determiner_open {
+                return None;
+            }
+            let mut common_adjunct = first.adjunct;
+            let mut last_form = first.form;
+            let mut members = Vec::with_capacity(elements.len());
             for (element, _, _) in elements {
                 let member = nominal_coordination_member(element.get(2)?)?;
-                if !generated_determiner_accepts(*cardinality, *article, member.0, member.1) {
+                if !generated_determiner_accepts(
+                    *cardinality,
+                    *article,
+                    member.form,
+                    member.initial_sound,
+                ) || *demonstrative_this && !member.demonstrative_shared_determiner
+                {
                     return None;
                 }
-                if common_adjunct != member.2 {
+                if common_adjunct != member.adjunct {
                     common_adjunct = None;
                 }
-                last_form = member.0;
+                last_form = member.form;
+                members.push(member);
             }
-            if !generated_determiner_accepts(*cardinality, *article, first.0, first.1) {
+            if members
+                .iter()
+                .take(members.len().saturating_sub(2))
+                .any(|member| !member.shared_determiner_open)
+                || !generated_determiner_accepts(
+                    *cardinality,
+                    *article,
+                    first.form,
+                    first.initial_sound,
+                )
+            {
                 return None;
             }
             let conjunction = final_generated_conjunction(elements)?;
@@ -2245,7 +2287,7 @@ fn noun_phrase_coordination_features(
                     conjunction,
                     Some(Agreement {
                         person: Person::Third,
-                        number: match first.0 {
+                        number: match first.form {
                             NounForm::Plural => Number::Plural,
                             NounForm::Singular | NounForm::Mass => Number::Singular,
                         },
@@ -2266,6 +2308,8 @@ fn noun_phrase_coordination_features(
                     SetExceptionState::Ineligible
                 },
                 coordination: NounPhraseCoordinationState::Shared,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             })
         }
         _ => None,
@@ -2323,23 +2367,43 @@ fn coordination_agreement(
     })
 }
 
-fn nominal_coordination_member(
-    features: &Features,
-) -> Option<(NounForm, InitialSound, Option<super::BareNominalAdjunct>)> {
+struct NominalCoordinationMember {
+    form: NounForm,
+    initial_sound: InitialSound,
+    adjunct: Option<super::BareNominalAdjunct>,
+    shared_determiner_open: bool,
+    demonstrative_shared_determiner: bool,
+}
+
+fn nominal_coordination_member(features: &Features) -> Option<NominalCoordinationMember> {
     match features {
         Features::Noun {
             form,
             initial_sound,
             adjunct,
             ..
-        } => Some((*form, *initial_sound, *adjunct)),
+        } => Some(NominalCoordinationMember {
+            form: *form,
+            initial_sound: *initial_sound,
+            adjunct: *adjunct,
+            shared_determiner_open: true,
+            demonstrative_shared_determiner: true,
+        }),
         Features::Nominal {
             form,
             initial_sound,
             determined: false,
             adjunct,
+            shared_determiner_open,
+            demonstrative_shared_determiner,
             ..
-        } => Some((*form, *initial_sound, *adjunct)),
+        } => Some(NominalCoordinationMember {
+            form: *form,
+            initial_sound: *initial_sound,
+            adjunct: *adjunct,
+            shared_determiner_open: *shared_determiner_open,
+            demonstrative_shared_determiner: *demonstrative_shared_determiner,
+        }),
         _ => None,
     }
 }
@@ -2365,6 +2429,7 @@ pub(super) fn nominal_with_prefix(
     initial_sound: InitialSound,
     leading_opacity: bool,
     prefix_comparison: AdjectiveComparisonState,
+    prefix_demonstrative_shared_determiner: bool,
 ) -> Option<Reduced> {
     let Features::Nominal {
         head,
@@ -2375,6 +2440,8 @@ pub(super) fn nominal_with_prefix(
         adjunct,
         opaque_head,
         set_exception_host,
+        shared_determiner_open,
+        demonstrative_shared_determiner,
         recipient_passive_theme,
         ..
     } = nominal.features
@@ -2413,6 +2480,9 @@ pub(super) fn nominal_with_prefix(
         adjunct: *adjunct,
         opaque_head: *opaque_head,
         set_exception_host: *set_exception_host,
+        shared_determiner_open: *shared_determiner_open,
+        demonstrative_shared_determiner: *demonstrative_shared_determiner
+            && prefix_demonstrative_shared_determiner,
         recipient_passive_theme: *recipient_passive_theme,
     })
 }
@@ -2426,6 +2496,8 @@ pub(super) fn noun_phrase_from_pronoun(
         adjunct,
         set_exception,
         coordination,
+        recipient_passive_theme,
+        rules_object_followup,
     } = child.features
     else {
         return None;
@@ -2436,6 +2508,8 @@ pub(super) fn noun_phrase_from_pronoun(
         adjunct: *adjunct,
         set_exception: *set_exception,
         coordination: *coordination,
+        recipient_passive_theme: *recipient_passive_theme,
+        rules_object_followup: *rules_object_followup,
     })
 }
 
@@ -2484,6 +2558,8 @@ mod generated_tests {
             adjunct: None,
             set_exception: SetExceptionState::Ineligible,
             coordination: NounPhraseCoordinationState::None,
+            recipient_passive_theme: false,
+            rules_object_followup: false,
         }
     }
 

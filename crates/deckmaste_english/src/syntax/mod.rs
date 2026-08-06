@@ -7,6 +7,9 @@ pub use ability::*;
 pub use clause::*;
 pub use phrase::*;
 
+pub use crate::constructions::coordination::CoordinatedNominalPhrase;
+pub use crate::constructions::coordination::CoordinatedNounPhrase;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum RecoveryRole {
     Clause,
@@ -675,21 +678,21 @@ impl<'syntax> RecoveryWalker<'syntax> {
             NounPhrase::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
             NounPhrase::CoordinatedNominal(coordinated) => {
                 if let Determiner::Possessive(Possessor::NounPhrase(possessor)) =
-                    &coordinated.determiner
+                    coordinated.determiner()
                 {
                     self.noun_phrase(possessor, context);
                 }
-                self.nominal_phrase(&coordinated.first, context);
-                for coordination in &coordinated.rest {
+                self.nominal_phrase(coordinated.first(), context);
+                for coordination in coordinated.rest() {
                     self.nominal_phrase(&coordination.phrase, context);
                 }
-                for complement in &coordinated.complements {
+                for complement in coordinated.complements() {
                     self.nominal_complement(complement, context);
                 }
             }
             NounPhrase::Coordinated(coordinated) => {
-                self.noun_phrase(&coordinated.first, context);
-                for coordination in &coordinated.rest {
+                self.noun_phrase(coordinated.first(), context);
+                for coordination in coordinated.rest() {
                     self.noun_phrase(&coordination.phrase, context);
                 }
             }
@@ -1176,21 +1179,23 @@ mod tests {
             head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
             complements: vec![],
         });
-        let subject = NounPhrase::CoordinatedNominal(CoordinatedNominalPhrase {
-            determiner: Determiner::Any,
-            first: Box::new(known_nominal(Vocab::Card)),
-            rest: vec![NominalPhraseCoordination {
-                conjunction: Some(NounPhraseConjunction::Or),
-                comma: crate::features::Comma::Absent,
-                phrase: known_nominal(Vocab::Spell),
-            }],
-            complements: vec![NominalComplement::Prepositional(
-                PrepositionalPhrase::simple(
-                    Preposition::With,
-                    Phrase::NounPhrase(Box::new(opaque)),
-                ),
-            )],
-        });
+        let subject = NounPhrase::CoordinatedNominal(
+            CoordinatedNominalPhrase::try_new(
+                Determiner::Any,
+                Box::new(known_nominal(Vocab::Card)),
+                vec![NominalPhraseCoordination {
+                    conjunction: Some(NounPhraseConjunction::Or),
+                    phrase: known_nominal(Vocab::Spell),
+                }],
+                vec![NominalComplement::Prepositional(
+                    PrepositionalPhrase::simple(
+                        Preposition::With,
+                        Phrase::NounPhrase(Box::new(opaque)),
+                    ),
+                )],
+            )
+            .expect("the recovery fixture uses a declared shared-determiner shape"),
+        );
         let oracle_text = OracleText {
             abilities: vec![paragraph(IndependentClause::Intransitive(
                 Subject(subject),

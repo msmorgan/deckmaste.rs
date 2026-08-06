@@ -35,6 +35,13 @@ pub(super) struct GeneratedRuleRef {
     /// Bit `i` records that sequence-valued surface atom `i` used its
     /// one-or-more helper. A clear bit means the field is the empty sequence.
     pub(super) sequence_atoms: u64,
+    pub(super) context: GeneratedRuleContext,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum GeneratedRuleContext {
+    Value,
+    SharedPreposition,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -87,18 +94,6 @@ pub(super) enum RegistrationOrder {
 }
 
 impl RuleBuilder {
-    pub(super) fn remove_replaced_handwritten(
-        &mut self,
-        groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
-    ) {
-        self.registrations.retain(|registration| {
-            let RuleImpl::Handwritten(tag) = registration.rule_impl else {
-                return true;
-            };
-            !super::construction::handwritten_replaced_by(groups, tag)
-        });
-    }
-
     pub(super) fn add(
         &mut self,
         tag: RuleTag,
@@ -523,7 +518,7 @@ impl RuleBuilder {
         // that both complete, so the formal-singular reading wins whenever it
         // completes, and this production is the only parse whenever a plural
         // predicate makes the singular reading fail to complete. Same idiom
-        // as `NounPhraseCoordination` below.
+        // as generated noun-phrase coordination below.
         self.add_with_cost(
             RuleTag::NounPhraseAnyNumberOf,
             N::NounPhrase,
@@ -533,15 +528,6 @@ impl RuleBuilder {
                 l(L::Of),
                 n(N::NounPhrase),
             ],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add_with_cost(
-            RuleTag::NounPhraseCoordination,
-            N::NounPhrase,
-            [n(N::NounPhrase), l(L::Conjunction), n(N::NounPhrase)],
             ParseCost {
                 precedence: 1,
                 ..ParseCost::default()
@@ -597,14 +583,6 @@ impl RuleBuilder {
             ],
         );
 
-        // Register the shared-determiner object path before the general PP.
-        // Equal-cost forest ties therefore preserve the more specific
-        // constituent without assigning a global cost to shared target NPs.
-        self.add(
-            RuleTag::PrepositionalPhraseSharedDeterminer,
-            N::PrepositionalPhrase,
-            [l(L::Preposition), n(N::SharedDeterminerNominal)],
-        );
         self.add(
             RuleTag::PrepositionalPhrase,
             N::PrepositionalPhrase,
@@ -877,41 +855,6 @@ impl RuleBuilder {
             [n(N::CoordinatedModifier), n(N::Nominal)],
         );
 
-        // Head-list coordination: comma/Oxford extension of the existing binary
-        // noun-phrase coordination. The open run is gathered on the dedicated
-        // `NounPhraseList` nonterminal so a bare comma run never coordinates on
-        // its own; only the Oxford close (`, and`/`, or` + a final member)
-        // produces a coordinated noun phrase. Two-way `A and B` and un-comma'd
-        // `A and B or C` chains already ride the existing binary rule.
-        self.add(
-            RuleTag::NounPhraseListSingle,
-            N::NounPhraseList,
-            [n(N::NounPhrase)],
-        );
-        self.add(
-            RuleTag::NounPhraseListComma,
-            N::NounPhraseList,
-            [
-                n(N::NounPhraseList),
-                l(L::Punctuation(Punctuation::Comma)),
-                n(N::NounPhrase),
-            ],
-        );
-        self.add_with_cost(
-            RuleTag::NounPhraseCoordinationOxford,
-            N::NounPhrase,
-            [
-                n(N::NounPhraseList),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Conjunction),
-                n(N::NounPhrase),
-            ],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-
         self.add_selectional_coordination_rules();
     }
 
@@ -921,79 +864,6 @@ impl RuleBuilder {
         use Expected::Nonterminal as n;
         use Nonterminal as N;
 
-        // Selectional coordination categories are appended so existing rule
-        // prediction and stable tie order remain unchanged when none applies.
-        self.add(
-            RuleTag::NounPhraseDamageCoordination,
-            N::NounPhrase,
-            [n(N::Nominal), l(L::Conjunction), n(N::Nominal)],
-        );
-        self.add(
-            RuleTag::SharedDeterminerNominal,
-            N::SharedDeterminerNominal,
-            [
-                l(L::DeterminerTarget),
-                n(N::Noun),
-                l(L::Conjunction),
-                n(N::Noun),
-            ],
-        );
-        self.add_with_cost(
-            RuleTag::SharedDeterminerNominal,
-            N::SharedDeterminerNominal,
-            [
-                l(L::DeterminerTarget),
-                n(N::Nominal),
-                l(L::Conjunction),
-                n(N::Nominal),
-            ],
-            ParseCost {
-                // This production is the categorical evidence that the one
-                // target determiner selects two *modified* nominal
-                // alternatives; the reduction gate rejects a bare head plus a
-                // compound (`target artifact or land card`). Prefer this over
-                // coincidental modifier coordination inside one later nominal
-                // (`target enchanted creature or enchantment creature`).
-                attachment_count: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add(
-            RuleTag::NounPhraseSharedDeterminer,
-            N::NounPhrase,
-            [n(N::SharedDeterminerNominal)],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseCoordinated,
-            N::PrepositionalPhrase,
-            [
-                l(L::Preposition),
-                n(N::NounPhrase),
-                l(L::Conjunction),
-                n(N::NounPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseCoordinated,
-            N::PrepositionalPhrase,
-            [
-                l(L::Preposition),
-                n(N::SharedDeterminerNominal),
-                l(L::Conjunction),
-                n(N::NounPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseCoordinated,
-            N::PrepositionalPhrase,
-            [
-                l(L::Preposition),
-                n(N::NounPhraseList),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Conjunction),
-                n(N::NounPhrase),
-            ],
-        );
         // Sibling coordination: each member repeats its own preposition (`from
         // blue and from black`). The rules above instead share one preposition
         // across coordinated objects (`from artifacts, creatures, and
@@ -1211,8 +1081,6 @@ impl RuleBuilder {
     /// objects. The grammar constructor registers these last so the dedicated
     /// categories cannot renumber or perturb prior rules.
     pub(super) fn add_rules_object_attachment_rules(&mut self) {
-        use EnglishLexicalSlot as L;
-        use Expected::Lexical as l;
         use Expected::Nonterminal as n;
         use Nonterminal as N;
 
@@ -1245,37 +1113,6 @@ impl RuleBuilder {
             RuleTag::RulesObjectNounPhrase,
             N::RulesObjectNounPhrase,
             [n(N::RulesObjectFollowupNominal)],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseRulesObjectCoordinated,
-            N::PrepositionalPhrase,
-            [
-                l(L::Preposition),
-                n(N::NounPhrase),
-                l(L::Conjunction),
-                n(N::RulesObjectNounPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseRulesObjectCoordinated,
-            N::PrepositionalPhrase,
-            [
-                l(L::Preposition),
-                n(N::SharedDeterminerNominal),
-                l(L::Conjunction),
-                n(N::RulesObjectNounPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseRulesObjectCoordinated,
-            N::PrepositionalPhrase,
-            [
-                l(L::Preposition),
-                n(N::NounPhraseList),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Conjunction),
-                n(N::RulesObjectNounPhrase),
-            ],
         );
     }
 

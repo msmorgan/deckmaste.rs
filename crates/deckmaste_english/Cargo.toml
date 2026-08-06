@@ -24,3 +24,4 @@ strum = { version = "0.26.3", features = ["derive"] }
 
 [dev-dependencies]
 proptest = "1.11.0"
+trybuild = "1.0"

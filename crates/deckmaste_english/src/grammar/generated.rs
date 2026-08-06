@@ -15,6 +15,7 @@ use super::EnglishLexicalSlot;
 use super::Expected;
 use super::Nonterminal;
 use super::rules::GeneratedAuxRuleRef;
+use super::rules::GeneratedRuleContext;
 use super::rules::GeneratedRuleRef;
 use super::rules::RuleBuilder;
 use super::rules::RuleImpl;
@@ -298,6 +299,12 @@ fn field_expected(
                 codec,
             },
         ),
+        FieldKindData::SurfaceScalar { codec } => codec_slot(codec).map(Expected::Lexical).ok_or(
+            GeneratedAssemblyError::UnknownLexemeCodec {
+                construction: construction.id,
+                codec,
+            },
+        ),
         FieldKindData::Optional { inner } => field_expected(cats, construction, *inner),
         FieldKindData::Sequence { .. } => Err(GeneratedAssemblyError::UnsupportedAtomKind {
             construction: construction.id,
@@ -429,15 +436,40 @@ pub(super) fn register_generated(
                             construction: construction_index,
                             form: form_index,
                             sequence_atoms: present,
+                            context: GeneratedRuleContext::Value,
                         }),
                         ProductionId {
                             construction: ConstructionId::new(construction.id),
                             ordinal: form.ordinal,
                         },
                         lhs,
-                        rhs,
+                        rhs.clone(),
                         generated_cost(construction),
                     );
+                    if matches!(
+                        construction.id,
+                        "noun_phrase_coordination" | "shared_determiner_nominal"
+                    ) {
+                        let mut prepositional_rhs = Vec::with_capacity(rhs.len() + 1);
+                        prepositional_rhs.push(Expected::Lexical(EnglishLexicalSlot::Preposition));
+                        prepositional_rhs.extend(rhs.iter().copied());
+                        builder.add_generated_with_cost(
+                            RuleImpl::Generated(GeneratedRuleRef {
+                                group,
+                                construction: construction_index,
+                                form: form_index,
+                                sequence_atoms: present,
+                                context: GeneratedRuleContext::SharedPreposition,
+                            }),
+                            ProductionId {
+                                construction: ConstructionId::new(construction.id),
+                                ordinal: form.ordinal,
+                            },
+                            Nonterminal::PrepositionalPhrase,
+                            prepositional_rhs,
+                            generated_cost(construction),
+                        );
+                    }
                 }
             }
         }
@@ -487,8 +519,12 @@ fn register_element(
                 matches!(field.kind, FieldKindData::Optional { .. })
                     .then_some(index)
                     .or_else(|| {
-                        matches!(field.kind, FieldKindData::Scalar { codec: "Comma" })
-                            .then_some(index)
+                        matches!(
+                            field.kind,
+                            FieldKindData::Scalar { codec: "Comma" }
+                                | FieldKindData::SurfaceScalar { codec: "Comma" }
+                        )
+                        .then_some(index)
                     })
             })
             .collect::<Vec<_>>();
@@ -517,6 +553,22 @@ fn register_element(
                 // sequence in the chart.
                 continue;
             }
+            let rules_object_rhs = if element.name == "noun_phrase_member"
+                && matches!(
+                    element.fields.last().map(|field| field.kind),
+                    Some(FieldKindData::Subtree {
+                        category: "NounPhrase",
+                        ..
+                    })
+                ) {
+                let mut alternate = rhs.clone();
+                alternate.last_mut().map(|expected| {
+                    *expected = Expected::Nonterminal(Nonterminal::RulesObjectNounPhrase);
+                });
+                Some(alternate)
+            } else {
+                None
+            };
             builder.add_generated(
                 RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementStruct {
                     group,
@@ -533,6 +585,24 @@ fn register_element(
             ordinal = ordinal
                 .checked_add(1)
                 .expect("element rule ordinal overflow");
+            if let Some(rhs) = rules_object_rhs {
+                builder.add_generated(
+                    RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementStruct {
+                        group,
+                        element: element_index,
+                        present_fields,
+                    }),
+                    ProductionId {
+                        construction: ConstructionId::new(element.name),
+                        ordinal,
+                    },
+                    element_nt,
+                    rhs,
+                );
+                ordinal = ordinal
+                    .checked_add(1)
+                    .expect("element rule ordinal overflow");
+            }
         }
     } else {
         for (variant_index, variant) in element.variants.iter().enumerate() {

@@ -1,0 +1,13 @@
+error[E0451]: fields `determiner`, `first`, `rest` and `complements` of struct `CoordinatedNominalPhrase` are private
+  --> tests/compile_fail/construct_coordinated_nominal_phrase.rs:14:9
+   |
+13 |     CoordinatedNominalPhrase {
+   |     ------------------------ in this type
+14 |         determiner,
+   |         ^^^^^^^^^^ private field
+15 |         first,
+   |         ^^^^^ private field
+16 |         rest,
+   |         ^^^^ private field
+17 |         complements,
+   |         ^^^^^^^^^^^ private field

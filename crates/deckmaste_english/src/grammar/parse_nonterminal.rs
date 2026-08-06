@@ -553,7 +553,7 @@ fn collect_lowered_coordination_spans(
             && let Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(group))) =
                 lower(grammar, forest, node, best)
         {
-            let core_end = first_group_relative(&group.complements)
+            let core_end = first_group_relative(group.complements())
                 .as_ref()
                 .and_then(|relative| {
                     find_selected_relative(grammar, forest, *rest, best, relative)
@@ -585,78 +585,6 @@ fn collect_lowered_coordination_spans(
         }
         return;
     }
-    let super::rules::RuleImpl::Handwritten(tag) = rule_impl else {
-        return;
-    };
-
-    if tag == super::RuleTag::SharedDeterminerNominal {
-        let (Some(first), Some(last)) = (children.get(1), children.get(3)) else {
-            return;
-        };
-        if let Some(span) = token_range_span(
-            tokens,
-            forest.node(*first).key.start,
-            forest.node(*last).key.end,
-        ) {
-            spans.push(span);
-        }
-        return;
-    }
-
-    let (first_node, next_node, before, after) = match tag {
-        super::RuleTag::NounPhraseCoordination | super::RuleTag::NounPhraseCoordinationOxford => {
-            let next_index = if tag == super::RuleTag::NounPhraseCoordination { 2 } else { 3 };
-            let (Some(first_node), Some(next_node)) = (children.first(), children.get(next_index))
-            else {
-                return;
-            };
-            let Some(Lowered::NounPhrase(before)) = lower(grammar, forest, *first_node, best)
-            else {
-                return;
-            };
-            let Some(Lowered::NounPhrase(after)) = lower(grammar, forest, node, best) else {
-                return;
-            };
-            (*first_node, *next_node, before, after)
-        }
-        super::RuleTag::PrepositionalPhraseCoordinated
-        | super::RuleTag::PrepositionalPhraseRulesObjectCoordinated => {
-            let next_index = if children.len() == 5 { 4 } else { 3 };
-            let (Some(first_node), Some(next_node)) = (children.get(1), children.get(next_index))
-            else {
-                return;
-            };
-            let Some(Lowered::NounPhrase(before)) = lower(grammar, forest, *first_node, best)
-            else {
-                return;
-            };
-            let Some(Lowered::PrepositionalPhrase(after)) = lower(grammar, forest, node, best)
-            else {
-                return;
-            };
-            let crate::syntax::PrepositionalPhrase::Simple(after) = after else {
-                return;
-            };
-            let super::Phrase::NounPhrase(after) = *after.object else {
-                return;
-            };
-            (*first_node, *next_node, before, *after)
-        }
-        _ => return,
-    };
-    collect_shared_determiner_edit_spans(
-        grammar,
-        forest,
-        node,
-        first_node,
-        next_node,
-        &before,
-        &after,
-        best,
-        tokens,
-        spans,
-        determiner_spans,
-    );
 }
 
 #[allow(
@@ -742,7 +670,7 @@ struct SharedDeterminerEdit {
     trailing_relative: Option<super::RelativeClause>,
 }
 
-/// Finds the one subtree changed by `push_noun_phrase_coordination`. The
+/// Finds the one subtree changed by generated coordination projection. The
 /// comparison is semantic: it follows the final PP object or final outer
 /// conjunct that lowering is allowed to rewrite, never a surface substring.
 fn find_shared_determiner_edit(
@@ -753,27 +681,27 @@ fn find_shared_determiner_edit(
         (NounPhrase::Nominal(original), NounPhrase::CoordinatedNominal(group)) => {
             let mut first = original.clone();
             let determiner = first.determiner.take()?;
-            if group.determiner != determiner || group.first.as_ref() != &first {
+            if group.determiner() != &determiner || group.first().as_ref() != &first {
                 return None;
             }
             Some(SharedDeterminerEdit {
                 determined_first: before.clone(),
                 determiner,
-                trailing_relative: first_group_relative(&group.complements),
+                trailing_relative: first_group_relative(group.complements()),
             })
         }
         (NounPhrase::CoordinatedNominal(original), NounPhrase::CoordinatedNominal(group))
-            if group.determiner == original.determiner
-                && group.first == original.first
-                && group.rest.len() == original.rest.len() + 1
-                && group.rest.starts_with(&original.rest) =>
+            if group.determiner() == original.determiner()
+                && group.first() == original.first()
+                && group.rest().len() == original.rest().len() + 1
+                && group.rest().starts_with(original.rest()) =>
         {
-            let mut determined_first = original.first.as_ref().clone();
-            determined_first.determiner = Some(original.determiner.clone());
+            let mut determined_first = original.first().as_ref().clone();
+            determined_first.determiner = Some(original.determiner().clone());
             Some(SharedDeterminerEdit {
                 determined_first: NounPhrase::Nominal(determined_first),
-                determiner: original.determiner.clone(),
-                trailing_relative: first_group_relative(&group.complements),
+                determiner: original.determiner().clone(),
+                trailing_relative: first_group_relative(group.complements()),
             })
         }
         (NounPhrase::Nominal(before), NounPhrase::Nominal(after))
@@ -803,14 +731,15 @@ fn find_shared_determiner_edit(
             find_shared_determiner_edit(before, after)
         }
         (NounPhrase::Coordinated(before), NounPhrase::Coordinated(after))
-            if before.first == after.first
-                && before.rest.len() == after.rest.len()
-                && !before.rest.is_empty()
-                && before.rest[..before.rest.len() - 1] == after.rest[..after.rest.len() - 1] =>
+            if before.first() == after.first()
+                && before.rest().len() == after.rest().len()
+                && !before.rest().is_empty()
+                && before.rest()[..before.rest().len() - 1]
+                    == after.rest()[..after.rest().len() - 1] =>
         {
-            let before = before.rest.last()?;
-            let after = after.rest.last()?;
-            if before.conjunction != after.conjunction || before.comma != after.comma {
+            let before = before.rest().last()?;
+            let after = after.rest().last()?;
+            if before.conjunction != after.conjunction {
                 return None;
             }
             find_shared_determiner_edit(&before.phrase, &after.phrase)
@@ -1281,8 +1210,11 @@ mod generated_adapter_tests {
                 parsed.syntax
             );
         };
-        assert_eq!(coordination.rest.len(), 1);
-        assert_eq!(coordination.rest[0].comma, crate::features::Comma::Absent);
+        assert_eq!(coordination.rest().len(), 1);
+        assert_eq!(
+            coordination.rest()[0].conjunction,
+            Some(crate::features::Conjunction::Or)
+        );
     }
 
     #[test]
@@ -1294,12 +1226,11 @@ mod generated_adapter_tests {
                 parsed.syntax
             );
         };
-        assert_eq!(coordination.rest.len(), 2);
-        assert!(
-            coordination
-                .rest
-                .iter()
-                .all(|member| member.comma == crate::features::Comma::Present)
+        assert_eq!(coordination.rest().len(), 2);
+        assert_eq!(coordination.rest()[0].conjunction, None);
+        assert_eq!(
+            coordination.rest()[1].conjunction,
+            Some(crate::features::Conjunction::And)
         );
     }
 
@@ -1313,9 +1244,9 @@ mod generated_adapter_tests {
             );
         };
         assert!(
-            matches!(coordination.first.as_ref(), NounPhrase::Coordinated(_))
+            matches!(coordination.first().as_ref(), NounPhrase::Coordinated(_))
                 || coordination
-                    .rest
+                    .rest()
                     .iter()
                     .any(|member| matches!(member.phrase, NounPhrase::Coordinated(_))),
             "one binary group must be nested inside the other: {coordination:#?}",
@@ -1333,10 +1264,10 @@ mod generated_adapter_tests {
             );
         };
         assert_eq!(
-            coordination.determiner,
-            crate::syntax::Determiner::Target(None)
+            coordination.determiner(),
+            &crate::syntax::Determiner::Target(None)
         );
-        assert_eq!(coordination.rest.len(), 1);
+        assert_eq!(coordination.rest().len(), 1);
     }
 
     #[test]

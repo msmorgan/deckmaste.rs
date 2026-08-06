@@ -40,7 +40,7 @@ fn family(tag: RuleTag) -> ConstructionFamily {
     )
 }
 
-fn dominance_edges() -> [DominanceEdge; 19] {
+fn dominance_edges() -> [DominanceEdge; 18] {
     let edge = |dominant, subordinate| {
         DominanceEdge::new(construction_id(dominant), construction_id(subordinate))
     };
@@ -73,7 +73,6 @@ fn dominance_edges() -> [DominanceEdge; 19] {
             RuleTag::NominalNoun,
         ),
         edge(RuleTag::NominalRelative, RuleTag::NominalPrepositional),
-        edge(RuleTag::NounPhraseNominal, RuleTag::NounPhraseCoordination),
         edge(RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
         edge(
             RuleTag::NounPhraseSubjectPronoun,
@@ -128,35 +127,36 @@ pub(super) fn merged_registry(
             })
         })
     });
+    let generated_bridge_edges = groups
+        .iter()
+        .flat_map(|group| group.constructions)
+        .flat_map(|construction| {
+            let prepositional = construction_id(RuleTag::PrepositionalPhrase);
+            match construction.id {
+                "noun_phrase_coordination" => vec![
+                    DominanceEdge::new(
+                        construction_id(RuleTag::NounPhraseNominal),
+                        ConstructionId::new("noun_phrase_coordination"),
+                    ),
+                    DominanceEdge::new(
+                        ConstructionId::new("noun_phrase_coordination"),
+                        prepositional,
+                    ),
+                ],
+                "shared_determiner_nominal" => vec![DominanceEdge::new(
+                    ConstructionId::new("shared_determiner_nominal"),
+                    prepositional,
+                )],
+                _ => Vec::new(),
+            }
+        });
     ConstructionRegistry::new(
-        RuleTag::iter()
-            .filter(|tag| !handwritten_replaced_by(groups, *tag))
-            .map(family)
-            .chain(generated_families),
-        dominance_edges().into_iter().chain(generated_edges),
+        RuleTag::iter().map(family).chain(generated_families),
+        dominance_edges()
+            .into_iter()
+            .chain(generated_bridge_edges)
+            .chain(generated_edges),
     )
-}
-
-pub(super) fn handwritten_replaced_by(
-    groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
-    tag: RuleTag,
-) -> bool {
-    let declares = |id: &str| {
-        groups
-            .iter()
-            .flat_map(|group| group.constructions)
-            .any(|construction| construction.id == id)
-    };
-    if declares(construction_id(tag).as_str()) {
-        return true;
-    }
-    match tag {
-        RuleTag::NounPhraseListSingle
-        | RuleTag::NounPhraseListComma
-        | RuleTag::NounPhraseCoordinationOxford => declares("noun_phrase_coordination"),
-        RuleTag::NounPhraseSharedDeterminer => declares("shared_determiner_nominal"),
-        _ => false,
-    }
 }
 
 fn generated_family(
@@ -199,30 +199,18 @@ mod tests {
     #[test]
     fn production_registry_has_one_owner_per_active_family() {
         let registry = registry();
-        let groups = crate::constructions::coordination::GROUPS;
         for tag in RuleTag::iter() {
             let id = construction_id(tag);
-            if super::handwritten_replaced_by(groups, tag) {
-                if matches!(
-                    tag,
-                    RuleTag::NounPhraseCoordination | RuleTag::SharedDeterminerNominal
-                ) {
-                    let family = registry
-                        .family(id)
-                        .expect("the generated owner replaces the matching row");
-                    assert_eq!(family.owner(), ConstructionOwner::Generated);
-                    assert_eq!(family.backend(), ConstructionBackend::Chart);
-                } else {
-                    assert!(
-                        registry.family(id).is_none(),
-                        "retired helper family {tag:?} remains registered",
-                    );
-                }
-            } else {
-                let family = registry.family(id).expect("tag missing from registry");
-                assert_eq!(family.owner(), ConstructionOwner::Handwritten);
-                assert_eq!(family.backend(), ConstructionBackend::Chart);
-            }
+            let family = registry.family(id).expect("tag missing from registry");
+            assert_eq!(family.owner(), ConstructionOwner::Handwritten);
+            assert_eq!(family.backend(), ConstructionBackend::Chart);
+        }
+        for id in ["noun_phrase_coordination", "shared_determiner_nominal"] {
+            let family = registry
+                .family(ConstructionId::new(id))
+                .expect("generated coordination family is registered");
+            assert_eq!(family.owner(), ConstructionOwner::Generated);
+            assert_eq!(family.backend(), ConstructionBackend::Chart);
         }
     }
 
@@ -254,7 +242,6 @@ mod tests {
                 RuleTag::NominalNoun,
             ),
             (RuleTag::NominalRelative, RuleTag::NominalPrepositional),
-            (RuleTag::NounPhraseNominal, RuleTag::NounPhraseCoordination),
             (RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
             (
                 RuleTag::NounPhraseSubjectPronoun,
@@ -273,6 +260,10 @@ mod tests {
                 "{dominant:?} must dominate {subordinate:?}",
             );
         }
+        assert!(registry().dominates(
+            construction_id(RuleTag::NounPhraseNominal),
+            ConstructionId::new("noun_phrase_coordination"),
+        ));
     }
 
     #[test]
@@ -312,7 +303,7 @@ mod tests {
     }
 
     #[test]
-    fn generated_id_replaces_its_handwritten_family() {
+    fn generated_id_registers_without_a_handwritten_mirror() {
         const CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
             &[deckmaste_construction_compiler::runtime::ConstructionData {
                 id: "noun_phrase_coordination",
@@ -331,11 +322,10 @@ mod tests {
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);
-        let merged = super::merged_registry(&[&GROUP])
-            .expect("activating a generated owner replaces the handwritten row");
+        let merged = super::merged_registry(&[&GROUP]).expect("generated family registers");
         let family = merged
-            .family(construction_id(RuleTag::NounPhraseCoordination))
-            .expect("the generated replacement remains registered");
+            .family(ConstructionId::new("noun_phrase_coordination"))
+            .expect("the generated family is registered");
         assert_eq!(family.owner(), ConstructionOwner::Generated);
     }
 

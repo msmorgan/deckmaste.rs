@@ -521,6 +521,8 @@ impl EnglishGrammar<'_, '_> {
                 // exists only to gate the parse against the following
                 // material's initial sound in `article_accepts`.
                 article: IndefiniteArticle::from_spelling(surface),
+                demonstrative_this: determiner
+                    == Determiner::Demonstrative(crate::syntax::Demonstrative::This),
                 set_exception_host: determiner == Determiner::All || determiner == Determiner::Each,
             },
             meaning: MeaningKey::Determiner(determiner),
@@ -550,6 +552,8 @@ impl EnglishGrammar<'_, '_> {
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
                 coordination: super::NounPhraseCoordinationState::None,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             },
             meaning: MeaningKey::Determiner(Determiner::Demonstrative(demonstrative)),
             local_cost: ParseCost::default(),
@@ -945,6 +949,10 @@ pub(super) fn lexical_word_matches(
                     initial_sound,
                     comparison: adjective_comparison_state(&adjective),
                     card_orientation: false,
+                    demonstrative_shared_determiner: !matches!(
+                        adjective,
+                        Adjective::Participle(_, Verb::Word(Vocab::Equip | Vocab::Enchant),)
+                    ),
                 },
                 MeaningKey::Adjective(adjective),
             );
@@ -1061,6 +1069,8 @@ pub(super) fn this_card_matches(
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
                 coordination: super::NounPhraseCoordinationState::None,
+                recipient_passive_theme: false,
+                rules_object_followup: false,
             },
             meaning: MeaningKey::ThisCard(form),
             local_cost: this_card_cost(form),
@@ -1121,6 +1131,8 @@ pub(super) fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) 
         adjunct: None,
         set_exception: SetExceptionState::Ineligible,
         coordination: super::NounPhraseCoordinationState::None,
+        recipient_passive_theme: false,
+        rules_object_followup: false,
     }
 }
 
@@ -1361,13 +1373,7 @@ pub(super) fn accepts_set_exception_prefix(
         return noun_phrase_accepts_set_exception(latest_child);
     }
 
-    if matches!(
-        tag,
-        RuleTag::NounPhraseCoordination
-            | RuleTag::NounPhraseAdditiveCoordination
-            | RuleTag::NounPhraseListSingle
-    ) && completed_children == 1
-    {
+    if matches!(tag, RuleTag::NounPhraseAdditiveCoordination) && completed_children == 1 {
         return !noun_phrase_is_closed_set_exception(latest_child);
     }
 

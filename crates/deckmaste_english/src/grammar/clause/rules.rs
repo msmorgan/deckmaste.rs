@@ -148,10 +148,9 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::SymbolSequence)],
     );
-    // Mana-amount coordination: a symbol-typed mirror of the generic
-    // noun-phrase list machinery (`N::NounPhraseList` +
-    // `NounPhraseCoordinationOxford`), never riding `NounPhrase` itself so no
-    // symbol is ever licensed as a nominal. `ManaAmount` is a lone oracle
+    // Mana-amount coordination: a symbol-typed analogue of generated noun
+    // coordination, never riding `NounPhrase` itself so no symbol is ever
+    // licensed as a nominal. `ManaAmount` is a lone oracle
     // symbol or a contiguous symbol group; `ManaAmountList` is an open,
     // comma-separated run reached only by the list-extension and Oxford-close
     // rules; `CoordinatedManaAmount` is the closed run consumed only by the

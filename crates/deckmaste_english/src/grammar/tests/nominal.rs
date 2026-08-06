@@ -362,16 +362,15 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(coordinated.determiner, Determiner::Target(None));
-        assert!(coordinated.first.determiner.is_none());
-        let [land] = coordinated.rest.as_slice() else {
+        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        assert!(coordinated.first().determiner.is_none());
+        let [land] = coordinated.rest().as_slice() else {
             panic!("expected one coordinated head: {coordinated:#?}");
         };
         assert_eq!(
             land.conjunction,
             Some(crate::syntax::NounPhraseConjunction::Or)
         );
-        assert_eq!(land.comma, crate::features::Comma::Absent);
         assert!(land.phrase.determiner.is_none());
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -389,8 +388,8 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(coordinated.determiner, Determiner::Target(None));
-        assert_eq!(coordinated.rest.len(), 1);
+        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        assert_eq!(coordinated.rest().len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
 
@@ -412,7 +411,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        let [second] = outer.rest.as_slice() else {
+        let [second] = outer.rest().as_slice() else {
             panic!("expected one outer `and` member: {outer:#?}");
         };
         assert_eq!(
@@ -442,21 +441,18 @@ mod tests {
             panic!("expected coordinated keyword options: {options:#?}");
         };
         assert!(matches!(
-            options.rest.as_slice(),
+            options.rest().as_slice(),
             [
                 crate::syntax::NounPhraseCoordination {
                     conjunction: None,
-                    comma: crate::features::Comma::Present,
                     ..
                 },
                 crate::syntax::NounPhraseCoordination {
                     conjunction: None,
-                    comma: crate::features::Comma::Present,
                     ..
                 },
                 crate::syntax::NounPhraseCoordination {
                     conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
-                    comma: crate::features::Comma::Present,
                     ..
                 }
             ]
@@ -485,11 +481,11 @@ mod tests {
                     parsed.noun_phrase()
                 );
             };
-            assert_eq!(coordinated.determiner, expected_determiner, "{source}");
-            assert!(coordinated.first.determiner.is_none(), "{source}");
+            assert_eq!(*coordinated.determiner(), expected_determiner, "{source}");
+            assert!(coordinated.first().determiner.is_none(), "{source}");
             assert!(
                 coordinated
-                    .rest
+                    .rest()
                     .iter()
                     .all(|member| member.phrase.determiner.is_none()),
                 "{source}"
@@ -508,17 +504,17 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(coordinated.determiner, Determiner::Another);
-        assert!(coordinated.first.complements.is_empty());
+        assert_eq!(*coordinated.determiner(), Determiner::Another);
+        assert!(coordinated.first().complements.is_empty());
         assert!(
             coordinated
-                .rest
+                .rest()
                 .iter()
                 .all(|member| member.phrase.complements.is_empty()),
             "the relative must not remain on the final member: {coordinated:#?}"
         );
         assert!(matches!(
-            coordinated.complements.as_slice(),
+            coordinated.complements().as_slice(),
             [NominalComplement::Relative(_)]
         ));
         assert!(
@@ -557,9 +553,9 @@ mod tests {
                     parsed.noun_phrase()
                 );
             };
-            assert_eq!(coordinated.determiner, determiner);
-            assert_eq!(coordinated.rest.len(), 2);
-            assert!(coordinated.complements.is_empty());
+            assert_eq!(*coordinated.determiner(), determiner);
+            assert_eq!(coordinated.rest().len(), 2);
+            assert!(coordinated.complements().is_empty());
             assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
         }
     }
@@ -572,17 +568,17 @@ mod tests {
             panic!("expected one target group: {:#?}", parsed.noun_phrase());
         };
         assert!(matches!(
-            coordinated.first.complements.as_slice(),
+            coordinated.first().complements.as_slice(),
             [NominalComplement::Relative(_)]
         ));
         assert!(matches!(
-            coordinated.rest.as_slice(),
+            coordinated.rest().as_slice(),
             [crate::syntax::NominalPhraseCoordination {
                 phrase: NominalPhrase { complements, .. },
                 ..
             }] if matches!(complements.as_slice(), [NominalComplement::Relative(_)])
         ));
-        assert!(coordinated.complements.is_empty());
+        assert!(coordinated.complements().is_empty());
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
 
@@ -593,9 +589,9 @@ mod tests {
         let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
             panic!("expected one definite group: {:#?}", parsed.noun_phrase());
         };
-        assert_eq!(coordinated.determiner, Determiner::The);
+        assert_eq!(*coordinated.determiner(), Determiner::The);
         assert!(matches!(
-            coordinated.rest.as_slice(),
+            coordinated.rest().as_slice(),
             [crate::syntax::NominalPhraseCoordination {
                 phrase: NominalPhrase { complements, .. },
                 ..
@@ -611,9 +607,9 @@ mod tests {
         let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
             panic!("expected one target group: {:#?}", parsed.noun_phrase());
         };
-        assert!(coordinated.complements.is_empty());
+        assert!(coordinated.complements().is_empty());
         assert!(matches!(
-            coordinated.rest.as_slice(),
+            coordinated.rest().as_slice(),
             [
                 crate::syntax::NominalPhraseCoordination { .. },
                 crate::syntax::NominalPhraseCoordination {
@@ -641,12 +637,12 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(coordinated.determiner, Determiner::Target(None));
-        assert!(coordinated.first.determiner.is_none());
-        assert_eq!(coordinated.rest.len(), 6);
+        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        assert!(coordinated.first().determiner.is_none());
+        assert_eq!(coordinated.rest().len(), 6);
         assert!(
             coordinated
-                .rest
+                .rest()
                 .iter()
                 .all(|member| member.phrase.determiner.is_none())
         );
@@ -663,8 +659,8 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(coordinated.determiner, Determiner::Indefinite);
-        let [orc, equipment] = coordinated.rest.as_slice() else {
+        assert_eq!(*coordinated.determiner(), Determiner::Indefinite);
+        let [orc, equipment] = coordinated.rest().as_slice() else {
             panic!("expected three coordinated nominals: {coordinated:#?}");
         };
         assert!(orc.phrase.determiner.is_none());
@@ -698,12 +694,12 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        let NounPhrase::CoordinatedNominal(left) = outer.first.as_ref() else {
+        let NounPhrase::CoordinatedNominal(left) = outer.first().as_ref() else {
             panic!("expected the Oxford group on the left: {outer:#?}");
         };
-        assert_eq!(left.determiner, Determiner::Target(None));
-        assert_eq!(left.rest.len(), 2);
-        let [right] = outer.rest.as_slice() else {
+        assert_eq!(*left.determiner(), Determiner::Target(None));
+        assert_eq!(left.rest().len(), 2);
+        let [right] = outer.rest().as_slice() else {
             panic!("expected exactly one outer conjunct: {outer:#?}");
         };
         assert_eq!(
@@ -713,8 +709,8 @@ mod tests {
         let NounPhrase::CoordinatedNominal(right) = &right.phrase else {
             panic!("the repeated determiner must begin a second group: {right:#?}");
         };
-        assert_eq!(right.determiner, Determiner::Target(None));
-        assert_eq!(right.rest.len(), 1);
+        assert_eq!(*right.determiner(), Determiner::Target(None));
+        assert_eq!(right.rest().len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
 
@@ -731,28 +727,14 @@ mod tests {
     }
 
     #[test]
-    fn attached_role_exception_is_typed_in_the_lowering_rewrite() {
-        let first = parse("this creature")
-            .noun_phrase()
-            .expect("fixture noun phrase")
-            .clone();
+    fn attached_role_exception_is_typed_in_generated_coordination() {
         for (source, shared) in [
-            ("tapped creature", true),
-            ("equipped creature", false),
-            ("enchanted creature", false),
+            ("this creature or tapped creature", true),
+            ("this creature or equipped creature", false),
+            ("this creature or enchanted creature", false),
         ] {
-            let next = parse(source)
-                .noun_phrase()
-                .expect("fixture noun phrase")
-                .clone();
-            let lowered = super::super::lowering::push_noun_phrase_coordination(
-                first.clone(),
-                crate::syntax::NounPhraseCoordination {
-                    conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
-                    comma: crate::features::Comma::Absent,
-                    phrase: next,
-                },
-            );
+            let parsed = parse(source);
+            let lowered = parsed.noun_phrase().expect("fixture noun phrase");
             assert_eq!(
                 matches!(lowered, NounPhrase::CoordinatedNominal(_)),
                 shared,
@@ -782,7 +764,7 @@ mod tests {
         };
         assert!(
             matches!(
-                recipient.determiner,
+                recipient.determiner(),
                 Determiner::Target(Some(crate::syntax::Quantity::UpTo(_)))
             ),
             "expected the quantity and target marker on the shared group: {recipient:#?}"
@@ -800,14 +782,14 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        let [group] = outer.rest.as_slice() else {
+        let [group] = outer.rest().as_slice() else {
             panic!("the later determiner must begin one grouped member: {outer:#?}");
         };
         let NounPhrase::CoordinatedNominal(group) = &group.phrase else {
             panic!("expected a nested shared-determiner group: {group:#?}");
         };
-        assert_eq!(group.determiner, Determiner::Another);
-        assert_eq!(group.rest.len(), 1);
+        assert_eq!(*group.determiner(), Determiner::Another);
+        assert_eq!(group.rest().len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
 
@@ -830,8 +812,8 @@ mod tests {
         let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
             panic!("expected shared Oxford recipient heads: {recipient:#?}");
         };
-        assert_eq!(recipient.determiner, Determiner::Each);
-        assert_eq!(recipient.rest.len(), 2);
+        assert_eq!(*recipient.determiner(), Determiner::Each);
+        assert_eq!(recipient.rest().len(), 2);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
 
@@ -850,7 +832,7 @@ mod tests {
                     parsed.noun_phrase()
                 );
             };
-            assert_eq!(coordinated.rest.len(), 1);
+            assert_eq!(coordinated.rest().len(), 1);
             assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
         }
     }
@@ -869,22 +851,8 @@ mod tests {
 
     #[test]
     fn plural_shared_scope_does_not_reopen_a_relative_closed_member() {
-        let first = parse("all creatures you control")
-            .noun_phrase()
-            .expect("fixture noun phrase")
-            .clone();
-        let next = parse("colors")
-            .noun_phrase()
-            .expect("fixture noun phrase")
-            .clone();
-        let lowered = super::super::lowering::push_noun_phrase_coordination(
-            first,
-            crate::syntax::NounPhraseCoordination {
-                conjunction: Some(crate::syntax::NounPhraseConjunction::Or),
-                comma: crate::features::Comma::Absent,
-                phrase: next,
-            },
-        );
+        let parsed = parse("all creatures you control or colors");
+        let lowered = parsed.noun_phrase().expect("fixture noun phrase");
         assert!(matches!(lowered, NounPhrase::Coordinated(_)));
     }
 
@@ -899,12 +867,12 @@ mod tests {
             );
         };
         assert!(matches!(
-            coordinated.first.as_ref(),
+            coordinated.first().as_ref(),
             NounPhrase::Nominal(first)
                 if first.determiner == Some(Determiner::Target(None))
         ));
         assert!(matches!(
-            coordinated.rest.as_slice(),
+            coordinated.rest().as_slice(),
             [crate::syntax::NounPhraseCoordination {
                 conjunction: Some(crate::syntax::NounPhraseConjunction::And),
                 phrase: NounPhrase::Nominal(next),
@@ -1030,13 +998,13 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(coordinated.determiner, Determiner::Target(None));
+        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
         assert!(matches!(
-            coordinated.first.head,
+            coordinated.first().head,
             NounInstance::Singular(Noun::Agentive(_))
         ));
         assert!(matches!(
-            coordinated.rest.as_slice(),
+            coordinated.rest().as_slice(),
             [crate::syntax::NominalPhraseCoordination {
                 phrase: NominalPhrase {
                     head: NounInstance::Singular(Noun::Agentive(_)),
@@ -1070,7 +1038,7 @@ mod tests {
         assert!(matches!(
             options.as_ref(),
             NounPhrase::CoordinatedNominal(coordinated)
-                if coordinated.determiner == Determiner::The
+                if *coordinated.determiner() == Determiner::The
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -1096,8 +1064,8 @@ mod tests {
         let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
             panic!("target must scope over the recipient coordination: {recipient:#?}");
         };
-        assert_eq!(recipient.determiner, Determiner::Target(None));
-        assert_eq!(recipient.rest.len(), 1);
+        assert_eq!(*recipient.determiner(), Determiner::Target(None));
+        assert_eq!(recipient.rest().len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
 
@@ -1187,17 +1155,15 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(coordinated.determiner, Determiner::Target(None));
-        let [interior, final_member] = coordinated.rest.as_slice() else {
-            panic!("expected two continuations, got {:#?}", coordinated.rest);
+        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        let [interior, final_member] = coordinated.rest().as_slice() else {
+            panic!("expected two continuations, got {:#?}", coordinated.rest());
         };
         assert_eq!(interior.conjunction, None);
-        assert_eq!(interior.comma, crate::features::Comma::Present);
         assert_eq!(
             final_member.conjunction,
             Some(crate::syntax::NounPhraseConjunction::Or)
         );
-        assert_eq!(final_member.comma, crate::features::Comma::Present);
     }
 
     #[test]
