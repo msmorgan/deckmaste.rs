@@ -343,7 +343,8 @@ target.
   encoding**: `Announce(Distinct([i…], spec))` already composes for
   edges naming explicit-prefix slots, and an "other"-flavored form
   (distinct-from-all-earlier-announcements, matching oracle's "any
-  OTHER target") covers the fully-inline case that indexless sugar
+  OTHER target" — style guide §6, "Describing objects, players, and
+  targets") covers the fully-inline case that indexless sugar
   slots cannot express — the explicit indexed `Distinct` remains the
   general mechanism. Sugar is legal only in card-authored provenance
   text — a macro body may FORWARD sugar through a `Param` hole but may
@@ -406,7 +407,9 @@ target.
   Surface pronouns do not map one-to-one onto channels — Ephemerate says
   "return it" and Cloudshift "return that card" over the same product
   structure; pronoun choice is a spelling-side realization decision and
-  parse-side disambiguation needs the zone-aware discourse environment.
+  parse-side disambiguation needs the zone-aware discourse environment
+  (surface conventions: [style guide](../oracle-style-guide.md) §5,
+  "Pronouns" / "This, that, those, and the chosen").
   Canonical test pair: Ephemerate / Cloudshift; same-slot case: Terminate;
   slot-read case: Rabid Bite; repeated-clause case: Seeds of Strength
   (each syntactic introduction is a fresh slot); relative case: Arc Trail
@@ -454,7 +457,8 @@ Fight(Target(TargetOne(Creature)), Target(TargetOne(Creature)))
   `cargo xtask macro templates --check` — not currently wired into CI).
 - **Requirements handed to the english effort** (interface, not
   implementation): `Argument` vs `Mention(Full | Pronoun | Demonstrative)`
-  occurrence classes on frame specs and compiled frames — the `${0:pro}`
+  occurrence classes on frame specs and compiled frames (full-mention vs
+  pronoun vs demonstrative conventions: style guide §5) — the `${0:pro}`
   predecessor generalized (one definition parameter, several licensed
   surface occurrences; frames stay linear except via declared occurrence
   roles); whole-scope recovery with transient handles; a discourse
@@ -781,7 +785,8 @@ explicitness budget on exactly what its consumer needs.
   lexicon frame — and `Amass` are the existence proofs), while the
   taxonomy enums drift toward generic scaffold (binders, sequencing, the
   primitive verbs). Reference stays anaphoric here (`It`/`That(Sort)`):
-  English is anaphoric, and the spelling relation needs the anaphors.
+  English is anaphoric (style guide §5, "Names, self-reference,
+  pronouns, and anaphora"), and the spelling relation needs the anaphors.
   Grouping is what turns explicit.
 - **Core drifts toward evaluation shape; its anaphoric channel is
   direction-settled for removal** (`core-reference-slots`, design-gated).

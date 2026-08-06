@@ -13,7 +13,8 @@ For each family record: stable `ConstructionId`; current parser, reduction,
 lowering, renderer, and constructor owners; AST shapes; required subtree,
 field-slice/lens, scalar, or identity holes; feature, valency, and attachment
 constraints; fan-out and backend; ambiguity/dominance relation; stored and
-derivable surface witnesses; active frame/spelling and serialized consumers;
+derivable surface witnesses (semantics-bearing vs house style:
+`docs/oracle-style-guide.md`); active frame/spelling and serialized consumers;
 and the direct-AST, `inspect`, exactness, and negative fixtures that gate its
 migration.
 

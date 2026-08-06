@@ -9,7 +9,10 @@ Untap it.`, `Exile target creature. Its controller loses 2 life.`,
 controller.`, `Then discard a card.` Today the first sentence parses and the
 follow-up fails alone (probe 2026-07-16: 1,445 one-away cards fail on exactly
 one sentence; the anaphor-headed follow-ups — `it` / `its` / `that <noun>` /
-`then` — are the dominant shapes at ~1,110 cards).
+`then` — are the dominant shapes at ~1,110 cards). Surface conventions
+for the follow-up shapes: `docs/oracle-style-guide.md` §5 (pronouns,
+demonstratives, anaphora) and §10 ("Sequence: and, then, if you do, when
+you do").
 
 **Why design-gated.** The emission needs a settled binding story: the parse
 must hoist the first sentence's patient into a binder (`With`/`That`) so the
