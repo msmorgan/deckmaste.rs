@@ -131,19 +131,41 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
         for decision in selection.constructions() {
             let span = decision.span();
             let evidence = decision.evidence();
-            writeln!(
-                writer,
-                "bytes {}..{} {} owner={} backend={} evidence={}:{} reason={} cost={}",
-                span.start,
-                span.end,
-                decision.selected(),
-                owner_name(decision.owner()),
-                backend_name(decision.backend()),
-                evidence_kind_name(evidence.kind()),
-                evidence.label(),
-                reason_name(decision.reason()),
-                cost_text(decision.cost()),
-            )?;
+            let selected_form = decision
+                .alternatives()
+                .iter()
+                .find(|alternative| alternative.id() == decision.selected())
+                .map(deckmaste_english::ConstructionAlternative::production_ordinal);
+            if let Some(form) = selected_form {
+                writeln!(
+                    writer,
+                    "bytes {}..{} {} owner={} backend={} form={} evidence={}:{} reason={} cost={}",
+                    span.start,
+                    span.end,
+                    decision.selected(),
+                    owner_name(decision.owner()),
+                    backend_name(decision.backend()),
+                    form,
+                    evidence_kind_name(evidence.kind()),
+                    evidence.label(),
+                    reason_name(decision.reason()),
+                    cost_text(decision.cost()),
+                )?;
+            } else {
+                writeln!(
+                    writer,
+                    "bytes {}..{} {} owner={} backend={} evidence={}:{} reason={} cost={}",
+                    span.start,
+                    span.end,
+                    decision.selected(),
+                    owner_name(decision.owner()),
+                    backend_name(decision.backend()),
+                    evidence_kind_name(evidence.kind()),
+                    evidence.label(),
+                    reason_name(decision.reason()),
+                    cost_text(decision.cost()),
+                )?;
+            }
             for alternative in decision.alternatives() {
                 writeln!(
                     writer,
@@ -418,6 +440,41 @@ mod tests {
         assert!(!verbose.contains("Span {"));
         assert!(!verbose.contains("ChartStats"));
         assert!(!verbose.contains("ForestStats"));
+    }
+
+    #[test]
+    fn verbose_quote_terminal_output_reports_generated_sentence_form_identity() {
+        // Mutation caught: inspect only the ordinary period form, or discard
+        // the generated form ordinal after lowering a terminal quote.
+        let cards = [CardFace {
+            card_name: "Test Aura".to_owned(),
+            face_name: None,
+            is_legendary: false,
+            supported: false,
+            source_text: "Enchanted creature has \"{T}: Draw a card.\"".to_owned(),
+            oracle_text: "Enchanted creature has \"{T}: Draw a card.\"".to_owned(),
+        }];
+        let catalogs = Catalogs::default()
+            .with_catalog(deckmaste_english::CatalogKind::CardType, ["Creature"]);
+        let mut verbose = Vec::new();
+        write_cards(
+            &mut verbose,
+            &cards,
+            &catalogs,
+            &OutputConfig {
+                verbose: true,
+                abilities_only: false,
+            },
+        )
+        .unwrap();
+        let verbose = String::from_utf8(verbose).unwrap();
+
+        assert!(
+            verbose.contains("sentence owner=generated backend=chart form=1"),
+            "{verbose}"
+        );
+        assert!(verbose.contains("QuotedAbility"));
+        assert!(verbose.contains("alternative sentence#1"));
     }
 
     #[test]

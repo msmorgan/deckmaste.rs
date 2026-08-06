@@ -1543,6 +1543,9 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         if construction.forms.len() > 1 && !has_free_witness {
             for left in 0..guards.len() {
                 for right in (left + 1)..guards.len() {
+                    if construction.forms[left].fallback || construction.forms[right].fallback {
+                        continue;
+                    }
                     if abstractions_overlap(&guards[left], &guards[right]) {
                         // Sorted: explicit ordinals exist so that form order
                         // is not semantic, so the message must not change
@@ -1802,6 +1805,7 @@ pub(crate) mod fixtures {
                         },
                     }],
                 },
+                bind_adapter: None,
                 projection: None,
                 constraints: vec![],
                 witnesses: vec![],
@@ -1810,6 +1814,8 @@ pub(crate) mod fixtures {
                     ordinal: Spanned::call_site(0),
                     surface: vec![SurfaceAtom::Lexeme(FieldPath::call_site("conjunction"))],
                     guard: None,
+                    value_guard: None,
+                    fallback: false,
                 }],
                 dominance: vec![],
                 selection: SelectionPromise::Packed,

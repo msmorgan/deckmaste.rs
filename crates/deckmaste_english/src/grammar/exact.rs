@@ -16,6 +16,7 @@ use super::MeaningKey;
 use super::Nonterminal;
 use super::OpacityMode;
 use super::generated::GeneratedActivation;
+use super::lowering::Lowered;
 use super::lowering::lower;
 use super::lowering::selected_rule_children;
 use super::parse_chart;
@@ -45,6 +46,13 @@ pub(crate) struct GeneratedParse {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GeneratedNounPhraseParse {
     pub(crate) value: crate::syntax::NounPhrase,
+    pub(crate) construction: &'static str,
+    pub(crate) form_ordinal: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneratedSentenceParse {
+    pub(crate) value: crate::syntax::Sentence,
     pub(crate) construction: &'static str,
     pub(crate) form_ordinal: u16,
 }
@@ -374,6 +382,84 @@ fn parse_generated_noun_phrase_as(
     Ok(results)
 }
 
+fn parse_generated_sentence_as(
+    source: &str,
+    catalogs: &Catalogs,
+    activation: GeneratedActivation,
+    budget: usize,
+    order: RegistrationOrder,
+) -> Result<Vec<ExactParse<GeneratedSentenceParse, EnglishSurfaceWitness>>, ExactParseError> {
+    let self_reference = SelfReference::default();
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
+        source,
+        catalogs,
+        Nonterminal::Sentence,
+        OpacityMode::Exact,
+        self_reference,
+        order,
+        activation,
+    );
+    let chart = parse_chart(&grammar, &tokens).map_err(ExactParseError::Grammar)?;
+    let mut remaining = budget;
+    let mut results = Vec::new();
+    for &root in &chart.roots {
+        let selections = chart
+            .forest
+            .enumerate_selections(root, &mut remaining)
+            .map_err(|error| match error {
+                SelectionEnumerationError::Cycle(_) => ExactParseError::Cycle,
+                SelectionEnumerationError::BudgetExhausted => {
+                    ExactParseError::TooManyAlternatives { budget }
+                }
+            })?;
+        for selection in selections {
+            let forest_node = chart.forest.node(root);
+            let Some(alternative_index) = selection.alternative(root) else {
+                continue;
+            };
+            let Some(alternative) = forest_node.alternatives.get(alternative_index) else {
+                continue;
+            };
+            let Some(rule) = alternative.rule else { continue };
+            let Some(RuleImpl::Generated(generated)) = grammar.impls.get(rule.index()).copied()
+            else {
+                continue;
+            };
+            let Some(construction) = generated.group.constructions.get(generated.construction)
+            else {
+                continue;
+            };
+            let Some(form) = construction.forms.get(generated.form) else {
+                continue;
+            };
+            let Some(Lowered::Sentence(value)) = lower(&grammar, &chart.forest, root, &selection)
+            else {
+                continue;
+            };
+            let ast = GeneratedSentenceParse {
+                value,
+                construction: construction.id,
+                form_ordinal: form.ordinal,
+            };
+            let Some(exact) = chart.forest.exact_result(root, alternative_index, ast) else {
+                continue;
+            };
+            if !results.contains(&exact) {
+                results.push(exact);
+            }
+        }
+    }
+    Ok(results)
+}
+
+fn linearize_sentence_exact_form(parse: &GeneratedSentenceParse) -> String {
+    assert_eq!(parse.construction, "sentence");
+    crate::renderer::render_sentence_form(&parse.value, parse.form_ordinal)
+        .expect("fixture sentence form linearizes")
+}
+
 #[cfg(test)]
 mod tests {
     use deckmaste_construction_compiler::runtime::FieldKindData;
@@ -389,7 +475,6 @@ mod tests {
     use crate::constructions::sentence;
     use crate::features::Comma;
     use crate::features::Conjunction;
-    use crate::grammar::lowering::Lowered;
     use crate::syntax::Determiner;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalPhrase;
@@ -463,17 +548,21 @@ mod tests {
             parse_fixture_sentence("Draw a card", &fixture_catalogs(), SelfReference::default());
         assert_eq!(punctuated, bare);
 
-        let built = sentence::build_sentence(punctuated.body.clone())
-            .expect("the generated sentence builder accepts an independent clause body");
+        let crate::syntax::SentenceBody::Independent(clause) = &punctuated.body else {
+            panic!("fixture is an independent sentence")
+        };
+        let clause = crate::syntax::Clause::Independent(clause.clone());
+        let built = sentence::build_sentence(clause.clone())
+            .expect("the generated sentence builder accepts an independent Clause");
         assert_eq!(built, punctuated);
-        assert_eq!(sentence::parts_sentence(&built), &punctuated.body);
+        assert_eq!(sentence::parts_sentence(&built), clause);
 
         let declaration = &sentence::SENTENCE_DECLARATION.constructions[0];
         assert_eq!(declaration.id, "sentence");
         assert_eq!(
             declaration.fields,
             [deckmaste_construction_compiler::runtime::FieldData {
-                name: "body",
+                name: "clause",
                 kind: FieldKindData::Subtree {
                     category: "Clause",
                     boxed: false,
@@ -489,6 +578,60 @@ mod tests {
                 .collect::<Vec<_>>(),
             [("period", 0), ("terminal", 1)],
         );
+    }
+
+    #[test]
+    fn sentence_exact_laws_use_an_independent_ast_and_replay_each_declared_form() {
+        // Mutation caught: derive the expected AST by parsing, collapse the
+        // two forms before exact replay, or guess punctuation from the AST.
+        let expected = crate::syntax::Sentence {
+            body: crate::syntax::SentenceBody::Independent(
+                crate::syntax::IndependentClause::Imperative(crate::syntax::Predicate::Transitive(
+                    crate::syntax::HeadedPredicate {
+                        head: crate::syntax::PredicateHead {
+                            auxiliaries: Vec::new(),
+                            first_auxiliary_contracted_with_subject:
+                                crate::features::Contraction::Full,
+                            preverb_modifiers: Vec::new(),
+                            verb: crate::word::VerbInstance {
+                                verb: crate::word::Verb::Word(Vocab::Draw),
+                                slot: crate::word::VerbSlot::Imperative,
+                            },
+                            distributive_each: false,
+                        },
+                        kind: crate::syntax::Transitive {
+                            pre_object_elements: Vec::new(),
+                            object: crate::syntax::PredicateObject::NounPhrase(
+                                crate::syntax::NounPhrase::Nominal(crate::syntax::NominalPhrase {
+                                    determiner: Some(crate::syntax::Determiner::Indefinite),
+                                    modifiers: Vec::new(),
+                                    head: NounInstance::Singular(Noun::Word(Vocab::Card)),
+                                    complements: Vec::new(),
+                                }),
+                            ),
+                        },
+                        elements: Vec::new(),
+                    },
+                )),
+            ),
+        };
+
+        for (source, ordinal) in [("Draw a card.", 0), ("Draw a card", 1)] {
+            let parses = parse_generated_sentence_as(
+                source,
+                &fixture_catalogs(),
+                GeneratedActivation::Production,
+                10_000,
+                RegistrationOrder::Normal,
+            )
+            .unwrap_or_else(|error| panic!("exact parse failed for {source:?}: {error:?}"));
+            let sentence_parse = parses
+                .iter()
+                .find(|parse| parse.ast().form_ordinal == ordinal)
+                .unwrap_or_else(|| panic!("missing sentence form {ordinal}: {parses:#?}"));
+            assert_eq!(sentence_parse.ast().value, expected, "{source:?}");
+            assert_eq!(linearize_sentence_exact_form(sentence_parse.ast()), source);
+        }
     }
 
     fn nominal(head: Vocab) -> NominalPhrase {

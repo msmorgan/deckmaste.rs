@@ -43,6 +43,9 @@ pub struct ConstructionDeclaration {
     pub category: Spanned<String>,
     pub internal: bool,
     pub ast: AstShape,
+    /// Optional semantic adapter for a bind whose declared construction
+    /// fields do not mirror the target's stored Rust fields one-for-one.
+    pub bind_adapter: Option<BindAdapter>,
     pub projection: Option<Spanned<String>>,
     pub constraints: Vec<Constraint>,
     pub witnesses: Vec<WitnessDeclaration>,
@@ -50,6 +53,12 @@ pub struct ConstructionDeclaration {
     pub dominance: Vec<DominanceEdge>,
     pub selection: SelectionPromise,
     pub deserialize: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BindAdapter {
+    pub constructor: Spanned<String>,
+    pub destructurer: Spanned<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -219,6 +228,11 @@ pub struct FormDeclaration {
     pub ordinal: Spanned<u16>,
     pub surface: Vec<SurfaceAtom>,
     pub guard: Option<Spanned<Predicate>>,
+    /// A named predicate over the complete bound/owned semantic value.
+    pub value_guard: Option<Spanned<String>>,
+    /// An unguarded canonical fallback. It remains selectable by explicit
+    /// ordinal even when a guarded form is canonical for the same value.
+    pub fallback: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -243,6 +257,7 @@ pub enum SelectionPromise {
 pub const KNOWN_COMBINATORS: &[&str] = &[
     "from_first",
     "fixed",
+    "complete_sentence",
     "complete_noun_phrase_coordination",
     "shared_determiner_coordination",
 ];

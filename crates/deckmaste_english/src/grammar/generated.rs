@@ -26,6 +26,7 @@ use crate::surface::Punctuation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum GeneratedFeatureCombinator {
+    CompleteSentence,
     CompleteNounPhraseCoordination,
     SharedDeterminerCoordination,
 }
@@ -33,6 +34,7 @@ pub(super) enum GeneratedFeatureCombinator {
 impl GeneratedFeatureCombinator {
     pub(super) fn from_name(name: &str) -> Option<Self> {
         match name {
+            "complete_sentence" => Some(Self::CompleteSentence),
             "complete_noun_phrase_coordination" => Some(Self::CompleteNounPhraseCoordination),
             "shared_determiner_coordination" => Some(Self::SharedDeterminerCoordination),
             _ => None,
@@ -59,19 +61,22 @@ impl GeneratedFeatureCombinator {
                 precedence: 1,
                 ..super::ParseCost::default()
             },
-            Self::SharedDeterminerCoordination => super::ParseCost::default(),
+            Self::CompleteSentence | Self::SharedDeterminerCoordination => {
+                super::ParseCost::default()
+            }
         }
     }
 
     const fn first_member_argument(self) -> usize {
         match self {
-            Self::CompleteNounPhraseCoordination => 0,
+            Self::CompleteSentence | Self::CompleteNounPhraseCoordination => 0,
             Self::SharedDeterminerCoordination => 1,
         }
     }
 
     const fn rest_argument(self) -> usize {
         match self {
+            Self::CompleteSentence => 0,
             Self::CompleteNounPhraseCoordination => 1,
             Self::SharedDeterminerCoordination => 2,
         }
@@ -79,7 +84,7 @@ impl GeneratedFeatureCombinator {
 
     const fn complements_argument(self) -> Option<usize> {
         match self {
-            Self::CompleteNounPhraseCoordination => None,
+            Self::CompleteSentence | Self::CompleteNounPhraseCoordination => None,
             Self::SharedDeterminerCoordination => Some(3),
         }
     }
@@ -262,19 +267,6 @@ pub(super) enum GeneratedAssemblyError {
     UnsupportedAtomKind {
         construction: &'static str,
         field: &'static str,
-    },
-    /// `bind` is legal only while the family's owner row is Handwritten;
-    /// activation as a generated group is the Generated owner state.
-    ///
-    /// `register_generated` preflights this before registering any rule.
-    /// Authoring consequence: a single `bind`
-    /// construction anywhere in an active group makes the WHOLE group
-    /// permanently unactivatable as generated, including that group's own
-    /// own-mode (non-`bind`) siblings. There is no partial activation; the
-    /// fix is to remove or relocate the `bind` construction, not to work
-    /// around it per-construction.
-    BindWhileGenerated {
-        construction: &'static str,
     },
     UnknownElement {
         construction: &'static str,
@@ -505,15 +497,6 @@ pub(super) fn register_generated(
     groups: &[&'static GroupData],
     cats: &BTreeMap<&'static str, u16>,
 ) -> Result<(), GeneratedAssemblyError> {
-    if let Some(construction) = groups
-        .iter()
-        .flat_map(|group| group.constructions)
-        .find(|construction| construction.bind_path.is_some())
-    {
-        return Err(GeneratedAssemblyError::BindWhileGenerated {
-            construction: construction.id,
-        });
-    }
     for group in groups {
         if let Some(element) = group.element_data.iter().find(|element| {
             !element.fields.is_empty()
@@ -958,6 +941,7 @@ mod tests {
         name: "only",
         ordinal: 0,
         guarded: false,
+        erased_recognizer: None,
         atoms: &[AtomData::Lexeme("word")],
     }];
 
@@ -1079,6 +1063,7 @@ mod tests {
             name: "only",
             ordinal: 0,
             guarded: false,
+            erased_recognizer: None,
             atoms: &[AtomData::Literal("and")],
         }];
         const CONSTRUCTIONS: &[ConstructionData] =
@@ -1107,6 +1092,7 @@ mod tests {
             name: "only",
             ordinal: 0,
             guarded: false,
+            erased_recognizer: None,
             atoms: &[AtomData::Literal(",")],
         }];
         const CONSTRUCTIONS: &[ConstructionData] =
@@ -1139,6 +1125,7 @@ mod tests {
             name: "only",
             ordinal: 0,
             guarded: false,
+            erased_recognizer: None,
             atoms: &[AtomData::Lexeme("who")],
         }];
         const CONSTRUCTIONS: &[ConstructionData] =
@@ -1171,6 +1158,7 @@ mod tests {
             name: "only",
             ordinal: 0,
             guarded: false,
+            erased_recognizer: None,
             atoms: &[AtomData::Hole("items")],
         }];
         const CONSTRUCTIONS: &[ConstructionData] =
@@ -1229,6 +1217,7 @@ mod tests {
             name: "only",
             ordinal: 0,
             guarded: false,
+            erased_recognizer: None,
             atoms: &[AtomData::Hole("members.last")],
         }];
         const CONSTRUCTIONS: &[ConstructionData] =
@@ -1252,7 +1241,7 @@ mod tests {
     }
 
     #[test]
-    fn bind_while_generated_is_refused() {
+    fn bind_construction_can_register_as_generated() {
         const CONSTRUCTIONS: &[ConstructionData] = &[ConstructionData {
             id: "bound",
             category: "Internal",
@@ -1281,13 +1270,8 @@ mod tests {
         };
         let cats = internal_categories(&[&GROUP]);
         let mut builder = RuleBuilder::default();
-        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
-        assert_eq!(
-            error,
-            GeneratedAssemblyError::BindWhileGenerated {
-                construction: "bound"
-            }
-        );
+        register_generated(&mut builder, &[&GROUP], &cats)
+            .expect("compiler-emitted bind builders are valid generated constructions");
     }
 
     #[test]

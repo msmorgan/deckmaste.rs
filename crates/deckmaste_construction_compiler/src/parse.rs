@@ -7,6 +7,7 @@ use syn::parse::Parse;
 use syn::parse::ParseStream;
 
 use crate::model::AstShape;
+use crate::model::BindAdapter;
 use crate::model::Constraint;
 use crate::model::ConstructionDeclaration;
 use crate::model::DominanceEdge;
@@ -31,6 +32,7 @@ mod kw {
     syn::custom_keyword!(construction);
     syn::custom_keyword!(internal);
     syn::custom_keyword!(bind);
+    syn::custom_keyword!(via);
     syn::custom_keyword!(own);
     syn::custom_keyword!(project);
     syn::custom_keyword!(require);
@@ -42,6 +44,8 @@ mod kw {
     syn::custom_keyword!(free);
     syn::custom_keyword!(form);
     syn::custom_keyword!(when);
+    syn::custom_keyword!(check);
+    syn::custom_keyword!(otherwise);
     syn::custom_keyword!(dominates);
     syn::custom_keyword!(dominated);
     syn::custom_keyword!(by);
@@ -284,7 +288,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     let category = spanned_ident(input)?;
     let content;
     syn::braced!(content in input);
-    let ast = parse_shape(&content)?;
+    let (ast, bind_adapter) = parse_shape(&content)?;
     let mut projection = None;
     let mut constraints = Vec::new();
     let mut witnesses = Vec::new();
@@ -392,6 +396,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         category,
         internal,
         ast,
+        bind_adapter,
         projection,
         constraints,
         witnesses,
@@ -402,21 +407,33 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     })
 }
 
-fn parse_shape(input: ParseStream<'_>) -> syn::Result<AstShape> {
+fn parse_shape(input: ParseStream<'_>) -> syn::Result<(AstShape, Option<BindAdapter>)> {
     if input.peek(kw::bind) {
         input.parse::<kw::bind>()?;
         let path = spanned_type_path(input)?;
+        let adapter = if input.peek(kw::via) {
+            input.parse::<kw::via>()?;
+            let constructor = spanned_type_path(input)?;
+            input.parse::<syn::Token![,]>()?;
+            let destructurer = spanned_type_path(input)?;
+            Some(BindAdapter {
+                constructor,
+                destructurer,
+            })
+        } else {
+            None
+        };
         let content;
         syn::braced!(content in input);
         let fields = parse_fields(&content)?;
-        return Ok(AstShape::Bind { path, fields });
+        return Ok((AstShape::Bind { path, fields }, adapter));
     }
     input.parse::<kw::own>()?;
     let name = spanned_ident(input)?;
     let content;
     syn::braced!(content in input);
     let fields = parse_fields(&content)?;
-    Ok(AstShape::Own { name, fields })
+    Ok((AstShape::Own { name, fields }, None))
 }
 
 fn parse_witness_class(input: ParseStream<'_>) -> syn::Result<WitnessClass> {
@@ -458,14 +475,30 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<FormDeclaration> {
         value: ordinal_lit.base10_parse::<u16>()?,
         span: ordinal_lit.span(),
     };
-    let guard = if input.peek(kw::when) {
+    let (guard, value_guard) = if input.peek(kw::when) {
         let keyword = input.parse::<kw::when>()?;
-        Some(Spanned {
-            value: parse_pred(input)?,
-            span: keyword.span,
-        })
+        if input.peek(kw::check) {
+            input.parse::<kw::check>()?;
+            let content;
+            syn::parenthesized!(content in input);
+            (None, Some(spanned_type_path(&content)?))
+        } else {
+            (
+                Some(Spanned {
+                    value: parse_pred(input)?,
+                    span: keyword.span,
+                }),
+                None,
+            )
+        }
     } else {
-        None
+        (None, None)
+    };
+    let fallback = if input.peek(kw::otherwise) {
+        input.parse::<kw::otherwise>()?;
+        true
+    } else {
+        false
     };
     input.parse::<syn::Token![=]>()?;
     let mut surface = Vec::new();
@@ -478,6 +511,8 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<FormDeclaration> {
         ordinal,
         surface,
         guard,
+        value_guard,
+        fallback,
     })
 }
 

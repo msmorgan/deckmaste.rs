@@ -245,6 +245,17 @@ pub(crate) fn render_fragment(
     }
 }
 
+/// Whether a sentence in top-level ability context derives an outer period.
+/// Parsing uses this same structural decision to reject a period-form surface
+/// that rendering would necessarily erase.
+pub(crate) fn top_level_sentence_takes_period(
+    sentence: &Sentence,
+    name: &str,
+    is_legendary: bool,
+) -> bool {
+    Renderer::new(name, is_legendary).sentence_takes_period(sentence)
+}
+
 #[cfg(test)]
 pub(crate) fn render_coordinated_noun_phrase(
     value: &crate::syntax::CoordinatedNounPhrase,
@@ -257,6 +268,25 @@ pub(crate) fn render_coordinated_nominal_phrase(
     value: &crate::syntax::CoordinatedNominalPhrase,
 ) -> Result<String, RenderError> {
     Renderer::new("", false).coordinated_nominal_phrase(value)
+}
+
+#[cfg(test)]
+pub(crate) fn render_sentence_form(value: &Sentence, ordinal: u16) -> Result<String, RenderError> {
+    let renderer = Renderer::new("", false);
+    let published = sentence_terminal_quote(value).map(std::ptr::from_ref);
+    renderer.terminal_quote.set(published);
+    let mut visitor = GeneratedSentenceRenderer::new(&renderer, true);
+    match crate::constructions::sentence::linearize_sentence_form_with(value, ordinal, &mut visitor)
+    {
+        Ok(()) => {
+            let (surface, capitalize) = visitor.finish();
+            Ok(if capitalize { capitalize_first(surface) } else { surface })
+        }
+        Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+            Err(error)
+        }
+        Err(error) => unreachable!("declared exact sentence form is selectable: {error:?}"),
+    }
 }
 
 impl Determiner {
@@ -368,10 +398,24 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         value: &T,
     ) -> Result<(), Self::Error> {
         assert_eq!(category, "Clause");
-        let body = (value as &dyn std::any::Any)
-            .downcast_ref::<SentenceBody>()
-            .expect("the sentence declaration's Clause adapter supplies SentenceBody");
-        self.rendered = Some(self.renderer.sentence_body(body, self.capitalize)?);
+        let clause = (value as &dyn std::any::Any)
+            .downcast_ref::<Clause>()
+            .expect("the sentence declaration supplies its typed Clause field");
+        let Clause::Independent(clause) = clause else {
+            unreachable!("sentence construction admits only independent clauses")
+        };
+        // Adapted bind destructuring materializes the declared `Clause` value.
+        // Republish the corresponding quote inside that value so the
+        // identity-based quote renderer still recognizes the terminal node.
+        let previous = self.renderer.terminal_quote.get();
+        if previous.is_some() {
+            self.renderer
+                .terminal_quote
+                .set(independent_clause_terminal_quote(clause).map(std::ptr::from_ref));
+        }
+        let rendered = self.renderer.independent_clause(clause);
+        self.renderer.terminal_quote.set(previous);
+        self.rendered = Some((rendered?, self.capitalize));
         Ok(())
     }
 
@@ -1084,29 +1128,34 @@ impl<'identity> Renderer<'identity> {
         } else {
             crate::constructions::sentence::terminal_form_ordinal()
         };
-        let mut visitor = GeneratedSentenceRenderer::new(self, capitalize);
-        let body = if form == crate::constructions::sentence::period_form_ordinal() {
-            crate::constructions::sentence::linearize_sentence_with(sentence, &mut visitor)
-        } else {
-            crate::constructions::sentence::linearize_sentence_form_with(
-                sentence,
-                form,
-                &mut visitor,
-            )
-        };
+        let rendered: Result<(String, bool), RenderError> =
+            if matches!(sentence.body, SentenceBody::Independent(_)) {
+                let mut visitor = GeneratedSentenceRenderer::new(self, capitalize);
+                match crate::constructions::sentence::linearize_sentence_form_with(
+                    sentence,
+                    form,
+                    &mut visitor,
+                ) {
+                    Ok(()) => Ok(visitor.finish()),
+                    Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(
+                        error,
+                    )) => Err(error),
+                    Err(error) => unreachable!(
+                        "sentence renderer selects a matching declared form: {error:?}"
+                    ),
+                }
+            } else {
+                self.sentence_body(&sentence.body, capitalize)
+                    .map(|(mut rendered, capitalize)| {
+                        if form == crate::constructions::sentence::period_form_ordinal() {
+                            rendered.push('.');
+                        }
+                        (rendered, capitalize)
+                    })
+            };
         self.terminal_quote.set(previous);
-        match body {
-            Ok(()) => {
-                let (body, capitalize) = visitor.finish();
-                Ok(if capitalize { capitalize_first(body) } else { body })
-            }
-            Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
-                Err(error)
-            }
-            Err(error) => {
-                unreachable!("sentence renderer selects a declared form ordinal: {error:?}")
-            }
-        }
+        let (body, capitalize) = rendered?;
+        Ok(if capitalize { capitalize_first(body) } else { body })
     }
 
     /// Renders a sentence's body, reporting whether the result still wants

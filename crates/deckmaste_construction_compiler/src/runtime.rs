@@ -189,6 +189,7 @@ pub type ErasedValue = Box<dyn std::any::Any>;
 pub type ErasedBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
 pub type ErasedSequenceBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
 pub type ErasedProjector = fn(ErasedValue) -> Result<ErasedValue, ErasedBuildError>;
+pub type ErasedRecognizer = fn(&dyn std::any::Any) -> bool;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ErasedBuildError {
@@ -381,11 +382,18 @@ pub enum WitnessClassData {
     },
 }
 
+#[allow(
+    unpredictable_function_pointer_comparisons,
+    reason = "metadata equality is used for fixture structure; recognizers are never selected by address"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FormData {
     pub name: &'static str,
     pub ordinal: u16,
     pub guarded: bool,
+    /// Generated semantic guard used by lowering after typed construction.
+    /// Field-feature guards remain enforced during reduction as well.
+    pub erased_recognizer: Option<ErasedRecognizer>,
     pub atoms: &'static [AtomData],
 }
 

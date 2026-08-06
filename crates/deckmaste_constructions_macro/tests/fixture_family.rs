@@ -18,7 +18,7 @@
 //! round trip PLUS a genuine rejection through the real validating
 //! `Deserialize` impl, not just a parse-and-discard.
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FixturePhrase;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,6 +30,33 @@ pub enum FixturePair {
 pub struct BoundMember {
     pub comma: Comma,
     pub phrase: FixturePhrase,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AdaptedPhrase {
+    phrase: FixturePhrase,
+    takes_suffix: bool,
+}
+
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "adapted bind constructors use the compiler's checked Result interface"
+)]
+fn make_adapted_phrase(
+    phrase: FixturePhrase,
+) -> Result<AdaptedPhrase, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    Ok(AdaptedPhrase {
+        phrase,
+        takes_suffix: true,
+    })
+}
+
+fn split_adapted_phrase(value: &AdaptedPhrase) -> FixturePhrase {
+    value.phrase.clone()
+}
+
+fn adapted_phrase_takes_suffix(value: &AdaptedPhrase) -> bool {
+    value.takes_suffix
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -697,6 +724,39 @@ deckmaste_constructions_macro::constructions! {
         require payloads.len() == 0;
         form only @ 0 = payloads;
     }
+
+    construction adapted_phrase: FixturePhrase {
+        bind AdaptedPhrase via make_adapted_phrase, split_adapted_phrase {
+            phrase: hole FixturePhrase,
+        }
+        form suffixed @ 0 when check(adapted_phrase_takes_suffix) = phrase ".";
+        form bare @ 1 otherwise = phrase;
+    }
+}
+
+#[test]
+fn adapted_bind_generates_typed_build_parts_recognition_and_exact_form_linearization() {
+    let value = build_adapted_phrase(FixturePhrase).expect("adapter builds the semantic type");
+    assert_eq!(parts_adapted_phrase(&value), FixturePhrase);
+
+    let declaration = BIND_PROBE_DECLARATION
+        .constructions
+        .iter()
+        .find(|construction| construction.id == "adapted_phrase")
+        .expect("adapted declaration");
+    let suffix = declaration.forms.first().expect("suffix form");
+    assert!(suffix
+        .erased_recognizer
+        .expect("guarded form emits a recognizer")(&value));
+
+    let mut canonical = RecordingLinearizer::default();
+    linearize_adapted_phrase_with(&value, &mut canonical).expect("guarded form is canonical");
+    assert_eq!(canonical.events[0], "form:adapted_phrase:suffixed:0");
+
+    let mut exact = RecordingLinearizer::default();
+    linearize_adapted_phrase_form_with(&value, 1, &mut exact)
+        .expect("fallback remains explicitly replayable");
+    assert_eq!(exact.events[0], "form:adapted_phrase:bare:1");
 }
 
 #[test]

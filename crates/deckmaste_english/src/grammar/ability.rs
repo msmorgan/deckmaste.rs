@@ -12,9 +12,14 @@ use crate::catalog::CatalogValue;
 use crate::catalog::Catalogs;
 use crate::catalog::is_named_keyword_argument_label;
 use crate::chart::ChartStats;
+use crate::construction::ConstructionAlternative;
+use crate::construction::ConstructionDecision;
+use crate::construction::ConstructionId;
+use crate::construction::ProductionId;
 use crate::features::Conjunction;
 use crate::forest::ForestStats;
 use crate::forest::ParseCost;
+use crate::forest::SelectionReason;
 use crate::identity::SelfReference;
 use crate::surface::Punctuation;
 use crate::surface::Token;
@@ -1679,7 +1684,34 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         } else {
             self.quoted_grant_object_clause(prefix, quoted)?
         };
-        Some(Sentence::from_body(SentenceBody::Independent(clause)))
+        let sentence = Sentence::from_body(SentenceBody::Independent(clause));
+        let id = ConstructionId::new("sentence");
+        let production = ProductionId {
+            construction: id,
+            ordinal: crate::constructions::sentence::terminal_form_ordinal(),
+        };
+        let cost = ParseCost::default();
+        let family = super::construction::family_by_id(id)
+            .expect("the active registry contains the generated sentence family");
+        self.selections.push(AbilitySelection {
+            span: tokens_span(tokens),
+            constituent_spans: Vec::new(),
+            rule: None,
+            construction: Some(id),
+            constructions: vec![ConstructionDecision::new(
+                tokens_span(tokens),
+                id,
+                family,
+                cost,
+                SelectionReason::Unique,
+                vec![ConstructionAlternative::new(production, cost, false)],
+            )],
+            tied_alternatives: vec![0],
+            cost,
+            chart_stats: ChartStats::default(),
+            forest_stats: ForestStats::default(),
+        });
+        Some(sentence)
     }
 
     /// Attaches a quoted ability as the object of a `with` postmodifier on the

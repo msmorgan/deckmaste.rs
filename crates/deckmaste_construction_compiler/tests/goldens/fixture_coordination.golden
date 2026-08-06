@@ -138,7 +138,7 @@ mod __constructions_fixture_coordination {
     where
         V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
     {
-        let FixturePairNode { members, conjunction } = value;
+        let FixturePairNode { members: _, conjunction } = value;
         let mut selected_form: Option<u16> = None;
         if matches!(conjunction, Conjunction::And) {
             if let Some(first) = selected_form {
@@ -165,7 +165,31 @@ mod __constructions_fixture_coordination {
                 construction: "fixture_pair",
             });
         };
+        linearize_fixture_pair_form_with(value, selected_form, visitor)
+    }
+    pub fn linearize_fixture_pair_form_with<V>(
+        value: &FixturePairNode,
+        selected_form: u16,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        let FixturePairNode { members, conjunction } = value;
         match selected_form {
+            0 if !(matches!(conjunction, Conjunction::And)) => {
+                Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    construction: "fixture_pair",
+                })
+            }
+            1 if !(matches!(conjunction, Conjunction::Or)) => {
+                Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    construction: "fixture_pair",
+                })
+            }
             0 => {
                 visitor
                     .begin_form("fixture_pair", "plain", 0)
@@ -299,7 +323,11 @@ mod __constructions_fixture_coordination {
                     )?;
                 Ok(())
             }
-            _ => unreachable!("selected form ordinal came from this declaration"),
+            _ => {
+                Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    construction: "fixture_pair",
+                })
+            }
         }
     }
     pub fn linearize_fixture_solo_with<V>(
@@ -312,7 +340,7 @@ mod __constructions_fixture_coordination {
     where
         V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
     {
-        let FixtureSoloNode { phrase, alt } = value;
+        let FixtureSoloNode { phrase: _, alt: _ } = value;
         let mut selected_form: Option<u16> = None;
         if true {
             if let Some(first) = selected_form {
@@ -329,6 +357,20 @@ mod __constructions_fixture_coordination {
                 construction: "fixture_solo",
             });
         };
+        linearize_fixture_solo_form_with(value, selected_form, visitor)
+    }
+    pub fn linearize_fixture_solo_form_with<V>(
+        value: &FixtureSoloNode,
+        selected_form: u16,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        let FixtureSoloNode { phrase, alt } = value;
         match selected_form {
             0 => {
                 visitor
@@ -360,7 +402,11 @@ mod __constructions_fixture_coordination {
                     )?;
                 Ok(())
             }
-            _ => unreachable!("selected form ordinal came from this declaration"),
+            _ => {
+                Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    construction: "fixture_solo",
+                })
+            }
         }
     }
     fn __erased_build_fixture_member(
@@ -786,6 +832,7 @@ mod __constructions_fixture_coordination {
                         name: "plain",
                         ordinal: 0u16,
                         guarded: true,
+                        erased_recognizer: None,
                         atoms: &[
                             ::deckmaste_construction_compiler::runtime::AtomData::Hole(
                                 "members",
@@ -799,6 +846,7 @@ mod __constructions_fixture_coordination {
                         name: "fancy",
                         ordinal: 1u16,
                         guarded: true,
+                        erased_recognizer: None,
                         atoms: &[
                             ::deckmaste_construction_compiler::runtime::AtomData::Hole(
                                 "members",
@@ -882,6 +930,7 @@ mod __constructions_fixture_coordination {
                         name: "only",
                         ordinal: 0u16,
                         guarded: false,
+                        erased_recognizer: None,
                         atoms: &[
                             ::deckmaste_construction_compiler::runtime::AtomData::Hole(
                                 "phrase",
@@ -915,6 +964,8 @@ pub use __constructions_fixture_coordination::build_bound_variant_phrase;
 pub use __constructions_fixture_coordination::build_bound_variant_boxed;
 pub use __constructions_fixture_coordination::FixturePairNode;
 pub use __constructions_fixture_coordination::linearize_fixture_pair_with;
+pub use __constructions_fixture_coordination::linearize_fixture_pair_form_with;
 pub use __constructions_fixture_coordination::FixtureSoloNode;
 pub use __constructions_fixture_coordination::linearize_fixture_solo_with;
+pub use __constructions_fixture_coordination::linearize_fixture_solo_form_with;
 pub use __constructions_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;

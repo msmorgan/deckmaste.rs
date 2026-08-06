@@ -338,13 +338,11 @@ fn lower_generated_construction(
         Some(projector) => projector(value).ok()?,
         None => value,
     };
-    if construction.id == "sentence"
-        && form.ordinal == crate::constructions::sentence::period_form_ordinal()
+    if form
+        .erased_recognizer
+        .is_some_and(|recognizer| !recognizer(value.as_ref()))
     {
-        let sentence = value.downcast_ref::<Sentence>()?;
-        if crate::renderer::sentence_has_structural_terminator(sentence) {
-            return None;
-        }
+        return None;
     }
     let projected = project_generated_category(construction, value)?;
     match (rule.context, preposition, projected) {
@@ -493,10 +491,9 @@ fn erased_subtree(
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "Clause" => {
-            let Lowered::Clause(Clause::Independent(value)) = value else {
+            let Lowered::Clause(value) = value else {
                 return None;
             };
-            let value = crate::syntax::SentenceBody::Independent(value);
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "KeywordArgument" => {

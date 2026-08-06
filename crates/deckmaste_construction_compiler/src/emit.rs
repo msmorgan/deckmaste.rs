@@ -59,6 +59,11 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .filter_map(erased_construction_projector)
         .collect();
+    let erased_form_recognizers: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .flat_map(erased_form_recognizers)
+        .collect();
     let deserialize_impls: Vec<TokenStream> = group
         .constructions
         .iter()
@@ -124,12 +129,38 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #(#erased_element_builders)*
             #(#erased_construction_builders)*
             #(#erased_construction_projectors)*
+            #(#erased_form_recognizers)*
             #witness_assertions
             #(#deserialize_impls)*
             #declaration
         }
         #(#reexports)*
     }
+}
+
+fn erased_form_recognizers(construction: &ConstructionDeclaration) -> Vec<TokenStream> {
+    let target = match &construction.ast {
+        AstShape::Own { name, .. } => parse_type(&name.value),
+        AstShape::Bind { path, .. } => parse_type(&path.value),
+    };
+    construction
+        .forms
+        .iter()
+        .filter_map(|form| {
+            let guard = form.value_guard.as_ref()?;
+            let predicate = parse_type(&guard.value);
+            let function = quote::format_ident!(
+                "__erased_recognize_{}_{}",
+                construction.id.value,
+                form.ordinal.value,
+            );
+            Some(quote! {
+                fn #function(value: &dyn ::std::any::Any) -> bool {
+                    value.downcast_ref::<#target>().is_some_and(#predicate)
+                }
+            })
+        })
+        .collect()
 }
 
 /// BFS over `seq` fields reached from at least one serde-opt-in own
@@ -602,6 +633,30 @@ fn bind_construction(
         .map(|b| quote::format_ident!("{}", b.field.value))
         .collect();
     let field_types: Vec<TokenStream> = fields.iter().map(|b| field_type(group, &b.kind)).collect();
+    let construct = construction.bind_adapter.as_ref().map_or_else(
+        || quote! { Ok(#target { #(#field_names),* }) },
+        |adapter| {
+            let constructor = parse_type(&adapter.constructor.value);
+            quote! { #constructor(#(#field_names),*) }
+        },
+    );
+    let destructure = construction.bind_adapter.as_ref().map_or_else(
+        || {
+            quote! {
+                let #target { #(#field_names),* } = value;
+                (#(#field_names),*)
+            }
+        },
+        |adapter| {
+            let destructurer = parse_type(&adapter.destructurer.value);
+            quote! { #destructurer(value) }
+        },
+    );
+    let parts_return = if construction.bind_adapter.is_some() {
+        quote! { (#(#field_types),*) }
+    } else {
+        quote! { (#(&#field_types),*) }
+    };
     Some(quote! {
         // Bind mode: the target type stays public and unmigrated; these are
         // the checked door and the drift gate. The struct literal and the
@@ -609,18 +664,23 @@ fn bind_construction(
         // declaration/type mismatch in either direction is a compile error.
         pub fn #build_fn(#(#params),*) -> Result<#target, ::deckmaste_construction_compiler::runtime::DeclarationViolation> {
             #(#checks)*
-            Ok(#target { #(#field_names),* })
+            #construct
         }
-        pub fn #parts_fn(value: &#target) -> (#(&#field_types),*) {
-            let #target { #(#field_names),* } = value;
-            (#(#field_names),*)
+        pub fn #parts_fn(value: &#target) -> #parts_return {
+            #destructure
         }
     })
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one declaration walk emits canonical selection, explicit-form replay, \
+              and their shared visitor arms"
+)]
 fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) -> TokenStream {
     let id = construction.id.value.as_str();
     let function = quote::format_ident!("linearize_{}_with", construction.id.value);
+    let form_function = quote::format_ident!("linearize_{}_form_with", construction.id.value);
     let (target, fields) = match &construction.ast {
         AstShape::Own { name, fields } => {
             let target = quote::format_ident!("{}", name.value);
@@ -635,10 +695,19 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
     let selections: Vec<TokenStream> = construction
         .forms
         .iter()
+        .filter(|form| !form.fallback)
         .map(|form| {
-            let condition = form.guard.as_ref().map_or_else(
-                || quote! { true },
-                |guard| predicate_tokens(group, fields, &guard.value),
+            let condition = form.value_guard.as_ref().map_or_else(
+                || {
+                    form.guard.as_ref().map_or_else(
+                        || quote! { true },
+                        |guard| predicate_tokens(group, fields, &guard.value),
+                    )
+                },
+                |guard| {
+                    let predicate = parse_type(&guard.value);
+                    quote! { #predicate(value) }
+                },
             );
             let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
             quote! {
@@ -657,6 +726,18 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
             }
         })
         .collect();
+    let fallback_selection = construction
+        .forms
+        .iter()
+        .find(|form| form.fallback)
+        .map(|form| {
+            let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
+            quote! {
+                if selected_form.is_none() {
+                    selected_form = Some(#ordinal);
+                }
+            }
+        });
     let stored_witnesses: Vec<TokenStream> = construction
         .witnesses
         .iter()
@@ -698,6 +779,78 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
             }
         })
         .collect();
+    let form_checks: Vec<TokenStream> = construction
+        .forms
+        .iter()
+        .filter_map(|form| {
+            let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
+            let condition = form.value_guard.as_ref().map(|guard| {
+                let predicate = parse_type(&guard.value);
+                quote! { #predicate(value) }
+            }).or_else(|| form.guard.as_ref().map(|guard| predicate_tokens(group, fields, &guard.value)))?;
+            Some(quote! {
+                #ordinal if !(#condition) => {
+                    Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                        construction: #id,
+                    })
+                }
+            })
+        })
+        .collect();
+    let prepare_fields = match &construction.ast {
+        AstShape::Own { name, .. } => {
+            let target = quote::format_ident!("{}", name.value);
+            quote! { let #target { #(#field_names),* } = value; }
+        }
+        AstShape::Bind { path, .. } if construction.bind_adapter.is_some() => {
+            let parts = quote::format_ident!("parts_{}", construction.id.value);
+            quote! {
+                let (#(#field_names),*) = #parts(value);
+                #(let #field_names = &#field_names;)*
+            }
+        }
+        AstShape::Bind { path, .. } => {
+            let target = parse_type(&path.value);
+            quote! { let #target { #(#field_names),* } = value; }
+        }
+    };
+    let selection_bindings: Vec<TokenStream> = fields
+        .iter()
+        .map(|binding| {
+            let field = quote::format_ident!("{}", binding.field.value);
+            if construction.forms.iter().any(|form| {
+                form.guard.as_ref().is_some_and(|guard| {
+                    predicate_mentions_field(&guard.value, &binding.field.value)
+                })
+            }) {
+                quote! { #field }
+            } else {
+                quote! { #field: _ }
+            }
+        })
+        .collect();
+    let selection_prepare_fields = match &construction.ast {
+        AstShape::Own { name, .. } => {
+            let target = quote::format_ident!("{}", name.value);
+            quote! { let #target { #(#selection_bindings),* } = value; }
+        }
+        AstShape::Bind { .. } if construction.bind_adapter.is_some() => {
+            let any_field_guard = construction.forms.iter().any(|form| form.guard.is_some());
+            if any_field_guard {
+                let parts = quote::format_ident!("parts_{}", construction.id.value);
+                quote! {
+                    let (#(#field_names),*) = #parts(value);
+                    #(let #field_names = &#field_names;)*
+                }
+            } else {
+                quote! {}
+            }
+        }
+        AstShape::Bind { path, .. } => {
+            let target = parse_type(&path.value);
+            quote! { let #target { #(#selection_bindings),* } = value; }
+        }
+    };
     quote! {
         pub fn #function<V>(
             value: &#target,
@@ -706,9 +859,10 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
         where
             V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
         {
-            let #target { #(#field_names),* } = value;
+            #selection_prepare_fields
             let mut selected_form: Option<u16> = None;
             #(#selections)*
+            #fallback_selection
             let Some(selected_form) = selected_form else {
                 return Err(
                     ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
@@ -716,11 +870,42 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
                     },
                 );
             };
+            #form_function(value, selected_form, visitor)
+        }
+
+        pub fn #form_function<V>(
+            value: &#target,
+            selected_form: u16,
+            visitor: &mut V,
+        ) -> Result<(), ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+        where
+            V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+        {
+            #prepare_fields
             match selected_form {
+                #(#form_checks)*
                 #(#form_arms)*
-                _ => unreachable!("selected form ordinal came from this declaration"),
+                _ => Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    construction: #id,
+                }),
             }
         }
+    }
+}
+
+fn predicate_mentions_field(predicate: &Predicate, field: &str) -> bool {
+    match predicate {
+        Predicate::LenAtLeast { path, .. }
+        | Predicate::LenIs { path, .. }
+        | Predicate::In { path, .. }
+        | Predicate::IsSome { path }
+        | Predicate::IsNone { path } => path
+            .segments
+            .first()
+            .is_some_and(|segment| segment.value == field),
+        Predicate::All(predicates) | Predicate::Any(predicates) => predicates
+            .iter()
+            .any(|predicate| predicate_mentions_field(predicate, field)),
     }
 }
 
@@ -1435,7 +1620,18 @@ fn construction_form_rows(construction: &ConstructionDeclaration) -> Vec<TokenSt
         .map(|form| {
             let name = form.name.value.as_str();
             let ordinal = form.ordinal.value;
-            let guarded = form.guard.is_some();
+            let guarded = form.guard.is_some() || form.value_guard.is_some();
+            let erased_recognizer = form.value_guard.as_ref().map_or_else(
+                || quote! { None },
+                |_| {
+                    let recognizer = quote::format_ident!(
+                        "__erased_recognize_{}_{}",
+                        construction.id.value,
+                        form.ordinal.value,
+                    );
+                    quote! { Some(#recognizer) }
+                },
+            );
             let atoms: Vec<TokenStream> = form
                 .surface
                 .iter()
@@ -1459,6 +1655,7 @@ fn construction_form_rows(construction: &ConstructionDeclaration) -> Vec<TokenSt
                     name: #name,
                     ordinal: #ordinal,
                     guarded: #guarded,
+                    erased_recognizer: #erased_recognizer,
                     atoms: &[#(#atoms),*],
                 }
             }
@@ -1701,6 +1898,10 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
         }
         items.push(quote::format_ident!(
             "linearize_{}_with",
+            construction.id.value
+        ));
+        items.push(quote::format_ident!(
+            "linearize_{}_form_with",
             construction.id.value
         ));
     }

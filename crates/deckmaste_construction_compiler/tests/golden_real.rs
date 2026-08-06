@@ -125,6 +125,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                         },
                     ],
                 },
+                bind_adapter: None,
                 projection: Some(Spanned::call_site("Pair".to_owned())),
                 constraints: vec![
                     Constraint::Require(Spanned::call_site(Predicate::LenAtLeast {
@@ -158,6 +159,8 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                             path: FieldPath::call_site("conjunction"),
                             allowed: vec!["And".to_owned()],
                         })),
+                        value_guard: None,
+                        fallback: false,
                     },
                     FormDeclaration {
                         name: Spanned::call_site("fancy".to_owned()),
@@ -171,6 +174,8 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                             path: FieldPath::call_site("conjunction"),
                             allowed: vec!["Or".to_owned()],
                         })),
+                        value_guard: None,
+                        fallback: false,
                     },
                 ],
                 dominance: vec![
@@ -211,6 +216,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                         },
                     ],
                 },
+                bind_adapter: None,
                 projection: None,
                 constraints: vec![Constraint::Require(Spanned::call_site(Predicate::IsNone {
                     path: FieldPath::call_site("alt"),
@@ -229,6 +235,8 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                         SurfaceAtom::Hole(FieldPath::call_site("alt")),
                     ],
                     guard: None,
+                    value_guard: None,
+                    fallback: false,
                 }],
                 dominance: vec![],
                 selection: SelectionPromise::Unique,

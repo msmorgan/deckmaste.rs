@@ -2369,6 +2369,7 @@ fn generated_prepositional_coordination_features(
     fields: &[Option<&Features>],
 ) -> Option<Features> {
     match combinator {
+        GeneratedFeatureCombinator::CompleteSentence => None,
         GeneratedFeatureCombinator::CompleteNounPhraseCoordination => {
             let rest_field = combinator.rest_field_index(construction)?;
             let Features::GeneratedSequence { tail } = fields.get(rest_field)?.as_ref()? else {
@@ -2458,32 +2459,12 @@ fn generated_construction_features(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     fields: &[Option<&Features>],
 ) -> Option<Features> {
-    if construction.id == "sentence" {
-        let [
-            Some(Features::Clause {
-                standalone: true,
-                subjunctive: false,
-                ..
-            }),
-        ] = fields
-        else {
-            return None;
-        };
-        return Some(Features::Sentence);
-    }
     let feature = match construction.feature_combinators {
         [] => return Some(Features::None),
         [feature] => feature,
         _ => return None,
     };
     let combinator = GeneratedFeatureCombinator::from_name(feature.combinator)?;
-    let member_element = combinator.member_element(construction)?;
-    let element = group
-        .element_data
-        .iter()
-        .find(|element| element.name == member_element)?;
-    let member_value_field = combinator.member_value_field_index(group, construction)?;
-    let (_, conjunction_field) = super::generated::coordination_delimiter_fields(group, element)?;
     let args = feature
         .args
         .iter()
@@ -2495,6 +2476,26 @@ fn generated_construction_features(
             fields.get(index).copied()
         })
         .collect::<Option<Vec<_>>>()?;
+    if combinator == GeneratedFeatureCombinator::CompleteSentence {
+        let [
+            Some(Features::Clause {
+                standalone: true,
+                subjunctive: false,
+                ..
+            }),
+        ] = args.as_slice()
+        else {
+            return None;
+        };
+        return Some(Features::Sentence);
+    }
+    let member_element = combinator.member_element(construction)?;
+    let element = group
+        .element_data
+        .iter()
+        .find(|element| element.name == member_element)?;
+    let member_value_field = combinator.member_value_field_index(group, construction)?;
+    let (_, conjunction_field) = super::generated::coordination_delimiter_fields(group, element)?;
     match (combinator, args.as_slice()) {
         (GeneratedFeatureCombinator::CompleteNounPhraseCoordination, [Some(first), Some(rest)]) => {
             complete_noun_phrase_coordination_features(

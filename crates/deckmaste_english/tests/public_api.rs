@@ -84,6 +84,23 @@ fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
     );
     assert!(doubled_report.fragment().is_none());
 
+    let quoted_sentence = quoted_report
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .find(|decision| {
+            decision.selected().as_str() == "sentence"
+                && decision.alternatives().iter().any(|alternative| {
+                    alternative.id().as_str() == "sentence" && alternative.production_ordinal() == 1
+                })
+        })
+        .expect("quote-terminal parsing retains sentence provenance");
+    assert_eq!(quoted_sentence.owner(), ConstructionOwner::Generated);
+    assert!(quoted_sentence.alternatives().iter().any(|alternative| {
+        alternative.id().as_str() == "sentence" && alternative.production_ordinal() == 1
+    }));
+
     let quoted_fragment = parse_fragment(
         quoted,
         &catalogs,
@@ -96,6 +113,38 @@ fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
     assert_eq!(
         render_fragment(&quoted_fragment, "Test Card", false).expect("fragment renders"),
         quoted,
+    );
+}
+
+#[test]
+fn public_sentence_forms_reject_renderer_inconsistent_outer_periods() {
+    // Mutation caught: admit the period form without checking the same
+    // contextual terminal classes used by public rendering.
+    let aura_catalogs = Catalogs::default()
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+        .with_catalog(CatalogKind::KeywordAbility, ["Enchant"]);
+    let aura = parse_fragment(
+        "Enchant creature.",
+        &aura_catalogs,
+        FragmentKind::Sentence,
+        "Test Aura",
+        false,
+    );
+    assert!(
+        aura.fragment().is_none(),
+        "top-level Aura line owns no period"
+    );
+
+    let self_reference = parse_fragment(
+        "Exile Blood for the Blood God!.",
+        &Catalogs::default(),
+        FragmentKind::Sentence,
+        "Blood for the Blood God!",
+        false,
+    );
+    assert!(
+        self_reference.fragment().is_none(),
+        "terminal punctuation in the resolved card name owns the terminator"
     );
 }
 

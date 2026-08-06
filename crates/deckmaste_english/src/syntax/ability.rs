@@ -1,3 +1,4 @@
+use super::clause::Clause;
 use super::clause::DependentClause;
 use super::clause::IndependentClause;
 use super::clause::Predicate;
@@ -699,13 +700,16 @@ pub struct Sentence {
 
 impl Sentence {
     pub(crate) fn from_body(body: SentenceBody) -> Self {
-        crate::constructions::sentence::build_sentence(body)
-            .expect("SentenceBody has no fallible construction invariant")
+        if let SentenceBody::Independent(clause) = body {
+            return crate::constructions::sentence::build_sentence(Clause::Independent(clause))
+                .expect("an independent clause satisfies the Sentence construction");
+        }
+        Self { body }
     }
 
     #[must_use]
     pub fn body(&self) -> &SentenceBody {
-        crate::constructions::sentence::parts_sentence(self)
+        &self.body
     }
 }
 

@@ -276,7 +276,7 @@ pub fn parse_fragment(
         .collect::<Vec<_>>();
     let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
 
-    let fragment = match kind {
+    let mut fragment = match kind {
         FragmentKind::Nominal => chart_fragment(
             source,
             catalogs,
@@ -307,6 +307,13 @@ pub fn parse_fragment(
             Some(Fragment::Ability(parsed.value))
         }
     };
+
+    if source.ends_with('.')
+        && let Some(Fragment::Sentence(sentence)) = &fragment
+        && !crate::renderer::top_level_sentence_takes_period(sentence, name, is_legendary)
+    {
+        fragment = None;
+    }
 
     // A category that declines outright raises no diagnostic of its own — the
     // chart returns an error and the keyword-line frame returns `None`. Mint
