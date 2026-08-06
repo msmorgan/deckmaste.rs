@@ -125,7 +125,6 @@ pub(super) fn reduce(
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseAnyNumberOf
-        | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::NounPhraseMinus
         | RuleTag::NounPhraseHalf
         | RuleTag::NounPhraseHalfRoundedUp
@@ -1758,9 +1757,6 @@ pub(super) fn reduce_phrase(
                 rules_object_followup: false,
             })
         }
-        RuleTag::NounPhraseAdditiveCoordination => {
-            reduce_noun_phrase_additive_coordination(children)
-        }
         RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma => {
             let Features::PrepositionalPhrase { .. } = children.first()?.features else {
                 return None;
@@ -1854,54 +1850,6 @@ pub(super) fn reduce_phrase(
         }),
         _ => None,
     }
-}
-
-fn reduce_noun_phrase_additive_coordination(
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    let Features::NounPhrase {
-        agreement: first_agreement,
-        coordination_domain: first_domain,
-        adjunct: first_adjunct,
-        set_exception,
-        recipient_passive_theme: first_theme,
-        ..
-    } = children.first()?.features
-    else {
-        return None;
-    };
-    let conjunction = Conjunction::Plus;
-    let Features::NounPhrase {
-        agreement: next_agreement,
-        coordination_domain: next_domain,
-        adjunct: next_adjunct,
-        recipient_passive_theme: next_theme,
-        ..
-    } = children.get(2)?.features
-    else {
-        return None;
-    };
-    let agreement = match conjunction {
-        Conjunction::And => Some(Agreement {
-            person: Person::Third,
-            number: Number::Plural,
-        }),
-        Conjunction::Or | Conjunction::AndOr => *next_agreement,
-        Conjunction::Plus => *first_agreement,
-        Conjunction::Then => return None,
-    };
-    Some(Features::NounPhrase {
-        agreement,
-        coordination_domain: combine_coordination_domains(*first_domain, *next_domain)?,
-        pronoun_case: None,
-        adjunct: (*first_adjunct == *next_adjunct)
-            .then_some(*first_adjunct)
-            .flatten(),
-        set_exception: *set_exception,
-        coordination: NounPhraseCoordinationState::Binary(conjunction),
-        recipient_passive_theme: *first_theme && *next_theme,
-        rules_object_followup: false,
-    })
 }
 
 fn combine_coordination_domains(
@@ -2764,7 +2712,7 @@ fn final_generated_conjunction(sequence: &GeneratedSequenceFeatures) -> Option<C
     };
     matches!(
         conjunction,
-        Conjunction::And | Conjunction::Or | Conjunction::AndOr
+        Conjunction::And | Conjunction::Or | Conjunction::Plus | Conjunction::AndOr
     )
     .then_some(*conjunction)
 }

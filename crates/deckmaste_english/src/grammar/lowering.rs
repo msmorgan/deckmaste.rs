@@ -411,7 +411,7 @@ fn erased_field(
     match kind {
         K::Subtree { category, boxed } => erased_subtree(category, boxed, value),
         K::Scalar {
-            codec: "Conjunction",
+            codec: "Conjunction" | "NounPhraseConjunction",
         } => {
             let Lowered::Conjunction(value) = value else {
                 return None;
@@ -506,7 +506,7 @@ fn erased_optional(
     use deckmaste_construction_compiler::runtime::FieldKindData as K;
     match inner {
         K::Scalar {
-            codec: "Conjunction",
+            codec: "Conjunction" | "NounPhraseConjunction",
         } => {
             let Lowered::Conjunction(value) = value else {
                 return None;
@@ -524,7 +524,7 @@ fn erased_optional_absent(
     use deckmaste_construction_compiler::runtime::FieldKindData as K;
     match inner {
         K::Scalar {
-            codec: "Conjunction",
+            codec: "Conjunction" | "NounPhraseConjunction",
         } => Some(Box::new(None::<crate::features::Conjunction>)),
         K::Scalar { codec: "Comma" } => Some(Box::new(None::<crate::features::Comma>)),
         _ => None,
@@ -746,7 +746,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::NounPhrasePartitive
         | RuleTag::NounPhraseEachPartitive
         | RuleTag::NounPhraseAnyNumberOf
-        | RuleTag::NounPhraseAdditiveCoordination
         | RuleTag::NounPhraseMinus
         | RuleTag::NounPhraseHalf
         | RuleTag::NounPhraseHalfRoundedUp
@@ -1788,23 +1787,6 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                     PrepositionalPhrase::simple(preposition, Phrase::NounPhrase(Box::new(whole))),
                 )],
             })))
-        }
-        RuleTag::NounPhraseAdditiveCoordination => {
-            let Lowered::NounPhrase(first) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::NounPhrase(next) = take(children, 2)? else {
-                return None;
-            };
-            let coordinated = crate::syntax::CoordinatedNounPhrase::try_new(
-                Box::new(first),
-                vec![crate::syntax::NounPhraseCoordination {
-                    conjunction: Some(Conjunction::Plus),
-                    phrase: next,
-                }],
-            )
-            .ok()?;
-            Some(Lowered::NounPhrase(NounPhrase::Coordinated(coordinated)))
         }
         RuleTag::NounPhraseMinus
         | RuleTag::NounPhraseHalf

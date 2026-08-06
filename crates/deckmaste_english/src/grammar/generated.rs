@@ -185,10 +185,12 @@ pub(super) fn coordination_delimiter_fields(
         .fields
         .iter()
         .position(|field| codec(field.kind) == Some("Comma"))?;
-    let conjunction = element
-        .fields
-        .iter()
-        .position(|field| codec(field.kind) == Some("Conjunction"))?;
+    let conjunction = element.fields.iter().position(|field| {
+        matches!(
+            codec(field.kind),
+            Some("Conjunction" | "NounPhraseConjunction")
+        )
+    })?;
     Some((comma, conjunction))
 }
 
@@ -392,6 +394,7 @@ fn lhs_category_nonterminal(
 fn codec_slot(codec: &'static str) -> Option<EnglishLexicalSlot> {
     match codec {
         "Conjunction" => Some(EnglishLexicalSlot::Conjunction),
+        "NounPhraseConjunction" => Some(EnglishLexicalSlot::NounPhraseConjunction),
         "Comma" => Some(EnglishLexicalSlot::Punctuation(Punctuation::Comma)),
         _ => None,
     }

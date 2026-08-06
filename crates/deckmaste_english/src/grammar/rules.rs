@@ -533,17 +533,8 @@ impl RuleBuilder {
                 ..ParseCost::default()
             },
         );
-        self.add_with_cost(
-            RuleTag::NounPhraseAdditiveCoordination,
-            N::NounPhrase,
-            [n(N::NounPhrase), l(L::Plus), n(N::NounPhrase)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        // Arithmetic value expressions. `plus` rides the additive coordination
-        // above and `twice` the copular precomplement adverb, so only the
+        // Arithmetic value expressions. `plus` rides generated noun-phrase
+        // coordination and `twice` the copular precomplement adverb, so only the
         // subtraction and halving operators are added here as structured value
         // nodes.
         self.add_with_cost(

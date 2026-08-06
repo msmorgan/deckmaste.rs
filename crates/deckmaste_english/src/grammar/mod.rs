@@ -690,6 +690,8 @@ pub(crate) enum EnglishLexicalSlot {
     Subordinator,
     RatherThan,
     Conjunction,
+    /// A noun-phrase conjunction, including the additive `plus` form.
+    NounPhraseConjunction,
     Plus,
     /// The word `minus` heading a subtraction value expression.
     Minus,
@@ -788,6 +790,7 @@ impl EnglishLexicalSlot {
             | Self::Punctuation(_)
             | Self::Subordinator
             | Self::Conjunction
+            | Self::NounPhraseConjunction
             | Self::Copula
             | Self::Opaque(_) => &[],
         }
@@ -916,6 +919,7 @@ impl EnglishLexicalSlot {
             | Self::Subordinator
             | Self::RatherThan
             | Self::Conjunction
+            | Self::NounPhraseConjunction
             | Self::Half
             | Self::Rounded
             | Self::Copula
@@ -1752,7 +1756,6 @@ enum RuleTag {
     /// the ordinary formal-singular nominal path; see the registration site
     /// for the full rationale.
     NounPhraseAnyNumberOf,
-    NounPhraseAdditiveCoordination,
     NounPhraseMinus,
     NounPhraseHalf,
     NounPhraseHalfRoundedUp,
@@ -3028,6 +3031,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::Subordinator
             | EnglishLexicalSlot::RatherThan
             | EnglishLexicalSlot::Conjunction
+            | EnglishLexicalSlot::NounPhraseConjunction
             | EnglishLexicalSlot::Plus
             | EnglishLexicalSlot::Except) => self.scan_clause_lexical(slot, tokens, start),
             EnglishLexicalSlot::Opaque(slot) if self.opacity_mode != OpacityMode::Exact => {

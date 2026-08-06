@@ -3606,6 +3606,10 @@ fn plus_coordinates_additive_noun_phrases() {
             ..
         }]
     ));
+    assert!(parsed.construction_decisions().iter().any(|decision| {
+        decision.selected().as_str() == "noun_phrase_coordination"
+            && decision.owner() == crate::construction::ConstructionOwner::Generated
+    }));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 

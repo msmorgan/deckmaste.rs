@@ -192,7 +192,8 @@ impl EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::Conjunction => self.scan_conjunction(tokens, start),
+            EnglishLexicalSlot::Conjunction => self.scan_conjunction(tokens, start, false),
+            EnglishLexicalSlot::NounPhraseConjunction => self.scan_conjunction(tokens, start, true),
             slot @ EnglishLexicalSlot::Plus => self
                 .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Plus))
@@ -232,7 +233,7 @@ impl EnglishGrammar<'_, '_> {
             })
             || !self.scan_determiner(tokens, start).is_empty()
             || !self.scan_preposition(tokens, start).is_empty()
-            || !self.scan_conjunction(tokens, start).is_empty()
+            || !self.scan_conjunction(tokens, start, false).is_empty()
             || self.subordinator_at(tokens, start).is_some()
             || EnglishLexicalSlot::LITERAL_SLOTS
                 .iter()
@@ -468,6 +469,7 @@ impl EnglishGrammar<'_, '_> {
         &self,
         tokens: &[Token],
         start: usize,
+        allow_plus: bool,
     ) -> Vec<LexicalMatch<Features, MeaningKey>> {
         use crate::features::Conjunction;
 
@@ -477,7 +479,7 @@ impl EnglishGrammar<'_, '_> {
         let Some(conjunction) = Conjunction::from_spelling(surface) else {
             return Vec::new();
         };
-        if conjunction == Conjunction::Plus {
+        if conjunction == Conjunction::Plus && !allow_plus {
             return Vec::new();
         }
         vec![LexicalMatch {
@@ -1394,20 +1396,9 @@ pub(super) fn noun_phrase_accepts_set_exception(features: &Features) -> bool {
     )
 }
 
-pub(super) fn noun_phrase_is_closed_set_exception(features: &Features) -> bool {
-    matches!(
-        features,
-        Features::NounPhrase {
-            set_exception: SetExceptionState::Closed,
-            ..
-        }
-    )
-}
-
 /// Dot-1 gate for recursive noun-phrase set exceptions and the neighbouring
-/// coordination rules. Only an `all`/`each` set may predict `except`; a
-/// completed exception cannot grow another exception or become the first
-/// member of an outer coordination.
+/// rules. Only an `all`/`each` set may predict `except`; a completed exception
+/// cannot grow another exception.
 pub(super) fn accepts_set_exception_prefix(
     tag: RuleTag,
     completed_children: usize,
@@ -1419,10 +1410,6 @@ pub(super) fn accepts_set_exception_prefix(
     ) && completed_children == 1
     {
         return noun_phrase_accepts_set_exception(latest_child);
-    }
-
-    if matches!(tag, RuleTag::NounPhraseAdditiveCoordination) && completed_children == 1 {
-        return !noun_phrase_is_closed_set_exception(latest_child);
     }
 
     true

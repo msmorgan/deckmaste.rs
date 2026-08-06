@@ -413,7 +413,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
     ) -> Result<(), Self::Error> {
         let value = value as &dyn std::any::Any;
         match codec {
-            "Conjunction" => {
+            "Conjunction" | "NounPhraseConjunction" => {
                 let conjunction = value
                     .downcast_ref::<Conjunction>()
                     .expect("the declaration's Conjunction scalar preserves its Rust type");

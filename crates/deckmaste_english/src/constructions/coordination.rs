@@ -16,6 +16,7 @@ use crate::syntax::NominalComplement;
 use crate::syntax::NominalPhrase;
 use crate::syntax::NominalPhraseCoordination;
 use crate::syntax::NounPhrase;
+use crate::syntax::NounPhraseConjunction;
 use crate::syntax::NounPhraseCoordination;
 use crate::syntax::PowerToughness;
 use crate::syntax::PrepositionalPhrase;
@@ -28,7 +29,7 @@ deckmaste_constructions_macro::constructions! {
 
     element noun_phrase_member bind NounPhraseCoordination {
         comma: surface lex Comma,
-        conjunction: opt lex Conjunction,
+        conjunction: opt lex NounPhraseConjunction,
         phrase: hole NounPhrase,
     }
 
