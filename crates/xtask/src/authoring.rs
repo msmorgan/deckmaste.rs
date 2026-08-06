@@ -17,19 +17,16 @@
 //! cluster gets its own `<Variant>~<kinds>.ron` file instead of a scaffold
 //! that would be silently wrong for one of them.
 //!
-//! ## BLOCKED: optional-param elision
+//! ## Optional-param elision
 //!
-//! A row whose signature has a defaulted param that can't be dropped
-//! (`blocked_on_elision`) gets no scaffold at all, rather than one that
-//! drops the param and silently breaks the long-form spelling. `macro_ron`
-//! has no def-language form for "forward this argument if the call gives
-//! it, omit it entirely from the body if not" — only "fill an omitted arg
-//! with a known expression," which isn't the same thing and isn't even
-//! available for a positional param or for a named param whose default has
-//! no captured expression (every named param in practice). Tracked at
-//! `docs/tickets/planned/macro-ron-optional-param-elision.md`, which carries
-//! the sized proposal; this generator's `macro-author-surface` restriction
-//! flip is blocked on it for the affected rows.
+//! A variant field carrying a constructor default is spelled BOTH ways by
+//! the card corpus — supplied, and omitted for serde to fill — so a scaffold
+//! that made it required would break the short spelling and one that dropped
+//! it would break the long one. Such a param is scaffolded
+//! `Elidable(Any)`: an omitted argument is forwarded as nothing, and
+//! `macro_ron` drops the body entry holding its hole before the body is
+//! read, so the destination applies exactly the default it applies for a
+//! natively-read short spelling.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -172,53 +169,11 @@ fn embed_safe(kind: &str, variant: &str) -> bool {
     }
 }
 
-/// Whether `signature` has a shape this generator cannot render into a
-/// scaffold without silently breaking the LONG-FORM spelling — see
-/// [`needs_identity_macro_rows`]'s doc for the full explanation. Computed
-/// structurally (arity/defaultedness), not by name, so a newly-added variant
-/// with this shape is caught automatically rather than needing a name added
-/// to a list by hand.
-fn blocked_on_elision(signature: &VariantSignature) -> bool {
-    match signature {
-        VariantSignature::Unit => false,
-        VariantSignature::Named(params) => params
-            .iter()
-            .any(|p| matches!(p.default, ParamDefault::Implicit)),
-        VariantSignature::Positional(params) => {
-            params
-                .iter()
-                .rev()
-                .take_while(|p| !matches!(p, ParamDefault::Required))
-                .count()
-                > 0
-        }
-    }
-}
-
 /// Every reachable row an identity macro must cover and this generator can
 /// actually scaffold safely (see [`UNSCAFFOLDABLE`], [`unscaffoldable_kinds`],
-/// [`EMBED_HOSTS`], [`blocked_on_elision`]).
-///
-/// [`blocked_on_elision`] rows are the one exclusion category that is NOT
-/// "no coverage needed here" — these variants genuinely need an identity
-/// macro, canon genuinely spells some of them long-form, and this generator
-/// genuinely cannot render a scaffold that keeps both the short AND long
-/// spelling round-tripping. See the module doc's "BLOCKED: optional-param
-/// elision" section for why (the macro def grammar has no way to say
-/// "forward this argument if given, omit the field entirely if not" — the
-/// existing `Default(Type, expr)` sugar FILLS an omitted arg with a known
-/// expression, which is a different thing, and isn't even available for
-/// positional params or for named params whose default has no captured
-/// expression, which is every named param in practice). Excluding these
-/// rather than shipping a scaffold that drops the field is the load-bearing
-/// choice here: the wrong scaffold parses today (native reads shadow it
-/// until Task 6's restriction flips) and only breaks once restricted, at
-/// which point every long-form card using it fails to load — excluding
-/// instead makes the gap visible NOW, as a missing macro, rather than
-/// LATER, as every long-form card using that name failing to load at once.
+/// [`EMBED_HOSTS`]).
 fn needs_identity_macro_rows() -> Vec<(String, String)> {
     let unscaffoldable_kinds = unscaffoldable_kinds();
-    let kind_set = deckmaste_semantics::ron::kinds();
     reachable_rows()
         .into_iter()
         .filter(|(kind, variant)| classify(kind, variant) == Coverage::NeedsIdentityMacro)
@@ -229,7 +184,6 @@ fn needs_identity_macro_rows() -> Vec<(String, String)> {
                 .any(|(k, v)| *k == kind && *v == variant)
         })
         .filter(|(kind, variant)| embed_safe(kind, variant))
-        .filter(|(kind, variant)| !blocked_on_elision(&signature_of(&kind_set, kind, variant)))
         .collect()
 }
 
@@ -460,22 +414,7 @@ fn cluster_by_signature(
 /// every kind in `kinds`, arity and defaults mirrored from `signature`, body
 /// forwarding the args back into the bare variant so the macro is a
 /// transparent stand-in for it.
-/// # Panics
-/// If `signature` is [`blocked_on_elision`] — that shape can't be rendered
-/// without either silently dropping a real constructor default (the bug
-/// this guard exists to catch) or the `macro_ron` elision feature this
-/// generator doesn't have. Every row `render` is actually called with
-/// already passed through [`needs_identity_macro_rows`]'s filter, which
-/// excludes exactly this shape, so this should never fire — the panic is
-/// defense in depth against a future call site bypassing that filter, not
-/// an expected path.
 fn render(variant: &str, kinds: &[String], signature: &VariantSignature) -> String {
-    assert!(
-        !blocked_on_elision(signature),
-        "{variant} has a droppable constructor default and no way to elide it \
-         (BLOCKED on macro_ron optional-param support); this row should have \
-         been excluded before reaching render"
-    );
     let (params, args) = match signature {
         VariantSignature::Unit => (String::from("[]"), String::new()),
         VariantSignature::Positional(params) => positional_scaffold(params),
@@ -488,60 +427,91 @@ fn render(variant: &str, kinds: &[String], signature: &VariantSignature) -> Stri
     )
 }
 
+/// How many leading positional params a scaffold keeps REQUIRED: everything
+/// before the trailing defaulted run — except that a signature of exactly ONE
+/// param keeps it required whatever its default says.
+///
+/// That exception is not cosmetic. `macro_ron` reads a one-param positional
+/// call through the newtype channel, which has no zero-argument spelling, so
+/// `params: [Elidable(Any)]` would declare a short form nothing could invoke
+/// — and the macro loader now refuses that shape outright
+/// (`InsertError::LoneElidablePositional`), so emitting it would write a
+/// scaffold that fails to load. Keeping the param required preserves the
+/// LONG spelling, which is the one that exists; the short spelling was
+/// already unreachable through a macro either way. (Two or more params read
+/// through the tuple channel, which does admit `M()`, so a trailing elidable
+/// run is fine from there up.)
+fn positional_required(params: &[ParamDefault]) -> usize {
+    if params.len() == 1 {
+        return 1;
+    }
+    params.len()
+        - params
+            .iter()
+            .rev()
+            .take_while(|p| !matches!(p, ParamDefault::Required))
+            .count()
+}
+
+/// Whether a scaffold for `signature` declares any `Elidable(...)` param.
+/// Built on [`positional_required`], the same rule [`positional_scaffold`]
+/// renders from, so the `elision_gap` regression test's expectation can't
+/// drift from what [`render`] actually emits.
+#[cfg(test)]
+fn scaffold_elides(signature: &VariantSignature) -> bool {
+    match signature {
+        VariantSignature::Unit => false,
+        VariantSignature::Named(params) => params
+            .iter()
+            .any(|p| !matches!(p.default, ParamDefault::Required)),
+        VariantSignature::Positional(params) => positional_required(params) < params.len(),
+    }
+}
+
 /// A positional signature's scaffold `params:` list and the matching
 /// `Param(0), Param(1), …` forwarding list.
 ///
-/// Positional macro params can't carry a default at all — `Default(Type,
-/// expr)` is named-signatures-only (the macro loader rejects it on a
-/// positional list: "defaults are named-only"). `render`'s guard means
-/// every `params` this actually runs on has no TRAILING defaulted run (that
-/// shape is excluded before reaching here — see [`blocked_on_elision`]). A
-/// defaulted param that is NOT trailing (only reachable through an
-/// embed-marked tuple variant, per the derive's own contiguous-suffix rule
-/// for ordinary tuple variants — never observed in the current registry) is
-/// kept as a plain required `Any` param instead of dropped, since dropping
-/// it would shift later values into the wrong field — a conservative
-/// fallback for a shape this generator has no way to render faithfully
-/// either way, just a differently-shaped problem than the trailing case.
+/// The params past [`positional_required`] are scaffolded `Elidable(Any)`: a
+/// call may supply them or stop short, and a stopped-short call drops the
+/// corresponding tuple elements from the body, leaving the variant's own
+/// constructor defaults to fill them. That mirrors the derive's own
+/// contiguous-suffix rule, which is why `macro_ron` requires elidable
+/// positional params to be trailing in the first place.
+///
+/// A defaulted param that is NOT trailing (only reachable through an
+/// embed-marked tuple variant — never observed in the current registry)
+/// stays a plain required `Any`: dropping it would shift later values into
+/// the wrong field, and `Elidable` can't express a hole in the middle.
 fn positional_scaffold(params: &[ParamDefault]) -> (String, String) {
-    let trailing_defaulted = params
-        .iter()
-        .rev()
-        .take_while(|p| !matches!(p, ParamDefault::Required))
-        .count();
-    let kept = &params[..params.len() - trailing_defaulted];
-
-    let types = vec!["Any".to_string(); kept.len()];
-    let args: Vec<String> = (0..kept.len()).map(|i| format!("Param({i})")).collect();
+    let required = positional_required(params);
+    let types: Vec<String> = (0..params.len())
+        .map(|i| if i < required { "Any".to_string() } else { "Elidable(Any)".to_string() })
+        .collect();
+    let args: Vec<String> = (0..params.len()).map(|i| format!("Param({i})")).collect();
     (format!("[{}]", types.join(", ")), args.join(", "))
 }
 
 /// A named signature's scaffold `params:` map and the matching
-/// `name: Param(name), …` forwarding list. `render`'s guard means every
-/// `params` this actually runs on has no `Implicit` entries (that shape is
-/// excluded before reaching here — see [`blocked_on_elision`]), so every
-/// param is `Required`; the two default flavors are unreachable by
-/// construction (`Implicit` would be dropped, silently breaking the long
-/// form — exactly the bug that guard exists to prevent; `Expr` never
-/// occurs for a named/struct-variant signature at all — the derive rejects
-/// `#[macro_ron(default = ...)]` on struct-variant fields at compile time,
-/// per its own doc — and its captured text is Rust source for the derive's
-/// codegen besides, not valid RON, so splicing it would be wrong even if it
-/// somehow appeared).
+/// `name: Param(name), …` forwarding list.
+///
+/// A param with any kind of constructor default is scaffolded
+/// `Elidable(Any)`, so both spellings the corpus uses read: supplied, the
+/// argument is forwarded; omitted, the body's `name: Param(name)` entry is
+/// dropped and the field's own default applies. This is deliberately
+/// independent of WHICH default flavor the signature carries — `Implicit`
+/// has no RON rendering at all, and `Expr`'s captured text is Rust source
+/// for the derive's own codegen, so neither can be spliced into a def file
+/// as a fill expression.
 fn named_scaffold(params: &[NamedParam]) -> (String, String) {
     let mut entries = Vec::new();
     let mut args = Vec::new();
     for param in params {
         let name = param.name;
-        match param.default {
-            ParamDefault::Required => entries.push(format!("\"{name}\": Any")),
-            ParamDefault::Implicit | ParamDefault::Expr(_) => {
-                unreachable!(
-                    "named param `{name}` has a default; `render`'s blocked_on_elision \
-                     guard should have excluded this signature"
-                )
-            }
-        }
+        let ty = match param.default {
+            ParamDefault::Required => "Any",
+            ParamDefault::Implicit | ParamDefault::Expr(_) => "Elidable(Any)",
+        };
+        entries.push(format!("\"{name}\": {ty}"));
         args.push(format!("{name}: Param({name})"));
     }
     let params = if entries.is_empty() {
@@ -676,21 +646,19 @@ mod tests {
 #[cfg(test)]
 mod coverage_gap {
     /// Every `NeedsIdentityMacro` row this generator declines to scaffold is
-    /// accounted for by one of the four documented exclusions
+    /// accounted for by one of the three documented exclusions
     /// ([`super::UNSCAFFOLDABLE`], [`super::unscaffoldable_kinds`],
-    /// [`super::embed_safe`], [`super::blocked_on_elision`]) — never a
-    /// silent fifth reason. The gap itself (currently real:
-    /// `deckmaste_plugin`'s `keyword_shape` closed vocabulary for
-    /// `Composite`, the embed-untagged recursion hazard for names only
-    /// reachable at an embedding kind transitively, and the `macro_ron`
-    /// optional-param elision gap) is reported upstream, not hidden here.
+    /// [`super::embed_safe`]) — never a silent fourth reason. The gap itself
+    /// (currently real: `deckmaste_plugin`'s `keyword_shape` closed
+    /// vocabulary for `Composite`, and the embed-untagged recursion hazard
+    /// for names only reachable at an embedding kind transitively) is
+    /// reported upstream, not hidden here.
     #[test]
     fn every_excluded_row_is_an_explained_exclusion() {
         use deckmaste_semantics::authoring::Coverage;
         use deckmaste_semantics::authoring::classify;
         use deckmaste_semantics::authoring::reachable_rows;
 
-        let kind_set = deckmaste_semantics::ron::kinds();
         let all_needs: Vec<(String, String)> = reachable_rows()
             .into_iter()
             .filter(|(k, v)| classify(k, v) == Coverage::NeedsIdentityMacro)
@@ -705,11 +673,8 @@ mod coverage_gap {
                 .iter()
                 .any(|(k, v)| *k == kind && *v == variant)
                 || unscaffoldable_kinds.contains(kind);
-            let signature = super::signature_of(&kind_set, kind, variant);
             assert!(
-                listed
-                    || !super::embed_safe(kind, variant)
-                    || super::blocked_on_elision(&signature),
+                listed || !super::embed_safe(kind, variant),
                 "{kind}::{variant} was excluded without an explanation"
             );
         }
@@ -718,45 +683,106 @@ mod coverage_gap {
 
 #[cfg(test)]
 mod elision_gap {
-    /// No row `needs_identity_macro_rows` hands to the writer has a
-    /// droppable constructor default — `blocked_on_elision` really does
-    /// exclude every such row on the real registry, not just in a synthetic
-    /// example. This is the standing regression test for Critical Finding 1
-    /// (a scaffold that silently dropped an optional param, breaking every
-    /// long-form corpus spelling once restriction flips): if a future
-    /// registry change reintroduces one of these shapes without a
-    /// corresponding fix, this fails loudly instead of shipping a wrong
-    /// scaffold again.
+    /// Every row with a droppable constructor default is scaffolded, and its
+    /// scaffold declares that param `Elidable(Any)` — the shape that keeps
+    /// BOTH corpus spellings reading. These rows used to be excluded outright
+    /// (no def-language form could express "forward it if given, drop it if
+    /// not"), which is what Critical Finding 1 was about; the standing
+    /// regression is now that they are covered rather than that they are
+    /// skipped.
     #[test]
-    fn no_scaffoldable_row_has_a_droppable_default() {
+    fn every_droppable_default_row_is_scaffolded_as_elidable() {
         use deckmaste_semantics::authoring::Coverage;
         use deckmaste_semantics::authoring::classify;
         use deckmaste_semantics::authoring::reachable_rows;
+        use macro_ron::ParamDefault;
+        use macro_ron::VariantSignature;
 
         let kind_set = deckmaste_semantics::ron::kinds();
-        let all_needs: Vec<(String, String)> = reachable_rows()
+        let droppable = |signature: &VariantSignature| match signature {
+            VariantSignature::Unit => false,
+            VariantSignature::Named(params) => params
+                .iter()
+                .any(|p| !matches!(p.default, ParamDefault::Required)),
+            VariantSignature::Positional(params) => {
+                params.iter().any(|p| !matches!(p, ParamDefault::Required))
+            }
+        };
+        let rows: Vec<(String, String)> = reachable_rows()
             .into_iter()
             .filter(|(k, v)| classify(k, v) == Coverage::NeedsIdentityMacro)
+            .filter(|(k, v)| droppable(&super::signature_of(&kind_set, k, v)))
             .collect();
-        let blocked_count = all_needs
-            .iter()
-            .filter(|(kind, variant)| {
-                super::blocked_on_elision(&super::signature_of(&kind_set, kind, variant))
-            })
-            .count();
         assert!(
-            blocked_count > 0,
-            "expected the exclusion to fire on today's registry"
+            !rows.is_empty(),
+            "expected the shape to occur on today's registry"
         );
 
+        // Coverage: none of them is withheld any more.
         let scaffoldable = super::needs_identity_macro_rows();
-        let still_blocked: Vec<_> = scaffoldable
+        let missing: Vec<_> = rows
             .iter()
-            .filter(|(kind, variant)| {
-                super::blocked_on_elision(&super::signature_of(&kind_set, kind, variant))
-            })
+            .filter(|row| !scaffoldable.contains(row))
             .collect();
-        assert!(still_blocked.is_empty(), "{still_blocked:?}");
+        assert!(missing.is_empty(), "{missing:?}");
+
+        // Rendering: `Elidable(Any)` appears exactly where the generator's own
+        // rule says it should — never where a param must stay required (a lone
+        // positional default, or one that isn't trailing), since `macro_ron`
+        // refuses the first outright and the second can't be expressed.
+        let mut elided_any = false;
+        for (kind, variant) in &rows {
+            let signature = super::signature_of(&kind_set, kind, variant);
+            let text = super::render(variant, std::slice::from_ref(kind), &signature);
+            if super::scaffold_elides(&signature) {
+                elided_any = true;
+                assert!(
+                    text.contains("Elidable(Any)"),
+                    "{kind}::{variant} scaffolded without an elidable param:\n{text}"
+                );
+            } else {
+                assert!(
+                    !text.contains("Elidable("),
+                    "{kind}::{variant} scaffolded elidable against the rule:\n{text}"
+                );
+            }
+        }
+        assert!(
+            elided_any,
+            "expected some row to actually scaffold elidable"
+        );
+    }
+
+    /// A lone defaulted positional param stays REQUIRED: `macro_ron` refuses
+    /// `params: [Elidable(Any)]` (no zero-argument spelling exists for a
+    /// one-param call), so emitting it would write a scaffold that can't
+    /// load. This is the guard that replaced the retired `blocked_on_elision`
+    /// panic for the one shape elision genuinely cannot serve.
+    #[test]
+    fn a_lone_defaulted_positional_param_stays_required() {
+        use macro_ron::ParamDefault;
+        use macro_ron::VariantSignature;
+
+        let signature = VariantSignature::Positional(&[ParamDefault::Expr("None")]);
+        assert!(!super::scaffold_elides(&signature));
+        // A real `Action` variant name, so the loader's cycle check reads the
+        // body's head as the native variant it is rather than a self-call.
+        let text = super::render("Cast", &["Action".to_string()], &signature);
+        assert!(text.contains("params: [Any],"), "{text}");
+        assert!(text.contains("body: Cast(Param(0)),"), "{text}");
+
+        // And what it renders actually loads — the point of the guard is that
+        // the alternative (`Elidable(Any)`) would NOT.
+        let mut macros = deckmaste_semantics::macros::macro_set();
+        let def: macro_ron::MacroDef = macros.read_str(&text).unwrap();
+        macros.replace(&def).unwrap();
+
+        let elidable = text.replace("params: [Any],", "params: [Elidable(Any)],");
+        let bad: macro_ron::MacroDef = macros.read_str(&elidable).unwrap();
+        assert!(matches!(
+            macros.replace(&bad),
+            Err(macro_ron::InsertError::LoneElidablePositional { .. })
+        ));
     }
 }
 
@@ -776,11 +802,9 @@ mod elision_gap {
 /// through [`macro_ron::MacroSet::read_str_restricted`], covering: a unit
 /// variant, a positional variant with every param required, a named/struct
 /// variant with every param required, embed fallthrough down to a defining
-/// kind, and — because a short/long spelling distinction only exists for a
-/// defaulted param, and every DEFAULTED shape is now excluded
-/// (`blocked_on_elision`) rather than scaffolded — that an excluded row's
-/// long-form spelling fails LOUDLY under restriction (a clear "not author
-/// vocabulary" error) instead of loading wrong or silently.
+/// kind, and both spellings of an `Elidable(Any)` param — the short one that
+/// omits it and the long one that supplies the value its field default would
+/// otherwise fill.
 #[cfg(test)]
 mod restricted_read {
     use deckmaste_semantics::Action;
@@ -865,23 +889,5 @@ mod restricted_read {
     fn named_all_required_scaffold_round_trips_under_restriction() {
         let macros = real_scaffolds();
         assert_restricted_matches_native::<Action>(&macros, "Attach(what: This, to: You)");
-    }
-
-    /// A row `blocked_on_elision` excludes — `EventFilter::Cast`, both
-    /// `who`/`what` `Implicit` — has NO macro of that name anywhere in the
-    /// real, fully-loaded scaffold set, by design (Critical Finding 1: no
-    /// scaffold exists that could keep both the short and long spelling
-    /// round-tripping). Under restriction its long-form spelling must fail
-    /// LOUDLY, not silently succeed with the wrong value and not panic
-    /// internally — the visible difference between "excluded and reported"
-    /// and "wrong but shipped".
-    #[test]
-    fn an_elision_blocked_rows_long_form_fails_loudly_under_restriction_with_no_macro() {
-        let macros = real_scaffolds();
-        let err = macros
-            .read_str_restricted::<deckmaste_semantics::EventFilter>("Cast(who: You)")
-            .unwrap_err();
-        let message = err.to_string();
-        assert!(message.contains("not author vocabulary"), "{message}");
     }
 }
