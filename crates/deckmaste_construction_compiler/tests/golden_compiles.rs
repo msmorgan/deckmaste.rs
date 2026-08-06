@@ -15,6 +15,11 @@ pub enum BoundPayload {
     Present,
 }
 
+pub enum BoundVariant {
+    Phrase(FixturePhrase),
+    Boxed(Box<FixturePhrase>),
+}
+
 use deckmaste_features::Comma;
 use deckmaste_features::Conjunction;
 

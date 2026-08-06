@@ -1,0 +1,48 @@
+error[E0308]: mismatched types
+  --> tests/compile_fail/bound_enum_variant_payload_drift.rs:8:1
+   |
+ 8 | / deckmaste_constructions_macro::constructions! {
+ 9 | |     group payload_drift;
+10 | |     element bound_variant bind BoundVariant {
+11 | |         variant Phrase: hole FixturePhrase,
+12 | |     }
+13 | | }
+   | | ^
+   | | |
+   | |_expected `&FixturePhrase`, found `&OtherPhrase`
+   |   arguments to this enum variant are incorrect
+   |
+   = note: expected reference `&FixturePhrase`
+              found reference `&OtherPhrase`
+note: tuple variant defined here
+  --> tests/compile_fail/bound_enum_variant_payload_drift.rs:8:1
+   |
+ 8 | / deckmaste_constructions_macro::constructions! {
+ 9 | |     group payload_drift;
+10 | |     element bound_variant bind BoundVariant {
+11 | |         variant Phrase: hole FixturePhrase,
+12 | |     }
+13 | | }
+   | |_^
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> tests/compile_fail/bound_enum_variant_payload_drift.rs:8:1
+   |
+ 8 | / deckmaste_constructions_macro::constructions! {
+ 9 | |     group payload_drift;
+10 | |     element bound_variant bind BoundVariant {
+11 | |         variant Phrase: hole FixturePhrase,
+12 | |     }
+13 | | }
+   | | ^
+   | | |
+   | |_expected `OtherPhrase`, found `FixturePhrase`
+   |   arguments to this enum variant are incorrect
+   |
+note: tuple variant defined here
+  --> tests/compile_fail/bound_enum_variant_payload_drift.rs:5:5
+   |
+ 5 |     Phrase(OtherPhrase),
+   |     ^^^^^^
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)

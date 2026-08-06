@@ -26,6 +26,22 @@ mod __constructions_fixture_coordination {
         (comma, phrase)
     }
     const _: fn(&BoundMember) -> (&Comma, &FixturePhrase) = __parts_bound_fixture_member;
+    pub enum BoundVariantVariantRef<'a> {
+        Phrase(&'a FixturePhrase),
+        Boxed(&'a Box<FixturePhrase>),
+    }
+    pub fn parts_bound_variant(value: &BoundVariant) -> BoundVariantVariantRef<'_> {
+        match value {
+            BoundVariant::Phrase(payload) => BoundVariantVariantRef::Phrase(payload),
+            BoundVariant::Boxed(payload) => BoundVariantVariantRef::Boxed(payload),
+        }
+    }
+    pub fn build_bound_variant_phrase(payload: FixturePhrase) -> BoundVariant {
+        BoundVariant::Phrase(payload)
+    }
+    pub fn build_bound_variant_boxed(payload: Box<FixturePhrase>) -> BoundVariant {
+        BoundVariant::Boxed(payload)
+    }
     const _: fn(&BoundPayload) = |_| {};
     #[derive(Debug, PartialEq, Eq)]
     pub struct FixturePairNode {
@@ -129,7 +145,12 @@ mod __constructions_fixture_coordination {
     }
     pub static FIXTURE_COORDINATION_DECLARATION: ::deckmaste_construction_compiler::runtime::GroupData = ::deckmaste_construction_compiler::runtime::GroupData {
         name: "fixture_coordination",
-        elements: &["fixture_member", "bound_fixture_member", "empty_payload"],
+        elements: &[
+            "fixture_member",
+            "bound_fixture_member",
+            "bound_variant",
+            "empty_payload",
+        ],
         element_data: &[
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "fixture_member",
@@ -151,6 +172,7 @@ mod __constructions_fixture_coordination {
                         },
                     },
                 ],
+                variants: &[],
             },
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "bound_fixture_member",
@@ -170,11 +192,34 @@ mod __constructions_fixture_coordination {
                         },
                     },
                 ],
+                variants: &[],
+            },
+            ::deckmaste_construction_compiler::runtime::ElementData {
+                name: "bound_variant",
+                bind_path: Some("BoundVariant"),
+                fields: &[],
+                variants: &[
+                    ::deckmaste_construction_compiler::runtime::ElementVariantData {
+                        name: "Phrase",
+                        payload: ::deckmaste_construction_compiler::runtime::FieldKindData::Subtree {
+                            category: "FixturePhrase",
+                            boxed: false,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::ElementVariantData {
+                        name: "Boxed",
+                        payload: ::deckmaste_construction_compiler::runtime::FieldKindData::Subtree {
+                            category: "FixturePhrase",
+                            boxed: true,
+                        },
+                    },
+                ],
             },
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "empty_payload",
                 bind_path: Some("BoundPayload"),
                 fields: &[],
+                variants: &[],
             },
         ],
         constructions: &[
@@ -296,6 +341,10 @@ mod __constructions_fixture_coordination {
     };
 }
 pub use __constructions_fixture_coordination::FixtureMember;
+pub use __constructions_fixture_coordination::BoundVariantVariantRef;
+pub use __constructions_fixture_coordination::parts_bound_variant;
+pub use __constructions_fixture_coordination::build_bound_variant_phrase;
+pub use __constructions_fixture_coordination::build_bound_variant_boxed;
 pub use __constructions_fixture_coordination::FixturePairNode;
 pub use __constructions_fixture_coordination::FixtureSoloNode;
 pub use __constructions_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;

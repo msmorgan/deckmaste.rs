@@ -1,0 +1,11 @@
+error: EC004: variant name `Phrase` is declared more than once in element `bound_variant`
+  --> tests/compile_fail/bound_enum_variant_duplicate.rs:11:17
+   |
+11 |         variant Phrase: hole FixturePhrase,
+   |                 ^^^^^^
+
+error: note (EC004): first declared here
+  --> tests/compile_fail/bound_enum_variant_duplicate.rs:10:17
+   |
+10 |         variant Phrase: hole FixturePhrase,
+   |                 ^^^^^^

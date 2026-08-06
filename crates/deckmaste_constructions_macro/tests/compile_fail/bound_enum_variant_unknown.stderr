@@ -1,0 +1,16 @@
+error[E0599]: no variant, associated function, or constant named `Missing` found for enum `BoundVariant` in the current scope
+  --> tests/compile_fail/bound_enum_variant_unknown.rs:7:1
+   |
+ 3 |   pub enum BoundVariant {
+   |   --------------------- variant, associated function, or constant `Missing` not found for this enum
+...
+ 7 |   deckmaste_constructions_macro::constructions! {
+   |  _^
+ 8 | |     group unknown_variant;
+ 9 | |     element bound_variant bind BoundVariant {
+10 | |         variant Missing: hole FixturePhrase,
+11 | |     }
+12 | | }
+   | |_^ variant, associated function, or constant not found in `BoundVariant`
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)

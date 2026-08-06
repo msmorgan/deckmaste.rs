@@ -102,6 +102,13 @@ pub struct ElementDeclaration {
     pub name: Spanned<String>,
     pub bind_path: Option<Spanned<String>>,
     pub fields: Vec<FieldBinding>,
+    pub variants: Vec<ElementVariantDeclaration>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElementVariantDeclaration {
+    pub name: Spanned<String>,
+    pub payload: FieldKind,
 }
 
 #[derive(Debug, Clone)]
@@ -242,6 +249,28 @@ pub fn pascal_case(snake: &str) -> String {
     out
 }
 
+/// `PascalCase` (including ordinary acronym boundaries) to `snake_case`.
+/// Shared by emitted bound-enum builder names and their collision checks.
+#[must_use]
+pub fn snake_case(pascal: &str) -> String {
+    let chars: Vec<char> = pascal.chars().collect();
+    let mut out = String::new();
+    for (index, &ch) in chars.iter().enumerate() {
+        if ch.is_uppercase() {
+            let previous_is_lower_or_digit =
+                index > 0 && (chars[index - 1].is_lowercase() || chars[index - 1].is_ascii_digit());
+            let next_is_lower = chars.get(index + 1).is_some_and(|next| next.is_lowercase());
+            if index > 0 && (previous_is_lower_or_digit || next_is_lower) {
+                out.push('_');
+            }
+            out.extend(ch.to_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -255,5 +284,12 @@ mod tests {
         assert_eq!(a, b);
         assert_ne!(a, FieldPath::call_site("members.comma"));
         assert_eq!(a.dotted(), "members.last.comma");
+    }
+
+    #[test]
+    fn pascal_variant_names_become_stable_builder_suffixes() {
+        assert_eq!(snake_case("EventClause"), "event_clause");
+        assert_eq!(snake_case("URLValue"), "url_value");
+        assert_eq!(snake_case("PowerToughness"), "power_toughness");
     }
 }

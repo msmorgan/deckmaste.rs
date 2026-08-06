@@ -8,6 +8,7 @@ use deckmaste_construction_compiler::model::Constraint;
 use deckmaste_construction_compiler::model::ConstructionDeclaration;
 use deckmaste_construction_compiler::model::DominanceEdge;
 use deckmaste_construction_compiler::model::ElementDeclaration;
+use deckmaste_construction_compiler::model::ElementVariantDeclaration;
 use deckmaste_construction_compiler::model::FieldBinding;
 use deckmaste_construction_compiler::model::FieldKind;
 use deckmaste_construction_compiler::model::FieldPath;
@@ -26,6 +27,7 @@ fn fixture_elements() -> Vec<ElementDeclaration> {
         ElementDeclaration {
             name: Spanned::call_site("fixture_member".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![
                 FieldBinding {
                     field: Spanned::call_site("comma".to_owned()),
@@ -47,6 +49,7 @@ fn fixture_elements() -> Vec<ElementDeclaration> {
         ElementDeclaration {
             name: Spanned::call_site("bound_fixture_member".to_owned()),
             bind_path: Some(Spanned::call_site("BoundMember".to_owned())),
+            variants: vec![],
             fields: vec![
                 FieldBinding {
                     field: Spanned::call_site("comma".to_owned()),
@@ -64,8 +67,30 @@ fn fixture_elements() -> Vec<ElementDeclaration> {
             ],
         },
         ElementDeclaration {
+            name: Spanned::call_site("bound_variant".to_owned()),
+            bind_path: Some(Spanned::call_site("BoundVariant".to_owned())),
+            fields: vec![],
+            variants: vec![
+                ElementVariantDeclaration {
+                    name: Spanned::call_site("Phrase".to_owned()),
+                    payload: FieldKind::Subtree {
+                        category: Spanned::call_site("FixturePhrase".to_owned()),
+                        boxed: false,
+                    },
+                },
+                ElementVariantDeclaration {
+                    name: Spanned::call_site("Boxed".to_owned()),
+                    payload: FieldKind::Subtree {
+                        category: Spanned::call_site("FixturePhrase".to_owned()),
+                        boxed: true,
+                    },
+                },
+            ],
+        },
+        ElementDeclaration {
             name: Spanned::call_site("empty_payload".to_owned()),
             bind_path: Some(Spanned::call_site("BoundPayload".to_owned())),
+            variants: vec![],
             fields: vec![],
         },
     ]
@@ -222,6 +247,11 @@ fn fixture_dsl() -> proc_macro2::TokenStream {
         element bound_fixture_member bind BoundMember {
             comma: lex Comma,
             phrase: hole FixturePhrase,
+        }
+
+        element bound_variant bind BoundVariant {
+            variant Phrase: hole FixturePhrase,
+            variant Boxed: hole box FixturePhrase,
         }
 
         element empty_payload bind BoundPayload {}

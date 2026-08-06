@@ -32,6 +32,12 @@ pub enum BoundPayload {
     Present,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum BoundVariant {
+    Phrase(FixturePhrase),
+    Boxed(Box<FixturePhrase>),
+}
+
 use deckmaste_features::Comma;
 use deckmaste_features::Conjunction;
 
@@ -46,6 +52,11 @@ deckmaste_constructions_macro::constructions! {
     element bound_fixture_member bind BoundMember {
         comma: lex Comma,
         phrase: hole FixturePhrase,
+    }
+
+    element bound_variant bind BoundVariant {
+        variant Phrase: hole FixturePhrase,
+        variant Boxed: hole box FixturePhrase,
     }
 
     element empty_payload bind BoundPayload {}
@@ -186,9 +197,14 @@ fn declaration_data_traces_to_the_one_declaration() {
     assert_eq!(data.name, "fixture_coordination");
     assert_eq!(
         data.elements,
-        &["fixture_member", "bound_fixture_member", "empty_payload"],
+        &[
+            "fixture_member",
+            "bound_fixture_member",
+            "bound_variant",
+            "empty_payload",
+        ],
     );
-    assert_eq!(data.element_data.len(), 3);
+    assert_eq!(data.element_data.len(), 4);
     assert_eq!(data.element_data[0].name, "fixture_member");
     assert_eq!(data.element_data[0].bind_path, None);
     assert_eq!(
@@ -235,9 +251,36 @@ fn declaration_data_traces_to_the_one_declaration() {
             boxed: false,
         }
     );
-    assert_eq!(data.element_data[2].name, "empty_payload");
-    assert_eq!(data.element_data[2].bind_path, Some("BoundPayload"));
+    assert_eq!(data.element_data[2].name, "bound_variant");
+    assert_eq!(data.element_data[2].bind_path, Some("BoundVariant"));
     assert!(data.element_data[2].fields.is_empty());
+    assert_eq!(
+        data.element_data[2]
+            .variants
+            .iter()
+            .map(|variant| variant.name)
+            .collect::<Vec<_>>(),
+        vec!["Phrase", "Boxed"],
+        "bound enum variants preserve declaration order exactly",
+    );
+    assert_eq!(
+        data.element_data[2].variants[0].payload,
+        FieldKindData::Subtree {
+            category: "FixturePhrase",
+            boxed: false,
+        },
+    );
+    assert_eq!(
+        data.element_data[2].variants[1].payload,
+        FieldKindData::Subtree {
+            category: "FixturePhrase",
+            boxed: true,
+        },
+    );
+    assert_eq!(data.element_data[3].name, "empty_payload");
+    assert_eq!(data.element_data[3].bind_path, Some("BoundPayload"));
+    assert!(data.element_data[3].fields.is_empty());
+    assert!(data.element_data[3].variants.is_empty());
     let ids: Vec<&str> = data.constructions.iter().map(|c| c.id).collect();
     assert_eq!(ids, vec!["fixture_pair", "fixture_solo", "fixture_tagged"]);
     let pair = &data.constructions[0];
@@ -295,6 +338,21 @@ fn declaration_data_traces_to_the_one_declaration() {
             },
         }
     );
+}
+
+#[test]
+fn bound_enum_mapping_builds_and_destructures_every_declared_variant() {
+    let phrase = build_bound_variant_phrase(FixturePhrase);
+    assert!(matches!(
+        parts_bound_variant(&phrase),
+        BoundVariantVariantRef::Phrase(payload) if *payload == FixturePhrase
+    ));
+
+    let boxed = build_bound_variant_boxed(Box::new(FixturePhrase));
+    assert!(matches!(
+        parts_bound_variant(&boxed),
+        BoundVariantVariantRef::Boxed(payload) if **payload == FixturePhrase
+    ));
 }
 
 #[derive(Debug, PartialEq, Eq)]

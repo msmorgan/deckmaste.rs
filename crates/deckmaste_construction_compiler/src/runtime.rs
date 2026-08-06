@@ -32,6 +32,13 @@ pub struct ElementData {
     pub name: &'static str,
     pub bind_path: Option<&'static str>,
     pub fields: &'static [FieldData],
+    pub variants: &'static [ElementVariantData],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ElementVariantData {
+    pub name: &'static str,
+    pub payload: FieldKindData,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

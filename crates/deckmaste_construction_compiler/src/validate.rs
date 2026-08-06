@@ -51,6 +51,7 @@ pub fn validate(group: &GroupDeclaration) -> Result<ValidatedGroup<'_>, Vec<Diag
 
 fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
+    check_element_shapes(group, diags);
     check_generated_names(group, diags);
     check_empty_bound_elements(group, diags);
     check_dominance_cycles(group, diags);
@@ -82,6 +83,28 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     .with_span(element.name.span)
                     .with_note("first declared here", *first.get()),
                 );
+            }
+        }
+        let mut seen_variants: std::collections::HashMap<&str, proc_macro2::Span> =
+            std::collections::HashMap::new();
+        for variant in &element.variants {
+            match seen_variants.entry(variant.name.value.as_str()) {
+                std::collections::hash_map::Entry::Vacant(slot) => {
+                    slot.insert(variant.name.span);
+                }
+                std::collections::hash_map::Entry::Occupied(first) => {
+                    diags.push(
+                        Diagnostic::group(
+                            DiagCode::DuplicateName,
+                            format!(
+                                "variant name `{}` is declared more than once in element `{}`",
+                                variant.name.value, element.name.value
+                            ),
+                        )
+                        .with_span(variant.name.span)
+                        .with_note("first declared here", *first.get()),
+                    );
+                }
             }
         }
     }
@@ -192,12 +215,57 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     }
 }
 
-/// EC006 — covers exactly two kinds of top-level TYPE-namespace identifier
+fn check_element_shapes(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for element in &group.elements {
+        if !element.variants.is_empty() && element.bind_path.is_none() {
+            diags.push(
+                Diagnostic::group(
+                    DiagCode::InvalidElementShape,
+                    format!(
+                        "element `{}` declares enum variants but has no `bind` target",
+                        element.name.value
+                    ),
+                )
+                .with_span(element.variants[0].name.span),
+            );
+        }
+        if element.bind_path.is_some() && !element.fields.is_empty() && !element.variants.is_empty()
+        {
+            diags.push(
+                Diagnostic::group(
+                    DiagCode::InvalidElementShape,
+                    format!(
+                        "bound element `{}` mixes struct fields and enum variants; declare exactly one mapping shape",
+                        element.name.value
+                    ),
+                )
+                .with_span(element.variants[0].name.span),
+            );
+        }
+        for variant in &element.variants {
+            if !matches!(variant.payload, FieldKind::Subtree { .. }) {
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::InvalidElementVariant,
+                        format!(
+                            "variant `{}::{}` payload must be `hole TYPE` or `hole box TYPE`",
+                            element.name.value, variant.name.value
+                        ),
+                    )
+                    .with_span(variant.name.span),
+                );
+            }
+        }
+    }
+}
+
+/// EC006 — covers every declaration-derived top-level identifier
 /// the emitter mints into the group's generated module, and checks that
-/// each is unique: owned element structs (`PascalCased` via
-/// `crate::model::pascal_case`) and own-mode construction structs (the
-/// author's literal Rust identifier, used as-is — `emit.rs` never
-/// transforms it). This is a DIFFERENT namespace from EC004's checks above:
+/// each is unique in its Rust namespace. The type namespace contains owned
+/// element structs, bound-enum borrowed-view enums, and own-mode construction
+/// structs. The value namespace contains bound-enum parts/build functions and
+/// bind-mode construction parts/build functions. This is a DIFFERENT
+/// namespace from EC004's checks above:
 /// EC004 catches two elements/forms/witnesses sharing a DECLARED name;
 /// EC006 catches two declared names that map to the same GENERATED
 /// identifier even though the declared names differ (e.g. two own-mode
@@ -205,51 +273,104 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 /// `foo_bar` colliding with `foo__bar` after `PascalCasing`) — collisions
 /// EC004 cannot see because it never looks at the generated identifier.
 ///
-/// Two other kinds of top-level identifier the emitter mints are NOT
-/// checked here, and do not need to be: bind mode's `build_<id>`/`parts_<id>`
-/// functions (added in Milestone 3's Task 2) live in the VALUE namespace,
-/// so they can never collide with an EC006-checked struct even when the
-/// literal identifier text matches; their own uniqueness is already forced
-/// by EC001 (`DuplicateConstructionId`), since `<id>` is the construction id.
 /// `__assert_free_witness_payloads` (Task 1) is a single fixed function
 /// name emitted at most once per group — never derived from a declared
 /// name — so the two-different-declared-names collision EC006 exists to
 /// catch cannot arise for it either.
 ///
-/// Bound elements are absent because the emitter mints no type for them.
 /// Processes owned elements before constructions, matching `emit_group`'s
 /// own emission order, so "first declared here" points at whichever one
 /// rustc would actually see first. `DeclarationViolation` is deliberately not a
 /// reserved name here: it now lives once in `runtime.rs`, not minted per
 /// group, so it is no longer part of this namespace.
 fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
-    let mut seen: std::collections::HashMap<String, (proc_macro2::Span, &'static str, String)> =
-        std::collections::HashMap::new();
-    for element in group
-        .elements
-        .iter()
-        .filter(|element| element.bind_path.is_none())
-    {
-        let generated = crate::model::pascal_case(&element.name.value);
+    let mut seen_types: std::collections::HashMap<
+        String,
+        (proc_macro2::Span, &'static str, String),
+    > = std::collections::HashMap::new();
+    for element in &group.elements {
+        let (generated, kind) = if element.bind_path.is_none() {
+            (crate::model::pascal_case(&element.name.value), "element")
+        } else if !element.variants.is_empty() {
+            (
+                format!(
+                    "{}VariantRef",
+                    crate::model::pascal_case(&element.name.value)
+                ),
+                "bound-enum element view",
+            )
+        } else {
+            continue;
+        };
         record_generated_name(
-            &mut seen,
+            &mut seen_types,
             diags,
             &generated,
             element.name.span,
-            "element",
+            kind,
             element.name.value.clone(),
         );
     }
     for construction in &group.constructions {
         if let crate::model::AstShape::Own { name, .. } = &construction.ast {
             record_generated_name(
-                &mut seen,
+                &mut seen_types,
                 diags,
                 &name.value,
                 name.span,
                 "own-mode construction",
-                name.value.clone(),
+                construction.id.value.clone(),
             );
+        }
+    }
+
+    let mut seen_values: std::collections::HashMap<
+        String,
+        (proc_macro2::Span, &'static str, String),
+    > = std::collections::HashMap::new();
+    for element in group
+        .elements
+        .iter()
+        .filter(|element| !element.variants.is_empty())
+    {
+        let parts = format!("parts_{}", element.name.value);
+        record_generated_name(
+            &mut seen_values,
+            diags,
+            &parts,
+            element.name.span,
+            "bound-enum element destructurer",
+            element.name.value.clone(),
+        );
+        for variant in &element.variants {
+            let builder = format!(
+                "build_{}_{}",
+                element.name.value,
+                crate::model::snake_case(&variant.name.value),
+            );
+            record_generated_name(
+                &mut seen_values,
+                diags,
+                &builder,
+                variant.name.span,
+                "bound-enum variant builder",
+                format!("{}::{}", element.name.value, variant.name.value),
+            );
+        }
+    }
+    for construction in &group.constructions {
+        if let crate::model::AstShape::Bind { .. } = &construction.ast {
+            for prefix in ["build", "parts"] {
+                let generated = format!("{prefix}_{}", construction.id.value);
+                record_generated_name(
+                    &mut seen_values,
+                    diags,
+                    &generated,
+                    construction.id.span,
+                    "bind-mode construction function",
+                    construction.id.value.clone(),
+                );
+            }
         }
     }
 }
@@ -332,7 +453,10 @@ fn collect_sequence_references<'a>(
 
 fn is_empty_bound_element(group: &GroupDeclaration, name: &str) -> bool {
     group.elements.iter().any(|candidate| {
-        candidate.name.value == name && candidate.bind_path.is_some() && candidate.fields.is_empty()
+        candidate.name.value == name
+            && candidate.bind_path.is_some()
+            && candidate.fields.is_empty()
+            && candidate.variants.is_empty()
     })
 }
 
@@ -363,14 +487,11 @@ fn record_generated_name(
         }
         std::collections::hash_map::Entry::Occupied(first) => {
             let (first_span, first_kind, first_declared) = first.get().clone();
-            // Two elements sharing the exact same DECLARED name is
-            // already EC004 (duplicate element name) — EC006 exists for
-            // the collisions EC004 cannot see (different declared names
-            // mapping to the same generated identifier, or an own-mode
-            // construction's type name, which EC004 never inspects), so
-            // skip this one exact-overlap case to avoid reporting the
-            // same root cause twice.
-            if kind == "element" && first_kind == "element" && declared == first_declared {
+            // An exact duplicate declaration in the same generated-item
+            // family already has its identity diagnostic (EC001 or EC004).
+            // EC006 exists for distinct declarations that normalize to one
+            // Rust identifier, so do not report the same root cause twice.
+            if kind == first_kind && declared == first_declared {
                 return;
             }
             diags.push(
@@ -1655,6 +1776,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -1720,6 +1842,7 @@ mod tests {
         let element = crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![],
         };
         group.elements.push(element.clone());
@@ -1734,11 +1857,83 @@ mod tests {
         assert_eq!(err[0].notes[0].message, "first declared here");
     }
 
+    #[test]
+    fn bound_element_cannot_mix_struct_fields_and_enum_variants() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group g;
+            element member bind Member {
+                phrase: hole Phrase,
+                variant Phrase: hole Phrase,
+            }
+        })
+        .expect("mixed syntax parses so validation can report a stable diagnostic");
+        let err = validate(&group).expect_err("one bound mapping cannot be both struct and enum");
+        assert_eq!(codes(&err), vec!["EC008"]);
+        assert_eq!(
+            message_for(&err, "EC008"),
+            "bound element `member` mixes struct fields and enum variants; declare exactly one mapping shape",
+        );
+    }
+
+    #[test]
+    fn owned_element_cannot_declare_enum_variants() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group g;
+            element member {
+                variant Phrase: hole Phrase,
+            }
+        })
+        .expect("variant syntax parses independently of semantic ownership");
+        let err = validate(&group).expect_err("only an existing bound enum can supply variants");
+        assert_eq!(codes(&err), vec!["EC008"]);
+        assert_eq!(
+            message_for(&err, "EC008"),
+            "element `member` declares enum variants but has no `bind` target",
+        );
+    }
+
+    #[test]
+    fn bound_element_variant_names_are_unique() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group g;
+            element member bind Member {
+                variant Phrase: hole Phrase,
+                variant Phrase: hole OtherPhrase,
+            }
+        })
+        .expect("duplicate names are semantic, not syntactic");
+        let err = validate(&group).expect_err("variant names identify distinct Rust enum cases");
+        assert_eq!(codes(&err), vec!["EC004"]);
+        assert_eq!(
+            message_for(&err, "EC004"),
+            "variant name `Phrase` is declared more than once in element `member`",
+        );
+        assert_eq!(err[0].notes[0].message, "first declared here");
+    }
+
+    #[test]
+    fn bound_element_variant_payload_must_be_a_subtree_hole() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group g;
+            element member bind Member {
+                variant Phrase: lex PhraseCodec,
+            }
+        })
+        .expect("all field kinds remain syntax so validation can explain the restriction");
+        let err = validate(&group).expect_err("enum cases carry one typed syntax payload");
+        assert_eq!(codes(&err), vec!["EC009"]);
+        assert_eq!(
+            message_for(&err, "EC009"),
+            "variant `member::Phrase` payload must be `hole TYPE` or `hole box TYPE`",
+        );
+    }
+
     fn group_with_empty_bound_element() -> crate::model::GroupDeclaration {
         let mut group = minimal_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("empty_payload".to_owned()),
             bind_path: Some(crate::model::Spanned::call_site("BoundPayload".to_owned())),
+            variants: vec![],
             fields: vec![],
         });
         if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
@@ -1783,6 +1978,21 @@ mod tests {
     }
 
     #[test]
+    fn typed_bound_enum_element_can_be_nonempty() {
+        let mut group = group_with_empty_bound_element();
+        group.elements[0]
+            .variants
+            .push(crate::model::ElementVariantDeclaration {
+                name: crate::model::Spanned::call_site("Phrase".to_owned()),
+                payload: crate::model::FieldKind::Subtree {
+                    category: crate::model::Spanned::call_site("Phrase".to_owned()),
+                    boxed: false,
+                },
+            });
+        validate(&group).expect("a total enum mapping removes the opaque-empty restriction");
+    }
+
+    #[test]
     fn optional_sequence_cannot_bypass_empty_bound_element_rule() {
         let mut group = group_with_empty_bound_element();
         let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast else {
@@ -1807,11 +2017,13 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("empty_payload".to_owned()),
             bind_path: Some(crate::model::Spanned::call_site("BoundPayload".to_owned())),
+            variants: vec![],
             fields: vec![],
         });
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("container".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("payloads".to_owned()),
                 kind: crate::model::FieldKind::Sequence {
@@ -1910,6 +2122,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("minimal_node".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![],
         });
         let err = validate(&group)
@@ -1926,17 +2139,72 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("foo_bar".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![],
         });
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("foo__bar".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![],
         });
         let err =
             validate(&group).expect_err("colliding element PascalCase names must be rejected");
         let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
         assert_eq!(codes, vec!["EC006"]);
+    }
+
+    #[test]
+    fn bound_enum_view_type_collisions_are_rejected_before_emission() {
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        let crate::model::AstShape::Own { name, .. } = &mut group.constructions[0].ast else {
+            panic!("fixture owns");
+        };
+        *name = crate::model::Spanned::call_site("BoundVariantVariantRef".to_owned());
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("bound_variant".to_owned()),
+            bind_path: Some(crate::model::Spanned::call_site("BoundVariant".to_owned())),
+            fields: vec![],
+            variants: vec![crate::model::ElementVariantDeclaration {
+                name: crate::model::Spanned::call_site("Phrase".to_owned()),
+                payload: crate::model::FieldKind::Subtree {
+                    category: crate::model::Spanned::call_site("Phrase".to_owned()),
+                    boxed: false,
+                },
+            }],
+        });
+        let err = validate(&group).expect_err("generated type namespace must be collision-free");
+        assert_eq!(codes(&err), vec!["EC006"]);
+        assert!(message_for(&err, "EC006").contains("BoundVariantVariantRef"));
+    }
+
+    #[test]
+    fn bound_enum_builder_suffix_collisions_are_rejected_before_emission() {
+        let mut group = minimal_group();
+        group.elements.push(crate::model::ElementDeclaration {
+            name: crate::model::Spanned::call_site("bound_variant".to_owned()),
+            bind_path: Some(crate::model::Spanned::call_site("BoundVariant".to_owned())),
+            fields: vec![],
+            variants: vec![
+                crate::model::ElementVariantDeclaration {
+                    name: crate::model::Spanned::call_site("URLValue".to_owned()),
+                    payload: crate::model::FieldKind::Subtree {
+                        category: crate::model::Spanned::call_site("Phrase".to_owned()),
+                        boxed: false,
+                    },
+                },
+                crate::model::ElementVariantDeclaration {
+                    name: crate::model::Spanned::call_site("UrlValue".to_owned()),
+                    payload: crate::model::FieldKind::Subtree {
+                        category: crate::model::Spanned::call_site("Phrase".to_owned()),
+                        boxed: false,
+                    },
+                },
+            ],
+        });
+        let err = validate(&group).expect_err("two variants cannot mint one builder function");
+        assert_eq!(codes(&err), vec!["EC006"]);
+        assert!(message_for(&err, "EC006").contains("build_bound_variant_url_value"));
     }
 
     #[test]
@@ -2021,6 +2289,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -2070,6 +2339,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("conjunction".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -2101,6 +2371,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![],
         });
         group.constructions[0].forms[0]
@@ -2119,6 +2390,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("NounPhraseCoordination".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -2177,6 +2449,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Optional {
@@ -2299,6 +2572,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -2343,6 +2617,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![],
         });
         if let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast {
@@ -2482,6 +2757,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("sub".to_owned()),
                 kind: crate::model::FieldKind::Optional {
@@ -3412,6 +3688,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("Mention".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("role".to_owned()),
                 kind: crate::model::FieldKind::Scalar {

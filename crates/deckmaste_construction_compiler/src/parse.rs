@@ -11,6 +11,7 @@ use crate::model::Constraint;
 use crate::model::ConstructionDeclaration;
 use crate::model::DominanceEdge;
 use crate::model::ElementDeclaration;
+use crate::model::ElementVariantDeclaration;
 use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::FieldPath;
@@ -26,6 +27,7 @@ use crate::model::WitnessDeclaration;
 mod kw {
     syn::custom_keyword!(group);
     syn::custom_keyword!(element);
+    syn::custom_keyword!(variant);
     syn::custom_keyword!(construction);
     syn::custom_keyword!(internal);
     syn::custom_keyword!(bind);
@@ -105,12 +107,39 @@ fn parse_element(input: ParseStream<'_>) -> syn::Result<ElementDeclaration> {
     };
     let content;
     syn::braced!(content in input);
-    let fields = parse_fields(&content)?;
+    let (fields, variants) = parse_element_members(&content)?;
     Ok(ElementDeclaration {
         name,
         bind_path,
         fields,
+        variants,
     })
+}
+
+fn parse_element_members(
+    input: ParseStream<'_>,
+) -> syn::Result<(Vec<FieldBinding>, Vec<ElementVariantDeclaration>)> {
+    let mut fields = Vec::new();
+    let mut variants = Vec::new();
+    while !input.is_empty() {
+        if input.peek(kw::variant) {
+            input.parse::<kw::variant>()?;
+            let name = spanned_ident(input)?;
+            input.parse::<syn::Token![:]>()?;
+            let payload = parse_kind(input)?;
+            variants.push(ElementVariantDeclaration { name, payload });
+        } else {
+            let field = spanned_ident(input)?;
+            input.parse::<syn::Token![:]>()?;
+            let kind = parse_kind(input)?;
+            fields.push(FieldBinding { field, kind });
+        }
+        if input.is_empty() {
+            break;
+        }
+        input.parse::<syn::Token![,]>()?;
+    }
+    Ok((fields, variants))
 }
 
 fn parse_fields(input: ParseStream<'_>) -> syn::Result<Vec<FieldBinding>> {
@@ -520,6 +549,11 @@ mod tests {
                 phrase: hole FixturePhrase,
             }
 
+            element bound_variant bind BoundVariant {
+                variant Phrase: hole FixturePhrase,
+                variant Boxed: hole box FixturePhrase,
+            }
+
             element empty_payload bind BoundPayload {}
 
             construction fixture_pair: FixturePair {
@@ -597,6 +631,41 @@ mod tests {
         assert_eq!(
             allowed.iter().map(String::as_str).collect::<Vec<_>>(),
             ["Present"],
+        );
+    }
+
+    #[test]
+    fn bound_enum_variants_parse_as_typed_element_members() {
+        let parsed = parse_group(quote::quote! {
+            group typed_elements;
+            element nominal_complement bind NominalComplement {
+                variant Adjective: hole AdjectivePhrase,
+                variant EventClause: hole box IndependentClause,
+            }
+        })
+        .expect("a bound enum element accepts typed variant declarations");
+        assert!(
+            parsed.elements[0].fields.is_empty(),
+            "enum variants are not struct fields"
+        );
+        assert_eq!(
+            parsed.elements[0].variants,
+            vec![
+                ElementVariantDeclaration {
+                    name: Spanned::call_site("Adjective".to_owned()),
+                    payload: FieldKind::Subtree {
+                        category: Spanned::call_site("AdjectivePhrase".to_owned()),
+                        boxed: false,
+                    },
+                },
+                ElementVariantDeclaration {
+                    name: Spanned::call_site("EventClause".to_owned()),
+                    payload: FieldKind::Subtree {
+                        category: Spanned::call_site("IndependentClause".to_owned()),
+                        boxed: true,
+                    },
+                },
+            ]
         );
     }
 
@@ -690,6 +759,7 @@ mod tests {
             vec![ElementDeclaration {
                 name: Spanned::call_site("member".to_owned()),
                 bind_path: Some(Spanned::call_site("crate::syntax::BoundMember".to_owned(),)),
+                variants: vec![],
                 fields: vec![FieldBinding {
                     field: Spanned::call_site("phrase".to_owned()),
                     kind: FieldKind::Subtree {

@@ -1,0 +1,26 @@
+error[E0004]: non-exhaustive patterns: `&BoundVariant::Other(_)` not covered
+  --> tests/compile_fail/bound_enum_variant_unmapped.rs:8:1
+   |
+ 8 | / deckmaste_constructions_macro::constructions! {
+ 9 | |     group unmapped_variant;
+10 | |     element bound_variant bind BoundVariant {
+11 | |         variant Phrase: hole FixturePhrase,
+12 | |     }
+13 | | }
+   | |_^ pattern `&BoundVariant::Other(_)` not covered
+   |
+note: `BoundVariant` defined here
+  --> tests/compile_fail/bound_enum_variant_unmapped.rs:3:10
+   |
+ 3 | pub enum BoundVariant {
+   |          ^^^^^^^^^^^^
+ 4 |     Phrase(FixturePhrase),
+ 5 |     Other(FixturePhrase),
+   |     ----- not covered
+   = note: the matched value is of type `&BoundVariant`
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+   |
+13 ~ },
+14 + &BoundVariant::Other(_) => todo!()
+   |

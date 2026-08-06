@@ -142,6 +142,9 @@ fn element_item(
         return owned_element_struct(group, element, serde);
     };
     let target = parse_type(&bind_path.value);
+    if !element.variants.is_empty() {
+        return bound_enum_element(group, element, &target);
+    }
     if element.fields.is_empty() {
         return quote! {
             const _: fn(&#target) = |_| {};
@@ -164,6 +167,66 @@ fn element_item(
             (#(#field_names),*)
         }
         const _: fn(&#target) -> (#(&#field_types),*) = #parts;
+    }
+}
+
+fn bound_enum_element(
+    group: &GroupDeclaration,
+    element: &ElementDeclaration,
+    target: &TokenStream,
+) -> TokenStream {
+    let view = quote::format_ident!(
+        "{}VariantRef",
+        crate::model::pascal_case(&element.name.value)
+    );
+    let parts = quote::format_ident!("parts_{}", element.name.value);
+    let view_variants: Vec<TokenStream> = element
+        .variants
+        .iter()
+        .map(|variant| {
+            let name = quote::format_ident!("{}", variant.name.value);
+            let payload = field_type(group, &variant.payload);
+            quote! { #name(&'a #payload), }
+        })
+        .collect();
+    let match_arms: Vec<TokenStream> = element
+        .variants
+        .iter()
+        .map(|variant| {
+            let name = quote::format_ident!("{}", variant.name.value);
+            quote! { #target::#name(payload) => #view::#name(payload), }
+        })
+        .collect();
+    let builders: Vec<TokenStream> = element
+        .variants
+        .iter()
+        .map(|variant| {
+            let variant_name = quote::format_ident!("{}", variant.name.value);
+            let builder = quote::format_ident!(
+                "build_{}_{}",
+                element.name.value,
+                crate::model::snake_case(&variant.name.value),
+            );
+            let payload = field_type(group, &variant.payload);
+            quote! {
+                pub fn #builder(payload: #payload) -> #target {
+                    #target::#variant_name(payload)
+                }
+            }
+        })
+        .collect();
+    quote! {
+        pub enum #view<'a> {
+            #(#view_variants)*
+        }
+
+        pub fn #parts(value: &#target) -> #view<'_> {
+            match value {
+                #(#match_arms)*
+            }
+        }
+
+        #(#builders)*
     }
 }
 
@@ -688,11 +751,26 @@ fn element_row(element: &ElementDeclaration) -> TokenStream {
         },
     );
     let fields: Vec<TokenStream> = element.fields.iter().map(field_row).collect();
+    let variants: Vec<TokenStream> = element
+        .variants
+        .iter()
+        .map(|variant| {
+            let name = variant.name.value.as_str();
+            let payload = field_kind_row(&variant.payload);
+            quote! {
+                ::deckmaste_construction_compiler::runtime::ElementVariantData {
+                    name: #name,
+                    payload: #payload,
+                }
+            }
+        })
+        .collect();
     quote! {
         ::deckmaste_construction_compiler::runtime::ElementData {
             name: #name,
             bind_path: #bind_path,
             fields: &[#(#fields),*],
+            variants: &[#(#variants),*],
         }
     }
 }
@@ -844,6 +922,19 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
     for element in &group.elements {
         if element.bind_path.is_none() {
             items.push(pascal_ident(&element.name.value));
+        } else if !element.variants.is_empty() {
+            items.push(quote::format_ident!(
+                "{}VariantRef",
+                crate::model::pascal_case(&element.name.value)
+            ));
+            items.push(quote::format_ident!("parts_{}", element.name.value));
+            for variant in &element.variants {
+                items.push(quote::format_ident!(
+                    "build_{}_{}",
+                    element.name.value,
+                    crate::model::snake_case(&variant.name.value),
+                ));
+            }
         }
     }
     for construction in &group.constructions {
@@ -916,6 +1007,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Optional {
@@ -976,6 +1068,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("comma".to_owned()),
                 kind: crate::model::FieldKind::Scalar {
@@ -1053,6 +1146,51 @@ mod tests {
     }
 
     #[test]
+    fn bound_enum_element_emits_total_typed_parts_and_builders() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group enum_mapping;
+            element nominal_complement bind NominalComplement {
+                variant Adjective: hole AdjectivePhrase,
+                variant EventClause: hole box IndependentClause,
+            }
+        })
+        .expect("typed variant fixture parses");
+        let validated = validate(&group).expect("typed variant fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("pub enum NominalComplementVariantRef<'a>"),
+            "a heterogeneous borrowed view carries every payload type: {rendered}",
+        );
+        assert!(
+            rendered.contains("Adjective(&'a AdjectivePhrase)")
+                && rendered.contains("EventClause(&'a Box<IndependentClause>)"),
+            "the borrowed view preserves variant order, payload types, and boxing: {rendered}",
+        );
+        assert!(
+            rendered.contains("pub fn parts_nominal_complement(")
+                && rendered.contains("NominalComplement::Adjective(payload)")
+                && rendered.contains("NominalComplement::EventClause(payload)"),
+            "the destructurer exhaustively names every Rust enum case: {rendered}",
+        );
+        assert!(
+            rendered.contains("pub fn build_nominal_complement_adjective(")
+                && rendered.contains("NominalComplement::Adjective(payload)"),
+            "each variant has a typed builder: {rendered}",
+        );
+        assert!(
+            rendered.contains("pub fn build_nominal_complement_event_clause(")
+                && rendered.contains("payload: Box<IndependentClause>"),
+            "boxed payload builders preserve the declared Rust type: {rendered}",
+        );
+        assert!(
+            rendered.contains("variants: &[")
+                && rendered.contains("ElementVariantData")
+                && rendered.contains("name: \"EventClause\""),
+            "runtime declaration metadata carries ordered variant rows: {rendered}",
+        );
+    }
+
+    #[test]
     fn opt_in_construction_gains_validating_deserialize() {
         let mut group = crate::validate::fixtures::minimal_own_group();
         group.constructions[0].deserialize = true;
@@ -1084,6 +1222,7 @@ mod tests {
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
             bind_path: None,
+            variants: vec![],
             fields: vec![crate::model::FieldBinding {
                 field: crate::model::Spanned::call_site("tag".to_owned()),
                 kind: crate::model::FieldKind::Subtree {
