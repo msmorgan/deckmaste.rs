@@ -34,6 +34,13 @@ impl Kind {
         }
     }
 
+    /// Whether an expansion at this kind is wrapped in invocation provenance
+    /// (the kind carries an `Expanded(Expansion<Self>)` variant).
+    #[must_use]
+    pub fn remembers_invocation(&self) -> bool {
+        self.remembers
+    }
+
     /// This kind's position name (the type's serde name).
     #[must_use]
     pub fn name(&self) -> &str {

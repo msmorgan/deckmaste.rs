@@ -24,6 +24,8 @@ pub(crate) fn empty_arc<T>() -> Arc<[T]> {
     Arc::from([])
 }
 
+pub mod authoring;
+
 mod ability;
 pub use ability::Ability;
 pub use ability::ActivatedAbility;
