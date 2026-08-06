@@ -5,6 +5,7 @@
 
 use clap::Parser;
 use clap::Subcommand;
+use xtask::authoring::ScaffoldIdentityArgs;
 use xtask::card::CardArgs;
 use xtask::catalogs::CatalogArgs;
 use xtask::cite::CiteArgs;
@@ -67,6 +68,9 @@ enum Cmd {
     IdrisCheck(IdrisCheckArgs),
     /// On-demand "bearings" dumps of current code shape (`enums`/`idris`).
     Map(MapArgs),
+    /// Write one identity-macro scaffold per reachable variant that needs
+    /// one and has no def yet (spec §5); never overwrites an existing def.
+    ScaffoldIdentity(ScaffoldIdentityArgs),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -86,6 +90,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Macro(args) => xtask::macros::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
+        Cmd::ScaffoldIdentity(args) => xtask::authoring::run(&args),
     }
 }
 

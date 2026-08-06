@@ -1297,7 +1297,25 @@ fn cause_verbs_are_entailment_rows() {
     let mut bad: BTreeSet<String> = BTreeSet::new();
     for text in accept_corpus() {
         for c in use_verb.captures_iter(&text) {
-            let verb = c[1].to_string();
+            let m = c.get(1).unwrap();
+            // A macro's own def forwards its argument as `verb: Param(name)`
+            // (an identity macro over a `verb:`-carrying struct is the
+            // clearest case) — that's a hole for the CALL SITE's spelling,
+            // not itself a verb spelling, and the call site's own literal
+            // text is what this scan actually needs to catch. Narrowly
+            // skip only the literal `Param(` forwarding shape (not "any
+            // captured word followed by `(`", which would also blind the
+            // scan to a real typo'd verb that happens to precede a
+            // parenthesized fragment elsewhere in the match). No scaffold
+            // currently hits this (`EventFilter::Act`'s `verb` field is
+            // elision-blocked — `macro-ron-optional-param-elision.md` — so
+            // it isn't scaffolded at all right now); kept because a
+            // `verb`-forwarding macro is a real, expected shape once that
+            // gap closes, not a one-off.
+            if m.as_str() == "Param" && text.as_bytes().get(m.end()) == Some(&b'(') {
+                continue;
+            }
+            let verb = m.as_str().to_string();
             if !known.contains(&verb) && !act_fact_only.contains(verb.as_str()) {
                 bad.insert(verb);
             }

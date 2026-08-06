@@ -9,6 +9,7 @@
     keeping accurate here, unlike in the library crates"
 )]
 
+pub mod authoring;
 pub mod card;
 pub mod catalogs;
 pub mod cite;
